@@ -1,0 +1,451 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 0%; /* Preto */
+    --foreground: 0 0% 80%; /* Cinza Claro */
+
+    --card: 0 0% 20%; /* Cinza Grafite */
+    --card-foreground: 0 0% 80%; /* Cinza Claro */
+
+    --popover: 0 0% 20%; /* Cinza Grafite */
+    --popover-foreground: 0 0% 80%; /* Cinza Claro */
+
+    --primary: 0 100% 43%; /* Vermelho Escuro */
+    --primary-foreground: 0 0% 100%; /* Branco */
+
+    --secondary: 0 0% 80%; /* Cinza Claro */
+    --secondary-foreground: 0 0% 20%; /* Cinza Grafite */
+
+    --muted: 0 0% 30%; /* Cinza médio */
+    --muted-foreground: 0 0% 60%; /* Cinza um pouco mais claro */
+
+    --accent: 45 100% 50%; /* Amarelo */
+    --accent-foreground: 0 0% 0%; /* Preto */
+
+    --destructive: 0 100% 43%; /* Vermelho */
+    --destructive-foreground: 0 0% 100%; /* Branco */
+
+    --border: 0 0% 30%; /* Cinza escuro */
+    --input: 0 0% 30%; /* Cinza escuro */
+    --ring: 45 100% 50%; /* Amarelo */
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 20%; /* Cinza Grafite */
+    --sidebar-foreground: 0 0% 80%; /* Cinza Claro */
+    --sidebar-primary: 45 100% 50%; /* Amarelo */
+    --sidebar-primary-foreground: 0 0% 0%; /* Preto */
+    --sidebar-accent: 0 0% 15%; /* Cinza mais escuro */
+    --sidebar-accent-foreground: 0 0% 80%; /* Cinza Claro */
+    --sidebar-border: 0 0% 30%; /* Cinza escuro */
+    --sidebar-ring: 45 100% 50%; /* Amarelo */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  html, body {
+    height: 100%;
+    width: 100%;
+    max-width: 100vw;
+    @apply font-roboto bg-seguranca-black text-seguranca-lightgray;
+  }
+  
+  body {
+    @apply bg-seguranca-black text-seguranca-lightgray;
+  }
+  
+  #root {
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    @apply bg-seguranca-black;
+  }
+  
+
+  /* Scrollbar personalizada */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-seguranca-graphite;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+
+  /* Animações suaves */
+  .transition-all {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Melhorias para mobile */
+  @media (max-width: 768px) {
+    .mobile-sidebar-overlay {
+      backdrop-filter: blur(4px);
+    }
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-seguranca-darkred text-white hover:bg-seguranca-red transition-colors py-2 px-4 rounded-lg;
+  }
+  
+  .btn-secondary {
+    @apply bg-seguranca-graphite text-seguranca-lightgray hover:bg-gray-700 transition-colors py-2 px-4 rounded-lg;
+  }
+  
+  .btn-danger {
+    @apply bg-seguranca-red text-white hover:bg-red-700 transition-colors py-2 px-4 rounded-lg;
+  }
+  
+  .card-dashboard {
+    @apply bg-seguranca-graphite rounded-lg p-6 shadow-md hover:shadow-lg transition-all border border-gray-600;
+  }
+  
+  .form-input {
+    @apply bg-seguranca-graphite border border-gray-600 rounded-lg py-2 px-3 w-full text-seguranca-lightgray focus:ring-2 focus:ring-seguranca-yellow focus:outline-none;
+  }
+  
+  /* DatePicker styles */
+  .react-datepicker-wrapper {
+    @apply w-full;
+  }
+  
+  .react-datepicker__input-container input {
+    @apply bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded w-full h-10 px-3 focus:ring-2 focus:ring-seguranca-yellow focus:outline-none;
+  }
+  
+  .react-datepicker {
+    @apply bg-seguranca-graphite border border-gray-600 text-seguranca-lightgray;
+  }
+  
+  .react-datepicker__header {
+    @apply bg-seguranca-black border-gray-600;
+  }
+  
+  .react-datepicker__current-month {
+    @apply text-seguranca-lightgray;
+  }
+  
+  .react-datepicker__day-name {
+    @apply text-gray-400;
+  }
+  
+  .react-datepicker__day {
+    @apply text-seguranca-lightgray hover:bg-seguranca-black;
+  }
+  
+  .react-datepicker__day--selected {
+    @apply bg-seguranca-yellow text-black;
+  }
+  
+  .react-datepicker__day--keyboard-selected {
+    @apply bg-seguranca-yellow text-black;
+  }
+  
+  .react-datepicker__day--today {
+    @apply bg-seguranca-red text-white;
+  }
+  
+  .react-datepicker__navigation {
+    @apply text-seguranca-lightgray;
+  }
+  
+  .react-datepicker__month-container {
+    @apply bg-seguranca-graphite;
+  }
+  
+  .alert {
+    @apply bg-seguranca-yellow text-black p-4 rounded-lg border-l-4 border-yellow-500;
+  }
+  
+  .page-container {
+    @apply bg-seguranca-black min-h-screen text-seguranca-lightgray;
+  }
+  
+  .content-area {
+    @apply bg-seguranca-black p-6 rounded-lg;
+  }
+
+  /* Sidebar styles */
+  .sidebar-collapsed {
+    @apply w-16;
+  }
+
+  .sidebar-expanded {
+    @apply w-64;
+  }
+
+  .sidebar-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  /* Layout responsivo */
+  .main-content {
+    @apply transition-all duration-300;
+  }
+
+  .main-content-collapsed {
+    @apply ml-16;
+  }
+
+  .main-content-expanded {
+    @apply ml-64;
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .main-content-expanded {
+      @apply ml-0;
+    }
+    
+    .sidebar-mobile {
+      @apply -translate-x-full;
+    }
+    
+    .sidebar-mobile-open {
+      @apply translate-x-0;
+    }
+  }
+
+  /* Tooltip styles for collapsed sidebar */
+  .sidebar-tooltip {
+    @apply bg-seguranca-black text-seguranca-lightgray border border-gray-600;
+  }
+
+  /* Active state improvements */
+  .sidebar-item-active {
+    @apply bg-seguranca-black text-seguranca-yellow shadow-lg;
+  }
+
+  .sidebar-item-hover {
+    @apply hover:bg-seguranca-black hover:text-seguranca-yellow transition-colors;
+  }
+
+  /* Header improvements */
+  .header-sticky {
+    @apply sticky top-0 z-40 backdrop-blur-sm bg-seguranca-black/95;
+  }
+
+  /* Content area improvements */
+  .content-wrapper {
+    @apply bg-seguranca-black rounded-lg border border-gray-700 shadow-lg;
+  }
+
+  /* Tab animations and improvements */
+  .tab-container {
+    @apply relative overflow-hidden;
+  }
+
+  .tab-trigger {
+    @apply relative overflow-hidden;
+  }
+
+  .tab-trigger::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-seguranca-yellow/10 to-yellow-500/10 opacity-0 transition-opacity duration-300;
+  }
+
+  .tab-trigger:hover::before {
+    @apply opacity-100;
+  }
+
+  .tab-trigger[data-state="active"]::before {
+    @apply opacity-100;
+  }
+
+  .tab-indicator {
+    @apply absolute bottom-0 left-0 h-1 bg-gradient-to-r from-seguranca-yellow to-yellow-500 rounded-full transition-all duration-500 ease-out;
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 640px) {
+    .tab-trigger {
+      @apply min-h-[60px] py-2;
+    }
+    
+    .tab-trigger .tab-content {
+      @apply flex-col gap-1;
+    }
+  }
+
+  /* Smooth transitions for all tab elements */
+  .tab-transition {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  /* Hover effects */
+  .tab-hover-effect {
+    @apply transform transition-transform duration-200 ease-out hover:scale-105;
+  }
+
+  /* Active state glow */
+  .tab-active-glow {
+    @apply shadow-lg shadow-seguranca-yellow/25;
+  }
+
+  /* Classes personalizadas para responsividade melhorada */
+  .responsive-button {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  .responsive-button:hover {
+    @apply transform scale-105 shadow-lg;
+  }
+  
+  .responsive-button:active {
+    @apply transform scale-95;
+  }
+  
+  /* Breakpoint personalizado para telas muito pequenas - removido pois não é necessário */
+  
+  /* Melhorias para touch em dispositivos móveis */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  /* Animações suaves para elementos responsivos */
+  .responsive-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  /* Melhor contraste para botões em mobile */
+  @media (max-width: 768px) {
+    .mobile-button {
+      @apply border-2 font-semibold;
+    }
+  }
+
+  /* Estilos específicos para o chatbot */
+  .chatbot-button {
+    @apply fixed z-50;
+    right: max(12px, min(24px, calc(100vw - 60px)));
+    bottom: 12px;
+  }
+
+  @media (min-width: 640px) {
+    .chatbot-button {
+      right: 24px;
+      bottom: 24px;
+    }
+  }
+
+  /* Prevenir scroll horizontal em modais */
+  .chatbot-modal {
+    max-width: calc(100vw - 16px) !important;
+    width: calc(100vw - 16px) !important;
+    margin: 8px !important;
+  }
+
+  @media (min-width: 640px) {
+    .chatbot-modal {
+      max-width: 28rem !important;
+      width: 28rem !important;
+      margin: 0 auto !important;
+    }
+  }
+  
+  /* Estilos para modal de especialista */
+  .specialist-modal {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    max-width: calc(100vw - 32px) !important;
+    width: calc(100vw - 32px) !important;
+    max-height: calc(100vh - 32px) !important;
+    margin: 0 !important;
+    overflow-x: hidden !important;
+  }
+  @media (min-width: 640px) {
+    .specialist-modal {
+      max-width: 600px !important;
+      width: 600px !important;
+    }
+  }
+  @media (min-width: 768px) {
+    .specialist-modal {
+      max-width: 700px !important;
+      width: 700px !important;
+    }
+  }
+  @media (min-width: 1024px) {
+    .specialist-modal {
+      max-width: 800px !important;
+      width: 800px !important;
+    }
+  }
+  
+  /* Garantir que conteúdo interno não cause overflow horizontal */
+  .specialist-modal * {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+  
+  .specialist-modal .space-x-4 > * + * {
+    margin-left: 1rem !important;
+  }
+  
+  .specialist-modal .flex {
+    flex-wrap: wrap !important;
+  }
+
+  /* Garantir que elementos não causem overflow */
+  * {
+    box-sizing: border-box;
+  }
+
+  /* Prevenir scroll horizontal global - mais específico */
+  @media (max-width: 640px) {
+    body {
+      overflow-x: hidden !important;
+    }
+    
+    /* Apenas containers que podem causar overflow */
+    .container {
+      max-width: 100vw !important;
+      padding-left: 1rem !important;
+      padding-right: 1rem !important;
+    }
+    
+    /* Garantir que seções não causem overflow */
+    section {
+      max-width: 100vw !important;
+      overflow-x: hidden !important;
+    }
+    
+    /* Garantir que elementos AOS sejam visíveis */
+    [data-aos] {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    
+    .aos-init {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  }
+}

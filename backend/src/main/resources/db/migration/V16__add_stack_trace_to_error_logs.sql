@@ -1,0 +1,1 @@
+ALTER TABLE error_logs ADD COLUMN stack_trace TEXT; 

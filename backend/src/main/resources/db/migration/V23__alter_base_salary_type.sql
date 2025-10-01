@@ -1,0 +1,2 @@
+ALTER TABLE payrolls
+ALTER COLUMN base_salary TYPE FLOAT; 

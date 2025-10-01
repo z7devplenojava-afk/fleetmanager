@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport name="fine-report-simple" 
+              pageWidth="595" 
+              pageHeight="842" 
+              columnWidth="555" 
+              leftMargin="20" 
+              rightMargin="20" 
+              topMargin="20" 
+              bottomMargin="20">
+    
+    <!-- Campos -->
+    <field name="id" class="java.util.UUID"/>
+    <field name="vehiclePlate" class="java.lang.String"/>
+    <field name="vehicleBrand" class="java.lang.String"/>
+    <field name="vehicleModel" class="java.lang.String"/>
+    <field name="driverName" class="java.lang.String"/>
+    <field name="driverLicenseNumber" class="java.lang.String"/>
+    <field name="infractionDate" class="java.time.LocalDate"/>
+    <field name="description" class="java.lang.String"/>
+    <field name="amount" class="java.math.BigDecimal"/>
+    <field name="location" class="java.lang.String"/>
+    <field name="status" class="java.lang.String"/>
+    <field name="dueDate" class="java.time.LocalDate"/>
+    <field name="paymentDate" class="java.time.LocalDate"/>
+    <field name="createdAt" class="java.time.LocalDate"/>
+    <field name="overdue" class="java.lang.Boolean"/>
+    
+    <!-- Título -->
+    <title>
+        <band height="50">
+            <staticText>
+                <reportElement x="0" y="0" width="555" height="30"/>
+                <textElement textAlignment="Center">
+                    <font size="18" isBold="true"/>
+                </textElement>
+                <text><![CDATA[RELATÓRIO DE MULTAS]]></text>
+            </staticText>
+        </band>
+    </title>
+    
+    <!-- Cabeçalho das colunas -->
+    <columnHeader>
+        <band height="30">
+            <staticText>
+                <reportElement x="0" y="0" width="80" height="20"/>
+                <textElement>
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Veículo]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="80" y="0" width="100" height="20"/>
+                <textElement>
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Motorista]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="180" y="0" width="100" height="20"/>
+                <textElement>
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Data Infração]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="280" y="0" width="80" height="20"/>
+                <textElement>
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Valor]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="360" y="0" width="60" height="20"/>
+                <textElement>
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Status]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="420" y="0" width="80" height="20"/>
+                <textElement>
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Vencimento]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+    
+    <!-- Detalhes -->
+    <detail>
+        <band height="25">
+            <textField>
+                <reportElement x="0" y="0" width="80" height="20"/>
+                <textElement>
+                    <font size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{vehiclePlate}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="80" y="0" width="100" height="20"/>
+                <textElement>
+                    <font size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{driverName} != null ? $F{driverName} : "Não informado"]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="180" y="0" width="100" height="20"/>
+                <textElement>
+                    <font size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{infractionDate}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="280" y="0" width="80" height="20"/>
+                <textElement>
+                    <font size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA["R$ " + $F{amount}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="360" y="0" width="60" height="20"/>
+                <textElement>
+                    <font size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="420" y="0" width="80" height="20"/>
+                <textElement>
+                    <font size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{dueDate}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+    
+    <!-- Rodapé -->
+    <summary>
+        <band height="30">
+            <textField>
+                <reportElement x="0" y="0" width="555" height="20"/>
+                <textElement textAlignment="Center">
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Relatório gerado em: " + new java.util.Date()]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+    
+</jasperReport>

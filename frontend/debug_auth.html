@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Auth Frontend</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Debug Auth Frontend</h1>
+    
+    <div class="section info">
+        <h3>1. Verificar localStorage</h3>
+        <button onclick="checkLocalStorage()">Verificar localStorage</button>
+        <div id="localStorageResult"></div>
+    </div>
+
+    <div class="section info">
+        <h3>2. Testar Login</h3>
+        <button onclick="testLogin()">Fazer Login</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="section info">
+        <h3>3. Testar API de Veículos</h3>
+        <button onclick="testVehicles()">Buscar Veículos</button>
+        <div id="vehiclesResult"></div>
+    </div>
+
+    <div class="section info">
+        <h3>4. Testar Axios Config</h3>
+        <button onclick="testAxiosConfig()">Testar Configuração</button>
+        <div id="axiosResult"></div>
+    </div>
+
+    <script>
+        function checkLocalStorage() {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            
+            let result = '<h4>Resultado:</h4>';
+            result += `<p><strong>Token:</strong> ${token ? 'Presente' : 'Ausente'}</p>`;
+            if (token) {
+                result += `<p><strong>Token (primeiros 20 chars):</strong> ${token.substring(0, 20)}...</p>`;
+            }
+            result += `<p><strong>User:</strong> ${user ? 'Presente' : 'Ausente'}</p>`;
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    result += `<pre>${JSON.stringify(userData, null, 2)}</pre>`;
+                } catch (e) {
+                    result += `<p class="error">Erro ao parsear user: ${e.message}</p>`;
+                }
+            }
+            
+            document.getElementById('localStorageResult').innerHTML = result;
+        }
+
+        async function testLogin() {
+            try {
+                const response = await fetch('http://localhost:8081/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'superadmin',
+                        password: 'Password123!'
+                    })
+                });
+
+                const data = await response.json();
+                
+                let result = '<h4>Resultado do Login:</h4>';
+                if (response.ok) {
+                    result += `<p class="success">✓ Login realizado com sucesso!</p>`;
+                    result += `<p><strong>Token:</strong> ${data.token.substring(0, 20)}...</p>`;
+                    result += `<p><strong>User:</strong> ${data.user.fullName} (${data.user.role})</p>`;
+                    
+                    // Salvar no localStorage
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    result += `<p class="success">✓ Dados salvos no localStorage</p>`;
+                } else {
+                    result += `<p class="error">✗ Erro no login: ${data.message}</p>`;
+                }
+                
+                document.getElementById('loginResult').innerHTML = result;
+            } catch (error) {
+                document.getElementById('loginResult').innerHTML = `<p class="error">Erro: ${error.message}</p>`;
+            }
+        }
+
+        async function testVehicles() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                document.getElementById('vehiclesResult').innerHTML = '<p class="error">Faça login primeiro!</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8081/api/vehicles', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                let result = '<h4>Resultado da API de Veículos:</h4>';
+                if (response.ok) {
+                    result += `<p class="success">✓ Veículos encontrados: ${data.length}</p>`;
+                    result += '<ul>';
+                    data.forEach(v => {
+                        result += `<li>${v.plate} - ${v.brand} ${v.model} (${v.year})</li>`;
+                    });
+                    result += '</ul>';
+                } else {
+                    result += `<p class="error">✗ Erro: ${data.message || 'Erro desconhecido'}</p>`;
+                    result += `<p><strong>Status:</strong> ${response.status}</p>`;
+                }
+                
+                document.getElementById('vehiclesResult').innerHTML = result;
+            } catch (error) {
+                document.getElementById('vehiclesResult').innerHTML = `<p class="error">Erro: ${error.message}</p>`;
+            }
+        }
+
+        async function testAxiosConfig() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                document.getElementById('axiosResult').innerHTML = '<p class="error">Faça login primeiro!</p>';
+                return;
+            }
+
+            try {
+                // Simular configuração do axios
+                const baseURL = 'http://localhost:8081';
+                const headers = {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                };
+
+                const response = await fetch(`${baseURL}/api/vehicles`, {
+                    method: 'GET',
+                    headers: headers
+                });
+
+                const data = await response.json();
+                
+                let result = '<h4>Resultado da Configuração Axios:</h4>';
+                result += `<p><strong>Base URL:</strong> ${baseURL}</p>`;
+                result += `<p><strong>Headers:</strong></p>`;
+                result += `<pre>${JSON.stringify(headers, null, 2)}</pre>`;
+                
+                if (response.ok) {
+                    result += `<p class="success">✓ Requisição bem-sucedida!</p>`;
+                    result += `<p>Veículos encontrados: ${data.length}</p>`;
+                } else {
+                    result += `<p class="error">✗ Erro na requisição</p>`;
+                    result += `<p>Status: ${response.status}</p>`;
+                }
+                
+                document.getElementById('axiosResult').innerHTML = result;
+            } catch (error) {
+                document.getElementById('axiosResult').innerHTML = `<p class="error">Erro: ${error.message}</p>`;
+            }
+        }
+
+        // Verificar localStorage ao carregar a página
+        window.onload = function() {
+            checkLocalStorage();
+        };
+    </script>
+</body>
+</html> 

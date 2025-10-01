@@ -1,0 +1,1 @@
+ALTER TABLE error_logs ADD COLUMN endpoint VARCHAR(255); 

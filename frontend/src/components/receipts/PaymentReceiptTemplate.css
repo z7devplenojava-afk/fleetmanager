@@ -1,0 +1,335 @@
+.payment-receipt-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+.payment-receipt {
+  background: white;
+  width: 100%;
+  max-width: 600px;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  font-family: 'Arial', sans-serif;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* Header com logo e branding */
+.receipt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.logo-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.logo {
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+  background: #000;
+  color: #fff;
+  padding: 5px 10px;
+  margin-bottom: 4px;
+}
+
+.brand-tagline {
+  font-size: 10px;
+  color: #666;
+  font-style: normal;
+}
+
+.time-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #000;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 0;
+}
+
+.time-number {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.time-text {
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+/* Linha separadora */
+.separator-line {
+  height: 1px;
+  background: #000;
+  margin: 15px 0;
+  border-radius: 0;
+}
+
+/* Título principal */
+.main-title-section {
+  text-align: left;
+  margin-bottom: 15px;
+}
+
+.main-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+  margin: 0 0 15px 0;
+  text-transform: none;
+  display: flex;
+  justify-content: space-between;
+}
+
+.transaction-type {
+  font-size: 12px;
+  color: #666;
+  font-style: normal;
+}
+
+/* Identificação no extrato */
+.statement-identification {
+  font-size: 12px;
+  color: #000;
+  margin-bottom: 20px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  border-left: none;
+  margin-left: 20px;
+  font-weight: bold;
+}
+
+/* Seções de conta */
+.account-section {
+  margin-bottom: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: bold;
+  color: #000;
+  margin: 0 0 10px 0;
+  text-transform: none;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+}
+
+.label {
+  font-weight: bold;
+  color: #34495e;
+  min-width: 80px;
+}
+
+.value {
+  color: #2c3e50;
+  font-weight: 500;
+  text-align: right;
+  flex: 1;
+  margin-left: 10px;
+}
+
+/* Valor da transação */
+.transaction-value {
+  text-align: left;
+  margin: 20px 0;
+  padding: 10px 0;
+  background: transparent;
+  color: #000;
+  border-top: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.value-label {
+  font-size: 14px;
+  display: inline;
+  margin-bottom: 0;
+  text-transform: none;
+  font-weight: bold;
+}
+
+.value-amount {
+  font-size: 14px;
+  font-weight: bold;
+  display: inline;
+  margin-left: 10px;
+}
+
+/* Detalhes da transação */
+.transaction-details {
+  margin-bottom: 25px;
+}
+
+.transaction-info p {
+  margin: 0 0 15px 0;
+  color: #34495e;
+  line-height: 1.5;
+}
+
+.authentication {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px;
+  background: #ecf0f1;
+  border-radius: 4px;
+  border: 1px solid #bdc3c7;
+}
+
+.auth-label {
+  font-weight: bold;
+  color: #2c3e50;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.auth-code {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: #e74c3c;
+  font-weight: bold;
+  word-break: break-all;
+  background: white;
+  padding: 5px;
+  border-radius: 3px;
+  border: 1px solid #ddd;
+}
+
+/* Linha de corte */
+.cut-line {
+  margin-top: 30px;
+  text-align: center;
+  border-top: 2px dashed #000;
+  padding-top: 10px;
+}
+
+.dashed-line {
+  display: none;
+}
+
+.cut-text {
+  font-size: 10px;
+  color: #666;
+  text-transform: none;
+  font-weight: normal;
+}
+
+/* Botões de ação */
+.receipt-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+  justify-content: center;
+}
+
+.action-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.print-button {
+  background: #27ae60;
+  color: white;
+}
+
+.print-button:hover {
+  background: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+}
+
+.download-button {
+  background: #3498db;
+  color: white;
+}
+
+.download-button:hover {
+  background: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .payment-receipt {
+    padding: 20px;
+    margin: 10px;
+  }
+  
+  .main-title {
+    font-size: 24px;
+  }
+  
+  .value-amount {
+    font-size: 28px;
+  }
+  
+  .receipt-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .action-button {
+    width: 100%;
+    max-width: 200px;
+  }
+}
+
+/* Estilos para impressão */
+@media print {
+  .payment-receipt-container {
+    background: white;
+    padding: 0;
+  }
+  
+  .payment-receipt {
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+  
+  .receipt-actions {
+    display: none;
+  }
+  
+  .cut-line {
+    page-break-before: always;
+  }
+}

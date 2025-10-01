@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Ficha de Entrega de EPI</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; }
+    h2 { text-align: center; }
+    .dados { margin-bottom: 20px; }
+    .assinatura { margin-top: 60px; text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { border: 1px solid #333; padding: 4px 8px; text-align: left; }
+  </style>
+</head>
+<body>
+  <h2>Ficha de Entrega de EPI</h2>
+  <div class="dados">
+    <b>Funcionário:</b> <span th:text="${funcionario}"></span><br/>
+    <b>Empresa:</b> <span th:text="${empresa}"></span><br/>
+    <b>Data de Entrega:</b> <span th:text="${dataEntrega}"></span><br/>
+  </div>
+  <p>Relação de EPIs entregues:</p>
+  <table>
+    <thead>
+      <tr><th>EPI</th></tr>
+    </thead>
+    <tbody>
+      <tr th:each="epi : ${epis}"><td th:text="${epi}"></td></tr>
+    </tbody>
+  </table>
+  <div class="assinatura">
+    <div>Contagem, <span th:text="${dataAtual}"></span></div>
+    <br/><br/><br/>
+    ___________________________________________<br/>
+    <span th:text="${funcionario}"></span>
+  </div>
+</body>
+</html> 

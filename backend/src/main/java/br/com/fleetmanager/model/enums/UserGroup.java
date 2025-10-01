@@ -1,0 +1,16 @@
+package br.com.fleetmanager.model.enums;
+
+public enum UserGroup {
+    GRUPO_SUPER_ADMIN,
+    GRUPO_ADMIN,
+    GRUPO_GESTOR,
+    GRUPO_RH,
+    GRUPO_DPE,
+    GRUPO_SUPERVISOR,
+    GRUPO_COLABORADORES,
+    GRUPO_VIGILANTES,
+    GRUPO_FINANCEIRO,
+    GRUPO_TI_SUPORTE,
+    GRUPO_AUDITOR,
+    GRUPO_AUXILIARES
+} 

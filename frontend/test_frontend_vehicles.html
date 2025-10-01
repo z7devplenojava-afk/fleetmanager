@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste API Veículos</title>
+</head>
+<body>
+    <h1>Teste API Veículos</h1>
+    <button onclick="testLogin()">Fazer Login</button>
+    <button onclick="testVehicles()">Buscar Veículos</button>
+    <div id="result"></div>
+
+    <script>
+        let token = '';
+
+        async function testLogin() {
+            try {
+                const response = await fetch('http://localhost:8081/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'superadmin',
+                        password: 'Password123!'
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    token = data.token;
+                    document.getElementById('result').innerHTML = '<p style="color: green;">Login realizado com sucesso!</p>';
+                } else {
+                    document.getElementById('result').innerHTML = `<p style="color: red;">Erro no login: ${data.message}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = `<p style="color: red;">Erro: ${error.message}</p>`;
+            }
+        }
+
+        async function testVehicles() {
+            if (!token) {
+                document.getElementById('result').innerHTML = '<p style="color: red;">Faça login primeiro!</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8081/api/vehicles', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('result').innerHTML = `
+                        <p style="color: green;">Veículos encontrados: ${data.length}</p>
+                        <ul>
+                            ${data.map(v => `<li>${v.plate} - ${v.brand} ${v.model} (${v.year})</li>`).join('')}
+                        </ul>
+                    `;
+                } else {
+                    document.getElementById('result').innerHTML = `<p style="color: red;">Erro ao buscar veículos: ${data.message}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = `<p style="color: red;">Erro: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html> 

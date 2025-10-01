@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Ficha de Registro do Funcionário</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; }
+    h2 { text-align: center; }
+    .dados { margin-bottom: 20px; }
+    .assinatura { margin-top: 60px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h2>Ficha de Registro do Funcionário</h2>
+  <div class="dados">
+    <b>Funcionário:</b> <span th:text="${funcionario}"></span><br/>
+    <b>Empresa:</b> <span th:text="${empresa}"></span><br/>
+    <b>Data de Admissão:</b> <span th:text="${dataAdmissao}"></span><br/>
+    <b>Cargo:</b> <span th:text="${cargo}"></span><br/>
+    <b>Setor:</b> <span th:text="${setor}"></span><br/>
+    <b>Endereço:</b> <span th:text="${endereco}"></span><br/>
+  </div>
+  <p>Declaro que as informações acima são verdadeiras e que estou ciente das minhas responsabilidades como colaborador da empresa.</p>
+  <div class="assinatura">
+    <div>Contagem, <span th:text="${dataAtual}"></span></div>
+    <br/><br/><br/>
+    ___________________________________________<br/>
+    <span th:text="${funcionario}"></span>
+  </div>
+</body>
+</html> 

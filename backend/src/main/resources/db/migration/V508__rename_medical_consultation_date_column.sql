@@ -1,0 +1,4 @@
+-- V1004__rename_medical_consultation_date_column.sql
+
+ALTER TABLE activity_reports
+RENAME COLUMN medical_consultation_date TO medical_consultation_consultation_date;

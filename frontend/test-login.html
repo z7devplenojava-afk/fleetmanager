@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Login</title>
+</head>
+<body>
+    <h1>Teste de Login</h1>
+    <form id="loginForm">
+        <div>
+            <label for="username">Usuário:</label>
+            <input type="text" id="username" value="jose.ramos" required>
+        </div>
+        <div>
+            <label for="password">Senha:</label>
+            <input type="password" id="password" value="Admin1234" required>
+        </div>
+        <button type="submit">Fazer Login</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                console.log('Fazendo requisição para:', '/api/auth/login');
+                console.log('Dados:', { username, password });
+                
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                console.log('Status da resposta:', response.status);
+                console.log('Headers da resposta:', response.headers);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Dados da resposta:', data);
+                    resultDiv.innerHTML = '<p style="color: green;">Login bem-sucedido!</p><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                } else {
+                    const errorData = await response.json();
+                    console.error('Erro na resposta:', errorData);
+                    resultDiv.innerHTML = '<p style="color: red;">Erro no login:</p><pre>' + JSON.stringify(errorData, null, 2) + '</pre>';
+                }
+            } catch (error) {
+                console.error('Erro na requisição:', error);
+                resultDiv.innerHTML = '<p style="color: red;">Erro na requisição:</p><pre>' + error.message + '</pre>';
+            }
+        });
+    </script>
+</body>
+</html>

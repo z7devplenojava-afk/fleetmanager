@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <!-- Parte amarela (esquerda) -->
+  <path d="M0 0 L200 0 Q300 100 200 600 L0 600 Z" fill="url(#yellow-gradient)" />
+  
+  <!-- Parte vermelha (direita) -->
+  <path d="M200 0 Q400 0 400 150 Q400 300 200 300 Z" fill="url(#red-gradient)" />
+  
+  <!-- Texto "Promover" -->
+  <text x="270" y="380" font-family="Arial" font-size="80" font-weight="bold" fill="#FFF600">Promover</text>
+  
+  <!-- Texto "Vigilância Patrimonial - LTDA" -->
+  <text x="190" y="450" font-family="Arial" font-size="30" font-weight="normal" fill="#FFF600">Vigilância Patrimonial - LTDA</text>
+  
+  <!-- Gradientes -->
+  <defs>
+    <linearGradient id="yellow-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFF600" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+    
+    <linearGradient id="red-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FF0000" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+  </defs>
+</svg>

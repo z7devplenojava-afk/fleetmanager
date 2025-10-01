@@ -1,0 +1,181 @@
+/* Animações para o NotificationBell */
+.notification-bell-enter {
+  opacity: 0;
+  transform: scale(0.95) translateY(-10px);
+}
+
+.notification-bell-enter-active {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition: all 200ms ease-out;
+}
+
+.notification-bell-exit {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.notification-bell-exit-active {
+  opacity: 0;
+  transform: scale(0.95) translateY(-10px);
+  transition: all 150ms ease-in;
+}
+
+/* Animação para mensagens não lidas */
+.message-unread {
+  animation: pulse-border 2s infinite;
+}
+
+@keyframes pulse-border {
+  0% {
+    border-left-color: rgb(239 68 68);
+    box-shadow: -2px 0 0 0 rgba(239, 68, 68, 0.1);
+  }
+  50% {
+    border-left-color: rgb(239 68 68);
+    box-shadow: -2px 0 0 0 rgba(239, 68, 68, 0.3);
+  }
+  100% {
+    border-left-color: rgb(239 68 68);
+    box-shadow: -2px 0 0 0 rgba(239, 68, 68, 0.1);
+  }
+}
+
+/* Animação para o badge de contagem */
+.notification-badge {
+  animation: bounce-in 0.3s ease-out;
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Hover effects para mensagens */
+.message-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Transições suaves */
+.message-item {
+  transition: all 0.2s ease-out;
+}
+
+/* Efeito de loading */
+.loading-shimmer {
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.1) 25%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    rgba(255, 255, 255, 0.1) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Estilo para texto truncado com tooltip */
+.truncated-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.truncated-text:hover {
+  overflow: visible;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Indicador de prioridade */
+.priority-urgent {
+  border-left: 4px solid rgb(239 68 68);
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.1) 0%, transparent 100%);
+}
+
+.priority-high {
+  border-left: 4px solid rgb(249 115 22);
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.1) 0%, transparent 100%);
+}
+
+.priority-normal {
+  border-left: 4px solid rgb(59 130 246);
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, transparent 100%);
+}
+
+.priority-low {
+  border-left: 4px solid rgb(107 114 128);
+  background: linear-gradient(90deg, rgba(107, 114, 128, 0.1) 0%, transparent 100%);
+}
+
+/* Responsividade */
+@media (max-width: 640px) {
+  .notification-dropdown {
+    width: 90vw;
+    max-width: 350px;
+    right: 5vw;
+  }
+  
+  .message-item {
+    padding: 12px;
+  }
+  
+  .message-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* Dark mode específico */
+@media (prefers-color-scheme: dark) {
+  .message-item {
+    border-color: rgb(75 85 99);
+  }
+  
+  .message-item:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Acessibilidade */
+.message-item:focus {
+  outline: 2px solid rgb(59 130 246);
+  outline-offset: 2px;
+}
+
+.notification-bell:focus {
+  outline: 2px solid rgb(59 130 246);
+  outline-offset: 2px;
+}
+
+/* Animação de entrada para novas mensagens */
+.new-message {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+@keyframes slide-in-right {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
