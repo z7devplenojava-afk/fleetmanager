@@ -2,16 +2,42 @@
   display: flex;
   gap: 16px;
   overflow-x: auto;
+  overflow-y: visible;
+  width: 100%;
   min-width: 100%;
   min-height: 600px;
+  max-width: 100%;
   box-sizing: border-box;
   padding: 8px 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #fbbf24 #1f2937;
+}
+
+.kanban-board-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.kanban-board-scroll::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 4px;
+}
+
+.kanban-board-scroll::-webkit-scrollbar-thumb {
+  background: #fbbf24;
+  border-radius: 4px;
+}
+
+.kanban-board-scroll::-webkit-scrollbar-thumb:hover {
+  background: #f59e0b;
 }
 
 .kanban-column {
   min-width: 320px;
+  width: 320px;
   max-width: 380px;
   flex-shrink: 0;
+  flex-grow: 0;
   background: #1f2937;
   border-radius: 12px;
   padding: 16px;
@@ -20,7 +46,10 @@
   display: flex;
   flex-direction: column;
   height: fit-content;
+  min-height: 400px;
   border: 1px solid #374151;
+  overflow-y: auto;
+  overflow-x: visible;
 }
 
 .kanban-card {
@@ -65,10 +94,12 @@
 @media (max-width: 768px) {
   .kanban-board-scroll {
     gap: 12px;
+    padding-bottom: 16px;
   }
   
   .kanban-column {
     min-width: 280px;
+    width: 280px;
     max-width: 320px;
     padding: 12px;
   }
@@ -82,6 +113,7 @@
 @media (max-width: 480px) {
   .kanban-column {
     min-width: 260px;
+    width: 260px;
     max-width: 300px;
     padding: 8px;
   }

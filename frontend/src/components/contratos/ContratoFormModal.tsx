@@ -1,22 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { 
+  Loader2, 
+  FileText, 
+  Calendar, 
+  DollarSign, 
+  Users, 
+  Building2, 
+  Plus, 
+  Sparkles,
+  Bell,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  CalendarDays
+} from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { ptBR } from 'date-fns/locale';
 import { clientService } from '@/services/clientService';
 
 interface ContratoFormData {
   clientId: string;
   contractNumber: string;
   description: string;
-  startDate: string;
-  endDate?: string;
+  startDate: Date | null;
+  endDate?: Date | null;
   value: number;
   status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED' | 'PENDING';
   notes?: string;
@@ -47,8 +66,8 @@ export const ContratoFormModal: React.FC<ContratoFormModalProps> = ({
     clientId: '',
     contractNumber: '',
     description: '',
-    startDate: '',
-    endDate: '',
+    startDate: new Date(),
+    endDate: null,
     value: 0,
     status: 'ACTIVE',
     notes: '',
@@ -56,6 +75,42 @@ export const ContratoFormModal: React.FC<ContratoFormModalProps> = ({
     notificar_dp: false,
     notificar_operacional: false
   });
+
+  // Função para gerar número do contrato baseado no nome do cliente
+  const generateContractNumber = () => {
+    if (!formData.clientId) {
+      toast({
+        title: "Aviso",
+        description: "Selecione um cliente primeiro",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const selectedClient = clients.find(client => client.id === formData.clientId);
+    if (!selectedClient) return;
+
+    // Extrair sigla do nome do cliente (primeiras letras de cada palavra)
+    const clientName = selectedClient.name.toUpperCase();
+    const words = clientName.split(' ').filter(word => word.length > 0);
+    const sigla = words.map(word => word.charAt(0)).join('').substring(0, 4);
+    
+    // Gerar número com ano atual e sequencial
+    const currentYear = new Date().getFullYear();
+    const randomSuffix = Math.random().toString(36).substr(2, 4).toUpperCase();
+    
+    const contractNumber = `CON-${sigla}-${currentYear}-${randomSuffix}`;
+    
+    setFormData(prev => ({
+      ...prev,
+      contractNumber
+    }));
+
+    toast({
+      title: "Sucesso",
+      description: "Número do contrato gerado automaticamente!",
+    });
+  };
 
   // Carregar clientes quando o modal abrir
   useEffect(() => {
@@ -91,8 +146,8 @@ export const ContratoFormModal: React.FC<ContratoFormModalProps> = ({
     if (contrato) {
       setFormData({
         ...contrato,
-        startDate: contrato.startDate ? new Date(contrato.startDate).toISOString().split('T')[0] : '',
-        endDate: contrato.endDate ? new Date(contrato.endDate).toISOString().split('T')[0] : '',
+        startDate: contrato.startDate ? new Date(contrato.startDate) : new Date(),
+        endDate: contrato.endDate ? new Date(contrato.endDate) : null,
         notificar_rh: contrato.notificar_rh || false,
         notificar_dp: contrato.notificar_dp || false,
         notificar_operacional: contrato.notificar_operacional || false
@@ -102,8 +157,8 @@ export const ContratoFormModal: React.FC<ContratoFormModalProps> = ({
         clientId: '',
         contractNumber: '',
         description: '',
-        startDate: '',
-        endDate: '',
+        startDate: new Date(),
+        endDate: null,
         value: 0,
         status: 'ACTIVE',
         notes: '',
@@ -174,8 +229,8 @@ export const ContratoFormModal: React.FC<ContratoFormModalProps> = ({
         const contractData = {
           contractNumber,
           description: formData.description,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
+          startDate: formData.startDate ? formData.startDate.toISOString().split('T')[0] : '',
+          endDate: formData.endDate ? formData.endDate.toISOString().split('T')[0] : null,
           value: formData.value,
           status: formData.status,
           clientId: formData.clientId,
@@ -277,183 +332,326 @@ export const ContratoFormModal: React.FC<ContratoFormModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-seguranca-graphite border-gray-600">
-        <DialogHeader>
-          <DialogTitle className="text-seguranca-lightgray">
-            {contrato ? 'Editar Contrato' : 'Novo Contrato'}
-          </DialogTitle>
+      <DialogContent className="w-[95vw] max-w-[900px] max-h-[90vh] overflow-y-auto bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-2 border-gray-600/50 text-white p-0">
+        {/* Header Moderno */}
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-600/30 bg-seguranca-black/50">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-seguranca-red/20 border border-seguranca-red/30">
+              <FileText className="h-6 w-6 text-seguranca-red" />
+            </div>
+            <div>
+              <DialogTitle className="text-2xl font-bold text-white flex items-center gap-2">
+                {contrato ? 'Editar Contrato' : 'Novo Contrato'}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-gray-400 mt-1">
+                {contrato ? 'Atualize as informações do contrato' : 'Preencha os dados do novo contrato'}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="cliente" className="text-seguranca-lightgray">Cliente *</Label>
-              <Select
-                value={formData.clientId}
-                onValueChange={(value) => setFormData({ ...formData, clientId: value })}
-                required
-              >
-                <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                  <SelectValue placeholder="Selecione o cliente" />
-                </SelectTrigger>
-                <SelectContent className="bg-seguranca-graphite border-gray-600">
-                  {clients.map(client => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name} - {client.cnpj || 'Sem CNPJ'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="contractNumber" className="text-seguranca-lightgray">Número do Contrato</Label>
-              <Input
-                id="contractNumber"
-                value={formData.contractNumber}
-                onChange={(e) => setFormData({ ...formData, contractNumber: e.target.value })}
-                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                placeholder="Deixe em branco para gerar automaticamente"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="description" className="text-seguranca-lightgray">Descrição do Contrato *</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-              placeholder="Descreva os serviços do contrato..."
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="value" className="text-seguranca-lightgray">Valor (R$) *</Label>
-              <Input
-                id="value"
-                type="number"
-                step="0.01"
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
-                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="status" className="text-seguranca-lightgray">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => setFormData({ ...formData, status: value as any })}
-              >
-                <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-seguranca-graphite border-gray-600">
-                  <SelectItem value="ACTIVE">Ativo</SelectItem>
-                  <SelectItem value="PENDING">Pendente</SelectItem>
-                  <SelectItem value="INACTIVE">Inativo</SelectItem>
-                  <SelectItem value="TERMINATED">Terminado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startDate" className="text-seguranca-lightgray">Data de Início *</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="endDate" className="text-seguranca-lightgray">Data de Término</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="notes" className="text-seguranca-lightgray">Observações</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-              rows={3}
-              placeholder="Observações adicionais sobre o contrato..."
-            />
-          </div>
-
-          <div className="space-y-3">
-            <Label className="text-seguranca-lightgray">Notificar Departamentos:</Label>
+        <form onSubmit={handleSubmit} className="flex flex-col h-full">
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
             
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="notificar_rh"
-                checked={formData.notificar_rh}
-                onCheckedChange={(checked) => setFormData({ ...formData, notificar_rh: !!checked })}
-              />
-              <Label htmlFor="notificar_rh" className="text-seguranca-lightgray">Recursos Humanos</Label>
-            </div>
+            {/* Seção 1: Informações Básicas */}
+            <Card className="bg-seguranca-black/50 border-gray-600/50 p-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-seguranca-yellow flex items-center gap-2">
+                  <FileText size={18} />
+                  Informações Básicas
+                </h3>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Cliente */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
+                      <Users size={14} />
+                      Cliente *
+                    </Label>
+                    <Select
+                      value={formData.clientId}
+                      onValueChange={(value) => setFormData({ ...formData, clientId: value })}
+                      required
+                    >
+                      <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow h-12">
+                        <SelectValue placeholder="Selecione o cliente" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-seguranca-black border-gray-600">
+                        {clients.map(client => (
+                          <SelectItem 
+                            key={client.id} 
+                            value={client.id}
+                            className="text-seguranca-lightgray hover:bg-seguranca-graphite"
+                          >
+                            {client.name} - {client.cnpj || 'Sem CNPJ'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="notificar_dp"
-                checked={formData.notificar_dp}
-                onCheckedChange={(checked) => setFormData({ ...formData, notificar_dp: !!checked })}
-              />
-              <Label htmlFor="notificar_dp" className="text-seguranca-lightgray">Departamento Pessoal</Label>
-            </div>
+                  {/* Número do Contrato com Botão de Geração */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
+                      <FileText size={14} />
+                      Número do Contrato
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={formData.contractNumber}
+                        onChange={(e) => setFormData({ ...formData, contractNumber: e.target.value })}
+                        className="border-gray-600 bg-white text-black placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow h-12"
+                        placeholder="Deixe em branco para gerar automaticamente"
+                      />
+                      <Button
+                        type="button"
+                        onClick={generateContractNumber}
+                        className="bg-seguranca-yellow hover:bg-yellow-500 text-black px-4 h-12"
+                        disabled={!formData.clientId}
+                      >
+                        <Sparkles size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="notificar_operacional"
-                checked={formData.notificar_operacional}
-                onCheckedChange={(checked) => setFormData({ ...formData, notificar_operacional: !!checked })}
-              />
-              <Label htmlFor="notificar_operacional" className="text-seguranca-lightgray">Operacional</Label>
-            </div>
+                {/* Descrição */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
+                    <FileText size={14} />
+                    Descrição do Contrato *
+                  </Label>
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="border-gray-600 bg-white text-black placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow min-h-[100px]"
+                    placeholder="Descreva os serviços do contrato..."
+                    required
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* Seção 2: Informações Financeiras */}
+            <Card className="bg-seguranca-black/50 border-gray-600/50 p-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-seguranca-yellow flex items-center gap-2">
+                  <DollarSign size={18} />
+                  Informações Financeiras
+                </h3>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Valor */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-green-400 flex items-center gap-2">
+                      <DollarSign size={14} />
+                      Valor (R$) *
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.value}
+                      onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                      className="border-green-500 bg-white text-black placeholder:text-gray-500 focus:border-green-400 focus:ring-green-400 font-medium h-12"
+                      placeholder="0,00"
+                      required
+                    />
+                  </div>
+
+                  {/* Status */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
+                      <CheckCircle size={14} />
+                      Status
+                    </Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => setFormData({ ...formData, status: value as any })}
+                    >
+                      <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow h-12">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-seguranca-black border-gray-600">
+                        <SelectItem value="ACTIVE" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle size={14} className="text-green-500" />
+                            Ativo
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="PENDING" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                          <div className="flex items-center gap-2">
+                            <Clock size={14} className="text-yellow-500" />
+                            Pendente
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="INACTIVE" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle size={14} className="text-gray-500" />
+                            Inativo
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="TERMINATED" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle size={14} className="text-red-500" />
+                            Terminado
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Seção 3: Datas */}
+            <Card className="bg-seguranca-black/50 border-gray-600/50 p-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-seguranca-yellow flex items-center gap-2">
+                  <Calendar size={18} />
+                  Datas Importantes
+                </h3>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Data de Início */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
+                      <CalendarDays size={14} />
+                      Data de Início *
+                    </Label>
+                    <DatePicker
+                      selected={formData.startDate}
+                      onChange={(date: Date | null) => setFormData({ ...formData, startDate: date })}
+                      dateFormat="dd/MM/yyyy"
+                      locale={ptBR}
+                      placeholderText="dd/mm/aaaa"
+                      className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-seguranca-yellow bg-white text-black placeholder:text-gray-500 font-medium [&_input]:text-black [&_input]:bg-white [&_input]:placeholder-gray-500"
+                      required
+                    />
+                  </div>
+
+                  {/* Data de Término */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
+                      <CalendarDays size={14} />
+                      Data de Término
+                    </Label>
+                    <DatePicker
+                      selected={formData.endDate}
+                      onChange={(date: Date | null) => setFormData({ ...formData, endDate: date })}
+                      dateFormat="dd/MM/yyyy"
+                      locale={ptBR}
+                      placeholderText="dd/mm/aaaa"
+                      className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-seguranca-yellow bg-white text-black placeholder:text-gray-500 font-medium [&_input]:text-black [&_input]:bg-white [&_input]:placeholder-gray-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Seção 4: Observações */}
+            <Card className="bg-seguranca-black/50 border-gray-600/50 p-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-seguranca-yellow flex items-center gap-2">
+                  <FileText size={18} />
+                  Observações
+                </h3>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
+                    <FileText size={14} />
+                    Observações Adicionais
+                  </Label>
+                  <Textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    className="border-gray-600 bg-white text-black placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow min-h-[100px]"
+                    rows={4}
+                    placeholder="Observações adicionais sobre o contrato..."
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* Seção 5: Notificações */}
+            <Card className="bg-seguranca-black/50 border-gray-600/50 p-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-seguranca-yellow flex items-center gap-2">
+                  <Bell size={18} />
+                  Notificar Departamentos
+                </h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-seguranca-graphite/30 border border-gray-600/30">
+                    <Checkbox
+                      id="notificar_rh"
+                      checked={formData.notificar_rh}
+                      onCheckedChange={(checked) => setFormData({ ...formData, notificar_rh: !!checked })}
+                      className="border-seguranca-yellow data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
+                    />
+                    <Label htmlFor="notificar_rh" className="text-seguranca-lightgray font-medium">
+                      Recursos Humanos
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-seguranca-graphite/30 border border-gray-600/30">
+                    <Checkbox
+                      id="notificar_dp"
+                      checked={formData.notificar_dp}
+                      onCheckedChange={(checked) => setFormData({ ...formData, notificar_dp: !!checked })}
+                      className="border-seguranca-yellow data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
+                    />
+                    <Label htmlFor="notificar_dp" className="text-seguranca-lightgray font-medium">
+                      Departamento Pessoal
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-seguranca-graphite/30 border border-gray-600/30">
+                    <Checkbox
+                      id="notificar_operacional"
+                      checked={formData.notificar_operacional}
+                      onCheckedChange={(checked) => setFormData({ ...formData, notificar_operacional: !!checked })}
+                      className="border-seguranca-yellow data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
+                    />
+                    <Label htmlFor="notificar_operacional" className="text-seguranca-lightgray font-medium">
+                      Operacional
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="bg-seguranca-red hover:bg-seguranca-darkred"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                'Salvar Contrato'
-              )}
-            </Button>
+          {/* Footer com Botões */}
+          <div className="px-6 py-4 border-t border-gray-600/30 bg-seguranca-black/50">
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="border-gray-600 text-white hover:bg-seguranca-black h-12 px-6"
+                disabled={loading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="bg-seguranca-red hover:bg-red-700 text-white h-12 px-6"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Plus size={16} className="mr-2" />
+                    {contrato ? 'Atualizar' : 'Criar'} Contrato
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

@@ -20,16 +20,16 @@ class EPIReceiptGenerator {
       </tr>
     `).join('');
 
-    // Adicionar linhas vazias para completar 25 linhas
-    const emptyRows = Array.from({ length: Math.max(0, 25 - record.equipmentItems.length) }, (_, index) => `
+    // Adicionar linhas vazias para completar 10 linhas (reduzido para caber em uma página)
+    const emptyRows = Array.from({ length: Math.max(0, Math.min(10 - record.equipmentItems.length, 10)) }, (_, index) => `
       <tr>
-        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 11px;">${record.equipmentItems.length + index + 1}</td>
-        <td style="border: 1px solid #000; padding: 8px; text-align: left; font-size: 11px;">&nbsp;</td>
-        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 11px;">&nbsp;</td>
-        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 11px;">&nbsp;</td>
-        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 11px;">&nbsp;</td>
-        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 11px;">&nbsp;</td>
-        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 11px;">&nbsp;</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center; font-size: 8px;">${record.equipmentItems.length + index + 1}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: left; font-size: 8px;">&nbsp;</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center; font-size: 8px;">&nbsp;</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center; font-size: 8px;">&nbsp;</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center; font-size: 8px;">&nbsp;</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center; font-size: 8px;">&nbsp;</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center; font-size: 8px;">&nbsp;</td>
       </tr>
     `).join('');
 
@@ -96,64 +96,64 @@ class EPIReceiptGenerator {
           }
           .title {
             text-align: center;
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
-            margin: 30px 0;
+            margin: 15px 0;
             text-transform: uppercase;
             letter-spacing: 1px;
           }
           .employee-info {
-            margin: 20px 0;
-            padding: 20px;
+            margin: 10px 0;
+            padding: 12px;
             border: 1px solid #000;
           }
           .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
+            gap: 10px;
+            margin-bottom: 10px;
           }
           .info-item {
             display: flex;
             flex-direction: column;
           }
           .info-label {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
             color: #2c3e50;
           }
           .info-value {
-            font-size: 12px;
-            padding: 8px;
+            font-size: 10px;
+            padding: 5px;
             border: 1px solid #000;
             background-color: white;
-            min-height: 20px;
+            min-height: 15px;
           }
           .equipment-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
+            margin: 10px 0;
           }
           .equipment-table th {
             background-color: #34495e;
             color: white;
             font-weight: bold;
-            font-size: 11px;
+            font-size: 9px;
             text-align: center;
             border: 1px solid #000;
-            padding: 10px 5px;
+            padding: 5px 3px;
           }
           .equipment-table td {
-            font-size: 10px;
+            font-size: 8px;
             border: 1px solid #000;
-            padding: 6px;
+            padding: 4px;
           }
           .commitment-text {
-            font-size: 11px;
-            line-height: 1.4;
-            margin: 20px 0;
-            padding: 15px;
+            font-size: 9px;
+            line-height: 1.3;
+            margin: 10px 0;
+            padding: 10px;
             background-color: #f8f9fa;
             border: 1px solid #000;
             text-align: justify;
@@ -169,8 +169,8 @@ class EPIReceiptGenerator {
           .signature-section {
             display: flex;
             justify-content: space-between;
-            margin: 30px 0;
-            gap: 40px;
+            margin: 15px 0;
+            gap: 30px;
           }
           .signature-item {
             display: flex;
@@ -181,11 +181,11 @@ class EPIReceiptGenerator {
           .signature-line {
             border-bottom: 1px solid #000;
             width: 100%;
-            height: 40px;
-            margin-bottom: 10px;
+            height: 30px;
+            margin-bottom: 5px;
           }
           .signature-label {
-            font-size: 11px;
+            font-size: 9px;
             text-align: center;
             font-weight: bold;
           }

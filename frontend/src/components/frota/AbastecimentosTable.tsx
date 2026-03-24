@@ -10,6 +10,11 @@ import AbastecimentoDeleteDialog from './AbastecimentoDeleteDialog';
 import AbastecimentoReportModal from './AbastecimentoReportModal';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/axios';
+import fleetService from '@/services/fleetService';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Veiculo {
   id: string;
@@ -149,6 +154,77 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
     setIsReportModalOpen(true);
   };
 
+  const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
+  const [pdfFilters, setPdfFilters] = useState({
+    startDate: '',
+    endDate: '',
+    vehicleId: '',
+    fuelType: ''
+  });
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  const handleGeneratePDF = async () => {
+    if (!pdfFilters.startDate || !pdfFilters.endDate) {
+      toast({
+        title: "Filtros obrigatórios",
+        description: "Por favor, selecione as datas de início e fim.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGeneratingPDF(true);
+    try {
+      const filters: any = {
+        startDate: pdfFilters.startDate,
+        endDate: pdfFilters.endDate
+      };
+      
+      if (pdfFilters.vehicleId && pdfFilters.vehicleId !== 'all') {
+        filters.vehicleId = pdfFilters.vehicleId;
+      }
+      
+      if (pdfFilters.fuelType && pdfFilters.fuelType !== 'all') {
+        filters.fuelType = pdfFilters.fuelType;
+      }
+
+      const blob = await fleetService.exportFuelRecordsPDF(filters);
+      
+      // Criar URL para download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Definir nome do arquivo
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+      link.download = `relatorio_abastecimentos_${timestamp}.pdf`;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Relatório gerado com sucesso!",
+        description: "O relatório de abastecimentos foi baixado com sucesso.",
+        variant: "default",
+      });
+      
+      setIsPDFModalOpen(false);
+    } catch (error: any) {
+      console.error('Erro ao gerar relatório PDF:', error);
+      const errorMessage = error?.message || 'Ocorreu um erro ao gerar o relatório PDF. Tente novamente.';
+      toast({
+        title: "Erro ao gerar relatório",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   const handleEdit = (abastecimento: FuelRecord) => {
     console.log('Botão de edição clicado para:', abastecimento);
     setEditingAbastecimento(abastecimento);
@@ -228,6 +304,15 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPDFModalOpen(true)}
+              className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+            >
+              <FileText size={16} className="mr-2" />
+              Gerar Relatório PDF
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -711,6 +796,95 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
         onClose={() => setIsReportModalOpen(false)}
         veiculos={veiculos}
       />
+
+      {/* Modal de Geração de PDF */}
+      <Dialog open={isPDFModalOpen} onOpenChange={setIsPDFModalOpen}>
+        <DialogContent className="sm:max-w-md bg-seguranca-graphite border-gray-600">
+          <DialogHeader>
+            <DialogTitle className="text-seguranca-lightgray">
+              Gerar Relatório PDF de Abastecimentos
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-seguranca-lightgray">Data Início</Label>
+              <Input
+                type="date"
+                value={pdfFilters.startDate}
+                onChange={(e) => setPdfFilters({ ...pdfFilters, startDate: e.target.value })}
+                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-seguranca-lightgray">Data Fim</Label>
+              <Input
+                type="date"
+                value={pdfFilters.endDate}
+                onChange={(e) => setPdfFilters({ ...pdfFilters, endDate: e.target.value })}
+                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-seguranca-lightgray">Veículo</Label>
+              <Select 
+                value={pdfFilters.vehicleId} 
+                onValueChange={(value) => setPdfFilters({ ...pdfFilters, vehicleId: value })}
+              >
+                <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                  <SelectValue placeholder="Todos os veículos" />
+                </SelectTrigger>
+                <SelectContent className="bg-seguranca-graphite border-gray-600">
+                  <SelectItem value="all">Todos os veículos</SelectItem>
+                  {veiculos.map((veiculo) => (
+                    <SelectItem key={veiculo.id} value={veiculo.id}>
+                      {veiculo.placa} - {veiculo.marca} {veiculo.modelo}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-seguranca-lightgray">Combustível</Label>
+              <Select 
+                value={pdfFilters.fuelType} 
+                onValueChange={(value) => setPdfFilters({ ...pdfFilters, fuelType: value })}
+              >
+                <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                  <SelectValue placeholder="Todos os combustíveis" />
+                </SelectTrigger>
+                <SelectContent className="bg-seguranca-graphite border-gray-600">
+                  <SelectItem value="all">Todos os combustíveis</SelectItem>
+                  <SelectItem value="GASOLINE">Gasolina</SelectItem>
+                  <SelectItem value="ETHANOL">Etanol</SelectItem>
+                  <SelectItem value="DIESEL">Diesel</SelectItem>
+                  <SelectItem value="FLEX">Flex</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setIsPDFModalOpen(false)}
+                className="border-gray-600 text-gray-400 hover:bg-gray-700"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleGeneratePDF}
+                disabled={isGeneratingPDF}
+                className="bg-seguranca-red hover:bg-seguranca-darkred"
+              >
+                {isGeneratingPDF ? 'Gerando...' : 'Gerar PDF'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

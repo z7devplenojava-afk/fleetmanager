@@ -11,7 +11,7 @@ const UserMenu = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  
+
   const displayName = profile?.full_name || profile?.username || user?.email?.split('@')[0] || 'Usuário';
   const initials = displayName.substring(0, 2).toUpperCase();
 
@@ -26,26 +26,28 @@ const UserMenu = () => {
   return (
     <div className="relative flex items-center gap-3">
       {/* Nome do usuário - CLICÁVEL */}
-      <div 
-        className="text-right hidden md:block cursor-pointer hover:text-seguranca-yellow transition-colors p-2 rounded-lg hover:bg-seguranca-black"
+      <div
+        className="text-right hidden md:block cursor-pointer hover:text-primary transition-colors p-2.5 rounded-xl hover:bg-accent active:scale-95"
         onClick={handleProfileClick}
       >
-        <div className="text-sm font-medium text-seguranca-lightgray">{displayName}</div>
-        <div className="text-xs text-seguranca-yellow font-bold">SUPER_ADMIN</div>
+        <div className="text-sm font-medium text-foreground">{displayName}</div>
+        <div className="text-xs text-primary font-bold">
+          {user?.role && getRoleDisplayName(user.role as any)}
+        </div>
       </div>
-      
+
       {/* Botão Sair */}
-      <button 
+      <button
         onClick={() => signOut()}
-        className="px-3 py-1 bg-seguranca-red text-white text-xs rounded hover:bg-red-700 transition-colors"
+        className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-sm shadow-primary/20"
       >
         Sair
       </button>
 
       {/* Modal de Perfil */}
-      <UserProfileModal 
-        isOpen={isProfileModalOpen} 
-        onClose={() => setIsProfileModalOpen(false)} 
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
       />
     </div>
   );

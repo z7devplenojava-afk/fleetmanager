@@ -1,0 +1,360 @@
+version: '3.8'
+
+services:
+  # ========================================
+  # DATABASE - DESENVOLVIMENTO
+  # ========================================
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: secured-guard-db-dev
+    environment:
+      POSTGRES_DB: secured_guard_dev
+      POSTGRES_USER: postgressg
+      POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ../scripts/init-databases.sh:/docker-entrypoint-initdb.d/01-init-databases.sh:ro
+      - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d/migration:ro
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgressg"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # DATABASE - PRODUÇÃO
+  # ========================================
+  postgres-prod:
+    image: postgres:15-alpine
+    container_name: secured-guard-db-prod
+    environment:
+      POSTGRES_DB: secured_guard_prod
+      POSTGRES_USER: postgressg
+      POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ../scripts/init-databases.sh:/docker-entrypoint-initdb.d/01-init-databases.sh:ro
+      - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d/migration:ro
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgressg"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # DATABASE - CI/CD
+  # ========================================
+  postgres-ci:
+    image: postgres:15-alpine
+    container_name: secured-guard-db-ci
+    environment:
+      POSTGRES_DB: secured_guard_ci
+      POSTGRES_USER: postgressg
+      POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data_ci:/var/lib/postgresql/data
+      - ../scripts/init-databases.sh:/docker-entrypoint-initdb.d/01-init-databases.sh:ro
+      - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d/migration:ro
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgressg"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # REDIS CACHE - DESENVOLVIMENTO
+  # ========================================
+  redis-dev:
+    image: redis:7-alpine
+    container_name: secured-guard-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - secured-guard-network
+    command: redis-server --appendonly yes --requirepass redis_secured_guard_dev_2024
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_secured_guard_dev_2024", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # REDIS CACHE - PRODUÇÃO
+  # ========================================
+  redis-prod:
+    image: redis:7-alpine
+    container_name: secured-guard-redis-prod
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - secured-guard-network
+    command: redis-server --appendonly yes --requirepass redis_secured_guard_prod_2024
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_secured_guard_prod_2024", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # REDIS CACHE - CI/CD
+  # ========================================
+  redis-ci:
+    image: redis:7-alpine
+    container_name: secured-guard-redis-ci
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data_ci:/data
+    networks:
+      - secured-guard-network
+    command: redis-server --appendonly yes --requirepass redis_secured_guard_ci_2024
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_secured_guard_ci_2024", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # BACKEND API - DESENVOLVIMENTO
+  # ========================================
+  backend-dev:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-backend-dev
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-dev:5432/secured_guard_dev
+      SPRING_DATASOURCE_USERNAME: postgressg
+      SPRING_DATASOURCE_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      SPRING_REDIS_HOST: redis-dev
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: redis_secured_guard_dev_2024
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+    ports:
+      - "8081:8081"
+    volumes:
+      - backend_logs_dev:/app/logs
+      - backend_uploads_dev:/app/uploads
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # BACKEND API - PRODUÇÃO
+  # ========================================
+  backend-prod:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-backend-prod
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-prod:5432/secured_guard_prod
+      SPRING_DATASOURCE_USERNAME: postgressg
+      SPRING_DATASOURCE_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      SPRING_REDIS_HOST: redis-prod
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: redis_secured_guard_prod_2024
+      JAVA_OPTS: "-Xmx1g -Xms512m"
+    ports:
+      - "8080:8081"
+    volumes:
+      - backend_logs_prod:/app/logs
+      - backend_uploads_prod:/app/uploads
+    depends_on:
+      postgres-prod:
+        condition: service_healthy
+      redis-prod:
+        condition: service_healthy
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # BACKEND API - CI/CD
+  # ========================================
+  backend-ci:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-backend-ci
+    environment:
+      SPRING_PROFILES_ACTIVE: ci
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-ci:5432/secured_guard_ci
+      SPRING_DATASOURCE_USERNAME: postgressg
+      SPRING_DATASOURCE_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      SPRING_REDIS_HOST: redis-ci
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: redis_secured_guard_ci_2024
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+    ports:
+      - "8082:8081"
+    volumes:
+      - backend_logs_ci:/app/logs
+      - backend_uploads_ci:/app/uploads
+    depends_on:
+      postgres-ci:
+        condition: service_healthy
+      redis-ci:
+        condition: service_healthy
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # FRONTEND - DESENVOLVIMENTO
+  # ========================================
+  frontend-dev:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-frontend-dev
+    environment:
+      VITE_API_URL: http://localhost:8081/api
+      VITE_WS_URL: ws://localhost:8081/ws
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend-dev
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # FRONTEND - PRODUÇÃO
+  # ========================================
+  frontend-prod:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-frontend-prod
+    environment:
+      VITE_API_URL: http://localhost:8080/api
+      VITE_WS_URL: ws://localhost:8080/ws
+    ports:
+      - "80:80"
+    depends_on:
+      - backend-prod
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # FRONTEND - CI/CD
+  # ========================================
+  frontend-ci:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-frontend-ci
+    environment:
+      VITE_API_URL: http://localhost:8082/api
+      VITE_WS_URL: ws://localhost:8082/ws
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend-ci
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # NGINX REVERSE PROXY
+  # ========================================
+  nginx:
+    image: nginx:alpine
+    container_name: secured-guard-nginx
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx/nginx-multi-env.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - frontend-prod
+      - backend-prod
+    networks:
+      - secured-guard-network
+    restart: unless-stopped
+
+# ========================================
+# VOLUMES
+# ========================================
+volumes:
+  postgres_data_dev:
+  postgres_data_prod:
+  postgres_data_ci:
+  redis_data_dev:
+  redis_data_prod:
+  redis_data_ci:
+  backend_logs_dev:
+  backend_logs_prod:
+  backend_logs_ci:
+  backend_uploads_dev:
+  backend_uploads_prod:
+  backend_uploads_ci:
+
+# ========================================
+# NETWORKS
+# ========================================
+networks:
+  secured-guard-network:
+    driver: bridge

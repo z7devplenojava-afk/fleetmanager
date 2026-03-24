@@ -66,21 +66,17 @@ const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
   const loadWorkPosts = async () => {
     setLoadingWorkPosts(true);
     try {
-      // Por enquanto, usar dados estáticos diretamente
-      console.log('Carregando postos de trabalho...');
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simular carregamento
-      
-      const staticPosts = [
-        { id: '1', postCode: 'P001', name: 'Portaria Principal', address: 'Entrada Principal', type: 'POSTO_24H', status: 'ATIVO', clientId: '1', requiredVigilantes: 2, workSchedule: '24h', shiftStart: '00:00', shiftEnd: '23:59' },
-        { id: '2', postCode: 'P002', name: 'Ronda Perimetral', address: 'Área Externa', type: 'POSTO_12H_DIURNO', status: 'ATIVO', clientId: '1', requiredVigilantes: 1, workSchedule: '12h', shiftStart: '06:00', shiftEnd: '18:00' },
-        { id: '3', postCode: 'P003', name: 'Central de Monitoramento', address: 'Sala de Controle', type: 'POSTO_24H', status: 'ATIVO', clientId: '1', requiredVigilantes: 1, workSchedule: '24h', shiftStart: '00:00', shiftEnd: '23:59' },
-        { id: '4', postCode: 'P004', name: 'Acesso Veicular', address: 'Garagem', type: 'POSTO_8H', status: 'ATIVO', clientId: '1', requiredVigilantes: 1, workSchedule: '8h', shiftStart: '08:00', shiftEnd: '16:00' }
-      ] as WorkPost[];
-      
-      setWorkPosts(staticPosts);
-      console.log('Postos carregados:', staticPosts);
+      console.log('Carregando postos de trabalho do banco de dados...');
+      const posts = await workPostService.getAllWorkPosts();
+      setWorkPosts(posts);
+      console.log('Postos carregados do banco:', posts.length, posts);
     } catch (error) {
       console.error('Erro ao carregar postos de trabalho:', error);
+      toast({
+        title: "Erro ao carregar postos",
+        description: "Não foi possível carregar os postos de trabalho. Tente novamente.",
+        variant: "destructive",
+      });
       setWorkPosts([]);
     } finally {
       setLoadingWorkPosts(false);
@@ -160,14 +156,45 @@ const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
     try {
       setLoading(true);
       
+      // Preparar payload apenas com campos aceitos pelo backend
+      const payload: any = {
+        serialNumber: formData.serialNumber,
+        status: formData.status,
+        model: formData.model || undefined,
+        batch: formData.batch || undefined,
+        caNumber: formData.caNumber || undefined,
+        protectionLevel: formData.protectionLevel || undefined,
+        size: formData.size || undefined,
+        usageType: formData.usageType || undefined,
+        ballisticPlate: formData.ballisticPlate || undefined,
+        manufacturingDate: formData.manufacturingDate || undefined,
+        validityDate: formData.validityDate || undefined,
+        weaponRegistrationValidity: formData.weaponRegistrationValidity || undefined,
+        lastMaintenanceDate: formData.lastMaintenanceDate && formData.lastMaintenanceDate.trim() !== '' ? formData.lastMaintenanceDate : undefined,
+        nextMaintenanceDate: formData.nextMaintenanceDate && formData.nextMaintenanceDate.trim() !== '' ? formData.nextMaintenanceDate : undefined,
+        isDangerous: formData.isDangerous ?? false,
+        currentUserId: formData.currentUserId && formData.currentUserId.trim() !== '' ? formData.currentUserId : undefined,
+        notes: formData.notes || undefined,
+      };
+
+      // Remover campos undefined, null ou string vazia para não enviar no JSON
+      Object.keys(payload).forEach(key => {
+        const value = payload[key];
+        if (value === undefined || value === null || value === '' || (typeof value === 'string' && value.trim() === '')) {
+          delete payload[key];
+        }
+      });
+
+      console.log('📤 Enviando payload para backend:', payload);
+      
       if (equipment) {
-        await equipmentService.update(equipment.id, formData);
+        await equipmentService.update(equipment.id, payload);
         toast({
           title: "Sucesso",
           description: "Equipamento atualizado com sucesso",
         });
       } else {
-        await equipmentService.create(formData);
+        await equipmentService.create(payload);
         toast({
           title: "Sucesso",
           description: "Equipamento criado com sucesso",
@@ -419,7 +446,8 @@ const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
                 ) : (
                   workPosts.map((post) => (
                     <SelectItem key={post.id} value={post.id}>
-                      {post.postCode} - {post.name}
+                      {post.postCode ? `${post.postCode} - ${post.name}` : post.name}
+                      {post.address ? ` (${post.address})` : ''}
                     </SelectItem>
                   ))
                 )}
@@ -433,16 +461,18 @@ const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
           <div>
             <Label htmlFor="destinationWorkPostId">Posto de Trabalho de Destino</Label>
             <Select 
-              value={formData.destinationWorkPostId || ''} 
+              value={formData.destinationWorkPostId || 'none'} 
               onValueChange={(value) => {
                 console.log('Selecionando posto de destino:', value);
-                handleInputChange('destinationWorkPostId', value);
+                // Converter "none" para string vazia para o backend
+                handleInputChange('destinationWorkPostId', value === 'none' ? '' : value);
               }}
             >
               <SelectTrigger>
                 <SelectValue placeholder={loadingWorkPosts ? "Carregando..." : "Selecione o posto de destino"} />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">Nenhum (opcional)</SelectItem>
                 {workPosts.length === 0 ? (
                   <SelectItem value="loading" disabled>
                     {loadingWorkPosts ? "Carregando..." : "Nenhum posto encontrado"}
@@ -450,7 +480,8 @@ const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
                 ) : (
                   workPosts.map((post) => (
                     <SelectItem key={post.id} value={post.id}>
-                      {post.postCode} - {post.name}
+                      {post.postCode ? `${post.postCode} - ${post.name}` : post.name}
+                      {post.address ? ` (${post.address})` : ''}
                     </SelectItem>
                   ))
                 )}

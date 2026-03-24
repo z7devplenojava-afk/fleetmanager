@@ -90,27 +90,27 @@ const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
 export const Breadcrumb: React.FC = () => {
   const location = useLocation();
   const pathname = location.pathname;
-  
+
   const breadcrumbs = breadcrumbMap[pathname] || [
     { label: 'Dashboard', path: '/dashboard', icon: Home }
   ];
 
   return (
-    <nav className="flex items-center space-x-1 text-sm text-seguranca-lightgray mb-4">
+    <nav className="flex items-center space-x-1 text-sm text-muted-foreground mb-4">
       {breadcrumbs.map((item, index) => (
         <React.Fragment key={`${item.path}-${index}`}>
           {index > 0 && (
-            <ChevronRight size={16} className="text-gray-500" />
+            <ChevronRight size={14} className="text-muted-foreground/40" />
           )}
           <Link
             to={item.path}
             className={`
-              flex items-center space-x-1 hover:text-seguranca-yellow transition-colors
-              ${index === breadcrumbs.length - 1 ? 'text-seguranca-yellow font-medium' : ''}
+              flex items-center space-x-1 hover:text-yellow-500 transition-all active:scale-95
+              ${index === breadcrumbs.length - 1 ? 'text-yellow-500 font-bold' : ''}
             `}
           >
-            {item.icon && <item.icon size={16} />}
-            <span>{item.label}</span>
+            {item.icon && <item.icon size={14} className={index === breadcrumbs.length - 1 ? 'text-accent' : 'text-muted-foreground/60'} />}
+            <span className="tracking-tight">{item.label}</span>
           </Link>
         </React.Fragment>
       ))}

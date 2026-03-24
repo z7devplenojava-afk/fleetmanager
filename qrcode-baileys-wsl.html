@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baileys QR Code - WSL</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        #qrcode {
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #004085;
+        }
+        .btn-refresh {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.3s;
+        }
+        .btn-refresh:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-refresh:active {
+            transform: translateY(0);
+        }
+        #connection-status {
+            font-size: 12px;
+            color: #888;
+            margin-top: 15px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Baileys WSL</h1>
+        <p class="subtitle">Escaneie o QR Code com o WhatsApp</p>
+        
+        <div id="status" class="status loading">Carregando...</div>
+        
+        <div id="qrcode"></div>
+        
+        <button class="btn-refresh" onclick="loadQRCode()">🔄 Atualizar QR Code</button>
+        
+        <div class="info">
+            <strong>📱 Como usar:</strong><br>
+            1. Abra o WhatsApp no celular<br>
+            2. Toque em "Mais opções" → "Aparelhos conectados"<br>
+            3. Toque em "Conectar um aparelho"<br>
+            4. Escaneie o QR Code acima
+        </div>
+        
+        <div id="connection-status"></div>
+    </div>
+
+    <script>
+        let refreshInterval;
+
+        async function loadQRCode() {
+            try {
+                document.getElementById('status').className = 'status loading';
+                document.getElementById('status').textContent = '⏳ Buscando QR Code...';
+                document.getElementById('qrcode').innerHTML = '';
+                
+                const response = await fetch('http://localhost:3333/instance/qr');
+                const data = await response.json();
+                
+                if (data.qr && data.qr.length > 100) {
+                    QRCode.toCanvas(data.qr, {
+                        width: 300,
+                        margin: 2,
+                        color: {
+                            dark: '#000000',
+                            light: '#ffffff'
+                        }
+                    }, (err, canvas) => {
+                        if (err) {
+                            throw err;
+                        }
+                        document.getElementById('qrcode').appendChild(canvas);
+                        document.getElementById('status').className = 'status ready';
+                        document.getElementById('status').textContent = '✅ QR Code pronto! Escaneie com seu celular';
+                    });
+                } else {
+                    throw new Error(data.message || 'QR Code não disponível');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').textContent = '❌ ' + error.message;
+                document.getElementById('qrcode').innerHTML = '<p style="color: #721c24;">Verifique se o serviço está rodando</p>';
+            }
+        }
+
+        async function checkConnection() {
+            try {
+                const response = await fetch('http://localhost:3333/instance/connectionState');
+                const data = await response.json();
+                const statusEl = document.getElementById('connection-status');
+                
+                if (data.state === 'open') {
+                    statusEl.innerHTML = '🟢 <strong>Conectado!</strong>';
+                    clearInterval(refreshInterval);
+                    document.getElementById('status').className = 'status ready';
+                    document.getElementById('status').textContent = '✅ WhatsApp conectado com sucesso!';
+                    document.getElementById('qrcode').innerHTML = '<p style="color: #155724; font-size: 24px;">🎉 Conectado!</p>';
+                } else {
+                    statusEl.innerHTML = `🟡 Status: ${data.state || 'Desconectado'}`;
+                }
+            } catch (error) {
+                console.error('Erro ao verificar conexão:', error);
+            }
+        }
+
+        // Carregar QR code ao abrir a página
+        loadQRCode();
+        
+        // Atualizar QR code a cada 30 segundos
+        refreshInterval = setInterval(() => {
+            checkConnection();
+            // Se não estiver conectado, atualizar QR code
+            if (!document.getElementById('connection-status').textContent.includes('Conectado')) {
+                loadQRCode();
+            }
+        }, 30000);
+        
+        // Verificar conexão a cada 5 segundos
+        setInterval(checkConnection, 5000);
+    </script>
+</body>
+</html>
+

@@ -81,14 +81,16 @@ export const documentModels: DocumentModel[] = [
     name: 'TERMO DE RESPONSABILIDADE CARTÃO BH BUS VALE-TRANSPORTE',
     category: 'TERMO_RESPONSABILIDADE',
     description: 'Termo de responsabilidade para cartão BH Bus',
-    hasGenerator: false
+    hasGenerator: true,
+    generatorPath: '@/utils/termoResponsabilidadeGenerator'
   },
   {
     id: 'termo-responsabilidade-cartao-betim',
     name: 'TERMO DE RESPONSABILIDADE CARTÃO BETIM CARD VALE-TRANSPORTE',
     category: 'TERMO_RESPONSABILIDADE',
     description: 'Termo de responsabilidade para cartão Betim',
-    hasGenerator: false
+    hasGenerator: true,
+    generatorPath: '@/utils/termoResponsabilidadeGenerator'
   },
   {
     id: 'termo-responsabilidade-celular',
@@ -149,7 +151,8 @@ export const documentModels: DocumentModel[] = [
     name: 'Demissão Por Justa Causa',
     category: 'DEMISSAO',
     description: 'Documento de demissão por justa causa',
-    hasGenerator: false
+    hasGenerator: true,
+    generatorPath: '@/utils/demissaoGenerator'
   },
 
   // Outros
@@ -158,42 +161,48 @@ export const documentModels: DocumentModel[] = [
     name: 'Carta de Apresentação',
     category: 'OUTROS',
     description: 'Carta de apresentação',
-    hasGenerator: false
+    hasGenerator: true,
+    generatorPath: '@/utils/outrosDocumentosGenerator'
   },
   {
     id: 'termo-opcao-vt-promover',
     name: 'Termo Opção VT Promover Vigilância',
     category: 'OUTROS',
     description: 'Termo de opção VT Promover Vigilância',
-    hasGenerator: false
+    hasGenerator: true,
+    generatorPath: '@/utils/outrosDocumentosGenerator'
   },
   {
     id: 'validacao-nr06',
     name: 'Validação NR06',
     category: 'OUTROS',
     description: 'Validação NR06',
-    hasGenerator: false
+    hasGenerator: true,
+    generatorPath: '@/utils/outrosDocumentosGenerator'
   },
   {
     id: 'termo-lgpd',
     name: 'TERMO DE LGPD',
     category: 'OUTROS',
     description: 'Termo de LGPD',
-    hasGenerator: false
+    hasGenerator: true,
+    generatorPath: '@/utils/outrosDocumentosGenerator'
   },
   {
     id: 'termo-protecao-dados-lgpd',
     name: 'Termo de Proteção de Dados – LGPD',
     category: 'OUTROS',
     description: 'Termo de proteção de dados LGPD',
-    hasGenerator: false
+    hasGenerator: true,
+    generatorPath: '@/utils/outrosDocumentosGenerator'
   },
   {
     id: 'formulario-abertura-vaga',
     name: 'Formulário para abertura vaga',
     category: 'OUTROS',
     description: 'Formulário para abertura de vaga',
-    hasGenerator: false
+    hasGenerator: true,
+    generatorPath: '@/utils/outrosDocumentosGenerator'
   }
 ];
 

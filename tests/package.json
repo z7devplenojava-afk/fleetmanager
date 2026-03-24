@@ -1,0 +1,23 @@
+{
+  "devDependencies": {
+    "@types/jspdf": "^1.3.3",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.0",
+    "vite-plugin-pwa": "^1.0.0"
+  },
+  "dependencies": {
+    "@stomp/stompjs": "^7.1.1",
+    "chart.js": "^4.5.0",
+    "date-fns": "^4.1.0",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
+    "react-chartjs-2": "^5.3.0",
+    "react-currency-input-field": "^3.10.0",
+    "react-datepicker": "^8.4.0",
+    "react-day-picker": "^9.7.0",
+    "recharts": "^3.0.0",
+    "sockjs-client": "^1.6.1",
+    "xlsx": "^0.18.5"
+  }
+}

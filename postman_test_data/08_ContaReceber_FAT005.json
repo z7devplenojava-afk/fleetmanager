@@ -1,0 +1,14 @@
+{
+  "clientId": "SUBSTITUIR_PELO_ID_DO_CLIENTE_1",
+  "invoiceNumber": "FAT-2024-005",
+  "measurementNumber": "MED-2024-005",
+  "description": "Consultoria técnica - Maio 2024",
+  "amount": 8000.00,
+  "amountPaid": 0.00,
+  "issueDate": "2024-05-01",
+  "dueDate": "2024-05-31",
+  "status": "PENDING",
+  "category": "CONSULTANCY",
+  "paymentMethod": "BOLETO",
+  "notes": "Consultoria especializada"
+}

@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Eye, User, Calendar, FileText, DollarSign, AlertCircle, Loader2, ZoomIn, ZoomOut, RotateCw, Undo2, Redo2, Printer, MoreHorizontal } from 'lucide-react';
+import { Download, Eye, User, Calendar, FileText, DollarSign, AlertCircle, Loader2, ZoomIn, ZoomOut, RotateCw, Undo2, Redo2, Printer, MoreHorizontal, Receipt } from 'lucide-react';
 import type { PaymentReceipt } from '@/services/paymentReceiptService';
 import paymentReceiptService from '@/services/paymentReceiptService';
 import { toast } from 'sonner';
@@ -31,6 +31,22 @@ export function PaymentReceiptViewModal({
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [showControls, setShowControls] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Detecta se está em dispositivo móvel
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+      const isSmallScreen = window.innerWidth < 768;
+      setIsMobile(isMobileDevice || isSmallScreen);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     if (open && receipt) {
@@ -87,6 +103,13 @@ export function PaymentReceiptViewModal({
     }
   };
 
+  const handleOpenInNewTab = () => {
+    if (pdfUrl) {
+      window.open(pdfUrl, '_blank');
+      toast.success('PDF aberto em nova aba');
+    }
+  };
+
   const formatCurrency = (value?: number) => {
     if (!value) return 'N/A';
     return new Intl.NumberFormat('pt-BR', {
@@ -133,15 +156,16 @@ export function PaymentReceiptViewModal({
         <DialogHeader className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-blue-500/20 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center space-x-3 sm:space-x-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Eye size={20} className="sm:hidden text-white" />
-                <Eye size={24} className="hidden sm:block text-white" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <Receipt size={20} className="sm:hidden text-white" />
+                <Receipt size={24} className="hidden sm:block text-white" />
               </div>
               <div>
-                <DialogTitle className="text-lg sm:text-2xl font-bold text-white leading-tight">
-                  Visualização do Comprovante
+                <DialogTitle className="text-lg sm:text-2xl font-bold text-white leading-tight flex items-center gap-2">
+                  <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-blue-400" />
+                  <span>Visualização do Comprovante</span>
                 </DialogTitle>
-                <p className="text-blue-300/90 text-xs sm:text-sm font-medium mt-0 truncate max-w-[200px] sm:max-w-none">
+                <p className="text-blue-300/90 text-xs sm:text-sm font-medium mt-1 truncate max-w-[200px] sm:max-w-none">
                   {receipt.employeeName}
                 </p>
               </div>
@@ -214,6 +238,38 @@ export function PaymentReceiptViewModal({
                 </div>
               </div>
 
+              {/* Nome da Conta Creditada */}
+              {receipt.creditedName && (
+                <div className="bg-gradient-to-r from-indigo-500/10 to-blue-500/10 border border-indigo-500/20 rounded-xl p-3 sm:p-4">
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <User size={16} className="sm:hidden text-white" />
+                      <User size={18} className="hidden sm:block text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-indigo-300/80 text-xs sm:text-sm font-medium">Nome da Conta Creditada</p>
+                      <p className="text-white font-semibold text-sm sm:text-base truncate">{receipt.creditedName}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Conta Corrente Creditada */}
+              {receipt.creditedAccount && (
+                <div className="bg-gradient-to-r from-cyan-500/10 to-teal-500/10 border border-cyan-500/20 rounded-xl p-3 sm:p-4">
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <FileText size={16} className="sm:hidden text-white" />
+                      <FileText size={18} className="hidden sm:block text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-cyan-300/80 text-xs sm:text-sm font-medium">Conta Corrente Creditada</p>
+                      <p className="text-white font-semibold text-sm sm:text-base truncate">{receipt.creditedAccount}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Botões de Ação */}
               <div className="space-y-2 sm:space-y-3 pt-2 sm:pt-4">
                 <Button
@@ -231,8 +287,8 @@ export function PaymentReceiptViewModal({
 
           {/* Área do PDF */}
           <div className="w-full lg:w-2/3 p-3 sm:p-6 bg-gradient-to-br from-gray-900/50 to-gray-800/50 flex flex-col h-[60vh] lg:h-full">
-            {/* Controles do PDF */}
-            {pdfUrl && (
+            {/* Controles do PDF - escondidos no mobile */}
+            {pdfUrl && !isMobile && (
               <div className="flex items-center justify-between bg-gray-800/50 rounded-lg p-2 sm:p-3 mb-3 sm:mb-4 border border-gray-600/30">
                 <div className="flex items-center space-x-2 sm:space-x-3">
                   <Button
@@ -315,26 +371,48 @@ export function PaymentReceiptViewModal({
                   </div>
                 </div>
               ) : pdfUrl ? (
-                <div className="relative w-full h-full">
-                  <iframe
-                    src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                    className="w-full h-full border-0 rounded-xl"
-                    style={{
-                      transform: `scale(${zoom}) rotate(${rotation}deg)`,
-                      transformOrigin: 'center center',
-                      transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                    }}
-                    title={`Comprovante - ${receipt.employeeName}`}
-                  />
-                  {/* Overlay de zoom para melhor UX */}
-                  {zoom !== 1 && (
-                    <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-sm rounded-lg px-2 py-1 border border-gray-600/50">
-                      <span className="text-white text-xs font-mono">
-                        {Math.round(zoom * 100)}%
-                      </span>
+                isMobile ? (
+                  <div className="flex items-center justify-center h-full bg-gradient-to-br from-gray-100 to-gray-200">
+                    <div className="text-center p-6">
+                      <FileText className="h-16 w-16 text-green-500 mx-auto mb-4" />
+                      <p className="text-gray-800 font-bold text-lg mb-2">Comprovante Pronto!</p>
+                      <p className="text-gray-600 text-sm mb-6">
+                        Clique no botão abaixo para visualizar o comprovante
+                      </p>
+                      <Button
+                        onClick={handleOpenInNewTab}
+                        className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg"
+                      >
+                        <Eye size={18} className="mr-2" />
+                        Abrir PDF
+                      </Button>
+                      <p className="text-gray-500 text-xs mt-4">
+                        O PDF será aberto em uma nova aba
+                      </p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="relative w-full h-full">
+                    <iframe
+                      src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                      className="w-full h-full border-0 rounded-xl"
+                      style={{
+                        transform: `scale(${zoom}) rotate(${rotation}deg)`,
+                        transformOrigin: 'center center',
+                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                      title={`Comprovante - ${receipt.employeeName}`}
+                    />
+                    {/* Overlay de zoom para melhor UX */}
+                    {zoom !== 1 && (
+                      <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-sm rounded-lg px-2 py-1 border border-gray-600/50">
+                        <span className="text-white text-xs font-mono">
+                          {Math.round(zoom * 100)}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">

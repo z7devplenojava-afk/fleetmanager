@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  traefik:
+    image: traefik:3.0
+    container_name: traefik
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=z7network"
+      # Adicionar provider de arquivo para configuração dinâmica
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
+      # Redirecionamento HTTP → HTTPS desabilitado no entrypoint para evitar loop com Cloudflare
+      # O redirecionamento será feito apenas para hosts específicos via routers
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.transport.respondingTimeouts.readTimeout=300"
+      - "--entrypoints.websecure.transport.respondingTimeouts.writeTimeout=300"
+      - "--entrypoints.websecure.transport.respondingTimeouts.idleTimeout=300"
+      - "--certificatesresolvers.letsencryptresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencryptresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencryptresolver.acme.email=z7designcode@gmail.com"
+      - "--certificatesresolvers.letsencryptresolver.acme.storage=/etc/traefik/letsencrypt/acme.json"
+      - "--log.level=INFO"
+      - "--log.format=common"
+      - "--accesslog=true"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/var/www/secured_guard/traefik/letsencrypt:/etc/traefik/letsencrypt"
+      - "/var/www/secured_guard/traefik/logs:/var/log/traefik"
+      # Montar diretório de configuração dinâmica
+      - "/var/www/secured_guard/traefik/dynamic:/etc/traefik/dynamic:ro"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    networks:
+      - z7network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-https.redirectscheme.permanent=true"
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-https@docker"
+      - "traefik.http.routers.http-catchall.priority=1"
+
+networks:
+  z7network:
+    external: true
+    name: z7network
+

@@ -4,12 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Mail, MessageSquare, Send, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { Funcionario, EnvioRequest, EnvioResponse } from '@/types/funcionario';
 import { envioService } from '@/services/funcionarioService';
+import holeriteService, { Holerite } from '@/services/holeriteService';
 
 interface EnvioHoleriteModalProps {
   open: boolean;
@@ -34,7 +36,52 @@ export const EnvioHoleriteModal: React.FC<EnvioHoleriteModalProps> = ({
   const [funcionariosSelecionados, setFuncionariosSelecionados] = useState<number[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<EnvioResponse | null>(null);
+  const [holeritesProcessados, setHoleritesProcessados] = useState<Holerite[]>([]);
+  const [periodoSelecionado, setPeriodoSelecionado] = useState<string>('');
+  const [carregandoPeriodos, setCarregandoPeriodos] = useState(false);
   const { toast } = useToast();
+
+  const normalizeCpf = (value?: string) => (value ?? '').replace(/[^0-9]/g, '');
+
+  const periodosDisponiveis = React.useMemo(() => {
+    const base = tipoEnvio === 'individual' && funcionarioSelecionado
+      ? holeritesProcessados.filter((h) => normalizeCpf(h.cpf) === normalizeCpf(funcionarioSelecionado.cpf))
+      : holeritesProcessados;
+
+    const unique = new Map<string, { month: number; year: number; label: string }>();
+    base.forEach((h) => {
+      if (!h.month || !h.year) return;
+      const value = `${h.year}-${String(h.month).padStart(2, '0')}`;
+      if (!unique.has(value)) {
+        unique.set(value, {
+          month: h.month,
+          year: h.year,
+          label: `${String(h.month).padStart(2, '0')}/${h.year}`
+        });
+      }
+    });
+
+    return Array.from(unique.entries())
+      .map(([value, data]) => ({ value, ...data }))
+      .sort((a, b) => (b.year - a.year) || (b.month - a.month));
+  }, [holeritesProcessados, tipoEnvio, funcionarioSelecionado]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (periodosDisponiveis.length === 0) {
+      setPeriodoSelecionado('');
+      return;
+    }
+    if (!periodosDisponiveis.some((p) => p.value === periodoSelecionado)) {
+      setPeriodoSelecionado(periodosDisponiveis[0].value);
+    }
+  }, [open, periodosDisponiveis, periodoSelecionado]);
+
+  React.useEffect(() => {
+    if (tipoEnvio === 'massa') {
+      setFuncionariosSelecionados([]);
+    }
+  }, [tipoEnvio, tipo, periodoSelecionado]);
 
   // Mensagens padrão
   const mensagensPadrao = {
@@ -84,7 +131,44 @@ Obrigado!`
     }
   }, [open, tipoInicial]);
 
+  React.useEffect(() => {
+    if (!open) {
+      setHoleritesProcessados([]);
+      setPeriodoSelecionado('');
+      return;
+    }
+    let active = true;
+    setCarregandoPeriodos(true);
+    holeriteService.getProcessedHolerites()
+      .then((data) => {
+        if (!active) return;
+        setHoleritesProcessados(data);
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar períodos processados:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os períodos processados.",
+          variant: "destructive"
+        });
+      })
+      .finally(() => {
+        if (active) setCarregandoPeriodos(false);
+      });
+    return () => { active = false; };
+  }, [open, toast]);
+
   const handleEnviar = async () => {
+    const selectedPeriodo = periodosDisponiveis.find((p) => p.value === periodoSelecionado);
+    if (!selectedPeriodo) {
+      toast({
+        title: "Erro",
+        description: "Selecione o período do holerite para envio.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (tipoEnvio === 'individual' && !funcionarioSelecionado) {
       toast({
         title: "Erro",
@@ -103,6 +187,32 @@ Obrigado!`
       return;
     }
 
+    if (tipoEnvio === 'todos' && funcionariosDisponiveis.length === 0) {
+      toast({
+        title: "Erro",
+        description: "Nenhum funcionário com holerite processado no período selecionado.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (tipoEnvio === 'individual' && funcionarioSelecionado) {
+      const cpfFuncionario = normalizeCpf(funcionarioSelecionado.cpf);
+      const hasPeriodo = holeritesProcessados.some((h) =>
+        normalizeCpf(h.cpf) === cpfFuncionario &&
+        h.month === selectedPeriodo.month &&
+        h.year === selectedPeriodo.year
+      );
+      if (!hasPeriodo) {
+        toast({
+          title: "Erro",
+          description: "Este funcionário não possui holerite processado para o período selecionado.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     setEnviando(true);
     setResultado(null);
 
@@ -110,13 +220,16 @@ Obrigado!`
       const request: EnvioRequest = {
         tipo,
         assunto: tipo === 'email' ? assunto : undefined,
-        mensagem
+        mensagem,
+        month: selectedPeriodo.month,
+        year: selectedPeriodo.year
       };
 
       let response: EnvioResponse;
 
       if (tipoEnvio === 'individual' && funcionarioSelecionado) {
         request.funcionarioId = funcionarioSelecionado.id;
+        request.cpf = normalizeCpf(funcionarioSelecionado.cpf);
         response = await envioService.enviarIndividual(request);
       } else if (tipoEnvio === 'massa') {
         request.funcionarioIds = funcionariosSelecionados;
@@ -141,9 +254,10 @@ Obrigado!`
       }
     } catch (error: any) {
       console.error('Erro ao enviar:', error);
+      const apiMessage = error.response?.data?.mensagem || error.response?.data?.message;
       toast({
         title: "Erro",
-        description: error.response?.data?.message || "Erro ao enviar holerites.",
+        description: apiMessage || "Erro ao enviar holerites.",
         variant: "destructive"
       });
     } finally {
@@ -173,11 +287,21 @@ Obrigado!`
   };
 
   const getFuncionariosDisponiveis = () => {
-    if (tipo === 'email') {
-      return funcionarios.filter(f => f.email);
-    } else {
-      return funcionarios.filter(f => f.possuiWhatsapp && f.telefone);
+    let lista = tipo === 'email'
+      ? funcionarios.filter(f => f.email)
+      : funcionarios.filter(f => f.possuiWhatsapp && f.telefone);
+
+    const selectedPeriodo = periodosDisponiveis.find((p) => p.value === periodoSelecionado);
+    if (selectedPeriodo) {
+      const cpfsPeriodo = new Set(
+        holeritesProcessados
+          .filter((h) => h.month === selectedPeriodo.month && h.year === selectedPeriodo.year)
+          .map((h) => normalizeCpf(h.cpf))
+      );
+      lista = lista.filter((f) => cpfsPeriodo.has(normalizeCpf(f.cpf)));
     }
+
+    return lista;
   };
 
   const funcionariosDisponiveis = getFuncionariosDisponiveis();
@@ -194,6 +318,38 @@ Obrigado!`
 
         {!resultado ? (
           <div className="space-y-4 sm:space-y-6">
+            {/* Período do Holerite */}
+            <div className="space-y-2">
+              <Label className="text-seguranca-lightgray text-sm sm:text-base">
+                Período do holerite
+              </Label>
+              {carregandoPeriodos ? (
+                <p className="text-xs text-gray-400">Carregando períodos processados...</p>
+              ) : periodosDisponiveis.length === 0 ? (
+                <p className="text-xs text-red-400">
+                  Nenhum período processado disponível para envio.
+                </p>
+              ) : (
+                <Select value={periodoSelecionado} onValueChange={setPeriodoSelecionado}>
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                    <SelectValue placeholder="Selecione o período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {periodosDisponiveis.map((periodo) => (
+                      <SelectItem key={periodo.value} value={periodo.value}>
+                        {periodo.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {tipoEnvio === 'individual' && funcionarioSelecionado && periodosDisponiveis.length > 0 && (
+                <p className="text-xs text-gray-400">
+                  Períodos disponíveis para {funcionarioSelecionado.nome}.
+                </p>
+              )}
+            </div>
+
             {/* Tipo de Envio */}
             <div className="space-y-3">
               <Label className="text-seguranca-lightgray text-sm sm:text-base">Tipo de Envio</Label>
@@ -352,7 +508,7 @@ Obrigado!`
               </div>
             </div>
 
-            {/* Detalhes */}
+            {/* Detalhes + ações de reenvio */}
             {resultado.detalhes.length > 0 && (
               <div className="space-y-2">
                 <Label className="text-seguranca-lightgray text-sm sm:text-base">Detalhes do Envio</Label>
@@ -371,9 +527,39 @@ Obrigado!`
                           {detalhe.nome} - {detalhe.cpf}
                         </p>
                         {!detalhe.enviado && detalhe.erro && (
-                          <p className="text-red-400 text-xs break-words">{detalhe.erro}</p>
+                          <p className="text-red-400 text-xs break-words">{detalhe.erro} {' '} 
+                            <button
+                              className="underline text-seguranca-yellow ml-1"
+                              onClick={() => {
+                                window.dispatchEvent(new CustomEvent('open-logs-tab', { detail: { cpf: detalhe.cpf } }));
+                              }}
+                            >
+                              Ver logs deste CPF
+                            </button>
+                          </p>
                         )}
                       </div>
+                      {!detalhe.enviado && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-gray-600 text-seguranca-lightgray hover:bg-gray-700"
+                          onClick={async () => {
+                            try {
+                              const logs = await holeriteService.listSendLogs(detalhe.cpf);
+                              const lastLog = logs?.[logs.length - 1];
+                              if (lastLog?.id) {
+                                await holeriteService.resendByLog(lastLog.id);
+                                toast({ title: 'Reenvio solicitado', description: 'Tentando reenviar para ' + detalhe.nome });
+                              }
+                            } catch (e) {
+                              toast({ title: 'Erro', description: 'Falha ao solicitar reenvio', variant: 'destructive' });
+                            }
+                          }}
+                        >
+                          Reenviar
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -1,0 +1,284 @@
+{
+  "info": {
+    "name": "Secured Guard - Adicionar Dados Teste CI",
+    "description": "Requests para adicionar holerites e comprovantes no ambiente CI",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "https://ci.z7botsolutions.com.br/api",
+      "type": "string"
+    },
+    {
+      "key": "TOKEN",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Login Admin/Super Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const response = pm.response.json();",
+              "    if (response.token) {",
+              "        pm.collectionVariables.set('TOKEN', response.token);",
+              "        console.log('Token salvo:', response.token);",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"jose.ramos\",\n  \"password\": \"Admin1234\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/auth/login",
+          "host": ["{{BASE_URL}}"],
+          "path": ["auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "2. Registrar Super Admin (se necessário)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"superadmin\",\n  \"password\": \"SuperAdmin@2025\",\n  \"email\": \"superadmin@ci.test\",\n  \"fullName\": \"Super Administrador CI\",\n  \"roles\": [\"ROLE_SUPER_ADMIN\"]\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/auth/register",
+          "host": ["{{BASE_URL}}"],
+          "path": ["auth", "register"]
+        }
+      }
+    },
+    {
+      "name": "3. Login Super Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const response = pm.response.json();",
+              "    if (response.token) {",
+              "        pm.collectionVariables.set('TOKEN', response.token);",
+              "        console.log('Token Super Admin salvo:', response.token);",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"superadmin\",\n  \"password\": \"SuperAdmin@2025\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/auth/login",
+          "host": ["{{BASE_URL}}"],
+          "path": ["auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "4. Verificar Holerites Existentes",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/payslips",
+          "host": ["{{BASE_URL}}"],
+          "path": ["payslips"]
+        }
+      }
+    },
+    {
+      "name": "5. Verificar Comprovantes Existentes",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/receipts",
+          "host": ["{{BASE_URL}}"],
+          "path": ["receipts"]
+        }
+      }
+    },
+    {
+      "name": "6. Debug Dados Unificação",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/unified-documents/debug-data",
+          "host": ["{{BASE_URL}}"],
+          "path": ["unified-documents", "debug-data"]
+        }
+      }
+    },
+    {
+      "name": "7. Upload Holerite Teste (Multipart)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "caminho/para/holerite_teste.pdf"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/payslips/upload",
+          "host": ["{{BASE_URL}}"],
+          "path": ["payslips", "upload"]
+        }
+      }
+    },
+    {
+      "name": "8. Upload Comprovante Teste (Multipart)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "caminho/para/comprovante_teste.pdf"
+            },
+            {
+              "key": "employeeName",
+              "value": "MARIA SILVA TESTE",
+              "type": "text"
+            },
+            {
+              "key": "month",
+              "value": "10",
+              "type": "text"
+            },
+            {
+              "key": "year",
+              "value": "2025",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/receipts/upload",
+          "host": ["{{BASE_URL}}"],
+          "path": ["receipts", "upload"]
+        }
+      }
+    },
+    {
+      "name": "9. Criar Documento Unificado (Após Upload)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/unified-documents/create?employeeName=MARIA SILVA TESTE&month=10&year=2025",
+          "host": ["{{BASE_URL}}"],
+          "path": ["unified-documents", "create"],
+          "query": [
+            {
+              "key": "employeeName",
+              "value": "MARIA SILVA TESTE"
+            },
+            {
+              "key": "month",
+              "value": "10"
+            },
+            {
+              "key": "year",
+              "value": "2025"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "10. Verificar Documentos Criados",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/unified-documents/list",
+          "host": ["{{BASE_URL}}"],
+          "path": ["unified-documents", "list"]
+        }
+      }
+    }
+  ]
+}

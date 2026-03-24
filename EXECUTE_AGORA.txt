@@ -1,0 +1,71 @@
+╔═══════════════════════════════════════════════════════════════╗
+║           INSTRUÇÕES URGENTES - LEIA COM ATENÇÃO              ║
+╚═══════════════════════════════════════════════════════════════╝
+
+🚨 O PROBLEMA:
+   O backend está tentando executar migrações antigas que foram 
+   deletadas mas ainda estão no histórico do banco.
+
+✅ JÁ FIZ PARA VOCÊ:
+   ✓ Removi 4 migrações problemáticas do código
+   ✓ Corrigi 2 migrações
+   ✓ Parei o backend
+   ✓ Limpei a pasta backend\target
+
+📋 VOCÊ PRECISA FAZER AGORA (3 PASSOS SIMPLES):
+
+┌─────────────────────────────────────────────────────────────┐
+│ PASSO 1: Abrir o DBeaver ou pgAdmin                         │
+└─────────────────────────────────────────────────────────────┘
+   1. Abra o DBeaver ou pgAdmin
+   2. Conecte-se ao banco de dados: secured_guard
+   3. Abra uma nova janela de SQL
+
+┌─────────────────────────────────────────────────────────────┐
+│ PASSO 2: Copiar e Executar o SQL                            │
+└─────────────────────────────────────────────────────────────┘
+   1. Abra o arquivo: RESET_BANCO_AGORA.sql
+   2. COPIE TODO O CONTEÚDO
+   3. COLE no DBeaver/pgAdmin
+   4. EXECUTE (F5 ou botão Execute)
+   
+   Você deve ver a mensagem:
+   "BANCO RESETADO COM SUCESSO!"
+
+┌─────────────────────────────────────────────────────────────┐
+│ PASSO 3: Iniciar o Backend                                  │
+└─────────────────────────────────────────────────────────────┘
+   1. Abra sua IDE (IntelliJ/Eclipse/VSCode)
+   2. Inicie o backend normalmente
+   3. AGUARDE (pode demorar 1-2 minutos)
+   4. Veja o log - deve mostrar:
+      ✓ "Successfully validated X migrations"
+      ✓ "Successfully applied X migrations"
+      ✓ "Started SecuredGuardApplication"
+
+═══════════════════════════════════════════════════════════════
+
+⚠️  SE AINDA DER ERRO:
+
+1. Certifique-se que o backend está COMPLETAMENTE parado
+2. Delete manualmente: backend\target
+3. Execute o SQL novamente
+4. Reinicie o backend
+
+═══════════════════════════════════════════════════════════════
+
+❓ PRECISA DE AJUDA?
+
+Me mostre:
+- O resultado do SQL no DBeaver/pgAdmin
+- Os primeiros 50 linhas do log do backend
+- Mensagem de erro completa (se houver)
+
+═══════════════════════════════════════════════════════════════
+
+Data: 07/10/2025 10:52
+Status: PRONTO PARA EXECUTAR
+Arquivos: RESET_BANCO_AGORA.sql
+
+═══════════════════════════════════════════════════════════════
+

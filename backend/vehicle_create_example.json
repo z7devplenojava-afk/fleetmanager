@@ -1,0 +1,15 @@
+{
+  "plate": "ABC-1234",
+  "model": "Civic",
+  "brand": "Honda",
+  "year": 2023,
+  "color": "Prata",
+  "status": "ACTIVE",
+  "fuelType": "FLEX",
+  "capacity": 5,
+  "currentMileage": 15000,
+  "lastMaintenanceDate": "2024-01-15",
+  "nextMaintenanceDate": "2024-07-15",
+  "insuranceExpiryDate": "2024-12-31",
+  "documentationExpiryDate": "2024-12-31"
+} 

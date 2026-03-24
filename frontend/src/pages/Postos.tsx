@@ -81,12 +81,12 @@ const Postos: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [workPostsData, clientsResponse] = await Promise.all([
-        workPostService.getWorkPosts(),
-        clientService.getClients({ page: 0, size: 1000 })
+      const [workPostsData, clientsData] = await Promise.all([
+        workPostService.getAllWorkPosts(),
+        clientService.getAllClients()
       ]);
       setWorkPosts(workPostsData);
-      setClients(clientsResponse.content);
+      setClients(clientsData);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast({

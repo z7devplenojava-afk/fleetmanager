@@ -17,12 +17,30 @@ export interface MeasurementBulletin {
   items: MeasurementItem[];
   calculationMemory?: CalculationMemory;
   subtotal: number;
-  client?: { id: number; name: string };
+  // IDs diretos do DTO
+  clientId?: string;
+  clientName?: string;
+  contractId?: string;
+  unitId?: string;
+  unitName?: string;
+  // Objetos completos (para compatibilidade)
+  client?: { id: number | string; name: string };
   contract?: { id: string; contractNumber: string; description: string };
   unit?: { id: string; name: string };
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  measurementType?: MeasurementType;
+}
+
+export enum MeasurementCategory {
+  LEASE = 'LEASE',
+  EXCESS_KM = 'EXCESS_KM',
+  FUEL = 'FUEL',
+  DRIVER_COST = 'DRIVER_COST',
+  RETENTION = 'RETENTION',
+  EXTRA_TRIP = 'EXTRA_TRIP',
+  OTHER = 'OTHER'
 }
 
 export interface MeasurementItem {
@@ -37,15 +55,21 @@ export interface MeasurementItem {
   costCenterId?: string;
   costCenterName?: string;
   bulletinId: string;
+  vehiclePlate?: string;
+  tripCount?: number;
+  isExtraTrip?: boolean;
+  baseValue?: number;
+  workingDays?: number;
+  category?: MeasurementCategory;
+  initialKm?: number;
+  finalKm?: number;
+  franchiseKm?: number;
+  disregardedKm?: number;
 }
 
 export interface CalculationMemory {
-  id: string;
-  details: string; // Texto com cálculos ou observações
-  evidencePath?: string; // Caminho para arquivos de evidência
-  monthReference?: string; // Mês de referência (ex: "Mar-25")
-  calculationItems?: string[]; // Array de itens de cálculo
-  bulletinId: string;
+  // ...
+  // ...
 }
 
 export enum MeasurementStatus {
@@ -53,6 +77,12 @@ export enum MeasurementStatus {
   PENDING = 'PENDING',
   VALIDATED = 'VALIDATED',
   CANCELLED = 'CANCELLED'
+}
+
+export enum MeasurementType {
+  GLOBAL = 'GLOBAL',
+  NFE = 'NFE',
+  CTE = 'CTE'
 }
 
 export interface MeasurementFilters {
@@ -78,6 +108,7 @@ export interface CreateMeasurementBulletinDTO {
   contractId?: string;
   unitId?: string;
   notes?: string;
+  measurementType?: MeasurementType;
   items: CreateMeasurementItemDTO[];
   calculationMemory?: {
     details: string;
@@ -96,6 +127,16 @@ export interface CreateMeasurementItemDTO {
   unitPrice: number;
   costCenterId?: string;
   costCenterName?: string;
+  vehiclePlate?: string;
+  tripCount?: number;
+  isExtraTrip?: boolean;
+  baseValue?: number;
+  workingDays?: number;
+  category?: MeasurementCategory;
+  initialKm?: number;
+  finalKm?: number;
+  franchiseKm?: number;
+  disregardedKm?: number;
 }
 
 export interface UpdateMeasurementBulletinDTO extends Partial<CreateMeasurementBulletinDTO> {

@@ -26,6 +26,16 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Equipment, 
   EquipmentFilters, 
@@ -77,6 +87,9 @@ const Equipamentos: React.FC = () => {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [equipmentToDelete, setEquipmentToDelete] = useState<Equipment | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   const handleCreateEquipment = () => {
@@ -85,15 +98,51 @@ const Equipamentos: React.FC = () => {
 
   const handleFormModalClose = () => {
     setFormModalOpen(false);
+    setSelectedEquipment(null);
   };
 
   const handleFormSuccess = () => {
     setFormModalOpen(false);
-    // Recarregar a lista
+    setSelectedEquipment(null);
+    loadData(); // Recarregar a lista
     toast({
       title: 'Sucesso!',
-      description: 'Equipamento criado com sucesso.',
+      description: 'Equipamento salvo com sucesso.',
     });
+  };
+
+  const handleDeleteClick = (equipment: Equipment) => {
+    setEquipmentToDelete(equipment);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!equipmentToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      await equipmentService.delete(equipmentToDelete.id);
+      
+      toast({
+        title: 'Sucesso!',
+        description: 'Equipamento excluído com sucesso.',
+      });
+      
+      // Recarregar a lista
+      await loadData();
+      
+      setDeleteDialogOpen(false);
+      setEquipmentToDelete(null);
+    } catch (err: any) {
+      console.error('Erro ao excluir equipamento:', err);
+      toast({
+        title: 'Erro',
+        description: err.response?.data?.message || 'Erro ao excluir equipamento.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Carregar dados iniciais
@@ -293,8 +342,8 @@ const Equipamentos: React.FC = () => {
         console.log('Gerar QR Code para:', equipment);
       }}
       onDelete={(equipment) => {
-        // TODO: Implementar exclusão
-        console.log('Excluir equipamento:', equipment);
+        setEquipmentToDelete(equipment);
+        setDeleteDialogOpen(true);
       }}
       onCreate={handleCreateEquipment}
       onReport={() => setReportModalOpen(true)}
@@ -401,10 +450,52 @@ const Equipamentos: React.FC = () => {
           onClose={() => setReportModalOpen(false)}
         />
 
+        {/* Diálogo de Confirmação de Exclusão */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent className="bg-seguranca-graphite border-gray-600">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-seguranca-lightgray">
+                Confirmar Exclusão
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-400">
+                Tem certeza que deseja excluir o equipamento{' '}
+                <span className="font-semibold text-white">
+                  {equipmentToDelete?.serialNumber || 'N/A'}
+                </span>
+                {equipmentToDelete?.model && (
+                  <>
+                    {' '}({equipmentToDelete.model})?
+                  </>
+                )}
+                <br />
+                <span className="text-xs text-gray-500 mt-2 block">
+                  Esta ação não pode ser desfeita.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel 
+                className="bg-seguranca-graphite text-seguranca-lightgray border-gray-600 hover:bg-gray-700"
+                disabled={isDeleting}
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {isDeleting ? 'Excluindo...' : 'Excluir'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <EquipmentFormModal
           isOpen={formModalOpen}
           onClose={handleFormModalClose}
           onSuccess={handleFormSuccess}
+          equipment={selectedEquipment}
         />
       </div>
   );

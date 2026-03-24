@@ -1,5 +1,3 @@
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
@@ -50,117 +48,127 @@ export class ReportGenerator {
     return new Intl.NumberFormat('pt-BR').format(value);
   }
 
-  static generatePDF(data: ReportData): void {
-    const doc = new jsPDF();
-    
-    // Configurações do documento
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
-    
-    // Cabeçalho
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text(data.title, margin, 30);
-    
-    if (data.subtitle) {
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'normal');
-      doc.text(data.subtitle, margin, 40);
-    }
-    
-    if (data.period) {
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'italic');
-      doc.text(`Período: ${data.period}`, margin, 50);
-    }
-    
-    // Data de geração
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Gerado em: ${this.formatDate(new Date())}`, pageWidth - 60, 30);
-    
-    // Tabela de dados
-    const tableStartY = data.subtitle ? 60 : 50;
-    
-    doc.autoTable({
-      startY: tableStartY,
-      head: [data.headers],
-      body: data.rows,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [41, 128, 185],
-        textColor: 255,
-        fontStyle: 'bold',
-        fontSize: 10
-      },
-      bodyStyles: {
-        fontSize: 9,
-        textColor: [50, 50, 50]
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245]
-      },
-      margin: { top: tableStartY, left: margin, right: margin },
-      styles: {
-        cellPadding: 3,
-        overflow: 'linebreak',
-        halign: 'left'
-      },
-      columnStyles: {
-        // Estilização específica para colunas de valores
-        ...Object.fromEntries(
-          data.headers.map((header, index) => {
-            if (header.toLowerCase().includes('valor') || 
-                header.toLowerCase().includes('total') ||
-                header.toLowerCase().includes('saldo')) {
-              return [index, { halign: 'right' }];
-            }
-            return [index, { halign: 'left' }];
-          })
-        )
-      }
-    });
-    
-    // Resumo (se fornecido)
-    if (data.summary && data.summary.length > 0) {
-      const finalY = (doc as any).lastAutoTable.finalY || 100;
-      let currentY = finalY + 20;
+  static async generatePDF(data: ReportData): Promise<void> {
+    try {
+      // Importação dinâmica para garantir que os módulos sejam carregados
+      const jsPDF = (await import('jspdf')).default;
+      const autoTable = await import('jspdf-autotable');
       
-      doc.setFontSize(14);
+      const doc = new jsPDF();
+      
+      // Configurações do documento
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      
+      // Cabeçalho
+      doc.setFontSize(20);
       doc.setFont('helvetica', 'bold');
-      doc.text('Resumo', margin, currentY);
-      currentY += 10;
+      doc.text(data.title, margin, 30);
       
-      data.summary.forEach((item) => {
-        doc.setFontSize(12);
+      if (data.subtitle) {
+        doc.setFontSize(14);
         doc.setFont('helvetica', 'normal');
-        
-        let formattedValue = item.value.toString();
-        if (item.format === 'currency') {
-          formattedValue = this.formatCurrency(item.value);
-        } else if (item.format === 'number') {
-          formattedValue = this.formatNumber(item.value);
-        }
-        
-        doc.text(`${item.label}:`, margin, currentY);
-        doc.setFont('helvetica', 'bold');
-        doc.text(formattedValue, margin + 80, currentY);
-        currentY += 8;
-      });
-    }
-    
-    // Rodapé
-    const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
+        doc.text(data.subtitle, margin, 40);
+      }
+      
+      if (data.period) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'italic');
+        doc.text(`Período: ${data.period}`, margin, 50);
+      }
+      
+      // Data de geração
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Página ${i} de ${pageCount}`, pageWidth - 30, doc.internal.pageSize.getHeight() - 10);
+      doc.text(`Gerado em: ${this.formatDate(new Date())}`, pageWidth - 60, 30);
+      
+      // Tabela de dados
+      const tableStartY = data.subtitle ? 60 : 50;
+      
+      // Usar autoTable.default() como nos outros arquivos
+      autoTable.default(doc, {
+        startY: tableStartY,
+        head: [data.headers],
+        body: data.rows,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 10
+        },
+        bodyStyles: {
+          fontSize: 9,
+          textColor: [50, 50, 50]
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245]
+        },
+        margin: { top: tableStartY, left: margin, right: margin },
+        styles: {
+          cellPadding: 3,
+          overflow: 'linebreak',
+          halign: 'left'
+        },
+        columnStyles: {
+          // Estilização específica para colunas de valores
+          ...Object.fromEntries(
+            data.headers.map((header, index) => {
+              if (header.toLowerCase().includes('valor') || 
+                  header.toLowerCase().includes('total') ||
+                  header.toLowerCase().includes('saldo')) {
+                return [index, { halign: 'right' }];
+              }
+              return [index, { halign: 'left' }];
+            })
+          )
+        }
+      });
+      
+      // Resumo (se fornecido)
+      if (data.summary && data.summary.length > 0) {
+        const finalY = (doc as any).lastAutoTable?.finalY || 100;
+        let currentY = finalY + 20;
+        
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Resumo', margin, currentY);
+        currentY += 10;
+        
+        data.summary.forEach((item) => {
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'normal');
+          
+          let formattedValue = item.value.toString();
+          if (item.format === 'currency') {
+            formattedValue = this.formatCurrency(item.value);
+          } else if (item.format === 'number') {
+            formattedValue = this.formatNumber(item.value);
+          }
+          
+          doc.text(`${item.label}:`, margin, currentY);
+          doc.setFont('helvetica', 'bold');
+          doc.text(formattedValue, margin + 80, currentY);
+          currentY += 8;
+        });
+      }
+      
+      // Rodapé
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Página ${i} de ${pageCount}`, pageWidth - 30, doc.internal.pageSize.getHeight() - 10);
+      }
+      
+      // Salvar arquivo
+      const fileName = `${data.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      throw new Error('Erro ao gerar relatório PDF');
     }
-    
-    // Salvar arquivo
-    const fileName = `${data.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-    doc.save(fileName);
   }
 
   static generateExcel(data: ReportData): void {
@@ -265,7 +273,7 @@ export enum ReportType {
 export const REPORT_CONFIGS = {
   [ReportType.CONTAS_PAGAR]: {
     title: 'Relatório de Contas a Pagar',
-    headers: ['ID', 'Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Categoria', 'Centro de Custo']
+    headers: ['Empresa', 'Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo']
   },
   [ReportType.CONTAS_RECEBER]: {
     title: 'Relatório de Contas a Receber',

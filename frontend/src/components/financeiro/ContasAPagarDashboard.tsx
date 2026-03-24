@@ -34,10 +34,12 @@ export const ContasAPagarDashboard: React.FC<DashboardProps> = ({ contas, refres
   };
 
   useEffect(() => {
+    console.log('📊 ContasAPagarDashboard - contas recebidas:', contas?.length || 0);
     processarDadosGraficos();
   }, [contas]);
 
   const processarDadosGraficos = () => {
+    console.log('🔄 Processando dados para gráficos...');
     setLoading(true);
     
     // 1. Dados por Tipo
@@ -133,6 +135,14 @@ export const ContasAPagarDashboard: React.FC<DashboardProps> = ({ contas, refres
       porCentroCusto
     });
     
+    console.log('✅ Dados processados:', {
+      porTipo: porTipo.length,
+      porStatus: porStatus.length,
+      evolucaoMensal: evolucaoMensal.length,
+      porFornecedor: porFornecedor.length,
+      porCentroCusto: porCentroCusto.length
+    });
+    
     setLoading(false);
   };
 
@@ -144,8 +154,17 @@ export const ContasAPagarDashboard: React.FC<DashboardProps> = ({ contas, refres
   };
 
   if (loading) {
-    return <div className="flex justify-center p-8">Carregando dashboard...</div>;
+    return (
+      <div className="flex justify-center items-center p-8 bg-seguranca-graphite rounded-lg border border-gray-600">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-seguranca-yellow mx-auto mb-2"></div>
+          <p className="text-seguranca-lightgray">Carregando dashboard...</p>
+        </div>
+      </div>
+    );
   }
+
+  console.log('🎨 Renderizando dashboard com dados:', dadosGraficos);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

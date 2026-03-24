@@ -30,6 +30,7 @@ import {
 import { ActivityReport, CreateActivityReportDTO } from '@/types/activityReport';
 import { useToast } from '@/hooks/use-toast';
 import { activityReportService } from '@/services/activityReportService';
+import { workPostService } from '@/services/workPostService';
 import CameraCaptureModal from './CameraCaptureModal';
 
 interface ActivityReportModalProps {
@@ -60,20 +61,131 @@ const ActivityReportModal: React.FC<ActivityReportModalProps> = ({
   const [photos, setPhotos] = useState<File[]>([]);
   const [documents, setDocuments] = useState<File[]>([]);
   const [showCameraModal, setShowCameraModal] = useState(false);
+  
+  // Estados para dados dos dropdowns
+  const [employees, setEmployees] = useState<{id: string, name: string}[]>([]);
+  const [clients, setClients] = useState<{id: string, name: string}[]>([]);
+  const [filteredWorkPosts, setFilteredWorkPosts] = useState<{id: string, name: string}[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+  const [loadingWorkPosts, setLoadingWorkPosts] = useState(false);
+  
+  // Carregar postos quando cliente mudar
+  useEffect(() => {
+    const loadWorkPostsForClient = async () => {
+      if (!formData.clientId) {
+        setFilteredWorkPosts([]);
+        return;
+      }
+
+      try {
+        setLoadingWorkPosts(true);
+        console.log('🔍 Carregando postos para o cliente:', formData.clientId);
+        
+        // Usar o método específico para buscar postos por cliente
+        const posts = await workPostService.getWorkPostsByClient(formData.clientId);
+        console.log('✅ Postos carregados para o cliente:', posts.length);
+        
+        const mappedPosts = posts.map((wp: any) => ({
+          id: wp.id?.toString() || wp.id,
+          name: wp.name || wp.postCode || 'Sem nome'
+        }));
+        
+        console.log('✅ Postos mapeados:', mappedPosts.length);
+        if (mappedPosts.length > 0) {
+          console.log('📋 Postos encontrados:', mappedPosts.map(wp => ({ id: wp.id, name: wp.name })));
+        } else {
+          console.warn('⚠️ Nenhum posto encontrado para o cliente:', formData.clientId);
+        }
+        
+        setFilteredWorkPosts(mappedPosts);
+      } catch (error: any) {
+        console.error('❌ Erro ao carregar postos por cliente:', error);
+        console.error('❌ Detalhes do erro:', {
+          message: error?.message,
+          response: error?.response?.data,
+          status: error?.response?.status
+        });
+        setFilteredWorkPosts([]);
+        toast({
+          title: 'Aviso',
+          description: 'Não foi possível carregar os postos de trabalho para este cliente.',
+          variant: 'destructive'
+        });
+      } finally {
+        setLoadingWorkPosts(false);
+      }
+    };
+
+    loadWorkPostsForClient();
+  }, [formData.clientId]);
+
+  // Preservar workPostId quando os postos são carregados e há um report sendo editado
+  useEffect(() => {
+    if (report && filteredWorkPosts.length > 0) {
+      const reportWorkPostId = report.workPostId?.toString() || report.workPostId || '';
+      
+      console.log('🔍 Verificando preservação de workPostId:', {
+        reportWorkPostId,
+        formDataWorkPostId: formData.workPostId,
+        filteredWorkPostsCount: filteredWorkPosts.length,
+        availableWorkPostIds: filteredWorkPosts.map(wp => ({ id: wp.id, name: wp.name }))
+      });
+      
+      if (reportWorkPostId) {
+        // Verificar se o workPostId do report existe na lista de postos carregados
+        // Comparar tanto como string quanto como UUID
+        const workPostExists = filteredWorkPosts.some(wp => {
+          const wpId = wp.id?.toString() || wp.id || '';
+          return wpId === reportWorkPostId;
+        });
+        
+        if (workPostExists) {
+          if (formData.workPostId !== reportWorkPostId) {
+            console.log('✅ Atualizando workPostId do report:', reportWorkPostId);
+            setFormData(prev => ({ ...prev, workPostId: reportWorkPostId }));
+          } else {
+            console.log('✅ workPostId já está correto:', formData.workPostId);
+          }
+        } else {
+          console.warn('⚠️ WorkPostId do report não encontrado na lista de postos:', reportWorkPostId);
+          console.warn('⚠️ Postos disponíveis:', filteredWorkPosts.map(wp => ({ id: wp.id, name: wp.name })));
+          // Tentar encontrar por nome como fallback
+          if (report.workPostName) {
+            const foundByName = filteredWorkPosts.find(wp => wp.name === report.workPostName);
+            if (foundByName) {
+              const foundId = foundByName.id?.toString() || foundByName.id || '';
+              console.log('✅ Encontrado posto por nome, atualizando workPostId:', foundId);
+              setFormData(prev => ({ ...prev, workPostId: foundId }));
+            } else {
+              console.warn('⚠️ Posto não encontrado nem por ID nem por nome. Nome procurado:', report.workPostName);
+            }
+          }
+        }
+      } else {
+        console.warn('⚠️ report.workPostId está vazio ou undefined');
+      }
+    }
+  }, [report, filteredWorkPosts]);
 
   useEffect(() => {
     if (report) {
-      setFormData({
+      console.log('📋 Inicializando formData com dados do report:', {
         employeeId: report.employeeId,
         clientId: report.clientId,
         workPostId: report.workPostId,
-        date: report.date,
-        startTime: report.startTime,
-        endTime: report.endTime,
-        description: report.description,
+        workPostName: report.workPostName
+      });
+      setFormData({
+        employeeId: report.employeeId || '',
+        clientId: report.clientId || '',
+        workPostId: report.workPostId || '',
+        date: report.date || '',
+        startTime: report.startTime || '',
+        endTime: report.endTime || '',
+        description: report.description || '',
         ballisticPlate: report.ballisticPlate,
         weaponRegistry: report.weaponRegistry,
-        absenceStatus: report.absenceStatus,
+        absenceStatus: report.absenceStatus || 'PRESENT',
         divergences: report.divergences,
         medicalConsultation: report.medicalConsultation
       });
@@ -93,11 +205,110 @@ const ActivityReportModal: React.FC<ActivityReportModalProps> = ({
     setDocuments([]);
   }, [report, open]);
 
+  // Carregar dados quando modal abrir
+  useEffect(() => {
+    if (open) {
+      loadDropdownData();
+    }
+  }, [open]);
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+    
+    // Limpar posto selecionado quando cliente mudar (exceto se estiver editando e o cliente não mudou)
+    if (field === 'clientId') {
+      // Só limpar se o cliente realmente mudou e não estamos preservando o workPostId do report
+      if (!report || report.clientId !== value) {
+        setFormData(prev => ({ ...prev, workPostId: '' }));
+      }
+    }
+  };
+
+  // Carregar dados dos dropdowns
+  const loadDropdownData = async () => {
+    try {
+      setLoadingData(true);
+      console.log('🔄 Iniciando carregamento de dados dos dropdowns...');
+      
+      // Carregar funcionários
+      try {
+        const employeesResponse = await fetch('/api/employees/basic');
+        if (employeesResponse.ok) {
+          const employeesData = await employeesResponse.json();
+          const mappedEmployees = (employeesData.employees || []).map((emp: any) => ({
+            id: emp.id?.toString() || emp.id,
+            name: emp.name || 'Sem nome'
+          }));
+          setEmployees(mappedEmployees);
+          console.log('✅ Funcionários carregados:', mappedEmployees.length);
+        } else {
+          console.error('❌ Erro ao carregar funcionários:', employeesResponse.status);
+        }
+      } catch (error) {
+        console.error('❌ Erro ao buscar funcionários:', error);
+      }
+      
+      // Carregar clientes
+      try {
+        console.log('🔍 Buscando clientes em /api/clients/select...');
+        const clientsResponse = await fetch('/api/clients/select');
+        console.log('📡 Resposta do servidor:', clientsResponse.status, clientsResponse.statusText);
+        
+        if (clientsResponse.ok) {
+          const clientsData = await clientsResponse.json();
+          console.log('👥 Clientes carregados (raw):', clientsData?.length || 0);
+          console.log('👥 Primeiro cliente (exemplo):', clientsData?.[0]);
+          
+          // Mapear os dados para garantir formato correto
+          const mappedClients = (clientsData || []).map((client: any) => ({
+            id: client.id?.toString() || client.id,
+            name: client.name || 'Sem nome'
+          }));
+          
+          console.log('✅ Clientes mapeados:', mappedClients.length);
+          if (mappedClients.length > 0) {
+            console.log('👥 Primeiros 3 clientes:', mappedClients.slice(0, 3));
+          } else {
+            console.warn('⚠️ Nenhum cliente encontrado!');
+          }
+          
+          setClients(mappedClients);
+        } else {
+          console.error('❌ Erro ao carregar clientes:', clientsResponse.status, clientsResponse.statusText);
+          const errorText = await clientsResponse.text();
+          console.error('❌ Detalhes do erro:', errorText);
+          toast({
+            title: 'Aviso',
+            description: `Não foi possível carregar os clientes (${clientsResponse.status}). Verifique sua conexão.`,
+            variant: 'destructive'
+          });
+        }
+      } catch (error: any) {
+        console.error('❌ Erro ao buscar clientes:', error);
+        toast({
+          title: 'Erro',
+          description: 'Erro ao carregar clientes: ' + (error.message || 'Erro desconhecido'),
+          variant: 'destructive'
+        });
+      }
+      
+      // Não precisamos mais carregar todos os postos antecipadamente
+      // Os postos serão carregados dinamicamente quando um cliente for selecionado
+      
+    } catch (error) {
+      console.error('❌ Erro geral ao carregar dados dos dropdowns:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao carregar dados. Tente novamente.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoadingData(false);
+      console.log('✅ Carregamento de dados concluído');
+    }
   };
 
   const handleNestedInputChange = (parent: string, field: string, value: any) => {
@@ -252,44 +463,71 @@ const ActivityReportModal: React.FC<ActivityReportModalProps> = ({
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="employeeId" className="text-sm font-medium">Funcionário *</Label>
-                <Select value={formData.employeeId} onValueChange={(value) => handleInputChange('employeeId', value)}>
+                <Select value={formData.employeeId} onValueChange={(value) => handleInputChange('employeeId', value)} disabled={loadingData}>
                   <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Selecione o funcionário" />
+                    <SelectValue placeholder={loadingData ? "Carregando funcionários..." : "Selecione o funcionário"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="emp-001">João Silva</SelectItem>
-                    <SelectItem value="emp-002">Carlos Lima</SelectItem>
-                    <SelectItem value="emp-003">Ana Santos</SelectItem>
+                    {employees.map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="clientId" className="text-sm font-medium">Cliente *</Label>
-                <Select value={formData.clientId} onValueChange={(value) => handleInputChange('clientId', value)}>
+                <Select value={formData.clientId} onValueChange={(value) => handleInputChange('clientId', value)} disabled={loadingData}>
                   <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Selecione o cliente" />
+                    <SelectValue placeholder={loadingData ? "Carregando clientes..." : "Selecione o cliente"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="client-001">Empresa ABC Ltda</SelectItem>
-                    <SelectItem value="client-002">Indústria XYZ S.A.</SelectItem>
-                    <SelectItem value="client-003">Comércio 123 ME</SelectItem>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="workPostId" className="text-sm font-medium">Posto de Trabalho *</Label>
-                <Select value={formData.workPostId} onValueChange={(value) => handleInputChange('workPostId', value)}>
+                <Select 
+                  value={formData.workPostId || ''} 
+                  onValueChange={(value) => handleInputChange('workPostId', value)}
+                  disabled={!formData.clientId || loadingWorkPosts}
+                >
                   <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Selecione o posto" />
+                    <SelectValue placeholder={
+                      !formData.clientId 
+                        ? "Selecione um cliente primeiro" 
+                        : loadingWorkPosts 
+                          ? "Carregando postos..." 
+                          : "Selecione o posto"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="post-001">Portaria Principal</SelectItem>
-                    <SelectItem value="post-002">Ronda Noturna</SelectItem>
-                    <SelectItem value="post-003">Recepção</SelectItem>
+                    {loadingWorkPosts ? (
+                      <SelectItem value="loading" disabled>Carregando postos...</SelectItem>
+                    ) : filteredWorkPosts.length === 0 ? (
+                      <SelectItem value="no-posts" disabled>Nenhum posto encontrado</SelectItem>
+                    ) : (
+                      filteredWorkPosts.map((workPost) => (
+                        <SelectItem key={workPost.id} value={workPost.id}>
+                          {workPost.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
+                {formData.clientId && filteredWorkPosts.length === 0 && !loadingWorkPosts && (
+                  <p className="text-xs text-yellow-500">
+                    Nenhum posto de trabalho encontrado para este cliente
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

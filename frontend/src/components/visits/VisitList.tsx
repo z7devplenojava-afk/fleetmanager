@@ -1,372 +1,283 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React from 'react';
+import { Edit, Eye, Trash2, MapPin, Clock, User, Building, Camera, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  Eye, 
-  Edit, 
-  Trash2, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  AlertCircle,
-  MapPin,
-  Calendar,
-  Clock3,
-  RefreshCw,
-  Download,
-  MoreVertical
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Visit, VisitStatus } from '@/types/visit';
-import { visitService } from '@/services/visitService';
-import { useAuth } from '@/contexts/AuthContext';
-import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Visit } from '@/types/visit';
 
 interface VisitListProps {
-  onCreateVisit?: () => void;
-  onEditVisit?: (visit: Visit) => void;
-  onViewVisit?: (visit: Visit) => void;
-  onDeleteVisit?: (visit: Visit) => void;
-  onCompleteVisit?: (visit: Visit) => void;
+  visits: Visit[];
+  loading?: boolean;
+  onEdit: (visit: Visit) => void;
+  onView: (visit: Visit) => void;
+  onDelete: (visitId: string) => void;
 }
 
 const VisitList: React.FC<VisitListProps> = ({
-  onCreateVisit,
-  onEditVisit,
-  onViewVisit,
-  onDeleteVisit,
-  onCompleteVisit
+  visits,
+  loading = false,
+  onEdit,
+  onView,
+  onDelete,
 }) => {
-  const { user } = useAuth();
-  const [visits, setVisits] = useState<Visit[]>([]);
-  const [filteredVisits, setFilteredVisits] = useState<Visit[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [monthFilter, setMonthFilter] = useState(new Date().getMonth() + 1);
-  const [yearFilter, setYearFilter] = useState(new Date().getFullYear());
+  // Garantir que visits seja um array
+  const safeVisits = visits || [];
 
-  useEffect(() => {
-    loadVisits();
-  }, [monthFilter, yearFilter]);
-
-  useEffect(() => {
-    filterVisits();
-  }, [visits, searchTerm, statusFilter]);
-
-  const loadVisits = async () => {
-    if (!user?.id) return;
-
-    try {
-      setLoading(true);
-      const data = await visitService.getVisitsBySupervisor(user.id, yearFilter, monthFilter);
-      setVisits(data);
-    } catch (error) {
-      console.error('Erro ao carregar visitas:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterVisits = () => {
-    let filtered = visits;
-
-    // Filtro por termo de busca
-    if (searchTerm) {
-      filtered = filtered.filter(visit =>
-        visit.unitName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visit.unitAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visit.observations?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filtro por status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(visit => visit.status === statusFilter);
-    }
-
-    setFilteredVisits(filtered);
-  };
-
-  const getStatusBadge = (status: VisitStatus) => {
+  const getStatusBadge = (status: string) => {
     const statusConfig = {
-      [VisitStatus.PENDING]: { 
-        label: 'Pendente', 
-        className: 'bg-yellow-100 text-yellow-800 border-yellow-200' 
-      },
-      [VisitStatus.COMPLETED]: { 
-        label: 'Realizada', 
-        className: 'bg-green-100 text-green-800 border-green-200' 
-      },
-      [VisitStatus.NOT_COMPLETED]: { 
-        label: 'Não Realizada', 
-        className: 'bg-red-100 text-red-800 border-red-200' 
-      },
-      [VisitStatus.CANCELLED]: { 
-        label: 'Cancelada', 
-        className: 'bg-gray-100 text-gray-800 border-gray-200' 
-      }
+      PENDING: { label: 'Pendente', className: 'bg-blue-500 text-white' },
+      SCHEDULED: { label: 'Agendada', className: 'bg-blue-500 text-white' },
+      IN_PROGRESS: { label: 'Em Andamento', className: 'bg-yellow-500 text-white' },
+      COMPLETED: { label: 'Concluída', className: 'bg-green-500 text-white' },
+      NOT_COMPLETED: { label: 'Não Realizada', className: 'bg-gray-500 text-white' },
+      CANCELLED: { label: 'Cancelada', className: 'bg-red-500 text-white' },
+      MISSED: { label: 'Não Realizada', className: 'bg-gray-500 text-white' },
     };
 
-    const config = statusConfig[status];
+    const config = statusConfig[status as keyof typeof statusConfig] || { label: status || 'Desconhecido', className: 'bg-gray-500 text-white' };
+    
     return (
-      <Badge className={cn('border', config.className)}>
+      <Badge className={config.className}>
         {config.label}
       </Badge>
     );
   };
 
-  const getStatusIcon = (status: VisitStatus) => {
-    switch (status) {
-      case VisitStatus.COMPLETED:
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case VisitStatus.NOT_COMPLETED:
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case VisitStatus.CANCELLED:
-        return <AlertCircle className="h-4 w-4 text-gray-600" />;
-      default:
-        return <Clock className="h-4 w-4 text-yellow-600" />;
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
-
-  const formatTime = (timeString?: string) => {
-    if (!timeString) return '--:--';
-    return new Date(timeString).toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const handleCompleteVisit = async (visit: Visit) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'N/A';
     try {
-      await visitService.markVisitAsCompleted(visit.id!);
-      await loadVisits();
-      onCompleteVisit?.(visit);
-    } catch (error) {
-      console.error('Erro ao marcar visita como realizada:', error);
+      return new Date(dateString).toLocaleDateString('pt-BR');
+    } catch (e) {
+      return dateString;
     }
   };
 
-  const handleDeleteVisit = async (visit: Visit) => {
-    if (window.confirm('Tem certeza que deseja excluir esta visita?')) {
-      try {
-        await visitService.deleteVisit(visit.id!);
-        await loadVisits();
-        onDeleteVisit?.(visit);
-      } catch (error) {
-        console.error('Erro ao excluir visita:', error);
-      }
+  const formatTime = (timeString: string | null | undefined) => {
+    if (!timeString) return 'N/A';
+    try {
+      return timeString.substring(0, 5);
+    } catch (e) {
+      return timeString;
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex items-center space-x-2">
-          <RefreshCw className="h-6 w-6 animate-spin" />
-          <span>Carregando visitas...</span>
-        </div>
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-seguranca-yellow"></div>
+      </div>
+    );
+  }
+
+  if (safeVisits.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <MapPin className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-white mb-2">Nenhuma visita encontrada</h3>
+        <p className="text-gray-400">Não há visitas que correspondam aos filtros aplicados.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header com filtros */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Lista de Visitas
-            </CardTitle>
-            <Button onClick={onCreateVisit} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Visita
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Buscar por unidade, endereço..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Status</SelectItem>
-                <SelectItem value={VisitStatus.PENDING}>Pendente</SelectItem>
-                <SelectItem value={VisitStatus.COMPLETED}>Realizada</SelectItem>
-                <SelectItem value={VisitStatus.NOT_COMPLETED}>Não Realizada</SelectItem>
-                <SelectItem value={VisitStatus.CANCELLED}>Cancelada</SelectItem>
-              </SelectContent>
-            </Select>
+    <div className="space-y-4">
+      {/* Cards para mobile */}
+      <div className="block md:hidden space-y-3">
+        {safeVisits.map((visit) => (
+          <Card key={visit.id} className="bg-seguranca-black border-gray-700">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  <h3 className="text-white font-semibold mb-1">{visit.workPostName || 'N/A'}</h3>
+                  <p className="text-gray-400 text-sm">{visit.clientName || 'N/A'}</p>
+                </div>
+                {getStatusBadge(visit.status || 'PENDING')}
+              </div>
 
-            <Select value={monthFilter.toString()} onValueChange={(value) => setMonthFilter(parseInt(value))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                  <SelectItem key={month} value={month.toString()}>
-                    {new Date(2024, month - 1).toLocaleDateString('pt-BR', { month: 'long' })}
-                  </SelectItem>
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center text-sm text-gray-300">
+                  <User className="w-4 h-4 mr-2" />
+                  <span>{visit.supervisorName || 'N/A'}</span>
+                </div>
+                
+                <div className="flex items-center text-sm text-gray-300">
+                  <Clock className="w-4 h-4 mr-2" />
+                  <span>{formatDate(visit.visitDate)} às {formatTime(visit.visitTime)}</span>
+                </div>
+
+                {visit.latitude && visit.longitude && (
+                  <div className="flex items-center text-sm text-gray-300">
+                    <MapPin className="w-4 h-4 mr-2" />
+                    <span>Localização registrada</span>
+                  </div>
+                )}
+
+                {(visit.presentEmployees && visit.presentEmployees.length > 0) && (
+                  <div className="flex items-center text-sm text-gray-300">
+                    <span>{visit.presentEmployees.length} funcionário(s) presente(s)</span>
+                  </div>
+                )}
+
+                {((visit.photos && visit.photos.length > 0) || (visit.attachedFiles && visit.attachedFiles.length > 0)) && (
+                  <div className="flex items-center text-sm text-gray-300">
+                    <Camera className="w-4 h-4 mr-2" />
+                    <span>
+                      {visit.photos?.length || 0} foto(s), {visit.attachedFiles?.length || 0} arquivo(s)
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {visit.description && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-300 line-clamp-2">{visit.description}</p>
+                </div>
+              )}
+
+              <div className="flex space-x-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onView(visit)}
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                >
+                  <Eye className="w-4 h-4 mr-1" />
+                  Ver
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onEdit(visit)}
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  Editar
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onDelete(visit.id)}
+                  className="border-red-600 text-red-400 hover:bg-red-900"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Excluir
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Tabela para desktop */}
+      <div className="hidden md:block">
+        <Card className="bg-seguranca-black border-gray-700">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-gray-700">
+                  <TableHead className="text-gray-300">Data/Hora</TableHead>
+                  <TableHead className="text-gray-300">Posto</TableHead>
+                  <TableHead className="text-gray-300">Cliente</TableHead>
+                  <TableHead className="text-gray-300">Supervisor</TableHead>
+                  <TableHead className="text-gray-300">Status</TableHead>
+                  <TableHead className="text-gray-300">Funcionários</TableHead>
+                  <TableHead className="text-gray-300">Anexos</TableHead>
+                  <TableHead className="text-gray-300">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {safeVisits.map((visit) => (
+                  <TableRow key={visit.id} className="border-gray-700 hover:bg-gray-800">
+                    <TableCell className="text-white">
+                      <div>
+                        <div className="font-medium">{formatDate(visit.visitDate)}</div>
+                        <div className="text-sm text-gray-400">{formatTime(visit.visitTime)}</div>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell className="text-white">
+                      <div className="font-medium">{visit.workPostName || 'N/A'}</div>
+                      {visit.latitude && visit.longitude && (
+                        <div className="flex items-center text-xs text-gray-400">
+                          <MapPin className="w-3 h-3 mr-1" />
+                          Localização
+                        </div>
+                      )}
+                    </TableCell>
+                    
+                    <TableCell className="text-white">{visit.clientName || 'N/A'}</TableCell>
+                    
+                    <TableCell className="text-white">{visit.supervisorName || 'N/A'}</TableCell>
+                    
+                    <TableCell>{getStatusBadge(visit.status)}</TableCell>
+                    
+                    <TableCell className="text-white">
+                      <div className="flex items-center">
+                        <User className="w-4 h-4 mr-1" />
+                        <span>{visit.presentEmployees?.length || 0}</span>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell className="text-white">
+                      <div className="flex items-center space-x-2">
+                        {(visit.photos && visit.photos.length > 0) && (
+                          <div className="flex items-center text-xs">
+                            <Camera className="w-3 h-3 mr-1" />
+                            <span>{visit.photos.length}</span>
+                          </div>
+                        )}
+                        {(visit.attachedFiles && visit.attachedFiles.length > 0) && (
+                          <div className="flex items-center text-xs">
+                            <FileText className="w-3 h-3 mr-1" />
+                            <span>{visit.attachedFiles.length}</span>
+                          </div>
+                        )}
+                        {(!visit.photos || visit.photos.length === 0) && (!visit.attachedFiles || visit.attachedFiles.length === 0) && (
+                          <span className="text-gray-500 text-xs">Nenhum</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell>
+                      <div className="flex space-x-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onView(visit)}
+                          className="text-gray-300 hover:text-white hover:bg-gray-700"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onEdit(visit)}
+                          className="text-gray-300 hover:text-white hover:bg-gray-700"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onDelete(visit.id)}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-900"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={yearFilter.toString()} onValueChange={(value) => setYearFilter(parseInt(value))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
-                  <SelectItem key={year} value={year.toString()}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Lista de visitas */}
-      {filteredVisits.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma visita encontrada</h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm || statusFilter !== 'all' 
-                ? 'Tente ajustar os filtros de busca'
-                : 'Comece criando uma nova visita'
-              }
-            </p>
-            {!searchTerm && statusFilter === 'all' && (
-              <Button onClick={onCreateVisit} className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Visita
-              </Button>
-            )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
-      ) : (
-        <div className="space-y-4">
-          {filteredVisits.map((visit) => (
-            <Card key={visit.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4 flex-1">
-                    {getStatusIcon(visit.status)}
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold text-gray-900">{visit.unitName}</h3>
-                        {getStatusBadge(visit.status)}
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          <span>{visit.unitAddress}</span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          <span>{formatDate(visit.visitDate)}</span>
-                        </div>
-                        
-                        {visit.arrivalTime && (
-                          <div className="flex items-center gap-2">
-                            <Clock3 className="h-4 w-4" />
-                            <span>Chegada: {formatTime(visit.arrivalTime)}</span>
-                          </div>
-                        )}
-                        
-                        {visit.departureTime && (
-                          <div className="flex items-center gap-2">
-                            <Clock3 className="h-4 w-4" />
-                            <span>Saída: {formatTime(visit.departureTime)}</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {visit.observations && (
-                        <p className="text-sm text-gray-600 mt-2 italic">
-                          "{visit.observations}"
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => onViewVisit?.(visit)}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Ver Detalhes
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuItem onClick={() => onEditVisit?.(visit)}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar
-                      </DropdownMenuItem>
-                      
-                      {visit.status === VisitStatus.PENDING && (
-                        <DropdownMenuItem onClick={() => handleCompleteVisit(visit)}>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Marcar como Realizada
-                        </DropdownMenuItem>
-                      )}
-                      
-                      <DropdownMenuItem 
-                        onClick={() => handleDeleteVisit(visit)}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Excluir
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 };

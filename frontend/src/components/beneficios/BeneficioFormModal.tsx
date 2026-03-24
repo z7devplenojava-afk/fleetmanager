@@ -120,18 +120,18 @@ const BeneficioFormModal: React.FC<BeneficioFormModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+      <div className="bg-seguranca-graphite border border-gray-600 text-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">
+        <div className="flex items-center justify-between p-6 border-b border-gray-600">
+          <h2 className="text-xl font-semibold text-seguranca-yellow">
             {isEditing ? 'Editar Benefício' : 'Novo Benefício'}
           </h2>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 p-0 text-white hover:bg-seguranca-black"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -141,46 +141,48 @@ const BeneficioFormModal: React.FC<BeneficioFormModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Informações Básicas */}
-            <Card>
+            <Card className="bg-seguranca-black/40 border border-gray-600 text-white">
               <CardHeader>
-                <CardTitle className="text-lg">Informações Básicas</CardTitle>
+                <CardTitle className="text-lg text-seguranca-lightgray">Informações Básicas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nome do Benefício *</Label>
+                  <Label htmlFor="name" className="text-seguranca-lightgray">Nome do Benefício *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     placeholder="Ex: Vale Transporte"
+                    className="border-gray-600 bg-seguranca-black text-seguranca-lightgray placeholder:text-gray-400 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Descrição</Label>
+                  <Label htmlFor="description" className="text-seguranca-lightgray">Descrição</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     placeholder="Descrição detalhada do benefício"
+                    className="border-gray-600 bg-seguranca-black text-seguranca-lightgray placeholder:text-gray-400 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
                     rows={3}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="type">Tipo de Benefício *</Label>
+                  <Label htmlFor="type" className="text-seguranca-lightgray">Tipo de Benefício *</Label>
                   <Select value={formData.type} onValueChange={(value) => handleInputChange('type', value)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
                       <SelectValue placeholder="Selecione o tipo" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="TRANSPORT">Transporte</SelectItem>
-                      <SelectItem value="MEAL">Refeição</SelectItem>
-                      <SelectItem value="HEALTH">Saúde</SelectItem>
-                      <SelectItem value="DENTAL">Odontológico</SelectItem>
-                      <SelectItem value="LIFE_INSURANCE">Seguro de Vida</SelectItem>
-                      <SelectItem value="OTHER">Outro</SelectItem>
+                    <SelectContent className="bg-seguranca-black border-gray-600">
+                      <SelectItem value="TRANSPORT" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Transporte</SelectItem>
+                      <SelectItem value="MEAL" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Refeição</SelectItem>
+                      <SelectItem value="HEALTH" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Saúde</SelectItem>
+                      <SelectItem value="DENTAL" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Odontológico</SelectItem>
+                      <SelectItem value="LIFE_INSURANCE" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Seguro de Vida</SelectItem>
+                      <SelectItem value="OTHER" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Outro</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -188,13 +190,13 @@ const BeneficioFormModal: React.FC<BeneficioFormModalProps> = ({
             </Card>
 
             {/* Valor e Configurações */}
-            <Card>
+            <Card className="bg-seguranca-black/40 border border-gray-600 text-white">
               <CardHeader>
-                <CardTitle className="text-lg">Valor e Configurações</CardTitle>
+                <CardTitle className="text-lg text-seguranca-lightgray">Valor e Configurações</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="value">Valor *</Label>
+                  <Label htmlFor="value" className="text-red-400">Valor *</Label>
                   <Input
                     id="value"
                     type="number"
@@ -203,12 +205,13 @@ const BeneficioFormModal: React.FC<BeneficioFormModalProps> = ({
                     value={formData.value}
                     onChange={(e) => handleInputChange('value', parseFloat(e.target.value) || 0)}
                     placeholder="0.00"
+                    className="border-red-500 bg-seguranca-black text-red-300 placeholder:text-red-400/60 focus:border-red-400 focus:ring-red-400 font-medium"
                     required
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="isActive">Benefício Ativo</Label>
+                  <Label htmlFor="isActive" className="text-seguranca-lightgray">Benefício Ativo</Label>
                   <Switch
                     id="isActive"
                     checked={formData.isActive}
@@ -222,19 +225,20 @@ const BeneficioFormModal: React.FC<BeneficioFormModalProps> = ({
 
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-6 border-t">
+          <div className="flex justify-end gap-3 pt-6 border-t border-gray-600">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={loading}
+              className="border-gray-600 text-white hover:bg-seguranca-black"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-seguranca-red hover:bg-seguranca-darkred"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

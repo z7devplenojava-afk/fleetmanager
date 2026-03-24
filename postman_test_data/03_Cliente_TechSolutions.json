@@ -1,0 +1,16 @@
+{
+  "name": "Tech Solutions Ltda",
+  "cnpj": "98.765.432/0001-10",
+  "email": "contato@techsolutions.com",
+  "phone": "(11) 55555-5555",
+  "mobile": "(11) 44444-4444",
+  "address": "Rua da Tecnologia, 789",
+  "city": "São Paulo",
+  "state": "SP",
+  "zipCode": "04567-890",
+  "contactName": "Maria Santos",
+  "contactEmail": "maria@techsolutions.com",
+  "contactPhone": "(11) 55555-5555",
+  "status": "ACTIVE",
+  "notes": "Cliente de tecnologia"
+}

@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getApiUrl } from '@/config/environment';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  BarChart3, 
+import {
+  BarChart3,
   LogOut,
   User,
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Bus,
+  Building2
 } from 'lucide-react';
 import { getRoleDisplayName, getRoleColor } from '@/utils/permissions';
 import { CollapsibleSidebar } from './CollapsibleSidebar';
@@ -17,19 +20,22 @@ import { useSidebar } from '@/hooks/useSidebar';
 import { Breadcrumb } from './Breadcrumb';
 import { NotificationBell } from './NotificationBell';
 import UserProfileModal from './UserProfileModal';
+import { BottomNav } from './BottomNav';
 
 interface MainLayoutProps {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
+  actions?: React.ReactNode;
 }
 
-export const MainLayout: React.FC<MainLayoutProps> = ({ 
-  children, 
+export const MainLayout: React.FC<MainLayoutProps> = ({
+  children,
   title,
-  subtitle 
+  subtitle,
+  actions
 }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, empresa } = useAuth();
   const { collapsed, isMobile, toggleSidebar } = useSidebar();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
@@ -46,109 +52,168 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   }
 
   return (
-    <div className="flex min-h-screen bg-seguranca-graphite">
+    <div className="flex min-h-screen bg-background text-foreground transition-colors duration-300 relative">
       {/* Sidebar colapsível */}
-      <CollapsibleSidebar 
-        collapsed={collapsed} 
+      <CollapsibleSidebar
+        collapsed={collapsed}
         isMobile={isMobile}
         onToggle={toggleSidebar}
       />
 
       {/* Conteúdo principal */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${
-        isMobile ? 'ml-0' : (collapsed ? 'ml-16' : 'ml-64')
-      }`}>
-        {/* Header com botão de toggle */}
-        <header className="bg-seguranca-black shadow-lg border-b border-gray-700 sticky top-0 z-40">
-          <div className="flex items-center justify-between px-4 py-3">
-            {/* Lado esquerdo - Botão toggle e título */}
+      <div className={`flex-1 flex flex-col transition-all duration-300 min-w-0 ${isMobile ? 'ml-0' : (collapsed ? 'ml-16' : 'ml-64')
+        }`}>
+        {/* Header - Solid Dark Style */}
+        <header className="bg-background border-b border-border sticky top-0 z-40 h-[64px] transition-all">
+          <div className="flex items-center justify-between px-6 h-full">
+            {/* Lado esquerdo */}
             <div className="flex items-center space-x-4">
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={toggleSidebar}
-                className="text-seguranca-lightgray hover:text-seguranca-yellow hover:bg-seguranca-graphite"
+                className="text-muted-foreground hover:text-white hover:bg-white/5 h-8 w-8 transition-all hidden md:flex"
               >
                 {collapsed ? (
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronRight size={18} />
                 ) : (
-                  <ChevronLeft className="h-5 w-5" />
+                  <ChevronLeft size={18} />
                 )}
               </Button>
-              
-              <div className="flex items-center space-x-2">
-                <BarChart3 className="h-6 w-6 text-seguranca-yellow" />
-                <span className="text-lg font-bold text-seguranca-lightgray">
-                  Secure Guard
-                </span>
-              </div>
+
+              {/* Branding da empresa ou padrão */}
+              {empresa?.logoUrl ? (
+                <div className="flex items-center" data-animate="fadeRight">
+                  <img
+                    src={(() => {
+                      if (!empresa.logoUrl) return '';
+                      if (empresa.logoUrl.startsWith('http')) return empresa.logoUrl;
+                      // Remover /api do final da URL base se existir
+                      const baseUrl = getApiUrl().replace(/\/api\/?$/, '');
+                      // Garantir que o path comece com /
+                      const path = empresa.logoUrl.startsWith('/') ? empresa.logoUrl : `/${empresa.logoUrl}`;
+                      return `${baseUrl}${path}`;
+                    })()}
+                    onError={(e) => {
+                      console.error('Erro ao carregar logo da empresa:', empresa.logoUrl);
+                      e.currentTarget.style.display = 'none';
+                      // Tentar mostrar o fallback de texto
+                      const parent = e.currentTarget.parentElement;
+                      if (parent) {
+                        const textElement = parent.querySelector('h2');
+                        if (textElement) textElement.style.display = 'block';
+                      }
+                    }}
+                    alt={empresa.nome || 'Empresa'}
+                    className="h-10 w-auto object-contain rounded bg-white/5 border border-white/10 p-1 shadow-lg shadow-white/5"
+                  />
+                </div>
+              ) : empresa?.nome ? (
+                <div className="flex items-center space-x-3" data-animate="fadeRight">
+                  <div className="w-8 h-8 bg-primary/20 rounded flex items-center justify-center">
+                    <Building2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <h2 className="text-lg font-bold tracking-tight text-white truncate max-w-[160px]">
+                    {empresa.nome}
+                  </h2>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
+                    <Bus className="h-5 w-5 text-white" />
+                  </div>
+                  <h2 className="text-lg font-bold tracking-tight text-white uppercase italic">
+                    Flex<span className="text-white not-italic">Bus</span>
+                  </h2>
+                </div>
+              )}
             </div>
 
-            {/* Lado direito - Informações do usuário */}
+            {/* Lado direito */}
             <div className="flex items-center space-x-4">
-              <div 
-                className="flex items-center space-x-2 cursor-pointer hover:bg-seguranca-black p-2 rounded-lg transition-colors"
+              {actions && (
+                <div className="hidden md:block">
+                  {actions}
+                </div>
+              )}
+
+              <div
+                className="flex items-center space-x-3 cursor-pointer p-1 rounded transition-all"
                 onClick={handleProfileClick}
               >
-                <User className="h-4 w-4 text-seguranca-lightgray" />
-                <span className="text-seguranca-lightgray text-sm hidden sm:block hover:text-seguranca-yellow transition-colors">
-                  {user.name}
-                </span>
-                <Badge className={`${getRoleColor(user.role)} text-xs`}>
-                  {getRoleDisplayName(user.role)}
-                  {user.role === 'SUPER_ADMIN' && ' 🟥'}
-                </Badge>
+                <div className="hidden md:block text-right">
+                  <p className="text-xs font-medium text-white leading-none mb-1">
+                    {user.name}
+                  </p>
+                  <Badge className="bg-primary/20 text-primary text-[9px] h-4 font-bold uppercase border-none rounded-sm px-1 italic">
+                    {getRoleDisplayName(user.role)}
+                  </Badge>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center">
+                  <User className="h-4 w-4 text-black" />
+                </div>
               </div>
-              
-              {/* Ícone de Notificações */}
+
               <NotificationBell />
-              
+
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={logout}
-                className="flex items-center space-x-2 border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow"
+                className="text-muted-foreground hover:text-white hover:bg-white/5 h-8 px-3 rounded text-xs border border-white/10 transition-all"
               >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:block">Sair</span>
+                <LogOut className="h-3.5 w-3.5 mr-2" />
+                Sair
               </Button>
             </div>
           </div>
         </header>
 
         {/* Conteúdo da página */}
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-6 md:p-8 overflow-visible bg-background">
           {/* Breadcrumb */}
-          <Breadcrumb />
-          
-          {/* Título da página (se fornecido) */}
+          <div className="mb-4">
+            <Breadcrumb />
+          </div>
+
+          {/* Título da página */}
           {(title || subtitle) && (
             <div className="mb-6">
               {title && (
-                <h1 className="text-2xl md:text-3xl font-bold text-seguranca-lightgray mb-2">
+                <h1 className="text-2xl font-bold text-white mb-1">
                   {title}
                 </h1>
               )}
               {subtitle && (
-                <p className="text-seguranca-lightgray text-sm md:text-base">
+                <p className="text-muted-foreground text-sm">
                   {subtitle}
                 </p>
               )}
             </div>
           )}
 
-          {/* Conteúdo principal */}
-          <div className="bg-seguranca-black rounded-lg border border-gray-700 p-4 md:p-6" style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
-            {children}
+
+          {/* Conteúdo principal - Solid Box Layering */}
+          <div className="bg-card border border-border rounded-lg p-6 w-full shadow-sm">
+            <div className="min-w-0 w-full">
+              {children}
+            </div>
           </div>
         </main>
-      </div>
+      </div >
+
+      {/* Bottom Navigation para Mobile */}
+      {
+        isMobile && (
+          <BottomNav onToggleSidebar={toggleSidebar} />
+        )
+      }
 
       {/* Modal de Perfil */}
-      <UserProfileModal 
-        isOpen={isProfileModalOpen} 
-        onClose={() => setIsProfileModalOpen(false)} 
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
       />
-    </div>
+    </div >
   );
-}; 
+};

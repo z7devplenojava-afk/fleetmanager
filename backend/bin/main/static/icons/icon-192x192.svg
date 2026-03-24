@@ -1,0 +1,33 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="192" height="192" rx="24" fill="#ffffff"/>
+  
+  <!-- Yellow semicircle (left) -->
+  <path d="M24 96 C24 52.235 59.235 17 103 17 C146.765 17 182 52.235 182 96 C182 139.765 146.765 175 103 175 C59.235 175 24 139.765 24 96 Z" fill="url(#yellowGradient)" clip-path="url(#leftHalf)"/>
+  
+  <!-- Red semicircle (right) -->
+  <path d="M24 96 C24 52.235 59.235 17 103 17 C146.765 17 182 52.235 182 96 C182 139.765 146.765 175 103 175 C59.235 175 24 139.765 24 96 Z" fill="url(#redGradient)" clip-path="url(#rightHalf)"/>
+  
+  <!-- Text P -->
+  <text x="96" y="120" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="#E53E3E">P</text>
+  
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="yellowGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FBBF24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F59E0B;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="redGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#EF4444;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DC2626;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Clip paths -->
+    <clipPath id="leftHalf">
+      <rect x="24" y="17" width="79" height="158"/>
+    </clipPath>
+    <clipPath id="rightHalf">
+      <rect x="103" y="17" width="79" height="158"/>
+    </clipPath>
+  </defs>
+</svg>

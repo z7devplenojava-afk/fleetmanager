@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Dialog,
   DialogContent,
@@ -13,26 +14,33 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, Shield, Save, X, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Shield, Save, X, Eye, EyeOff, Building } from 'lucide-react';
 import { UserRole } from '@/types/user';
-import { getRoleDisplayName, getRoleColor } from '@/utils/permissions';
+import { getRoleDisplayName, getRoleColor, USER_ROLE_LIST } from '@/utils/permissions';
 import { userService } from '@/services/userService';
+import { companyService } from '@/services/companyService';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
+  companyId?: string;
 }
+
 
 export const UserCreateModal: React.FC<UserCreateModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  companyId,
 }) => {
+  const { hasRole, empresa: currentEmpresa } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(companyId || '');
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -42,6 +50,31 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
     role: '' as UserRole,
     whatsapp: '',
   });
+
+  const isSuperAdmin = hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN');
+
+  useEffect(() => {
+    if (isSuperAdmin && isOpen) {
+      loadCompanies();
+    }
+  }, [isSuperAdmin, isOpen]);
+
+  useEffect(() => {
+    if (companyId) {
+      setSelectedCompanyId(companyId);
+    } else if (!isSuperAdmin && currentEmpresa?.id) {
+      setSelectedCompanyId(currentEmpresa.id);
+    }
+  }, [companyId, currentEmpresa, isSuperAdmin]);
+
+  const loadCompanies = async () => {
+    try {
+      const data = await companyService.getAllCompanies();
+      setCompanies(data);
+    } catch (error) {
+      console.error('Erro ao carregar empresas:', error);
+    }
+  };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -97,10 +130,11 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
         email: formData.email,
         name: formData.name,
         password: formData.password,
-        roles: [{ name: formData.role }],
-        whatsapp: formData.whatsapp,
+        roles: [formData.role], // Backend espera array de STRINGS!
+        whatsapp: formData.whatsapp || undefined,
         status: "ACTIVE",
-        active: true
+        active: true,
+        companyId: selectedCompanyId || undefined
       };
 
       await userService.createUser(userData);
@@ -108,7 +142,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
         title: 'Sucesso!',
         description: 'Usuário criado com sucesso.',
       });
-      
+
       // Limpar formulário
       setFormData({
         username: '',
@@ -119,7 +153,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
         role: '' as UserRole,
         whatsapp: '',
       });
-      
+
       onSave();
       onClose();
     } catch (error: any) {
@@ -147,25 +181,14 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
     onClose();
   };
 
-  const roles: UserRole[] = [
-    'SUPER_ADMIN',
-    'ADMIN',
-    'SUPERVISOR',
-    'RH',
-    'FINANCEIRO',
-    'TI_SUPORTE',
-    'AUDITOR',
-    'COLABORADOR',
-  ];
-
-  const isFormValid = formData.username && 
-                     formData.email && 
-                     formData.name && 
-                     formData.password && 
-                     formData.confirmPassword && 
-                     formData.role &&
-                     formData.password === formData.confirmPassword &&
-                     formData.password.length >= 6;
+  const isFormValid = formData.username &&
+    formData.email &&
+    formData.name &&
+    formData.password &&
+    formData.confirmPassword &&
+    formData.role &&
+    formData.password === formData.confirmPassword &&
+    formData.password.length >= 6;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -243,17 +266,56 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
                       <SelectValue placeholder="Selecione a função" />
                     </SelectTrigger>
                     <SelectContent className="bg-seguranca-black border-gray-600">
-                      {roles.map((role) => (
-                        <SelectItem key={role} value={role}>
-                          <div className="flex items-center gap-2">
-                            <Badge className={getRoleColor(role)}>
-                              {getRoleDisplayName(role)}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {USER_ROLE_LIST
+                        .filter(role => {
+                          const isFlexAdmin = hasRole('FLEX_ADMIN') || hasRole('SUPER_ADMIN');
+                          if (!isFlexAdmin) {
+                            return role !== 'FLEX_ADMIN' && role !== 'SUPER_ADMIN' && role !== 'TI_SUPORTE';
+                          }
+                          return true;
+                        })
+                        .map((role) => (
+                          <SelectItem key={role} value={role}>
+                            <div className="flex items-center gap-2">
+                              <Badge className={getRoleColor(role)}>
+                                {getRoleDisplayName(role)}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Seleção de Empresa */}
+                <div className="space-y-2">
+                  <Label htmlFor="company" className="text-seguranca-lightgray">
+                    Empresa *
+                  </Label>
+                  {isSuperAdmin ? (
+                    <Select
+                      value={selectedCompanyId}
+                      onValueChange={setSelectedCompanyId}
+                    >
+                      <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                        <SelectValue placeholder="Selecione a empresa" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-seguranca-black border-gray-600">
+                        {companies.map((company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id="company-name"
+                      value={currentEmpresa?.nome || 'Empresa não identificada'}
+                      readOnly
+                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray opacity-70 cursor-not-allowed"
+                    />
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="whatsapp" className="text-seguranca-lightgray">
@@ -355,7 +417,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
             <CardContent>
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
-                  <strong>Nota:</strong> Após a criação, o usuário poderá fazer login imediatamente 
+                  <strong>Nota:</strong> Após a criação, o usuário poderá fazer login imediatamente
                   com as credenciais fornecidas. Recomenda-se que o usuário altere sua senha no primeiro acesso.
                 </p>
               </div>

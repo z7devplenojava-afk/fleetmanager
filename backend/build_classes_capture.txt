@@ -1,0 +1,83 @@
+Initialized native services in: C:\Users\José Mário Ramos\.gradle\native
+Initialized jansi services in: C:\Users\José Mário Ramos\.gradle\native
+Received JVM installation metadata from 'C:\java\Amazon-Corretto\jdk17.0.16_8': {JAVA_HOME=C:\java\Amazon-Corretto\jdk17.0.16_8, JAVA_VERSION=17.0.16, JAVA_VENDOR=Amazon.com Inc., RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=17.0.16+8-LTS, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=17.0.16+8-LTS, VM_VENDOR=Amazon.com Inc., OS_ARCH=amd64}
+Found daemon DaemonInfo{pid=35868, address=[da1dfbce-dca5-4213-8549-58cbb066b034 port:58263, addresses:[/127.0.0.1]], state=Idle, lastBusy=1770313355551, context=DefaultDaemonContext[uid=ccb45960-d39a-4a70-b346-fade063bccab,javaHome=C:\Users\José Mário Ramos\.antigravity\extensions\redhat.java-1.52.0-win32-x64\jre\21.0.9-win32-x86_64,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=35868,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=UTF-8,-Duser.country=BR,-Duser.language=pt,-Duser.variant]} however its context does not match the desired criteria.
+Java home is different.
+Wanted: DefaultDaemonContext[uid=null,javaHome=C:\java\Amazon-Corretto\jdk17.0.16_8,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=26596,idleTimeout=null,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=windows-1252,-Duser.country=BR,-Duser.language=pt,-Duser.variant]
+Actual: DefaultDaemonContext[uid=ccb45960-d39a-4a70-b346-fade063bccab,javaHome=C:\Users\José Mário Ramos\.antigravity\extensions\redhat.java-1.52.0-win32-x64\jre\21.0.9-win32-x86_64,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=35868,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=UTF-8,-Duser.country=BR,-Duser.language=pt,-Duser.variant]
+
+  Looking for a different daemon...
+Found daemon DaemonInfo{pid=32572, address=[ce03fa3d-7f09-404d-80fd-ea9d76b01320 port:50090, addresses:[/127.0.0.1]], state=Idle, lastBusy=1770313387311, context=DefaultDaemonContext[uid=a7078944-9119-4c68-bf22-06ce38b7b14f,javaHome=C:\Users\José Mário Ramos\.antigravity\extensions\redhat.java-1.52.0-win32-x64\jre\21.0.9-win32-x86_64,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=32572,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Dfile.encoding=UTF-8,-Duser.country=BR,-Duser.language=pt,-Duser.variant]} however its context does not match the desired criteria.
+Java home is different.
+Wanted: DefaultDaemonContext[uid=null,javaHome=C:\java\Amazon-Corretto\jdk17.0.16_8,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=26596,idleTimeout=null,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=windows-1252,-Duser.country=BR,-Duser.language=pt,-Duser.variant]
+Actual: DefaultDaemonContext[uid=a7078944-9119-4c68-bf22-06ce38b7b14f,javaHome=C:\Users\José Mário Ramos\.antigravity\extensions\redhat.java-1.52.0-win32-x64\jre\21.0.9-win32-x86_64,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=32572,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Dfile.encoding=UTF-8,-Duser.country=BR,-Duser.language=pt,-Duser.variant]
+
+  Looking for a different daemon...
+The client will now receive all logging from the daemon (pid: 21192). The daemon log file: C:\Users\José Mário Ramos\.gradle\daemon\8.5\daemon-21192.out.log
+Starting 6th build in daemon [uptime: 2 hrs 25 mins 2.01 secs, performance: 99%, GC rate: 0.00/s, heap usage: 0% of 512 MiB, non-heap usage: 20% of 384 MiB]
+Using 16 worker leases.
+Now considering [C:\dev\fleetmanager\backend] as hierarchies to watch
+Watching the file system is configured to be enabled if available
+File system watching is active
+Starting Build
+Settings evaluated using settings file 'C:\dev\fleetmanager\backend\settings.gradle'.
+Projects loaded. Root project using build file 'C:\dev\fleetmanager\backend\build.gradle'.
+Included projects: [root project 'fleet-manager-backend']
+
+> Configure project :
+Evaluating root project 'fleet-manager-backend' using build file 'C:\dev\fleetmanager\backend\build.gradle'.
+Applying dependency management to configuration 'annotationProcessor' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'apiElements' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'archives' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'bootArchives' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'compileClasspath' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'compileOnly' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'default' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'developmentOnly' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'implementation' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'mainSourceElements' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'productionRuntimeClasspath' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'runtimeClasspath' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'runtimeElements' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'runtimeOnly' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testAndDevelopmentOnly' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testAnnotationProcessor' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testCompileClasspath' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testCompileOnly' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testImplementation' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testResultsElementsForTest' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testRuntimeClasspath' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testRuntimeOnly' in project 'fleet-manager-backend'
+All projects evaluated.
+Task name matched 'classes'
+Selected primary task 'classes' from project :
+Tasks to be executed: [task ':compileJava', task ':processResources', task ':classes']
+Tasks that were excluded: []
+Resolve mutations for :compileJava (Thread[Execution worker,5,main]) started.
+:compileJava (Thread[Execution worker,5,main]) started.
+
+> Task :compileJava
+Resolving global dependency management for project 'fleet-manager-backend'
+Excluding []
+Excluding []
+Caching disabled for task ':compileJava' because:
+  Build cache is disabled
+Skipping task ':compileJava' as it is up-to-date.
+
+> Task :compileJava UP-TO-DATE
+Resolve mutations for :processResources (Thread[Execution worker,5,main]) started.
+:processResources (Thread[Execution worker,5,main]) started.
+
+> Task :processResources UP-TO-DATE
+Caching disabled for task ':processResources' because:
+  Build cache is disabled
+Skipping task ':processResources' as it is up-to-date.
+Resolve mutations for :classes (Thread[Execution worker,5,main]) started.
+:classes (Thread[Execution worker,5,main]) started.
+
+> Task :classes UP-TO-DATE
+Skipping task ':classes' as it has no actions.
+
+BUILD SUCCESSFUL in 8s
+2 actionable tasks: 2 up-to-date
+Watched directory hierarchies: [C:\dev\fleetmanager\backend]

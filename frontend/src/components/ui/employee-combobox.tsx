@@ -42,6 +42,7 @@ export function EmployeeCombobox({
   const [loading, setLoading] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
+  const [selectedEmployee, setSelectedEmployee] = React.useState<SimpleEmployee | null>(null)
 
   // Buscar funcionários quando o termo de busca mudar
   React.useEffect(() => {
@@ -54,10 +55,49 @@ export function EmployeeCombobox({
           setEmployees([])
         })
         .finally(() => setLoading(false))
-    } else if (debouncedSearchTerm.length === 0) {
-      setEmployees([])
     }
   }, [debouncedSearchTerm])
+
+  // Carregar lista básica ao abrir para ter opções iniciais
+  React.useEffect(() => {
+    if (!open || employees.length > 0 || loading) return
+    setLoading(true)
+    employeeService.getSimpleEmployees()
+      .then(setEmployees)
+      .catch(err => {
+        console.error('Erro ao carregar funcionários básicos:', err)
+      })
+      .finally(() => setLoading(false))
+  }, [open, employees.length, loading])
+
+  // Garantir que o funcionário selecionado apareça na lista mesmo se não estiver carregado
+  React.useEffect(() => {
+    if (!value) {
+      setSelectedEmployee(null)
+      return
+    }
+    const alreadyLoaded = employees.find(e => e.id === value)
+    if (alreadyLoaded) {
+      setSelectedEmployee(alreadyLoaded)
+      return
+    }
+    // Buscar individualmente e adicionar à lista para exibir no botão
+    employeeService.getEmployeeById(value)
+      .then(emp => {
+        if (emp) {
+          const simple: SimpleEmployee = {
+            id: emp.id,
+            name: emp.name,
+            email: emp.email,
+            phone: emp.phone,
+            document: emp.document,
+          } as SimpleEmployee
+          setEmployees(prev => [...prev, simple])
+          setSelectedEmployee(simple)
+        }
+      })
+      .catch(err => console.error('Erro ao carregar funcionário selecionado:', err))
+  }, [value, employees])
 
   // Converter funcionários para opções do combobox
   const options = employees.map(emp => ({
@@ -66,7 +106,7 @@ export function EmployeeCombobox({
     employee: emp
   }))
 
-  const selectedEmployee = employees.find(emp => emp.id === value)
+  const effectiveSelected = selectedEmployee || employees.find(emp => emp.id === value)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -78,13 +118,13 @@ export function EmployeeCombobox({
           disabled={disabled}
           className="w-full justify-between border-2 border-gray-600 bg-seguranca-black text-seguranca-lightgray hover:border-gray-500 focus:border-seguranca-yellow transition-colors disabled:opacity-50"
         >
-          {selectedEmployee ? (
+          {effectiveSelected ? (
             <div className="flex items-center gap-2">
               <User className="h-4 w-4" />
               <span className="truncate">
-                {selectedEmployee.name}
-                {selectedEmployee.positionName && ` - ${selectedEmployee.positionName}`}
-                {selectedEmployee.unitName && ` (${selectedEmployee.unitName})`}
+                {effectiveSelected.name}
+                {effectiveSelected.positionName && ` - ${effectiveSelected.positionName}`}
+                {effectiveSelected.unitName && ` (${effectiveSelected.unitName})`}
               </span>
             </div>
           ) : (
@@ -96,7 +136,9 @@ export function EmployeeCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 bg-seguranca-graphite border-gray-600">
+      <PopoverContent
+        className="w-full p-0 bg-seguranca-graphite border-gray-600 z-[10002] shadow-lg"
+      >
         <Command className="bg-seguranca-graphite text-seguranca-lightgray">
           <CommandInput 
             placeholder={searchPlaceholder} 
@@ -104,7 +146,7 @@ export function EmployeeCombobox({
             onValueChange={setSearchTerm}
             className="bg-seguranca-graphite text-seguranca-lightgray border-b border-gray-600"
           />
-          <CommandList>
+          <CommandList className="max-h-64 overflow-y-auto">
             {loading ? (
               <div className="p-4 text-center text-seguranca-lightgray">
                 Buscando funcionários...

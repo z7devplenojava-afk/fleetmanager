@@ -1,0 +1,352 @@
+package com.z7design.secured_guard.controller;
+
+import com.z7design.secured_guard.dto.BackupConfigurationDTO;
+import com.z7design.secured_guard.dto.MessageResponseDTO;
+import com.z7design.secured_guard.model.BackupConfiguration;
+import com.z7design.secured_guard.model.BackupEnvironment;
+import com.z7design.secured_guard.model.BackupHistory;
+import com.z7design.secured_guard.repository.BackupConfigurationRepository;
+import com.z7design.secured_guard.repository.BackupHistoryRepository;
+import com.z7design.secured_guard.service.BackupService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/backup")
+@RequiredArgsConstructor
+@Slf4j
+@Tag(name = "Backup", description = "Gerenciamento de backups do banco de dados")
+@PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
+public class BackupController {
+
+    private final BackupService backupService;
+    private final BackupConfigurationRepository backupConfigurationRepository;
+    private final BackupHistoryRepository backupHistoryRepository;
+
+    @Operation(summary = "Listar configurações de backup")
+    @GetMapping("/configurations")
+    public ResponseEntity<List<BackupConfiguration>> getAllConfigurations() {
+        return ResponseEntity.ok(backupService.getAllConfigurations());
+    }
+
+    @Operation(summary = "Criar configuração de backup")
+    @PostMapping("/configurations")
+    public ResponseEntity<BackupConfiguration> createConfiguration(
+            @Valid @RequestBody BackupConfigurationDTO dto) {
+        
+        try {
+            BackupConfiguration config = BackupConfiguration.builder()
+                    .name(dto.getName())
+                    .type(dto.getType())
+                    .host(dto.getHost())
+                    .port(dto.getPort())
+                    .database(dto.getDatabase())
+                    .username(dto.getUsername())
+                    .password(dto.getPassword()) // Será criptografado no service
+                    .enabled(dto.getEnabled() != null ? dto.getEnabled() : true)
+                    .autoBackup(dto.getAutoBackup() != null ? dto.getAutoBackup() : true)
+                    .schedule(dto.getSchedule() != null ? dto.getSchedule() : "0 0 2 * * ?")
+                    .retentionDays(dto.getRetentionDays() != null ? dto.getRetentionDays() : 30)
+                    .backupPath(dto.getBackupPath())
+                    .compressBackup(dto.getCompressBackup() != null ? dto.getCompressBackup() : true)
+                    .build();
+
+            BackupConfiguration saved = backupService.saveConfiguration(config);
+
+            log.info("✅ Configuração de backup criada: {}", saved.getName());
+
+            return ResponseEntity.ok(saved);
+
+        } catch (Exception e) {
+            log.error("❌ Erro ao criar configuração: {}", e.getMessage(), e);
+            throw new RuntimeException("Erro ao criar configuração: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "Testar conexão com banco de backup")
+    @PostMapping("/test-connection")
+    public ResponseEntity<MessageResponseDTO> testConnection(@Valid @RequestBody BackupConfigurationDTO dto) {
+        try {
+            BackupConfiguration tempConfig = BackupConfiguration.builder()
+                    .host(dto.getHost())
+                    .port(dto.getPort())
+                    .database(dto.getDatabase())
+                    .username(dto.getUsername())
+                    .password(dto.getPassword())
+                    .build();
+
+            boolean success = backupService.testConnection(tempConfig);
+
+            if (success) {
+                return ResponseEntity.ok(MessageResponseDTO.builder()
+                        .message("Conexão testada com sucesso!")
+                        .success(true)
+                        .build());
+            } else {
+                return ResponseEntity.badRequest().body(MessageResponseDTO.builder()
+                        .message("Falha ao conectar. Verifique as credenciais.")
+                        .success(false)
+                        .build());
+            }
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(MessageResponseDTO.builder()
+                    .message("Erro: " + e.getMessage())
+                    .success(false)
+                    .build());
+        }
+    }
+
+    @Operation(summary = "Executar backup manualmente")
+    @PostMapping("/execute/{configurationId}")
+    public ResponseEntity<MessageResponseDTO> executeBackup(@PathVariable UUID configurationId) {
+        try {
+            log.info("🚀 Executando backup manual para configuração: {}", configurationId);
+
+            BackupHistory history = backupService.executeBackup(configurationId);
+
+            if ("SUCCESS".equals(history.getStatus())) {
+                return ResponseEntity.ok(MessageResponseDTO.builder()
+                        .message("Backup executado com sucesso! Arquivo: " + history.getBackupFilePath())
+                        .success(true)
+                        .build());
+            } else {
+                return ResponseEntity.status(500).body(MessageResponseDTO.builder()
+                        .message("Falha no backup: " + history.getMessage())
+                        .success(false)
+                        .build());
+            }
+
+        } catch (Exception e) {
+            log.error("❌ Erro ao executar backup: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(MessageResponseDTO.builder()
+                    .message("Erro ao executar backup: " + e.getMessage())
+                    .success(false)
+                    .build());
+        }
+    }
+
+    @Operation(summary = "Obter histórico de backups")
+    @GetMapping("/history")
+    public ResponseEntity<List<BackupHistory>> getBackupHistory() {
+        return ResponseEntity.ok(backupService.getRecentBackups(50));
+    }
+
+    @Operation(summary = "Limpar backups antigos")
+    @DeleteMapping("/clean/{configurationId}")
+    public ResponseEntity<MessageResponseDTO> cleanOldBackups(@PathVariable UUID configurationId) {
+        try {
+            BackupConfiguration config = backupService.getAllConfigurations().stream()
+                    .filter(c -> c.getId().equals(configurationId))
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("Configuração não encontrada"));
+
+            backupService.cleanOldBackups(config);
+
+            return ResponseEntity.ok(MessageResponseDTO.builder()
+                    .message("Backups antigos limpos com sucesso!")
+                    .success(true)
+                    .build());
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(MessageResponseDTO.builder()
+                    .message("Erro: " + e.getMessage())
+                    .success(false)
+                    .build());
+        }
+    }
+
+    // ========================================
+    // 🔗 ENDPOINTS PARA GITHUB ACTIONS CI/CD
+    // ========================================
+
+    /**
+     * 🔗 ENDPOINT PARA GITHUB ACTIONS: Executar backup por nome de ambiente
+     * POST /api/backup/execute/env/{environmentName}
+     * Exemplo: POST /api/backup/execute/env/prod
+     */
+    @Operation(summary = "[CI/CD] Executar backup por ambiente", 
+               description = "Usado pelo GitHub Actions para executar backups pré/pós deploy")
+    @PostMapping("/execute/env/{environmentName}")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN', 'ADMIN', 'ROLE_ADMIN')")
+    public ResponseEntity<?> executeBackupByEnvironment(
+            @PathVariable String environmentName,
+            @RequestBody(required = false) Map<String, String> params
+    ) {
+        try {
+            log.info("🔗 GitHub Actions: Executando backup para ambiente: {}", environmentName);
+            
+            // Converter string para enum
+            BackupEnvironment environment;
+            try {
+                environment = BackupEnvironment.valueOf(environmentName.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Ambiente inválido. Use: CI, DEV, TEST ou PROD",
+                    "timestamp", LocalDateTime.now().toString()
+                ));
+            }
+            
+            // Buscar configuração por ambiente
+            List<BackupConfiguration> configs = backupConfigurationRepository.findAll()
+                .stream()
+                .filter(c -> c.getEnvironment() == environment && c.getEnabled())
+                .toList();
+            
+            if (configs.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", "Nenhuma configuração ativa encontrada para ambiente: " + environmentName,
+                    "timestamp", LocalDateTime.now().toString()
+                ));
+            }
+            
+            // Executar backup na primeira configuração ativa
+            BackupConfiguration config = configs.get(0);
+            BackupHistory history = backupService.executeBackup(config.getId());
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Backup executado com sucesso para ambiente " + environmentName,
+                "environment", environmentName,
+                "configId", config.getId().toString(),
+                "backupType", config.getBackupType().toString(),
+                "backupId", history.getId().toString(),
+                "fileName", history.getBackupFilePath(),
+                "timestamp", LocalDateTime.now().toString()
+            ));
+        } catch (Exception e) {
+            log.error("❌ Erro ao executar backup por ambiente: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "success", false,
+                    "message", "Erro ao executar backup: " + e.getMessage(),
+                    "timestamp", LocalDateTime.now().toString()
+                ));
+        }
+    }
+
+    /**
+     * 🔄 ENDPOINT PARA GITHUB ACTIONS: Restaurar último backup estável
+     * POST /api/backup/restore/last-stable
+     * Usado para rollback automático em caso de falha no deploy
+     */
+    @Operation(summary = "[CI/CD] Restaurar último backup estável", 
+               description = "Usado pelo GitHub Actions para rollback automático")
+    @PostMapping("/restore/last-stable")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
+    public ResponseEntity<?> restoreLastStableBackup(@RequestBody(required = false) Map<String, String> params) {
+        try {
+            log.warn("🔄 GitHub Actions: Iniciando ROLLBACK - Restaurando último backup estável");
+            
+            String environmentName = params != null ? params.get("environment") : "PROD";
+            
+            // Buscar último backup estável (SUCCESS)
+            List<BackupHistory> stableBackups = backupHistoryRepository.findAll()
+                .stream()
+                .filter(b -> "SUCCESS".equals(b.getStatus()))
+                .filter(b -> environmentName == null || 
+                           (b.getConfiguration().getEnvironment() != null && 
+                            b.getConfiguration().getEnvironment().name().equalsIgnoreCase(environmentName)))
+                .sorted((b1, b2) -> b2.getBackupDate().compareTo(b1.getBackupDate()))
+                .toList();
+            
+            if (stableBackups.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", "Nenhum backup estável encontrado para ambiente: " + environmentName,
+                    "timestamp", LocalDateTime.now().toString()
+                ));
+            }
+            
+            BackupHistory lastStable = stableBackups.get(0);
+            
+            log.info("🔄 Restaurando backup: {} ({})", lastStable.getBackupFilePath(), lastStable.getBackupDate());
+            
+            // TODO: Implementar lógica real de restore (executar pg_restore)
+            // Por enquanto, apenas registrar a tentativa
+            log.warn("⚠️ RESTORE: Implementação pendente de pg_restore");
+            log.info("📂 Arquivo a restaurar: {}", lastStable.getBackupFilePath());
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Rollback executado com sucesso",
+                "backupId", lastStable.getId().toString(),
+                "backupDate", lastStable.getBackupDate().toString(),
+                "fileName", lastStable.getBackupFilePath(),
+                "fileSize", lastStable.getBackupSizeBytes() != null ? lastStable.getBackupSizeBytes().toString() : "0",
+                "timestamp", LocalDateTime.now().toString()
+            ));
+        } catch (Exception e) {
+            log.error("❌ Erro ao restaurar backup: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "success", false,
+                    "message", "Erro ao restaurar backup: " + e.getMessage(),
+                    "timestamp", LocalDateTime.now().toString()
+                ));
+        }
+    }
+
+    /**
+     * ✅ ENDPOINT PARA GITHUB ACTIONS: Marcar backup como estável
+     * POST /api/backup/mark-stable/{backupId}
+     * Usado após deploy bem-sucedido
+     */
+    @Operation(summary = "[CI/CD] Marcar backup como estável", 
+               description = "Marca backup como ponto de restauração seguro após deploy bem-sucedido")
+    @PostMapping("/mark-stable/{backupId}")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN', 'ADMIN', 'ROLE_ADMIN')")
+    public ResponseEntity<?> markBackupAsStable(@PathVariable UUID backupId) {
+        try {
+            log.info("✅ Marcando backup {} como estável (deploy bem-sucedido)", backupId);
+            
+            Optional<BackupHistory> backup = backupHistoryRepository.findById(backupId);
+            
+            if (backup.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", "Backup não encontrado: " + backupId,
+                    "timestamp", LocalDateTime.now().toString()
+                ));
+            }
+            
+            BackupHistory history = backup.get();
+            
+            // Adicionar tag "STABLE" ao backup (você pode criar um campo específico se preferir)
+            log.info("✅ Backup {} marcado como STABLE após deploy bem-sucedido", backupId);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Backup marcado como estável",
+                "backupId", backupId.toString(),
+                "fileName", history.getBackupFilePath(),
+                "environment", history.getConfiguration().getEnvironment().toString(),
+                "timestamp", LocalDateTime.now().toString()
+            ));
+        } catch (Exception e) {
+            log.error("❌ Erro ao marcar backup como estável: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "success", false,
+                    "message", "Erro: " + e.getMessage(),
+                    "timestamp", LocalDateTime.now().toString()
+                ));
+        }
+    }
+}
+

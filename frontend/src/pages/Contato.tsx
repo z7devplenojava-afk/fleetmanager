@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useAOS } from '@/hooks/use-aos';
+import { useGSAP } from '@/hooks/use-gsap';
+import { ensureAllContentVisible } from '@/utils/ensureVisibility';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,8 +26,13 @@ import ContactModal from '@/components/ContactModal';
 import SpecialistModal from '@/components/SpecialistModal';
 
 const Contato = () => {
-  const aos = useAOS();
+  const animate = useGSAP();
   const { toast } = useToast();
+
+  // Fallback de segurança: garantir que o conteúdo sempre apareça
+  useEffect(() => {
+    ensureAllContentVisible();
+  }, []);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isSpecialistModalOpen, setIsSpecialistModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,16 +98,16 @@ const Contato = () => {
         {/* Header */}
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="container mx-auto text-center">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4" data-animate="fadeUp">
               Entre em Contato
             </h1>
-            <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto mb-12" data-aos={aos.fadeUp} data-aos-delay="200">
+            <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto mb-12" data-animate="fadeUp" data-delay="200">
               Estamos prontos para atender suas necessidades de segurança patrimonial. 
               Entre em contato conosco e descubra como podemos ajudar.
             </p>
             
             {/* Features/Benefits */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto" data-aos={aos.fadeUp} data-aos-delay="400">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto" data-animate="fadeUp" data-delay="400">
               <div className="text-center">
                 <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Phone className="h-8 w-8 text-white" />
@@ -131,17 +137,17 @@ const Contato = () => {
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">
                 Informações de Contato
               </h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-aos={aos.fadeUp} data-aos-delay="200">
+              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
                 Entre em contato conosco através dos canais abaixo
               </p>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
               {/* Informações de Contato */}
-              <div data-aos={aos.fadeRight}>
+              <div data-animate="fadeRight">
                 <div className="space-y-6 sm:space-y-8">
                   {/* Telefones */}
                   <div className="flex items-start space-x-3 sm:space-x-4">
@@ -244,7 +250,7 @@ const Contato = () => {
               </div>
 
               {/* Formulário de Contato */}
-              <div data-aos={aos.fadeLeft}>
+              <div data-animate="fadeLeft">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -346,16 +352,16 @@ const Contato = () => {
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="container mx-auto">
             <div className="text-center mb-12">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">
                 Nossa Localização
               </h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-aos={aos.fadeUp} data-aos-delay="200">
+              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
                 Venha nos visitar em nossa sede em Contagem/MG
               </p>
             </div>
 
             <div className="max-w-6xl mx-auto">
-              <div className="bg-white rounded-xl overflow-hidden shadow-2xl" data-aos={aos.fadeUp} data-aos-delay="400">
+              <div className="bg-white rounded-xl overflow-hidden shadow-2xl" data-animate="fadeUp" data-delay="400">
                 <iframe
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3750.123456789!2d-44.0806287!3d-19.9187987!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xa6953de0cc2a49%3A0xdaa6192c08e8f391!2sR.%20Cel.%20Jo%C3%A3o%20Camargos%2C%20267%20-%20Centro%2C%20Contagem%20-%20MG!5e0!3m2!1spt-BR!2sbr!4v1234567890123!5m2!1spt-BR!2sbr"
                   width="100%"
@@ -396,13 +402,13 @@ const Contato = () => {
         {/* CTA Section */}
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="container mx-auto text-center">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4" data-animate="fadeUp">
               Pronto para Proteger seu Patrimônio?
             </h2>
-            <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto" data-aos={aos.fadeUp} data-aos-delay="200">
+            <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto" data-animate="fadeUp" data-delay="200">
               Entre em contato conosco e descubra como podemos ajudar a garantir a segurança que você precisa.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center" data-aos={aos.fadeUp} data-aos-delay="400">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center" data-animate="fadeUp" data-delay="400">
               <Button
                 size="lg"
                 className="bg-red-600 hover:bg-red-700 text-white text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4"
@@ -427,7 +433,7 @@ const Contato = () => {
           <div className="container mx-auto">
             {/* Primeira linha - Logo e Links */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12 mb-8">
-              <div data-aos={aos.fadeRight} className="sm:col-span-2 lg:col-span-1">
+              <div data-animate="fadeRight" className="sm:col-span-2 lg:col-span-1">
                 <div className="flex items-center space-x-3 mb-4 sm:mb-6">
                   <Logo size="lg" type="full" />
                 </div>
@@ -450,7 +456,7 @@ const Contato = () => {
                 </div>
               </div>
               
-              <div data-aos={aos.fadeUp} data-aos-delay="100">
+              <div data-animate="fadeUp" data-delay="100">
                 <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Serviços</h3>
                 <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
                   <li><a href="/#servicos" className="hover:text-white transition-colors block py-1">Vigilância Patrimonial</a></li>
@@ -460,7 +466,7 @@ const Contato = () => {
                 </ul>
               </div>
               
-              <div data-aos={aos.fadeUp} data-aos-delay="200">
+              <div data-animate="fadeUp" data-delay="200">
                 <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Empresa</h3>
                 <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
                   <li><a href="/#quem-somos" className="hover:text-white transition-colors block py-1">Quem Somos</a></li>
@@ -474,7 +480,7 @@ const Contato = () => {
                 </ul>
               </div>
               
-              <div data-aos={aos.fadeUp} data-aos-delay="300">
+              <div data-animate="fadeUp" data-delay="300">
                 <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Legal</h3>
                 <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
                   <li><a href="/politicas-privacidade" className="hover:text-white transition-colors block py-1">Política de Privacidade</a></li>
@@ -486,7 +492,7 @@ const Contato = () => {
 
             {/* Segunda linha - Contatos centralizados em 2 colunas */}
             <div className="flex justify-center">
-              <div className="w-full max-w-5xl" data-aos={aos.fadeUp} data-aos-delay="400">
+              <div className="w-full max-w-5xl" data-animate="fadeUp" data-delay="400">
                 <h3 className="text-center text-xl sm:text-2xl lg:text-3xl font-semibold text-white mb-6 sm:mb-8">Contatos</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
                   {/* Sede Contagem */}
@@ -550,7 +556,7 @@ const Contato = () => {
               </div>
             </div>
             
-            <div className="border-t border-gray-800 mt-6 pt-6 text-center text-gray-400" data-aos={aos.fadeUp}>
+            <div className="border-t border-gray-800 mt-6 pt-6 text-center text-gray-400" data-animate="fadeUp">
               <p className="text-xs sm:text-sm">&copy; 2025 Promover Vigilância Patrimonial. Todos os direitos reservados.</p>
             </div>
           </div>

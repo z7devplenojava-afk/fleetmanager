@@ -1,0 +1,77 @@
+# ========================================
+# Configuração Dinâmica do Traefik para CI
+# ========================================
+# Este arquivo deve ser colocado em /etc/traefik/dynamic/ no servidor
+# ou no diretório configurado para dynamic configuration do Traefik
+
+http:
+  middlewares:
+    # Middleware para redirecionar HTTP para HTTPS
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+    
+    # Middleware para permitir todos os métodos HTTP
+    allow-all-methods:
+      headers:
+        customRequestHeaders:
+          Access-Control-Allow-Methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD"
+        customResponseHeaders:
+          Access-Control-Allow-Methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD"
+    
+    # Middleware CORS permissivo para CI
+    ci-cors:
+      headers:
+        accessControlAllowOriginListRegex:
+          - ".*"
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+          - "PATCH"
+          - "OPTIONS"
+          - "HEAD"
+        accessControlAllowHeaders:
+          - "*"
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 3600
+        addVaryHeader: true
+    
+    # Middleware de timeout aumentado para uploads (5 minutos)
+    ci-timeout:
+      buffering:
+        maxRequestBodyBytes: 52428800  # 50MB
+        maxResponseBodyBytes: 52428800  # 50MB
+        memRequestBodyBytes: 2097152  # 2MB
+        memResponseBodyBytes: 2097152  # 2MB
+        retryExpression: "IsNetworkError() && Attempts() < 2"
+
+  routers:
+    # Router HTTPS específico para o ambiente CI
+    # O redirecionamento HTTP → HTTPS é feito pelo entrypoint 'web' do Traefik
+    ci-backend:
+      rule: "Host(`ci.z7botsolutions.com.br`)"
+      entryPoints:
+        - websecure
+      service: ci-backend-service
+      middlewares:
+        - ci-cors
+        - allow-all-methods
+        - ci-timeout
+      tls:
+        certResolver: letsencryptresolver
+      priority: 1000
+
+  services:
+    ci-backend-service:
+      loadBalancer:
+        servers:
+          - url: "http://secured-guard-nginx-ci:80"
+        passHostHeader: true
+        # Timeouts aumentados para uploads grandes (5 minutos)
+        responseForwarding:
+          flushInterval: 100ms
+        # Health check removido - causava erro no Traefik 3.0
+        # O health check será feito pelo próprio Traefik via labels do docker-compose

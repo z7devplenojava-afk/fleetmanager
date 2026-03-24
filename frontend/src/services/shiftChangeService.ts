@@ -16,6 +16,7 @@ export interface ShiftChangeFormDTO {
     replacingDayOffDate?: string | null;
     shiftTime: 'SHIFT_6H_18H' | 'SHIFT_18H_6H' | 'SHIFT_7H_19H' | 'SHIFT_19H_7H';
     status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+    approvedBy?: string | null;
     createdAt?: string;
     updatedAt?: string;
 }

@@ -51,40 +51,73 @@ class EPIService {
     supplier?: string;
   }): Promise<EPI[]> {
     try {
-      const params = new URLSearchParams();
-      if (filters?.type) params.append('type', filters.type);
-      if (filters?.status) params.append('status', filters.status);
-      if (filters?.supplier) params.append('supplier', filters.supplier);
-
-      const url = `/epis${params.toString() ? `?${params.toString()}` : ''}`;
+      // Usar o novo endpoint de estoque que retorna dados no formato correto
+      const url = `/api/sst/epis/stock-inventory`;
       const response = await api.get(url);
       
-      return response.data.map((epi: EPIAPI) => ({
-        id: epi.id,
-        name: epi.name,
-        description: epi.description,
-        type: epi.type,
-        brand: epi.brand,
-        model: epi.model,
+      if (!response.data || !Array.isArray(response.data)) {
+        console.warn('Resposta inválida do backend, usando dados mock');
+        return this.getMockEPIs();
+      }
+
+      if (response.data.length === 0) {
+        console.warn('Nenhum EPI retornado do backend, usando dados mock');
+        return this.getMockEPIs();
+      }
+      
+      // O backend já retorna no formato correto via EPIStockDTO
+      let epis = response.data.map((epi: any) => ({
+        id: typeof epi.id === 'string' ? parseInt(epi.id.replace(/-/g, '').substring(0, 8), 16) : (epi.id || 0),
+        uuid: typeof epi.id === 'string' ? epi.id : undefined, // Manter UUID original
+        name: epi.name || 'EPI',
+        description: epi.description || '',
+        type: epi.type || 'OTHER',
+        brand: epi.brand || 'N/A',
+        model: epi.model || 'N/A',
         size: epi.size,
         color: epi.color,
-        certification: epi.certification,
-        status: epi.status,
-        quantity: epi.quantity,
-        availableQuantity: epi.availableQuantity,
-        unitPrice: epi.unitPrice,
-        supplier: epi.supplier,
-        purchaseDate: epi.purchaseDate,
+        certification: epi.certification || '',
+        status: epi.status || 'ACTIVE',
+        quantity: epi.quantity || 0,
+        availableQuantity: epi.availableQuantity || 0,
+        unitPrice: epi.unitPrice || 0,
+        supplier: epi.supplier || 'N/A',
+        purchaseDate: epi.purchaseDate || new Date().toISOString().split('T')[0],
         expiryDate: epi.expiryDate,
         lastMaintenanceDate: epi.lastMaintenanceDate,
         nextMaintenanceDate: epi.nextMaintenanceDate,
-        location: epi.location,
-        notes: epi.notes,
-        createdAt: epi.createdAt,
-        updatedAt: epi.updatedAt
+        location: epi.location || 'Almoxarifado',
+        notes: epi.notes || epi.description || '',
+        createdAt: epi.createdAt || new Date().toISOString(),
+        updatedAt: epi.updatedAt || new Date().toISOString()
       }));
-    } catch (error) {
-      console.error('Erro ao buscar EPIs:', error);
+
+      // Aplicar filtros se fornecidos
+      if (filters) {
+        if (filters.status) {
+          epis = epis.filter(epi => epi.status === filters.status);
+        }
+        if (filters.type) {
+          epis = epis.filter(epi => epi.type === filters.type);
+        }
+        if (filters.supplier) {
+          epis = epis.filter(epi => 
+            epi.supplier?.toLowerCase().includes(filters.supplier!.toLowerCase())
+          );
+        }
+      }
+
+      console.log('✅ EPIService.getEPIs - Processados', epis.length, 'EPIs do backend');
+      return epis;
+    } catch (error: any) {
+      console.error('❌ Erro ao buscar EPIs do backend:', error);
+      console.error('Detalhes do erro:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      console.warn('⚠️ Usando dados mock como fallback devido ao erro');
       return this.getMockEPIs();
     }
   }
@@ -128,12 +161,81 @@ class EPIService {
   // Criar novo EPI
   async createEPI(epi: Omit<EPI, 'id' | 'createdAt' | 'updatedAt'>): Promise<EPI> {
     try {
-      const response = await api.post('/epis', epi);
-      return response.data;
+      // Mapear do formato frontend para o formato backend
+      const backendEPI = {
+        name: epi.name,
+        description: epi.description || '',
+        category: this.mapTypeToCategory(epi.type),
+        caNumber: epi.certification || '',
+        caValidity: epi.expiryDate || null,
+        manufacturer: epi.brand || epi.supplier || '',
+        model: epi.model || '',
+        unitOfMeasurement: 'UNIDADE',
+        minimumStock: 0,
+        currentStock: epi.quantity || 0,
+        unitCost: epi.unitPrice || 0,
+        isActive: epi.status === 'ACTIVE'
+      };
+
+      const response = await api.post('/api/sst/epis', backendEPI);
+      
+      // Converter resposta do backend para formato frontend
+      const createdEPI = response.data;
+      return {
+        id: typeof createdEPI.id === 'string' ? parseInt(createdEPI.id.replace(/-/g, '').substring(0, 8), 16) : (createdEPI.id || 0),
+        name: createdEPI.name,
+        description: createdEPI.description,
+        type: this.mapCategoryToType(createdEPI.category),
+        brand: createdEPI.manufacturer || 'N/A',
+        model: createdEPI.model || 'N/A',
+        size: undefined,
+        color: undefined,
+        certification: createdEPI.caNumber || '',
+        status: createdEPI.isActive ? 'ACTIVE' : 'INACTIVE',
+        quantity: createdEPI.currentStock || 0,
+        availableQuantity: createdEPI.currentStock || 0,
+        unitPrice: createdEPI.unitCost || 0,
+        supplier: createdEPI.manufacturer || 'N/A',
+        purchaseDate: new Date().toISOString().split('T')[0],
+        expiryDate: createdEPI.caValidity || undefined,
+        lastMaintenanceDate: undefined,
+        nextMaintenanceDate: undefined,
+        location: 'Almoxarifado',
+        notes: createdEPI.description,
+        createdAt: createdEPI.createdAt || new Date().toISOString(),
+        updatedAt: createdEPI.updatedAt || new Date().toISOString()
+      };
     } catch (error) {
       console.error('Erro ao criar EPI:', error);
       throw new Error('Erro ao criar EPI');
     }
+  }
+
+  // Função auxiliar para mapear tipo do frontend para categoria do backend
+  private mapTypeToCategory(type: EPIType): string {
+    const mapping: Record<EPIType, string> = {
+      'HELMET': 'CABECA',
+      'GLOVES': 'MAOS',
+      'SAFETY_GLASSES': 'OLHOS',
+      'SAFETY_SHOES': 'PES',
+      'UNIFORM': 'CORPO',
+      'RESPIRATOR': 'RESPIRATORIO',
+      'OTHER': 'CORPO'
+    };
+    return mapping[type] || 'CORPO';
+  }
+
+  // Função auxiliar para mapear categoria do backend para tipo do frontend
+  private mapCategoryToType(category: string): EPIType {
+    const mapping: Record<string, EPIType> = {
+      'CABECA': 'HELMET',
+      'MAOS': 'GLOVES',
+      'OLHOS': 'SAFETY_GLASSES',
+      'PES': 'SAFETY_SHOES',
+      'CORPO': 'UNIFORM',
+      'RESPIRATORIO': 'RESPIRATOR'
+    };
+    return mapping[category] || 'OTHER';
   }
 
   // Atualizar EPI
@@ -150,7 +252,7 @@ class EPIService {
   // Deletar EPI
   async deleteEPI(id: number): Promise<void> {
     try {
-      await api.delete(`/epis/${id}`);
+      await api.delete(`/api/epis/${id}`);
     } catch (error) {
       console.error('Erro ao deletar EPI:', error);
       throw new Error('Erro ao deletar EPI');
@@ -186,7 +288,7 @@ class EPIService {
     notes?: string;
   }): Promise<EPIAssignmentAPI> {
     try {
-      const response = await api.post('/epi-assignments', assignment);
+      const response = await api.post('/api/epi-assignments', assignment);
       return response.data;
     } catch (error) {
       console.error('Erro ao atribuir EPI:', error);
@@ -197,7 +299,7 @@ class EPIService {
   // Retornar EPI
   async returnEPI(assignmentId: number, returnedBy: string, notes?: string): Promise<EPIAssignmentAPI> {
     try {
-      const response = await api.patch(`/epi-assignments/${assignmentId}/return`, {
+      const response = await api.patch(`/api/epi-assignments/${assignmentId}/return`, {
         returnedBy,
         notes
       });
@@ -235,8 +337,9 @@ class EPIService {
     byType: Record<EPIType, number>;
   }> {
     try {
-      const response = await api.get('/epis/stats');
-      return response.data;
+      // Calcular estatísticas a partir dos EPIs retornados
+      const allEPIs = await this.getEPIs();
+      return this.calculateStats(allEPIs);
     } catch (error) {
       console.error('Erro ao buscar estatísticas:', error);
       return this.getMockEPIStats();
@@ -399,6 +502,71 @@ class EPIService {
         updatedAt: '2024-01-10T09:15:00Z'
       }
     ];
+  }
+
+  // Calcular estatísticas a partir dos EPIs
+  private calculateStats(epis: EPI[]): {
+    total: number;
+    active: number;
+    inactive: number;
+    maintenance: number;
+    expired: number;
+    totalValue: number;
+    assigned: number;
+    available: number;
+    byType: Record<EPIType, number>;
+  } {
+    const stats = {
+      total: epis.length,
+      active: 0,
+      inactive: 0,
+      maintenance: 0,
+      expired: 0,
+      totalValue: 0,
+      assigned: 0,
+      available: 0,
+      byType: {
+        HELMET: 0,
+        GLOVES: 0,
+        SAFETY_GLASSES: 0,
+        SAFETY_SHOES: 0,
+        UNIFORM: 0,
+        RESPIRATOR: 0,
+        OTHER: 0
+      } as Record<EPIType, number>
+    };
+
+    epis.forEach(epi => {
+      // Contar por status
+      switch (epi.status) {
+        case 'ACTIVE':
+          stats.active++;
+          break;
+        case 'INACTIVE':
+          stats.inactive++;
+          break;
+        case 'MAINTENANCE':
+          stats.maintenance++;
+          break;
+        case 'EXPIRED':
+          stats.expired++;
+          break;
+      }
+
+      // Calcular valores
+      stats.totalValue += epi.unitPrice * epi.quantity;
+      stats.assigned += epi.quantity - epi.availableQuantity;
+      stats.available += epi.availableQuantity;
+
+      // Contar por tipo
+      if (stats.byType[epi.type] !== undefined) {
+        stats.byType[epi.type]++;
+      } else {
+        stats.byType.OTHER++;
+      }
+    });
+
+    return stats;
   }
 
   private getMockEPIStats() {

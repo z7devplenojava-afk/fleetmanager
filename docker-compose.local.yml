@@ -1,0 +1,249 @@
+version: '3.8'
+
+# ============================================
+# SECURED GUARD - AMBIENTE LOCAL
+# Nomenclatura: secured-guard-local-*
+# Uso: docker-compose -f docker-compose.local.yml up -d
+# ============================================
+
+services:
+  # ==========================================
+  # POSTGRESQL - Banco de Dados Local
+  # ==========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: secured-guard-local-db
+    hostname: secured-guard-local-db
+    environment:
+      POSTGRES_DB: secured_guard_local
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: dev_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - secured-guard-local-db-data:/var/lib/postgresql/data
+      - ./seeds/schema:/docker-entrypoint-initdb.d/01-schema:ro
+      - ./seeds/common:/docker-entrypoint-initdb.d/02-common:ro
+      - ./seeds/local:/docker-entrypoint-initdb.d/03-local:ro
+    networks:
+      - secured-guard-local-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d secured_guard_local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ==========================================
+  # REDIS - Cache Local
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: secured-guard-local-redis
+    hostname: secured-guard-local-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - secured-guard-local-redis-data:/data
+    networks:
+      - secured-guard-local-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ==========================================
+  # MINIO - Armazenamento S3 Local
+  # ==========================================
+  minio:
+    image: minio/minio:latest
+    container_name: secured-guard-local-minio
+    hostname: secured-guard-local-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - secured-guard-local-minio-data:/data
+    networks:
+      - secured-guard-local-network
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  # ==========================================
+  # WHATSAPP SERVICE - Local
+  # ==========================================
+  whatsapp:
+    build:
+      context: ./whatsapp-service
+      dockerfile: Dockerfile
+    image: secured-guard-whatsapp:local
+    container_name: secured-guard-local-whatsapp
+    hostname: secured-guard-local-whatsapp
+    environment:
+      PORT: 3333
+      INSTANCE_KEY: secured_guard_local
+      SESSION_DIR: /app/sessions
+      NODE_ENV: development
+    volumes:
+      - secured-guard-local-whatsapp-sessions:/app/sessions
+      - ./backend/holerites:/app/holerites:rw
+    ports:
+      - "3333:3333"
+    networks:
+      - secured-guard-local-network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # ==========================================
+  # BACKEND - Spring Boot Local (Hot Reload)
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.local
+    image: secured-guard-backend:local
+    container_name: secured-guard-local-backend
+    hostname: secured-guard-local-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://secured-guard-local-db:5432/secured_guard_local
+      SPRING_DATASOURCE_USERNAME: dev_user
+      SPRING_DATASOURCE_PASSWORD: dev_pass
+      SPRING_REDIS_HOST: secured-guard-local-redis
+      SPRING_REDIS_PORT: 6379
+      BAILEYS_ENABLED: "true"
+      BAILEYS_REST_URL: http://secured-guard-local-whatsapp:3333
+      JWT_SECRET: dev_secret_key_min_64_chars_for_hmac512_algorithm_local_only
+      MINIO_URL: http://secured-guard-local-minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    ports:
+      - "8083:8083"
+      - "5005:5005"
+    volumes:
+      - ./backend/src:/app/src:ro
+      - ./backend/target:/app/target
+      - ./backend/holerites:/app/holerites:rw
+      - secured-guard-local-backend-m2:/root/.m2
+    networks:
+      - secured-guard-local-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      whatsapp:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ==========================================
+  # FRONTEND - React Local (Hot Reload)
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.local
+    image: secured-guard-frontend:local
+    container_name: secured-guard-local-frontend
+    hostname: secured-guard-local-frontend
+    environment:
+      VITE_API_URL: http://localhost:8083
+      VITE_ENV: local
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src:ro
+      - ./frontend/public:/app/public:ro
+      - secured-guard-local-frontend-modules:/app/node_modules
+    networks:
+      - secured-guard-local-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  secured-guard-local-db-data:
+    name: secured-guard-local-db-data
+  secured-guard-local-redis-data:
+    name: secured-guard-local-redis-data
+  secured-guard-local-minio-data:
+    name: secured-guard-local-minio-data
+  secured-guard-local-whatsapp-sessions:
+    name: secured-guard-local-whatsapp-sessions
+  secured-guard-local-backend-m2:
+    name: secured-guard-local-backend-m2
+  secured-guard-local-frontend-modules:
+    name: secured-guard-local-frontend-modules
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  secured-guard-local-network:
+    name: secured-guard-local-network
+    driver: bridge
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,421 @@
+package com.z7design.fleet_manager.model.enums;
+
+public enum Permission {
+    // ===========================================
+    // USUÃRIOS E SEGURANÃ‡A
+    // ===========================================
+    USERS_READ,
+    USERS_WRITE,
+    USERS_DELETE,
+    USERS_CREATE,
+
+    GROUPS_READ,
+    GROUPS_WRITE,
+    GROUPS_DELETE,
+    GROUPS_CREATE,
+
+    SECURITY_SETTINGS_READ,
+    SECURITY_SETTINGS_WRITE,
+    PASSWORD_RESET_MANAGE,
+    LGPD_MANAGE,
+    TERMS_MANAGE,
+    TWO_FACTOR_MANAGE,
+
+    // ===========================================
+    // CLIENTES E EMPRESAS
+    // ===========================================
+    CLIENTS_READ,
+    CLIENTS_WRITE,
+    CLIENTS_DELETE,
+    CLIENTS_CREATE,
+
+    COMPANIES_READ,
+    COMPANIES_WRITE,
+    COMPANIES_CREATE,
+    COMPANIES_DELETE,
+    COMPANY_CONFIG_READ,
+    COMPANY_CONFIG_WRITE,
+
+    // ===========================================
+    // FUNCIONÃRIOS (RH BÃSICO)
+    // ===========================================
+    EMPLOYEES_READ,
+    EMPLOYEES_WRITE,
+    EMPLOYEES_DELETE,
+    EMPLOYEES_CREATE,
+
+    // ===========================================
+    // RH COMPLEMENTAR
+    // ===========================================
+    BENEFITS_READ,
+    BENEFITS_WRITE,
+    BENEFITS_CREATE,
+    BENEFITS_DELETE,
+
+    VACATIONS_READ,
+    VACATIONS_WRITE,
+    VACATIONS_CREATE,
+    VACATIONS_DELETE,
+    VACATION_COVERAGE_READ,
+    VACATION_COVERAGE_WRITE,
+    VACATION_COVERAGE_CREATE,
+
+    ABSENCES_READ,
+    ABSENCES_WRITE,
+    ABSENCES_CREATE,
+    ABSENCES_DELETE,
+
+    LEAVES_READ,
+    LEAVES_WRITE,
+    LEAVES_CREATE,
+    LEAVES_DELETE,
+
+    OVERTIME_READ,
+    OVERTIME_WRITE,
+    OVERTIME_CREATE,
+    OVERTIME_DELETE,
+
+    TIME_RECORDS_READ,
+    TIME_RECORDS_WRITE,
+    TIME_RECORDS_CREATE,
+    TIME_RECORDS_DELETE,
+
+    PERFORMANCE_READ,
+    PERFORMANCE_WRITE,
+    PERFORMANCE_CREATE,
+    PERFORMANCE_DELETE,
+
+    TRAINING_READ,
+    TRAINING_WRITE,
+    TRAINING_CREATE,
+    TRAINING_DELETE,
+
+    CERTIFICATIONS_READ,
+    CERTIFICATIONS_WRITE,
+    CERTIFICATIONS_CREATE,
+    CERTIFICATIONS_DELETE,
+
+    // ===========================================
+    // SEGURANÃ‡A E SAÃšDE DO TRABALHO (SST)
+    // ===========================================
+    SST_READ,
+    SST_WRITE,
+    SST_CREATE,
+    SST_DELETE,
+
+    SST_ACCIDENTS_READ,
+    SST_ACCIDENTS_WRITE,
+    SST_ACCIDENTS_CREATE,
+    SST_ACCIDENTS_DELETE,
+
+    SST_RISKS_READ,
+    SST_RISKS_WRITE,
+    SST_RISKS_CREATE,
+    SST_RISKS_DELETE,
+
+    SST_MEDICAL_EXAMS_READ,
+    SST_MEDICAL_EXAMS_WRITE,
+    SST_MEDICAL_EXAMS_CREATE,
+
+    SST_TRAINING_READ,
+    SST_TRAINING_WRITE,
+    SST_TRAINING_CREATE,
+
+    // ===========================================
+    // CONTRATOS
+    // ===========================================
+    CONTRACTS_READ,
+    CONTRACTS_WRITE,
+    CONTRACTS_DELETE,
+    CONTRACTS_CREATE,
+
+    // ===========================================
+    // FINANCEIRO
+    // ===========================================
+    FINANCIAL_READ,
+    FINANCIAL_WRITE,
+    FINANCIAL_DELETE,
+    FINANCIAL_CREATE,
+
+    BANK_RECONCILIATION_READ,
+    BANK_RECONCILIATION_WRITE,
+    BANK_RECONCILIATION_CREATE,
+
+    SUPPLIERS_READ,
+    SUPPLIERS_WRITE,
+    SUPPLIERS_CREATE,
+    SUPPLIERS_DELETE,
+
+    COST_CENTERS_READ,
+    COST_CENTERS_WRITE,
+    COST_CENTERS_CREATE,
+    COST_CENTERS_DELETE,
+
+    PAYROLL_READ,
+    PAYROLL_WRITE,
+    PAYROLL_CREATE,
+    PAYROLL_EXECUTE,
+
+    MEASUREMENTS_READ,
+    MEASUREMENTS_WRITE,
+    MEASUREMENTS_CREATE,
+    MEASUREMENTS_DELETE,
+
+    PAYSLIPS_READ,
+    PAYSLIPS_WRITE,
+    PAYSLIPS_DELETE,
+    PAYSLIPS_CREATE,
+    PAYSLIPS_PUBLISH,
+
+    // ===========================================
+    // GESTÃƒO DE FROTA
+    // ===========================================
+    FLEET_READ,
+    FLEET_WRITE,
+    FLEET_CREATE,
+    FLEET_DELETE,
+
+    VEHICLES_READ,
+    VEHICLES_WRITE,
+    VEHICLES_CREATE,
+    VEHICLES_DELETE,
+
+    VEHICLE_MAINTENANCE_READ,
+    VEHICLE_MAINTENANCE_WRITE,
+    VEHICLE_MAINTENANCE_CREATE,
+
+    FUEL_RECORDS_READ,
+    FUEL_RECORDS_WRITE,
+    FUEL_RECORDS_CREATE,
+
+    MILEAGE_READ,
+    MILEAGE_WRITE,
+    MILEAGE_CREATE,
+
+    DRIVERS_READ,
+    DRIVERS_WRITE,
+    DRIVERS_CREATE,
+    DRIVERS_DELETE,
+
+    FINES_READ,
+    FINES_WRITE,
+    FINES_CREATE,
+    FINES_DELETE,
+
+    // ===========================================
+    // ESTOQUE E EQUIPAMENTOS
+    // ===========================================
+    EQUIPMENTS_READ,
+    EQUIPMENTS_WRITE,
+    EQUIPMENTS_DELETE,
+    EQUIPMENTS_CREATE,
+    EQUIPMENTS_ASSIGN,
+
+    STOCK_READ,
+    STOCK_WRITE,
+    STOCK_CREATE,
+    STOCK_DELETE,
+
+    INVENTORY_READ,
+    INVENTORY_WRITE,
+    INVENTORY_CREATE,
+    INVENTORY_DELETE,
+    INVENTORY_MOVEMENTS_READ,
+    INVENTORY_MOVEMENTS_CREATE,
+
+    PRODUCTS_READ,
+    PRODUCTS_WRITE,
+    PRODUCTS_CREATE,
+    PRODUCTS_DELETE,
+
+    PURCHASE_REQUESTS_READ,
+    PURCHASE_REQUESTS_WRITE,
+    PURCHASE_REQUESTS_CREATE,
+
+    // ===========================================
+    // CRM E VENDAS
+    // ===========================================
+    LEADS_READ,
+    LEADS_WRITE,
+    LEADS_DELETE,
+    LEADS_CREATE,
+
+    OPPORTUNITIES_READ,
+    OPPORTUNITIES_WRITE,
+    OPPORTUNITIES_CREATE,
+    OPPORTUNITIES_DELETE,
+
+    PROPOSALS_READ,
+    PROPOSALS_WRITE,
+    PROPOSALS_DELETE,
+    PROPOSALS_CREATE,
+
+    QUOTES_READ,
+    QUOTES_WRITE,
+    QUOTES_DELETE,
+    QUOTES_CREATE,
+
+    INTERACTION_HISTORY_READ,
+    INTERACTION_HISTORY_WRITE,
+
+    JOB_VACANCIES_READ,
+    JOB_VACANCIES_WRITE,
+    JOB_VACANCIES_CREATE,
+    JOB_VACANCIES_DELETE,
+
+    CANDIDATES_READ,
+    CANDIDATES_WRITE,
+    CANDIDATES_CREATE,
+    CANDIDATES_DELETE,
+
+    // ===========================================
+    // OPERACIONAL
+    // ===========================================
+    SCHEDULES_READ,
+    SCHEDULES_WRITE,
+    SCHEDULES_CREATE,
+    SCHEDULES_DELETE,
+
+    ACTIVITY_REPORTS_READ,
+    ACTIVITY_REPORTS_WRITE,
+    ACTIVITY_REPORTS_CREATE,
+
+    SERVICE_ORDERS_READ,
+    SERVICE_ORDERS_WRITE,
+    SERVICE_ORDERS_CREATE,
+    SERVICE_ORDERS_DELETE,
+
+    OCCURRENCES_READ,
+    OCCURRENCES_WRITE,
+    OCCURRENCES_CREATE,
+    OCCURRENCES_DELETE,
+
+    TASKS_READ,
+    TASKS_WRITE,
+    TASKS_CREATE,
+    TASKS_DELETE,
+
+    WORK_SCHEDULES_READ,
+    WORK_SCHEDULES_WRITE,
+    WORK_SCHEDULES_CREATE,
+
+    WORK_POSTS_READ,
+    WORK_POSTS_WRITE,
+    WORK_POSTS_CREATE,
+    WORK_POSTS_DELETE,
+
+    VISITS_READ,
+    VISITS_WRITE,
+    VISITS_CREATE,
+    VISITS_DELETE,
+
+    SUPERVISORS_READ,
+    SUPERVISORS_WRITE,
+    SUPERVISORS_CREATE,
+    SUPERVISORS_DELETE,
+
+    SPECIFIC_ACTIVITIES_READ,
+    SPECIFIC_ACTIVITIES_WRITE,
+    SPECIFIC_ACTIVITIES_CREATE,
+
+    // ===========================================
+    // GESTÃƒO DE TRÃ FEGO
+    // ===========================================
+    TRAFFIC_MANAGEMENT_READ,
+    TRAFFIC_MANAGEMENT_WRITE,
+    TRAFFIC_MANAGEMENT_CREATE,
+    TRAFFIC_MANAGEMENT_DELETE,
+
+    TRIPS_READ,
+    TRIPS_WRITE,
+    TRIPS_EXECUTE,
+
+    BOARDING_READ,
+    BOARDING_EXECUTE,
+
+    // ===========================================
+    // DOCUMENTOS E ARQUIVOS
+    // ===========================================
+    DOCUMENTS_READ,
+    DOCUMENTS_WRITE,
+    DOCUMENTS_CREATE,
+    DOCUMENTS_DELETE,
+
+    DOCUMENT_TEMPLATES_READ,
+    DOCUMENT_TEMPLATES_WRITE,
+    DOCUMENT_TEMPLATES_CREATE,
+
+    DOCUMENT_SIGNATURES_READ,
+    DOCUMENT_SIGNATURES_WRITE,
+    DOCUMENT_SIGNATURES_CREATE,
+
+    FILES_READ,
+    FILES_WRITE,
+    FILES_DELETE,
+    FILES_UPLOAD,
+
+    // ===========================================
+    // COMUNICAÃ‡ÃƒO E SUPORTE
+    // ===========================================
+    MESSAGES_READ,
+    MESSAGES_WRITE,
+    MESSAGES_CREATE,
+    MESSAGES_DELETE,
+    MESSAGES_MANAGE,
+
+    CHAT_READ,
+    CHAT_WRITE,
+    CHAT_MANAGE,
+
+    WHATSAPP_READ,
+    WHATSAPP_WRITE,
+    WHATSAPP_SEND,
+
+    SUPPORT_READ,
+    SUPPORT_WRITE,
+    SUPPORT_MANAGE,
+
+    ATTENDANCE_READ,
+    ATTENDANCE_WRITE,
+    ATTENDANCE_MANAGE,
+
+    // ===========================================
+    // RELATÃ“RIOS E DASHBOARDS
+    // ===========================================
+    REPORTS_READ,
+    REPORTS_GENERATE,
+    REPORTS_EXPORT,
+
+    DASHBOARD_READ,
+    DASHBOARD_WRITE,
+
+    // ===========================================
+    // SISTEMA E CONFIGURAÃ‡Ã•ES
+    // ===========================================
+    SYSTEM_CONFIG,
+    SYSTEM_LOGS,
+    SYSTEM_BACKUP,
+    SYSTEM_INTEGRATION,
+
+    NOTIFICATIONS_READ,
+    NOTIFICATIONS_WRITE,
+    NOTIFICATIONS_SEND,
+
+    FACIAL_RECOGNITION_READ,
+    FACIAL_RECOGNITION_WRITE,
+    FACIAL_RECOGNITION_MANAGE,
+
+    // ===========================================
+    // AUDITORIA E PERFIL
+    // ===========================================
+    AUDIT_READ,
+    AUDIT_WRITE,
+
+    PROFILE_READ,
+    PROFILE_WRITE,
+
+    // ===========================================
+    // ACESSO TOTAL - SUPER_ADMIN
+    // ===========================================
+    ALL_PERMISSIONS
+}

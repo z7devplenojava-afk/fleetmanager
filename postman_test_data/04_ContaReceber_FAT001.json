@@ -1,0 +1,14 @@
+{
+  "clientId": "SUBSTITUIR_PELO_ID_DO_CLIENTE_1",
+  "invoiceNumber": "FAT-2024-001",
+  "measurementNumber": "MED-2024-001",
+  "description": "Serviços de consultoria - Janeiro 2024",
+  "amount": 15000.00,
+  "amountPaid": 0.00,
+  "issueDate": "2024-01-15",
+  "dueDate": "2024-02-15",
+  "status": "OVERDUE",
+  "category": "SERVICE",
+  "paymentMethod": "BOLETO",
+  "notes": "Cliente solicitou prazo adicional"
+}

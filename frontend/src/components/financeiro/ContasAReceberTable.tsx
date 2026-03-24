@@ -17,7 +17,8 @@ import {
   Clock,
   XCircle,
   Calendar,
-  DollarSign
+  DollarSign,
+  Users
 } from 'lucide-react';
 import { ContaAReceber } from './ContasAReceberFormModal';
 import { format, isAfter, isBefore, addDays } from 'date-fns';
@@ -47,10 +48,12 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
 
   // Filtrar contas
   const contasFiltradas = contas.filter(conta => {
+    if (!conta) return false;
+    
     const matchesSearch = 
-      conta.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conta.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conta.numeroFatura?.toLowerCase().includes(searchTerm.toLowerCase());
+      (conta.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (conta.cliente?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (conta.numeroFatura?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     
     const matchesStatus = statusFilter === 'TODOS' || conta.status === statusFilter;
     const matchesTipo = tipoFilter === 'TODOS' || conta.tipo === tipoFilter;
@@ -96,14 +99,28 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
     }
   };
 
-  const isVencida = (vencimento: Date) => {
-    return isBefore(vencimento, new Date());
+  const isVencida = (vencimento: Date | null | undefined) => {
+    if (!vencimento) return false;
+    try {
+      const date = new Date(vencimento);
+      if (isNaN(date.getTime())) return false;
+      return isBefore(date, new Date());
+    } catch {
+      return false;
+    }
   };
 
-  const isVencendoEmBreve = (vencimento: Date) => {
-    const hoje = new Date();
-    const proximos7Dias = addDays(hoje, 7);
-    return isAfter(vencimento, hoje) && isBefore(vencimento, proximos7Dias);
+  const isVencendoEmBreve = (vencimento: Date | null | undefined) => {
+    if (!vencimento) return false;
+    try {
+      const date = new Date(vencimento);
+      if (isNaN(date.getTime())) return false;
+      const hoje = new Date();
+      const proximos7Dias = addDays(hoje, 7);
+      return isAfter(date, hoje) && isBefore(date, proximos7Dias);
+    } catch {
+      return false;
+    }
   };
 
   if (loading) {
@@ -227,15 +244,22 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
                       <div className="flex items-center gap-2">
                         <Calendar size={14} className="text-gray-400" />
                         <span className={`
-                          ${isVencida(conta.vencimento) && conta.status === 'ABERTA' ? 'text-red-400' : ''}
-                          ${isVencendoEmBreve(conta.vencimento) && conta.status === 'ABERTA' ? 'text-yellow-400' : ''}
+                          ${conta.vencimento && isVencida(conta.vencimento) && conta.status === 'ABERTA' ? 'text-red-400' : ''}
+                          ${conta.vencimento && isVencendoEmBreve(conta.vencimento) && conta.status === 'ABERTA' ? 'text-yellow-400' : ''}
                         `}>
-                          {format(conta.vencimento, 'dd/MM/yyyy', { locale: ptBR })}
+                          {conta.vencimento ? (() => {
+                            try {
+                              const date = new Date(conta.vencimento);
+                              return isNaN(date.getTime()) ? '-' : format(date, 'dd/MM/yyyy', { locale: ptBR });
+                            } catch {
+                              return '-';
+                            }
+                          })() : '-'}
                         </span>
-                        {isVencida(conta.vencimento) && conta.status === 'ABERTA' && (
+                        {conta.vencimento && isVencida(conta.vencimento) && conta.status === 'ABERTA' && (
                           <AlertTriangle size={14} className="text-red-400" />
                         )}
-                        {isVencendoEmBreve(conta.vencimento) && conta.status === 'ABERTA' && (
+                        {conta.vencimento && isVencendoEmBreve(conta.vencimento) && conta.status === 'ABERTA' && (
                           <Clock size={14} className="text-yellow-400" />
                         )}
                       </div>

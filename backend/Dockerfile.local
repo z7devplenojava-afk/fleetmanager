@@ -1,0 +1,43 @@
+# ============================================
+# SECURED GUARD BACKEND - AMBIENTE LOCAL
+# Hot Reload com Maven + Debug Remoto
+# ============================================
+
+FROM maven:3.9-eclipse-temurin-17-alpine AS development
+
+# Metadados
+LABEL maintainer="Secured Guard Team"
+LABEL environment="local"
+LABEL version="1.0.0"
+
+# Instalar ferramentas úteis para debug
+RUN apk add --no-cache curl bash
+
+WORKDIR /app
+
+# Copiar pom.xml primeiro (cache de dependências)
+COPY pom.xml .
+
+# Baixar dependências (será cacheado se pom.xml não mudar)
+RUN mvn dependency:go-offline -B
+
+# Copiar código fonte
+COPY src ./src
+
+# Criar diretórios necessários
+RUN mkdir -p /app/holerites && \
+    mkdir -p /app/uploads && \
+    mkdir -p /app/target && \
+    chmod -R 777 /app
+
+# Expor portas
+EXPOSE 8083
+EXPOSE 5005
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8083/api/health || exit 1
+
+# Comando com hot reload e debug
+CMD ["mvn", "spring-boot:run", "-Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"]
+

@@ -277,8 +277,9 @@ const PagamentosTab: React.FC = () => {
 
   // Filtrar contas pendentes
   const contasFiltradas = contasPendentes.filter(conta => {
+    const descricao = conta.descricao || '';
     const matchesSearch = 
-      conta.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conta.fornecedor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conta.cliente?.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -401,10 +402,10 @@ const PagamentosTab: React.FC = () => {
       {/* Tabs */}
       <Tabs defaultValue="pendentes" className="space-y-4">
         <TabsList className="bg-seguranca-graphite/80 backdrop-blur border-gray-700 p-1 grid grid-cols-2 gap-1 rounded-lg shadow-inner">
-          <TabsTrigger value="pendentes" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow text-sm px-4 py-2">
+          <TabsTrigger value="pendentes" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-sm px-4 py-2">
             Contas Pendentes
           </TabsTrigger>
-          <TabsTrigger value="historico" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow text-sm px-4 py-2">
+          <TabsTrigger value="historico" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-sm px-4 py-2">
             Histórico de Pagamentos
           </TabsTrigger>
         </TabsList>

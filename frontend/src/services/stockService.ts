@@ -80,7 +80,7 @@ export const stockService = {
 
   async createItem(itemData: CreateStockItemDTO): Promise<StockItem> {
     try {
-      const response = await api.post('/stock/items', itemData);
+      const response = await api.post('/api/stock/items', itemData);
       return response.data;
     } catch (error) {
       console.error('Erro ao criar item:', error);
@@ -119,7 +119,7 @@ export const stockService = {
 
   async getLowStockItems(): Promise<StockItem[]> {
     try {
-      const response = await api.get('/stock/items/low-stock');
+      const response = await api.get('/api/stock/items/low-stock');
       return response.data;
     } catch (error) {
       console.error('Erro ao buscar itens com baixo estoque:', error);
@@ -131,11 +131,20 @@ export const stockService = {
 
   async createMovement(movementData: CreateStockMovementDTO): Promise<StockMovement> {
     try {
-      const response = await api.post('/stock/movements', movementData);
+      console.log('📤 Enviando requisição para /api/stock/movements:', movementData);
+      const response = await api.post('/api/stock/movements', movementData);
+      console.log('✅ Resposta recebida:', response.data);
       return response.data;
-    } catch (error) {
-      console.error('Erro ao criar movimentação:', error);
-      throw new Error('Falha ao criar movimentação');
+    } catch (error: any) {
+      console.error('❌ Erro ao criar movimentação:', error);
+      console.error('❌ Response data:', error?.response?.data);
+      console.error('❌ Response status:', error?.response?.status);
+      console.error('❌ Response headers:', error?.response?.headers);
+      const errorMessage = error?.response?.data?.error || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          'Falha ao criar movimentação';
+      throw new Error(errorMessage);
     }
   },
 
@@ -148,8 +157,21 @@ export const stockService = {
       if (filters.movementType) params.append('movementType', filters.movementType);
       if (filters.reason) params.append('reason', filters.reason);
       if (filters.unitId) params.append('unitId', filters.unitId);
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
+      
+      // Converter datas do formato dd/mm/aaaa para ISO DateTime
+      if (filters.startDate) {
+        const isoStartDate = this.convertDateToISO(filters.startDate, true);
+        if (isoStartDate) {
+          params.append('startDate', isoStartDate);
+        }
+      }
+      if (filters.endDate) {
+        const isoEndDate = this.convertDateToISO(filters.endDate, false);
+        if (isoEndDate) {
+          params.append('endDate', isoEndDate);
+        }
+      }
+      
       if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
       
       params.append('page', page.toString());
@@ -167,6 +189,59 @@ export const stockService = {
         content: [],
         totalElements: 0
       };
+    }
+  },
+
+  // Função auxiliar para converter data dd/mm/aaaa para ISO DateTime
+  convertDateToISO(dateString: string, isStartDate: boolean): string | null {
+    if (!dateString) return null;
+    
+    try {
+      // Tentar parsear formato dd/mm/aaaa
+      const parts = dateString.split('/');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // JavaScript months are 0-indexed
+        const year = parseInt(parts[2], 10);
+        
+        const date = new Date(year, month, day);
+        if (isNaN(date.getTime())) {
+          console.warn('Data inválida:', dateString);
+          return null;
+        }
+        
+        // Se for data inicial, usar 00:00:00, se for final, usar 23:59:59
+        if (isStartDate) {
+          date.setHours(0, 0, 0, 0);
+        } else {
+          date.setHours(23, 59, 59, 999);
+        }
+        
+        // Converter para ISO string (formato: YYYY-MM-DDTHH:mm:ss)
+        return date.toISOString();
+      }
+      
+      // Se já estiver no formato ISO, retornar como está
+      if (dateString.includes('T')) {
+        return dateString;
+      }
+      
+      // Tentar parsear como Date ISO
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        if (isStartDate) {
+          date.setHours(0, 0, 0, 0);
+        } else {
+          date.setHours(23, 59, 59, 999);
+        }
+        return date.toISOString();
+      }
+      
+      console.warn('Formato de data não reconhecido:', dateString);
+      return null;
+    } catch (error) {
+      console.error('Erro ao converter data:', error);
+      return null;
     }
   },
 
@@ -245,7 +320,7 @@ export const stockService = {
 
   async getStockReport(): Promise<StockReport> {
     try {
-      const response = await api.get('/stock/report');
+      const response = await api.get('/api/stock/report');
       return response.data;
     } catch (error) {
       console.error('Erro ao gerar relatório de estoque:', error);
@@ -253,11 +328,64 @@ export const stockService = {
     }
   },
 
+  async getItemReport(itemId: string): Promise<any> {
+    try {
+      const response = await api.get(`/api/stock/reports/item/${itemId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao gerar relatório do item:', error);
+      throw new Error('Falha ao gerar relatório do item');
+    }
+  },
+
+  async getMovementsReport(params: {
+    startDate?: string;
+    endDate?: string;
+    itemId?: string;
+    employeeId?: string;
+    movementType?: MovementType;
+  }): Promise<any> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.startDate) queryParams.append('startDate', params.startDate);
+      if (params.endDate) queryParams.append('endDate', params.endDate);
+      if (params.itemId) queryParams.append('itemId', params.itemId);
+      if (params.employeeId) queryParams.append('employeeId', params.employeeId);
+      if (params.movementType) queryParams.append('movementType', params.movementType);
+      
+      const response = await api.get(`/api/stock/reports/movements?${queryParams.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao gerar relatório de movimentações:', error);
+      throw new Error('Falha ao gerar relatório de movimentações');
+    }
+  },
+
+  async getLowStockReport(): Promise<any> {
+    try {
+      const response = await api.get('/api/stock/reports/low-stock');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao gerar relatório de estoque baixo:', error);
+      throw new Error('Falha ao gerar relatório de estoque baixo');
+    }
+  },
+
+  async getDateRangeReport(startDate: string, endDate: string): Promise<any> {
+    try {
+      const response = await api.get(`/api/stock/reports/date-range?startDate=${startDate}&endDate=${endDate}`);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao gerar relatório por período:', error);
+      throw new Error('Falha ao gerar relatório por período');
+    }
+  },
+
   // ===== ENUMS =====
 
   async getCategories(): Promise<StockCategory[]> {
     try {
-      const response = await api.get('/stock/enums/categories');
+      const response = await api.get('/api/stock/enums/categories');
       return response.data;
     } catch (error) {
       console.error('Erro ao buscar categorias:', error);
@@ -267,7 +395,7 @@ export const stockService = {
 
   async getMovementTypes(): Promise<MovementType[]> {
     try {
-      const response = await api.get('/stock/enums/movement-types');
+      const response = await api.get('/api/stock/enums/movement-types');
       return response.data;
     } catch (error) {
       console.error('Erro ao buscar tipos de movimentação:', error);
@@ -277,7 +405,7 @@ export const stockService = {
 
   async getMovementReasons(): Promise<MovementReason[]> {
     try {
-      const response = await api.get('/stock/enums/movement-reasons');
+      const response = await api.get('/api/stock/enums/movement-reasons');
       return response.data;
     } catch (error) {
       console.error('Erro ao buscar motivos de movimentação:', error);

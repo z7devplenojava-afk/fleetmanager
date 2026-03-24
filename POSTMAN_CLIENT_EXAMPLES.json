@@ -1,0 +1,127 @@
+{
+  "EXEMPLO_COMPLETO": {
+    "name": "Empresa XYZ Segurança Ltda",
+    "cnpj": "12.345.678/0001-90",
+    "email": "contato@empresaxyz.com.br",
+    "phone": "(11) 3456-7890",
+    "mobile": "(11) 98765-4321",
+    "address": "Rua das Flores, 123 - Sala 45",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "01234-567",
+    "contactName": "João da Silva",
+    "contactEmail": "joao.silva@empresaxyz.com.br",
+    "contactPhone": "(11) 91234-5678",
+    "status": "ACTIVE",
+    "notes": "Cliente preferencial. Contrato de segurança patrimonial de 12 meses."
+  },
+
+  "EXEMPLO_MINIMO": {
+    "name": "ABC Comércio e Serviços",
+    "cnpj": "98.765.432/0001-10"
+  },
+
+  "EXEMPLO_SHOPPING": {
+    "name": "Shopping Center Plaza",
+    "cnpj": "11.222.333/0001-44",
+    "email": "seguranca@shoppingplaza.com.br",
+    "phone": "(11) 4000-1234",
+    "address": "Avenida Principal, 5000",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "04567-890",
+    "contactName": "Maria Souza - Gerente de Segurança",
+    "contactEmail": "maria.souza@shoppingplaza.com.br",
+    "contactPhone": "(11) 99876-5432",
+    "status": "ACTIVE",
+    "notes": "Shopping com 3 turnos de segurança. Necessita 10 vigilantes por turno."
+  },
+
+  "EXEMPLO_CONDOMINIO": {
+    "name": "Condomínio Residencial Jardim das Acácias",
+    "cnpj": "22.333.444/0001-55",
+    "email": "sindico@condominioacacias.com.br",
+    "phone": "(11) 2345-6789",
+    "mobile": "(11) 98888-7777",
+    "address": "Rua das Acácias, 500",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "05678-901",
+    "contactName": "Carlos Pereira - Síndico",
+    "contactEmail": "carlos.pereira@gmail.com",
+    "contactPhone": "(11) 99999-8888",
+    "status": "ACTIVE",
+    "notes": "Condomínio com 200 unidades. Portaria 24h."
+  },
+
+  "EXEMPLO_INDUSTRIA": {
+    "name": "Indústria Metalúrgica Brasil S.A.",
+    "cnpj": "33.444.555/0001-66",
+    "email": "rh@metalurgicabrasil.com.br",
+    "phone": "(11) 3333-4444",
+    "address": "Rodovia dos Bandeirantes, Km 25",
+    "city": "Jundiaí",
+    "state": "SP",
+    "zipCode": "13200-000",
+    "contactName": "Ana Costa - Gerente de RH",
+    "contactEmail": "ana.costa@metalurgicabrasil.com.br",
+    "contactPhone": "(11) 97777-6666",
+    "status": "ACTIVE",
+    "notes": "Parque industrial com 50 mil m². Necessita segurança armada."
+  },
+
+  "EXEMPLO_PENDENTE": {
+    "name": "Empresa em Análise Ltda",
+    "cnpj": "44.555.666/0001-77",
+    "email": "contato@empresaanalise.com",
+    "phone": "(11) 5555-6666",
+    "contactName": "Pedro Santos",
+    "contactEmail": "pedro@empresaanalise.com",
+    "contactPhone": "(11) 96666-5555",
+    "status": "PENDING",
+    "notes": "Aguardando aprovação de crédito."
+  },
+
+  "VALORES_VALIDOS": {
+    "status": [
+      "ACTIVE - Cliente ativo",
+      "INACTIVE - Cliente inativo",
+      "SUSPENDED - Cliente suspenso",
+      "PENDING - Cliente pendente"
+    ],
+    "cnpj": "Formatos aceitos: 12345678000190 ou 12.345.678/0001-90 (14 a 18 caracteres)",
+    "state": "Código UF com 2 letras: SP, RJ, MG, etc",
+    "zipCode": "Formatos aceitos: 12345678 ou 12345-678 (até 10 caracteres)"
+  },
+
+  "INSTRUCOES_POSTMAN": {
+    "method": "POST",
+    "url": "http://localhost:8081/api/clients",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer SEU_TOKEN_JWT_AQUI"
+    },
+    "body": "Use um dos exemplos acima (EXEMPLO_COMPLETO, EXEMPLO_MINIMO, etc)"
+  },
+
+  "CAMPOS_OBRIGATORIOS": {
+    "name": "Nome do cliente (máximo 255 caracteres)",
+    "cnpj": "CNPJ do cliente (14 a 18 caracteres, deve ser único)"
+  },
+
+  "CAMPOS_OPCIONAIS": {
+    "email": "Email do cliente (máximo 255 caracteres)",
+    "phone": "Telefone fixo (máximo 20 caracteres)",
+    "mobile": "Celular (máximo 20 caracteres)",
+    "address": "Endereço completo (máximo 255 caracteres)",
+    "city": "Cidade (máximo 100 caracteres)",
+    "state": "Estado - UF (máximo 2 caracteres)",
+    "zipCode": "CEP (máximo 10 caracteres)",
+    "contactName": "Nome do contato principal (máximo 255 caracteres)",
+    "contactEmail": "Email do contato (máximo 255 caracteres)",
+    "contactPhone": "Telefone do contato (máximo 20 caracteres)",
+    "status": "Status do cliente (padrão: ACTIVE)",
+    "notes": "Observações gerais (texto longo)"
+  }
+}
+

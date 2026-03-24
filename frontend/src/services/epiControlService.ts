@@ -10,21 +10,16 @@ import {
 class EPIControlService {
   // Buscar todos os registros de controle de EPI
   async getEPIControlRecords(filters?: EPIControlFilters): Promise<EPIControlRecord[]> {
-    try {
-      const params = new URLSearchParams();
-      if (filters?.employeeName) params.append('employeeName', filters.employeeName);
-      if (filters?.employeeFunction) params.append('employeeFunction', filters.employeeFunction);
-      if (filters?.deliveryDateFrom) params.append('deliveryDateFrom', filters.deliveryDateFrom);
-      if (filters?.deliveryDateTo) params.append('deliveryDateTo', filters.deliveryDateTo);
-      if (filters?.equipmentName) params.append('equipmentName', filters.equipmentName);
+    const params = new URLSearchParams();
+    if (filters?.employeeName) params.append('employeeName', filters.employeeName);
+    if (filters?.employeeFunction) params.append('employeeFunction', filters.employeeFunction);
+    if (filters?.deliveryDateFrom) params.append('deliveryDateFrom', filters.deliveryDateFrom);
+    if (filters?.deliveryDateTo) params.append('deliveryDateTo', filters.deliveryDateTo);
+    if (filters?.equipmentName) params.append('equipmentName', filters.equipmentName);
 
-      const url = `/epi-control${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await api.get(url);
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao buscar registros de controle de EPI:', error);
-      return this.getMockEPIControlRecords();
-    }
+    const url = `/api/epi-control${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await api.get(url);
+    return response.data || [];
   }
 
   // Buscar registro por ID
@@ -41,7 +36,7 @@ class EPIControlService {
   // Criar novo registro
   async createEPIControlRecord(data: EPIControlFormData): Promise<EPIControlRecord> {
     try {
-      const response = await api.post('/epi-control', data);
+      const response = await api.post('/api/epi-control', data);
       return response.data;
     } catch (error) {
       console.error('Erro ao criar registro de controle de EPI:', error);
@@ -52,7 +47,7 @@ class EPIControlService {
   // Atualizar registro
   async updateEPIControlRecord(id: string, data: Partial<EPIControlFormData>): Promise<EPIControlRecord> {
     try {
-      const response = await api.put(`/epi-control/${id}`, data);
+      const response = await api.put(`/api/epi-control/${id}`, data);
       return response.data;
     } catch (error) {
       console.error('Erro ao atualizar registro de controle de EPI:', error);
@@ -63,7 +58,7 @@ class EPIControlService {
   // Deletar registro
   async deleteEPIControlRecord(id: string): Promise<void> {
     try {
-      await api.delete(`/epi-control/${id}`);
+      await api.delete(`/api/epi-control/${id}`);
     } catch (error) {
       console.error('Erro ao deletar registro de controle de EPI:', error);
       throw error;
@@ -73,7 +68,7 @@ class EPIControlService {
   // Buscar estatísticas
   async getEPIControlStats(): Promise<EPIControlStats> {
     try {
-      const response = await api.get('/epi-control/stats');
+      const response = await api.get('/api/epi-control/stats');
       return response.data;
     } catch (error) {
       console.error('Erro ao buscar estatísticas de controle de EPI:', error);
@@ -104,7 +99,7 @@ class EPIControlService {
       if (filters?.deliveryDateTo) params.append('deliveryDateTo', filters.deliveryDateTo);
       if (filters?.equipmentName) params.append('equipmentName', filters.equipmentName);
 
-      const response = await api.get(`/epi-control/report/bulk?${params.toString()}`, {
+      const response = await api.get(`/api/epi-control/report/bulk?${params.toString()}`, {
         responseType: 'blob'
       });
       return response.data;

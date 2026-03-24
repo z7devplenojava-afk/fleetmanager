@@ -271,12 +271,14 @@ class FleetService {
     driverId?: string;
     startDate?: string;
     endDate?: string;
+    fuelType?: string;
   }): Promise<Blob> {
     const params = new URLSearchParams();
     if (filters.vehicleId) params.append('vehicleId', filters.vehicleId);
     if (filters.driverId) params.append('driverId', filters.driverId);
     if (filters.startDate) params.append('startDate', filters.startDate);
     if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.fuelType) params.append('fuelType', filters.fuelType);
 
     const response = await api.get(`/api/fuel-records/report/pdf?${params.toString()}`, {
       responseType: 'blob'
@@ -302,19 +304,113 @@ class FleetService {
     return response.data;
   }
 
-  async exportVehiclesReportPDF(status?: string): Promise<Blob> {
+  async exportVehiclesReportPDF(status?: string, companyId?: string): Promise<Blob> {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
+    if (companyId) params.append('companyId', companyId);
 
-    const response = await api.get(`/api/vehicles/report/pdf?${params.toString()}`, {
-      responseType: 'blob'
-    });
-    return response.data;
+    try {
+      const response = await api.get(`/api/vehicles/report/pdf?${params.toString()}`, {
+        responseType: 'blob'
+      });
+      
+      // Verificar se a resposta é um erro JSON (quando o backend retorna JSON de erro)
+      if (response.data instanceof Blob && response.data.type === 'application/json') {
+        const text = await response.data.text();
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.message || errorData.error || 'Erro ao gerar relatório PDF');
+      }
+      
+      return response.data;
+    } catch (error: any) {
+      // Se for um Blob com tipo JSON, tentar ler o erro
+      if (error.response?.data instanceof Blob && error.response.data.type === 'application/json') {
+        try {
+          const text = await error.response.data.text();
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.message || errorData.error || 'Erro ao gerar relatório PDF');
+        } catch (parseError) {
+          throw new Error('Erro ao processar resposta do servidor');
+        }
+      }
+      
+      // Se for uma resposta de erro normal
+      if (error.response?.data) {
+        const errorMessage = error.response.data.message || error.response.data.error || 'Erro ao gerar relatório PDF';
+        throw new Error(errorMessage);
+      }
+      
+      throw error;
+    }
   }
 
   async getDrivers(): Promise<string[]> {
     const response = await api.get('/api/fuel-records/stats/drivers');
     return response.data;
+  }
+
+  // Gerar relatório PDF de manutenções
+  async exportMaintenancesReportPDF(filters: {
+    startDate?: string;
+    endDate?: string;
+    vehicleId?: string;
+    status?: string;
+    maintenanceType?: string;
+    description?: string;
+  }): Promise<Blob> {
+    try {
+      const params = new URLSearchParams();
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+      if (filters.vehicleId) params.append('vehicleId', filters.vehicleId);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.maintenanceType) params.append('maintenanceType', filters.maintenanceType);
+      if (filters.description) params.append('description', filters.description);
+
+      const response = await api.get(`/api/maintenances/report/pdf?${params.toString()}`, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao gerar relatório PDF:', error);
+      throw new Error('Falha ao gerar relatório PDF');
+    }
+  }
+
+  // Gerar relatório PDF de multas
+  async exportFinesReportPDF(filters: {
+    vehiclePlate?: string;
+    driverName?: string;
+    infraction?: string;
+    startDate?: string;
+    endDate?: string;
+    dueDateStart?: string;
+    dueDateEnd?: string;
+    minValue?: number;
+    maxValue?: number;
+    status?: string;
+  }): Promise<Blob> {
+    try {
+      const params = new URLSearchParams();
+      if (filters.vehiclePlate) params.append('vehiclePlate', filters.vehiclePlate);
+      if (filters.driverName) params.append('driverName', filters.driverName);
+      if (filters.infraction) params.append('infraction', filters.infraction);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+      if (filters.dueDateStart) params.append('dueDateStart', filters.dueDateStart);
+      if (filters.dueDateEnd) params.append('dueDateEnd', filters.dueDateEnd);
+      if (filters.minValue !== undefined) params.append('minValue', filters.minValue.toString());
+      if (filters.maxValue !== undefined) params.append('maxValue', filters.maxValue.toString());
+      if (filters.status) params.append('status', filters.status);
+
+      const response = await api.get(`/api/fines/report/pdf?${params.toString()}`, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao gerar relatório PDF:', error);
+      throw new Error('Falha ao gerar relatório PDF');
+    }
   }
 
   // ===== FINE REPORTS =====

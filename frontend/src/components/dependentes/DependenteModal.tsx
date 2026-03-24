@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Dependent } from '@/types/dependent';
-import { dependentService } from '@/services/dependentService';
+import dependentService from '@/services/dependentService';
 import DependenteForm from './DependenteForm';
 import DependentesList from './DependentesList';
 import { Button } from '@/components/ui/button';

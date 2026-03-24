@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JWT Token Checker</title>
+</head>
+<body>
+    <h2>🔍 JWT Token Checker</h2>
+    <button onclick="checkToken()">Verificar Token</button>
+    <div id="result"></div>
+
+    <script>
+        function checkToken() {
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}');
+            
+            document.getElementById('result').innerHTML = `
+                <h3>📋 Informações do Token:</h3>
+                <p><strong>Token existe:</strong> ${token ? '✅ Sim' : '❌ Não'}</p>
+                <p><strong>Usuário:</strong> ${user.username || 'N/A'}</p>
+                <p><strong>Roles:</strong> ${user.roles ? user.roles.join(', ') : 'N/A'}</p>
+                <p><strong>Email:</strong> ${user.email || 'N/A'}</p>
+                <hr>
+                <h4>🔑 Token (primeiros 50 chars):</h4>
+                <code>${token ? token.substring(0, 50) + '...' : 'Nenhum token encontrado'}</code>
+            `;
+        }
+    </script>
+</body>
+</html>

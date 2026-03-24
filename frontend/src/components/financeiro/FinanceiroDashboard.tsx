@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { financialService, FinancialTransaction, Invoice } from '@/services/financialService';
 import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
-import { TrendingUp, TrendingDown, DollarSign, Calendar, AlertTriangle, BarChart3, PieChart as PieChartIcon, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Calendar, AlertTriangle, BarChart3, PieChart as PieChartIcon, Activity, Users } from 'lucide-react';
 
 interface FinanceiroDashboardProps {
   transactions: FinancialTransaction[];

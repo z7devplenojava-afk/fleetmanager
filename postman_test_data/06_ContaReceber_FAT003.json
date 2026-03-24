@@ -1,0 +1,14 @@
+{
+  "clientId": "SUBSTITUIR_PELO_ID_DO_CLIENTE_1",
+  "invoiceNumber": "FAT-2024-003",
+  "measurementNumber": "MED-2024-003",
+  "description": "Manutenção de sistemas - Março 2024",
+  "amount": 12000.00,
+  "amountPaid": 6000.00,
+  "issueDate": "2024-03-01",
+  "dueDate": "2024-03-31",
+  "status": "PARTIAL",
+  "category": "SERVICE",
+  "paymentMethod": "TRANSFER",
+  "notes": "Pagamento parcial realizado"
+}

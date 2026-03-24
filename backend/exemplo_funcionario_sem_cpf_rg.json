@@ -1,0 +1,69 @@
+{
+  "exemplos": {
+    "1_cadastrar_funcionario_sem_cpf_rg": {
+      "endpoint": "POST /api/employees",
+      "json": {
+        "name": "João da Silva Santos",
+        "email": "joao.silva@empresa.com",
+        "phone": "(31) 99999-8888",
+        "address": "Rua das Flores, 123, Centro, Belo Horizonte - MG",
+        "birthDate": "1990-05-15",
+        "maritalStatus": "SINGLE",
+        "nationality": "Brasileiro",
+        "registrationNumber": "EMP001",
+        "hireDate": "2024-01-15",
+        "status": "ACTIVE",
+        "document": "EMP001"
+      }
+    },
+    "2_cadastrar_cpf_como_documento": {
+      "endpoint": "POST /api/documents",
+      "json": {
+        "type": "CPF",
+        "number": "12345678900",
+        "issueDate": "1990-05-15T00:00:00",
+        "expirationDate": null,
+        "fileUrl": "https://exemplo.com/uploads/cpf_joao.pdf",
+        "description": "CPF do funcionário João da Silva",
+        "employee": {
+          "id": "UUID_DO_FUNCIONARIO_CADASTRADO"
+        }
+      }
+    },
+    "3_cadastrar_rg_como_documento": {
+      "endpoint": "POST /api/documents",
+      "json": {
+        "type": "RG",
+        "number": "MG-12.345.678",
+        "issueDate": "2010-01-10T00:00:00",
+        "expirationDate": null,
+        "fileUrl": "https://exemplo.com/uploads/rg_joao.pdf",
+        "description": "RG do funcionário João da Silva",
+        "employee": {
+          "id": "UUID_DO_FUNCIONARIO_CADASTRADO"
+        }
+      }
+    },
+    "4_listar_documentos_funcionario": {
+      "endpoint": "GET /api/documents/employee/{employeeId}",
+      "descricao": "Lista todos os documentos de um funcionário específico"
+    },
+    "5_buscar_cpf_funcionario": {
+      "endpoint": "GET /api/documents/employee/{employeeId}",
+      "filtro": "Filtrar por type: 'CPF'",
+      "descricao": "Buscar CPF específico do funcionário"
+    },
+    "6_buscar_rg_funcionario": {
+      "endpoint": "GET /api/documents/employee/{employeeId}",
+      "filtro": "Filtrar por type: 'RG'",
+      "descricao": "Buscar RG específico do funcionário"
+    }
+  },
+  "vantagens": [
+    "Não há duplicação de dados",
+    "Sistema mais organizado",
+    "Controle de vencimento por documento",
+    "Flexibilidade para adicionar novos tipos",
+    "Relacionamento claro entre funcionário e documentos"
+  ]
+} 

@@ -1,0 +1,39 @@
+/* ===== ESTILOS PARA ANIMAÇÕES GSAP ===== */
+
+/* 
+  IMPORTANTE: Garantir que TODO conteúdo seja SEMPRE visível
+  Mesmo que o GSAP falhe, o conteúdo deve aparecer
+*/
+
+/* Estado padrão: VISÍVEL (fallback seguro) */
+[data-animate] {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+}
+
+/* Performance - GPU acceleration */
+[data-animate] {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Elementos sendo animados */
+.gsap-animating {
+  will-change: transform, opacity;
+}
+
+/* Debug: Garantir que sections e divs sejam visíveis */
+section {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Garantir que o conteúdo da página sempre apareça */
+.min-h-screen > section,
+.min-h-screen > div {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+

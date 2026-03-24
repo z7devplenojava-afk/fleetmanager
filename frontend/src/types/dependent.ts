@@ -1,39 +1,140 @@
-import { UUID } from './employee';
-
 export interface Dependent {
-  id: UUID;
-  employee: {
-    id: UUID;
-    name?: string;
-  };
+  id: string;
+  employeeId: string;
+  employeeName: string;
   name: string;
   relationship: string;
-  birthDate?: string;
+  birthDate: string;
   cpf: string;
   rg?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  gender?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  isStudent?: boolean;
+  schoolName?: string;
+  isBeneficiary?: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface CreateDependentDTO {
-  employeeId: UUID;
+export interface DependentFormData {
+  employeeId: string;
   name: string;
   relationship: string;
-  birthDate?: string;
+  birthDate: string;
   cpf: string;
   rg?: string;
+  gender?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  isStudent?: boolean;
+  schoolName?: string;
+  isBeneficiary?: boolean;
+  notes?: string;
 }
 
-export interface UpdateDependentDTO extends Partial<CreateDependentDTO> {
-  id: UUID;
+export interface DependentCreateRequest {
+  employeeId: string;
+  name: string;
+  relationship: string;
+  birthDate: string;
+  cpf: string;
+  rg?: string;
+  gender?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  isStudent?: boolean;
+  schoolName?: string;
+  isBeneficiary?: boolean;
+  notes?: string;
 }
 
-export const RELATIONSHIP_TYPES = {
-  SPOUSE: 'Cônjuge',
-  CHILD: 'Filho(a)',
-  PARENT: 'Pai/Mãe',
-  SIBLING: 'Irmão/Irmã',
-  GRANDPARENT: 'Avô/Avó',
-  GRANDCHILD: 'Neto(a)',
-  OTHER: 'Outro'
-};
+export interface DependentUpdateRequest {
+  name?: string;
+  relationship?: string;
+  birthDate?: string;
+  cpf?: string;
+  rg?: string;
+  gender?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  isStudent?: boolean;
+  schoolName?: string;
+  isBeneficiary?: boolean;
+  notes?: string;
+}
+
+export interface DependentFilters {
+  employeeId?: string;
+  relationship?: string;
+  isStudent?: boolean;
+  isBeneficiary?: boolean;
+}
+
+export const RELATIONSHIP_OPTIONS = [
+  { value: 'FILHO', label: 'Filho(a)' },
+  { value: 'FILHA', label: 'Filha' },
+  { value: 'CONJUGE', label: 'Cônjuge' },
+  { value: 'ESPOSA', label: 'Esposa' },
+  { value: 'ESPOSO', label: 'Esposo' },
+  { value: 'PAI', label: 'Pai' },
+  { value: 'MAE', label: 'Mãe' },
+  { value: 'IRMAO', label: 'Irmão' },
+  { value: 'IRMA', label: 'Irmã' },
+  { value: 'NETO', label: 'Neto(a)' },
+  { value: 'SOGRO', label: 'Sogro(a)' },
+  { value: 'OUTRO', label: 'Outro' }
+] as const;
+
+export const GENDER_OPTIONS = [
+  { value: 'M', label: 'Masculino' },
+  { value: 'F', label: 'Feminino' },
+  { value: 'OUTRO', label: 'Outro' }
+] as const;
+
+export const STATE_OPTIONS = [
+  { value: 'AC', label: 'Acre' },
+  { value: 'AL', label: 'Alagoas' },
+  { value: 'AP', label: 'Amapá' },
+  { value: 'AM', label: 'Amazonas' },
+  { value: 'BA', label: 'Bahia' },
+  { value: 'CE', label: 'Ceará' },
+  { value: 'DF', label: 'Distrito Federal' },
+  { value: 'ES', label: 'Espírito Santo' },
+  { value: 'GO', label: 'Goiás' },
+  { value: 'MA', label: 'Maranhão' },
+  { value: 'MT', label: 'Mato Grosso' },
+  { value: 'MS', label: 'Mato Grosso do Sul' },
+  { value: 'MG', label: 'Minas Gerais' },
+  { value: 'PA', label: 'Pará' },
+  { value: 'PB', label: 'Paraíba' },
+  { value: 'PR', label: 'Paraná' },
+  { value: 'PE', label: 'Pernambuco' },
+  { value: 'PI', label: 'Piauí' },
+  { value: 'RJ', label: 'Rio de Janeiro' },
+  { value: 'RN', label: 'Rio Grande do Norte' },
+  { value: 'RS', label: 'Rio Grande do Sul' },
+  { value: 'RO', label: 'Rondônia' },
+  { value: 'RR', label: 'Roraima' },
+  { value: 'SC', label: 'Santa Catarina' },
+  { value: 'SP', label: 'São Paulo' },
+  { value: 'SE', label: 'Sergipe' },
+  { value: 'TO', label: 'Tocantins' }
+] as const;

@@ -85,19 +85,19 @@ export const funcionarioService = {
 export const envioService = {
   // Envio individual
   async enviarIndividual(request: EnvioRequest): Promise<EnvioResponse> {
-    const response = await api.post('/envio/individual', request);
+    const response = await api.post('/api/envio/individual', request);
     return response.data;
   },
 
   // Envio em massa
   async enviarEmMassa(request: EnvioRequest): Promise<EnvioResponse> {
-    const response = await api.post('/envio/massa', request);
+    const response = await api.post('/api/envio/massa', request);
     return response.data;
   },
 
   // Envio para todos
   async enviarTodos(request: EnvioRequest): Promise<EnvioResponse> {
-    const response = await api.post('/envio/todos', request);
+    const response = await api.post('/api/envio/todos', request);
     return response.data;
   }
 }; 

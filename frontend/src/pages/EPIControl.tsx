@@ -20,6 +20,8 @@ import EPIControlTable from '@/components/epi/EPIControlTable';
 import EPIControlViewModal from '@/components/epi/EPIControlViewModal';
 import epiControlReportGenerator from '@/utils/epiControlReportGenerator';
 import epiReceiptGenerator from '@/utils/epiReceiptGenerator';
+import epiStockReportGenerator from '@/utils/epiStockReportGenerator';
+import epiService from '@/services/epiService';
 
 const EPIControl: React.FC = () => {
   const [activeTab, setActiveTab] = useState('list');
@@ -27,6 +29,7 @@ const EPIControl: React.FC = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<EPIControlFormData | null>(null);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -34,10 +37,19 @@ const EPIControl: React.FC = () => {
   const { 
     data: records = [], 
     isLoading: recordsLoading,
-    error: recordsError
+    error: recordsError,
+    refetch: refetchRecords
   } = useQuery({
     queryKey: ['epiControlRecords'],
-    queryFn: () => epiControlService.getEPIControlRecords()
+    queryFn: async () => {
+      const data = await epiControlService.getEPIControlRecords();
+      console.log('📋 Registros carregados:', data);
+      return data;
+    },
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 0, // Sempre considerar dados como stale para forçar refetch
+    cacheTime: 0 // Não cachear dados
   });
 
   // Buscar estatísticas
@@ -51,28 +63,47 @@ const EPIControl: React.FC = () => {
 
   // Mutations
   const createMutation = useMutation({
-    mutationFn: (data: EPIControlFormData) => epiControlService.createEPIControlRecord(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['epiControlRecords'] });
-      queryClient.invalidateQueries({ queryKey: ['epiControlStats'] });
+    mutationFn: async (data: EPIControlFormData) => {
+      console.log('💾 Criando registro de controle de EPI:', data);
+      const result = await epiControlService.createEPIControlRecord(data);
+      console.log('✅ Registro criado:', result);
+      return result;
+    },
+    onSuccess: async () => {
+      // Limpar cache completamente
+      queryClient.removeQueries({ queryKey: ['epiControlRecords'] });
+      queryClient.removeQueries({ queryKey: ['epiControlStats'] });
+      // Aguardar um pouco antes de refetch para garantir que o backend processou
+      setTimeout(async () => {
+        console.log('🔄 Refazendo busca de registros...');
+        await queryClient.refetchQueries({ queryKey: ['epiControlRecords'], exact: true });
+        await queryClient.refetchQueries({ queryKey: ['epiControlStats'], exact: true });
+      }, 1000);
       toast.success('Registro de controle de EPI criado com sucesso!');
       setIsFormModalOpen(false);
     },
-    onError: (error) => {
-      toast.error('Erro ao criar registro de controle de EPI');
-      console.error('Erro:', error);
+    onError: (error: any) => {
+      console.error('❌ Erro ao criar registro:', error);
+      toast.error(`Erro ao criar registro de controle de EPI: ${error?.response?.data?.error || error?.message || 'Erro desconhecido'}`);
     }
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<EPIControlFormData> }) => 
       epiControlService.updateEPIControlRecord(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['epiControlRecords'] });
-      queryClient.invalidateQueries({ queryKey: ['epiControlStats'] });
+    onSuccess: async () => {
+      // Limpar cache e forçar refetch
+      queryClient.removeQueries({ queryKey: ['epiControlRecords'] });
+      queryClient.removeQueries({ queryKey: ['epiControlStats'] });
+      // Aguardar um pouco antes de refetch para garantir que o backend processou
+      setTimeout(async () => {
+        await queryClient.refetchQueries({ queryKey: ['epiControlRecords'] });
+        await queryClient.refetchQueries({ queryKey: ['epiControlStats'] });
+      }, 500);
       toast.success('Registro de controle de EPI atualizado com sucesso!');
       setIsFormModalOpen(false);
       setEditingRecord(null);
+      setEditingRecordId(null);
     },
     onError: (error) => {
       toast.error('Erro ao atualizar registro de controle de EPI');
@@ -81,21 +112,33 @@ const EPIControl: React.FC = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => epiControlService.deleteEPIControlRecord(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['epiControlRecords'] });
-      queryClient.invalidateQueries({ queryKey: ['epiControlStats'] });
+    mutationFn: async (id: string) => {
+      console.log('🗑️ Deletando registro de controle de EPI:', id);
+      await epiControlService.deleteEPIControlRecord(id);
+      console.log('✅ Registro deletado');
+    },
+    onSuccess: async () => {
+      // Limpar cache completamente
+      queryClient.removeQueries({ queryKey: ['epiControlRecords'] });
+      queryClient.removeQueries({ queryKey: ['epiControlStats'] });
+      // Aguardar um pouco antes de refetch para garantir que o backend processou
+      setTimeout(async () => {
+        console.log('🔄 Refazendo busca de registros após deleção...');
+        await queryClient.refetchQueries({ queryKey: ['epiControlRecords'], exact: true });
+        await queryClient.refetchQueries({ queryKey: ['epiControlStats'], exact: true });
+      }, 1000);
       toast.success('Registro de controle de EPI excluído com sucesso!');
     },
-    onError: (error) => {
-      toast.error('Erro ao excluir registro de controle de EPI');
-      console.error('Erro:', error);
+    onError: (error: any) => {
+      console.error('❌ Erro ao deletar registro:', error);
+      toast.error(`Erro ao excluir registro de controle de EPI: ${error?.response?.data?.error || error?.message || 'Erro desconhecido'}`);
     }
   });
 
   // Handlers
   const handleCreateNew = () => {
     setEditingRecord(null);
+    setEditingRecordId(null);
     setIsFormModalOpen(true);
   };
 
@@ -133,6 +176,7 @@ const EPIControl: React.FC = () => {
     };
     
     setEditingRecord(formData);
+    setEditingRecordId(record.id);
     setIsFormModalOpen(true);
   };
 
@@ -163,8 +207,8 @@ const EPIControl: React.FC = () => {
   };
 
   const handleSave = (data: EPIControlFormData) => {
-    if (editingRecord) {
-      updateMutation.mutate({ id: editingRecord.id, data });
+    if (editingRecordId) {
+      updateMutation.mutate({ id: editingRecordId, data });
     } else {
       createMutation.mutate(data);
     }
@@ -190,10 +234,6 @@ const EPIControl: React.FC = () => {
             Gestão completa dos equipamentos de proteção individual
           </p>
         </div>
-        <Button onClick={handleCreateNew} className="flex items-center gap-2 bg-seguranca-red hover:bg-seguranca-darkred">
-          <Plus className="h-4 w-4" />
-          Novo Registro
-        </Button>
       </div>
 
         {/* Estatísticas */}
@@ -290,10 +330,20 @@ const EPIControl: React.FC = () => {
                   <Button 
                     variant="outline" 
                     className="h-20 flex flex-col items-center justify-center gap-2 border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
-                    onClick={() => {
-                      // Implementar relatório em lote
-                      toast.info('Funcionalidade de relatório em lote em desenvolvimento');
+                    onClick={async () => {
+                      try {
+                        if (records.length === 0) {
+                          toast.error('Não há registros para gerar o relatório');
+                          return;
+                        }
+                        await epiStockReportGenerator.generateBatchReport(records);
+                        toast.success('Relatório em lote gerado com sucesso!');
+                      } catch (error) {
+                        console.error('Erro ao gerar relatório em lote:', error);
+                        toast.error('Erro ao gerar relatório em lote');
+                      }
                     }}
+                    disabled={recordsLoading || records.length === 0}
                   >
                     <FileText className="h-6 w-6" />
                     Relatório em Lote
@@ -301,10 +351,21 @@ const EPIControl: React.FC = () => {
                   <Button 
                     variant="outline" 
                     className="h-20 flex flex-col items-center justify-center gap-2 border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
-                    onClick={() => {
-                      // Implementar relatório de estatísticas
-                      toast.info('Funcionalidade de relatório de estatísticas em desenvolvimento');
+                    onClick={async () => {
+                      try {
+                        // Buscar EPIs e estatísticas
+                        const [episData, epiStats] = await Promise.all([
+                          epiService.getEPIs(),
+                          epiService.getEPIStats()
+                        ]);
+                        await epiStockReportGenerator.generateStatisticsReport(episData, epiStats, stats || undefined);
+                        toast.success('Relatório de estatísticas gerado com sucesso!');
+                      } catch (error) {
+                        console.error('Erro ao gerar relatório de estatísticas:', error);
+                        toast.error('Erro ao gerar relatório de estatísticas');
+                      }
                     }}
+                    disabled={recordsLoading || statsLoading}
                   >
                     <BarChart3 className="h-6 w-6" />
                     Relatório de Estatísticas

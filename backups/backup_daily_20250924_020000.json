@@ -1,0 +1,12 @@
+{
+  "backupInfo": {
+    "timestamp": "2025-09-24T02:00:00.020112",
+    "version": "1.0.0",
+    "type": "application_backup"
+  },
+  "data": {
+    "funcionarios": [],
+    "envios": [],
+    "auditLogs": []
+  }
+}

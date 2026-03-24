@@ -1,5 +1,25 @@
 import { UserRole, UserPermissions, UserGroupData } from '@/types/user';
 
+export const USER_ROLE_LIST: UserRole[] = [
+  'FLEX_ADMIN',
+  'COMPANY_ADMIN',
+  'SUPER_ADMIN',
+  'ADMIN',
+  'GESTOR',
+  'SUPERVISOR',
+  'RH',
+  'ASSISTENCIA_RH',
+  'DEPARTAMENTO_PESSOAL',
+  'FINANCEIRO',
+  'OPERACIONAL',
+  'TI_SUPORTE',
+  'AUDITOR',
+  'COLABORADOR',
+  'VIGILANTE',
+  'AUXI_ADMINISTRATIVO',
+  'AUX_DEP',
+];
+
 // Função para gerar permissões baseadas no role principal
 export const generatePermissions = (role: UserRole): UserPermissions => {
   const basePermissions: UserPermissions = {
@@ -8,125 +28,172 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
     USERS_WRITE: false,
     USERS_DELETE: false,
     USERS_CREATE: false,
-    
+
     // Permissões de Grupos
     GROUPS_READ: false,
     GROUPS_WRITE: false,
     GROUPS_DELETE: false,
     GROUPS_CREATE: false,
-    
+
     // Permissões de Clientes
     CLIENTS_READ: false,
     CLIENTS_WRITE: false,
     CLIENTS_DELETE: false,
     CLIENTS_CREATE: false,
-    
+
     // Permissões de Funcionários
     EMPLOYEES_READ: false,
     EMPLOYEES_WRITE: false,
     EMPLOYEES_DELETE: false,
     EMPLOYEES_CREATE: false,
-    
+
     // Permissões de Contratos
     CONTRACTS_READ: false,
     CONTRACTS_WRITE: false,
     CONTRACTS_DELETE: false,
     CONTRACTS_CREATE: false,
-    
+
     // Permissões Financeiras
     FINANCIAL_READ: false,
     FINANCIAL_WRITE: false,
     FINANCIAL_DELETE: false,
     FINANCIAL_CREATE: false,
-    
+
     // Permissões de Holerites
     PAYSLIPS_READ: false,
     PAYSLIPS_WRITE: false,
     PAYSLIPS_DELETE: false,
     PAYSLIPS_CREATE: false,
     PAYSLIPS_PUBLISH: false,
-    
+
     // Permissões de Estoque
     STOCK_READ: false,
     STOCK_WRITE: false,
     STOCK_DELETE: false,
     STOCK_CREATE: false,
     STOCK_MANAGE: false,
-    
+
     // Permissões de Equipamentos/Frota
     EQUIPMENTS_READ: false,
     EQUIPMENTS_WRITE: false,
     EQUIPMENTS_DELETE: false,
     EQUIPMENTS_CREATE: false,
     EQUIPMENTS_ASSIGN: false,
-    
+
     // Permissões de Empresas
     COMPANIES_READ: false,
     COMPANIES_WRITE: false,
     COMPANIES_DELETE: false,
     COMPANIES_CREATE: false,
     COMPANIES_MANAGE: false,
-    
+
     // Permissões de Relatórios
     REPORTS_READ: false,
     REPORTS_GENERATE: false,
     REPORTS_EXPORT: false,
-    
+
     // Permissões do Módulo Comercial
     LEADS_READ: false,
     LEADS_WRITE: false,
     LEADS_DELETE: false,
     LEADS_CREATE: false,
-    
+
     PROPOSALS_READ: false,
     PROPOSALS_WRITE: false,
     PROPOSALS_DELETE: false,
     PROPOSALS_CREATE: false,
-    
+
     QUOTES_READ: false,
     QUOTES_WRITE: false,
     QUOTES_DELETE: false,
     QUOTES_CREATE: false,
-    
+
     // Permissões de Sistema
     SYSTEM_CONFIG: false,
+    SYSTEM_CONFIG_MANAGE: false,
     SYSTEM_LOGS: false,
     SYSTEM_BACKUP: false,
     SYSTEM_INTEGRATION: false,
-    
+
     // Permissões de Auditoria
     AUDIT_READ: false,
     AUDIT_WRITE: false,
-    
+
     // Permissões de Dashboard
     DASHBOARD_READ: false,
     DASHBOARD_WRITE: false,
-    
+
     // Permissões de Perfil
     PROFILE_READ: false,
     PROFILE_WRITE: false,
-    
+
     // Permissões de Suporte
     SUPPORT_READ: false,
     SUPPORT_WRITE: false,
     SUPPORT_DELETE: false,
     SUPPORT_CREATE: false,
     SUPPORT_MANAGE: false,
-    
+
     // Permissões de Mensagens
     MESSAGES_READ: false,
     MESSAGES_WRITE: false,
     MESSAGES_DELETE: false,
     MESSAGES_CREATE: false,
     MESSAGES_MANAGE: false,
-    
+
+    // Permissões de Atendimento
+    ATTENDANCE_READ: false,
+    ATTENDANCE_WRITE: false,
+    ATTENDANCE_MANAGE: false,
+
+    // Permissões de Visitas
+    VISITS_READ: false,
+    VISITS_WRITE: false,
+    VISITS_CREATE: false,
+    VISITS_UPDATE: false,
+    VISITS_DELETE: false,
+    VISITS_MANAGE: false,
+
+    // Permissões de Ponto Eletrônico
+    TIME_RECORD_READ: false,
+    TIME_RECORD_CREATE: false,
+    TIME_RECORD_UPDATE: false,
+    TIME_RECORD_DELETE: false,
+    TIME_RECORD_MANAGE: false,
+
+    // Permissões de Gestão de Tráfego
+    TRAFFIC_MANAGEMENT_READ: false,
+    TRAFFIC_MANAGEMENT_WRITE: false,
+    TRAFFIC_MANAGEMENT_CREATE: false,
+    TRAFFIC_MANAGEMENT_DELETE: false,
+
+    TRIPS_READ: false,
+    TRIPS_WRITE: false,
+    TRIPS_EXECUTE: false,
+
+    BOARDING_READ: false,
+    BOARDING_EXECUTE: false,
+
+    // Permissões de Folha de Pagamento
+    PAYROLL_READ: false,
+    PAYROLL_CREATE: false,
+    PAYROLL_MANAGE: false,
+
+    // Permissões de Rotas (Ticketing)
+    ROUTES_READ: false,
+    ROUTES_WRITE: false,
+    ROUTES_CREATE: false,
+    ROUTES_DELETE: false,
+
     // Permissão de Acesso Total
     ALL_PERMISSIONS: false,
   };
 
   switch (role) {
     case 'SUPER_ADMIN':
-      // Todas as permissões true para SUPER_ADMIN
+    case 'FLEX_ADMIN':
+    case 'COMPANY_ADMIN':
+      // Todas as permissões true para SUPER_ADMIN, FLEX_ADMIN e COMPANY_ADMIN
       return Object.fromEntries(
         Object.keys(basePermissions).map(key => [key, true])
       ) as unknown as UserPermissions;
@@ -139,103 +206,109 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         USERS_WRITE: true,
         USERS_DELETE: true,
         USERS_CREATE: true,
-        
+
         // Permissões de Grupos
         GROUPS_READ: true,
         GROUPS_WRITE: true,
         GROUPS_DELETE: true,
         GROUPS_CREATE: true,
-        
+
         // Permissões de Clientes
         CLIENTS_READ: true,
         CLIENTS_WRITE: true,
         CLIENTS_DELETE: true,
         CLIENTS_CREATE: true,
-        
+
         // Permissões de Funcionários
         EMPLOYEES_READ: true,
         EMPLOYEES_WRITE: true,
         EMPLOYEES_DELETE: true,
         EMPLOYEES_CREATE: true,
-        
+
         // Permissões de Contratos
         CONTRACTS_READ: true,
         CONTRACTS_WRITE: true,
         CONTRACTS_DELETE: true,
         CONTRACTS_CREATE: true,
-        
+
         // Permissões Financeiras
         FINANCIAL_READ: true,
         FINANCIAL_WRITE: true,
         FINANCIAL_DELETE: true,
         FINANCIAL_CREATE: true,
-        
+
         // Permissões de Holerites
         PAYSLIPS_READ: true,
         PAYSLIPS_WRITE: true,
         PAYSLIPS_DELETE: true,
         PAYSLIPS_CREATE: true,
         PAYSLIPS_PUBLISH: true,
-        
+
         // Permissões de Estoque
         STOCK_READ: true,
         STOCK_WRITE: true,
         STOCK_DELETE: true,
         STOCK_CREATE: true,
         STOCK_MANAGE: true,
-        
+
         // Permissões de Equipamentos/Frota
         EQUIPMENTS_READ: true,
         EQUIPMENTS_WRITE: true,
         EQUIPMENTS_DELETE: true,
         EQUIPMENTS_CREATE: true,
         EQUIPMENTS_ASSIGN: true,
-        
+
         // Permissões de Empresas
         COMPANIES_READ: true,
         COMPANIES_WRITE: true,
         COMPANIES_DELETE: true,
         COMPANIES_CREATE: true,
         COMPANIES_MANAGE: true,
-        
+
         // Permissões de Relatórios
         REPORTS_READ: true,
         REPORTS_GENERATE: true,
         REPORTS_EXPORT: true,
-        
+
         // Permissões do Módulo Comercial
         LEADS_READ: true,
         LEADS_WRITE: true,
         LEADS_DELETE: true,
         LEADS_CREATE: true,
-        
+
         PROPOSALS_READ: true,
         PROPOSALS_WRITE: true,
         PROPOSALS_DELETE: true,
         PROPOSALS_CREATE: true,
-        
+
         QUOTES_READ: true,
         QUOTES_WRITE: true,
         QUOTES_CREATE: true,
-        
+
         // Permissões de Suporte
         SUPPORT_READ: true,
         SUPPORT_WRITE: true,
         SUPPORT_DELETE: true,
         SUPPORT_CREATE: true,
         SUPPORT_MANAGE: true,
-        
+
         // Permissões de Mensagens
         MESSAGES_READ: true,
         MESSAGES_WRITE: true,
         MESSAGES_DELETE: true,
         MESSAGES_CREATE: true,
         MESSAGES_MANAGE: true,
-        
+
         // Permissões de Atendimento
         ATTENDANCE_READ: true,
         ATTENDANCE_WRITE: true,
         ATTENDANCE_MANAGE: true,
+
+        // Permissões de Rotas (Ticketing)
+        ROUTES_READ: true,
+        ROUTES_WRITE: true,
+        ROUTES_CREATE: true,
+        ROUTES_DELETE: true,
       };
 
     case 'SUPERVISOR':
@@ -261,18 +334,21 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         DASHBOARD_READ: true,
         PROFILE_READ: true,
         PROFILE_WRITE: true,
-        
+
         // Permissões de Mensagens
         MESSAGES_READ: true,
         MESSAGES_WRITE: true,
         MESSAGES_CREATE: true,
-        
+
         // Permissões de Suporte
         SUPPORT_READ: true,
-        
+
         // Permissões de Equipamentos/Frota
         EQUIPMENTS_READ: true,
         EQUIPMENTS_WRITE: true,
+
+        // Permissões de Atendimento (Supervisão acompanha atendimentos)
+        ATTENDANCE_READ: true,
       };
 
     case 'RH':
@@ -288,26 +364,32 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         PAYSLIPS_PUBLISH: true,
         REPORTS_READ: true,
         REPORTS_GENERATE: true,
-        LEADS_READ: true,
-        LEADS_WRITE: true,
-        LEADS_CREATE: true,
-        PROPOSALS_READ: true,
-        PROPOSALS_WRITE: true,
-        PROPOSALS_CREATE: true,
-        QUOTES_READ: true,
-        QUOTES_WRITE: true,
-        QUOTES_CREATE: true,
         DASHBOARD_READ: true,
         PROFILE_READ: true,
         PROFILE_WRITE: true,
-        
+
+        // Permissões de Ponto Eletrônico
+        TIME_RECORD_READ: true,
+        TIME_RECORD_CREATE: true,
+        TIME_RECORD_UPDATE: true,
+        TIME_RECORD_MANAGE: true,
+
+        // Permissões de Folha de Pagamento
+        PAYROLL_READ: true,
+        PAYROLL_CREATE: true,
+        PAYROLL_MANAGE: true,
+
         // Permissões de Mensagens
         MESSAGES_READ: true,
         MESSAGES_WRITE: true,
         MESSAGES_CREATE: true,
-        
+
         // Permissões de Suporte
         SUPPORT_READ: true,
+
+        // Permissões de Atendimento
+        ATTENDANCE_READ: true,
+        ATTENDANCE_MANAGE: true,
       };
 
     case 'FINANCEIRO':
@@ -334,6 +416,17 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         DASHBOARD_READ: true,
         PROFILE_READ: true,
         PROFILE_WRITE: true,
+
+        // Permissões de Mensagens
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+
+        // Permissões de Suporte
+        SUPPORT_READ: true,
+
+        // Permissões de Atendimento
+        ATTENDANCE_READ: true,
       };
 
     case 'TI_SUPORTE':
@@ -350,14 +443,14 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         DASHBOARD_READ: true,
         PROFILE_READ: true,
         PROFILE_WRITE: true,
-        
+
         // Permissões de Mensagens
         MESSAGES_READ: true,
         MESSAGES_WRITE: true,
         MESSAGES_CREATE: true,
         MESSAGES_DELETE: true,
         MESSAGES_MANAGE: true,
-        
+
         // Permissões de Suporte
         SUPPORT_READ: true,
         SUPPORT_WRITE: true,
@@ -382,10 +475,10 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         DASHBOARD_READ: true,
         AUDIT_READ: true,
         PROFILE_READ: true,
-        
+
         // Permissões de Mensagens
         MESSAGES_READ: true,
-        
+
         // Permissões de Suporte
         SUPPORT_READ: true,
       };
@@ -393,23 +486,15 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
     case 'COLABORADOR':
       return {
         ...basePermissions,
+        DASHBOARD_READ: true,
         PROFILE_READ: true,
         PROFILE_WRITE: true,
         PAYSLIPS_READ: true,
-        REPORTS_READ: true,
-        LEADS_READ: true,
-        LEADS_WRITE: true,
-        LEADS_CREATE: true,
-        PROPOSALS_READ: true,
-        PROPOSALS_WRITE: true,
-        PROPOSALS_CREATE: true,
-        QUOTES_READ: true,
-        QUOTES_WRITE: true,
-        QUOTES_CREATE: true,
-        
+
         // Permissões de Mensagens
         MESSAGES_READ: true,
         MESSAGES_WRITE: true,
+        MESSAGES_DELETE: true,
         MESSAGES_CREATE: true,
       };
 
@@ -421,23 +506,174 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         EQUIPMENTS_WRITE: true,
         EQUIPMENTS_CREATE: true,
         EQUIPMENTS_ASSIGN: true,
-        
+
         // Permissões de Funcionários
         EMPLOYEES_READ: true,
         EMPLOYEES_WRITE: true,
-        
+
         // Permissões de Contratos
         CONTRACTS_READ: true,
         CONTRACTS_WRITE: true,
-        
+
         // Permissões de Relatórios
         REPORTS_READ: true,
         REPORTS_GENERATE: true,
-        
+
         // Permissões de Dashboard
         DASHBOARD_READ: true,
         PROFILE_READ: true,
         PROFILE_WRITE: true,
+
+        // Permissões de Mensagens
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+
+        // Permissões de Suporte
+        SUPPORT_READ: true,
+
+        // Permissões de Atendimento
+        ATTENDANCE_READ: true,
+      };
+
+    case 'ASSISTENCIA_RH':
+      return {
+        ...basePermissions,
+        // Assistente de RH - Permissões de leitura e escrita básica
+        EMPLOYEES_READ: true,
+        EMPLOYEES_WRITE: true,
+        PAYSLIPS_READ: true,
+        CONTRACTS_READ: true,
+        REPORTS_READ: true,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+      };
+
+    case 'DEPARTAMENTO_PESSOAL':
+      return {
+        ...basePermissions,
+        // Departamento Pessoal - Gestão completa de RH
+        EMPLOYEES_READ: true,
+        EMPLOYEES_WRITE: true,
+        EMPLOYEES_CREATE: true,
+        EMPLOYEES_DELETE: true,
+        PAYSLIPS_READ: true,
+        PAYSLIPS_WRITE: true,
+        PAYSLIPS_CREATE: true,
+        PAYSLIPS_PUBLISH: true,
+        CONTRACTS_READ: true,
+        CONTRACTS_WRITE: true,
+        CONTRACTS_CREATE: true,
+        REPORTS_READ: true,
+        REPORTS_GENERATE: true,
+        REPORTS_EXPORT: true,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        SUPPORT_READ: true,
+        ATTENDANCE_READ: true,
+        ATTENDANCE_WRITE: true,
+
+        // Permissões de Ponto Eletrônico
+        TIME_RECORD_READ: true,
+        TIME_RECORD_CREATE: true,
+        TIME_RECORD_UPDATE: true,
+        TIME_RECORD_DELETE: true,
+        TIME_RECORD_MANAGE: true,
+
+        // Permissões de Folha de Pagamento
+        PAYROLL_READ: true,
+        PAYROLL_CREATE: true,
+        PAYROLL_MANAGE: true,
+      };
+
+    case 'OPERACIONAL':
+      return {
+        ...basePermissions,
+        // Operacional - Gestão operacional e equipamentos
+        EQUIPMENTS_READ: true,
+        EQUIPMENTS_WRITE: true,
+        EQUIPMENTS_ASSIGN: true,
+        EMPLOYEES_READ: true,
+        CONTRACTS_READ: true,
+        REPORTS_READ: true,
+        REPORTS_GENERATE: true,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        VISITS_READ: true,
+        VISITS_WRITE: true,
+        VISITS_CREATE: true,
+
+        // Permissões de Rotas (Ticketing)
+        ROUTES_READ: true,
+        ROUTES_WRITE: true,
+        ROUTES_CREATE: true,
+        ROUTES_DELETE: true,
+      };
+
+    case 'VIGILANTE':
+      return {
+        ...basePermissions,
+        // Vigilante - Permissões básicas operacionais
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        PAYSLIPS_READ: true,
+        REPORTS_READ: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        EQUIPMENTS_READ: true,
+        VISITS_READ: true,
+      };
+
+    case 'AUXI_ADMINISTRATIVO':
+      return {
+        ...basePermissions,
+        // Auxiliar Administrativo - Suporte administrativo geral
+        EMPLOYEES_READ: true,
+        CLIENTS_READ: true,
+        CONTRACTS_READ: true,
+        REPORTS_READ: true,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        SUPPORT_READ: true,
+        SUPPORT_WRITE: true,
+        SUPPORT_CREATE: true,
+        LEADS_READ: true,
+        PROPOSALS_READ: true,
+      };
+
+    case 'AUX_DEP':
+      return {
+        ...basePermissions,
+        // Auxiliar de Departamento Pessoal - Suporte ao RH
+        EMPLOYEES_READ: true,
+        PAYSLIPS_READ: true,
+        CONTRACTS_READ: true,
+        REPORTS_READ: true,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        ATTENDANCE_READ: true,
       };
 
     default:
@@ -453,118 +689,163 @@ export const generatePermissionsFromGroups = (groups: UserGroupData[]): UserPerm
     USERS_WRITE: false,
     USERS_DELETE: false,
     USERS_CREATE: false,
-    
+
     // Permissões de Grupos
     GROUPS_READ: false,
     GROUPS_WRITE: false,
     GROUPS_DELETE: false,
     GROUPS_CREATE: false,
-    
+
     // Permissões de Clientes
     CLIENTS_READ: false,
     CLIENTS_WRITE: false,
     CLIENTS_DELETE: false,
     CLIENTS_CREATE: false,
-    
+
     // Permissões de Funcionários
     EMPLOYEES_READ: false,
     EMPLOYEES_WRITE: false,
     EMPLOYEES_DELETE: false,
     EMPLOYEES_CREATE: false,
-    
+
     // Permissões de Contratos
     CONTRACTS_READ: false,
     CONTRACTS_WRITE: false,
     CONTRACTS_DELETE: false,
     CONTRACTS_CREATE: false,
-    
+
     // Permissões Financeiras
     FINANCIAL_READ: false,
     FINANCIAL_WRITE: false,
     FINANCIAL_DELETE: false,
     FINANCIAL_CREATE: false,
-    
+
     // Permissões de Holerites
     PAYSLIPS_READ: false,
     PAYSLIPS_WRITE: false,
     PAYSLIPS_DELETE: false,
     PAYSLIPS_CREATE: false,
     PAYSLIPS_PUBLISH: false,
-    
+
     // Permissões de Estoque
     STOCK_READ: false,
     STOCK_WRITE: false,
     STOCK_DELETE: false,
     STOCK_CREATE: false,
     STOCK_MANAGE: false,
-    
+
     // Permissões de Equipamentos/Frota
     EQUIPMENTS_READ: false,
     EQUIPMENTS_WRITE: false,
     EQUIPMENTS_DELETE: false,
     EQUIPMENTS_CREATE: false,
     EQUIPMENTS_ASSIGN: false,
-    
+
     // Permissões de Empresas
     COMPANIES_READ: false,
     COMPANIES_WRITE: false,
     COMPANIES_DELETE: false,
     COMPANIES_CREATE: false,
     COMPANIES_MANAGE: false,
-    
+
     // Permissões de Relatórios
     REPORTS_READ: false,
     REPORTS_GENERATE: false,
     REPORTS_EXPORT: false,
-    
+
     // Permissões do Módulo Comercial
     LEADS_READ: false,
     LEADS_WRITE: false,
     LEADS_DELETE: false,
     LEADS_CREATE: false,
-    
+
     PROPOSALS_READ: false,
     PROPOSALS_WRITE: false,
     PROPOSALS_DELETE: false,
     PROPOSALS_CREATE: false,
-    
+
     QUOTES_READ: false,
     QUOTES_WRITE: false,
     QUOTES_DELETE: false,
     QUOTES_CREATE: false,
-    
+
     // Permissões de Sistema
     SYSTEM_CONFIG: false,
+    SYSTEM_CONFIG_MANAGE: false,
     SYSTEM_LOGS: false,
     SYSTEM_BACKUP: false,
     SYSTEM_INTEGRATION: false,
-    
+
     // Permissões de Auditoria
     AUDIT_READ: false,
     AUDIT_WRITE: false,
-    
+
     // Permissões de Dashboard
     DASHBOARD_READ: false,
     DASHBOARD_WRITE: false,
-    
+
     // Permissões de Perfil
     PROFILE_READ: false,
     PROFILE_WRITE: false,
-    
+
     // Permissões de Suporte
     SUPPORT_READ: false,
     SUPPORT_WRITE: false,
     SUPPORT_DELETE: false,
     SUPPORT_CREATE: false,
     SUPPORT_MANAGE: false,
-    
+
     // Permissões de Mensagens
     MESSAGES_READ: false,
     MESSAGES_WRITE: false,
     MESSAGES_DELETE: false,
     MESSAGES_CREATE: false,
     MESSAGES_MANAGE: false,
-    
+
+    // Permissões de Atendimento
+    ATTENDANCE_READ: false,
+    ATTENDANCE_WRITE: false,
+    ATTENDANCE_MANAGE: false,
+
+    // Permissões de Visitas
+    VISITS_READ: false,
+    VISITS_WRITE: false,
+    VISITS_CREATE: false,
+    VISITS_UPDATE: false,
+    VISITS_DELETE: false,
+    VISITS_MANAGE: false,
+
+    // Permissões de Ponto Eletrônico
+    TIME_RECORD_READ: false,
+    TIME_RECORD_CREATE: false,
+    TIME_RECORD_UPDATE: false,
+    TIME_RECORD_DELETE: false,
+    TIME_RECORD_MANAGE: false,
+
+    // Permissões de Gestão de Tráfego
+    TRAFFIC_MANAGEMENT_READ: false,
+    TRAFFIC_MANAGEMENT_WRITE: false,
+    TRAFFIC_MANAGEMENT_CREATE: false,
+    TRAFFIC_MANAGEMENT_DELETE: false,
+
+    TRIPS_READ: false,
+    TRIPS_WRITE: false,
+    TRIPS_EXECUTE: false,
+
+    BOARDING_READ: false,
+    BOARDING_EXECUTE: false,
+
+    // Permissões de Folha de Pagamento
+    PAYROLL_READ: false,
+    PAYROLL_CREATE: false,
+    PAYROLL_MANAGE: false,
+
+    // Permissões de Rotas (Ticketing)
+    ROUTES_READ: false,
+    ROUTES_WRITE: false,
+    ROUTES_CREATE: false,
+    ROUTES_DELETE: false,
+
     // Permissão de Acesso Total
     ALL_PERMISSIONS: false,
   };
@@ -645,7 +926,43 @@ export const generatePermissionsFromGroups = (groups: UserGroupData[]): UserPerm
     'MESSAGES_DELETE': 'MESSAGES_DELETE',
     'MESSAGES_CREATE': 'MESSAGES_CREATE',
     'MESSAGES_MANAGE': 'MESSAGES_MANAGE',
+    'ATTENDANCE_READ': 'ATTENDANCE_READ',
+    'ATTENDANCE_WRITE': 'ATTENDANCE_WRITE',
+    'ATTENDANCE_MANAGE': 'ATTENDANCE_MANAGE',
+    'ROUTES_READ': 'ROUTES_READ',
+    'ROUTES_WRITE': 'ROUTES_WRITE',
+    'ROUTES_CREATE': 'ROUTES_CREATE',
+    'ROUTES_DELETE': 'ROUTES_DELETE',
     'ALL_PERMISSIONS': 'ALL_PERMISSIONS',
+
+    // ---- Mapeamento de permissões legadas de grupos (VIEW_*/MANAGE_*/EDIT_*) para o modelo novo ----
+    // Pagamentos / holerites / comprovantes
+    'VIEW_PAYSLIP': 'PAYSLIPS_READ',
+    'DOWNLOAD_PAYSLIP': 'PAYSLIPS_READ',
+    // Perfil do usuário
+    'EDIT_PROFILE': 'PROFILE_WRITE',
+    // Funcionários
+    'VIEW_EMPLOYEES': 'EMPLOYEES_READ',
+    'MANAGE_EMPLOYEES': 'EMPLOYEES_WRITE',
+    // Relatórios
+    'VIEW_REPORTS': 'REPORTS_READ',
+    // Sistema / administração
+    'MANAGE_SYSTEM': 'SYSTEM_CONFIG',
+    // Clientes
+    'VIEW_CLIENTS': 'CLIENTS_READ',
+    'MANAGE_CLIENTS': 'CLIENTS_WRITE',
+    // Contratos
+    'VIEW_CONTRACTS': 'CONTRACTS_READ',
+    'MANAGE_CONTRACTS': 'CONTRACTS_WRITE',
+    // Financeiro
+    'VIEW_FINANCIAL': 'FINANCIAL_READ',
+    'MANAGE_FINANCIAL': 'FINANCIAL_WRITE',
+    // Frota / equipamentos
+    'VIEW_FLEET': 'EQUIPMENTS_READ',
+    'MANAGE_FLEET': 'EQUIPMENTS_WRITE',
+    // Documentos (usa permissões de holerites/documentos)
+    'VIEW_DOCUMENTS': 'PAYSLIPS_READ',
+    'MANAGE_DOCUMENTS': 'PAYSLIPS_WRITE',
   };
 
   // Aplicar permissões de todos os grupos
@@ -664,13 +981,13 @@ export const generatePermissionsFromGroups = (groups: UserGroupData[]): UserPerm
 // Função para combinar permissões de role e grupos
 export const combinePermissions = (rolePermissions: UserPermissions, groupPermissions: UserPermissions): UserPermissions => {
   const combined: UserPermissions = { ...rolePermissions };
-  
+
   // Se qualquer uma das permissões (role ou grupo) for true, a permissão final será true
   Object.keys(rolePermissions).forEach(key => {
     const permissionKey = key as keyof UserPermissions;
     combined[permissionKey] = rolePermissions[permissionKey] || groupPermissions[permissionKey];
   });
-  
+
   return combined;
 };
 
@@ -683,13 +1000,13 @@ export const hasPermission = (
     console.log('🔍 hasPermission - userPermissions é null');
     return false;
   }
-  
+
   // Se ALL_PERMISSIONS for true, retorna true para qualquer permissão
   if (userPermissions.ALL_PERMISSIONS) {
     console.log('🔍 hasPermission - ALL_PERMISSIONS é true, retornando true');
     return true;
   }
-  
+
   const hasSpecificPermission = userPermissions[permission] || false;
   console.log(`🔍 hasPermission - ${permission}: ${hasSpecificPermission}`);
   return hasSpecificPermission;
@@ -716,15 +1033,27 @@ export const hasAllPermissions = (
 // Função para obter o nome amigável do role
 export const getRoleDisplayName = (role: UserRole): string => {
   const roleNames: Record<UserRole, string> = {
+    FLEX_ADMIN: 'Admin Plataforma (Global)',
+    COMPANY_ADMIN: 'Admin Empresa (Tenant)',
     SUPER_ADMIN: 'Super Administrador',
     ADMIN: 'Administrador',
     SUPERVISOR: 'Supervisor',
     RH: 'Recursos Humanos',
+    ASSISTENCIA_RH: 'Assistência de RH',
+    DEPARTAMENTO_PESSOAL: 'Departamento Pessoal',
     FINANCEIRO: 'Financeiro',
+    OPERACIONAL: 'Operacional',
+    VIGILANTE: 'Vigilante',
+    AUXI_ADMINISTRATIVO: 'Auxiliar Administrativo',
+    AUX_DEP: 'Auxiliar Depto. Pessoal',
     TI_SUPORTE: 'TI / Suporte Técnico',
     AUDITOR: 'Auditor / Consultor',
     COLABORADOR: 'Colaborador',
     GESTOR: 'Gestor',
+    GESTOR_TRAFEGO: 'Gestor de Tráfego',
+    MOTORISTA: 'Motorista',
+    MECANICO: 'Mecânico',
+    PORTARIA: 'Portaria / Controle de Acesso',
   };
   return roleNames[role] || role;
 };
@@ -732,15 +1061,27 @@ export const getRoleDisplayName = (role: UserRole): string => {
 // Função para obter a cor do role (para badges, etc.)
 export const getRoleColor = (role: UserRole): string => {
   const roleColors: Record<UserRole, string> = {
+    FLEX_ADMIN: 'bg- Seguranca-red text-white',
+    COMPANY_ADMIN: 'bg-indigo-600 text-white',
     SUPER_ADMIN: 'bg-red-100 text-red-800',
     ADMIN: 'bg-blue-100 text-blue-800',
     SUPERVISOR: 'bg-green-100 text-green-800',
     RH: 'bg-yellow-100 text-yellow-800',
+    ASSISTENCIA_RH: 'bg-yellow-50 text-yellow-700',
+    DEPARTAMENTO_PESSOAL: 'bg-amber-100 text-amber-800',
     FINANCEIRO: 'bg-orange-100 text-orange-800',
+    OPERACIONAL: 'bg-cyan-100 text-cyan-800',
+    VIGILANTE: 'bg-slate-100 text-slate-800',
+    AUXI_ADMINISTRATIVO: 'bg-pink-100 text-pink-800',
+    AUX_DEP: 'bg-lime-100 text-lime-800',
     TI_SUPORTE: 'bg-purple-100 text-purple-800',
     AUDITOR: 'bg-gray-100 text-gray-800',
     COLABORADOR: 'bg-indigo-100 text-indigo-800',
     GESTOR: 'bg-teal-100 text-teal-800',
+    GESTOR_TRAFEGO: 'bg-orange-600 text-white',
+    MOTORISTA: 'bg-indigo-600 text-white',
+    MECANICO: 'bg-gray-700 text-white',
+    PORTARIA: 'bg-slate-500 text-white',
   };
   return roleColors[role] || 'bg-gray-100 text-gray-800';
 };
@@ -755,6 +1096,7 @@ export const getGroupDisplayName = (groupName: string): string => {
     'GRUPO_DPE': 'Departamento Pessoal',
     'GRUPO_SUPERVISOR': 'Supervisor',
     'GRUPO_COLABORADORES': 'Colaboradores',
+    'GRUPO_OPERACIONAL': 'Operacional',
     'GRUPO_VIGILANTES': 'Vigilantes',
   };
   return groupNames[groupName] || groupName;
@@ -770,6 +1112,7 @@ export const getGroupColor = (groupName: string): string => {
     'GRUPO_DPE': 'bg-teal-100 text-teal-800',
     'GRUPO_SUPERVISOR': 'bg-green-100 text-green-800',
     'GRUPO_COLABORADORES': 'bg-blue-100 text-blue-800',
+    'GRUPO_OPERACIONAL': 'bg-cyan-100 text-cyan-800',
     'GRUPO_VIGILANTES': 'bg-gray-100 text-gray-800',
   };
   return groupColors[groupName] || 'bg-gray-100 text-gray-800';

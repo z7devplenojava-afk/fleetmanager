@@ -1,0 +1,10 @@
+{
+  "vehicleId": "COLOQUE_AQUI_O_ID_DO_VEICULO",
+  "date": "2024-06-20",
+  "fuelType": "GASOLINE",
+  "quantity": 40.5,
+  "cost": 250.00,
+  "mileage": 12345,
+  "station": "Posto Central",
+  "notes": "Abastecimento de teste"
+} 

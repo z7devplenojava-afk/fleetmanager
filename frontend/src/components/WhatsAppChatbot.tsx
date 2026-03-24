@@ -417,20 +417,6 @@ const WhatsAppChatbot: React.FC = () => {
 
   return (
     <>
-      {/* Estilos para prevenir scroll horizontal */}
-      <style jsx>{`
-        @media (max-width: 640px) {
-          body {
-            overflow-x: hidden !important;
-          }
-          .chatbot-modal {
-            max-width: calc(100vw - 16px) !important;
-            width: calc(100vw - 16px) !important;
-            margin: 8px !important;
-          }
-        }
-      `}</style>
-      
       {/* Botão Flutuante */}
       <div className="chatbot-button">
         <Button

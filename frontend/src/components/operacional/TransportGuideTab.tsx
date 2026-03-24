@@ -3,6 +3,7 @@ import { TransportGuide, CreateTransportGuideDTO, TransportGuideFilters } from '
 import { transportGuideService } from '@/services/transportGuideService';
 import TransportGuidesTable from './TransportGuidesTable';
 import TransportGuideModal from './TransportGuideModal';
+import TransportGuideViewModal from './TransportGuideViewModal';
 import { useToast } from '@/hooks/use-toast';
 
 const TransportGuideTab: React.FC = () => {
@@ -10,7 +11,9 @@ const TransportGuideTab: React.FC = () => {
   const [guides, setGuides] = useState<TransportGuide[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [selectedGuide, setSelectedGuide] = useState<TransportGuide | null>(null);
+  const [editingGuide, setEditingGuide] = useState<TransportGuide | null>(null);
 
   const loadGuides = async () => {
     setIsLoading(true);
@@ -36,21 +39,18 @@ const TransportGuideTab: React.FC = () => {
   }, []);
 
   const handleCreate = () => {
-    setSelectedGuide(null);
+    setEditingGuide(null);
     setShowModal(true);
   };
 
   const handleEdit = (guide: TransportGuide) => {
-    setSelectedGuide(guide);
+    setEditingGuide(guide);
     setShowModal(true);
   };
 
   const handleView = (guide: TransportGuide) => {
-    // Implementar visualização detalhada
-    toast({
-      title: 'Visualizar Guia',
-      description: `Visualizando guia ${guide.numeroArma} da empresa ${guide.empresa}`,
-    });
+    setSelectedGuide(guide);
+    setShowViewModal(true);
   };
 
   const handleDelete = async (guide: TransportGuide) => {
@@ -118,8 +118,8 @@ const TransportGuideTab: React.FC = () => {
 
   const handleSave = async (data: CreateTransportGuideDTO) => {
     try {
-      if (selectedGuide) {
-        await transportGuideService.updateTransportGuide(selectedGuide.id, data);
+      if (editingGuide) {
+        await transportGuideService.updateTransportGuide(editingGuide.id, data);
       } else {
         await transportGuideService.createTransportGuide(data);
       }
@@ -174,8 +174,25 @@ const TransportGuideTab: React.FC = () => {
       <TransportGuideModal
         open={showModal}
         onOpenChange={setShowModal}
-        guide={selectedGuide}
+        guide={editingGuide}
         onSave={handleSave}
+      />
+
+      <TransportGuideViewModal
+        open={showViewModal}
+        onOpenChange={setShowViewModal}
+        guide={selectedGuide}
+        onEdit={() => {
+          setShowViewModal(false);
+          if (selectedGuide) {
+            handleEdit(selectedGuide);
+          }
+        }}
+        onGeneratePDF={() => {
+          if (selectedGuide) {
+            handleGeneratePDF({});
+          }
+        }}
       />
     </div>
   );

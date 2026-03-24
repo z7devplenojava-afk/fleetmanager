@@ -1,0 +1,176 @@
+{
+  "units": [
+    {
+      "name": "Unidade BH Shopping",
+      "description": "Unidade operacional no BH Shopping - Centro de Belo Horizonte",
+      "address": "Av. Cristiano Machado, 4000 - Belo Horizonte, MG",
+      "phone": "(31) 99999-8888",
+      "email": "bhshopping@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    },
+    {
+      "name": "Unidade Centro",
+      "description": "Unidade operacional no centro da cidade",
+      "address": "Rua da Liberdade, 100 - Centro - Belo Horizonte, MG",
+      "phone": "(31) 88888-7777",
+      "email": "centro@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    },
+    {
+      "name": "Unidade Savassi",
+      "description": "Unidade operacional na região da Savassi",
+      "address": "Rua Pernambuco, 500 - Savassi - Belo Horizonte, MG",
+      "phone": "(31) 77777-6666",
+      "email": "savassi@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    },
+    {
+      "name": "Unidade Pampulha",
+      "description": "Unidade operacional na região da Pampulha",
+      "address": "Av. Antônio Abrahão Caram, 1000 - Pampulha - Belo Horizonte, MG",
+      "phone": "(31) 66666-5555",
+      "email": "pampulha@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    },
+    {
+      "name": "Unidade Barreiro",
+      "description": "Unidade operacional no Barreiro",
+      "address": "Rua Padre Pedro Pinto, 200 - Barreiro - Belo Horizonte, MG",
+      "phone": "(31) 55555-4444",
+      "email": "barreiro@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    },
+    {
+      "name": "Unidade Venda Nova",
+      "description": "Unidade operacional em Venda Nova",
+      "address": "Av. Venda Nova, 1500 - Venda Nova - Belo Horizonte, MG",
+      "phone": "(31) 44444-3333",
+      "email": "vendanova@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    },
+    {
+      "name": "Unidade Contagem",
+      "description": "Unidade operacional em Contagem",
+      "address": "Av. João César de Oliveira, 800 - Contagem, MG",
+      "phone": "(31) 33333-2222",
+      "email": "contagem@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    },
+    {
+      "name": "Unidade Betim",
+      "description": "Unidade operacional em Betim",
+      "address": "Rua das Palmeiras, 300 - Betim, MG",
+      "phone": "(31) 22222-1111",
+      "email": "betim@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    },
+    {
+      "name": "Unidade Ribeirão das Neves",
+      "description": "Unidade operacional em Ribeirão das Neves",
+      "address": "Av. Principal, 600 - Ribeirão das Neves, MG",
+      "phone": "(31) 11111-0000",
+      "email": "ribeirao@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    },
+    {
+      "name": "Unidade Santa Luzia",
+      "description": "Unidade operacional em Santa Luzia",
+      "address": "Rua da Paz, 400 - Santa Luzia, MG",
+      "phone": "(31) 00000-9999",
+      "email": "santaluzia@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    }
+  ],
+  "subunits": [
+    {
+      "name": "Subunidade BH Shopping - Setor A",
+      "description": "Subunidade do setor A do BH Shopping",
+      "address": "Av. Cristiano Machado, 4000 - Setor A - Belo Horizonte, MG",
+      "phone": "(31) 99999-7777",
+      "email": "bhshopping.setora@securedguard.com",
+      "parentId": "{{parentUnitId}}",
+      "clientId": null
+    },
+    {
+      "name": "Subunidade BH Shopping - Setor B",
+      "description": "Subunidade do setor B do BH Shopping",
+      "address": "Av. Cristiano Machado, 4000 - Setor B - Belo Horizonte, MG",
+      "phone": "(31) 99999-6666",
+      "email": "bhshopping.setorb@securedguard.com",
+      "parentId": "{{parentUnitId}}",
+      "clientId": null
+    },
+    {
+      "name": "Subunidade Centro - Comercial",
+      "description": "Subunidade comercial do centro",
+      "address": "Rua da Liberdade, 100 - Comercial - Belo Horizonte, MG",
+      "phone": "(31) 88888-6666",
+      "email": "centro.comercial@securedguard.com",
+      "parentId": "{{parentUnitId}}",
+      "clientId": null
+    }
+  ],
+  "clientUnits": [
+    {
+      "name": "Unidade Cliente ABC Ltda",
+      "description": "Unidade dedicada ao cliente ABC Ltda",
+      "address": "Rua do Cliente ABC, 123 - Belo Horizonte, MG",
+      "phone": "(31) 88888-9999",
+      "email": "cliente.abc@securedguard.com",
+      "parentId": null,
+      "clientId": 1
+    },
+    {
+      "name": "Unidade Cliente XYZ S.A.",
+      "description": "Unidade dedicada ao cliente XYZ S.A.",
+      "address": "Av. do Cliente XYZ, 456 - Belo Horizonte, MG",
+      "phone": "(31) 77777-8888",
+      "email": "cliente.xyz@securedguard.com",
+      "parentId": null,
+      "clientId": 2
+    },
+    {
+      "name": "Unidade Cliente DEF Comércio",
+      "description": "Unidade dedicada ao cliente DEF Comércio",
+      "address": "Rua do Cliente DEF, 789 - Belo Horizonte, MG",
+      "phone": "(31) 66666-7777",
+      "email": "cliente.def@securedguard.com",
+      "parentId": null,
+      "clientId": 3
+    }
+  ],
+  "quickTest": {
+    "simple": {
+      "name": "Unidade Teste Simples",
+      "address": "Rua Teste, 123 - Belo Horizonte, MG"
+    },
+    "complete": {
+      "name": "Unidade Teste Completa",
+      "description": "Unidade para testes completos da API",
+      "address": "Av. Teste, 456 - Belo Horizonte, MG",
+      "phone": "(31) 99999-0000",
+      "email": "teste@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    },
+    "update": {
+      "name": "Unidade Teste Atualizada",
+      "description": "Unidade atualizada via teste da API",
+      "address": "Av. Teste Atualizada, 789 - Belo Horizonte, MG",
+      "phone": "(31) 88888-0000",
+      "email": "teste.updated@securedguard.com",
+      "parentId": null,
+      "clientId": null
+    }
+  }
+} 

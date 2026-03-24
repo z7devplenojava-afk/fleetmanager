@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste de Autenticação</title>
+</head>
+<body>
+    <h1>Teste de Autenticação - Secure Guard</h1>
+    
+    <div>
+        <h2>1. Fazer Login</h2>
+        <input type="text" id="username" placeholder="Username" value="admin">
+        <input type="password" id="password" placeholder="Password" value="admin123">
+        <button onclick="login()">Login</button>
+    </div>
+    
+    <div>
+        <h2>2. Testar Endpoint de Veículos</h2>
+        <button onclick="testVehicles()">Testar /api/vehicles</button>
+    </div>
+    
+    <div>
+        <h2>3. Resultados</h2>
+        <pre id="results"></pre>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8081';
+        let token = null;
+        
+        function log(message) {
+            const results = document.getElementById('results');
+            results.textContent += new Date().toISOString() + ': ' + message + '\n';
+        }
+        
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                log('Tentando fazer login...');
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    token = data.token;
+                    log('Login bem-sucedido! Token: ' + token.substring(0, 20) + '...');
+                    log('Usuário: ' + JSON.stringify(data.user, null, 2));
+                } else {
+                    log('Erro no login: ' + JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                log('Erro na requisição de login: ' + error.message);
+            }
+        }
+        
+        async function testVehicles() {
+            if (!token) {
+                log('Erro: Faça login primeiro!');
+                return;
+            }
+            
+            try {
+                log('Testando endpoint de veículos...');
+                const response = await fetch(`${API_BASE}/api/vehicles`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('Veículos carregados com sucesso!');
+                    log('Quantidade: ' + data.length);
+                    log('Dados: ' + JSON.stringify(data, null, 2));
+                } else {
+                    log('Erro ao carregar veículos: ' + response.status + ' - ' + JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                log('Erro na requisição de veículos: ' + error.message);
+            }
+        }
+        
+        // Verificar se há token no localStorage
+        const savedToken = localStorage.getItem('token');
+        if (savedToken && savedToken !== 'fake-token') {
+            token = savedToken;
+            log('Token encontrado no localStorage: ' + token.substring(0, 20) + '...');
+        }
+    </script>
+</body>
+</html>

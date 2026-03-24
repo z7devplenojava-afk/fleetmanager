@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste API Fuel Records</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input { width: 100%; padding: 8px; margin-bottom: 10px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; margin-right: 10px; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 10px; border: 1px solid #ddd; max-height: 400px; overflow-y: auto; }
+        .error { background: #f8d7da; color: #721c24; }
+        .success { background: #d4edda; color: #155724; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Teste API Fuel Records</h1>
+        
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" value="jose.ramos">
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" value="Password123!">
+        </div>
+        
+        <button onclick="testLogin()">Testar Login</button>
+        <button onclick="testFuelRecords()">Testar Fuel Records</button>
+        <button onclick="testFuelRecordsWithAuth()">Testar Fuel Records com Auth</button>
+        <button onclick="testVehicles()">Testar Vehicles</button>
+        
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        let authToken = '';
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('http://localhost:8081/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    authToken = result.token;
+                    showResult('Login bem-sucedido! Token: ' + authToken.substring(0, 20) + '...', 'success');
+                } else {
+                    showResult('Erro no login: ' + JSON.stringify(result), 'error');
+                }
+            } catch (error) {
+                showResult('Erro na requisição: ' + error.message, 'error');
+            }
+        }
+
+        async function testFuelRecords() {
+            try {
+                const response = await fetch('http://localhost:8081/api/fuel-records', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showResult('API Fuel Records funcionando! Registros: ' + result.length, 'success');
+                    showResult('Dados: ' + JSON.stringify(result, null, 2), 'info');
+                } else {
+                    showResult('Erro na API Fuel Records: ' + JSON.stringify(result), 'error');
+                }
+            } catch (error) {
+                showResult('Erro na requisição Fuel Records: ' + error.message, 'error');
+            }
+        }
+
+        async function testFuelRecordsWithAuth() {
+            if (!authToken) {
+                showResult('Faça login primeiro!', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8081/api/fuel-records', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showResult('API Fuel Records com Auth funcionando! Registros: ' + result.length, 'success');
+                    showResult('Dados: ' + JSON.stringify(result, null, 2), 'info');
+                } else {
+                    showResult('Erro na API Fuel Records com Auth: ' + JSON.stringify(result), 'error');
+                }
+            } catch (error) {
+                showResult('Erro na requisição Fuel Records com Auth: ' + error.message, 'error');
+            }
+        }
+
+        async function testVehicles() {
+            if (!authToken) {
+                showResult('Faça login primeiro!', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8081/api/frota/vehicles', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showResult('API Vehicles funcionando! Veículos: ' + result.length, 'success');
+                    showResult('Dados: ' + JSON.stringify(result, null, 2), 'info');
+                } else {
+                    showResult('Erro na API Vehicles: ' + JSON.stringify(result), 'error');
+                }
+            } catch (error) {
+                showResult('Erro na requisição Vehicles: ' + error.message, 'error');
+            }
+        }
+
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML += '<div class="' + type + '">' + message + '</div>';
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

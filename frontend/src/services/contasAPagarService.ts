@@ -1,4 +1,5 @@
 import api from '@/lib/axios';
+import { isConnectionError } from '@/utils/connectionError';
 import { ContaAPagar } from '@/components/financeiro/ContasAPagarFormModal';
 import { formatDateForBackend, parseDateFromBackend } from '@/utils/dateUtils';
 
@@ -17,6 +18,7 @@ export interface CreateContaAPagarRequest {
   category?: string;
   notes?: string;
   centroCusto?: string;
+  companySigla?: string;
 }
 
 export interface UpdateContaAPagarRequest extends Partial<CreateContaAPagarRequest> {
@@ -45,7 +47,9 @@ export interface Supplier {
   address?: string;
   city?: string;
   state?: string;
+  zipCode?: string;
   category?: string;
+  notes?: string;
   isActive: boolean;
 }
 
@@ -215,36 +219,60 @@ export const contasAPagarService = {
     
     console.log('🔍 DEBUG: Invoices processados:', invoices);
     
-    return invoices.map((invoice: any): ContaAPagar => ({
-      id: invoice.id,
-      dataEmissao: parseDateFromBackend(invoice.issueDate),
-      vencimento: parseDateFromBackend(invoice.dueDate) || new Date(),
-      fornecedor: invoice.supplierName || 'Não informado',
-      fornecedorId: invoice.supplierId,
-      descricao: invoice.description,
-      tipo: invoice.type || 'VARIAVEL',
-      valor: parseFloat(invoice.amount),
-      codigoBarras: invoice.barcode,
-      status: mapBackendStatusToFrontend(invoice.status),
-      baixa: invoice.baixa || false,
-      dataPagamento: parseDateFromBackend(invoice.paymentDate),
-      observacoes: invoice.notes,
-      categoria: invoice.category,
-      centroCusto: invoice.centroCusto
-    }));
+    return invoices.map((invoice: any): ContaAPagar => {
+      // Garantir que supplierId seja convertido para string
+      const fornecedorId = invoice.supplierId 
+        ? (typeof invoice.supplierId === 'string' ? invoice.supplierId : String(invoice.supplierId))
+        : undefined;
+      
+      // Se não houver supplierName mas houver supplierId, usar 'Não informado' 
+      // (o nome será preenchido quando o fornecedor for carregado)
+      const fornecedorNome = invoice.supplierName || 'Não informado';
+      
+      return {
+        id: invoice.id,
+        dataEmissao: parseDateFromBackend(invoice.issueDate),
+        vencimento: parseDateFromBackend(invoice.dueDate) || new Date(),
+        fornecedor: fornecedorNome,
+        fornecedorId: fornecedorId || '',
+        empresa: invoice.companyName || (invoice.company && invoice.company.name) || undefined,
+        empresaId: invoice.companyId || (invoice.company && invoice.company.id) || undefined,
+        companySigla: invoice.companySigla || (invoice.company && invoice.company.sigla) || undefined,
+        descricao: invoice.description,
+        tipo: invoice.type || 'VARIAVEL',
+        valor: parseFloat(invoice.amount),
+        codigoBarras: invoice.barcode,
+        status: mapBackendStatusToFrontend(invoice.status),
+        baixa: invoice.baixa || false,
+        dataPagamento: parseDateFromBackend(invoice.paymentDate),
+        observacoes: invoice.notes,
+        categoria: invoice.category,
+        centroCusto: invoice.centroCusto
+      };
+    });
   },
 
   // Buscar conta por ID
   async getContaAPagarById(id: string): Promise<ContaAPagar> {
-    const response = await api.get(`/api/invoices/${id}`);
+      const response = await api.get(`/api/invoices/${id}`);
     const invoice = response.data;
+    
+    // Garantir que supplierId seja convertido para string
+    const fornecedorId = invoice.supplierId 
+      ? (typeof invoice.supplierId === 'string' ? invoice.supplierId : String(invoice.supplierId))
+      : undefined;
+    
+    const fornecedorNome = invoice.supplierName || 'Não informado';
     
     return {
       id: invoice.id,
       dataEmissao: parseDateFromBackend(invoice.issueDate),
       vencimento: parseDateFromBackend(invoice.dueDate) || new Date(),
-      fornecedor: invoice.supplierName || 'Não informado',
-      fornecedorId: invoice.supplierId,
+      fornecedor: fornecedorNome,
+      fornecedorId: fornecedorId || '',
+      empresa: invoice.companyName || (invoice.company && invoice.company.name) || undefined,
+      empresaId: invoice.companyId || (invoice.company && invoice.company.id) || undefined,
+      companySigla: invoice.companySigla || (invoice.company && invoice.company.sigla) || undefined,
       cliente: invoice.clientName,
       clienteId: invoice.clientId,
       contrato: invoice.contractNumber,
@@ -268,7 +296,7 @@ export const contasAPagarService = {
     let unitId = '11111111-1111-1111-1111-111111111111'; // UUID padrão
     
     try {
-      const unitsResponse = await api.get('/units');
+      const unitsResponse = await api.get('/api/units');
       if (unitsResponse.data && unitsResponse.data.length > 0) {
         unitId = unitsResponse.data[0].id;
       }
@@ -289,7 +317,8 @@ export const contasAPagarService = {
       barcode: conta.codigoBarras,
       category: conta.categoria === 'NENHUMA' ? undefined : conta.categoria,
       notes: conta.observacoes,
-      centroCusto: conta.centroCusto === 'NENHUM' ? undefined : conta.centroCusto
+      centroCusto: conta.centroCusto === 'NENHUM' ? undefined : conta.centroCusto,
+      companySigla: conta.companySigla
     };
 
 
@@ -322,6 +351,7 @@ export const contasAPagarService = {
     if (conta.categoria !== undefined) requestData.category = conta.categoria === 'NENHUMA' ? undefined : conta.categoria;
     if (conta.observacoes) requestData.notes = conta.observacoes;
     if (conta.centroCusto !== undefined) requestData.centroCusto = conta.centroCusto === 'NENHUM' ? undefined : conta.centroCusto;
+    if (conta.companySigla !== undefined) requestData.companySigla = conta.companySigla;
     
     // Se não há unitId, buscar uma unidade padrão
     if (!requestData.unitId) {
@@ -388,10 +418,10 @@ export const contasAPagarService = {
 
   async getCostCenters(): Promise<string[]> {
     try {
-      const response = await api.get('/api/invoices/cost-centers');
+      const response = await api.get('/api/cost-centers');
       // Verificar se a resposta é um array válido
       if (Array.isArray(response.data)) {
-        return response.data;
+        return response.data.map((center: any) => center.name);
       }
       // Se não for array ou for HTML, usar fallback
       throw new Error('Resposta inválida da API');
@@ -437,18 +467,43 @@ export const contasAPagarService = {
   
   // Buscar todos os fornecedores
   async getFornecedores(): Promise<Supplier[]> {
-    const response = await api.get('/api/suppliers/all');
-    console.log('🔍 DEBUG: Resposta da API /api/suppliers/all:', response.data);
-    const data = response.data;
-    return Array.isArray(data) ? data : [];
+    try {
+      console.log('📦 contasAPagarService.getFornecedores: Iniciando chamada para /api/suppliers/all');
+      const response = await api.get('/api/suppliers/all');
+      console.log('📦 contasAPagarService.getFornecedores: Resposta recebida:', {
+        status: response.status,
+        data: response.data,
+        dataType: typeof response.data,
+        isArray: Array.isArray(response.data),
+        length: Array.isArray(response.data) ? response.data.length : 'N/A'
+      });
+      const data = response.data;
+      const result = Array.isArray(data) ? data : [];
+      console.log('📦 contasAPagarService.getFornecedores: Retornando', result.length, 'fornecedores');
+      return result;
+    } catch (error: any) {
+      console.error('❌ contasAPagarService.getFornecedores: Erro ao buscar fornecedores:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        error
+      });
+      if (isConnectionError(error)) {
+        console.warn('⚠️ Backend não está disponível. Retornando array vazio para fornecedores.');
+      }
+      return [];
+    }
   },
 
   // Buscar todas as empresas
   async getEmpresas(): Promise<any[]> {
-    const response = await api.get('/api/units');
-    console.log('🔍 DEBUG: Resposta da API /api/units:', response.data);
-    const data = response.data;
-    return Array.isArray(data) ? data : [];
+    // Buscar diretamente da tabela de empresas para obter a sigla correta
+    const response = await api.get('/api/companies');
+    console.log('🔍 DEBUG: Resposta da API /api/companies:', response.data);
+    const data = Array.isArray(response.data) ? response.data : (response.data?.content ?? []);
+    // Normalizar para sempre conter id, name e sigla
+    return data.map((c: any) => ({ id: c.id, name: c.name, sigla: c.sigla }));
   },
 
   // Criar fornecedor

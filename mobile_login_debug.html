@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 Mobile Login Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #1f2937;
+            color: white;
+            font-size: 16px;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        .section {
+            background: #374151;
+            margin: 15px 0;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #10b981;
+        }
+        .error {
+            border-left-color: #ef4444;
+            background: #7f1d1d;
+        }
+        .success {
+            border-left-color: #10b981;
+            background: #064e3b;
+        }
+        .warning {
+            border-left-color: #f59e0b;
+            background: #78350f;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 6px;
+            margin: 10px 0;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            max-width: 400px;
+            touch-action: manipulation;
+        }
+        button:hover, button:active {
+            background: #2563eb;
+        }
+        input {
+            width: 100%;
+            max-width: 400px;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #6b7280;
+            border-radius: 6px;
+            background: #374151;
+            color: white;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            border-color: #3b82f6;
+            outline: none;
+        }
+        .log {
+            background: #111827;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .credentials-display {
+            background: #111827;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        .toggle-password {
+            background: #6b7280;
+            padding: 10px 15px;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .hex-display {
+            color: #fbbf24;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Mobile Login Debug</h1>
+        <p>Ferramenta específica para diagnosticar problemas de credenciais no mobile</p>
+
+        <!-- Teste de Credenciais -->
+        <div class="section">
+            <h3>🔑 Teste de Credenciais</h3>
+            <input type="text" id="username" placeholder="Usuário" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <input type="password" id="password" placeholder="Senha" autocomplete="current-password" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <button class="toggle-password" onclick="togglePasswordVisibility()">👁️ Mostrar/Ocultar Senha</button>
+            <button onclick="analyzeCredentials()">🔍 Analisar Credenciais</button>
+            <button onclick="testLogin()">🚀 Testar Login</button>
+            <div id="credentialsResult"></div>
+        </div>
+
+        <!-- Análise de Caracteres -->
+        <div class="section">
+            <h3>📝 Análise de Caracteres</h3>
+            <div id="characterAnalysis"></div>
+        </div>
+
+        <!-- Comparação de Requests -->
+        <div class="section">
+            <h3>📡 Comparação de Requests</h3>
+            <button onclick="captureRequest()">📋 Capturar Request</button>
+            <div id="requestComparison"></div>
+        </div>
+
+        <!-- Headers Debug -->
+        <div class="section">
+            <h3>🌐 Headers Debug</h3>
+            <div id="headersDebug"></div>
+        </div>
+
+        <!-- Console Logs -->
+        <div class="section">
+            <h3>📋 Logs Detalhados</h3>
+            <button onclick="clearLogs()">🗑️ Limpar Logs</button>
+            <div id="consoleLogs" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let logs = [];
+        let lastRequest = null;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            logs.push(logEntry);
+            
+            const logDiv = document.getElementById('consoleLogs');
+            logDiv.textContent = logs.slice(-30).join('\n');
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            console.log(logEntry);
+        }
+
+        function clearLogs() {
+            logs = [];
+            document.getElementById('consoleLogs').textContent = '';
+        }
+
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('password');
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            log(`Password visibility: ${type}`);
+        }
+
+        function stringToHex(str) {
+            return Array.from(str)
+                .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
+                .join(' ');
+        }
+
+        function analyzeCredentials() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('credentialsResult');
+            const analysisDiv = document.getElementById('characterAnalysis');
+            
+            if (!username || !password) {
+                resultDiv.innerHTML = '<div class="warning">⚠️ Preencha usuário e senha</div>';
+                return;
+            }
+
+            // Análise básica
+            const analysis = {
+                username: {
+                    value: username,
+                    length: username.length,
+                    hex: stringToHex(username),
+                    hasSpecialChars: /[^a-zA-Z0-9._-]/.test(username),
+                    hasSpaces: /\s/.test(username)
+                },
+                password: {
+                    value: password,
+                    length: password.length,
+                    hex: stringToHex(password),
+                    hasSpecialChars: /[^a-zA-Z0-9]/.test(password),
+                    hasSpaces: /\s/.test(password),
+                    hasUpperCase: /[A-Z]/.test(password),
+                    hasLowerCase: /[a-z]/.test(password),
+                    hasNumbers: /[0-9]/.test(password),
+                    hasSymbols: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+                }
+            };
+
+            resultDiv.innerHTML = `
+                <div class="credentials-display">
+                    <strong>📊 Análise das Credenciais:</strong><br><br>
+                    <strong>Usuário:</strong><br>
+                    • Valor: "${analysis.username.value}"<br>
+                    • Comprimento: ${analysis.username.length} caracteres<br>
+                    • Caracteres especiais: ${analysis.username.hasSpecialChars ? '⚠️ Sim' : '✅ Não'}<br>
+                    • Espaços: ${analysis.username.hasSpaces ? '⚠️ Sim' : '✅ Não'}<br><br>
+                    
+                    <strong>Senha:</strong><br>
+                    • Comprimento: ${analysis.password.length} caracteres<br>
+                    • Maiúsculas: ${analysis.password.hasUpperCase ? '✅ Sim' : '❌ Não'}<br>
+                    • Minúsculas: ${analysis.password.hasLowerCase ? '✅ Sim' : '❌ Não'}<br>
+                    • Números: ${analysis.password.hasNumbers ? '✅ Sim' : '❌ Não'}<br>
+                    • Símbolos: ${analysis.password.hasSymbols ? '✅ Sim' : '❌ Não'}<br>
+                    • Espaços: ${analysis.password.hasSpaces ? '⚠️ Sim' : '✅ Não'}
+                </div>
+            `;
+
+            analysisDiv.innerHTML = `
+                <div class="credentials-display">
+                    <strong>🔍 Análise Hexadecimal:</strong><br><br>
+                    <strong>Usuário (HEX):</strong><br>
+                    <span class="hex-display">${analysis.username.hex}</span><br><br>
+                    <strong>Senha (HEX):</strong><br>
+                    <span class="hex-display">${analysis.password.hex}</span>
+                </div>
+            `;
+
+            log(`Credenciais analisadas - User: ${username.length} chars, Pass: ${password.length} chars`);
+        }
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('credentialsResult');
+            
+            if (!username || !password) {
+                resultDiv.innerHTML = '<div class="warning">⚠️ Preencha usuário e senha</div>';
+                return;
+            }
+
+            const apiUrl = 'https://ci.z7botsolutions.com.br/api';
+            
+            log(`Iniciando teste de login para: ${username}`);
+            
+            // Preparar dados da requisição
+            const requestData = {
+                username: username,
+                password: password
+            };
+
+            const requestOptions = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'User-Agent': navigator.userAgent,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(requestData)
+            };
+
+            // Salvar request para comparação
+            lastRequest = {
+                url: `${apiUrl}/auth/login`,
+                options: requestOptions,
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                log('Enviando requisição de login...');
+                log(`URL: ${apiUrl}/auth/login`);
+                log(`Headers: ${JSON.stringify(requestOptions.headers, null, 2)}`);
+                log(`Body: ${requestOptions.body}`);
+
+                const response = await fetch(`${apiUrl}/auth/login`, requestOptions);
+                
+                log(`Response Status: ${response.status} ${response.statusText}`);
+                log(`Response Headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}`);
+
+                const responseText = await response.text();
+                log(`Response Body: ${responseText}`);
+
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    data = { error: 'Invalid JSON response', body: responseText };
+                }
+
+                if (response.ok && data.token) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Login Bem-sucedido!<br>
+                            Token: ${data.token ? 'Recebido' : 'Não recebido'}<br>
+                            User: ${data.user?.username || 'N/A'}<br>
+                            Roles: ${data.user?.roles?.join(', ') || 'N/A'}
+                        </div>
+                    `;
+                    log('Login: SUCESSO');
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            ❌ Login Falhou<br>
+                            Status: ${response.status}<br>
+                            Erro: ${data.message || data.error || 'Credenciais inválidas'}<br>
+                            Detalhes: ${JSON.stringify(data, null, 2)}
+                        </div>
+                    `;
+                    log(`Login: FALHA - ${data.message || data.error || 'Credenciais inválidas'}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Erro de Rede<br>
+                        Erro: ${error.message}<br>
+                        Tipo: ${error.name}
+                    </div>
+                `;
+                log(`Login: ERRO DE REDE - ${error.message}`, 'error');
+            }
+        }
+
+        function captureRequest() {
+            const resultDiv = document.getElementById('requestComparison');
+            
+            if (!lastRequest) {
+                resultDiv.innerHTML = '<div class="warning">⚠️ Execute um teste de login primeiro</div>';
+                return;
+            }
+
+            resultDiv.innerHTML = `
+                <div class="credentials-display">
+                    <strong>📡 Última Requisição Capturada:</strong><br><br>
+                    <strong>URL:</strong> ${lastRequest.url}<br>
+                    <strong>Timestamp:</strong> ${lastRequest.timestamp}<br><br>
+                    <strong>Headers:</strong><br>
+                    ${JSON.stringify(lastRequest.options.headers, null, 2)}<br><br>
+                    <strong>Body:</strong><br>
+                    ${lastRequest.options.body}<br><br>
+                    <strong>Method:</strong> ${lastRequest.options.method}
+                </div>
+            `;
+
+            log('Request capturada para análise');
+        }
+
+        function loadHeadersDebug() {
+            const headersDiv = document.getElementById('headersDebug');
+            
+            const headers = {
+                'User-Agent': navigator.userAgent,
+                'Accept-Language': navigator.language,
+                'Platform': navigator.platform,
+                'Cookie Enabled': navigator.cookieEnabled,
+                'Online': navigator.onLine,
+                'Connection': navigator.connection ? navigator.connection.effectiveType : 'Unknown',
+                'Screen': `${screen.width}x${screen.height}`,
+                'Viewport': `${window.innerWidth}x${window.innerHeight}`,
+                'Pixel Ratio': window.devicePixelRatio,
+                'Touch Support': 'ontouchstart' in window,
+                'Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+                'Charset': document.characterSet
+            };
+
+            headersDiv.innerHTML = `
+                <div class="credentials-display">
+                    <strong>🌐 Informações do Navegador:</strong><br><br>
+                    ${Object.entries(headers)
+                        .map(([key, value]) => `<strong>${key}:</strong> ${value}`)
+                        .join('<br>')}
+                </div>
+            `;
+        }
+
+        // Capturar erros globais
+        window.addEventListener('error', (e) => {
+            log(`ERROR: ${e.message} at ${e.filename}:${e.lineno}:${e.colno}`, 'error');
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            log(`UNHANDLED REJECTION: ${e.reason}`, 'error');
+        });
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Mobile Login Debug Tool carregado');
+            loadHeadersDebug();
+        });
+    </script>
+</body>
+</html>

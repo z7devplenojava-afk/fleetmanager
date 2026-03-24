@@ -5,15 +5,17 @@ interface StandardLayoutProps {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
+  actions?: React.ReactNode;
 }
 
-export const StandardLayout: React.FC<StandardLayoutProps> = ({ 
-  children, 
+export const StandardLayout: React.FC<StandardLayoutProps> = ({
+  children,
   title,
-  subtitle 
+  subtitle,
+  actions
 }) => {
   return (
-    <MainLayout title={title} subtitle={subtitle}>
+    <MainLayout title={title} subtitle={subtitle} actions={actions}>
       {children}
     </MainLayout>
   );

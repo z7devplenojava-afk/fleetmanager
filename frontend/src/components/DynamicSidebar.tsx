@@ -43,7 +43,16 @@ import {
   Target,
   Package,
   ShoppingCart,
-  CheckCircle
+  CheckCircle,
+  ClipboardCheck,
+  FolderTree,
+  Files,
+  GraduationCap,
+  Fuel,
+  Wrench,
+  DoorOpen,
+  Ticket,
+  Armchair
 } from 'lucide-react';
 import {
   Sidebar,
@@ -58,7 +67,9 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
-import { hasPermission } from '@/utils/permissions';
+import { getApiUrl } from '@/config/environment';
+import { hasPermission as checkPermission } from '@/utils/permissions';
+import { UserRole } from '@/types/user';
 
 interface MenuItem {
   icon: React.ComponentType<unknown>;
@@ -70,9 +81,161 @@ interface MenuItem {
   color?: string;
 }
 
+const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
+  COLABORADOR: new Set([
+    'dashboard',
+    'holerites',
+    'meus-holerites',
+    'mensagens',
+    'chat-interno',
+    'ticketing-booking',
+  ]),
+  MOTORISTA: new Set([
+    'dashboard',
+    'holerites',
+    'meus-holerites',
+    'mensagens',
+    'chat-interno',
+    'rh-escalas',
+    'rh-controle-horas',
+  ]),
+  MECANICO: new Set([
+    'dashboard',
+    'holerites',
+    'meus-holerites',
+    'mensagens',
+    'chat-interno',
+    'mechanic-dashboard',
+    'frota-os',
+    'gestao-portaria',
+    'mobilizacao-transportes',
+  ]),
+  PORTARIA: new Set([
+    'dashboard',
+    'holerites',
+    'meus-holerites',
+    'mensagens',
+    'chat-interno',
+    'gestao-portaria',
+    'mobilizacao-transportes',
+  ]),
+  ADMIN: new Set([
+    'dashboard',
+    'operacional',
+    'clientes',
+    'funcionarios',
+    'postos',
+    'rh-funcoes',
+    'rh-controle-horas',
+    'rh-cargos',
+    'rh-gestao-documentos',
+    'modulo-financeiro',
+    'holerites',
+    'documentos-unificados',
+    'payrolls',
+    'rh-sst',
+    'frota',
+    'manutencao',
+    'manutencao-v2',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    'mobilizacao-transportes',
+    'filiais',
+    'relatorios',
+    'usuarios',
+    'grupos',
+    'sistema',
+    'configuracoes',
+    'mensagens',
+    'chat-interno',
+    'compras',
+    'operacional-servicos',
+    'supervisao',
+    'ticketing-booking',
+    'ticketing-templates',
+    'ticketing-trips',
+  ]),
+  SUPERVISOR: new Set([
+    'dashboard',
+    'operacional',
+    'funcionarios',
+    'postos',
+    'rh-controle-horas',
+    'modulo-financeiro',
+    'holerites',
+    'rh-sst',
+    'frota',
+    'manutencao',
+    'manutencao-v2',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    'mobilizacao-transportes',
+    'relatorios',
+    'mensagens',
+    'chat-interno',
+    'supervisao',
+    'ticketing-booking',
+    'ticketing-templates',
+    'ticketing-trips',
+  ]),
+  GESTOR: new Set([
+    'dashboard',
+    'operacional',
+    'funcionarios',
+    'postos',
+    'rh-controle-horas',
+    'modulo-financeiro',
+    'holerites',
+    'frota',
+    'manutencao',
+    'manutencao-v2',
+    'frota-os',
+    'pneus',
+    'gestao-portaria',
+    'mobilizacao-transportes',
+    'relatorios',
+    'supervisao',
+    'ticketing-booking',
+    'ticketing-templates',
+    'ticketing-trips',
+  ]),
+  OPERACIONAL: new Set([
+    'dashboard',
+    'operacional',
+    'postos',
+    'frota',
+    'manutencao',
+    'manutencao-v2',
+    'frota-os',
+    'gestao-portaria',
+    'mobilizacao-transportes',
+    'supervisao',
+  ]),
+  FINANCEIRO: new Set([
+    'dashboard',
+    'modulo-financeiro',
+    'gestao-financeira-dashboard',
+    'gestao-financeira-contas-pagar',
+    'gestao-financeira-contas-receber',
+    'gestao-financeira-fluxo-caixa',
+    'gestao-financeira-movimentacoes',
+    'gestao-financeira-conciliacao',
+    'gestao-financeira-relatorios',
+    'holerites',
+    'abastecimento',
+    'mobilizacao-transportes',
+  ]),
+};
+
 export function DynamicSidebar() {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, empresa } = useAuth();
   const { forceScrollToTop } = useScrollPreservation();
 
   console.log('🔍 DynamicSidebar - Iniciando componente');
@@ -142,6 +305,13 @@ export function DynamicSidebar() {
       text: 'Funções',
       to: '/rh/funcoes',
       id: 'rh-funcoes',
+      requiredPermission: 'EMPLOYEES_READ'
+    },
+    {
+      icon: Clock,
+      text: 'Controle de Horas',
+      to: '/rh/controle-horas',
+      id: 'rh-controle-horas',
       requiredPermission: 'EMPLOYEES_READ'
     },
     {
@@ -284,6 +454,35 @@ export function DynamicSidebar() {
       id: 'holerites',
       requiredPermission: 'PAYSLIPS_READ'
     },
+    {
+      icon: Receipt,
+      text: 'Meus Holerites',
+      to: '/meus-holerites',
+      id: 'meus-holerites',
+      requiredPermission: 'PAYSLIPS_READ',
+      role: 'COLABORADOR'
+    },
+    {
+      icon: Files,
+      text: 'Documentos Unificados',
+      to: '/documentos-unificados',
+      id: 'documentos-unificados',
+      requiredPermission: 'PAYSLIPS_READ'
+    },
+    {
+      icon: FolderTree,
+      text: 'Unificados por Setor',
+      to: '/unificados-por-setor',
+      id: 'unificados-por-setor',
+      requiredPermission: 'PAYSLIPS_READ'
+    },
+    {
+      icon: FileSpreadsheet,
+      text: 'Folha de Pagamento',
+      to: '/payrolls',
+      id: 'payrolls',
+      requiredPermission: 'PAYSLIPS_READ'
+    },
 
     // ===== MÓDULO SST - SAÚDE E SEGURANÇA DO TRABALHO =====
     {
@@ -321,13 +520,13 @@ export function DynamicSidebar() {
       id: 'rh-sst-treinamentos',
       requiredPermission: 'EMPLOYEES_READ'
     },
-    {
-      icon: FileCheck,
-      text: 'Inspeções',
-      to: '/rh/sst/inspecoes',
-      id: 'rh-sst-inspecoes',
-      requiredPermission: 'EMPLOYEES_READ'
-    },
+    // {
+    //   icon: FileCheck,
+    //   text: 'Inspeções',
+    //   to: '/rh/sst/inspecoes', // TODO: Implementar
+    //   id: 'rh-sst-inspecoes',
+    //   requiredPermission: 'EMPLOYEES_READ'
+    // },
     {
       icon: Users,
       text: 'CIPA',
@@ -350,6 +549,71 @@ export function DynamicSidebar() {
       requiredPermission: 'FINANCIAL_READ'
     },
     {
+      icon: Wrench,
+      text: 'Dashboard Manutenção',
+      to: '/manutencao',
+      id: 'manutencao',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
+    {
+      icon: Activity,
+      text: 'Manutenção V2 (HUD)',
+      to: '/manutencao/v2',
+      id: 'manutencao-v2',
+      requiredPermission: 'EQUIPMENTS_READ',
+      color: 'text-seguranca-yellow'
+    },
+    {
+      icon: Wrench,
+      text: 'Área do Mecânico',
+      to: '/manutencao/mechanic',
+      id: 'mechanic-dashboard',
+      requiredPermission: 'EQUIPMENTS_READ',
+      color: 'text-orange-500'
+    },
+    {
+      icon: ClipboardList,
+      text: 'O.S. de Frota',
+      to: '/frota/ordens-servico',
+      id: 'frota-os',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
+    {
+      icon: Fuel,
+      text: 'Abastecimento',
+      to: '/abastecimento',
+      id: 'abastecimento',
+      requiredPermission: 'FINANCIAL_READ'
+    },
+    {
+      icon: Database,
+      text: 'Gestão de Pneus',
+      to: '/pneus',
+      id: 'pneus',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
+    {
+      icon: DoorOpen,
+      text: 'Gestão de Portaria',
+      to: '/manutencao/portaria',
+      id: 'gestao-portaria',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
+    {
+      icon: ClipboardCheck,
+      text: 'Gestão Checklist por Cliente',
+      to: '/manutencao/checklist-cliente',
+      id: 'gestao-checklist-cliente',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
+    {
+      icon: Truck,
+      text: 'Mobilização de Transportes',
+      to: '/frota/mobilizacao',
+      id: 'mobilizacao-transportes',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
+    {
       icon: Building2,
       text: 'Filiais',
       to: '/filiais',
@@ -362,6 +626,29 @@ export function DynamicSidebar() {
       to: '/relatorios',
       id: 'relatorios',
       requiredPermission: 'REPORTS_READ'
+    },
+    // ===== MÓDULO DE PASSAGENS (TICKETING) =====
+    {
+      icon: Ticket,
+      text: 'Venda de Passagens',
+      to: '/ticketing/booking',
+      id: 'ticketing-booking',
+      requiredPermission: 'DASHBOARD_READ',
+      color: 'text-seguranca-yellow'
+    },
+    {
+      icon: Armchair,
+      text: 'Mapa de Poltronas',
+      to: '/ticketing/admin/templates',
+      id: 'ticketing-templates',
+      requiredPermission: 'ROUTES_WRITE'
+    },
+    {
+      icon: Calendar,
+      text: 'Programar Viagens',
+      to: '/ticketing/admin/trips',
+      id: 'ticketing-trips',
+      requiredPermission: 'ROUTES_WRITE'
     },
 
     {
@@ -398,6 +685,13 @@ export function DynamicSidebar() {
       to: '/configuracoes',
       id: 'configuracoes',
       requiredPermission: 'SYSTEM_CONFIG'
+    },
+    {
+      icon: Mail,
+      text: 'Configurações de E-mail',
+      to: '/admin/email',
+      id: 'configuracoes-email',
+      requiredPermission: 'SYSTEM_CONFIG_MANAGE'
     },
 
     // ===== CENTRAL DE SUPORTE =====
@@ -501,7 +795,7 @@ export function DynamicSidebar() {
 
     // ===== MÓDULO DE COMPRAS =====
     {
-      icon: ShoppingCart,
+      icon: Activity,
       text: 'Gestão de Compras',
       to: '/compras',
       id: 'compras',
@@ -535,18 +829,50 @@ export function DynamicSidebar() {
       id: 'compras-relatorios',
       requiredPermission: 'REPORTS_READ'
     },
+    // ===== PLATAFORMA FLEXBUS (SaaS) =====
+    {
+      icon: Building2,
+      text: 'Gestão de Empresas',
+      to: '/flexbus/empresas',
+      id: 'flexbus-empresas',
+      requiredPermission: 'SYSTEM_CONFIG',
+      role: 'FLEX_ADMIN'
+    },
+    {
+      icon: Users,
+      text: 'Usuários Globais',
+      to: '/flexbus/usuarios',
+      id: 'flexbus-usuarios',
+      requiredPermission: 'USERS_READ',
+      role: 'FLEX_ADMIN'
+    },
+    {
+      icon: Activity,
+      text: 'Métricas da Plataforma',
+      to: '/flexbus/metricas',
+      id: 'flexbus-metricas',
+      requiredPermission: 'REPORTS_READ',
+      role: 'FLEX_ADMIN'
+    }
   ];
 
   // Organizar itens em grupos para melhor navegação
   const getMenuGroups = () => {
-    const filteredItems = getFilteredMenuItems();
+    let filteredItems = getFilteredMenuItems();
+
+    if (user) {
+      const allowedSet = ROLE_ALLOWED_ITEM_IDS[user.role as UserRole];
+      if (allowedSet) {
+        filteredItems = filteredItems.filter((item) => allowedSet.has(item.id));
+      }
+    }
 
     const groups = {
       principal: filteredItems.filter(item =>
         ['dashboard', 'operacional', 'controle-visitas', 'guia-transporte'].includes(item.id)
       ),
       rh: filteredItems.filter(item =>
-        ['rh', 'rh-funcionarios', 'rh-vagas', 'rh-remanejamentos', 'rh-ferias', 'rh-ocorrencias', 'rh-beneficios', 'rh-funcoes', 'rh-cargos', 'postos', 'rh-epis', 'rh-ordens-servico', 'rh-admissao-demissao', 'rh-admissao-funcionarios', 'rh-lgpd', 'rh-relatorios', 'rh-gestao-documentos', 'envio-holerites'].includes(item.id)
+        ['rh', 'rh-funcionarios', 'rh-vagas', 'rh-remanejamentos', 'rh-ferias', 'rh-ocorrencias', 'rh-beneficios', 'rh-funcoes', 'rh-cargos', 'postos', 'rh-epis', 'rh-ordens-servico', 'rh-admissao-demissao', 'rh-admissao-funcionarios', 'rh-relatorios', 'rh-gestao-documentos', 'envio-holerites', 'rh-controle-horas'].includes(item.id)
       ),
       sst: filteredItems.filter(item =>
         ['rh-sst', 'rh-sst-exames', 'rh-sst-epis', 'rh-sst-acidentes', 'rh-sst-treinamentos', 'rh-sst-inspecoes', 'rh-sst-cipa', 'rh-sst-relatorios'].includes(item.id)
@@ -569,11 +895,17 @@ export function DynamicSidebar() {
       estoque: filteredItems.filter(item =>
         ['estoque', 'estoque-simplificado'].includes(item.id)
       ),
+      mechanic: filteredItems.filter(item =>
+        ['mechanic-dashboard'].includes(item.id)
+      ),
       frota: filteredItems.filter(item =>
-        ['frota'].includes(item.id)
+        ['frota', 'manutencao', 'manutencao-v2', 'frota-os', 'abastecimento', 'pneus', 'gestao-portaria', 'gestao-checklist-cliente'].includes(item.id)
+      ),
+      mobilizacao: filteredItems.filter(item =>
+        ['mobilizacao-transportes'].includes(item.id)
       ),
       holerites: filteredItems.filter(item =>
-        ['holerites'].includes(item.id)
+        ['holerites', 'meus-holerites', 'documentos-unificados', 'unificados-por-setor', 'payrolls'].includes(item.id)
       ),
       mensagens: filteredItems.filter(item =>
         ['mensagens', 'chat-interno', 'gestao-mensagens', 'gestao-mensagens-internas', 'gestao-mensagens-internas-enviar', 'gestao-mensagens-internas-notificacoes', 'gestao-mensagens-internas-grupos'].includes(item.id)
@@ -585,7 +917,13 @@ export function DynamicSidebar() {
         ['gestao-atendimento', 'gestao-atendimento-chat', 'gestao-atendimento-historico', 'gestao-atendimento-metricas', 'gestao-atendimento-configuracoes'].includes(item.id)
       ),
       sistema: filteredItems.filter(item =>
-        ['atividades', 'usuarios', 'grupos', 'sistema', 'configuracoes'].includes(item.id)
+        ['atividades', 'usuarios', 'grupos', 'sistema', 'configuracoes', 'configuracoes-email'].includes(item.id)
+      ),
+      plataforma: filteredItems.filter(item =>
+        ['flexbus-empresas', 'flexbus-usuarios', 'flexbus-metricas'].includes(item.id)
+      ),
+      passagens: filteredItems.filter(item =>
+        ['ticketing-booking', 'ticketing-templates', 'ticketing-trips'].includes(item.id)
       )
     };
 
@@ -613,38 +951,46 @@ export function DynamicSidebar() {
       return [];
     }
 
-    // SUPER_ADMIN vê todos os itens
-    if (user.role === 'SUPER_ADMIN' || user.permissions.ALL_PERMISSIONS) {
-      console.log('🔴 SUPER_ADMIN: Mostrando todos os itens do menu');
-      console.log('🔍 Permissões do usuário:', user.permissions);
-      console.log('🔍 Role do usuário:', user.role);
-      console.log('🔍 ALL_PERMISSIONS:', user.permissions.ALL_PERMISSIONS);
-      console.log('🔍 Total de itens no allMenuItems:', allMenuItems.length);
-      console.log('🔍 Primeiros 5 itens:', allMenuItems.slice(0, 5).map(item => item.text));
-
-      // Debug específico para Controle de Visitas
-      const controleVisitasItem = allMenuItems.find(item => item.id === 'controle-visitas');
-      console.log('🔍 Item Controle de Visitas encontrado:', controleVisitasItem);
-
-      // Debug específico para Usuários e Grupos
-      const usuariosItem = allMenuItems.find(item => item.id === 'usuarios');
-      const gruposItem = allMenuItems.find(item => item.id === 'grupos');
-      console.log('🔍 Item Usuários encontrado:', usuariosItem);
-      console.log('🔍 Item Grupos encontrado:', gruposItem);
-
-      // Debug: verificar se os itens estão no array original
-      console.log('🔍 Todos os IDs no allMenuItems:', allMenuItems.map(item => item.id));
-      console.log('🔍 Itens de sistema no allMenuItems:', allMenuItems.filter(item => ['atividades', 'usuarios', 'grupos', 'sistema', 'configuracoes'].includes(item.id)));
-
-      // Debug: verificar se os itens estão sendo retornados corretamente
-      const sistemaItems = allMenuItems.filter(item => ['atividades', 'usuarios', 'grupos', 'sistema', 'configuracoes'].includes(item.id));
-      console.log('🔍 SUPER_ADMIN - Itens de sistema que serão retornados:', sistemaItems.map(item => item.text));
-
+    // FLEX_ADMIN vê tudo + itens de plataforma
+    if (user.role === 'FLEX_ADMIN' || user.role === 'SUPER_ADMIN' || user.permissions.ALL_PERMISSIONS) {
       return allMenuItems;
     }
 
     // Para outros usuários, filtrar por permissões
-    return allMenuItems.filter(item => {
+    const normalizedRole = (user.role ?? '').replace(/^ROLE_/, '') as UserRole;
+    const allowedSet = ROLE_ALLOWED_ITEM_IDS[normalizedRole];
+
+    const filtered = allMenuItems.filter(item => {
+      if (allowedSet && !allowedSet.has(item.id)) {
+        console.log(`⚠️ ${normalizedRole} - removendo item não permitido: ${item.id}`);
+        return false;
+      }
+
+      // Regras extras por função para esconder módulos específicos
+      // Departamento Pessoal e RH NÃO veem módulo Operacional/Supervisão
+      if (['DEPARTAMENTO_PESSOAL', 'RH'].includes(normalizedRole)) {
+        const forbiddenOperationalIds = new Set([
+          'operacional',
+          'controle-visitas',
+          'controle-visitas-avancado',
+          'guia-transporte',
+          'servicos',
+          'rota-semanal-supervisao',
+          'equipamentos',
+          'troca-plantao',
+          'supervisao',
+          'facial-login',
+          'supervisao-visitas',
+          'supervisao-rotas',
+          'supervisao-relatorios',
+          'supervisao-biometria',
+        ]);
+        if (forbiddenOperationalIds.has(item.id)) {
+          console.log(`🚫 ${normalizedRole} - escondendo item operacional: ${item.id}`);
+          return false;
+        }
+      }
+
       // Se tem role específico, verificar se o usuário tem esse role
       if (item.role && item.role !== user.role) {
         console.log(`🔍 Item ${item.text} - Role não confere: ${item.role} !== ${user.role}`);
@@ -653,7 +999,7 @@ export function DynamicSidebar() {
 
       // Se tem permissão específica, verificar se o usuário tem essa permissão
       if (item.requiredPermission) {
-        const hasPermission = hasPermission(user.permissions, item.requiredPermission as unknown);
+        const hasPermission = checkPermission(user.permissions, item.requiredPermission as unknown);
         console.log(`🔍 Item ${item.text} (${item.requiredPermission}): ${hasPermission ? '✅' : '❌'}`);
 
 
@@ -662,6 +1008,8 @@ export function DynamicSidebar() {
 
       return true;
     });
+
+    return filtered;
   };
 
   const menuGroups = getMenuGroups();
@@ -708,7 +1056,25 @@ export function DynamicSidebar() {
   return (
     <Sidebar className="bg-seguranca-graphite border-r border-gray-700">
       <SidebarHeader className="p-4 border-b border-gray-700">
-        <Logo />
+        {empresa?.logoUrl ? (
+          <div className="flex items-center gap-3">
+            <img
+              src={empresa.logoUrl.startsWith('http') ? empresa.logoUrl : `${getApiUrl().replace(/\/api\/?$/, '')}${empresa.logoUrl.startsWith('/') ? '' : '/'}${empresa.logoUrl}`}
+              alt={empresa.nome}
+              className="h-10 w-10 object-contain rounded"
+            />
+            <span className="font-bold text-white truncate">{empresa.nome}</span>
+          </div>
+        ) : empresa?.nome ? (
+          <div className="flex items-center gap-2">
+            <div className="h-10 w-10 rounded bg-primary/20 flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-primary" />
+            </div>
+            <span className="font-bold text-white truncate">{empresa.nome}</span>
+          </div>
+        ) : (
+          <Logo />
+        )}
       </SidebarHeader>
 
       <SidebarContent>
@@ -716,6 +1082,26 @@ export function DynamicSidebar() {
         <div className="p-2 text-xs text-green-400 bg-green-900/20 rounded mb-4">
           DEBUG: Sidebar renderizando - User: {user?.name || 'null'}
         </div>
+
+        {/* --- HARDCODED DEBUG LINK (BYPASSES ALL FILTERS) --- */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-red-500 font-bold">
+            HARDCODED TEST
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild className="bg-red-900/20 text-red-200">
+                  <ScrollPreservingLink to="/manutencao/mechanic" className="flex items-center w-full">
+                    <Wrench size={20} className="text-red-500" />
+                    <span className="ml-3 font-bold">LINK DIRETO (TESTE)</span>
+                  </ScrollPreservingLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        {/* --------------------------------------------------- */}
 
         {/* Menu Principal */}
         {menuGroups.principal.length > 0 && (
@@ -753,39 +1139,6 @@ export function DynamicSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Módulo Financeiro */}
-        {menuGroups.financeiro.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-seguranca-lightgray px-2 py-2">
-              <DollarSign size={16} className="mr-2 text-seguranca-yellow" />
-              Módulo Financeiro
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-1">
-                {menuGroups.financeiro.map((item) => (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={getActiveId() === item.id}
-                      className={`
-                        flex items-center p-3 rounded-lg transition-colors
-                        ${getActiveId() === item.id
-                          ? 'bg-seguranca-black text-seguranca-yellow'
-                          : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-                        }
-                      `}
-                    >
-                      <ScrollPreservingLink to={item.to} className="flex items-center w-full">
-                        <item.icon size={20} className="text-seguranca-yellow flex-shrink-0" />
-                        <span className="ml-3 truncate">{item.text}</span>
-                      </ScrollPreservingLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
 
         {/* Módulo Sistema - FORÇADO para SUPER_ADMIN - MOVIDO PARA CIMA */}
         {console.log('🔍 Tentando renderizar seção Sistema...')}
@@ -1145,12 +1498,114 @@ export function DynamicSidebar() {
         {menuGroups.frota.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-seguranca-lightgray px-2 py-2">
-              <Truck size={16} className="mr-2 text-seguranca-yellow" />
-              Frota
+              <Wrench size={16} className="mr-2 text-seguranca-yellow" />
+              Manutenção & Frota
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-1">
                 {menuGroups.frota.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={getActiveId() === item.id}
+                      className={`
+                        flex items-center p-3 rounded-lg transition-colors
+                        ${getActiveId() === item.id
+                          ? 'bg-seguranca-black text-seguranca-yellow'
+                          : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                        }
+                      `}
+                    >
+                      <ScrollPreservingLink to={item.to} className="flex items-center w-full">
+                        <item.icon size={20} className="text-seguranca-yellow flex-shrink-0" />
+                        <span className="ml-3 truncate">{item.text}</span>
+                      </ScrollPreservingLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Módulo Mobilização */}
+        {menuGroups.mobilizacao.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-seguranca-lightgray px-2 py-2">
+              <Truck size={16} className="mr-2 text-seguranca-yellow" />
+              Mobilização de Transportes
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-1">
+                {menuGroups.mobilizacao.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={getActiveId() === item.id}
+                      className={`
+                        flex items-center p-3 rounded-lg transition-colors
+                        ${getActiveId() === item.id
+                          ? 'bg-seguranca-black text-seguranca-yellow'
+                          : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                        }
+                      `}
+                    >
+                      <ScrollPreservingLink to={item.to} className="flex items-center w-full">
+                        <item.icon size={20} className="text-seguranca-yellow flex-shrink-0" />
+                        <span className="ml-3 truncate">{item.text}</span>
+                      </ScrollPreservingLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Módulo Passagens (Ticketing) */}
+        {menuGroups.passagens.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-seguranca-lightgray px-2 py-2">
+              <Ticket size={16} className="mr-2 text-seguranca-yellow" />
+              Gestão de Passagens
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-1">
+                {menuGroups.passagens.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={getActiveId() === item.id}
+                      className={`
+                        flex items-center p-3 rounded-lg transition-colors
+                        ${getActiveId() === item.id
+                          ? 'bg-seguranca-black text-seguranca-yellow'
+                          : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                        }
+                      `}
+                    >
+                      <ScrollPreservingLink to={item.to} className="flex items-center w-full">
+                        <item.icon size={20} className="text-seguranca-yellow flex-shrink-0" />
+                        <span className="ml-3 truncate">{item.text}</span>
+                      </ScrollPreservingLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Módulo Financeiro */}
+        {menuGroups.financeiro.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-seguranca-lightgray px-2 py-2">
+              <DollarSign size={16} className="mr-2 text-seguranca-yellow" />
+              Módulo Financeiro
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-1">
+                {menuGroups.financeiro.map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                       asChild

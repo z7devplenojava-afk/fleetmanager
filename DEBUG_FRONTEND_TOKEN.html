@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Frontend Token</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #log { background: #f8f9fa; padding: 15px; border: 1px solid #dee2e6; border-radius: 5px; max-height: 400px; overflow-y: auto; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Frontend Token - CI</h1>
+    
+    <div>
+        <button onclick="checkLocalStorage()">📦 Verificar localStorage</button>
+        <button onclick="testLogin()">🔐 Testar Login</button>
+        <button onclick="testApiCall()">🌐 Testar API Call</button>
+        <button onclick="clearStorage()">🧹 Limpar Storage</button>
+        <button onclick="clearLog()">🗑️ Limpar Log</button>
+    </div>
+
+    <div id="results"></div>
+    <div id="log"></div>
+
+    <script>
+        const API_BASE = 'https://ci.z7botsolutions.com.br/api';
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'warning';
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('results').innerHTML = '';
+        }
+
+        function checkLocalStorage() {
+            log('🔍 Verificando localStorage...', 'info');
+            
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            const refreshToken = localStorage.getItem('refreshToken');
+            
+            log(`📦 Token: ${token ? token.substring(0, 50) + '...' : 'NULL'}`, token ? 'success' : 'error');
+            log(`👤 User: ${user ? 'Presente' : 'NULL'}`, user ? 'success' : 'error');
+            log(`🔄 RefreshToken: ${refreshToken ? refreshToken.substring(0, 50) + '...' : 'NULL'}`, refreshToken ? 'success' : 'error');
+            
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    log(`👤 Username: ${userData.username}`, 'success');
+                    log(`🎭 Roles: ${JSON.stringify(userData.roles)}`, 'success');
+                } catch (e) {
+                    log(`❌ Erro ao parsear user: ${e.message}`, 'error');
+                }
+            }
+        }
+
+        async function testLogin() {
+            log('🔐 Testando login...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'jose.ramos',
+                        password: 'Admin1234'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Login OK!', 'success');
+                    log(`📄 Response:`, 'info');
+                    log(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'info');
+                    
+                    // Simular salvamento como o frontend faz
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    if (data.refreshToken) {
+                        localStorage.setItem('refreshToken', data.refreshToken);
+                    }
+                    
+                    log('💾 Token salvo no localStorage', 'success');
+                } else {
+                    log(`❌ Login falhou: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro no login: ${error.message}`, 'error');
+            }
+        }
+
+        async function testApiCall() {
+            log('🌐 Testando chamada API com token...', 'info');
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                log('❌ Nenhum token encontrado! Faça login primeiro.', 'error');
+                return;
+            }
+            
+            log(`🔑 Usando token: ${token.substring(0, 50)}...`, 'info');
+            
+            try {
+                // Testar endpoint que estava dando erro
+                const response = await fetch(`${API_BASE}/payslips`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                log(`📡 Status: ${response.status}`, response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`📄 Holerites encontrados: ${Array.isArray(data) ? data.length : 'N/A'}`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ Erro: ${errorText}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro na API call: ${error.message}`, 'error');
+            }
+        }
+
+        function clearStorage() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('refreshToken');
+            log('🧹 localStorage limpo', 'warning');
+        }
+
+        // Auto-executar verificação ao carregar
+        window.onload = () => {
+            log('🚀 Debug Frontend Token iniciado...', 'info');
+            checkLocalStorage();
+        };
+    </script>
+</body>
+</html>

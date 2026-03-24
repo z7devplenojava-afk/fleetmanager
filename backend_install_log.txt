@@ -1,0 +1,89 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for com.z7design:secured-guard:jar:1.0.0
+[WARNING] 'dependencies.dependency.(groupId:artifactId:type:classifier)' must be unique: org.apache.poi:poi:jar -> version 5.2.4 vs 5.2.3 @ line 168, column 21
+[WARNING] 'dependencies.dependency.(groupId:artifactId:type:classifier)' must be unique: org.apache.poi:poi-ooxml:jar -> version 5.2.4 vs 5.2.3 @ line 173, column 21
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] ---------------------< com.z7design:secured-guard >---------------------
+[INFO] Building secured-guard-backend 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.3.2:clean (default-clean) @ secured-guard ---
+[INFO] Deleting c:\dev\secure-guard\backend\target
+[INFO] 
+[INFO] --- jacoco:0.8.11:prepare-agent (default) @ secured-guard ---
+[INFO] argLine set to "-javaagent:C:\\Users\\José Mário Ramos\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.11\\org.jacoco.agent-0.8.11-runtime.jar=destfile=c:\\dev\\secure-guard\\backend\\target\\jacoco.exec"
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ secured-guard ---
+[INFO] Copying 4 resources from src\main\resources to target\classes
+[INFO] Copying 192 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ secured-guard ---
+[INFO] Changes detected - recompiling the module! :source
+[INFO] Compiling 580 source files with javac [debug release 17] to target\classes
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/VisitSchedule.java:[54,33] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Training.java:[53,41] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/FuelStation.java:[80,31] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Visit.java:[50,25] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Visit.java:[63,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Visit.java:[66,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Visit.java:[69,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Visit.java:[72,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Visit.java:[76,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Visit.java:[79,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/OrderOfService.java:[58,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/EquipmentMovement.java:[62,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Equipment.java:[72,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Document.java:[64,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/dto/CreateEquipmentDTO.java:[53,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/User.java:[89,23] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/User.java:[97,29] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/User.java:[102,24] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/User.java:[105,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/User.java:[114,34] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Unit.java:[81,24] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Unit.java:[85,28] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Unit.java:[89,27] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Unit.java:[93,28] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Unit.java:[114,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Position.java:[61,28] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Position.java:[65,27] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/Position.java:[69,23] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/SystemNotification.java:[43,21] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[INFO] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/MileageRecord.java: Some input files use or override a deprecated API.
+[INFO] /c:/dev/secure-guard/backend/src/main/java/com/z7design/secured_guard/model/MileageRecord.java: Recompile with -Xlint:deprecation for details.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ secured-guard ---
+[INFO] skip non existing resourceDirectory c:\dev\secure-guard\backend\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.11.0:testCompile (default-testCompile) @ secured-guard ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.1.2:test (default-test) @ secured-guard ---
+[INFO] No tests to run.
+[INFO] 
+[INFO] --- jacoco:0.8.11:report (report) @ secured-guard ---
+[INFO] Skipping JaCoCo execution due to missing execution data file.
+[INFO] 
+[INFO] --- jar:3.3.0:jar (default-jar) @ secured-guard ---
+[INFO] Building jar: c:\dev\secure-guard\backend\target\secured-guard-1.0.0.jar
+[INFO] 
+[INFO] --- spring-boot:3.2.2:repackage (repackage) @ secured-guard ---
+[INFO] Replacing main artifact c:\dev\secure-guard\backend\target\secured-guard-1.0.0.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] The original artifact has been renamed to c:\dev\secure-guard\backend\target\secured-guard-1.0.0.jar.original
+[INFO] 
+[INFO] --- install:3.1.1:install (default-install) @ secured-guard ---
+[INFO] Installing c:\dev\secure-guard\backend\pom.xml to C:\Users\José Mário Ramos\.m2\repository\com\z7design\secured-guard\1.0.0\secured-guard-1.0.0.pom
+[INFO] Installing c:\dev\secure-guard\backend\target\secured-guard-1.0.0.jar to C:\Users\José Mário Ramos\.m2\repository\com\z7design\secured-guard\1.0.0\secured-guard-1.0.0.jar
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  27.321 s
+[INFO] Finished at: 2025-08-26T10:20:10-03:00
+[INFO] ------------------------------------------------------------------------

@@ -1,22 +1,36 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Eye, 
-  FileText, 
-  Calculator, 
-  Building2, 
-  Calendar, 
+import { useToast } from '@/hooks/use-toast';
+import {
+  Eye,
+  FileText,
+  Calculator,
+  Building2,
+  Calendar,
   DollarSign,
   CheckCircle,
   AlertCircle,
   Clock,
   User,
-  FileCheck
+  FileCheck,
+  Download,
+  Loader2
 } from 'lucide-react';
-import { MeasurementBulletin } from '@/types/measurement';
+import { MeasurementBulletin, MeasurementCategory } from '@/types/measurement';
+import { measurementService } from '@/services/measurementService';
+
+const CATEGORY_LABELS: Record<string, string> = {
+  [MeasurementCategory.LEASE]: '1. Locação em Regime Global',
+  [MeasurementCategory.EXCESS_KM]: '2. Quilometragem Excedente',
+  [MeasurementCategory.FUEL]: '3. Combustíveis Adicionais',
+  [MeasurementCategory.DRIVER_COST]: '4. Custo Operacional de Motorista',
+  [MeasurementCategory.EXTRA_TRIP]: '5. Viagens Extras',
+  [MeasurementCategory.RETENTION]: 'Retenção de Garantia (5%)',
+  [MeasurementCategory.OTHER]: 'Outros'
+};
 
 interface MeasurementViewModalProps {
   open: boolean;
@@ -29,6 +43,54 @@ export const MeasurementViewModal: React.FC<MeasurementViewModalProps> = ({
   onOpenChange,
   bulletin
 }) => {
+  const { toast } = useToast();
+  const [generatingReport, setGeneratingReport] = useState(false);
+
+  // Função para gerar relatório PDF
+  const handleGenerateReport = async () => {
+    try {
+      setGeneratingReport(true);
+      console.log(`📄 Gerando relatório para boletim: ${bulletin.id}`);
+
+      const blob = await measurementService.generateBulletinPDF(bulletin.id);
+      if (!blob || blob.size === 0) {
+        throw new Error('Relatório gerado está vazio');
+      }
+
+      console.log('✅ Relatório recebido, tamanho:', blob.size, 'bytes');
+
+      // Criar URL para download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `boletim_medicao_${bulletin.contractNumber || bulletin.id}.pdf`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Limpar URL após download
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+
+      toast({
+        title: "Sucesso",
+        description: `Relatório gerado com sucesso! (${Math.round(blob.size / 1024)} KB)`,
+      });
+
+    } catch (error) {
+      console.error('❌ Erro ao gerar relatório:', error);
+      toast({
+        title: "Erro",
+        description: `Erro ao gerar relatório: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   // Obter propriedades do status
   const getStatusProps = (status: string) => {
     switch (status) {
@@ -195,12 +257,22 @@ export const MeasurementViewModal: React.FC<MeasurementViewModalProps> = ({
                     <div>Preço Unit.</div>
                     <div>Total</div>
                   </div>
-                  
+
                   {bulletin.items.map((item, index) => (
                     <div key={index} className="grid grid-cols-7 gap-2 items-center p-3 bg-seguranca-graphite rounded border border-gray-600">
                       <div className="text-seguranca-lightgray font-medium">{item.itemNumber}</div>
                       <div className="text-seguranca-lightgray font-mono text-sm">{item.code}</div>
-                      <div className="col-span-2 text-seguranca-lightgray">{item.description}</div>
+                      <div className="col-span-2 text-seguranca-lightgray">
+                        <div className="font-medium">{item.description}</div>
+                        <div className="text-[10px] text-gray-500 italic">
+                          {CATEGORY_LABELS[item.category || MeasurementCategory.OTHER] || item.category}
+                        </div>
+                        {item.category === MeasurementCategory.EXCESS_KM && (
+                          <div className="text-[10px] text-blue-400 mt-0.5">
+                            KM: {item.initialKm} → {item.finalKm} (Franq: {item.franchiseKm})
+                          </div>
+                        )}
+                      </div>
                       <div className="text-seguranca-lightgray">{item.unit}</div>
                       <div className="text-seguranca-lightgray">{item.quantity}</div>
                       <div className="text-seguranca-lightgray">{formatCurrency(item.unitPrice)}</div>
@@ -238,7 +310,7 @@ export const MeasurementViewModal: React.FC<MeasurementViewModalProps> = ({
                     </p>
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="text-sm text-gray-400">Detalhes do Cálculo</label>
                   <p className="text-seguranca-lightgray mt-1 whitespace-pre-wrap">
@@ -259,7 +331,27 @@ export const MeasurementViewModal: React.FC<MeasurementViewModalProps> = ({
           )}
 
           {/* Botões de ação */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-600">
+          <div className="flex justify-between items-center pt-4 border-t border-gray-600">
+            <div className="flex gap-3">
+              <Button
+                onClick={handleGenerateReport}
+                disabled={generatingReport}
+                className="bg-seguranca-yellow hover:bg-yellow-600 text-black font-medium"
+              >
+                {generatingReport ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Gerar Relatório PDF
+                  </>
+                )}
+              </Button>
+            </div>
+
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}

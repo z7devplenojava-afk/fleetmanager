@@ -1,0 +1,351 @@
+Initialized native services in: C:\Users\José Mário Ramos\.gradle\native
+Initialized jansi services in: C:\Users\José Mário Ramos\.gradle\native
+Received JVM installation metadata from 'C:\java\Amazon-Corretto\jdk17.0.16_8': {JAVA_HOME=C:\java\Amazon-Corretto\jdk17.0.16_8, JAVA_VERSION=17.0.16, JAVA_VENDOR=Amazon.com Inc., RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=17.0.16+8-LTS, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=17.0.16+8-LTS, VM_VENDOR=Amazon.com Inc., OS_ARCH=amd64}
+Found daemon DaemonInfo{pid=35868, address=[da1dfbce-dca5-4213-8549-58cbb066b034 port:58263, addresses:[/127.0.0.1]], state=Idle, lastBusy=1770313355551, context=DefaultDaemonContext[uid=ccb45960-d39a-4a70-b346-fade063bccab,javaHome=C:\Users\José Mário Ramos\.antigravity\extensions\redhat.java-1.52.0-win32-x64\jre\21.0.9-win32-x86_64,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=35868,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=UTF-8,-Duser.country=BR,-Duser.language=pt,-Duser.variant]} however its context does not match the desired criteria.
+Java home is different.
+Wanted: DefaultDaemonContext[uid=null,javaHome=C:\java\Amazon-Corretto\jdk17.0.16_8,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=29364,idleTimeout=null,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=windows-1252,-Duser.country=BR,-Duser.language=pt,-Duser.variant]
+Actual: DefaultDaemonContext[uid=ccb45960-d39a-4a70-b346-fade063bccab,javaHome=C:\Users\José Mário Ramos\.antigravity\extensions\redhat.java-1.52.0-win32-x64\jre\21.0.9-win32-x86_64,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=35868,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=UTF-8,-Duser.country=BR,-Duser.language=pt,-Duser.variant]
+
+  Looking for a different daemon...
+Found daemon DaemonInfo{pid=32572, address=[ce03fa3d-7f09-404d-80fd-ea9d76b01320 port:50090, addresses:[/127.0.0.1]], state=Idle, lastBusy=1770313387311, context=DefaultDaemonContext[uid=a7078944-9119-4c68-bf22-06ce38b7b14f,javaHome=C:\Users\José Mário Ramos\.antigravity\extensions\redhat.java-1.52.0-win32-x64\jre\21.0.9-win32-x86_64,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=32572,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Dfile.encoding=UTF-8,-Duser.country=BR,-Duser.language=pt,-Duser.variant]} however its context does not match the desired criteria.
+Java home is different.
+Wanted: DefaultDaemonContext[uid=null,javaHome=C:\java\Amazon-Corretto\jdk17.0.16_8,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=29364,idleTimeout=null,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=windows-1252,-Duser.country=BR,-Duser.language=pt,-Duser.variant]
+Actual: DefaultDaemonContext[uid=a7078944-9119-4c68-bf22-06ce38b7b14f,javaHome=C:\Users\José Mário Ramos\.antigravity\extensions\redhat.java-1.52.0-win32-x64\jre\21.0.9-win32-x86_64,daemonRegistryDir=C:\Users\José Mário Ramos\.gradle\daemon,pid=32572,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Dfile.encoding=UTF-8,-Duser.country=BR,-Duser.language=pt,-Duser.variant]
+
+  Looking for a different daemon...
+The client will now receive all logging from the daemon (pid: 21192). The daemon log file: C:\Users\José Mário Ramos\.gradle\daemon\8.5\daemon-21192.out.log
+Starting 8th build in daemon [uptime: 2 hrs 30 mins 12.131 secs, performance: 99%, GC rate: 0.00/s, heap usage: 0% of 512 MiB, non-heap usage: 20% of 384 MiB]
+Using 16 worker leases.
+Now considering [C:\dev\fleetmanager\backend] as hierarchies to watch
+Watching the file system is configured to be enabled if available
+File system watching is active
+Starting Build
+Settings evaluated using settings file 'C:\dev\fleetmanager\backend\settings.gradle'.
+Projects loaded. Root project using build file 'C:\dev\fleetmanager\backend\build.gradle'.
+Included projects: [root project 'fleet-manager-backend']
+
+> Configure project :
+Evaluating root project 'fleet-manager-backend' using build file 'C:\dev\fleetmanager\backend\build.gradle'.
+Applying dependency management to configuration 'annotationProcessor' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'apiElements' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'archives' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'bootArchives' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'compileClasspath' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'compileOnly' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'default' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'developmentOnly' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'implementation' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'mainSourceElements' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'productionRuntimeClasspath' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'runtimeClasspath' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'runtimeElements' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'runtimeOnly' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testAndDevelopmentOnly' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testAnnotationProcessor' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testCompileClasspath' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testCompileOnly' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testImplementation' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testResultsElementsForTest' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testRuntimeClasspath' in project 'fleet-manager-backend'
+Applying dependency management to configuration 'testRuntimeOnly' in project 'fleet-manager-backend'
+All projects evaluated.
+Task name matched 'test'
+Selected primary task 'test' from project :
+Tasks to be executed: [task ':compileJava', task ':processResources', task ':classes', task ':compileTestJava', task ':processTestResources', task ':testClasses', task ':test']
+Tasks that were excluded: []
+Resolve mutations for :compileJava (Thread[Execution worker,5,main]) started.
+:compileJava (Thread[Execution worker Thread 2,5,main]) started.
+
+> Task :compileJava
+Resolving global dependency management for project 'fleet-manager-backend'
+Excluding []
+Excluding []
+Caching disabled for task ':compileJava' because:
+  Build cache is disabled
+Skipping task ':compileJava' as it is up-to-date.
+
+> Task :compileJava UP-TO-DATE
+Resolve mutations for :processResources (Thread[Execution worker Thread 2,5,main]) started.
+:processResources (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :processResources UP-TO-DATE
+Caching disabled for task ':processResources' because:
+  Build cache is disabled
+Skipping task ':processResources' as it is up-to-date.
+Resolve mutations for :classes (Thread[Execution worker Thread 7,5,main]) started.
+:classes (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :classes UP-TO-DATE
+Skipping task ':classes' as it has no actions.
+Resolve mutations for :compileTestJava (Thread[Execution worker Thread 7,5,main]) started.
+:compileTestJava (Thread[Execution worker Thread 14,5,main]) started.
+
+> Task :compileTestJava
+Excluding []
+Excluding []
+Caching disabled for task ':compileTestJava' because:
+  Build cache is disabled
+Task ':compileTestJava' is not up-to-date because:
+  Task has failed previously.
+The input changes require a full rebuild for incremental task ':compileTestJava'.
+Full recompilation is required because no incremental change information is available. This is usually caused by clean builds or changing compiler arguments.
+Compiling with toolchain 'C:\java\Amazon-Corretto\jdk17.0.16_8'.
+Compiling with JDK Java compiler API.
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\integration\DocumentProcessingPipelineIntegrationTest.java:3: error: package com.z7design.secured_guard.model does not exist
+import com.z7design.secured_guard.model.DocumentProcessingJob;
+                                       ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\integration\DocumentProcessingPipelineIntegrationTest.java:4: error: package com.z7design.secured_guard.repository does not exist
+import com.z7design.secured_guard.repository.DocumentProcessingJobRepository;
+                                            ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\integration\DocumentProcessingPipelineIntegrationTest.java:5: error: cannot find symbol
+import com.z7design.secured_guard.service.DocumentProcessingService;
+                                         ^
+  symbol:   class DocumentProcessingService
+  location: package com.z7design.secured_guard.service
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\integration\DocumentProcessingPipelineIntegrationTest.java:75: error: cannot find symbol
+    private DocumentProcessingService processingService;
+            ^
+  symbol:   class DocumentProcessingService
+  location: class DocumentProcessingPipelineIntegrationTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\integration\DocumentProcessingPipelineIntegrationTest.java:78: error: cannot find symbol
+    private DocumentProcessingJobRepository jobRepository;
+            ^
+  symbol:   class DocumentProcessingJobRepository
+  location: class DocumentProcessingPipelineIntegrationTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\BaileysRestServiceTest.java:15: error: package com.z7design.secured_guard.config does not exist
+import com.z7design.secured_guard.config.WhatsAppTestConfig;
+                                        ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\BaileysRestServiceTest.java:35: error: cannot find symbol
+    private BaileysRestService baileysRestService;
+            ^
+  symbol:   class BaileysRestService
+  location: class BaileysRestServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\BaileysRestServiceTest.java:36: error: cannot find symbol
+    private WhatsAppTestConfig whatsAppTestConfig;
+            ^
+  symbol:   class WhatsAppTestConfig
+  location: class BaileysRestServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\DocumentProcessingServiceTest.java:3: error: package com.z7design.secured_guard.model does not exist
+import com.z7design.secured_guard.model.DocumentProcessingJob;
+                                       ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\DocumentProcessingServiceTest.java:4: error: package com.z7design.secured_guard.repository does not exist
+import com.z7design.secured_guard.repository.DocumentProcessingJobRepository;
+                                            ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\DocumentProcessingServiceTest.java:27: error: cannot find symbol
+    private DocumentProcessingJobRepository jobRepository;
+            ^
+  symbol:   class DocumentProcessingJobRepository
+  location: class DocumentProcessingServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\DocumentProcessingServiceTest.java:37: error: package com.z7design.secured_guard.repository does not exist
+    private com.z7design.secured_guard.repository.UnifiedDocumentRepository unifiedDocumentRepository;
+                                                 ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\DocumentProcessingServiceTest.java:40: error: cannot find symbol
+    private com.z7design.secured_guard.worker.IndexerWorker indexerWorker;
+                                             ^
+  symbol:   class IndexerWorker
+  location: package com.z7design.secured_guard.worker
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\DocumentProcessingServiceTest.java:43: error: cannot find symbol
+    private DocumentProcessingService processingService;
+            ^
+  symbol:   class DocumentProcessingService
+  location: class DocumentProcessingServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:3: error: package com.z7design.secured_guard.dto does not exist
+import com.z7design.secured_guard.dto.EnvioRequest;
+                                     ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:4: error: package com.z7design.secured_guard.dto does not exist
+import com.z7design.secured_guard.dto.EnvioResponse;
+                                     ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:27: error: cannot find symbol
+    private EmployeeRepository employeeRepository;
+            ^
+  symbol:   class EmployeeRepository
+  location: class EnvioServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:30: error: cannot find symbol
+    private UserRepository userRepository;
+            ^
+  symbol:   class UserRepository
+  location: class EnvioServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:33: error: cannot find symbol
+    private EmailService emailService;
+            ^
+  symbol:   class EmailService
+  location: class EnvioServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:36: error: cannot find symbol
+    private WhatsAppService whatsAppService;
+            ^
+  symbol:   class WhatsAppService
+  location: class EnvioServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:39: error: cannot find symbol
+    private PayslipRepository payslipRepository;
+            ^
+  symbol:   class PayslipRepository
+  location: class EnvioServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:42: error: cannot find symbol
+    private PayslipDeliveryLogRepository deliveryLogRepository;
+            ^
+  symbol:   class PayslipDeliveryLogRepository
+  location: class EnvioServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:45: error: cannot find symbol
+    private PayslipService payslipService;
+            ^
+  symbol:   class PayslipService
+  location: class EnvioServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:47: error: cannot find symbol
+    private EnvioService envioService;
+            ^
+  symbol:   class EnvioService
+  location: class EnvioServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:5: error: package com.z7design.secured_guard.model does not exist
+import com.z7design.secured_guard.model.*;
+^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java:6: error: package com.z7design.secured_guard.repository does not exist
+import com.z7design.secured_guard.repository.*;
+^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\GeminiOcrServiceTest.java:3: error: package com.z7design.secured_guard.dto does not exist
+import com.z7design.secured_guard.dto.GeminiOcrResponse;
+                                     ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\GeminiOcrServiceTest.java:23: error: cannot find symbol
+    private GeminiOcrService geminiOcrService;
+            ^
+  symbol:   class GeminiOcrService
+  location: class GeminiOcrServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\MinIOServiceTest.java:13: error: cannot find symbol
+    private MinIOService minIOService;
+            ^
+  symbol:   class MinIOService
+  location: class MinIOServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\RoleFunctionalityServiceTest.java:14: error: cannot find symbol
+    private RoleFunctionalityService service;
+            ^
+  symbol:   class RoleFunctionalityService
+  location: class RoleFunctionalityServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\TwoFactorServiceTest.java:3: error: package com.z7design.secured_guard.model does not exist
+import com.z7design.secured_guard.model.TwoFactorCode;
+                                       ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\TwoFactorServiceTest.java:4: error: package com.z7design.secured_guard.model does not exist
+import com.z7design.secured_guard.model.User;
+                                       ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\TwoFactorServiceTest.java:5: error: package com.z7design.secured_guard.repository does not exist
+import com.z7design.secured_guard.repository.TwoFactorCodeRepository;
+                                            ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\TwoFactorServiceTest.java:26: error: cannot find symbol
+    private TwoFactorCodeRepository twoFactorCodeRepository;
+            ^
+  symbol:   class TwoFactorCodeRepository
+  location: class TwoFactorServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\TwoFactorServiceTest.java:29: error: cannot find symbol
+    private TwoFactorService twoFactorService;
+            ^
+  symbol:   class TwoFactorService
+  location: class TwoFactorServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\service\TwoFactorServiceTest.java:31: error: cannot find symbol
+    private User testUser;
+            ^
+  symbol:   class User
+  location: class TwoFactorServiceTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\MatcherWorkerTest.java:3: error: package com.z7design.secured_guard.model does not exist
+import com.z7design.secured_guard.model.DocumentPage;
+                                       ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\MatcherWorkerTest.java:4: error: package com.z7design.secured_guard.repository does not exist
+import com.z7design.secured_guard.repository.DocumentPageRepository;
+                                            ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\MatcherWorkerTest.java:27: error: cannot find symbol
+    private DocumentPageRepository documentPageRepository;
+            ^
+  symbol:   class DocumentPageRepository
+  location: class MatcherWorkerTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\MatcherWorkerTest.java:30: error: cannot find symbol
+    private MatcherWorker matcherWorker;
+            ^
+  symbol:   class MatcherWorker
+  location: class MatcherWorkerTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\MatcherWorkerTest.java:32: error: cannot find symbol
+    private DocumentPage holerite;
+            ^
+  symbol:   class DocumentPage
+  location: class MatcherWorkerTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\MatcherWorkerTest.java:33: error: cannot find symbol
+    private DocumentPage comprovante;
+            ^
+  symbol:   class DocumentPage
+  location: class MatcherWorkerTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\OcrWorkerTest.java:3: error: package com.z7design.secured_guard.dto does not exist
+import com.z7design.secured_guard.dto.GeminiOcrResponse;
+                                     ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\OcrWorkerTest.java:4: error: package com.z7design.secured_guard.repository does not exist
+import com.z7design.secured_guard.repository.DocumentPageRepository;
+                                            ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\OcrWorkerTest.java:5: error: cannot find symbol
+import com.z7design.secured_guard.service.GeminiOcrService;
+                                         ^
+  symbol:   class GeminiOcrService
+  location: package com.z7design.secured_guard.service
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\OcrWorkerTest.java:6: error: cannot find symbol
+import com.z7design.secured_guard.service.MinIOService;
+                                         ^
+  symbol:   class MinIOService
+  location: package com.z7design.secured_guard.service
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\OcrWorkerTest.java:24: error: cannot find symbol
+    private DocumentPageRepository documentPageRepository;
+            ^
+  symbol:   class DocumentPageRepository
+  location: class OcrWorkerTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\OcrWorkerTest.java:27: error: cannot find symbol
+    private GeminiOcrService geminiOcrService;
+            ^
+  symbol:   class GeminiOcrService
+  location: class OcrWorkerTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\OcrWorkerTest.java:30: error: cannot find symbol
+    private MinIOService minIOService;
+            ^
+  symbol:   class MinIOService
+  location: class OcrWorkerTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\OcrWorkerTest.java:33: error: cannot find symbol
+    private OcrWorker ocrWorker;
+            ^
+  symbol:   class OcrWorker
+  location: class OcrWorkerTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\OcrWorkerTest.java:35: error: cannot find symbol
+    private GeminiOcrResponse testOcrResponse;
+            ^
+  symbol:   class GeminiOcrResponse
+  location: class OcrWorkerTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\SplitterWorkerTest.java:3: error: package com.z7design.secured_guard.repository does not exist
+import com.z7design.secured_guard.repository.DocumentProcessingJobRepository;
+                                            ^
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\SplitterWorkerTest.java:4: error: cannot find symbol
+import com.z7design.secured_guard.service.MinIOService;
+                                         ^
+  symbol:   class MinIOService
+  location: package com.z7design.secured_guard.service
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\SplitterWorkerTest.java:21: error: cannot find symbol
+    private DocumentProcessingJobRepository jobRepository;
+            ^
+  symbol:   class DocumentProcessingJobRepository
+  location: class SplitterWorkerTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\SplitterWorkerTest.java:24: error: cannot find symbol
+    private MinIOService minIOService;
+            ^
+  symbol:   class MinIOService
+  location: class SplitterWorkerTest
+C:\dev\fleetmanager\backend\src\test\java\com\z7design\secured_guard\worker\SplitterWorkerTest.java:27: error: cannot find symbol
+    private SplitterWorker splitterWorker;
+            ^
+  symbol:   class SplitterWorker
+  location: class SplitterWorkerTest
+56 errors
+
+> Task :compileTestJava FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileTestJava'.
+> Compilation failed; see the compiler error output for details.
+
+* Try:
+> Run with --scan to get full insights.
+
+BUILD FAILED in 15s
+3 actionable tasks: 1 executed, 2 up-to-date
+Watched directory hierarchies: [C:\dev\fleetmanager\backend]

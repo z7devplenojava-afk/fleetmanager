@@ -34,8 +34,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import axios from 'axios';
-import { config } from '../../../env.config';
+import api from '@/lib/axios';
 
 interface CentroCusto {
   id: string;
@@ -105,7 +104,7 @@ const CentroCustosTab: React.FC = () => {
       setLoading(true);
       
       // Carregar centros de custo da API
-      const response = await axios.get(`${config.API_URL}/api/cost-centers`);
+      const response = await api.get('/cost-centers');
       setCentrosCusto(response.data);
 
     } catch (error) {
@@ -135,7 +134,7 @@ const CentroCustosTab: React.FC = () => {
           status: formData.status
         };
         
-        await axios.put(`${config.API_URL}/api/cost-centers/${editingCentro.id}`, updateData);
+        await api.put(`/cost-centers/${editingCentro.id}`, updateData);
         toast({
           title: "Sucesso",
           description: "Centro de custo atualizado com sucesso!",
@@ -152,7 +151,7 @@ const CentroCustosTab: React.FC = () => {
           status: formData.status
         };
         
-        await axios.post(`${config.API_URL}/api/cost-centers`, createData);
+        await api.post('/cost-centers', createData);
         toast({
           title: "Sucesso",
           description: "Centro de custo criado com sucesso!",
@@ -197,7 +196,7 @@ const CentroCustosTab: React.FC = () => {
 
   const handleExcluirCentro = async (id: string) => {
     try {
-      await axios.delete(`${config.API_URL}/api/cost-centers/${id}`);
+      await api.delete(`/cost-centers/${id}`);
       toast({
         title: "Sucesso",
         description: "Centro de custo excluído com sucesso!",
@@ -210,6 +209,43 @@ const CentroCustosTab: React.FC = () => {
       toast({
         title: "Erro",
         description: "Erro ao excluir centro de custo",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Função para gerar código automaticamente
+  const handleGenerateCode = async () => {
+    try {
+      // Simular geração de código baseado nos existentes
+      const existingCodes = centrosCusto.map(c => c.code).filter(code => code.startsWith('CC'));
+      let nextNumber = 1;
+      
+      if (existingCodes.length > 0) {
+        const numbers = existingCodes
+          .map(code => {
+            const match = code.match(/CC(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+          })
+          .filter(num => num > 0);
+        
+        if (numbers.length > 0) {
+          nextNumber = Math.max(...numbers) + 1;
+        }
+      }
+      
+      const newCode = `CC${nextNumber.toString().padStart(3, '0')}`;
+      setFormData(prev => ({ ...prev, code: newCode }));
+      
+      toast({
+        title: "Código gerado",
+        description: `Código ${newCode} gerado automaticamente`,
+      });
+    } catch (error) {
+      console.error('Erro ao gerar código:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar código automaticamente",
         variant: "destructive",
       });
     }
@@ -518,13 +554,25 @@ const CentroCustosTab: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-seguranca-lightgray">Código *</label>
-                <Input
-                  value={formData.code}
-                  onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
-                  placeholder="Ex: CC001"
-                  className="border-gray-600 bg-seguranca-black text-white focus:border-seguranca-yellow focus:ring-seguranca-yellow"
-                  required
-                />
+                <div className="flex gap-2">
+                  <Input
+                    value={formData.code}
+                    onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+                    placeholder="Ex: CC001"
+                    className="border-gray-600 bg-seguranca-black text-white focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerateCode}
+                    className="border-gray-600 text-seguranca-lightgray hover:bg-gray-700 hover:text-white whitespace-nowrap"
+                    title="Gerar código automaticamente"
+                  >
+                    <RefreshCw size={16} />
+                  </Button>
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-seguranca-lightgray">Nome *</label>

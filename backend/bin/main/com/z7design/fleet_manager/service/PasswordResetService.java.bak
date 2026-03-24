@@ -1,0 +1,164 @@
+package com.z7design.secured_guard.service;
+
+import com.z7design.secured_guard.model.PasswordResetToken;
+import com.z7design.secured_guard.model.User;
+import com.z7design.secured_guard.repository.PasswordResetTokenRepository;
+import com.z7design.secured_guard.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class PasswordResetService {
+
+    private final PasswordResetTokenRepository tokenRepository;
+    private final UserRepository userRepository;
+    private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
+    /**
+     * Cria um token de recuperação e envia email
+     */
+    @Transactional
+    public boolean createPasswordResetToken(String email) {
+        try {
+            log.info("🔐 Iniciando processo de recuperação de senha para email: {}", email);
+
+            // Buscar usuário por email
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("Usuário não encontrado com email: " + email));
+
+            log.info("✅ Usuário encontrado: {} (ID: {})", user.getUsername(), user.getId());
+
+            // Deletar tokens anteriores do usuário
+            tokenRepository.deleteByUserId(user.getId());
+            log.info("🗑️ Tokens anteriores deletados");
+
+            // Criar novo token
+            String token = UUID.randomUUID().toString();
+            PasswordResetToken resetToken = PasswordResetToken.builder()
+                    .token(token)
+                    .user(user)
+                    .expiryDate(LocalDateTime.now().plusHours(1)) // Expira em 1 hora
+                    .used(false)
+                    .build();
+
+            tokenRepository.save(resetToken);
+            log.info("💾 Token criado e salvo: {}", token);
+
+            // Criar URL de reset
+            String resetUrl = String.format("%s/reset-password?token=%s", frontendUrl, token);
+            log.info("🔗 URL de reset gerada: {}", resetUrl);
+
+            // Enviar email
+            boolean emailSent = emailService.sendPasswordResetEmail(
+                    user.getEmail(),
+                    user.getName(),
+                    token,
+                    resetUrl
+            );
+
+            if (emailSent) {
+                log.info("✅ Email de recuperação enviado com sucesso para: {}", email);
+                return true;
+            } else {
+                log.error("❌ Falha ao enviar email de recuperação");
+                return false;
+            }
+
+        } catch (Exception e) {
+            log.error("💥 Erro ao criar token de recuperação de senha: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * Valida token e redefine senha
+     */
+    @Transactional
+    public boolean resetPassword(String token, String newPassword) {
+        try {
+            log.info("🔐 Iniciando redefinição de senha com token: {}", token);
+
+            // Buscar token
+            PasswordResetToken resetToken = tokenRepository.findByToken(token)
+                    .orElseThrow(() -> new RuntimeException("Token inválido ou expirado"));
+
+            // Validar token
+            if (resetToken.isUsed()) {
+                log.error("❌ Token já foi utilizado");
+                throw new RuntimeException("Token já foi utilizado");
+            }
+
+            if (resetToken.isExpired()) {
+                log.error("❌ Token expirado");
+                throw new RuntimeException("Token expirado");
+            }
+
+            // Atualizar senha do usuário
+            User user = resetToken.getUser();
+            user.setPassword(passwordEncoder.encode(newPassword));
+            userRepository.save(user);
+            log.info("✅ Senha atualizada para usuário: {}", user.getUsername());
+
+            // Marcar token como usado
+            resetToken.setUsed(true);
+            tokenRepository.save(resetToken);
+            log.info("✅ Token marcado como usado");
+
+            return true;
+
+        } catch (Exception e) {
+            log.error("💥 Erro ao redefinir senha: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * Valida se o token é válido (sem redefinir a senha)
+     */
+    public boolean validateToken(String token) {
+        try {
+            PasswordResetToken resetToken = tokenRepository.findByToken(token)
+                    .orElse(null);
+
+            if (resetToken == null) {
+                return false;
+            }
+
+            return !resetToken.isUsed() && !resetToken.isExpired();
+
+        } catch (Exception e) {
+            log.error("💥 Erro ao validar token: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * Limpa tokens expirados automaticamente (executa diariamente)
+     */
+    @Scheduled(cron = "0 0 2 * * ?") // Executa às 2h da manhã todos os dias
+    @Transactional
+    public void cleanupExpiredTokens() {
+        try {
+            log.info("🧹 Iniciando limpeza de tokens expirados");
+            tokenRepository.deleteByExpiryDateBefore(LocalDateTime.now());
+            log.info("✅ Limpeza de tokens expirados concluída");
+        } catch (Exception e) {
+            log.error("💥 Erro ao limpar tokens expirados: {}", e.getMessage(), e);
+        }
+    }
+}
+

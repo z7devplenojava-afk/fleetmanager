@@ -1,0 +1,310 @@
+version: '3.8'
+
+# ========================================
+# SECURED-GUARD PRODUCTION ENVIRONMENT
+# Ambiente de Produção
+# ========================================
+
+services:
+  # ========================================
+  # DATABASE (PRODUCTION ENVIRONMENT)
+  # ========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: secured-guard-postgres-prod
+    environment:
+      POSTGRES_DB: secured_guard_prod
+      POSTGRES_USER: postgressg
+      POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d/migration:ro
+      - /opt/secured-guard/backups:/backups:ro
+    networks:
+      - secured-guard-prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgressg"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2'
+        reservations:
+          memory: 512M
+          cpus: '1'
+
+  # ========================================
+  # REDIS CACHE (PRRODUCTION ENVIRONMENT)
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: secured-guard-redis-prod
+    ports:
+      - "6382:6379"
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - secured-guard-prod
+    command: redis-server --appendonly yes --requirepass redis_prod_secured_guard_2024
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_prod_secured_guard_2024", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+
+  # ========================================
+  # BACKEND API (PRODUCTION ENVIRONMENT)
+  # ========================================
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-backend-prod
+    environment:
+      ENVIRONMENT: prod
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8080
+      
+      # Database Configuration
+      POSTGRES_DB: secured_guard_prod
+      POSTGRES_USER: postgressg
+      POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/secured_guard_prod
+      SPRING_DATASOURCE_USERNAME: postgressg
+      SPRING_DATASOURCE_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      
+      # Redis Configuration
+      REDIS_HOST: redis-prod
+      REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: redis_prod_secured_guard_2024
+      SPRING_FLYWAY_ENABLED: true
+      SPRING_FLYWAY_OUT_OF_ORDER: true
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: false
+      
+      # JWT Configuration
+      JWT_SECRET: ci_jwt_secret_please_change_32chars_min
+      JWT_EXPIRATION and: 604800000
+      
+      # Email Configuration
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: noreply@securedguard.prod
+      MAIL_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      MAIL_FROM: noreply@securedguard.prod
+      
+      # PRODUCTION Specific
+      PROD_SHOW_SQL: false
+      PROD_FORMAT_SQL: false
+      PROD_HIBERNATE_DDL_AUTO: validate
+      LOG_LEVEL_ROOT: WARN
+      LOG_LEVEL_APP: INFO
+      
+      # Performance
+      JAVA_OPTS: "-Xmx2g -Xms1g -Dfile.encoding=UTF-8 -XX:+UseG1GC"
+      
+    ports:
+      - "8083:8080"
+    volumes:
+      - backend_logs_prod:/app/logs
+      - backend_uploads_prod:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - secured-guard-prod
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 1G
+          cpus: '1'
+
+  # ========================================
+  # FRONTEND (PRODUCTION ENVIRONMENT)
+  # ========================================
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-frontend-prod
+    environment:
+      ENVIRONMENT: prod
+      VITE_API_URL: https://seu-dominio.com/api
+      VITE_WS_URL: wss://seu-dominio.com/ws
+      NODE_ENV: production
+      
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - secured-guard-prod
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+
+  # ========================================
+  # NGINX PROXY (PRODUCTION ENVIRONMENT)
+  # ========================================
+  nginx:
+    image: nginx:alpine
+    container_name: secured-guard-nginx-prod
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx/nginx-prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - secured-guard-prod
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+
+  # ========================================
+  # MONITORAMENTO - PROMETHEUS
+  # ========================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: secured-guard-prometheus-prod
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data_prod:/pres
+    networks:
+      - secured-guard-prod
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+
+  # ========================================
+  # MONITORAMENTO - GRAFANA
+  # ========================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: secured-guard-grafana-prod
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data_prod:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning:ro
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_SERVER_DOMAIN: seu-dominio.com
+    depends_on:
+      - prometheus
+    networks:
+      - secured-guard-prod
+    restart: unless-stopped
+
+# ========================================
+# VOLUMES
+# ========================================
+volumes:
+  postgres_data_prod:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/secured-guard/data/prod/postgres
+      o: bind
+      
+  redis_data_prod:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/secured-guard/data/prod/redis
+      o: bind
+      
+  backend_logs_prod:
+    driver: local
+    driver_opts:
+      type: none
+      device: /var/log/secured-guard/prod
+      o: bind
+      
+  backend_uploads_prod:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/secured-guard/uploads/prod
+      o: bind
+      
+  prometheus_data_prod:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/secured-guard/data/prod/prometheus
+      o: bind
+      
+  grafana_data_prod:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/secured-guard/data/prod/grafana
+      o: bind
+
+# ========================================
+# NETWORKS
+# ========================================
+networks:
+  secured-guard-prod:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16
+          gateway: 172.29.0.1

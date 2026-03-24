@@ -1,0 +1,134 @@
+{
+  "exemplos": {
+    "1_cadastrar_funcionario": {
+      "endpoint": "POST /api/employees",
+      "json": {
+        "name": "João da Silva Santos",
+        "email": "joao.silva@empresa.com",
+        "phone": "(31) 99999-8888",
+        "address": "Rua das Flores, 123, Centro, Belo Horizonte - MG",
+        "birthDate": "1990-05-15",
+        "maritalStatus": "SINGLE",
+        "nationality": "Brasileiro",
+        "registrationNumber": "EMP001",
+        "hireDate": "2024-01-15",
+        "status": "ACTIVE",
+        "document": "EMP001"
+      }
+    },
+    "2_listar_tipos_documentos": {
+      "endpoint": "GET /api/documents/types",
+      "descricao": "Retorna todos os tipos de documentos disponíveis"
+    },
+    "3_cadastrar_documento_cpf": {
+      "endpoint": "POST /api/documents",
+      "json": {
+        "type": "CPF",
+        "number": "12345678900",
+        "issueDate": "1990-05-15T00:00:00",
+        "expirationDate": null,
+        "fileUrl": "https://exemplo.com/uploads/cpf_joao.pdf",
+        "description": "CPF do funcionário João da Silva",
+        "employee": {
+          "id": "UUID_DO_FUNCIONARIO_CADASTRADO"
+        }
+      }
+    },
+    "4_cadastrar_documento_rg": {
+      "endpoint": "POST /api/documents",
+      "json": {
+        "type": "RG",
+        "number": "MG-12.345.678",
+        "issueDate": "2010-01-10T00:00:00",
+        "expirationDate": null,
+        "fileUrl": "https://exemplo.com/uploads/rg_joao.pdf",
+        "description": "RG do funcionário João da Silva",
+        "employee": {
+          "id": "UUID_DO_FUNCIONARIO_CADASTRADO"
+        }
+      }
+    },
+    "5_cadastrar_documento_cnh": {
+      "endpoint": "POST /api/documents",
+      "json": {
+        "type": "CNH",
+        "number": "12345678901",
+        "issueDate": "2020-01-15T00:00:00",
+        "expirationDate": "2030-01-15T00:00:00",
+        "fileUrl": "https://exemplo.com/uploads/cnh_joao.pdf",
+        "description": "Carteira Nacional de Habilitação - Categoria B",
+        "employee": {
+          "id": "UUID_DO_FUNCIONARIO_CADASTRADO"
+        }
+      }
+    },
+    "6_cadastrar_documento_ctps": {
+      "endpoint": "POST /api/documents",
+      "json": {
+        "type": "CTPS",
+        "number": "123456789",
+        "issueDate": "2024-01-15T00:00:00",
+        "expirationDate": null,
+        "fileUrl": "https://exemplo.com/uploads/ctps_joao.pdf",
+        "description": "Carteira de Trabalho e Previdência Social",
+        "employee": {
+          "id": "UUID_DO_FUNCIONARIO_CADASTRADO"
+        }
+      }
+    },
+    "7_cadastrar_documento_pis": {
+      "endpoint": "POST /api/documents",
+      "json": {
+        "type": "PIS_PASEP",
+        "number": "123.45678.90-1",
+        "issueDate": "2024-01-15T00:00:00",
+        "expirationDate": null,
+        "fileUrl": "https://exemplo.com/uploads/pis_joao.pdf",
+        "description": "PIS/PASEP do funcionário",
+        "employee": {
+          "id": "UUID_DO_FUNCIONARIO_CADASTRADO"
+        }
+      }
+    },
+    "8_listar_documentos_funcionario": {
+      "endpoint": "GET /api/documents/employee/{employeeId}",
+      "descricao": "Lista todos os documentos de um funcionário específico"
+    },
+    "9_buscar_documentos_por_tipo": {
+      "endpoint": "GET /api/documents/type/{tipo}",
+      "exemplos": [
+        "GET /api/documents/type/CPF",
+        "GET /api/documents/type/CNH",
+        "GET /api/documents/type/CTPS"
+      ],
+      "descricao": "Busca documentos de um tipo específico"
+    },
+    "10_fluxo_completo": {
+      "passo1": "Cadastrar funcionário (sem CPF/RG)",
+      "passo2": "Obter UUID do funcionário",
+      "passo3": "Cadastrar CPF como documento",
+      "passo4": "Cadastrar RG como documento",
+      "passo5": "Listar documentos do funcionário",
+      "descricao": "Fluxo completo de cadastro com documentos"
+    }
+  },
+  "tipos_disponiveis": [
+    "CPF",
+    "RG", 
+    "TITULO_ELEITOR",
+    "CERTIDAO_NASCIMENTO",
+    "CERTIDAO_CASAMENTO",
+    "CTPS",
+    "PIS_PASEP",
+    "CARTEIRA_PROFISSIONAL",
+    "CNH",
+    "CERTIFICACAO_PROFISSIONAL",
+    "DIPLOMA",
+    "ASO",
+    "EXAME_MEDICO",
+    "CRLV",
+    "IPVA",
+    "SEGURO",
+    "OUTROS"
+  ]
+} 

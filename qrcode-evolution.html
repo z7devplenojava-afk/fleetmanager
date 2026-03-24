@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code - Evolution API</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .status {
+            padding: 12px 24px;
+            border-radius: 30px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        
+        .status.loading {
+            background: #ffeaa7;
+            color: #fdcb6e;
+        }
+        
+        .status.ready {
+            background: #55efc4;
+            color: #00b894;
+        }
+        
+        .status.error {
+            background: #ff7675;
+            color: #d63031;
+        }
+        
+        .status.connected {
+            background: #74b9ff;
+            color: #0984e3;
+        }
+        
+        #qrcode {
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            display: inline-block;
+            min-height: 300px;
+            min-width: 300px;
+        }
+        
+        #qrcode img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+        }
+        
+        .instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        
+        .instructions h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+            color: #666;
+            line-height: 1.8;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #1976d2;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 50px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Conectar WhatsApp</h1>
+        <p class="subtitle">Evolution API v2 - Secured Guard</p>
+        
+        <div id="status" class="status loading">⏳ Carregando...</div>
+        
+        <div id="qrcode">
+            <div class="spinner"></div>
+        </div>
+        
+        <button class="btn" onclick="loadQRCode()">🔄 Atualizar QR Code</button>
+        
+        <div class="instructions">
+            <h3>📱 Como conectar:</h3>
+            <ol>
+                <li>Abra o WhatsApp no seu celular</li>
+                <li>Toque em <strong>Mais opções</strong> ou <strong>Configurações</strong></li>
+                <li>Toque em <strong>Dispositivos conectados</strong></li>
+                <li>Toque em <strong>Conectar dispositivo</strong></li>
+                <li>Aponte seu celular para escanear o QR Code acima</li>
+            </ol>
+        </div>
+        
+        <div class="info">
+            <strong>📌 Instância:</strong> secured-guard-whatsapp<br>
+            <strong>🔗 API URL:</strong> http://localhost:9000
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:9000';
+        const API_KEY = 'etd2t8kdu5isqdrxh3euhcx0ceflhm92';
+        const INSTANCE_NAME = 'secured-guard-whatsapp';
+        
+        let checkInterval;
+        
+        async function loadQRCode() {
+            try {
+                updateStatus('loading', '⏳ Gerando QR Code...');
+                
+                // Conectar e obter QR Code
+                const response = await fetch(`${API_URL}/instance/connect/${INSTANCE_NAME}`, {
+                    headers: {
+                        'apikey': API_KEY
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.base64) {
+                    // Mostrar QR Code
+                    document.getElementById('qrcode').innerHTML = 
+                        `<img src="${data.base64}" alt="QR Code" />`;
+                    updateStatus('ready', '✅ QR Code pronto! Escaneie agora');
+                    
+                    // Iniciar verificação de conexão
+                    startConnectionCheck();
+                } else if (data.instance?.state === 'open') {
+                    document.getElementById('qrcode').innerHTML = 
+                        `<div style="font-size: 48px; padding: 50px;">✅</div>
+                         <p style="color: #00b894; font-size: 18px; font-weight: bold;">Já conectado!</p>`;
+                    updateStatus('connected', '✅ WhatsApp Conectado!');
+                } else {
+                    document.getElementById('qrcode').innerHTML = 
+                        `<p style="color: #666; padding: 50px;">Aguarde alguns segundos e tente novamente...</p>`;
+                    updateStatus('loading', '⏳ Preparando conexão...');
+                    
+                    // Tentar novamente após 3 segundos
+                    setTimeout(loadQRCode, 3000);
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                document.getElementById('qrcode').innerHTML = 
+                    `<p style="color: #d63031; padding: 50px;">❌ Erro ao carregar QR Code</p>
+                     <p style="color: #666; font-size: 14px;">Verifique se a API está rodando</p>`;
+                updateStatus('error', '❌ Erro na conexão');
+            }
+        }
+        
+        async function checkConnection() {
+            try {
+                const response = await fetch(`${API_URL}/instance/connectionState/${INSTANCE_NAME}`, {
+                    headers: {
+                        'apikey': API_KEY
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.instance?.state === 'open') {
+                    clearInterval(checkInterval);
+                    document.getElementById('qrcode').innerHTML = 
+                        `<div style="font-size: 64px; padding: 50px;">🎉</div>
+                         <p style="color: #00b894; font-size: 20px; font-weight: bold;">WhatsApp Conectado!</p>
+                         <p style="color: #666; margin-top: 10px;">Você já pode usar a API</p>`;
+                    updateStatus('connected', '✅ Conectado com sucesso!');
+                }
+            } catch (error) {
+                console.error('Erro ao verificar conexão:', error);
+            }
+        }
+        
+        function startConnectionCheck() {
+            if (checkInterval) clearInterval(checkInterval);
+            checkInterval = setInterval(checkConnection, 3000);
+        }
+        
+        function updateStatus(type, message) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+        }
+        
+        // Carregar QR Code ao abrir a página
+        loadQRCode();
+    </script>
+</body>
+</html>
+

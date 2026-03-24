@@ -3,7 +3,8 @@ export type EPIStatus = 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'EXPIRED';
 export type EPIAssignmentStatus = 'ASSIGNED' | 'RETURNED' | 'LOST' | 'DAMAGED';
 
 export interface EPI {
-  id: number;
+  id: number; // ID convertido para compatibilidade
+  uuid?: string; // UUID original do backend
   name: string;
   description?: string;
   type: EPIType;

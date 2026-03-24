@@ -1,0 +1,78 @@
+/* Padrão SST - Mobile First Tabs */
+
+/* Esconder scrollbar mas manter funcionalidade */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
+/* Indicador visual de scroll no mobile */
+@media (max-width: 768px) {
+  .scrollbar-hide::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    background: linear-gradient(
+      to left,
+      rgba(15, 23, 42, 0.9),
+      transparent
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+}
+
+/* Smooth scroll behavior */
+.scrollbar-hide {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Padrão SST: Tap Targets mínimos de 48x48px */
+@media (max-width: 768px) {
+  .modern-tab {
+    min-width: 85px !important;
+    min-height: 85px !important;
+    touch-action: manipulation;
+  }
+}
+
+/* Garantir que tabs no mobile sejam acessíveis */
+@media (max-width: 768px) {
+  .modern-tab:first-child {
+    margin-left: 4px;
+  }
+  
+  .modern-tab:last-child {
+    margin-right: 4px;
+  }
+}
+
+/* Feedback visual aprimorado para touch */
+.modern-tab:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease;
+}
+
+/* Indicador de tab ativa no mobile */
+@media (max-width: 768px) {
+  .modern-tab[data-state='active']::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #ef4444, transparent);
+    border-radius: 2px 2px 0 0;
+  }
+}
+

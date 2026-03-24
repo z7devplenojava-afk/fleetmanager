@@ -21,7 +21,9 @@ import {
   Clock,
   AlertCircle,
   X,
-  Bug
+  Bug,
+  FileDown,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -146,6 +148,52 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
     loadBulletins();
   }, [filters, searchTerm]);
 
+  // Função helper para determinar se uma medição é simplificada
+  const isSimplifiedMeasurement = (bulletin: MeasurementBulletin): boolean => {
+    // Priorizar notas explícitas
+    const hasSimplifiedNote = bulletin.notes?.toLowerCase().includes('simplificada') || 
+                             bulletin.notes?.toLowerCase().includes('rápida');
+    if (hasSimplifiedNote) return true;
+    
+    // Se tiver nota de completa, não é simplificada
+    const hasCompleteNote = bulletin.notes?.toLowerCase().includes('completa') || 
+                          bulletin.notes?.toLowerCase().includes('detalhada');
+    if (hasCompleteNote) return false;
+    
+    // Medição simplificada: item único OU valor baixo
+    const hasSingleItem = bulletin.items && bulletin.items.length === 1;
+    const totalValue = bulletin.items?.reduce((sum, item) => {
+      const itemValue = item.totalValue || ((item.quantity || 0) * (item.unitPrice || 0));
+      return sum + itemValue;
+    }, 0) || 0;
+    const hasLowValue = totalValue <= 10000;
+    
+    // Se não tem itens ou itens não carregados, considerar como simplificada se não for completa
+    if (!bulletin.items || bulletin.items.length === 0) {
+      return !hasCompleteNote;
+    }
+    
+    // Retornar true se tiver 1 item OU valor baixo
+    return hasSingleItem || hasLowValue;
+  };
+
+  // Filtrar apenas medições simplificadas
+  const filteredBulletins = safeBulletins.filter(bulletin => {
+    const isSimplified = isSimplifiedMeasurement(bulletin);
+    if (isSimplified) {
+      console.log('✅ Medição simplificada encontrada:', {
+        id: bulletin.id,
+        contractNumber: bulletin.contractNumber,
+        itemsCount: bulletin.items?.length || 0,
+        notes: bulletin.notes,
+        subtotal: bulletin.subtotal
+      });
+    }
+    return isSimplified;
+  });
+  
+  console.log(`📊 Total de boletins: ${safeBulletins.length}, Simplificados: ${filteredBulletins.length}`);
+
   const handleRefresh = async () => {
     try {
       await loadBulletins();
@@ -172,7 +220,7 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
   // Funções para seleção múltipla
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allIds = new Set(safeBulletins.map(bulletin => bulletin.id));
+      const allIds = new Set(filteredBulletins.map(bulletin => bulletin.id));
       setSelectedBulletins(allIds);
       setIsAllSelected(true);
     } else {
@@ -191,12 +239,86 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
     setSelectedBulletins(newSelected);
     
     // Verificar se todos estão selecionados
-    setIsAllSelected(newSelected.size === safeBulletins.length && safeBulletins.length > 0);
+    setIsAllSelected(newSelected.size === filteredBulletins.length && filteredBulletins.length > 0);
   };
 
   const handleBulkDelete = () => {
     if (selectedBulletins.size === 0) return;
     setShowBulkDeleteDialog(true);
+  };
+
+  // Funções de exportação
+  const handleExportPDF = async (bulletin: MeasurementBulletin) => {
+    try {
+      console.log(`📄 Iniciando geração de PDF para boletim: ${bulletin.id}`);
+      
+      const blob = await measurementService.generateBulletinPDF(bulletin.id);
+      
+      // Verificar se o blob é válido
+      if (!blob || blob.size === 0) {
+        throw new Error('PDF gerado está vazio');
+      }
+      
+      console.log('✅ PDF recebido, tamanho:', blob.size, 'bytes');
+      console.log('📄 Tipo do blob:', blob.type);
+      
+      // Criar URL do blob
+      const url = window.URL.createObjectURL(blob);
+      
+      // Criar link de download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `boletim_medicao_${bulletin.id}.pdf`;
+      link.style.display = 'none';
+      
+      // Adicionar ao DOM, clicar e remover
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Limpar URL do blob
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+      
+      toast({
+        title: "Sucesso",
+        description: `PDF gerado com sucesso! (${Math.round(blob.size / 1024)} KB)`,
+      });
+    } catch (error) {
+      console.error('❌ Erro ao gerar PDF:', error);
+      toast({
+        title: "Erro",
+        description: `Erro ao gerar PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportExcel = async (bulletin: MeasurementBulletin) => {
+    try {
+      const blob = await measurementService.generateBulletinExcel(bulletin.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `boletim_medicao_${bulletin.id}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Sucesso",
+        description: "Excel gerado com sucesso!",
+      });
+    } catch (error) {
+      console.error('Erro ao gerar Excel:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar Excel. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   const confirmBulkDelete = async () => {
@@ -241,7 +363,7 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
     );
   }
 
-  if (safeBulletins.length === 0 && !loading) {
+  if (filteredBulletins.length === 0 && !loading) {
     return (
       <Card className="bg-seguranca-graphite border-gray-700">
         <CardContent className="p-6">
@@ -266,11 +388,11 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
     );
   }
 
-  // Calcular estatísticas
-  const totalBulletins = safeBulletins.length;
-  const pendingBulletins = safeBulletins.filter(b => b.status === 'PENDING').length;
-  const validatedBulletins = safeBulletins.filter(b => b.status === 'VALIDATED').length;
-  const totalValue = safeBulletins.reduce((sum, b) => {
+  // Calcular estatísticas apenas para medições simplificadas
+  const totalBulletins = filteredBulletins.length;
+  const pendingBulletins = filteredBulletins.filter(b => b.status === 'PENDING').length;
+  const validatedBulletins = filteredBulletins.filter(b => b.status === 'VALIDATED').length;
+  const totalValue = filteredBulletins.reduce((sum, b) => {
     const itemsValue = b.items?.reduce((itemSum, item) => itemSum + (item.quantity * item.unitPrice), 0) || 0;
     return sum + itemsValue;
   }, 0);
@@ -440,7 +562,7 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {safeBulletins.map((bulletin) => {
+            {filteredBulletins.map((bulletin) => {
               const status = getStatusProps(bulletin.status);
               return (
                 <TableRow key={bulletin.id} className="border-b-gray-700 hover:bg-seguranca-black/50">
@@ -496,6 +618,26 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
                           <Edit className="h-4 w-4" />
                         </Button>
                       )}
+                      
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleExportPDF(bulletin)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-400/10 h-8 w-8 p-0"
+                        title="Exportar PDF"
+                      >
+                        <FileDown className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleExportExcel(bulletin)}
+                        className="text-green-400 hover:text-green-300 hover:bg-green-400/10 h-8 w-8 p-0"
+                        title="Exportar Excel"
+                      >
+                        <FileSpreadsheet className="h-4 w-4" />
+                      </Button>
                       
                       {bulletin.status === 'PENDING' && (
                         <Button

@@ -1,5 +1,6 @@
 import api from '@/lib/axios';
 import { SystemMessage, ChatMessage, User, Conversation } from '../stores/messageStore';
+import { adaptPaginatedResponse, MessageResponseDTO, adaptMessageResponse, adaptMessageList } from '@/utils/messageAdapter';
 
 // Classe de erro customizada para mensagens
 export class MessageServiceError extends Error {
@@ -55,16 +56,13 @@ export const messageService = {
 
   async getSystemMessages(page = 0, size = 10): Promise<{ messages: SystemMessage[]; totalPages: number; hasNext: boolean }> {
     try {
-      const response = await api.get('/v1/messages/received', {
+      const response = await api.get('/api/v1/messages/received', {
         headers: getAuthHeaders(),
         params: { page, size, sort: 'createdAt,desc' }
       });
 
-      return {
-        messages: response.data.content || [],
-        totalPages: response.data.totalPages || 0,
-        hasNext: !response.data.last
-      };
+      // Usar o adaptador para converter a resposta do backend
+      return adaptPaginatedResponse(response.data);
     } catch (error) {
       console.warn('[MessageService] Backend indisponível, usando dados de demonstração');
       // Retornar dados de demonstração para mostrar como funcionaria
@@ -107,16 +105,37 @@ export const messageService = {
     }
   },
 
+  async getSentMessages(page = 0, size = 10): Promise<{ messages: SystemMessage[]; totalPages: number; hasNext: boolean }> {
+    try {
+      const response = await api.get('/api/v1/messages/sent', {
+        headers: getAuthHeaders(),
+        params: { page, size, sort: 'createdAt,desc' }
+      });
+
+      // Usar o adaptador para converter a resposta do backend
+      return adaptPaginatedResponse(response.data);
+    } catch (error) {
+      console.warn('[MessageService] Erro ao buscar mensagens enviadas:', error);
+      return {
+        messages: [],
+        totalPages: 0,
+        hasNext: false
+      };
+    }
+  },
+
   async sendSystemMessage(messageData: {
     title: string;
     content: string;
     type: 'INDIVIDUAL' | 'GROUP' | 'DEPARTMENT' | 'GLOBAL';
     priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
     recipientIds?: string[];
+    groupIds?: string[];
     departmentIds?: string[];
     sendEmail?: boolean;
     sendNotification?: boolean;
     scheduledAt?: string;
+    replyToId?: string;
   }): Promise<SystemMessage> {
     try {
       // Transformar os dados para o formato esperado pelo backend
@@ -127,6 +146,9 @@ export const messageService = {
         priority: messageData.priority || 'NORMAL',
         recipientIds: messageData.recipientIds && messageData.recipientIds.length > 0
           ? messageData.recipientIds.filter(id => id && id.trim())
+          : undefined,
+        groupIds: messageData.groupIds && messageData.groupIds.length > 0
+          ? messageData.groupIds.filter(id => id && id.trim())
           : undefined,
         departmentIds: messageData.departmentIds && messageData.departmentIds.length > 0
           ? messageData.departmentIds.filter(id => id && id.trim())
@@ -140,12 +162,12 @@ export const messageService = {
 
       console.log('[MessageService] Enviando dados para o backend:', requestData);
 
-      const response = await api.post('/v1/messages', requestData, {
+      const response = await api.post('/api/v1/messages', requestData, {
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }
       });
 
       console.log('[MessageService] Resposta do backend:', response.data);
-      return response.data;
+      return adaptMessageResponse(response.data);
     } catch (error) {
       console.error('[MessageService] Erro detalhado:', error);
       handleApiError(error, 'sendSystemMessage');
@@ -154,7 +176,7 @@ export const messageService = {
 
   async markSystemMessageAsRead(messageId: string): Promise<void> {
     try {
-      await api.put(`/v1/messages/${messageId}/read`, {}, {
+      await api.put(`/api/v1/messages/${messageId}/read`, {}, {
         headers: getAuthHeaders()
       });
     } catch (error) {
@@ -164,13 +186,81 @@ export const messageService = {
 
   async getUnreadSystemCount(): Promise<number> {
     try {
-      const response = await api.get('/v1/messages/unread/count', {
-        headers: getAuthHeaders()
+      const response = await api.get('/api/v1/messages/unread/count', {
+        headers: getAuthHeaders(),
+        validateStatus: (status) => status < 500, // Não lançar erro para 401/403, apenas para 500+
+        maxRedirects: 0 // Desabilitar redirecionamentos automáticos para evitar loops
       });
       return response.data || 0;
-    } catch (error) {
-      console.warn('[MessageService] Backend indisponível, usando contagem de demonstração');
-      return 2; // Corresponde às mensagens de demo
+    } catch (error: any) {
+      // Evitar loops de redirecionamento - retornar 0 silenciosamente
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        console.warn('[MessageService] Usuário sem permissão ou não autenticado, retornando zero');
+        return 0;
+      }
+      if (error?.code === 'ERR_TOO_MANY_REDIRECTS' || error?.message?.includes('redirect')) {
+        console.warn('[MessageService] Loop de redirecionamento detectado, retornando zero');
+        console.warn('[MessageService] Isso pode indicar problema na configuração do Traefik/nginx no servidor CI');
+        return 0;
+      }
+      if (error?.response?.status === 500) {
+        console.warn('[MessageService] Backend retornou erro 500, retornando zero');
+        return 0;
+      }
+      console.warn('[MessageService] Erro ao buscar contagem de mensagens:', error?.message || error);
+      return 0; // Sempre retornar 0 em caso de erro para evitar quebrar o frontend
+    }
+  },
+
+  async getMessagesByStatus(status: 'UNREAD' | 'READ' | 'ARCHIVED', page = 0, size = 10): Promise<{ messages: SystemMessage[]; totalPages: number; hasNext: boolean }> {
+    try {
+      const response = await api.get(`/api/v1/messages/status/${status}`, {
+        headers: getAuthHeaders(),
+        params: { page, size, sort: 'createdAt,desc' }
+      });
+
+      // Usar o adaptador para converter a resposta do backend
+      return adaptPaginatedResponse(response.data);
+    } catch (error: any) {
+      console.error('[MessageService] Erro ao buscar mensagens por status:', error);
+      
+      // Se for erro de conexão ou 500, retornar estrutura vazia
+      if (!error?.response || error?.response?.status >= 500) {
+        console.warn('[MessageService] Backend indisponível ou erro interno, retornando lista vazia');
+        return {
+          messages: [],
+          totalPages: 0,
+          hasNext: false
+        };
+      }
+      
+      // Para outros erros, lançar exceção para ser tratada pelo chamador
+      handleApiError(error, 'getMessagesByStatus');
+      // Nunca será alcançado, mas necessário para TypeScript
+      return {
+        messages: [],
+        totalPages: 0,
+        hasNext: false
+      };
+    }
+  },
+
+  async getMessageStatistics(): Promise<{ total: number; unread: number; read: number; archived: number }> {
+    try {
+      const response = await api.get('/api/v1/messages/stats', {
+        headers: getAuthHeaders()
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('[MessageService] Erro ao buscar estatísticas de mensagens:', error);
+      
+      // Retornar valores zero em caso de erro
+      return {
+        total: 0,
+        unread: 0,
+        read: 0,
+        archived: 0
+      };
     }
   },
 
@@ -178,46 +268,41 @@ export const messageService = {
 
   async getAvailableUsers(): Promise<User[]> {
     try {
-      // Primeiro tenta a API principal de usuários
-      const response = await api.get('/users', {
+      // Tenta a API principal de usuários
+      const response = await api.get('/api/users', {
         headers: getAuthHeaders()
       });
 
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      console.log('[MessageService] Resposta da API /api/users:', response.data);
 
-      return response.data
-        .filter((u: { active: boolean; username: string }) => u.active && u.username !== currentUser?.username)
-        .map((u: { id: string; name?: string; username: string; email: string }) => ({
-          id: u.id,
-          name: u.name || u.username,
-          email: u.email,
-          username: u.username,
-          isOnline: false // TODO: implementar status online
-        }));
-    } catch (error) {
-      console.warn('[MessageService] API principal falhou, tentando fallback...');
-
-      try {
-        // Fallback para API de teste
-        const response = await api.get('/test/users', {
-          headers: getAuthHeaders()
-        });
-
-        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-
-        return response.data
-          .filter((u: { active: boolean; username: string }) => u.active && u.username !== currentUser?.username)
-          .map((u: { username: string; email: string }) => ({
-            id: u.username, // Usar username como ID temporariamente
-            name: u.username,
-            email: u.email,
-            username: u.username,
-            isOnline: false
-          }));
-      } catch (fallbackError) {
-        console.error('[MessageService] Ambas APIs falharam:', fallbackError);
+      // Garantir que response.data é um array
+      if (!Array.isArray(response.data)) {
+        console.warn('[MessageService] Resposta não é um array:', response.data);
         return [];
       }
+
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+      const users = response.data
+        .filter((u: { active?: boolean; username: string }) => {
+          // Incluir usuários ativos ou sem campo active (assumir ativo)
+          const isActive = u.active !== false;
+          const isNotCurrentUser = u.username !== currentUser?.username;
+          return isActive && isNotCurrentUser;
+        })
+        .map((u: { id: string; name?: string; username: string; email: string; isOnline?: boolean }) => ({
+          id: u.id,
+          name: u.name || u.username || 'Usuário sem nome',
+          email: u.email || '',
+          username: u.username || '',
+          isOnline: u.isOnline || false
+        }));
+
+      console.log('[MessageService] Usuários disponíveis processados:', users.length);
+      return users;
+    } catch (error) {
+      console.error('[MessageService] Erro ao buscar usuários disponíveis:', error);
+      return [];
     }
   },
 
@@ -238,23 +323,11 @@ export const messageService = {
       const response = await api.get(`/v1/chat/conversation/${conversationId}`, {
         headers: getAuthHeaders()
       });
-
-      return (response.data || []).map((msg: {
-        id: string;
-        content: string;
-        sender: { id: string; name: string; email: string };
-        recipient?: { id: string; name: string; email: string };
-        group?: { id: string; name: string };
-        department?: { id: string; name: string };
-        type: string;
-        isRead?: boolean;
-        readAt?: string;
-        editedAt?: string;
-        replyToId?: string;
-        createdAt: string;
-      }) => ({
+      
+      // Mapear corretamente as mensagens, garantindo que informações de arquivo sejam preservadas
+      return (response.data || []).map((msg: any) => ({
         id: msg.id,
-        content: msg.content,
+        content: msg.content || '',
         sender: {
           id: msg.sender.id,
           name: msg.sender.name,
@@ -272,10 +345,97 @@ export const messageService = {
         readAt: msg.readAt,
         editedAt: msg.editedAt,
         replyToId: msg.replyToId,
-        createdAt: msg.createdAt
+        reactions: msg.reactions || [],
+        // Informações do arquivo - CRÍTICO para mensagens com arquivo
+        fileUrl: msg.fileUrl,
+        fileName: msg.fileName,
+        fileSize: msg.fileSize,
+        fileContentType: msg.fileContentType,
+        createdAt: msg.createdAt,
+        updatedAt: msg.updatedAt
       }));
     } catch (error) {
       console.warn('[MessageService] Erro ao buscar mensagens da conversa:', error);
+      return [];
+    }
+  },
+
+  async getGroupMessages(groupId: string): Promise<ChatMessage[]> {
+    try {
+      const response = await api.get(`/v1/chat/group/${groupId}`, {
+        headers: getAuthHeaders()
+      });
+      
+      return (response.data || []).map((msg: any) => ({
+        id: msg.id,
+        content: msg.content || '',
+        sender: {
+          id: msg.sender.id,
+          name: msg.sender.name,
+          email: msg.sender.email
+        },
+        recipient: msg.recipient ? {
+          id: msg.recipient.id,
+          name: msg.recipient.name,
+          email: msg.recipient.email
+        } : undefined,
+        group: msg.group,
+        department: msg.department,
+        type: msg.type,
+        isRead: msg.isRead || false,
+        readAt: msg.readAt,
+        editedAt: msg.editedAt,
+        replyToId: msg.replyToId,
+        reactions: msg.reactions || [],
+        fileUrl: msg.fileUrl,
+        fileName: msg.fileName,
+        fileSize: msg.fileSize,
+        fileContentType: msg.fileContentType,
+        createdAt: msg.createdAt,
+        updatedAt: msg.updatedAt
+      }));
+    } catch (error) {
+      console.warn('[MessageService] Erro ao buscar mensagens do grupo:', error);
+      return [];
+    }
+  },
+
+  async getDepartmentMessages(departmentId: string): Promise<ChatMessage[]> {
+    try {
+      const response = await api.get(`/v1/chat/department/${departmentId}`, {
+        headers: getAuthHeaders()
+      });
+      
+      return (response.data || []).map((msg: any) => ({
+        id: msg.id,
+        content: msg.content || '',
+        sender: {
+          id: msg.sender.id,
+          name: msg.sender.name,
+          email: msg.sender.email
+        },
+        recipient: msg.recipient ? {
+          id: msg.recipient.id,
+          name: msg.recipient.name,
+          email: msg.recipient.email
+        } : undefined,
+        group: msg.group,
+        department: msg.department,
+        type: msg.type,
+        isRead: msg.isRead || false,
+        readAt: msg.readAt,
+        editedAt: msg.editedAt,
+        replyToId: msg.replyToId,
+        reactions: msg.reactions || [],
+        fileUrl: msg.fileUrl,
+        fileName: msg.fileName,
+        fileSize: msg.fileSize,
+        fileContentType: msg.fileContentType,
+        createdAt: msg.createdAt,
+        updatedAt: msg.updatedAt
+      }));
+    } catch (error) {
+      console.warn('[MessageService] Erro ao buscar mensagens do departamento:', error);
       return [];
     }
   },
@@ -305,10 +465,66 @@ export const messageService = {
         isRead: response.data.isRead || false,
         readAt: response.data.readAt,
         createdAt: response.data.createdAt,
-        replyToId: response.data.replyToId
+        replyToId: response.data.replyToId,
+        reactions: response.data.reactions || [],
+        fileUrl: response.data.fileUrl,
+        fileName: response.data.fileName,
+        fileSize: response.data.fileSize,
+        fileContentType: response.data.fileContentType
       };
     } catch (error) {
       handleApiError(error, 'sendChatMessage');
+    }
+  },
+
+  async sendChatMessageWithFile(
+    file: File,
+    messageData: {
+      content?: string;
+      recipientId?: string;
+      groupId?: string;
+      departmentId?: string;
+      replyToId?: string;
+    }
+  ): Promise<ChatMessage> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (messageData.content) formData.append('content', messageData.content);
+      if (messageData.recipientId) formData.append('recipientId', messageData.recipientId);
+      if (messageData.groupId) formData.append('groupId', messageData.groupId);
+      if (messageData.departmentId) formData.append('departmentId', messageData.departmentId);
+      if (messageData.replyToId) formData.append('replyToId', messageData.replyToId);
+
+      const response = await api.post('/v1/chat/send-with-file', formData, {
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      return {
+        id: response.data.id,
+        content: response.data.content || '',
+        sender: {
+          id: response.data.sender.id,
+          name: response.data.sender.name,
+          email: response.data.sender.email
+        },
+        type: response.data.type,
+        isRead: response.data.isRead || false,
+        readAt: response.data.readAt,
+        createdAt: response.data.createdAt,
+        replyToId: response.data.replyToId,
+        reactions: response.data.reactions || [],
+        fileUrl: response.data.fileUrl,
+        fileName: response.data.fileName,
+        fileSize: response.data.fileSize,
+        fileContentType: response.data.fileContentType
+      };
+    } catch (error) {
+      handleApiError(error, 'sendChatMessageWithFile');
+      throw error;
     }
   },
 
@@ -347,19 +563,168 @@ export const messageService = {
     }
   },
 
+  // ===== REAÇÕES =====
+
+  async toggleReaction(messageId: string, emoji: string): Promise<any> {
+    try {
+      const response = await api.post(`/v1/chat/${messageId}/reaction`, null, {
+        headers: getAuthHeaders(),
+        params: { emoji }
+      });
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'toggleReaction');
+      throw error;
+    }
+  },
+
+  async getMessageReactions(messageId: string): Promise<any[]> {
+    try {
+      const response = await api.get(`/v1/chat/${messageId}/reactions`, {
+        headers: getAuthHeaders()
+      });
+      return response.data || [];
+    } catch (error) {
+      console.warn('[MessageService] Erro ao buscar reações:', error);
+      return [];
+    }
+  },
+
+  async deleteSystemMessage(messageId: string, reason: string): Promise<void> {
+    try {
+      await api.delete(`/api/v1/messages/${messageId}`, {
+        headers: getAuthHeaders(),
+        params: { reason }
+      });
+    } catch (error) {
+      handleApiError(error, 'deleteSystemMessage');
+    }
+  },
+
+  async archiveSystemMessage(messageId: string): Promise<void> {
+    try {
+      await api.put(`/api/v1/messages/${messageId}/archive`, {}, {
+        headers: getAuthHeaders()
+      });
+    } catch (error) {
+      handleApiError(error, 'archiveSystemMessage');
+    }
+  },
+
+  async restoreSystemMessage(messageId: string): Promise<void> {
+    try {
+      await api.put(`/api/v1/messages/${messageId}/restore`, {}, {
+        headers: getAuthHeaders()
+      });
+    } catch (error) {
+      handleApiError(error, 'restoreSystemMessage');
+    }
+  },
+
   // ===== BUSCA E FILTROS =====
 
   async searchMessages(query: string, type: 'system' | 'chat' = 'system'): Promise<SystemMessage[] | ChatMessage[]> {
     try {
-      const endpoint = type === 'system' ? '/v1/messages/search' : '/v1/chat/search';
+      const endpoint = type === 'system' ? '/api/v1/messages/search' : '/api/v1/chat/search';
       const response = await api.get(endpoint, {
         headers: getAuthHeaders(),
         params: { q: query }
       });
+      
+      if (type === 'system') {
+        return adaptMessageList(response.data || []);
+      }
+      
       return response.data || [];
     } catch (error) {
       console.warn('[MessageService] Erro na busca:', error);
       return [];
+    }
+  },
+
+  // ===== AÇÕES DE MENSAGEM =====
+
+  async togglePin(messageId: string): Promise<boolean> {
+    try {
+      const response = await api.post(`/v1/chat/${messageId}/pin`, null, {
+        headers: getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'togglePin');
+    }
+  },
+
+  async isPinned(messageId: string): Promise<boolean> {
+    try {
+      const response = await api.get(`/v1/chat/${messageId}/pin`, {
+        headers: getAuthHeaders()
+      });
+      return response.data || false;
+    } catch (error) {
+      console.warn('[MessageService] Erro ao verificar fixação:', error);
+      return false;
+    }
+  },
+
+  async toggleFavorite(messageId: string): Promise<boolean> {
+    try {
+      const response = await api.post(`/v1/chat/${messageId}/favorite`, null, {
+        headers: getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'toggleFavorite');
+    }
+  },
+
+  async isFavorite(messageId: string): Promise<boolean> {
+    try {
+      const response = await api.get(`/v1/chat/${messageId}/favorite`, {
+        headers: getAuthHeaders()
+      });
+      return response.data || false;
+    } catch (error) {
+      console.warn('[MessageService] Erro ao verificar favorito:', error);
+      return false;
+    }
+  },
+
+  async reportMessage(messageId: string, reason: string, description?: string): Promise<void> {
+    try {
+      await api.post(`/v1/chat/${messageId}/report`, null, {
+        headers: getAuthHeaders(),
+        params: { reason, description }
+      });
+    } catch (error) {
+      handleApiError(error, 'reportMessage');
+    }
+  },
+
+  async forwardMessage(
+    messageId: string,
+    recipientIds?: string[],
+    groupIds?: string[],
+    departmentIds?: string[]
+  ): Promise<void> {
+    try {
+      const params: any = {};
+      if (recipientIds && recipientIds.length > 0) {
+        params.recipientIds = recipientIds;
+      }
+      if (groupIds && groupIds.length > 0) {
+        params.groupIds = groupIds;
+      }
+      if (departmentIds && departmentIds.length > 0) {
+        params.departmentIds = departmentIds;
+      }
+
+      await api.post(`/v1/chat/${messageId}/forward`, null, {
+        headers: getAuthHeaders(),
+        params
+      });
+    } catch (error) {
+      handleApiError(error, 'forwardMessage');
     }
   }
 }; 

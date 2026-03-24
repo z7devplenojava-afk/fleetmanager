@@ -1,0 +1,319 @@
+{
+	"info": {
+		"_postman_id": "units-api-collection",
+		"name": "Units API - SecuredGuard",
+		"description": "Coleção completa para testar os endpoints de Unidades do sistema SecuredGuard",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Criar Unidade",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Unidade BH Shopping\",\n  \"description\": \"Unidade operacional no BH Shopping\",\n  \"address\": \"Av. Cristiano Machado, 4000 - Belo Horizonte, MG\",\n  \"phone\": \"(31) 99999-8888\",\n  \"email\": \"bhshopping@securedguard.com\",\n  \"parentId\": null,\n  \"clientId\": null\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/units",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"units"
+					]
+				},
+				"description": "Cria uma nova unidade no sistema"
+			},
+			"response": []
+		},
+		{
+			"name": "Listar Todas as Unidades",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/units",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"units"
+					]
+				},
+				"description": "Retorna todas as unidades cadastradas"
+			},
+			"response": []
+		},
+		{
+			"name": "Buscar Unidade por ID",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/units/{{unitId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"units",
+						"{{unitId}}"
+					]
+				},
+				"description": "Busca uma unidade específica pelo seu ID"
+			},
+			"response": []
+		},
+		{
+			"name": "Buscar Unidade por Nome",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/units/name/{{unitName}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"units",
+						"name",
+						"{{unitName}}"
+					]
+				},
+				"description": "Busca uma unidade pelo seu nome"
+			},
+			"response": []
+		},
+		{
+			"name": "Buscar Unidade por Email",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/units/email/{{unitEmail}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"units",
+						"email",
+						"{{unitEmail}}"
+					]
+				},
+				"description": "Busca uma unidade pelo seu email"
+			},
+			"response": []
+		},
+		{
+			"name": "Buscar Unidades por Endereço",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/units/address/{{address}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"units",
+						"address",
+						"{{address}}"
+					]
+				},
+				"description": "Busca unidades que contenham o endereço especificado"
+			},
+			"response": []
+		},
+		{
+			"name": "Buscar Subunidades",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/units/parent/{{parentUnitId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"units",
+						"parent",
+						"{{parentUnitId}}"
+					]
+				},
+				"description": "Busca todas as subunidades de uma unidade pai"
+			},
+			"response": []
+		},
+		{
+			"name": "Atualizar Unidade",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Unidade BH Shopping Atualizada\",\n  \"description\": \"Unidade operacional no BH Shopping - Atualizada\",\n  \"address\": \"Av. Cristiano Machado, 4000 - Belo Horizonte, MG\",\n  \"phone\": \"(31) 99999-9999\",\n  \"email\": \"bhshopping.updated@securedguard.com\",\n  \"parentId\": null,\n  \"clientId\": null\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/units/{{unitId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"units",
+						"{{unitId}}"
+					]
+				},
+				"description": "Atualiza uma unidade existente"
+			},
+			"response": []
+		},
+		{
+			"name": "Excluir Unidade",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/units/{{unitId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"units",
+						"{{unitId}}"
+					]
+				},
+				"description": "Exclui uma unidade do sistema"
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8081",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "seu_token_aqui",
+			"type": "string"
+		},
+		{
+			"key": "unitId",
+			"value": "id_da_unidade_aqui",
+			"type": "string"
+		},
+		{
+			"key": "unitName",
+			"value": "Unidade BH Shopping",
+			"type": "string"
+		},
+		{
+			"key": "unitEmail",
+			"value": "bhshopping@securedguard.com",
+			"type": "string"
+		},
+		{
+			"key": "address",
+			"value": "BH Shopping",
+			"type": "string"
+		},
+		{
+			"key": "parentUnitId",
+			"value": "id_da_unidade_pai_aqui",
+			"type": "string"
+		}
+	]
+} 

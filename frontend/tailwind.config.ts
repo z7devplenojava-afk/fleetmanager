@@ -63,19 +63,14 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Sistema de segurança - cores personalizadas
+				// Sistema de segurança - Mapeado para FlexBus
 				seguranca: {
-					black: '#000000',
-					graphite: '#333333',
-					lightgray: '#CCCCCC',
-					darkred: '#990000',
-					red: '#DD0000',
-					yellow: '#FFCC00',
-					// Novas cores para login
-					blue: '#0066CC',
-					navy: '#003366',
-					white: '#FFFFFF',
-					red: '#CC0000',
+					black: 'hsl(var(--background))',
+					graphite: 'hsl(var(--muted))',
+					lightgray: 'hsl(var(--muted-foreground))',
+					darkred: 'hsl(var(--primary))',
+					red: 'hsl(var(--primary))',
+					yellow: 'hsl(var(--accent))',
 				}
 			},
 			borderRadius: {

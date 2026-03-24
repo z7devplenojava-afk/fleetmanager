@@ -1,0 +1,11 @@
+-- =====================================================
+-- MIGRATION V998 REMOVIDA
+-- =====================================================
+-- Esta migration foi removida pois não é mais necessária.
+-- A migration V999 agora usa apenas INSERTs hardcoded exportados
+-- do banco secured_guard_test, que são gerados pelo script
+-- generate_inserts_and_update_migration.ps1
+--
+-- Esta migration está vazia intencionalmente para manter a numeração
+-- e evitar problemas com histórico do Flyway.
+

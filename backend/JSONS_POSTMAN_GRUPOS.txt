@@ -1,0 +1,90 @@
+=== LOGIN SUPER ADMIN ===
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "superadmin@promover.com",
+  "password": "SuperAdmin123!"
+}
+
+=== CRIAR SUPER ADMIN ===
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "superadmin@promover.com",
+  "email": "superadmin@promover.com",
+  "password": "SuperAdmin123!",
+  "name": "Super Administrador",
+  "fullName": "Super Administrador do Sistema",
+  "role": "CEO"
+}
+
+=== INICIALIZAR GRUPOS ===
+POST http://localhost:8080/api/groups/initialize
+Authorization: Bearer {{token}}
+
+=== LISTAR GRUPOS ===
+GET http://localhost:8080/api/groups
+Authorization: Bearer {{token}}
+
+=== CRIAR USUÁRIO MULTI GRUPO ===
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "multigrupo@promover.com",
+  "email": "multigrupo@promover.com",
+  "password": "Multi123!",
+  "name": "Usuário Multi Grupo",
+  "fullName": "Usuário com Múltiplos Grupos",
+  "role": "COLABORADOR"
+}
+
+=== ADICIONAR AO GRUPO RH ===
+POST http://localhost:8080/api/groups/4/users/{{userId}}
+Authorization: Bearer {{token}}
+
+=== ADICIONAR AO GRUPO SUPERVISOR ===
+POST http://localhost:8080/api/groups/6/users/{{userId}}
+Authorization: Bearer {{token}}
+
+=== VERIFICAR PERMISSÕES ===
+GET http://localhost:8080/api/groups/user/{{userId}}/permissions
+Authorization: Bearer {{token}}
+
+=== CRIAR GRUPO DE TESTE ===
+POST http://localhost:8080/api/groups
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "groupName": "GRUPO_TESTE",
+  "displayName": "Grupo de Teste",
+  "description": "Grupo criado para testes",
+  "permissions": [
+    "VIEW_PAYSLIP",
+    "DOWNLOAD_PAYSLIP",
+    "EDIT_PROFILE"
+  ]
+}
+
+=== SEQUÊNCIA DE TESTE ===
+1. Criar Super Admin
+2. Fazer Login
+3. Inicializar Grupos
+4. Listar Grupos
+5. Criar Usuário Multi Grupo
+6. Adicionar ao GRUPO_RH (ID: 4)
+7. Adicionar ao GRUPO_SUPERVISOR (ID: 6)
+8. Verificar Permissões Combinadas
+
+=== IDs DOS GRUPOS ===
+1 - GRUPO_SUPER_ADMIN
+2 - GRUPO_ADMIN
+3 - GRUPO_GESTOR
+4 - GRUPO_RH
+5 - GRUPO_DPE
+6 - GRUPO_SUPERVISOR
+7 - GRUPO_COLABORADORES
+8 - GRUPO_VIGILANTES 

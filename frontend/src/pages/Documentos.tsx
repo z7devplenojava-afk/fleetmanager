@@ -4,6 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   FileText, 
   Download, 
@@ -38,18 +42,34 @@ import {
   FolderOpen,
   FileCheck,
   FileX,
-  FileClock
+  FileClock,
+  Upload
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentService } from '@/services/documentService';
 import { Document, DocumentType } from '@/services/documentService';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { formatDateSafe } from '@/utils/dateUtils';
 
 const Documentos: React.FC = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<DocumentType | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'VALID' | 'EXPIRING' | 'EXPIRED'>('ALL');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'type'>('date');
+  
+  // Estados para o modal de criação
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    type: '' as DocumentType | '',
+    number: '',
+    issueDate: '',
+    expirationDate: '',
+    description: '',
+    file: null as File | null
+  });
 
   // Buscar documentos
   const { 
@@ -61,6 +81,59 @@ const Documentos: React.FC = () => {
     queryKey: ['documents'],
     queryFn: () => documentService.getAllDocuments()
   });
+
+  // Mutation para criar documento
+  const createDocumentMutation = useMutation({
+    mutationFn: async (documentData: any) => {
+      return await documentService.createDocument(documentData);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Sucesso',
+        description: 'Documento criado com sucesso!'
+      });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      setShowCreateModal(false);
+      setCreateForm({
+        type: '' as DocumentType | '',
+        number: '',
+        issueDate: '',
+        expirationDate: '',
+        description: '',
+        file: null
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao criar documento: ' + (error.message || 'Erro desconhecido'),
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Função para lidar com a criação do documento
+  const handleCreateDocument = async () => {
+    if (!createForm.type || !createForm.number || !createForm.issueDate) {
+      toast({
+        title: 'Erro',
+        description: 'Preencha todos os campos obrigatórios',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const documentData = {
+      type: createForm.type,
+      number: createForm.number,
+      issueDate: new Date(createForm.issueDate),
+      expirationDate: createForm.expirationDate ? new Date(createForm.expirationDate) : undefined,
+      description: createForm.description,
+      employee: { id: '1' } // TODO: Pegar do contexto do usuário logado
+    };
+
+    createDocumentMutation.mutate(documentData);
+  };
 
   // Calcular estatísticas
   const stats = useMemo(() => {
@@ -149,41 +222,53 @@ const Documentos: React.FC = () => {
 
   // Funções auxiliares
   const formatDate = (dateString?: string): string => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('pt-BR');
+    return formatDateSafe(dateString);
   };
 
   const getDocumentStatus = (doc: Document) => {
-    if (!doc.expirationDate) return { status: 'valid', label: 'Válido', icon: <CheckCircle className="h-4 w-4 text-green-600" />, badge: <Badge className="bg-green-100 text-green-800">Válido</Badge> };
-    
-    const today = new Date();
-    const expDate = new Date(doc.expirationDate);
-    const daysUntilExpiry = Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysUntilExpiry < 0) {
-      return { 
-        status: 'expired', 
-        label: 'Expirado', 
-        icon: <FileX className="h-4 w-4 text-red-600" />, 
-        badge: <Badge className="bg-red-100 text-red-800">Expirado</Badge> 
-      };
+    if (!doc.expirationDate || doc.expirationDate === 'null' || doc.expirationDate === 'undefined' || doc.expirationDate === '0') {
+      return { status: 'valid', label: 'Válido', icon: <CheckCircle className="h-4 w-4 text-green-600" />, badge: <Badge className="bg-green-100 text-green-800">Válido</Badge> };
     }
     
-    if (daysUntilExpiry <= 30) {
+    try {
+      const today = new Date();
+      const expDate = new Date(doc.expirationDate);
+      
+      // Verificar se a data é válida
+      if (isNaN(expDate.getTime()) || expDate.getFullYear() < 1900) {
+        return { status: 'valid', label: 'Válido', icon: <CheckCircle className="h-4 w-4 text-green-600" />, badge: <Badge className="bg-green-100 text-green-800">Válido</Badge> };
+      }
+      
+      const daysUntilExpiry = Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysUntilExpiry < 0) {
+        return { 
+          status: 'expired', 
+          label: 'Expirado', 
+          icon: <FileX className="h-4 w-4 text-red-600" />, 
+          badge: <Badge className="bg-red-100 text-red-800">Expirado</Badge> 
+        };
+      }
+      
+      if (daysUntilExpiry <= 30) {
+        return { 
+          status: 'expiring', 
+          label: `Expira em ${daysUntilExpiry} dias`, 
+          icon: <FileClock className="h-4 w-4 text-yellow-600" />, 
+          badge: <Badge className="bg-yellow-100 text-yellow-800">Expirando</Badge> 
+        };
+      }
+      
       return { 
-        status: 'expiring', 
-        label: `Expira em ${daysUntilExpiry} dias`, 
-        icon: <FileClock className="h-4 w-4 text-yellow-600" />, 
-        badge: <Badge className="bg-yellow-100 text-yellow-800">Expirando</Badge> 
+        status: 'valid', 
+        label: 'Válido', 
+        icon: <FileCheck className="h-4 w-4 text-green-600" />, 
+        badge: <Badge className="bg-green-100 text-green-800">Válido</Badge> 
       };
+    } catch (error) {
+      console.error('Erro ao calcular status do documento:', error);
+      return { status: 'valid', label: 'Válido', icon: <CheckCircle className="h-4 w-4 text-green-600" />, badge: <Badge className="bg-green-100 text-green-800">Válido</Badge> };
     }
-    
-    return { 
-      status: 'valid', 
-      label: 'Válido', 
-      icon: <FileCheck className="h-4 w-4 text-green-600" />, 
-      badge: <Badge className="bg-green-100 text-green-800">Válido</Badge> 
-    };
   };
 
   const getTypeIcon = (type: DocumentType) => {
@@ -290,12 +375,110 @@ const Documentos: React.FC = () => {
             <h1 className="text-2xl font-bold text-seguranca-lightgray">Gestão de Documentos</h1>
             <p className="text-gray-400 mt-1">Controle centralizado de documentos da empresa</p>
           </div>
-          <Button 
-            className="bg-seguranca-red hover:bg-seguranca-darkred"
-          >
-            <Plus size={16} className="mr-2" />
-            Novo Documento
-          </Button>
+          <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+            <DialogTrigger asChild>
+              <Button className="bg-seguranca-red hover:bg-seguranca-darkred">
+                <Plus size={16} className="mr-2" />
+                Novo Documento
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Novo Documento</DialogTitle>
+                <DialogDescription>
+                  Preencha os dados para criar um novo documento
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="type">Tipo de Documento *</Label>
+                  <Select value={createForm.type} onValueChange={(value) => setCreateForm({ ...createForm, type: value as DocumentType })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(DocumentType).map(type => (
+                        <SelectItem key={type} value={type}>{getTypeLabel(type)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="number">Número do Documento *</Label>
+                  <Input
+                    id="number"
+                    value={createForm.number}
+                    onChange={(e) => setCreateForm({ ...createForm, number: e.target.value })}
+                    placeholder="Ex: 123.456.789-00"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="issueDate">Data de Emissão *</Label>
+                  <Input
+                    id="issueDate"
+                    type="date"
+                    value={createForm.issueDate}
+                    onChange={(e) => setCreateForm({ ...createForm, issueDate: e.target.value })}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="expirationDate">Data de Expiração</Label>
+                  <Input
+                    id="expirationDate"
+                    type="date"
+                    value={createForm.expirationDate}
+                    onChange={(e) => setCreateForm({ ...createForm, expirationDate: e.target.value })}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="description">Descrição</Label>
+                  <Textarea
+                    id="description"
+                    value={createForm.description}
+                    onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                    placeholder="Descrição opcional do documento..."
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="file">Arquivo (Opcional)</Label>
+                  <Input
+                    id="file"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => setCreateForm({ ...createForm, file: e.target.files?.[0] || null })}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Formatos aceitos: PDF, JPG, PNG
+                  </p>
+                </div>
+                
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setShowCreateModal(false)}>
+                    Cancelar
+                  </Button>
+                  <Button 
+                    onClick={handleCreateDocument} 
+                    disabled={createDocumentMutation.isPending}
+                    className="bg-seguranca-red hover:bg-seguranca-darkred"
+                  >
+                    {createDocumentMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Criando...
+                      </>
+                    ) : (
+                      'Criar Documento'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Dashboard de Estatísticas */}

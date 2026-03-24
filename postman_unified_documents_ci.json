@@ -1,0 +1,306 @@
+{
+  "info": {
+    "name": "Secured Guard - Documentos Unificados CI",
+    "description": "Coleção para testar endpoints de documentos unificados no ambiente CI",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "https://ci.z7botsolutions.com.br/api",
+      "type": "string"
+    },
+    {
+      "key": "TOKEN",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/health",
+          "host": ["{{BASE_URL}}"],
+          "path": ["health"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Login (Obter Token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const response = pm.response.json();",
+              "    if (response.token) {",
+              "        pm.collectionVariables.set('TOKEN', response.token);",
+              "        console.log('Token salvo:', response.token);",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"jose.ramos\",\n  \"password\": \"Admin1234\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/auth/login",
+          "host": ["{{BASE_URL}}"],
+          "path": ["auth", "login"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Registrar Usuário COLABORADOR (se necessário)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"12345678901\",\n  \"password\": \"12345678901@2025\",\n  \"email\": \"colaborador@test.com\",\n  \"fullName\": \"Colaborador Teste\",\n  \"roles\": [\"ROLE_COLABORADOR\"]\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/auth/register",
+          "host": ["{{BASE_URL}}"],
+          "path": ["auth", "register"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Login COLABORADOR",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const response = pm.response.json();",
+              "    if (response.token) {",
+              "        pm.collectionVariables.set('TOKEN', response.token);",
+              "        console.log('Token COLABORADOR salvo:', response.token);",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"12345678901\",\n  \"password\": \"12345678901@2025\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/auth/login",
+          "host": ["{{BASE_URL}}"],
+          "path": ["auth", "login"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. Listar Documentos Unificados (Endpoint Protegido)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/unified-documents/list",
+          "host": ["{{BASE_URL}}"],
+          "path": ["unified-documents", "list"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6. Listar Documentos Unificados (Endpoint Público)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/unified-documents/public/list",
+          "host": ["{{BASE_URL}}"],
+          "path": ["unified-documents", "public", "list"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7. Listar Documentos Detalhados (Público)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/unified-documents/public/list-detailed",
+          "host": ["{{BASE_URL}}"],
+          "path": ["unified-documents", "public", "list-detailed"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8. Testar Payslips (Deve dar 403 sem auth)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/payslips",
+          "host": ["{{BASE_URL}}"],
+          "path": ["payslips"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "9. Testar Payslips (Com Token COLABORADOR)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/payslips",
+          "host": ["{{BASE_URL}}"],
+          "path": ["payslips"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "10. Testar Receipts (Com Token COLABORADOR)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/receipts",
+          "host": ["{{BASE_URL}}"],
+          "path": ["receipts"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "11. Testar Messages (Com Token COLABORADOR)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/v1/messages/received",
+          "host": ["{{BASE_URL}}"],
+          "path": ["v1", "messages", "received"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "12. Debug Dados Unificação (Protegido)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/unified-documents/debug-data",
+          "host": ["{{BASE_URL}}"],
+          "path": ["unified-documents", "debug-data"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "13. Criar Documento Unificado (Teste)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/unified-documents/create?employeeName=TESTE FUNCIONARIO&month=10&year=2025",
+          "host": ["{{BASE_URL}}"],
+          "path": ["unified-documents", "create"],
+          "query": [
+            {
+              "key": "employeeName",
+              "value": "TESTE FUNCIONARIO"
+            },
+            {
+              "key": "month",
+              "value": "10"
+            },
+            {
+              "key": "year",
+              "value": "2025"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "14. Teste Público Unificação",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/unified-documents/public/test",
+          "host": ["{{BASE_URL}}"],
+          "path": ["unified-documents", "public", "test"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

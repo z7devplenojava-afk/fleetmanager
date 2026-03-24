@@ -5,8 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Edit, Trash2, Eye, Download, Trash2Icon, Edit3 } from 'lucide-react';
 import VeiculoDeleteDialog from './VeiculoDeleteDialog';
+import { useNavigate } from 'react-router-dom';
+import { getApiUrl } from '@/config/environment';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/axios';
+import * as XLSX from 'xlsx';
 
 interface Veiculo {
   id: string; // UUID
@@ -57,7 +60,7 @@ interface VeiculosTableProps {
 const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, maintenances, onRefresh, onEdit, onDelete, onView, onViewMaintenance }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedVeiculo, setSelectedVeiculo] = useState<Veiculo | null>(null);
-  
+
   // Estados para seleção em lote
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
@@ -72,11 +75,11 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
     return getVehicleMaintenance(vehicleId) !== null;
   };
   const [selectAll, setSelectAll] = useState(false);
-  
+
   // Estados para visualização
   const [viewingVeiculo, setViewingVeiculo] = useState<Veiculo | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  
+
   const { toast } = useToast();
 
   // Debug dos estados do modal
@@ -131,7 +134,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
     try {
       const selectedIds = Array.from(selectedItems);
       console.log('🗑️ Excluindo veículos:', selectedIds);
-      
+
       // Aqui você implementaria a lógica de exclusão em lote
       // Por enquanto, vou apenas mostrar um toast de sucesso
       toast({
@@ -144,17 +147,17 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
       setSelectedItems(new Set());
       setSelectAll(false);
       onRefresh();
-      
+
     } catch (error: any) {
       console.error('❌ Erro ao excluir em lote:', error);
-      
+
       let errorMessage = 'Erro ao excluir veículos';
       if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: "Erro",
         description: errorMessage,
@@ -174,13 +177,83 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
   };
 
   const handleExport = () => {
-    // Implementar exportação dos itens selecionados
-    console.log('Exportando itens selecionados:', Array.from(selectedItems));
-    toast({
-      title: "Funcionalidade",
-      description: "Exportação será implementada em breve",
-      variant: "default"
-    });
+    try {
+      // Determinar quais veículos exportar (selecionados ou todos)
+      const veiculosParaExportar = selectedItems.size > 0
+        ? veiculos.filter(v => selectedItems.has(v.id))
+        : filteredVeiculos;
+
+      if (veiculosParaExportar.length === 0) {
+        toast({
+          title: "Nenhum veículo para exportar",
+          description: selectedItems.size > 0
+            ? "Selecione pelo menos um veículo para exportar"
+            : "Não há veículos para exportar",
+          variant: "default"
+        });
+        return;
+      }
+
+      // Preparar dados para exportação
+      const dadosExportacao = veiculosParaExportar.map(veiculo => ({
+        'Placa': veiculo.placa,
+        'Marca': veiculo.marca,
+        'Modelo': veiculo.modelo,
+        'Ano': veiculo.ano,
+        'Cor': veiculo.cor || 'N/A',
+        'Combustível': veiculo.combustivel,
+        'Quilometragem': veiculo.quilometragem ? `${veiculo.quilometragem.toLocaleString('pt-BR')} km` : 'N/A',
+        'Status': veiculo.status,
+        'Capacidade': veiculo.capacidade || 'N/A',
+        'Data de Aquisição': veiculo.data_aquisicao ? new Date(veiculo.data_aquisicao).toLocaleDateString('pt-BR') : 'N/A',
+        'Valor de Aquisição': veiculo.valor_aquisicao ? `R$ ${veiculo.valor_aquisicao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'N/A',
+        'Observações': veiculo.observacoes || ''
+      }));
+
+      // Criar workbook
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(dadosExportacao);
+
+      // Configurar larguras das colunas
+      const colWidths = [
+        { wch: 12 }, // Placa
+        { wch: 15 }, // Marca
+        { wch: 20 }, // Modelo
+        { wch: 8 },  // Ano
+        { wch: 12 }, // Cor
+        { wch: 12 }, // Combustível
+        { wch: 15 }, // Quilometragem
+        { wch: 12 }, // Status
+        { wch: 10 }, // Capacidade
+        { wch: 18 }, // Data de Aquisição
+        { wch: 18 }, // Valor de Aquisição
+        { wch: 30 }  // Observações
+      ];
+      ws['!cols'] = colWidths;
+
+      // Adicionar worksheet ao workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Veículos');
+
+      // Gerar nome do arquivo
+      const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      const filename = `veiculos_${timestamp}.xlsx`;
+
+      // Salvar arquivo
+      XLSX.writeFile(wb, filename);
+
+      toast({
+        title: "Exportação realizada com sucesso!",
+        description: `${veiculosParaExportar.length} veículo(s) exportado(s) para ${filename}`,
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Erro ao exportar veículos:', error);
+      toast({
+        title: "Erro ao exportar",
+        description: "Ocorreu um erro ao exportar os veículos. Tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleGenerateReport = () => {
@@ -194,7 +267,8 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
   };
 
   const handleDelete = (veiculo: Veiculo) => {
-    onDelete(veiculo);
+    setSelectedVeiculo(veiculo);
+    setIsDeleteDialogOpen(true);
   };
 
   const handleEdit = (veiculo: Veiculo) => {
@@ -223,7 +297,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
 
   const getStatusBadge = (status: string, vehicleId?: string) => {
     const statusLower = status.toLowerCase();
-    
+
     // Verificar se o veículo está em manutenção
     if (vehicleId && isVehicleInMaintenance(vehicleId)) {
       const maintenance = getVehicleMaintenance(vehicleId);
@@ -243,7 +317,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
         </div>
       );
     }
-    
+
     if (statusLower === 'ativo' || statusLower === 'active') {
       return (
         <Badge variant="default" className="bg-green-600 hover:bg-green-700">
@@ -309,7 +383,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
               )}
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
@@ -400,7 +474,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
           </TableHeader>
           <TableBody>
             {filteredVeiculos.map((veiculo) => (
-              <TableRow 
+              <TableRow
                 key={veiculo.id}
                 className="hover:bg-seguranca-graphite/50 transition-colors border-b border-gray-700"
               >
@@ -443,8 +517,8 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => handleView(veiculo)}
                       className="h-8 w-8 p-0 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
@@ -452,8 +526,8 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
                     >
                       <Eye size={14} />
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => handleEdit(veiculo)}
                       className="h-8 w-8 p-0 border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-white"
@@ -461,8 +535,8 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
                     >
                       <Edit size={14} />
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => handleDelete(veiculo)}
                       className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
@@ -545,12 +619,12 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {viewingVeiculo.photos.split(',').filter(photo => photo.trim() !== '').map((photoUrl, index) => {
-                      const fullPhotoUrl = photoUrl.startsWith('http') ? photoUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:8081'}${photoUrl}`;
+                      const fullPhotoUrl = photoUrl.startsWith('http') ? photoUrl : `${getApiUrl().replace('/api', '')}${photoUrl}`;
                       return (
                         <div key={index} className="relative group">
                           <div className="w-full h-48 bg-seguranca-graphite border border-gray-600 rounded-lg overflow-hidden group-hover:border-seguranca-yellow transition-colors">
-                            <img 
-                              src={fullPhotoUrl} 
+                            <img
+                              src={fullPhotoUrl}
                               alt={`Foto do veículo ${index + 1}`}
                               className="w-full h-full object-cover"
                               onError={(e) => {
@@ -565,7 +639,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
                                 console.log('✅ Foto carregada com sucesso:', photoUrl);
                               }}
                             />
-                            <div className="w-full h-full bg-seguranca-graphite border border-gray-600 rounded-lg flex items-center justify-center" style={{display: 'none'}}>
+                            <div className="w-full h-full bg-seguranca-graphite border border-gray-600 rounded-lg flex items-center justify-center" style={{ display: 'none' }}>
                               <div className="text-center">
                                 <div className="text-4xl mb-2">📷</div>
                                 <p className="text-seguranca-lightgray text-sm font-medium">Foto não encontrada</p>

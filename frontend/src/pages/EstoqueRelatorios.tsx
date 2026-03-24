@@ -4,8 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { StandardLayout } from '@/components/StandardLayout';
+import { stockService } from '@/services/stockService';
+import { ReportGenerator, ReportData } from '@/utils/reportGenerator';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -15,7 +19,11 @@ import {
   DollarSign,
   Download,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  FileText,
+  Activity,
+  Clock,
+  User
 } from 'lucide-react';
 
 interface StockReport {
@@ -198,11 +206,110 @@ export default function EstoqueRelatorios() {
     return `${(value * 100).toFixed(1)}%`;
   };
 
-  const exportReport = () => {
-    toast({
-      title: "Sucesso",
-      description: "Relatório exportado com sucesso.",
-    });
+  const exportReport = async () => {
+    try {
+      if (reports.length === 0) {
+        toast({
+          title: "Aviso",
+          description: "Não há dados para exportar.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Preparar dados para o PDF
+      const reportTitle = 
+        reportType === 'low-stock' ? 'Relatório de Produtos com Estoque Baixo' :
+        reportType === 'out-of-stock' ? 'Relatório de Produtos Sem Estoque' :
+        reportType === 'over-stock' ? 'Relatório de Produtos com Estoque Alto' :
+        reportType === 'turnover' ? 'Relatório de Giro de Estoque' :
+        reportType === 'value' ? 'Relatório de Valor por Categoria' :
+        'Relatório de Movimentações de Estoque';
+
+      const periodLabel = 
+        dateRange === '7' ? 'Últimos 7 dias' :
+        dateRange === '30' ? 'Últimos 30 dias' :
+        dateRange === '90' ? 'Últimos 90 dias' :
+        'Último ano';
+
+      // Preparar cabeçalhos
+      const headers = [
+        'Produto',
+        'Categoria',
+        'Estoque Atual',
+        'Estoque Mínimo',
+        'Estoque Máximo',
+        'Consumo Médio',
+        'Giro',
+        'Última Movimentação',
+        'Valor',
+        'Status'
+      ];
+
+      // Preparar linhas de dados
+      const rows = reports.map(report => [
+        report.productName,
+        report.category,
+        formatNumber(report.currentStock),
+        formatNumber(report.minimumStock),
+        formatNumber(report.maximumStock),
+        `${formatNumber(report.averageConsumption)}/dia`,
+        formatPercentage(report.turnoverRate),
+        formatDate(report.lastMovementDate),
+        formatCurrency(report.totalValue),
+        getStatusLabel(report.status)
+      ]);
+
+      // Preparar resumo
+      const totalValue = reports.reduce((sum, r) => sum + r.totalValue, 0);
+      const summary = [
+        {
+          label: 'Total de Produtos',
+          value: reports.length,
+          format: 'number' as const
+        },
+        {
+          label: 'Valor Total',
+          value: totalValue,
+          format: 'currency' as const
+        },
+        {
+          label: 'Produtos com Estoque Baixo',
+          value: stats.lowStockProducts,
+          format: 'number' as const
+        },
+        {
+          label: 'Produtos Sem Estoque',
+          value: stats.outOfStockProducts,
+          format: 'number' as const
+        }
+      ];
+
+      // Criar objeto ReportData
+      const reportData: ReportData = {
+        title: reportTitle,
+        subtitle: 'Análise e relatórios detalhados do estoque',
+        period: periodLabel,
+        headers,
+        rows,
+        summary
+      };
+
+      // Gerar PDF
+      await ReportGenerator.generatePDF(reportData);
+
+      toast({
+        title: "Sucesso",
+        description: "Relatório exportado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro ao exportar relatório:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao exportar relatório. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

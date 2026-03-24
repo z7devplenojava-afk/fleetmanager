@@ -9,9 +9,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { User, Mail, Phone, MapPin, Calendar, Shield, Users } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Shield, Users, Building } from 'lucide-react';
 import { User as UserType, PermissionDTO } from '@/types/user';
 import { getRoleDisplayName, getRoleColor } from '@/utils/permissions';
+import { companyService } from '@/services/companyService';
+import { useState, useEffect } from 'react';
 
 interface UserViewModalProps {
   user: UserType | null;
@@ -24,6 +26,14 @@ export const UserViewModal: React.FC<UserViewModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const [companies, setCompanies] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      companyService.getAllCompanies().then(setCompanies).catch(console.error);
+    }
+  }, [isOpen]);
+
   if (!user) return null;
 
   const getStatusText = (user: UserType) => {
@@ -90,14 +100,14 @@ export const UserViewModal: React.FC<UserViewModalProps> = ({
                   <Mail className="h-4 w-4 text-gray-400" />
                   <span className="text-seguranca-lightgray">{user.email}</span>
                 </div>
-                
+
                 {user.username && (
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-gray-400" />
                     <span className="text-seguranca-lightgray">@{user.username}</span>
                   </div>
                 )}
-                
+
                 {user.phone && (
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-gray-400" />
@@ -111,6 +121,13 @@ export const UserViewModal: React.FC<UserViewModalProps> = ({
                     <span className="text-seguranca-lightgray">{user.address}</span>
                   </div>
                 )}
+
+                <div className="flex items-center gap-2">
+                  <Building className="h-4 w-4 text-gray-400" />
+                  <span className="text-seguranca-lightgray">
+                    {user.companyId ? (companies.find(c => c.id === user.companyId)?.name || 'Empresa Vinculada') : 'Sem Empresa'}
+                  </span>
+                </div>
 
                 {user.department && (
                   <div className="flex items-center gap-2">
@@ -214,7 +231,7 @@ export const UserViewModal: React.FC<UserViewModalProps> = ({
                     </p>
                   </div>
                 )}
-                
+
                 {user.updatedAt && (
                   <div>
                     <label className="text-sm text-gray-400">Última atualização:</label>

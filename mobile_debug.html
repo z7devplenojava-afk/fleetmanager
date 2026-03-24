@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Mobile Debug Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #1f2937;
+            color: white;
+            font-size: 14px;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        .section {
+            background: #374151;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #10b981;
+        }
+        .error {
+            border-left-color: #ef4444;
+            background: #7f1d1d;
+        }
+        .success {
+            border-left-color: #10b981;
+            background: #064e3b;
+        }
+        .warning {
+            border-left-color: #f59e0b;
+            background: #78350f;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+            max-width: 300px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        input {
+            width: 100%;
+            max-width: 300px;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #6b7280;
+            border-radius: 4px;
+            background: #374151;
+            color: white;
+        }
+        .log {
+            background: #111827;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Mobile Debug Tool</h1>
+        <p>Ferramenta para diagnosticar problemas de login no celular</p>
+
+        <!-- Informações do Dispositivo -->
+        <div class="section">
+            <h3>📱 Informações do Dispositivo</h3>
+            <div id="deviceInfo"></div>
+        </div>
+
+        <!-- Teste de Conectividade -->
+        <div class="section">
+            <h3>🌐 Teste de Conectividade</h3>
+            <input type="text" id="apiUrl" placeholder="URL da API" value="https://ci.z7botsolutions.com.br/api">
+            <button onclick="testConnectivity()">Testar Conectividade</button>
+            <div id="connectivityResult"></div>
+        </div>
+
+        <!-- Teste de Login -->
+        <div class="section">
+            <h3>🔐 Teste de Login</h3>
+            <input type="text" id="username" placeholder="Usuário">
+            <input type="password" id="password" placeholder="Senha">
+            <button onclick="testLogin()">Testar Login</button>
+            <div id="loginResult"></div>
+        </div>
+
+        <!-- Teste de LocalStorage -->
+        <div class="section">
+            <h3>💾 Teste de LocalStorage</h3>
+            <button onclick="testStorage()">Testar LocalStorage</button>
+            <div id="storageResult"></div>
+        </div>
+
+        <!-- Console Logs -->
+        <div class="section">
+            <h3>📋 Console Logs</h3>
+            <button onclick="clearLogs()">Limpar Logs</button>
+            <div id="consoleLogs" class="log"></div>
+        </div>
+
+        <!-- Teste de Touch -->
+        <div class="section">
+            <h3>👆 Teste de Touch</h3>
+            <button onclick="testTouch()" id="touchButton">Testar Touch Events</button>
+            <div id="touchResult"></div>
+        </div>
+    </div>
+
+    <script>
+        let logs = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            logs.push(logEntry);
+            
+            const logDiv = document.getElementById('consoleLogs');
+            logDiv.textContent = logs.slice(-20).join('\n');
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            console.log(logEntry);
+        }
+
+        function clearLogs() {
+            logs = [];
+            document.getElementById('consoleLogs').textContent = '';
+        }
+
+        // Capturar erros globais
+        window.addEventListener('error', (e) => {
+            log(`ERROR: ${e.message} at ${e.filename}:${e.lineno}`, 'error');
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            log(`UNHANDLED REJECTION: ${e.reason}`, 'error');
+        });
+
+        // Informações do dispositivo
+        function loadDeviceInfo() {
+            const info = {
+                'User Agent': navigator.userAgent,
+                'Largura da Tela': `${window.innerWidth}px`,
+                'Altura da Tela': `${window.innerHeight}px`,
+                'Pixel Ratio': window.devicePixelRatio,
+                'Touch Support': 'ontouchstart' in window ? '✅ Sim' : '❌ Não',
+                'Online': navigator.onLine ? '✅ Sim' : '❌ Não',
+                'Cookies Enabled': navigator.cookieEnabled ? '✅ Sim' : '❌ Não',
+                'LocalStorage': typeof(Storage) !== "undefined" ? '✅ Sim' : '❌ Não',
+                'Service Worker': 'serviceWorker' in navigator ? '✅ Sim' : '❌ Não'
+            };
+
+            const deviceDiv = document.getElementById('deviceInfo');
+            deviceDiv.innerHTML = Object.entries(info)
+                .map(([key, value]) => `<strong>${key}:</strong> ${value}`)
+                .join('<br>');
+        }
+
+        // Teste de conectividade
+        async function testConnectivity() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const resultDiv = document.getElementById('connectivityResult');
+            
+            log(`Testando conectividade com: ${apiUrl}`);
+            
+            try {
+                const response = await fetch(`${apiUrl}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Conectividade OK<br>Status: ${data.status}<br>Service: ${data.service}</div>`;
+                    log('Conectividade: OK');
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Erro HTTP: ${response.status}</div>`;
+                    log(`Conectividade: Erro HTTP ${response.status}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erro de Rede: ${error.message}</div>`;
+                log(`Conectividade: Erro de rede - ${error.message}`, 'error');
+            }
+        }
+
+        // Teste de login
+        async function testLogin() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            if (!username || !password) {
+                resultDiv.innerHTML = '<div class="warning">⚠️ Preencha usuário e senha</div>';
+                return;
+            }
+            
+            log(`Testando login para usuário: ${username}`);
+            
+            try {
+                const response = await fetch(`${apiUrl}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Login OK<br>Token: ${data.token ? 'Recebido' : 'Não recebido'}<br>User: ${data.user?.username || 'N/A'}</div>`;
+                    log('Login: Sucesso');
+                    
+                    // Testar salvar no localStorage
+                    if (data.token) {
+                        localStorage.setItem('debug_token', data.token);
+                        localStorage.setItem('debug_user', JSON.stringify(data.user));
+                        log('Token salvo no localStorage');
+                    }
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Login falhou: ${data.message || response.status}</div>`;
+                    log(`Login: Falhou - ${data.message || response.status}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erro de Login: ${error.message}</div>`;
+                log(`Login: Erro - ${error.message}`, 'error');
+            }
+        }
+
+        // Teste de localStorage
+        function testStorage() {
+            const resultDiv = document.getElementById('storageResult');
+            
+            try {
+                // Testar escrita
+                localStorage.setItem('test_key', 'test_value');
+                
+                // Testar leitura
+                const value = localStorage.getItem('test_key');
+                
+                if (value === 'test_value') {
+                    // Verificar tokens existentes
+                    const token = localStorage.getItem('token') || localStorage.getItem('debug_token');
+                    const user = localStorage.getItem('user') || localStorage.getItem('debug_user');
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ LocalStorage funcionando<br>
+                            Token existente: ${token ? 'Sim' : 'Não'}<br>
+                            User existente: ${user ? 'Sim' : 'Não'}
+                        </div>
+                    `;
+                    log('LocalStorage: OK');
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ LocalStorage não funciona corretamente</div>';
+                    log('LocalStorage: Erro na leitura', 'error');
+                }
+                
+                // Limpar teste
+                localStorage.removeItem('test_key');
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erro no LocalStorage: ${error.message}</div>`;
+                log(`LocalStorage: Erro - ${error.message}`, 'error');
+            }
+        }
+
+        // Teste de touch
+        function testTouch() {
+            const button = document.getElementById('touchButton');
+            const resultDiv = document.getElementById('touchResult');
+            
+            let touchCount = 0;
+            
+            const handleTouch = (event) => {
+                touchCount++;
+                resultDiv.innerHTML = `<div class="success">✅ Touch detectado! Contagem: ${touchCount}<br>Tipo: ${event.type}</div>`;
+                log(`Touch: ${event.type} detectado (${touchCount})`);
+            };
+            
+            // Adicionar listeners
+            button.addEventListener('touchstart', handleTouch);
+            button.addEventListener('touchend', handleTouch);
+            button.addEventListener('click', handleTouch);
+            
+            resultDiv.innerHTML = '<div class="warning">👆 Toque no botão acima para testar</div>';
+            log('Touch: Listeners adicionados');
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Mobile Debug Tool carregado');
+            loadDeviceInfo();
+        });
+    </script>
+</body>
+</html>

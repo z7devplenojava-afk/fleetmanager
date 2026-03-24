@@ -162,6 +162,7 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                   <TableHead className="text-gray-200 font-semibold">Vencimento</TableHead>
                   <TableHead className="text-gray-200 font-semibold">Fornecedor</TableHead>
                   <TableHead className="text-gray-200 font-semibold">Descrição</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">Empresa</TableHead>
                   <TableHead className="text-gray-200 font-semibold">Tipo</TableHead>
                   <TableHead className="text-gray-200 font-semibold">Valor</TableHead>
                   <TableHead className="text-gray-200 font-semibold">Status</TableHead>
@@ -202,6 +203,7 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                         {conta.descricao}
                       </div>
                     </TableCell>
+                    <TableCell className="font-medium text-gray-200">{conta.companySigla || '-'}</TableCell>
                     <TableCell>{getTipoBadge(conta.tipo)}</TableCell>
                     <TableCell className="font-semibold text-gray-200">{formatCurrency(conta.valor)}</TableCell>
                     <TableCell>{getStatusBadge(conta.status, conta.vencimento)}</TableCell>

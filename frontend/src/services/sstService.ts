@@ -80,13 +80,19 @@ export interface SSTTraining {
   name: string;
   description: string;
   trainingType: string;
-  provider: string;
-  duration: number; // em horas
-  validityMonths: number;
+  provider?: string;
+  durationHours: number; // em horas
+  validityMonths?: number;
   isMandatory: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  // Campos agregados (quando usar /with-stats)
+  totalParticipants?: number;
+  scheduledParticipants?: number;
+  completedParticipants?: number;
+  certificatesExpiring?: number;
+  nextScheduledDate?: string;
 }
 
 export interface TrainingParticipation {
@@ -125,13 +131,20 @@ export interface AccidentRecord {
 export interface PersonalProtectiveEquipment {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   category: 'CABECA' | 'OLHOS' | 'AUDITIVO' | 'RESPIRATORIO' | 'MAOS' | 'PES' | 'CORPO';
-  caNumber: string;
-  validityMonths: number;
+  caNumber?: string;
+  caValidity?: string; // Data de validade do CA
+  validityMonths?: number;
+  manufacturer?: string;
+  model?: string;
+  unitOfMeasurement?: string;
+  minimumStock?: number;
+  currentStock?: number;
+  unitCost?: number;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface EPIDelivery {
@@ -160,10 +173,52 @@ export interface CreateMedicalExamDTO {
   notes?: string;
 }
 
+export interface CreateSSTTrainingDTO {
+  name: string;
+  description?: string;
+  trainingType: string; // NR_35, CIPA, NR_10, BRIGADA_INCENDIO, etc.
+  durationHours: number;
+  validityMonths?: number;
+  isMandatory?: boolean;
+  provider?: string;
+  isActive?: boolean;
+  requiredForRisks?: string[];
+}
+
 export interface CreateTrainingParticipationDTO {
   employeeId: string;
   trainingId: string;
   scheduledDate: string;
+  notes?: string;
+}
+
+export interface CorrectiveAction {
+  id: string;
+  title: string;
+  description: string;
+  origin: 'INSPECAO' | 'ACIDENTE' | 'AUDITORIA' | 'NAO_CONFORMIDADE' | 'OUTROS';
+  priority: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+  status: 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA';
+  responsibleUserId?: string;
+  responsibleName?: string;
+  dueDate: string;
+  completionDate?: string;
+  department?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCorrectiveActionDTO {
+  title: string;
+  description: string;
+  origin: 'INSPECAO' | 'ACIDENTE' | 'AUDITORIA' | 'NAO_CONFORMIDADE' | 'OUTROS';
+  priority: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+  status?: 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA';
+  responsibleUserId?: string;
+  responsibleName?: string;
+  dueDate: string;
+  department?: string;
   notes?: string;
 }
 
@@ -180,9 +235,10 @@ export interface CreateAccidentRecordDTO {
 export interface CreateEPIDeliveryDTO {
   employeeId: string;
   epiId: string;
-  deliveryDate: string;
+  deliveryDate: string; // Formato: yyyy-MM-dd
   quantity: number;
   reason: string;
+  deliveredByUserId?: string; // ID do usuário que está fazendo a entrega
   notes?: string;
 }
 
@@ -330,29 +386,39 @@ export const sstService = {
     return response.data;
   },
 
+  async getDistinctClinicNames(): Promise<string[]> {
+    const response = await api.get('/api/sst/medical-exams/clinics');
+    return response.data;
+  },
+
   // Treinamentos
   async getSSTTrainings(): Promise<SSTTraining[]> {
     const response = await api.get('/api/sst/trainings');
     return response.data;
   },
 
+  async getSSTTrainingsWithStats(): Promise<SSTTraining[]> {
+    const response = await api.get('/api/sst/trainings/with-stats');
+    return response.data;
+  },
+
   async getSSTTrainingById(id: string): Promise<SSTTraining> {
-    const response = await api.get(`/sst/trainings/${id}`);
+    const response = await api.get(`/api/sst/trainings/${id}`);
     return response.data;
   },
 
-  async createSSTTraining(training: Partial<SSTTraining>): Promise<SSTTraining> {
-    const response = await api.post('/api/sst/trainings', training);
+  async createSSTTraining(training: CreateSSTTrainingDTO): Promise<SSTTraining> {
+    const response = await api.post('/api/sst/trainings/create', training);
     return response.data;
   },
 
-  async updateSSTTraining(id: string, training: Partial<SSTTraining>): Promise<SSTTraining> {
-    const response = await api.put(`/sst/trainings/${id}`, training);
+  async updateSSTTraining(id: string, training: CreateSSTTrainingDTO): Promise<SSTTraining> {
+    const response = await api.put(`/api/sst/trainings/${id}/update`, training);
     return response.data;
   },
 
   async deleteSSTTraining(id: string): Promise<void> {
-    await api.delete(`/sst/trainings/${id}`);
+    await api.delete(`/api/sst/trainings/${id}`);
   },
 
   async getTrainingParticipations(): Promise<TrainingParticipation[]> {
@@ -396,7 +462,7 @@ export const sstService = {
   },
 
   async getAccidentRecordById(id: string): Promise<AccidentRecord> {
-    const response = await api.get(`/sst/accidents/${id}`);
+    const response = await api.get(`/api/sst/accidents/${id}`);
     return response.data;
   },
 
@@ -406,26 +472,26 @@ export const sstService = {
   },
 
   async updateAccidentRecord(id: string, accident: Partial<AccidentRecord>): Promise<AccidentRecord> {
-    const response = await api.put(`/sst/accidents/${id}`, accident);
+    const response = await api.put(`/api/sst/accidents/${id}`, accident);
     return response.data;
   },
 
   async deleteAccidentRecord(id: string): Promise<void> {
-    await api.delete(`/sst/accidents/${id}`);
+    await api.delete(`/api/sst/accidents/${id}`);
   },
 
   async getAccidentRecordsByEmployee(employeeId: string): Promise<AccidentRecord[]> {
-    const response = await api.get(`/sst/accidents/employee/${employeeId}`);
+    const response = await api.get(`/api/sst/accidents/employee/${employeeId}`);
     return response.data;
   },
 
   async getAccidentRecordsByType(type: string): Promise<AccidentRecord[]> {
-    const response = await api.get(`/sst/accidents/type/${type}`);
+    const response = await api.get(`/api/sst/accidents/type/${type}`);
     return response.data;
   },
 
   async getAccidentRecordsByStatus(status: string): Promise<AccidentRecord[]> {
-    const response = await api.get(`/sst/accidents/status/${status}`);
+    const response = await api.get(`/api/sst/accidents/status/${status}`);
     return response.data;
   },
 
@@ -441,7 +507,7 @@ export const sstService = {
   },
 
   async getPersonalProtectiveEquipmentById(id: string): Promise<PersonalProtectiveEquipment> {
-    const response = await api.get(`/sst/epis/${id}`);
+    const response = await api.get(`/api/sst/epis/${id}`);
     return response.data;
   },
 
@@ -491,6 +557,36 @@ export const sstService = {
   async getExpiringEPIDeliveries(days: number = 30): Promise<EPIDelivery[]> {
     const response = await api.get(`/sst/epi-deliveries/expiring/${days}`);
     return response.data;
-  }
+  },
+
+  // Ações Corretivas
+  async getCorrectiveActions(): Promise<CorrectiveAction[]> {
+    const response = await api.get('/api/sst/corrective-actions');
+    return response.data;
+  },
+
+  async getCorrectiveActionById(id: string): Promise<CorrectiveAction> {
+    const response = await api.get(`/api/sst/corrective-actions/${id}`);
+    return response.data;
+  },
+
+  async createCorrectiveAction(action: CreateCorrectiveActionDTO): Promise<CorrectiveAction> {
+    const response = await api.post('/api/sst/corrective-actions', action);
+    return response.data;
+  },
+
+  async updateCorrectiveAction(id: string, action: CreateCorrectiveActionDTO): Promise<CorrectiveAction> {
+    const response = await api.put(`/api/sst/corrective-actions/${id}`, action);
+    return response.data;
+  },
+
+  async completeCorrectiveAction(id: string): Promise<CorrectiveAction> {
+    const response = await api.post(`/api/sst/corrective-actions/${id}/complete`);
+    return response.data;
+  },
+
+  async deleteCorrectiveAction(id: string): Promise<void> {
+    await api.delete(`/api/sst/corrective-actions/${id}`);
+  },
 };
 

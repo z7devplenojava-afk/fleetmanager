@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Baileys - SecuredGuard</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 600px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        #qrcode {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading {
+            color: #667eea;
+            font-size: 18px;
+        }
+        .error {
+            color: #e74c3c;
+            font-size: 16px;
+        }
+        .success {
+            color: #27ae60;
+            font-size: 16px;
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 8px 0;
+            color: #856404;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Conectar WhatsApp - Baileys</h1>
+        <p class="subtitle">SecuredGuard - Sistema de Envio de Holerites</p>
+        
+        <div id="status"></div>
+        
+        <div id="qrcode">
+            <div class="loading">⏳ Carregando QR Code...</div>
+        </div>
+        
+        <button onclick="loadQRCode()">🔄 Recarregar QR Code</button>
+        <button onclick="checkStatus()">📊 Verificar Status</button>
+        
+        <div class="instructions">
+            <h3>📱 Como Conectar:</h3>
+            <ol>
+                <li>Abra o <strong>WhatsApp</strong> no celular <strong>31971731747</strong></li>
+                <li>Toque em <strong>Menu (⋮)</strong> → <strong>Aparelhos conectados</strong></li>
+                <li>Toque em <strong>Conectar um aparelho</strong></li>
+                <li><strong>Escaneie o QR Code</strong> acima</li>
+                <li>Aguarde a confirmação de conexão</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3333';
+        
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('status');
+                
+                if (data.ready && data.connected) {
+                    statusDiv.innerHTML = '<div class="status connected">✅ WhatsApp Conectado</div>';
+                    document.getElementById('qrcode').innerHTML = '<div class="success">✅ WhatsApp já está conectado!<br><br>Pronto para enviar mensagens!</div>';
+                } else {
+                    statusDiv.innerHTML = '<div class="status disconnected">⚠️ WhatsApp Desconectado</div>';
+                    loadQRCode();
+                }
+            } catch (error) {
+                document.getElementById('status').innerHTML = '<div class="status disconnected">❌ Erro ao verificar status</div>';
+            }
+        }
+        
+        async function loadQRCode() {
+            const qrcodeDiv = document.getElementById('qrcode');
+            qrcodeDiv.innerHTML = '<div class="loading">⏳ Carregando QR Code...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}/instance/qr`);
+                
+                if (response.status === 404) {
+                    qrcodeDiv.innerHTML = '<div class="success">✅ WhatsApp já conectado!<br><br>QR Code não disponível.</div>';
+                    checkStatus();
+                    return;
+                }
+                
+                if (response.ok) {
+                    const svgText = await response.text();
+                    qrcodeDiv.innerHTML = svgText;
+                    document.getElementById('status').innerHTML = '<div class="status disconnected">⏳ Aguardando Scan...</div>';
+                    
+                    // Verificar status a cada 3 segundos
+                    const interval = setInterval(async () => {
+                        const healthResponse = await fetch(`${API_URL}/health`);
+                        const healthData = await healthResponse.json();
+                        
+                        if (healthData.ready && healthData.connected) {
+                            clearInterval(interval);
+                            qrcodeDiv.innerHTML = '<div class="success">✅ WhatsApp Conectado!<br><br>Você pode fechar esta página.</div>';
+                            document.getElementById('status').innerHTML = '<div class="status connected">✅ Conectado</div>';
+                        }
+                    }, 3000);
+                } else {
+                    qrcodeDiv.innerHTML = '<div class="error">❌ Erro ao carregar QR Code</div>';
+                }
+            } catch (error) {
+                qrcodeDiv.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        // Carregar automaticamente ao abrir a página
+        window.onload = () => {
+            checkStatus();
+        };
+    </script>
+</body>
+</html>
+

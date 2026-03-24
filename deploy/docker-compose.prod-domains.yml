@@ -1,0 +1,132 @@
+version: '3.8'
+
+services:
+  # ========================================
+  # DATABASE
+  # ========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: secured-guard-db-prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-secured_guard}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=false"
+
+  # ========================================
+  # REDIS CACHE
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: secured-guard-redis-prod
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - secured-guard-network
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=false"
+
+  # ========================================
+  # BACKEND API
+  # ========================================
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-backend-prod
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-secured_guard}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JAVA_OPTS: "-Xmx1g -Xms512m"
+    volumes:
+      - backend_logs_prod:/app/logs
+      - backend_uploads_prod:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    labels:
+      # Traefik labels para backend - produção
+      - "traefik.enable=true"
+      - "traefik.http.routers.secured-guard-api-prod.rule=Host(`securedguard.z7botsolutions.com.br`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.secured-guard-api-prod.entrypoints=websecure"
+      - "traefik.http.routers.secured-guard-api-prod.tls.certresolver=letsencrypt"
+      - "traefik.http.services.secured-guard-api-prod.loadbalancer.server.port=8080"
+      - "traefik.docker.network=secured-guard-network"
+
+  # ========================================
+  # FRONTEND
+  # ========================================
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-frontend-prod
+    depends_on:
+      - backend
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    labels:
+      # Traefik labels para frontend - produção
+      - "traefik.enable=true"
+      - "traefik.http.routers.secured-guard-web-prod.rule=Host(`securedguard.z7botsolutions.com.br`)"
+      - "traefik.http.routers.secured-guard-web-prod.entrypoints=websecure"
+      - "traefik.http.routers.secured-guard-web-prod.tls.certresolver=letsencrypt"
+      - "traefik.http.services.secured-guard-web-prod.loadbalancer.server.port=80"
+      - "traefik.docker.network=secured-guard-network"
+
+# ========================================
+# VOLUMES
+# ========================================
+volumes:
+  postgres_data_prod:
+  redis_data_prod:
+  backend_logs_prod:
+  backend_uploads_prod:
+
+# ========================================
+# NETWORKS
+# ========================================
+networks:
+  secured-guard-network:
+    external: true
+    name: secured-guard

@@ -1,18 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { MoreVertical, UserPlus, Edit, Trash2, Eye, Download, FileText, Trash2Icon, Edit3, Users, UserCheck, UserX } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
+import { UserPlus, Edit, Trash2, Eye, Download, FileText, Users, UserCheck, UserX } from 'lucide-react';
 import { Driver } from '@/types/driver';
-import { useToast } from '@/hooks/use-toast';
 
 interface MotoristasTableProps {
   drivers: Driver[];
@@ -23,20 +14,14 @@ interface MotoristasTableProps {
   isLoading?: boolean;
 }
 
-const MotoristasTable: React.FC<MotoristasTableProps> = ({ 
-  drivers, 
-  onAdd, 
-  onEdit, 
-  onDelete, 
+const MotoristasTable: React.FC<MotoristasTableProps> = ({
+  drivers,
+  onAdd,
+  onEdit,
+  onDelete,
   onView,
   isLoading
 }) => {
-  // Estados para seleção em lote
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const [selectAll, setSelectAll] = useState(false);
-  
-  const { toast } = useToast();
-
   const getStatusVariant = (status: string): 'default' | 'destructive' | 'secondary' => {
     switch (status?.toUpperCase()) {
       case 'ATIVO':
@@ -63,97 +48,6 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
     }
   };
 
-  // Funções de seleção
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      const allIds = new Set(drivers.map(item => item.id));
-      setSelectedItems(allIds);
-      setSelectAll(true);
-    } else {
-      setSelectedItems(new Set());
-      setSelectAll(false);
-    }
-  };
-
-  const handleSelectItem = (id: string, checked: boolean) => {
-    const newSelected = new Set(selectedItems);
-    if (checked) {
-      newSelected.add(id);
-    } else {
-      newSelected.delete(id);
-    }
-    setSelectedItems(newSelected);
-    setSelectAll(newSelected.size === drivers.length);
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedItems.size === 0) {
-      toast({
-        title: "Aviso",
-        description: "Nenhum item selecionado para exclusão",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!confirm(`Tem certeza que deseja excluir ${selectedItems.size} motorista(s)? Esta ação não pode ser desfeita.`)) {
-      return;
-    }
-
-    try {
-      const selectedIds = Array.from(selectedItems);
-      console.log('🗑️ Excluindo motoristas:', selectedIds);
-      
-      // Aqui você implementaria a lógica de exclusão em lote
-      toast({
-        title: "Sucesso",
-        description: `${selectedItems.size} motorista(s) marcado(s) para exclusão`,
-        variant: "default"
-      });
-
-      // Limpar seleção
-      setSelectedItems(new Set());
-      setSelectAll(false);
-      
-    } catch (error: any) {
-      console.error('❌ Erro ao excluir em lote:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao excluir motoristas selecionados",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleBulkEdit = () => {
-    console.log('Editando itens selecionados:', Array.from(selectedItems));
-    toast({
-      title: "Funcionalidade",
-      description: "Edição em lote será implementada em breve",
-      variant: "default"
-    });
-  };
-
-  const handleExport = () => {
-    const itemsToExport = selectedItems.size > 0 ? selectedItems : new Set(drivers.map(d => d.id));
-    console.log('Exportando itens:', Array.from(itemsToExport));
-    toast({
-      title: "Funcionalidade",
-      description: "Exportação será implementada em breve",
-      variant: "default"
-    });
-  };
-
-  const handleGenerateReport = () => {
-    const itemsForReport = selectedItems.size > 0 ? selectedItems : new Set(drivers.map(d => d.id));
-    console.log('Gerando relatório para itens:', Array.from(itemsForReport));
-    toast({
-      title: "Funcionalidade",
-      description: "Relatório será implementado em breve",
-      variant: "default"
-    });
-  };
-  
   return (
     <div className="space-y-4">
       {/* Cabeçalho com Estatísticas */}
@@ -187,7 +81,7 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
               )}
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
@@ -201,14 +95,14 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExport}
+              onClick={() => console.log('Exportar motoristas (não implementado)')}
               className="border-green-500 text-green-500 hover:bg-green-500 hover:text-white"
             >
               <Download size={16} className="mr-2" />
               Exportar
             </Button>
-            <Button 
-              onClick={onAdd} 
+            <Button
+              onClick={onAdd}
               className="bg-seguranca-red hover:bg-seguranca-darkred text-white transition-colors"
             >
               <UserPlus className="mr-2 h-4 w-4" />
@@ -218,71 +112,10 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
         </div>
       </div>
 
-      {/* Barra de ações em lote */}
-      {selectedItems.size > 0 && (
-        <div className="bg-seguranca-black border border-gray-600 rounded-lg p-4 mb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-seguranca-lightgray font-medium">
-                {selectedItems.size} motorista(s) selecionado(s)
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSelectedItems(new Set());
-                  setSelectAll(false);
-                }}
-                className="border-gray-600 text-gray-400 hover:bg-gray-700 text-xs"
-              >
-                Limpar Seleção
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBulkEdit}
-                className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
-              >
-                <Edit3 size={16} className="mr-2" />
-                Editar Selecionados
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleGenerateReport}
-                className="border-purple-500 text-purple-500 hover:bg-purple-500 hover:text-white"
-              >
-                <FileText size={16} className="mr-2" />
-                Relatório
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBulkDelete}
-                className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-              >
-                <Trash2Icon size={16} className="mr-2" />
-                Excluir Selecionados
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      <div className="bg-seguranca-black border border-gray-600 rounded-lg overflow-hidden">
+      <div className="bg-seguranca-black border border-gray-600 rounded-lg overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="bg-seguranca-graphite hover:bg-seguranca-graphite">
-              <TableHead className="w-12 text-center">
-                <Checkbox
-                  checked={selectAll}
-                  onCheckedChange={handleSelectAll}
-                  aria-label="Selecionar todos"
-                  className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
-                />
-              </TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold">Nome</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold">CNH</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold text-center">Status</TableHead>
@@ -313,18 +146,10 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
               </TableRow>
             ) : (
               drivers.map((driver) => (
-                <TableRow 
-                  key={driver.id} 
+                <TableRow
+                  key={driver.id}
                   className="border-gray-600 hover:bg-seguranca-graphite/50 transition-colors"
                 >
-                  <TableCell className="w-12 text-center">
-                    <Checkbox
-                      checked={selectedItems.has(driver.id)}
-                      onCheckedChange={(checked) => handleSelectItem(driver.id, checked as boolean)}
-                      aria-label={`Selecionar motorista ${driver.name}`}
-                      className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
-                    />
-                  </TableCell>
                   <TableCell className="text-seguranca-lightgray">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-seguranca-yellow/20 rounded-full flex items-center justify-center">
@@ -341,13 +166,12 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
                     </span>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge 
+                    <Badge
                       variant={getStatusVariant(driver.status)}
-                      className={`font-medium ${
-                        driver.status?.toUpperCase() === 'ATIVO' || driver.status?.toUpperCase() === 'ACTIVE'
+                      className={`font-medium ${driver.status?.toUpperCase() === 'ATIVO' || driver.status?.toUpperCase() === 'ACTIVE'
                           ? 'bg-green-900/20 text-green-400 border-green-700/30'
                           : 'bg-red-900/20 text-red-400 border-red-700/30'
-                      }`}
+                        }`}
                     >
                       {driver.status?.toUpperCase() === 'ATIVO' || driver.status?.toUpperCase() === 'ACTIVE' ? (
                         <UserCheck className="mr-1 h-3 w-3" />
@@ -357,33 +181,62 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
                       {getStatusText(driver.status)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-1">
+                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
                       {onView && (
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          type="button"
+                          variant="outline"
                           size="sm"
-                          onClick={() => onView(driver)}
-                          className="h-8 w-8 p-0 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onView(driver);
+                          }}
+                          className="h-8 w-8 p-0 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white cursor-pointer"
                           title="Visualizar detalhes"
                         >
                           <Eye size={14} />
                         </Button>
                       )}
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        type="button"
+                        variant="outline"
                         size="sm"
-                        onClick={() => onEdit(driver)}
-                        className="h-8 w-8 p-0 border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-white"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('✏️ Editando motorista:', driver.name);
+                          onEdit(driver);
+                        }}
+                        className="h-8 w-8 p-0 border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-white cursor-pointer"
                         title="Editar"
                       >
                         <Edit size={14} />
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        type="button"
+                        variant="outline"
                         size="sm"
-                        onClick={() => onDelete(driver)}
-                        className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('🗑️ Clicou em excluir motorista:', driver.name, driver.id);
+                          console.log('🔍 onDelete é uma função?', typeof onDelete);
+                          console.log('🔍 onDelete:', onDelete);
+                          if (typeof onDelete === 'function') {
+                            console.log('✅ Chamando onDelete...');
+                            try {
+                              onDelete(driver);
+                              console.log('✅ onDelete chamado com sucesso');
+                            } catch (error) {
+                              console.error('❌ Erro ao chamar onDelete:', error);
+                            }
+                          } else {
+                            console.error('❌ onDelete não é uma função!');
+                          }
+                        }}
+                        className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500 hover:text-white cursor-pointer"
                         title="Excluir"
                       >
                         <Trash2 size={14} />
@@ -416,7 +269,7 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-gray-400">Taxa de ativos:</span>
               <span className="text-seguranca-lightgray font-semibold">
-                {drivers.length > 0 
+                {drivers.length > 0
                   ? `${Math.round((drivers.filter(d => d.status?.toUpperCase() === 'ATIVO' || d.status?.toUpperCase() === 'ACTIVE').length / drivers.length) * 100)}%`
                   : '0%'
                 }

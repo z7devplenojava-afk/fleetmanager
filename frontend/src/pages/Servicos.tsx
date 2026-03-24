@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { ensureAllContentVisible } from '@/utils/ensureVisibility';
 import Navbar from '@/components/Navbar';
 import Logo from '@/components/Logo';
 import { Button } from '@/components/ui/button';
@@ -34,10 +35,16 @@ import {
   AlertTriangle,
   Zap
 } from 'lucide-react';
-import { useAOS } from '@/hooks/use-aos';
+import { useGSAP } from '@/hooks/use-gsap';
 
 const Servicos = () => {
-  const aos = useAOS();
+  const animate = useGSAP();
+  
+  // Fallback de segurança: garantir que o conteúdo sempre apareça
+  useEffect(() => {
+    ensureAllContentVisible();
+  }, []);
+  
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isSpecialistModalOpen, setIsSpecialistModalOpen] = useState(false);
 
@@ -111,15 +118,15 @@ const Servicos = () => {
         {/* Header Section */}
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="container mx-auto text-center">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4" data-animate="fadeUp">
               Nossos Serviços
             </h1>
-            <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto mb-12" data-aos={aos.fadeUp} data-aos-delay="200">
+            <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto mb-12" data-animate="fadeUp" data-delay="200">
               Soluções completas em segurança patrimonial para proteger o que é mais importante para você
             </p>
             
             {/* Features/Benefits */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto" data-aos={aos.fadeUp} data-aos-delay="400">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto" data-animate="fadeUp" data-delay="400">
               <div className="text-center">
                 <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Shield className="h-8 w-8 text-white" />
@@ -149,17 +156,17 @@ const Servicos = () => {
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#292929' }}>
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">
                 Nossos Serviços
               </h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-aos={aos.fadeUp} data-aos-delay="200">
+              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
                 Soluções personalizadas para cada necessidade
               </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {services.map((service, index) => (
-                <Card key={index} className="bg-gray-800 border-gray-700 hover:border-red-600 transition-colors" data-aos={aos.fadeUp} data-aos-delay={index * 100}>
+                <Card key={index} className="bg-gray-800 border-gray-700 hover:border-red-600 transition-colors" data-animate="fadeUp" data-delay={index * 100}>
                   <CardHeader className="text-center">
                     <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                       <service.icon className="h-8 w-8 text-white" />
@@ -196,17 +203,17 @@ const Servicos = () => {
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">
                 Segmentos Atendidos
               </h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-aos={aos.fadeUp} data-aos-delay="200">
+              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
                 Atendemos diversos segmentos com soluções personalizadas
               </p>
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
               {segments.map((segment, index) => (
-                <div key={index} className="text-center" data-aos={aos.fadeUp} data-aos-delay={index * 100}>
+                <div key={index} className="text-center" data-animate="fadeUp" data-delay={index * 100}>
                   <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 hover:bg-red-600 transition-colors">
                     <segment.icon className="h-8 w-8 text-white" />
                   </div>
@@ -222,16 +229,16 @@ const Servicos = () => {
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#292929' }}>
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">
                 Por que Escolher a Promover?
               </h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-aos={aos.fadeUp} data-aos-delay="200">
+              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
                 Diferenciais que fazem a diferença na sua segurança
               </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-gray-800 rounded-xl p-6 text-center" data-aos={aos.fadeUp} data-aos-delay="100">
+              <div className="bg-gray-800 rounded-xl p-6 text-center" data-animate="fadeUp" data-delay="100">
                 <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Clock className="h-6 w-6 text-white" />
                 </div>
@@ -239,7 +246,7 @@ const Servicos = () => {
                 <p className="text-gray-400 text-sm">Disponibilidade total para sua segurança</p>
               </div>
               
-              <div className="bg-gray-800 rounded-xl p-6 text-center" data-aos={aos.fadeUp} data-aos-delay="200">
+              <div className="bg-gray-800 rounded-xl p-6 text-center" data-animate="fadeUp" data-delay="200">
                 <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Users className="h-6 w-6 text-white" />
                 </div>
@@ -247,7 +254,7 @@ const Servicos = () => {
                 <p className="text-gray-400 text-sm">Profissionais certificados e experientes</p>
               </div>
               
-              <div className="bg-gray-800 rounded-xl p-6 text-center" data-aos={aos.fadeUp} data-aos-delay="300">
+              <div className="bg-gray-800 rounded-xl p-6 text-center" data-animate="fadeUp" data-delay="300">
                 <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Shield className="h-6 w-6 text-white" />
                 </div>
@@ -255,7 +262,7 @@ const Servicos = () => {
                 <p className="text-gray-400 text-sm">Sistemas modernos de monitoramento</p>
               </div>
               
-              <div className="bg-gray-800 rounded-xl p-6 text-center" data-aos={aos.fadeUp} data-aos-delay="400">
+              <div className="bg-gray-800 rounded-xl p-6 text-center" data-animate="fadeUp" data-delay="400">
                 <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Award className="h-6 w-6 text-white" />
                 </div>
@@ -269,13 +276,13 @@ const Servicos = () => {
         {/* CTA Section */}
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="container mx-auto text-center">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">
               Pronto para Proteger seu Patrimônio?
             </h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto" data-aos={aos.fadeUp} data-aos-delay="200">
+            <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto" data-animate="fadeUp" data-delay="200">
               Entre em contato conosco e solicite um orçamento personalizado para suas necessidades
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center" data-aos={aos.fadeUp} data-aos-delay="400">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center" data-animate="fadeUp" data-delay="400">
               <Button 
                 size="lg" 
                 className="bg-red-600 hover:bg-red-700 text-lg px-8 py-4 flex items-center"
@@ -330,10 +337,10 @@ const Servicos = () => {
               <div>
                 <h3 className="text-lg font-semibold text-white mb-4">Serviços</h3>
                 <ul className="space-y-2">
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Vigilância Patrimonial</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Portaria</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Controlador de Acesso</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Facilities</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Vigilância Patrimonial</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Portaria</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Controlador de Acesso</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Facilities</a></li>
                 </ul>
               </div>
 
@@ -342,7 +349,7 @@ const Servicos = () => {
                 <h3 className="text-lg font-semibold text-white mb-4">Empresa</h3>
                 <ul className="space-y-2">
                   <li><a href="/quem-somos" className="hover:text-white transition-colors block py-1">Quem Somos</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Serviços</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Serviços</a></li>
                   <li><a href="/trabalhe-conosco" className="hover:text-white transition-colors block py-1">Trabalhe Conosco</a></li>
                   <li><a href="/contato" className="hover:text-white transition-colors block py-1">Contato</a></li>
                 </ul>

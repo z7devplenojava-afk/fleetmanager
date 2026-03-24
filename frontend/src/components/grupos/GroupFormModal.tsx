@@ -9,8 +9,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { groupService } from '@/services/groupService';
-import { UserGroupData } from '@/types/user';
-import { UserGroup } from '@/types/user';
+import { permissionService } from '@/services/permissionService';
+import { PermissionDTO, UserGroupData, UserGroup } from '@/types/user';
 import { X, Save, Plus } from 'lucide-react';
 
 interface GroupFormModalProps {
@@ -20,51 +20,6 @@ interface GroupFormModalProps {
   group?: UserGroupData;
 }
 
-const AVAILABLE_PERMISSIONS = [
-  { key: 'VIEW_PAYSLIP', label: 'Visualizar Holerites' },
-  { key: 'DOWNLOAD_PAYSLIP', label: 'Baixar Holerites' },
-  { key: 'EDIT_PROFILE', label: 'Editar Perfil' },
-  { key: 'VIEW_EMPLOYEES', label: 'Visualizar Funcionários' },
-  { key: 'MANAGE_EMPLOYEES', label: 'Gerenciar Funcionários' },
-  { key: 'VIEW_REPORTS', label: 'Visualizar Relatórios' },
-  { key: 'MANAGE_SYSTEM', label: 'Gerenciar Sistema' },
-  { key: 'VIEW_CLIENTS', label: 'Visualizar Clientes' },
-  { key: 'MANAGE_CLIENTS', label: 'Gerenciar Clientes' },
-  { key: 'VIEW_CONTRACTS', label: 'Visualizar Contratos' },
-  { key: 'MANAGE_CONTRACTS', label: 'Gerenciar Contratos' },
-  // Permissões Financeiras Gerais
-  { key: 'VIEW_FINANCIAL', label: 'Visualizar Financeiro' },
-  { key: 'MANAGE_FINANCIAL', label: 'Gerenciar Financeiro' },
-  
-  // Contas a Pagar
-  { key: 'VIEW_CONTAS_PAGAR', label: 'Visualizar Contas a Pagar' },
-  { key: 'MANAGE_CONTAS_PAGAR', label: 'Gerenciar Contas a Pagar' },
-  { key: 'APPROVE_CONTAS_PAGAR', label: 'Aprovar Contas a Pagar' },
-  
-  // Contas a Receber
-  { key: 'VIEW_CONTAS_RECEBER', label: 'Visualizar Contas a Receber' },
-  { key: 'MANAGE_CONTAS_RECEBER', label: 'Gerenciar Contas a Receber' },
-  { key: 'APPROVE_CONTAS_RECEBER', label: 'Aprovar Contas a Receber' },
-  
-  // Pagamentos
-  { key: 'VIEW_PAGAMENTOS', label: 'Visualizar Pagamentos' },
-  { key: 'MANAGE_PAGAMENTOS', label: 'Gerenciar Pagamentos' },
-  { key: 'EXECUTE_PAGAMENTOS', label: 'Executar Pagamentos' },
-  
-  // Fluxo de Caixa
-  { key: 'VIEW_FLUXO_CAIXA', label: 'Visualizar Fluxo de Caixa' },
-  { key: 'MANAGE_FLUXO_CAIXA', label: 'Gerenciar Fluxo de Caixa' },
-  
-  // Relatórios Financeiros
-  { key: 'VIEW_RELATORIOS_FINANCEIROS', label: 'Visualizar Relatórios Financeiros' },
-  { key: 'GENERATE_RELATORIOS_FINANCEIROS', label: 'Gerar Relatórios Financeiros' },
-  { key: 'EXPORT_RELATORIOS_FINANCEIROS', label: 'Exportar Relatórios Financeiros' },
-  { key: 'VIEW_FLEET', label: 'Visualizar Frota' },
-  { key: 'MANAGE_FLEET', label: 'Gerenciar Frota' },
-  { key: 'VIEW_DOCUMENTS', label: 'Visualizar Documentos' },
-  { key: 'MANAGE_DOCUMENTS', label: 'Gerenciar Documentos' },
-];
-
 const GROUP_OPTIONS: { value: UserGroup; label: string }[] = [
   { value: 'GRUPO_SUPER_ADMIN', label: 'Super Administrador' },
   { value: 'GRUPO_ADMIN', label: 'Administrador' },
@@ -73,6 +28,7 @@ const GROUP_OPTIONS: { value: UserGroup; label: string }[] = [
   { value: 'GRUPO_DPE', label: 'Departamento Pessoal' },
   { value: 'GRUPO_SUPERVISOR', label: 'Supervisor' },
   { value: 'GRUPO_COLABORADORES', label: 'Colaboradores' },
+  { value: 'GRUPO_OPERACIONAL', label: 'Operacional' },
   { value: 'GRUPO_FINANCEIRO', label: 'Financeiro' },
   { value: 'GRUPO_TI_SUPORTE', label: 'TI / Suporte' },
   { value: 'GRUPO_AUDITOR', label: 'Auditor' },
@@ -92,6 +48,8 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({
     permissions: [] as string[]
   });
   const [loading, setLoading] = useState(false);
+  const [availablePermissions, setAvailablePermissions] = useState<PermissionDTO[]>([]);
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
   const { toast } = useToast();
 
   const isEditing = !!group;
@@ -116,10 +74,43 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({
     }
   }, [open, group]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const fetchPermissions = async () => {
+      try {
+        setIsLoadingPermissions(true);
+        const permissions = await permissionService.getAllPermissions();
+        const sortedPermissions = permissions.sort((a, b) => {
+          const labelA = (a.description || a.name || '').toLowerCase();
+          const labelB = (b.description || b.name || '').toLowerCase();
+          if (labelA < labelB) return -1;
+          if (labelA > labelB) return 1;
+          return 0;
+        });
+        setAvailablePermissions(sortedPermissions);
+      } catch (error: any) {
+        console.error('Erro ao carregar permissões', error);
+        toast({
+          title: 'Erro',
+          description: error?.response?.data?.message || 'Não foi possível carregar as permissões.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoadingPermissions(false);
+      }
+    };
+
+    fetchPermissions();
+  }, [open, toast]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.groupName || !formData.displayName.trim()) {
+    const normalizedGroupName = (formData.groupName || '').toString().trim();
+    const normalizedDisplayName = formData.displayName.trim();
+
+    if (!normalizedGroupName || !normalizedDisplayName) {
       toast({
         title: 'Erro',
         description: 'Nome do grupo e nome de exibição são obrigatórios.',
@@ -128,17 +119,33 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({
       return;
     }
 
+    const sanitizedPermissions = Array.from(
+      new Set(
+        (formData.permissions || [])
+          .filter((permission): permission is string => typeof permission === 'string')
+          .map((permission) => permission.trim())
+          .filter((permission) => permission.length > 0)
+      )
+    );
+
+    const payload: Partial<UserGroupData> = {
+      groupName: normalizedGroupName as UserGroup,
+      displayName: normalizedDisplayName,
+      description: formData.description?.trim() || undefined,
+      permissions: sanitizedPermissions,
+    };
+
     try {
       setLoading(true);
       
       if (isEditing && group) {
-        await groupService.updateGroup(group.id, formData);
+        await groupService.updateGroup(group.id, payload);
         toast({
           title: 'Sucesso',
           description: 'Grupo atualizado com sucesso.',
         });
       } else {
-        await groupService.createGroup(formData);
+        await groupService.createGroup(payload);
         toast({
           title: 'Sucesso',
           description: 'Grupo criado com sucesso.',
@@ -182,7 +189,7 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({
   const selectAllPermissions = () => {
     setFormData(prev => ({
       ...prev,
-      permissions: AVAILABLE_PERMISSIONS.map(p => p.key)
+      permissions: availablePermissions.map(p => p.name)
     }));
   };
 
@@ -195,8 +202,8 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden p-0 flex flex-col">
+        <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle className="flex items-center space-x-2">
             <Plus className="w-5 h-5" />
             <span>{isEditing ? 'Editar Grupo' : 'Novo Grupo'}</span>
@@ -206,7 +213,7 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
           {/* Nome do Grupo */}
           <div className="space-y-2">
             <Label htmlFor="groupName">Nome do Grupo *</Label>
@@ -277,18 +284,31 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({
             </div>
             
             <div className="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto border rounded-md p-4">
-              {AVAILABLE_PERMISSIONS.map((permission) => (
-                <div key={permission.key} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={permission.key}
-                    checked={formData.permissions.includes(permission.key)}
-                    onCheckedChange={() => togglePermission(permission.key)}
-                  />
-                  <Label htmlFor={permission.key} className="text-sm cursor-pointer">
-                    {permission.label}
-                  </Label>
+              {isLoadingPermissions ? (
+                <div className="col-span-2 text-center text-sm text-gray-400">
+                  Carregando permissões...
                 </div>
-              ))}
+              ) : availablePermissions.length === 0 ? (
+                <div className="col-span-2 text-center text-sm text-gray-400">
+                  Nenhuma permissão disponível.
+                </div>
+              ) : (
+                availablePermissions.map((permission) => {
+                  const permissionLabel = permission.description || permission.name;
+                  return (
+                    <div key={permission.id || permission.name} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={permission.name}
+                        checked={formData.permissions.includes(permission.name)}
+                        onCheckedChange={() => togglePermission(permission.name)}
+                      />
+                      <Label htmlFor={permission.name} className="text-sm cursor-pointer">
+                        {permissionLabel}
+                      </Label>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             {/* Permissões Selecionadas */}
@@ -297,10 +317,10 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({
                 <Label className="text-sm font-medium">Permissões Selecionadas ({formData.permissions.length})</Label>
                 <div className="flex flex-wrap gap-1">
                   {formData.permissions.map((permission) => {
-                    const permInfo = AVAILABLE_PERMISSIONS.find(p => p.key === permission);
+                    const permInfo = availablePermissions.find(p => p.name === permission);
                     return (
                       <Badge key={permission} variant="secondary" className="text-xs">
-                        {permInfo?.label || permission}
+                        {permInfo?.description || permInfo?.name || permission}
                         <button
                           type="button"
                           onClick={() => togglePermission(permission)}

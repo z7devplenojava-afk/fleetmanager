@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Work Posts - SecuredGuard</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f5f5f5; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background-color: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        .step { 
+            margin: 15px 0; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+        }
+        .result { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 5px; 
+            white-space: pre-wrap; 
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button { 
+            margin: 5px; 
+            padding: 10px 15px; 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        textarea { 
+            width: 100%; 
+            height: 200px; 
+            font-family: monospace; 
+            font-size: 12px; 
+        }
+        .credentials {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .credentials input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Work Posts - SecuredGuard</h1>
+        <div id="localStorage-info"></div>
+        
+        <div class="step">
+            <h3>1. Verificar Estado Atual</h3>
+            <button onclick="checkCurrentState()">Verificar Estado</button>
+            <div id="state-result"></div>
+        </div>
+
+        <div class="step">
+            <h3>2. Autenticação</h3>
+            <div class="credentials">
+                <input type="text" id="username" placeholder="Username" value="super_admin">
+                <input type="password" id="password" placeholder="Password" value="123456">
+            </div>
+            <button onclick="login()">Fazer Login</button>
+            <button onclick="checkToken()">Verificar Token</button>
+            <div id="auth-result"></div>
+        </div>
+
+        <div class="test-grid">
+            <div class="step">
+                <h3>3. Testar Endpoints</h3>
+                <button onclick="testSimpleEndpoint()">Teste Simples</button>
+                <button onclick="testWorkPostsNoAuth()">Work Posts (sem auth)</button>
+                <button onclick="testWorkPostsWithAuth()">Work Posts (com auth)</button>
+                <div id="endpoint-result"></div>
+            </div>
+
+            <div class="step">
+                <h3>4. Verificar Usuário</h3>
+                <button onclick="getUserInfo()">Info do Usuário</button>
+                <button onclick="getUserPermissions()">Permissões</button>
+                <div id="user-result"></div>
+            </div>
+
+            <div class="step">
+                <h3>5. Testar Outros Endpoints</h3>
+                <button onclick="testClients()">Clientes</button>
+                <button onclick="testUsers()">Usuários</button>
+                <div id="other-result"></div>
+            </div>
+
+            <div class="step">
+                <h3>6. Debug Completo</h3>
+                <button onclick="runFullDebug()">Executar Debug Completo</button>
+                <div id="debug-result"></div>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>Log Detalhado</h3>
+            <textarea id="detailed-log" readonly></textarea>
+            <button onclick="clearLog()">Limpar Log</button>
+            <button onclick="copyLog()">Copiar Log</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8081';
+        let authToken = localStorage.getItem('token');
+        let logContent = '';
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            logContent += `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            document.getElementById('detailed-log').value = logContent;
+            console.log(`[${type.toUpperCase()}]`, message);
+        }
+
+        function showResult(elementId, message, type = 'info', details = '') {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = `<div class="result ${type}">${message}${details ? '\n\nDetalhes:\n' + details : ''}</div>`;
+            }
+            log(`${elementId}: ${message} ${details}`, type);
+        }
+
+        function checkCurrentState() {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            const refreshToken = localStorage.getItem('refreshToken');
+            
+            let state = `Token: ${token ? 'Presente' : 'Ausente'}\n`;
+            state += `Usuário: ${user ? 'Presente' : 'Ausente'}\n`;
+            state += `Refresh Token: ${refreshToken ? 'Presente' : 'Ausente'}\n`;
+            
+            if (token) {
+                try {
+                    const tokenParts = token.split('.');
+                    if (tokenParts.length === 3) {
+                        const payload = JSON.parse(atob(tokenParts[1]));
+                        state += `\nToken Payload:\n${JSON.stringify(payload, null, 2)}`;
+                    }
+                } catch (e) {
+                    state += `\nErro ao decodificar token: ${e.message}`;
+                }
+            }
+
+            showResult('state-result', 'Estado verificado', 'info', state);
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                log(`Tentando login com usuário: ${username}`);
+                
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('token', authToken);
+                    if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+                    if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+                    
+                    showResult('auth-result', '✅ Login realizado com sucesso!', 'success', JSON.stringify(data, null, 2));
+                } else {
+                    showResult('auth-result', '❌ Erro no login', 'error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult('auth-result', '❌ Erro na requisição de login', 'error', error.toString());
+            }
+        }
+
+        async function checkToken() {
+            if (!authToken) {
+                showResult('auth-result', '❌ Nenhum token encontrado', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('auth-result', '✅ Token válido', 'success', JSON.stringify(data, null, 2));
+                } else {
+                    showResult('auth-result', '❌ Token inválido', 'error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult('auth-result', '❌ Erro ao validar token', 'error', error.toString());
+            }
+        }
+
+        async function testSimpleEndpoint() {
+            try {
+                const response = await fetch(`${API_BASE}/api/simple/test`);
+                const data = await response.text();
+                
+                showResult('endpoint-result', `✅ Endpoint simples: ${response.status}`, 'success', data);
+            } catch (error) {
+                showResult('endpoint-result', '❌ Erro no endpoint simples', 'error', error.toString());
+            }
+        }
+
+        async function testWorkPostsNoAuth() {
+            try {
+                const response = await fetch(`${API_BASE}/api/work-posts/all`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('endpoint-result', `✅ Work Posts (sem auth): ${data.length} itens`, 'success', JSON.stringify(data, null, 2));
+                } else {
+                    showResult('endpoint-result', `❌ Work Posts (sem auth): ${response.status}`, 'error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult('endpoint-result', '❌ Erro em Work Posts (sem auth)', 'error', error.toString());
+            }
+        }
+
+        async function testWorkPostsWithAuth() {
+            if (!authToken) {
+                showResult('endpoint-result', '❌ Token necessário para teste com auth', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/work-posts/all`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('endpoint-result', `✅ Work Posts (com auth): ${data.length} itens`, 'success', JSON.stringify(data, null, 2));
+                } else {
+                    showResult('endpoint-result', `❌ Work Posts (com auth): ${response.status}`, 'error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult('endpoint-result', '❌ Erro em Work Posts (com auth)', 'error', error.toString());
+            }
+        }
+
+        async function getUserInfo() {
+            if (!authToken) {
+                showResult('user-result', '❌ Token necessário', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('user-result', '✅ Informações do usuário obtidas', 'success', JSON.stringify(data, null, 2));
+                } else {
+                    showResult('user-result', `❌ Erro ao obter usuário: ${response.status}`, 'error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult('user-result', '❌ Erro ao obter usuário', 'error', error.toString());
+            }
+        }
+
+        async function getUserPermissions() {
+            if (!authToken) {
+                showResult('user-result', '❌ Token necessário', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/permissions`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('user-result', '✅ Permissões obtidas', 'success', JSON.stringify(data, null, 2));
+                } else {
+                    showResult('user-result', `❌ Erro ao obter permissões: ${response.status}`, 'error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult('user-result', '❌ Erro ao obter permissões', 'error', error.toString());
+            }
+        }
+
+        async function testClients() {
+            const headers = authToken ? {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            } : {
+                'Content-Type': 'application/json'
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/api/clients`, { headers });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('other-result', `✅ Clientes: ${data.content ? data.content.length : data.length} itens`, 'success');
+                } else {
+                    showResult('other-result', `❌ Clientes: ${response.status}`, 'error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult('other-result', '❌ Erro em Clientes', 'error', error.toString());
+            }
+        }
+
+        async function testUsers() {
+            if (!authToken) {
+                showResult('other-result', '❌ Token necessário para usuários', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/users`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('other-result', `✅ Usuários: ${data.length} itens`, 'success');
+                } else {
+                    showResult('other-result', `❌ Usuários: ${response.status}`, 'error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult('other-result', '❌ Erro em Usuários', 'error', error.toString());
+            }
+        }
+
+        async function runFullDebug() {
+            showResult('debug-result', '🔄 Executando debug completo...', 'info');
+            
+            checkCurrentState();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (!authToken) {
+                await login();
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            await testSimpleEndpoint();
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            await testWorkPostsNoAuth();
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            await testWorkPostsWithAuth();
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            await getUserInfo();
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            await getUserPermissions();
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            await testClients();
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            await testUsers();
+            
+            showResult('debug-result', '✅ Debug completo finalizado', 'success');
+        }
+
+        function clearLog() {
+            logContent = '';
+            document.getElementById('detailed-log').value = '';
+        }
+
+        function copyLog() {
+            const logElement = document.getElementById('detailed-log');
+            logElement.select();
+            document.execCommand('copy');
+            alert('Log copiado para a área de transferência');
+        }
+
+        // Initialize
+        window.onload = function() {
+            checkCurrentState();
+            if (authToken) {
+                log('Token encontrado no localStorage');
+            } else {
+                log('Nenhum token encontrado no localStorage');
+            }
+        };
+    </script>
+</body>
+</html>

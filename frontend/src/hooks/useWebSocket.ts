@@ -9,6 +9,7 @@ interface WebSocketConfig {
   username: string;
   onMessage?: (message: ChatMessage) => void;
   onTyping?: (typing: { userId: string; isTyping: boolean }) => void;
+  onUserStatus?: (event: { userId: string; isOnline: boolean; timestamp?: number }) => void;
   onError?: (error: any) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
@@ -71,15 +72,102 @@ export const useWebSocket = (config: WebSocketConfig) => {
         setError(null);
         config.onConnect?.();
 
-        // Subscrever aos tópicos de mensagens
+        // Subscrever aos tópicos de mensagens individuais
         client.subscribe(`/user/${config.username}/queue/messages`, (message) => {
           try {
-            const chatMessage: ChatMessage = JSON.parse(message.body);
-            console.log('[WebSocket] Nova mensagem recebida:', chatMessage);
+            const rawMessage = JSON.parse(message.body);
+            // Garantir que todas as informações do arquivo sejam preservadas
+            const chatMessage: ChatMessage = {
+              ...rawMessage,
+              fileUrl: rawMessage.fileUrl,
+              fileName: rawMessage.fileName,
+              fileSize: rawMessage.fileSize,
+              fileContentType: rawMessage.fileContentType
+            };
+            console.log('[WebSocket] Nova mensagem recebida (individual):', chatMessage);
+            
+            // Log detalhado para mensagens com arquivo
+            if (chatMessage.fileUrl) {
+              console.log('📎 Mensagem com arquivo recebida (individual):', {
+                id: chatMessage.id,
+                type: chatMessage.type,
+                fileUrl: chatMessage.fileUrl,
+                fileName: chatMessage.fileName,
+                fileSize: chatMessage.fileSize,
+                fileContentType: chatMessage.fileContentType
+              });
+            }
+            
             addChatMessage(chatMessage);
             config.onMessage?.(chatMessage);
           } catch (error) {
             console.error('[WebSocket] Erro ao processar mensagem:', error);
+          }
+        });
+
+        // Subscrever a tópicos de grupos (se o usuário estiver em grupos)
+        client.subscribe('/topic/chat/group/*', (message) => {
+          try {
+            const rawMessage = JSON.parse(message.body);
+            // Garantir que todas as informações do arquivo sejam preservadas
+            const chatMessage: ChatMessage = {
+              ...rawMessage,
+              fileUrl: rawMessage.fileUrl,
+              fileName: rawMessage.fileName,
+              fileSize: rawMessage.fileSize,
+              fileContentType: rawMessage.fileContentType
+            };
+            console.log('[WebSocket] Nova mensagem recebida (grupo):', chatMessage);
+            
+            // Log detalhado para mensagens com arquivo
+            if (chatMessage.fileUrl) {
+              console.log('📎 Mensagem com arquivo recebida (grupo):', {
+                id: chatMessage.id,
+                type: chatMessage.type,
+                fileUrl: chatMessage.fileUrl,
+                fileName: chatMessage.fileName,
+                fileSize: chatMessage.fileSize,
+                fileContentType: chatMessage.fileContentType
+              });
+            }
+            
+            addChatMessage(chatMessage);
+            config.onMessage?.(chatMessage);
+          } catch (error) {
+            console.error('[WebSocket] Erro ao processar mensagem de grupo:', error);
+          }
+        });
+
+        // Subscrever a tópicos de departamentos (se o usuário estiver em departamentos)
+        client.subscribe('/topic/chat/department/*', (message) => {
+          try {
+            const rawMessage = JSON.parse(message.body);
+            // Garantir que todas as informações do arquivo sejam preservadas
+            const chatMessage: ChatMessage = {
+              ...rawMessage,
+              fileUrl: rawMessage.fileUrl,
+              fileName: rawMessage.fileName,
+              fileSize: rawMessage.fileSize,
+              fileContentType: rawMessage.fileContentType
+            };
+            console.log('[WebSocket] Nova mensagem recebida (departamento):', chatMessage);
+            
+            // Log detalhado para mensagens com arquivo
+            if (chatMessage.fileUrl) {
+              console.log('📎 Mensagem com arquivo recebida (departamento):', {
+                id: chatMessage.id,
+                type: chatMessage.type,
+                fileUrl: chatMessage.fileUrl,
+                fileName: chatMessage.fileName,
+                fileSize: chatMessage.fileSize,
+                fileContentType: chatMessage.fileContentType
+              });
+            }
+            
+            addChatMessage(chatMessage);
+            config.onMessage?.(chatMessage);
+          } catch (error) {
+            console.error('[WebSocket] Erro ao processar mensagem de departamento:', error);
           }
         });
 
@@ -111,6 +199,50 @@ export const useWebSocket = (config: WebSocketConfig) => {
             // TODO: Implementar notificações do sistema
           } catch (error) {
             console.error('[WebSocket] Erro ao processar notificação:', error);
+          }
+        });
+
+        // Subscrever a eventos de status de usuário (online/offline)
+        client.subscribe(`/user/${config.username}/queue/user-status`, (message) => {
+          try {
+            const userStatusEvent = JSON.parse(message.body);
+            console.log('[WebSocket] Evento de status de usuário:', userStatusEvent);
+            // Atualizar o status online/offline no store
+            const { updateUserStatus } = useMessageStore.getState();
+            if (updateUserStatus && userStatusEvent.userId) {
+              updateUserStatus(userStatusEvent.userId, userStatusEvent.isOnline);
+            }
+            if (userStatusEvent?.userId) {
+              config.onUserStatus?.({
+                userId: userStatusEvent.userId,
+                isOnline: Boolean(userStatusEvent.isOnline),
+                timestamp: userStatusEvent.timestamp
+              });
+            }
+          } catch (error) {
+            console.error('[WebSocket] Erro ao processar evento de status de usuário:', error);
+          }
+        });
+
+        // Subscrever a tópico público de status de usuários (broadcast)
+        client.subscribe('/topic/user-status', (message) => {
+          try {
+            const userStatusEvent = JSON.parse(message.body);
+            console.log('[WebSocket] Broadcast de status de usuário:', userStatusEvent);
+            // Atualizar o status online/offline no store
+            const { updateUserStatus } = useMessageStore.getState();
+            if (updateUserStatus && userStatusEvent.userId) {
+              updateUserStatus(userStatusEvent.userId, userStatusEvent.isOnline);
+            }
+            if (userStatusEvent?.userId) {
+              config.onUserStatus?.({
+                userId: userStatusEvent.userId,
+                isOnline: Boolean(userStatusEvent.isOnline),
+                timestamp: userStatusEvent.timestamp
+              });
+            }
+          } catch (error) {
+            console.error('[WebSocket] Erro ao processar broadcast de status:', error);
           }
         });
       };
@@ -259,14 +391,8 @@ export const useWebSocket = (config: WebSocketConfig) => {
     return () => {
       disconnect();
     };
-  }, [config.token, config.username, connect, disconnect]);
-
-  // Cleanup na desmontagem
-  useEffect(() => {
-    return () => {
-      disconnect();
-    };
-  }, [disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.token, config.username]); // Removido connect e disconnect para evitar loop
 
   return {
     isConnected: clientRef.current?.connected || false,

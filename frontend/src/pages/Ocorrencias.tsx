@@ -11,10 +11,12 @@ import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import OcorrenciaFormModal from '@/components/operacional/OcorrenciaFormModal';
+import OcorrenciaViewModal from '@/components/operacional/OcorrenciaViewModal';
 
 const OcorrenciasPage: React.FC = () => {
   const [employeeId, setEmployeeId] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedOccurrence, setSelectedOccurrence] = useState<ServiceOccurrence | null>(null);
   const [filters, setFilters] = useState({
     type: 'all',
@@ -46,6 +48,17 @@ const OcorrenciasPage: React.FC = () => {
     setModalOpen(true);
   };
 
+  const handleViewOccurrence = (occurrence: ServiceOccurrence) => {
+    console.log('🔍 Visualizando ocorrência:', occurrence);
+    // Definir a ocorrência primeiro, depois abrir o modal
+    setSelectedOccurrence(occurrence);
+    // Usar setTimeout para garantir que o estado seja atualizado antes de abrir o modal
+    setTimeout(() => {
+      setViewModalOpen(true);
+      console.log('✅ Modal de visualização aberto');
+    }, 0);
+  };
+
   const handleEditOccurrence = (occurrence: ServiceOccurrence) => {
     setSelectedOccurrence(occurrence);
     setModalOpen(true);
@@ -53,13 +66,45 @@ const OcorrenciasPage: React.FC = () => {
 
   const handleCloseModal = () => {
     setModalOpen(false);
+    setViewModalOpen(false);
     setSelectedOccurrence(null);
     refetch();
+  };
+
+  const handleCloseViewModal = () => {
+    setViewModalOpen(false);
+    // Não limpar selectedOccurrence imediatamente para evitar flicker
+    setTimeout(() => {
+      setSelectedOccurrence(null);
+    }, 300);
   };
 
   const handleSaveOccurrence = (ocorrencia: ServiceOccurrence) => {
     queryClient.invalidateQueries({ queryKey: ['occurrences'] });
     handleCloseModal();
+  };
+
+  const handleDeleteOccurrence = async (occurrence: ServiceOccurrence) => {
+    if (!window.confirm(`Tem certeza que deseja excluir a ocorrência "${occurrence.title || occurrence.description}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      await occurrenceService.deleteOccurrence(occurrence.id);
+      queryClient.invalidateQueries({ queryKey: ['occurrences'] });
+      toast({
+        title: "Sucesso",
+        description: "Ocorrência excluída com sucesso",
+      });
+      refetch();
+    } catch (error: any) {
+      console.error('Erro ao excluir ocorrência:', error);
+      toast({
+        title: "Erro",
+        description: error?.response?.data?.message || "Não foi possível excluir a ocorrência. Tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleRefresh = () => {
@@ -111,6 +156,113 @@ const OcorrenciasPage: React.FC = () => {
     }
   };
 
+  const handleGeneratePDF = async () => {
+    if (!occurrences || occurrences.length === 0) {
+      toast({
+        title: "Aviso",
+        description: "Não há ocorrências para gerar o relatório.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Importar jsPDF e autoTable dinamicamente
+      const jsPDFModule = await import('jspdf');
+      const jsPDF = jsPDFModule.default;
+      const autoTableModule = await import('jspdf-autotable');
+      
+      const doc = new jsPDF('p', 'mm', 'a4');
+      
+      // Cabeçalho
+      doc.setFontSize(18);
+      doc.setTextColor(26, 26, 26);
+      doc.text('Relatório de Ocorrências RH', 105, 20, { align: 'center' });
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, 105, 28, { align: 'center' });
+      
+      // Preparar dados da tabela
+      const tableData = occurrences.map(occurrence => [
+        occurrence.employeeName || 'N/A',
+        getTypeLabel(occurrence.type),
+        occurrence.description || 'N/A',
+        new Date(occurrence.date).toLocaleDateString('pt-BR'),
+        occurrence.status || 'N/A',
+        occurrence.responsible || 'N/A'
+      ]);
+
+      // Gerar tabela usando autoTable
+      // A4 width = 210mm, margens de 8mm cada lado = 194mm disponível
+      // Larguras: 32 + 22 + 50 + 20 + 20 + 30 = 174mm (deixando espaço para padding)
+      autoTableModule.default(doc, {
+        head: [['Funcionário', 'Tipo', 'Descrição', 'Data', 'Status', 'Responsável']],
+        body: tableData,
+        startY: 35,
+        styles: {
+          fontSize: 7,
+          cellPadding: 1.5,
+          overflow: 'linebreak',
+          halign: 'left',
+          valign: 'middle'
+        },
+        headStyles: {
+          fillColor: [26, 26, 26],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8,
+          halign: 'left',
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 30, fontSize: 7 }, // Funcionário
+          1: { cellWidth: 20, fontSize: 7 }, // Tipo
+          2: { cellWidth: 45, fontSize: 7 }, // Descrição
+          3: { cellWidth: 18, fontSize: 7 }, // Data
+          4: { cellWidth: 18, fontSize: 7 }, // Status
+          5: { cellWidth: 28, fontSize: 7 }  // Responsável
+        },
+        margin: { top: 35, left: 7, right: 7 },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245]
+        },
+        tableWidth: 'wrap',
+        showHead: 'everyPage'
+      });
+
+      // Rodapé
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(
+          `Página ${i} de ${pageCount}`,
+          105,
+          doc.internal.pageSize.height - 10,
+          { align: 'center' }
+        );
+      }
+
+      // Salvar PDF
+      const fileName = `relatorio-ocorrencias-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+
+      toast({
+        title: "Sucesso",
+        description: `Relatório PDF gerado com ${occurrences.length} ocorrência(s).`,
+      });
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível gerar o relatório PDF. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <StandardLayout title="Ocorrências">
       <div className="space-y-6">
@@ -121,9 +273,14 @@ const OcorrenciasPage: React.FC = () => {
             <p className="text-gray-400 mt-1">Gestão de incidentes, advertências, atestados e ocorrências de funcionários</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="border-gray-600 text-seguranca-lightgray">
-              <Download className="mr-2 h-4 w-4" />
-              Exportar
+            <Button 
+              variant="outline" 
+              className="border-gray-600 text-seguranca-lightgray"
+              onClick={handleGeneratePDF}
+              disabled={isLoading || !occurrences || occurrences.length === 0}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Gerar Relatório
             </Button>
             <Button onClick={handleOpenModal} className="bg-seguranca-red hover:bg-seguranca-darkred">
               <Plus className="mr-2 h-4 w-4" /> Nova Ocorrência
@@ -296,6 +453,7 @@ const OcorrenciasPage: React.FC = () => {
                                 size="sm"
                                 variant="outline"
                                 className="text-seguranca-yellow border-seguranca-yellow hover:bg-seguranca-yellow hover:text-seguranca-black"
+                                onClick={() => handleViewOccurrence(occurrence)}
                               >
                                 <Eye size={16} className="mr-1" />
                                 Ver
@@ -313,6 +471,7 @@ const OcorrenciasPage: React.FC = () => {
                                 size="sm"
                                 variant="outline"
                                 className="text-red-400 border-red-400 hover:bg-red-400 hover:text-seguranca-black"
+                                onClick={() => handleDeleteOccurrence(occurrence)}
                               >
                                 <Trash2 size={16} className="mr-1" />
                                 Excluir
@@ -338,6 +497,13 @@ const OcorrenciasPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal para visualizar ocorrência */}
+      <OcorrenciaViewModal 
+        open={viewModalOpen} 
+        onOpenChange={handleCloseViewModal}
+        ocorrencia={selectedOccurrence}
+      />
 
       {/* Modal para criar/editar ocorrência */}
       <OcorrenciaFormModal 

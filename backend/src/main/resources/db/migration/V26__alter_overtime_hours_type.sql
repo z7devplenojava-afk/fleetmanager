@@ -1,0 +1,1 @@
+ALTER TABLE payrolls ALTER COLUMN overtime_hours TYPE FLOAT; 

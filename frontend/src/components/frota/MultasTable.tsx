@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,11 @@ import {
   Download
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import fleetService from '@/services/fleetService';
 
 interface Multa {
   id: string;
@@ -65,6 +70,111 @@ const MultasTable: React.FC<MultasTableProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedMultas, setSelectedMultas] = useState<string[]>([]);
   const [isAllSelected, setIsAllSelected] = useState(false);
+  
+  // State for PDF report modal
+  const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
+  const [pdfFilters, setPdfFilters] = useState({
+    vehiclePlate: '',
+    driverName: '',
+    infraction: '',
+    startDate: '',
+    endDate: '',
+    dueDateStart: '',
+    dueDateEnd: '',
+    minValue: '',
+    maxValue: '',
+    status: ''
+  });
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  
+  // Get unique values from data
+  const uniquePlates = useMemo(() => {
+    const plates = new Set(multas.map(m => m.placa));
+    return Array.from(plates).sort();
+  }, [multas]);
+  
+  const uniqueDrivers = useMemo(() => {
+    const drivers = new Set(multas.map(m => m.motorista_nome).filter(Boolean));
+    return Array.from(drivers).sort();
+  }, [multas]);
+  
+  const uniqueInfractions = useMemo(() => {
+    const infractions = new Set(multas.map(m => m.tipo_infracao));
+    return Array.from(infractions).sort();
+  }, [multas]);
+
+  const handleGeneratePDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      const filters: any = {};
+      
+      if (pdfFilters.vehiclePlate && pdfFilters.vehiclePlate !== 'all') {
+        filters.vehiclePlate = pdfFilters.vehiclePlate;
+      }
+      if (pdfFilters.driverName && pdfFilters.driverName !== 'all') {
+        filters.driverName = pdfFilters.driverName;
+      }
+      if (pdfFilters.infraction && pdfFilters.infraction !== 'all') {
+        filters.infraction = pdfFilters.infraction;
+      }
+      if (pdfFilters.startDate) {
+        filters.startDate = pdfFilters.startDate;
+      }
+      if (pdfFilters.endDate) {
+        filters.endDate = pdfFilters.endDate;
+      }
+      if (pdfFilters.dueDateStart) {
+        filters.dueDateStart = pdfFilters.dueDateStart;
+      }
+      if (pdfFilters.dueDateEnd) {
+        filters.dueDateEnd = pdfFilters.dueDateEnd;
+      }
+      if (pdfFilters.minValue) {
+        filters.minValue = parseFloat(pdfFilters.minValue);
+      }
+      if (pdfFilters.maxValue) {
+        filters.maxValue = parseFloat(pdfFilters.maxValue);
+      }
+      if (pdfFilters.status && pdfFilters.status !== 'all') {
+        filters.status = pdfFilters.status;
+      }
+
+      const blob = await fleetService.exportFinesReportPDF(filters);
+      
+      // Criar URL para download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Definir nome do arquivo
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+      link.download = `relatorio_multas_${timestamp}.pdf`;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Relatório gerado com sucesso!",
+        description: "O relatório de multas foi baixado com sucesso.",
+        variant: "default",
+      });
+      
+      setIsPDFModalOpen(false);
+    } catch (error: any) {
+      console.error('Erro ao gerar relatório PDF:', error);
+      const errorMessage = error?.message || 'Ocorreu um erro ao gerar o relatório PDF. Tente novamente.';
+      toast({
+        title: "Erro ao gerar relatório",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -226,45 +336,57 @@ const MultasTable: React.FC<MultasTableProps> = ({
           </Button>
         </div>
         
-        {showSelection && selectedMultas.length > 0 && (
-          <div className="flex items-center space-x-2">
-            {onDeleteMultiple && (
-              <Button
-                onClick={handleDeleteMultiple}
-                size="sm"
-                variant="outline"
-                className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Excluir ({selectedMultas.length})
-              </Button>
-            )}
-            {onGenerateReport && (
-              <>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsPDFModalOpen(true)}
+            className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+          >
+            <FileText size={16} className="mr-2" />
+            Gerar Relatório PDF
+          </Button>
+          
+          {showSelection && selectedMultas.length > 0 && (
+            <>
+              {onDeleteMultiple && (
                 <Button
-                  onClick={() => handleGenerateReport('pdf')}
-                  size="sm"
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  PDF
-                </Button>
-                <Button
-                  onClick={() => handleGenerateReport('excel')}
+                  onClick={handleDeleteMultiple}
                   size="sm"
                   variant="outline"
-                  className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white"
+                  className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
                 >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Excel
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir ({selectedMultas.length})
                 </Button>
-              </>
-            )}
-          </div>
-        )}
+              )}
+              {onGenerateReport && (
+                <>
+                  <Button
+                    onClick={() => handleGenerateReport('pdf')}
+                    size="sm"
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    PDF
+                  </Button>
+                  <Button
+                    onClick={() => handleGenerateReport('excel')}
+                    size="sm"
+                    variant="outline"
+                    className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Excel
+                  </Button>
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="rounded-md border border-gray-600">
+      <div className="rounded-md border border-gray-600 overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-gray-600">
@@ -277,19 +399,24 @@ const MultasTable: React.FC<MultasTableProps> = ({
                   />
                 </TableHead>
               )}
-              <TableHead className="text-seguranca-lightgray">Veículo</TableHead>
-              <TableHead className="text-seguranca-lightgray">Motorista</TableHead>
-              <TableHead className="text-seguranca-lightgray">Infração</TableHead>
-              <TableHead className="text-seguranca-lightgray">Data Infração</TableHead>
-              <TableHead className="text-seguranca-lightgray">Vencimento</TableHead>
-              <TableHead className="text-seguranca-lightgray">Valor</TableHead>
-              <TableHead className="text-seguranca-lightgray">Pontos</TableHead>
-              <TableHead className="text-seguranca-lightgray">Status</TableHead>
-              <TableHead className="text-seguranca-lightgray text-right">Ações</TableHead>
+              <TableHead className="text-seguranca-lightgray whitespace-nowrap">Veículo</TableHead>
+              <TableHead className="text-seguranca-lightgray whitespace-nowrap">Motorista</TableHead>
+              <TableHead className="text-seguranca-lightgray whitespace-nowrap">Infração</TableHead>
+              <TableHead className="text-seguranca-lightgray whitespace-nowrap">Data Infração</TableHead>
+              <TableHead className="text-seguranca-lightgray whitespace-nowrap">Vencimento</TableHead>
+              <TableHead className="text-seguranca-lightgray whitespace-nowrap">Valor</TableHead>
+              <TableHead className="text-seguranca-lightgray whitespace-nowrap min-w-[100px] w-[100px]" style={{ display: 'table-cell' }}>Pontos</TableHead>
+              <TableHead className="text-seguranca-lightgray whitespace-nowrap">Status</TableHead>
+              <TableHead className="text-seguranca-lightgray text-right whitespace-nowrap">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {multas.map((multa) => (
+            {multas.map((multa) => {
+              // Debug: verificar se pontos está presente
+              if (process.env.NODE_ENV === 'development') {
+                console.log('🔍 Multa:', multa.placa, 'Pontos:', multa.pontos);
+              }
+              return (
               <TableRow key={multa.id} className="border-gray-600 hover:bg-seguranca-black">
                 {showSelection && (
                   <TableCell>
@@ -354,9 +481,9 @@ const MultasTable: React.FC<MultasTableProps> = ({
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="border-gray-600 text-seguranca-lightgray">
-                    {multa.pontos} pts
+                <TableCell className="whitespace-nowrap min-w-[100px] w-[100px]" style={{ display: 'table-cell' }}>
+                  <Badge variant="outline" className="border-gray-600 text-seguranca-lightgray bg-gray-800/50">
+                    {multa.pontos || 0} pts
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -396,10 +523,191 @@ const MultasTable: React.FC<MultasTableProps> = ({
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
+
+      {/* Modal de Geração de PDF */}
+      <Dialog open={isPDFModalOpen} onOpenChange={setIsPDFModalOpen}>
+        <DialogContent className="sm:max-w-3xl bg-seguranca-graphite border-gray-600 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-seguranca-lightgray">
+              Gerar Relatório PDF de Multas
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Veículo (Placa)</Label>
+                <Select 
+                  value={pdfFilters.vehiclePlate} 
+                  onValueChange={(value) => setPdfFilters({ ...pdfFilters, vehiclePlate: value })}
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                    <SelectValue placeholder="Todas as placas" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    <SelectItem value="all">Todas as placas</SelectItem>
+                    {uniquePlates.map((plate) => (
+                      <SelectItem key={plate} value={plate}>
+                        {plate}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Motorista</Label>
+                <Select 
+                  value={pdfFilters.driverName} 
+                  onValueChange={(value) => setPdfFilters({ ...pdfFilters, driverName: value })}
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                    <SelectValue placeholder="Todos os motoristas" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    <SelectItem value="all">Todos os motoristas</SelectItem>
+                    {uniqueDrivers.map((driver) => (
+                      <SelectItem key={driver} value={driver}>
+                        {driver}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-seguranca-lightgray">Infração</Label>
+              <Select 
+                value={pdfFilters.infraction} 
+                onValueChange={(value) => setPdfFilters({ ...pdfFilters, infraction: value })}
+              >
+                <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                  <SelectValue placeholder="Todas as infrações" />
+                </SelectTrigger>
+                <SelectContent className="bg-seguranca-graphite border-gray-600">
+                  <SelectItem value="all">Todas as infrações</SelectItem>
+                  {uniqueInfractions.map((infraction) => (
+                    <SelectItem key={infraction} value={infraction}>
+                      {infraction}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Data Infração - Início</Label>
+                <Input
+                  type="date"
+                  value={pdfFilters.startDate}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, startDate: e.target.value })}
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Data Infração - Fim</Label>
+                <Input
+                  type="date"
+                  value={pdfFilters.endDate}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, endDate: e.target.value })}
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Vencimento - Início</Label>
+                <Input
+                  type="date"
+                  value={pdfFilters.dueDateStart}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, dueDateStart: e.target.value })}
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Vencimento - Fim</Label>
+                <Input
+                  type="date"
+                  value={pdfFilters.dueDateEnd}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, dueDateEnd: e.target.value })}
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Valor Mínimo (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={pdfFilters.minValue}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, minValue: e.target.value })}
+                  placeholder="0.00"
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Valor Máximo (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={pdfFilters.maxValue}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, maxValue: e.target.value })}
+                  placeholder="0.00"
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-seguranca-lightgray">Status</Label>
+              <Select 
+                value={pdfFilters.status} 
+                onValueChange={(value) => setPdfFilters({ ...pdfFilters, status: value })}
+              >
+                <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                  <SelectValue placeholder="Todos os status" />
+                </SelectTrigger>
+                <SelectContent className="bg-seguranca-graphite border-gray-600">
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="PENDING">Pendente</SelectItem>
+                  <SelectItem value="PAID">Paga</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-700">
+              <Button
+                variant="outline"
+                onClick={() => setIsPDFModalOpen(false)}
+                className="border-gray-600 text-gray-400 hover:bg-gray-700"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleGeneratePDF}
+                disabled={isGeneratingPDF}
+                className="bg-seguranca-red hover:bg-seguranca-darkred"
+              >
+                {isGeneratingPDF ? 'Gerando...' : 'Gerar PDF'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,0 +1,49 @@
+﻿> Task :compileJava
+.\gradlew.bat : C:\dev\fleetmanager\b
+ackend\src\main\java\com\z7design\fle
+et_manager\model\DriverWorkHour.java:
+57: warning: @Builder will ignore 
+the initializing expression 
+entirely. If you want the 
+initializing expression to serve as 
+default, add @Builder.Default. If it 
+is not supposed to be settable 
+during building, make the field 
+final.
+No linha:1 caractere:1
++ .\gradlew.bat compileJava -x test 
+--console=plain > build_output_2.tx 
+...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpe 
+   cified: (C:\dev\fleetman...he fi  
+  eld final.:String) [], RemoteExc   
+ eption
+    + FullyQualifiedErrorId : Native 
+   CommandError
+ 
+    private Boolean isClosed = false;
+                    ^
+C:\dev\fleetmanager\backend\src\main\
+java\com\z7design\fleet_manager\servi
+ce\PayslipService.java:3155: 
+warning: [dep-ann] deprecated item 
+is not annotated with @Deprecated
+    private String 
+calculatePageHash(String pageText) {
+                   ^
+Note: Some input files use or 
+override a deprecated API.
+Note: Recompile with 
+-Xlint:deprecation for details.
+Note: C:\dev\fleetmanager\backend\src
+\main\java\com\z7design\fleet_manager
+\worker\ParserWorker.java uses 
+unchecked or unsafe operations.
+Note: Recompile with 
+-Xlint:unchecked for details.
+2 warnings
+
+BUILD SUCCESSFUL in 1m 57s
+1 actionable task: 1 executed

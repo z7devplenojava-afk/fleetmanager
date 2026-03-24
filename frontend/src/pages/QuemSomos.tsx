@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { ensureAllContentVisible } from '@/utils/ensureVisibility';
 import Navbar from '@/components/Navbar';
 import Logo from '@/components/Logo';
 import { 
@@ -17,10 +18,15 @@ import {
   MapPin,
   Clock
 } from 'lucide-react';
-import { useAOS } from '@/hooks/use-aos';
+import { useGSAP } from '@/hooks/use-gsap';
 
 const QuemSomos = () => {
-  const aos = useAOS();
+  const animate = useGSAP();
+
+  // Fallback de segurança: garantir que o conteúdo sempre apareça
+  useEffect(() => {
+    ensureAllContentVisible();
+  }, []);
 
   return (
     <>
@@ -36,15 +42,15 @@ const QuemSomos = () => {
         {/* Header Section */}
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="container mx-auto text-center">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4" data-animate="fadeUp">
               Quem Somos
             </h1>
-            <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto mb-12" data-aos={aos.fadeUp} data-aos-delay="200">
+            <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto mb-12" data-animate="fadeUp" data-delay="200">
               Conheça nossa história, missão e valores que nos tornam referência em segurança patrimonial
             </p>
             
             {/* Features/Benefits */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto" data-aos={aos.fadeUp} data-aos-delay="400">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto" data-animate="fadeUp" data-delay="400">
               <div className="text-center">
                 <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Shield className="h-8 w-8 text-white" />
@@ -74,7 +80,7 @@ const QuemSomos = () => {
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#292929' }}>
           <div className="container mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div data-aos={aos.fadeRight}>
+              <div data-animate="fadeRight">
                 <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">Nossa História</h2>
                 <p className="text-base sm:text-lg text-gray-300 mb-6 leading-relaxed">
                   A Promover Vigilância Patrimonial nasceu com o objetivo de oferecer soluções completas 
@@ -91,7 +97,7 @@ const QuemSomos = () => {
                   </div>
                 </div>
               </div>
-              <div data-aos={aos.fadeLeft}>
+              <div data-animate="fadeLeft">
                 <div className="bg-gray-800 rounded-xl p-8">
                   <div className="grid grid-cols-2 gap-6 text-center">
                     <div>
@@ -121,17 +127,17 @@ const QuemSomos = () => {
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">
                 Nossos Pilares
               </h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-aos={aos.fadeUp} data-aos-delay="200">
+              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
                 Os fundamentos que guiam nossa empresa
               </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Missão */}
-              <div className="text-center" data-aos={aos.fadeUp} data-aos-delay="100">
+              <div className="text-center" data-animate="fadeUp" data-delay="100">
                 <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Target className="h-8 w-8 text-white" />
                 </div>
@@ -144,7 +150,7 @@ const QuemSomos = () => {
               </div>
 
               {/* Visão */}
-              <div className="text-center" data-aos={aos.fadeUp} data-aos-delay="200">
+              <div className="text-center" data-animate="fadeUp" data-delay="200">
                 <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Shield className="h-8 w-8 text-white" />
                 </div>
@@ -157,7 +163,7 @@ const QuemSomos = () => {
               </div>
 
               {/* Valores */}
-              <div className="text-center" data-aos={aos.fadeUp} data-aos-delay="300">
+              <div className="text-center" data-animate="fadeUp" data-delay="300">
                 <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Heart className="h-8 w-8 text-white" />
                 </div>
@@ -176,16 +182,16 @@ const QuemSomos = () => {
         <section className="py-16 sm:py-20 px-4" style={{ backgroundColor: '#292929' }}>
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">
                 Nossos Diferenciais
               </h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-aos={aos.fadeUp} data-aos-delay="200">
+              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
                 O que nos torna únicos no mercado de segurança
               </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-gray-800 rounded-xl p-6 text-center" data-aos={aos.fadeUp} data-aos-delay="100">
+              <div className="bg-gray-800 rounded-xl p-6 text-center" data-animate="fadeUp" data-delay="100">
                 <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Clock className="h-6 w-6 text-white" />
                 </div>
@@ -193,7 +199,7 @@ const QuemSomos = () => {
                 <p className="text-gray-400 text-sm">Disponibilidade total para sua segurança</p>
               </div>
               
-              <div className="bg-gray-800 rounded-xl p-6 text-center" data-aos={aos.fadeUp} data-aos-delay="200">
+              <div className="bg-gray-800 rounded-xl p-6 text-center" data-animate="fadeUp" data-delay="200">
                 <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Users className="h-6 w-6 text-white" />
                 </div>
@@ -201,7 +207,7 @@ const QuemSomos = () => {
                 <p className="text-gray-400 text-sm">Profissionais certificados e experientes</p>
               </div>
               
-              <div className="bg-gray-800 rounded-xl p-6 text-center" data-aos={aos.fadeUp} data-aos-delay="300">
+              <div className="bg-gray-800 rounded-xl p-6 text-center" data-animate="fadeUp" data-delay="300">
                 <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Shield className="h-6 w-6 text-white" />
                 </div>
@@ -209,7 +215,7 @@ const QuemSomos = () => {
                 <p className="text-gray-400 text-sm">Sistemas modernos de monitoramento</p>
               </div>
               
-              <div className="bg-gray-800 rounded-xl p-6 text-center" data-aos={aos.fadeUp} data-aos-delay="400">
+              <div className="bg-gray-800 rounded-xl p-6 text-center" data-animate="fadeUp" data-delay="400">
                 <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Award className="h-6 w-6 text-white" />
                 </div>
@@ -254,10 +260,10 @@ const QuemSomos = () => {
               <div>
                 <h3 className="text-lg font-semibold text-white mb-4">Serviços</h3>
                 <ul className="space-y-2">
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Vigilância Patrimonial</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Portaria</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Controlador de Acesso</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Facilities</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Vigilância Patrimonial</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Portaria</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Controlador de Acesso</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Facilities</a></li>
                 </ul>
               </div>
 
@@ -266,7 +272,7 @@ const QuemSomos = () => {
                 <h3 className="text-lg font-semibold text-white mb-4">Empresa</h3>
                 <ul className="space-y-2">
                   <li><a href="/quem-somos" className="hover:text-white transition-colors block py-1">Quem Somos</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Serviços</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Serviços</a></li>
                   <li><a href="/trabalhe-conosco" className="hover:text-white transition-colors block py-1">Trabalhe Conosco</a></li>
                   <li><a href="/contato" className="hover:text-white transition-colors block py-1">Contato</a></li>
                 </ul>

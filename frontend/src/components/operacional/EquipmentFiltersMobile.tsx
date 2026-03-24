@@ -136,14 +136,14 @@ const EquipmentFiltersMobile: React.FC<EquipmentFiltersMobileProps> = ({
                 Status
               </label>
               <Select
-                value={localFilters.status || ''}
-                onValueChange={(value) => handleFilterChange('status', value || undefined)}
+                value={localFilters.status || 'all'}
+                onValueChange={(value) => handleFilterChange('status', value === 'all' ? undefined : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os status</SelectItem>
+                  <SelectItem value="all">Todos os status</SelectItem>
                   {EQUIPMENT_STATUS_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -160,14 +160,14 @@ const EquipmentFiltersMobile: React.FC<EquipmentFiltersMobileProps> = ({
                 Nível de Proteção
               </label>
               <Select
-                value={localFilters.protectionLevel || ''}
-                onValueChange={(value) => handleFilterChange('protectionLevel', value || undefined)}
+                value={localFilters.protectionLevel || 'all'}
+                onValueChange={(value) => handleFilterChange('protectionLevel', value === 'all' ? undefined : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os níveis" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os níveis</SelectItem>
+                  <SelectItem value="all">Todos os níveis</SelectItem>
                   {PROTECTION_LEVEL_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -184,14 +184,14 @@ const EquipmentFiltersMobile: React.FC<EquipmentFiltersMobileProps> = ({
                 Validade
               </label>
               <Select
-                value={localFilters.validityStatus || ''}
-                onValueChange={(value) => handleFilterChange('validityStatus', value || undefined)}
+                value={localFilters.validityStatus || 'all'}
+                onValueChange={(value) => handleFilterChange('validityStatus', value === 'all' ? undefined : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Todas as validades" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as validades</SelectItem>
+                  <SelectItem value="all">Todas as validades</SelectItem>
                   {VALIDITY_STATUS_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}

@@ -1,19 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, MessageSquare, Check, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Bell, MessageSquare, Check, RefreshCw, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useNotificationBell } from '@/hooks/useNotificationBell';
 import MessageItem from '@/components/MessageItem';
+import '@/styles/notifications.css';
 
 export const NotificationBell: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const {
     systemMessages,
@@ -26,134 +23,162 @@ export const NotificationBell: React.FC = () => {
     getPriorityConfig
   } = useNotificationBell();
 
-  // Carregar mensagens quando abrir o dropdown
   useEffect(() => {
-    if (isOpen && systemMessages.length === 0) {
+    if (isOpen && systemMessages.length === 0 && !hasLoadedRef.current) {
+      hasLoadedRef.current = true;
       loadMessages();
+    }
+    if (!isOpen) {
+      hasLoadedRef.current = false;
     }
   }, [isOpen, systemMessages.length, loadMessages]);
 
+  useEffect(() => {
+    if (unreadCount > 0) {
+      setIsAnimating(true);
+      const timer = setTimeout(() => setIsAnimating(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [unreadCount]);
+
+  const handleRefresh = async () => {
+    await loadMessages();
+  };
+
+  const handleToggle = useCallback(() => {
+    setIsOpen(prev => !prev);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.notification-popover-container')) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="relative h-9 w-9 p-0 hover:bg-seguranca-graphite/50 text-seguranca-lightgray"
-        >
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-seguranca-red"
-            >
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent
-        align="end"
-        className="w-96 max-h-[500px] bg-seguranca-graphite border-gray-600 text-seguranca-lightgray"
+    <div className="relative notification-popover-container">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleToggle}
+        className={`relative h-11 w-11 p-0 hover:bg-accent active:scale-95 text-muted-foreground transition-all duration-200 ${isAnimating ? 'animate-pulse' : ''
+          }`}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-600">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-seguranca-yellow" />
-            <h3 className="font-semibold text-seguranca-lightgray">Mensagens</h3>
-            {unreadCount > 0 && (
-              <Badge variant="secondary" className="bg-seguranca-red text-white">
-                {unreadCount} não lidas
-              </Badge>
-            )}
+        <Bell className={`h-5 w-5 transition-transform duration-200 ${isAnimating ? 'animate-bounce' : ''}`} />
+        {unreadCount > 0 && (
+          <Badge
+            variant="destructive"
+            className="absolute top-1 right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-red-600 shadow-lg animate-pulse border-2 border-card"
+          >
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </Badge>
+        )}
+      </Button>
+
+      {isOpen && (
+        <div
+          className="absolute right-0 top-full mt-2 z-[10050] w-[320px] sm:w-[400px] max-h-[600px] bg-background border border-border text-foreground shadow-2xl backdrop-blur-md rounded-xl overflow-hidden animate-in fade-in zoom-in duration-200"
+        >
+          {/* Header */}
+          <div className="p-4 border-b border-border bg-card/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <MessageSquare size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base">Notificações</h3>
+                  {unreadCount > 0 && (
+                    <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                      {unreadCount} novas
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  className="h-9 w-9 text-muted-foreground hover:text-primary"
+                >
+                  <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+                </Button>
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={markAllAsRead}
+                    disabled={isLoading}
+                    className="h-9 text-xs font-bold text-primary hover:bg-primary/10"
+                  >
+                    <Check size={14} className="mr-1" />
+                    Lidas
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => loadMessages()}
-              disabled={isLoading}
-              className="text-gray-400 hover:bg-seguranca-black/50"
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
-
-            {unreadCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={markAllAsRead}
-                disabled={isLoading}
-                className="text-seguranca-yellow hover:bg-seguranca-black/50"
-              >
-                <Check className="h-4 w-4 mr-1" />
-                Marcar todas
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Lista de Mensagens */}
-        <ScrollArea className="max-h-96">
-          {isLoading ? (
-            <div className="flex items-center justify-center p-8">
-              <RefreshCw className="h-6 w-6 animate-spin text-seguranca-yellow mr-2" />
-              <div className="text-gray-400">Carregando mensagens...</div>
-            </div>
-          ) : systemMessages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-8 text-gray-400">
-              <MessageSquare className="h-12 w-12 mb-4 text-gray-500" />
-              <p className="text-center">Nenhuma mensagem encontrada</p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => loadMessages()}
-                className="mt-2 text-seguranca-yellow hover:bg-seguranca-black/50"
-              >
-                Recarregar
-              </Button>
-            </div>
-          ) : (
-            <div className="p-2 space-y-2">
-              {systemMessages.map((message, index) => (
-                <div key={message.id}>
+          {/* Body */}
+          <div className="max-h-[350px] overflow-y-auto">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center p-12 opacity-50">
+                <RefreshCw className="h-8 w-8 animate-spin text-primary mb-4" />
+                <div className="text-xs font-medium">Sincronizando...</div>
+              </div>
+            ) : systemMessages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
+                <div className="p-4 rounded-full bg-accent mb-4">
+                  <Bell size={32} className="opacity-20" />
+                </div>
+                <p className="text-sm font-medium">Tudo limpo por aqui!</p>
+              </div>
+            ) : (
+              <div className="p-2 space-y-1">
+                {systemMessages.map((message) => (
                   <MessageItem
+                    key={message.id}
                     message={message}
                     onMarkAsRead={markAsRead}
                     formatDate={formatDate}
                     getPriorityConfig={getPriorityConfig}
                     isCompact={true}
                   />
-                  {index < systemMessages.length - 1 && (
-                    <Separator className="my-2 bg-gray-600" />
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          {systemMessages.length > 0 && (
+            <div className="p-3 border-t border-border bg-card/50">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsOpen(false);
+                  window.location.href = '/mensagens';
+                }}
+                className="w-full text-xs font-bold text-muted-foreground hover:text-primary transition-colors"
+              >
+                VER TUDO
+              </Button>
             </div>
           )}
-        </ScrollArea>
-
-        {/* Footer */}
-        {systemMessages.length > 0 && (
-          <div className="p-3 border-t border-gray-600">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setIsOpen(false);
-                // Aqui você pode navegar para a página completa de mensagens
-                window.location.href = '/mensagens';
-              }}
-              className="w-full text-seguranca-yellow hover:bg-seguranca-black/50"
-            >
-              Ver todas as mensagens
-            </Button>
-          </div>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </div>
+      )}
+    </div>
   );
 };
 

@@ -346,13 +346,13 @@ const ActivityReportsTable: React.FC<ActivityReportsTableProps> = ({
                         
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            {report.photos.length > 0 && (
+                            {report.photos && report.photos.length > 0 && (
                               <Badge variant="outline" className="text-xs">
                                 <Camera className="h-3 w-3 mr-1" />
                                 {report.photos.length}
                               </Badge>
                             )}
-                            {report.documents.length > 0 && (
+                            {report.documents && report.documents.length > 0 && (
                               <Badge variant="outline" className="text-xs">
                                 <FileText className="h-3 w-3 mr-1" />
                                 {report.documents.length}
@@ -440,13 +440,13 @@ const ActivityReportsTable: React.FC<ActivityReportsTableProps> = ({
 
                           {/* Anexos */}
                           <div className="flex items-center gap-2 flex-wrap">
-                            {report.photos.length > 0 && (
+                            {report.photos && report.photos.length > 0 && (
                               <Badge variant="outline" className="text-xs">
                                 <Camera className="h-3 w-3 mr-1" />
                                 {report.photos.length} foto(s)
                               </Badge>
                             )}
-                            {report.documents.length > 0 && (
+                            {report.documents && report.documents.length > 0 && (
                               <Badge variant="outline" className="text-xs">
                                 <FileText className="h-3 w-3 mr-1" />
                                 {report.documents.length} doc(s)

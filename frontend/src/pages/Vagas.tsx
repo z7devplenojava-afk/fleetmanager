@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -524,14 +524,14 @@ const Vagas: React.FC = () => {
           <TabsList className="grid w-full grid-cols-2 bg-seguranca-graphite border border-gray-600">
             <TabsTrigger 
               value="vagas" 
-              className="data-[state=active]:bg-seguranca-red data-[state=active]:text-white text-seguranca-lightgray"
+              className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white text-seguranca-lightgray"
             >
               <FileText className="h-4 w-4 mr-2" />
               Vagas
             </TabsTrigger>
             <TabsTrigger 
               value="candidatos" 
-              className="data-[state=active]:bg-seguranca-red data-[state=active]:text-white text-seguranca-lightgray"
+              className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white text-seguranca-lightgray"
             >
               <Users className="h-4 w-4 mr-2" />
               Candidatos
@@ -1081,81 +1081,98 @@ const Vagas: React.FC = () => {
 
         {/* Modal de Visualização */}
         <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
-          <DialogContent className="max-w-2xl bg-seguranca-graphite border-gray-600">
-            <DialogHeader>
-              <DialogTitle className="text-seguranca-lightgray">
+          <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto bg-seguranca-graphite border-gray-600 p-4 sm:p-6">
+            <DialogHeader className="pb-4">
+              <DialogTitle className="text-lg sm:text-xl md:text-2xl text-seguranca-lightgray leading-tight">
                 {selectedVacancy?.title}
               </DialogTitle>
-              <DialogDescription className="text-gray-400">
-                Detalhes da vaga
+              <DialogDescription className="text-sm sm:text-base text-gray-400">
+                Detalhes completos da vaga
               </DialogDescription>
             </DialogHeader>
             
             {selectedVacancy && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-gray-400 text-sm">Função</Label>
-                    <p className="text-seguranca-lightgray">{selectedVacancy.function}</p>
+              <div className="space-y-6">
+                {/* Informações Principais */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  <div className="bg-seguranca-black/50 p-3 sm:p-4 rounded-lg border border-gray-700">
+                    <Label className="text-gray-400 text-xs sm:text-sm font-medium">Função</Label>
+                    <p className="text-seguranca-lightgray text-sm sm:text-base mt-1 break-words">{selectedVacancy.function}</p>
                   </div>
-                  <div>
-                    <Label className="text-gray-400 text-sm">Localização</Label>
-                    <p className="text-seguranca-lightgray">{selectedVacancy.location}</p>
+                  <div className="bg-seguranca-black/50 p-3 sm:p-4 rounded-lg border border-gray-700">
+                    <Label className="text-gray-400 text-xs sm:text-sm font-medium">Localização</Label>
+                    <p className="text-seguranca-lightgray text-sm sm:text-base mt-1 break-words">{selectedVacancy.location}</p>
                   </div>
-                  <div>
-                    <Label className="text-gray-400 text-sm">Jornada</Label>
-                    <p className="text-seguranca-lightgray">{selectedVacancy.workSchedule}</p>
+                  <div className="bg-seguranca-black/50 p-3 sm:p-4 rounded-lg border border-gray-700">
+                    <Label className="text-gray-400 text-xs sm:text-sm font-medium">Jornada</Label>
+                    <p className="text-seguranca-lightgray text-sm sm:text-base mt-1 break-words">{selectedVacancy.workSchedule}</p>
                   </div>
-                  <div>
-                    <Label className="text-gray-400 text-sm">Salário</Label>
-                    <p className="text-seguranca-lightgray">{formatCurrency(selectedVacancy.salary)}</p>
+                  <div className="bg-seguranca-black/50 p-3 sm:p-4 rounded-lg border border-gray-700">
+                    <Label className="text-gray-400 text-xs sm:text-sm font-medium">Salário</Label>
+                    <p className="text-seguranca-yellow text-sm sm:text-base font-semibold mt-1">{formatCurrency(selectedVacancy.salary)}</p>
                   </div>
-                  <div>
-                    <Label className="text-gray-400 text-sm">Candidatos</Label>
-                    <p className="text-seguranca-lightgray">{selectedVacancy.applications}</p>
+                  <div className="bg-seguranca-black/50 p-3 sm:p-4 rounded-lg border border-gray-700">
+                    <Label className="text-gray-400 text-xs sm:text-sm font-medium">Candidatos</Label>
+                    <p className="text-seguranca-lightgray text-sm sm:text-base mt-1">{selectedVacancy.applications}</p>
                   </div>
-                  <div>
-                    <Label className="text-gray-400 text-sm">Status</Label>
-                    <Badge className={getStatusColor(selectedVacancy.status)}>
-                      {getStatusText(selectedVacancy.status)}
-                    </Badge>
-                  </div>
-                  <div>
-                    <Label className="text-gray-400 text-sm">Prazo</Label>
-                    <p className="text-seguranca-lightgray">{formatDate(selectedVacancy.deadline)}</p>
+                  <div className="bg-seguranca-black/50 p-3 sm:p-4 rounded-lg border border-gray-700">
+                    <Label className="text-gray-400 text-xs sm:text-sm font-medium">Status</Label>
+                    <div className="mt-1">
+                      <Badge className={`${getStatusColor(selectedVacancy.status)} text-xs sm:text-sm`}>
+                        {getStatusText(selectedVacancy.status)}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <Label className="text-gray-400 text-sm">Requisitos</Label>
-                  <ul className="text-seguranca-lightgray mt-1 space-y-1">
+                {/* Prazo de Inscrição */}
+                <div className="bg-seguranca-black/50 p-3 sm:p-4 rounded-lg border border-gray-700">
+                  <Label className="text-gray-400 text-xs sm:text-sm font-medium">Prazo de Inscrição</Label>
+                  <p className="text-seguranca-lightgray text-sm sm:text-base mt-1">{formatDate(selectedVacancy.deadline)}</p>
+                </div>
+
+                {/* Requisitos */}
+                <div className="bg-seguranca-black/50 p-3 sm:p-4 rounded-lg border border-gray-700">
+                  <Label className="text-gray-400 text-xs sm:text-sm font-medium mb-3 block">Requisitos</Label>
+                  <ul className="text-seguranca-lightgray space-y-2 sm:space-y-3">
                     {selectedVacancy.requirements.map((req, index) => (
-                      <li key={index} className="flex items-center">
-                        <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                        <span className="break-words">{req}</span>
+                      <li key={index} className="flex items-start">
+                        <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm sm:text-base break-words leading-relaxed">{req}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                <div>
-                  <Label className="text-gray-400 text-sm">Benefícios</Label>
-                  <ul className="text-seguranca-lightgray mt-1 space-y-1">
+                {/* Benefícios */}
+                <div className="bg-seguranca-black/50 p-3 sm:p-4 rounded-lg border border-gray-700">
+                  <Label className="text-gray-400 text-xs sm:text-sm font-medium mb-3 block">Benefícios</Label>
+                  <ul className="text-seguranca-lightgray space-y-2 sm:space-y-3">
                     {selectedVacancy.benefits.map((benefit, index) => (
-                      <li key={index} className="flex items-center">
-                        <CheckCircle className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0" />
-                        <span className="break-words">{benefit}</span>
+                      <li key={index} className="flex items-start">
+                        <CheckCircle className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm sm:text-base break-words leading-relaxed">{benefit}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
+
+                {/* CNH se necessário */}
+                {selectedVacancy.requiresCnh && (
+                  <div className="bg-seguranca-black/50 p-3 sm:p-4 rounded-lg border border-gray-700">
+                    <Label className="text-gray-400 text-xs sm:text-sm font-medium">CNH Obrigatória</Label>
+                    <p className="text-seguranca-lightgray text-sm sm:text-base mt-1">
+                      Categoria: {selectedVacancy.cnhCategory || 'Não especificada'}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
-            <DialogFooter className="mt-6">
+            <DialogFooter className="mt-6 pt-4 border-t border-gray-700">
               <Button
                 onClick={() => setShowViewModal(false)}
-                className="bg-seguranca-red hover:bg-seguranca-darkred w-full sm:w-auto"
+                className="bg-seguranca-red hover:bg-seguranca-darkred w-full sm:w-auto text-sm sm:text-base px-6 py-2"
               >
                 Fechar
               </Button>

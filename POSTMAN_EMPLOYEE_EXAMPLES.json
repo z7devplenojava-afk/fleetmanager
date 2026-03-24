@@ -1,0 +1,309 @@
+{
+  "EXEMPLO_MINIMO": {
+    "name": "João da Silva",
+    "cpf": "123.456.789-00",
+    "email": "joao.silva@email.com",
+    "phone": "(11) 98765-4321",
+    "birthDate": "1990-05-15",
+    "registrationNumber": "EMP001",
+    "hireDate": "2024-01-10",
+    "status": "ACTIVE",
+    "address": {
+      "street": "Rua das Flores, 123",
+      "city": "São Paulo",
+      "state": "SP",
+      "zipCode": "01234-567"
+    },
+    "position": {
+      "id": "uuid-do-cargo-aqui"
+    },
+    "unit": {
+      "id": "uuid-da-unidade-aqui"
+    }
+  },
+
+  "EXEMPLO_COMPLETO": {
+    "name": "Maria Santos Oliveira",
+    "cpf": "987.654.321-00",
+    "rg": "12.345.678-9",
+    "email": "maria.santos@empresa.com.br",
+    "phone": "(11) 3456-7890",
+    "birthDate": "1988-03-20",
+    "gender": "F",
+    "registrationNumber": "EMP002",
+    "hireDate": "2023-06-01",
+    "status": "ACTIVE",
+    "notes": "Funcionária exemplar. Responsável pelo setor de segurança patrimonial.",
+    "address": {
+      "street": "Avenida Paulista, 1000",
+      "number": "Apto 501",
+      "complement": "Bloco B",
+      "neighborhood": "Bela Vista",
+      "city": "São Paulo",
+      "state": "SP",
+      "zipCode": "01310-100"
+    },
+    "position": {
+      "id": "uuid-do-cargo-aqui"
+    },
+    "unit": {
+      "id": "uuid-da-unidade-aqui"
+    },
+    "cnhNumber": "12345678900",
+    "cnhCategory": "B",
+    "cnhExpirationDate": "2026-03-20",
+    "ctps": "1234567",
+    "ctpsSeries": "001",
+    "ctpsIssueDate": "2010-01-15",
+    "ctpsIssuingAgency": "SP",
+    "tituloEleitorZona": "123",
+    "tituloEleitorSecao": "0456",
+    "carteiraIdentidadeOrgaoEmissor": "SSP-SP",
+    "carteiraIdentidadeDataEmissao": "2008-05-10",
+    "nomePai": "José Santos",
+    "nomeMae": "Ana Oliveira",
+    "localNascimento": "São Paulo/SP",
+    "grauInstrucao": "SUPERIOR_COMPLETO",
+    "cbo": "5173-30",
+    "salario": 3500.00,
+    "salarioPorExtenso": "Três mil e quinhentos reais",
+    "periodoPagamento": "MENSAL",
+    "horarioTrabalho": "Segunda a Sexta: 08h às 17h | Sábado: 08h às 12h",
+    "folgaSemanal": "Domingo",
+    "fgtsOptante": true,
+    "fgtsDataOpcao": "2023-06-01",
+    "fgtsBancoDepositario": "Banco do Brasil",
+    "empresaNome": "Secured Guard Segurança Ltda",
+    "empresaEndereco": "Rua Comercial, 500 - São Paulo/SP",
+    "empresaCnpj": "12.345.678/0001-90"
+  },
+
+  "EXEMPLO_VIGILANTE": {
+    "name": "Carlos Alberto Pereira",
+    "cpf": "111.222.333-44",
+    "rg": "22.333.444-5",
+    "email": "carlos.pereira@seguranca.com",
+    "phone": "(11) 99999-8888",
+    "birthDate": "1985-07-10",
+    "gender": "M",
+    "registrationNumber": "VIG001",
+    "hireDate": "2022-03-15",
+    "status": "ACTIVE",
+    "notes": "Vigilante com curso de reciclagem em dia. Armado e habilitado.",
+    "address": {
+      "street": "Rua dos Trabalhadores, 789",
+      "city": "São Paulo",
+      "state": "SP",
+      "zipCode": "03456-789"
+    },
+    "position": {
+      "id": "uuid-cargo-vigilante"
+    },
+    "unit": {
+      "id": "uuid-unidade-shopping"
+    },
+    "cnhNumber": "98765432100",
+    "cnhCategory": "AB",
+    "cnhExpirationDate": "2027-07-10",
+    "certificadoMilitar": "RA123456",
+    "cbo": "5173-30",
+    "salario": 2800.00,
+    "salarioPorExtenso": "Dois mil e oitocentos reais",
+    "periodoPagamento": "MENSAL",
+    "horarioTrabalho": "Escala 12x36",
+    "folgaSemanal": "Conforme escala"
+  },
+
+  "EXEMPLO_SUPERVISOR": {
+    "name": "Ana Paula Costa",
+    "cpf": "555.666.777-88",
+    "rg": "33.444.555-6",
+    "email": "ana.costa@empresa.com.br",
+    "phone": "(11) 97777-6666",
+    "birthDate": "1982-11-25",
+    "gender": "F",
+    "registrationNumber": "SUP001",
+    "hireDate": "2020-01-05",
+    "status": "ACTIVE",
+    "notes": "Supervisora com 15 anos de experiência em segurança patrimonial.",
+    "address": {
+      "street": "Rua das Acácias, 456",
+      "city": "São Paulo",
+      "state": "SP",
+      "zipCode": "04567-890"
+    },
+    "position": {
+      "id": "uuid-cargo-supervisor"
+    },
+    "unit": {
+      "id": "uuid-unidade-sede"
+    },
+    "spouseName": "Roberto Costa",
+    "spouseCpf": "999.888.777-66",
+    "spouseBirthDate": "1980-08-15",
+    "spousePhone": "(11) 96666-5555",
+    "cnhNumber": "11122233344",
+    "cnhCategory": "AB",
+    "cnhExpirationDate": "2028-11-25",
+    "cbo": "5172-05",
+    "salario": 5200.00,
+    "salarioPorExtenso": "Cinco mil e duzentos reais",
+    "periodoPagamento": "MENSAL",
+    "horarioTrabalho": "Segunda a Sexta: 08h às 18h",
+    "folgaSemanal": "Sábado e Domingo",
+    "fgtsOptante": true
+  },
+
+  "EXEMPLO_APENAS_OBRIGATORIOS": {
+    "name": "Pedro Henrique",
+    "cpf": "222.333.444-55",
+    "email": "pedro@email.com",
+    "phone": "(11) 91111-2222",
+    "birthDate": "1995-01-01",
+    "registrationNumber": "EMP999",
+    "hireDate": "2024-10-16",
+    "status": "ACTIVE",
+    "address": {
+      "street": "Rua Exemplo, 100",
+      "city": "São Paulo",
+      "state": "SP",
+      "zipCode": "01000-000"
+    }
+  },
+
+  "EXEMPLO_FERIAS": {
+    "name": "Fernanda Lima",
+    "cpf": "333.444.555-66",
+    "email": "fernanda.lima@email.com",
+    "phone": "(11) 92222-3333",
+    "birthDate": "1992-06-18",
+    "registrationNumber": "EMP010",
+    "hireDate": "2021-01-15",
+    "status": "VACATION",
+    "notes": "Em férias de 01/10 a 30/10",
+    "address": {
+      "street": "Rua das Palmeiras, 200",
+      "city": "São Paulo",
+      "state": "SP",
+      "zipCode": "02000-000"
+    },
+    "position": {
+      "id": "uuid-do-cargo"
+    }
+  },
+
+  "VALORES_VALIDOS": {
+    "status": [
+      "ACTIVE - Funcionário ativo",
+      "INACTIVE - Funcionário inativo",
+      "VACATION - Em férias",
+      "MATERNITY_LEAVE - Licença maternidade",
+      "MEDICAL_CERTIFICATE - Com atestado médico",
+      "TERMINATED - Demitido",
+      "SUSPENDED - Suspenso"
+    ],
+    "gender": [
+      "M - Masculino",
+      "F - Feminino",
+      "OUTRO - Outro"
+    ],
+    "cnhCategory": [
+      "A - Moto",
+      "B - Carro",
+      "AB - Moto e Carro",
+      "C - Caminhão",
+      "D - Ônibus",
+      "E - Carreta"
+    ],
+    "grauInstrucao": [
+      "FUNDAMENTAL_INCOMPLETO",
+      "FUNDAMENTAL_COMPLETO",
+      "MEDIO_INCOMPLETO",
+      "MEDIO_COMPLETO",
+      "SUPERIOR_INCOMPLETO",
+      "SUPERIOR_COMPLETO",
+      "POS_GRADUACAO"
+    ]
+  },
+
+  "ESTRUTURA_OBJETOS_ANINHADOS": {
+    "address_exemplo": {
+      "street": "Nome da rua, número",
+      "number": "Número (opcional)",
+      "complement": "Complemento (opcional)",
+      "neighborhood": "Bairro (opcional)",
+      "city": "Cidade",
+      "state": "UF (2 letras)",
+      "zipCode": "CEP (com ou sem formatação)"
+    },
+    "position_exemplo": {
+      "id": "UUID do cargo (obter via GET /api/positions)"
+    },
+    "unit_exemplo": {
+      "id": "UUID da unidade (obter via GET /api/units)"
+    },
+    "user_exemplo": {
+      "id": "UUID do usuário (opcional, se funcionário também for usuário do sistema)"
+    }
+  },
+
+  "INSTRUCOES_POSTMAN": {
+    "method": "POST",
+    "url": "http://localhost:8081/api/employees",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer SEU_TOKEN_JWT_AQUI"
+    },
+    "body": "Use um dos exemplos acima (EXEMPLO_MINIMO, EXEMPLO_COMPLETO, etc)",
+    "observacoes": [
+      "Os campos 'position' e 'unit' precisam de IDs válidos de Cargo e Unidade",
+      "Para obter os IDs: GET /api/positions e GET /api/units",
+      "O campo 'user' é opcional (apenas se o funcionário também for usuário do sistema)",
+      "Datas devem estar no formato yyyy-MM-dd (ex: 2024-01-15)",
+      "CPF pode ser enviado com ou sem formatação"
+    ]
+  },
+
+  "CAMPOS_OBRIGATORIOS": {
+    "name": "Nome completo do funcionário",
+    "cpf": "CPF (pode ser com ou sem formatação)",
+    "email": "Email válido",
+    "phone": "Telefone",
+    "birthDate": "Data de nascimento (yyyy-MM-dd)",
+    "registrationNumber": "Número de matrícula/registro",
+    "hireDate": "Data de admissão (yyyy-MM-dd)",
+    "status": "Status do funcionário (ACTIVE, INACTIVE, etc)",
+    "address": "Objeto com endereço completo"
+  },
+
+  "COMO_OBTER_IDS_NECESSARIOS": {
+    "1_listar_cargos": {
+      "method": "GET",
+      "url": "http://localhost:8081/api/positions",
+      "response_exemplo": [
+        {
+          "id": "uuid-aqui",
+          "name": "Vigilante",
+          "description": "Vigilante Patrimonial"
+        }
+      ]
+    },
+    "2_listar_unidades": {
+      "method": "GET",
+      "url": "http://localhost:8081/api/units",
+      "response_exemplo": [
+        {
+          "id": "uuid-aqui",
+          "name": "Shopping Plaza",
+          "type": "CLIENT_SITE"
+        }
+      ]
+    },
+    "3_criar_funcionario": {
+      "method": "POST",
+      "url": "http://localhost:8081/api/employees",
+      "body": "Use um dos exemplos acima com os IDs corretos"
+    }
+  }
+}
+

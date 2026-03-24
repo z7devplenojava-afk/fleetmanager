@@ -1,0 +1,179 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"name": "SecuredGuard API",
+		"description": "Collection of endpoints for testing the Schedule API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Schedules",
+			"item": [
+				{
+					"name": "Create Schedule",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"scheduleDate\": \"2024-03-20\",\n    \"shift\": \"MORNING\",\n    \"locationId\": \"{{locationId}}\",\n    \"status\": \"PENDING\",\n    \"routeId\": \"{{routeId}}\",\n    \"patrolId\": \"{{patrolId}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/schedules",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "schedules"]
+						},
+						"description": "Creates a new schedule"
+					}
+				},
+				{
+					"name": "Add Employee to Schedule",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"employeeId\": \"{{employeeId}}\",\n    \"positionId\": \"{{positionId}}\",\n    \"observations\": \"Employee observations\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/schedules/{{scheduleId}}/employees",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "schedules", "{{scheduleId}}", "employees"]
+						},
+						"description": "Adds an employee to an existing schedule"
+					}
+				},
+				{
+					"name": "Update Employee Order",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[\n    \"{{employee2Id}}\",\n    \"{{employee1Id}}\"\n]"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/schedules/{{scheduleId}}/employees/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "schedules", "{{scheduleId}}", "employees", "order"]
+						},
+						"description": "Updates the visual order of employees in the schedule"
+					}
+				},
+				{
+					"name": "Get Schedules by Period",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/schedules/period?startDate=2024-03-01&endDate=2024-03-31",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "schedules", "period"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2024-03-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2024-03-31"
+								}
+							]
+						},
+						"description": "Gets schedules within a specific period"
+					}
+				},
+				{
+					"name": "Get Schedules by Unit and Period",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/schedules/unit/{{unitId}}/period?startDate=2024-03-01&endDate=2024-03-31",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "schedules", "unit", "{{unitId}}", "period"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2024-03-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2024-03-31"
+								}
+							]
+						},
+						"description": "Gets schedules for a specific unit within a period"
+					}
+				},
+				{
+					"name": "Get Schedule Employees",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/schedules/{{scheduleId}}/employees",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "schedules", "{{scheduleId}}", "employees"]
+						},
+						"description": "Gets all employees for a specific schedule"
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080"
+		},
+		{
+			"key": "unitId",
+			"value": "your-unit-uuid"
+		},
+		{
+			"key": "locationId",
+			"value": "your-location-uuid"
+		},
+		{
+			"key": "employeeId",
+			"value": "your-employee-uuid"
+		},
+		{
+			"key": "employee1Id",
+			"value": "your-employee-1-uuid"
+		},
+		{
+			"key": "employee2Id",
+			"value": "your-employee-2-uuid"
+		},
+		{
+			"key": "positionId",
+			"value": "your-position-uuid"
+		},
+		{
+			"key": "scheduleId",
+			"value": "your-schedule-uuid"
+		},
+		{
+			"key": "routeId",
+			"value": "your-route-uuid"
+		},
+		{
+			"key": "patrolId",
+			"value": "your-patrol-uuid"
+		}
+	]
+} 

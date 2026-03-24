@@ -1,5 +1,4 @@
 import React from 'react';
-import { useAOS } from '@/hooks/use-aos';
 
 interface AnimatedWrapperProps {
   children: React.ReactNode;
@@ -10,17 +9,24 @@ interface AnimatedWrapperProps {
 
 export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({
   children,
-  animation = 'fade-up',
+  animation = 'fadeUp',
   delay = 0,
   className = ''
 }) => {
-  const aos = useAOS();
+  // Converter animações AOS para GSAP
+  const gsapAnimation = animation
+    .replace('fade-up', 'fadeUp')
+    .replace('fade-down', 'fadeDown')
+    .replace('fade-left', 'fadeLeft')
+    .replace('fade-right', 'fadeRight')
+    .replace('zoom-in', 'zoomIn')
+    .replace('zoom-out', 'zoomOut');
 
   return (
     <div 
       className={className}
-      data-aos={animation}
-      data-aos-delay={delay}
+      data-animate={gsapAnimation}
+      data-delay={delay}
     >
       {children}
     </div>

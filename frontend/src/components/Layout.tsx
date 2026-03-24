@@ -13,12 +13,12 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-seguranca-black">
+      <div className="min-h-screen flex w-full bg-gradient-to-br from-seguranca-black via-seguranca-black to-seguranca-graphite">
         <DynamicSidebar />
         <SidebarInset className="flex flex-col flex-1">
           <Header />
-          <main className="flex-1 bg-seguranca-black overflow-auto">
-            <div className="min-h-full p-6">
+          <main className="flex-1 bg-transparent overflow-auto">
+            <div className="min-h-full p-4 sm:p-6">
               {children}
             </div>
           </main>

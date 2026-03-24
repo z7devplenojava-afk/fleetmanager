@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="test-simple" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+    
+    <!-- Parâmetros -->
+    <parameter name="TEST_PARAM" class="java.lang.String"/>
+    
+    <!-- Campos do datasource -->
+    <field name="id" class="java.util.UUID"/>
+    
+    <!-- Cabeçalho da página -->
+    <title>
+        <band height="50" splitType="Stretch">
+            <staticText>
+                <reportElement x="0" y="0" width="555" height="30" uuid="title"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font fontName="Arial" size="18" isBold="true"/>
+                </textElement>
+                <text><![CDATA[TESTE SIMPLES]]></text>
+            </staticText>
+            
+            <textField>
+                <reportElement x="0" y="30" width="555" height="15" uuid="test-param"/>
+                <textElement textAlignment="Center">
+                    <font fontName="Arial" size="12"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{TEST_PARAM}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+    
+    <!-- Detalhes -->
+    <detail>
+        <band height="20" splitType="Stretch">
+            <textField>
+                <reportElement x="0" y="0" width="555" height="15" uuid="test-field"/>
+                <textElement textAlignment="Center">
+                    <font fontName="Arial" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["ID: " + $F{id}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+</jasperReport>

@@ -1,0 +1,1 @@
+ALTER TABLE registros_ponto ADD COLUMN hora_entrada_almoco TIMESTAMP; 

@@ -24,12 +24,13 @@ export interface Quote {
 export interface CreateQuoteRequest {
   title: string;
   description?: string;
-  clientId: number;
-  leadId?: number;
+  clientId: string | number; // Aceita string (UUID) ou number para compatibilidade
+  leadId?: string | number; // Aceita string (UUID) ou number para compatibilidade
   assignedToId?: number;
   totalValue: number;
   validUntil: string;
-  terms?: string;
+  estimatedDuration?: number;
+  paymentTerms?: string;
   notes?: string;
 }
 
@@ -40,31 +41,31 @@ export interface UpdateQuoteRequest extends Partial<CreateQuoteRequest> {
 export const quoteService = {
   // Buscar todos os orçamentos
   async getAllQuotes(): Promise<Quote[]> {
-    const response = await api.get('/quotes');
+    const response = await api.get('/api/quotes/all');
     return response.data;
   },
 
   // Buscar orçamento por ID
-  async getQuoteById(id: number): Promise<Quote> {
-    const response = await api.get(`/quotes/${id}`);
+  async getQuoteById(id: number | string): Promise<Quote> {
+    const response = await api.get(`/api/quotes/${id}`);
     return response.data;
   },
 
   // Criar novo orçamento
   async createQuote(quoteData: CreateQuoteRequest): Promise<Quote> {
-    const response = await api.post('/quotes', quoteData);
+    const response = await api.post('/api/quotes', quoteData);
     return response.data;
   },
 
   // Atualizar orçamento
-  async updateQuote(id: number, quoteData: UpdateQuoteRequest): Promise<Quote> {
-    const response = await api.put(`/quotes/${id}`, quoteData);
+  async updateQuote(id: number | string, quoteData: UpdateQuoteRequest): Promise<Quote> {
+    const response = await api.put(`/api/quotes/${id}`, quoteData);
     return response.data;
   },
 
   // Excluir orçamento
-  async deleteQuote(id: number): Promise<void> {
-    await api.delete(`/quotes/${id}`);
+  async deleteQuote(id: number | string): Promise<void> {
+    await api.delete(`/api/quotes/${id}`);
   },
 
   // Buscar orçamentos por cliente

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   FileText, 
   Download, 
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Contract } from '@/services/contractService';
 import { companyConfigService, CompanyConfig } from '@/services/companyConfigService';
+import { clientService } from '@/services/clientService';
 
 interface ContractGeneratorProps {
   open: boolean;
@@ -69,10 +71,13 @@ export const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   const [generating, setGenerating] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [step, setStep] = useState<'form' | 'preview' | 'generated'>('form');
+  const [clients, setClients] = useState<any[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
       loadCompanyConfig();
+      loadClients();
       
       // Carregar dados do contrato se fornecido
       if (contract) {
@@ -105,6 +110,35 @@ export const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     } finally {
       setLoadingConfig(false);
     }
+  };
+
+  const loadClients = async () => {
+    setClientsLoading(true);
+    try {
+      const result = await clientService.getClients({ page: 0, size: 1000 });
+      const list = Array.isArray(result) ? result : (result?.content || []);
+      setClients(list);
+    } catch (e) {
+      console.error('Erro ao carregar clientes para o gerador de contrato:', e);
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
+  const handleSelectClient = (clientId: string) => {
+    const selected = clients.find((c: any) => c.id === clientId);
+    if (!selected) return;
+    const composedAddress = [selected.address, selected.city, selected.state, selected.zipCode]
+      .filter(Boolean)
+      .join(', ');
+    setContractData(prev => ({
+      ...prev,
+      clientName: selected.name || '',
+      clientDocument: selected.cnpj || '',
+      clientAddress: composedAddress,
+      clientPhone: selected.phone || selected.mobile || '',
+      clientEmail: selected.email || selected.contactEmail || ''
+    }));
   };
 
   const formatCurrency = (value: number) => {
@@ -411,6 +445,7 @@ export const ContractGenerator: React.FC<ContractGeneratorProps> = ({
         <DialogContent className="max-w-sm sm:max-w-md bg-seguranca-graphite border-gray-600 mx-4">
           <DialogHeader>
             <DialogTitle className="text-seguranca-lightgray text-sm sm:text-base">Carregando...</DialogTitle>
+            <DialogDescription>Preparando o gerador de contratos...</DialogDescription>
           </DialogHeader>
           <div className="text-center py-6">
             <Loader2 className="h-16 w-16 mx-auto mb-4 text-seguranca-yellow animate-spin" />
@@ -429,6 +464,7 @@ export const ContractGenerator: React.FC<ContractGeneratorProps> = ({
         <DialogContent className="max-w-sm sm:max-w-md bg-seguranca-graphite border-gray-600 mx-4">
           <DialogHeader>
             <DialogTitle className="text-seguranca-lightgray text-sm sm:text-base">Configuração Necessária</DialogTitle>
+            <DialogDescription>Configure os dados da empresa para continuar</DialogDescription>
           </DialogHeader>
           <div className="text-center py-6">
             <Settings className="h-16 w-16 mx-auto mb-4 text-seguranca-yellow" />
@@ -455,6 +491,7 @@ export const ContractGenerator: React.FC<ContractGeneratorProps> = ({
           <DialogTitle className="text-seguranca-lightgray text-sm sm:text-base lg:text-lg">
             Gerar Contrato Personalizado
           </DialogTitle>
+          <DialogDescription>Preencha os dados para gerar um contrato personalizado</DialogDescription>
         </DialogHeader>
 
         {step === 'form' && (
@@ -468,6 +505,21 @@ export const ContractGenerator: React.FC<ContractGeneratorProps> = ({
               </CardHeader>
               <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <Label className="text-seguranca-lightgray text-xs sm:text-sm">Cliente (cadastrado)</Label>
+                    <Select onValueChange={handleSelectClient} disabled={clientsLoading}>
+                      <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray text-xs sm:text-sm mt-1">
+                        <SelectValue placeholder={clientsLoading ? 'Carregando...' : 'Selecione um cliente'} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-seguranca-graphite border-gray-600">
+                        {clients.map((c: any) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name} {c.cnpj ? `- ${c.cnpj}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div>
                     <Label className="text-seguranca-lightgray text-xs sm:text-sm">Nome/Razão Social *</Label>
                     <Input

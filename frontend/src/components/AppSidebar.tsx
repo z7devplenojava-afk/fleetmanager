@@ -2,19 +2,23 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  BarChart3, 
-  FileText, 
-  Calendar, 
-  Users, 
-  User2, 
-  ClipboardList, 
-  DollarSign, 
-  FileSpreadsheet, 
-  Building2, 
+import {
+  BarChart3,
+  FileText,
+  Calendar,
+  Users,
+  User2,
+  ClipboardCheck,
+  ClipboardList,
+  DollarSign,
+  FileSpreadsheet,
+  Building2,
   Settings,
-  Truck,
+  Bus,
   Shield,
+  Wrench,
+  Activity,
+  Fuel,
   Briefcase,
   Target,
   FileCheck,
@@ -48,6 +52,7 @@ import {
   GraduationCap,
   FileSignature,
   CreditCard,
+  Banknote,
   Heart,
   Home,
   Car,
@@ -91,29 +96,8 @@ import {
   Image,
   Video,
   Music,
-  FileImage,
-  FileVideo,
-  FileAudio,
-  FilePdf,
-  FileWord,
-  FileExcel,
-  FilePowerpoint,
-  FileArchive,
-  FileCode,
-  FileJson,
-  FileXml,
-  FileCsv,
-  FileDatabase,
-  FileLock,
-  FileMinus,
-  FilePlus,
-  FileSearch,
-  FileSlash,
-  FileText2,
-  FileType,
+  FileText as FileText2,
   FileUp,
-  FileX,
-  FileZip,
   FolderPlus,
   FolderMinus,
   FolderX,
@@ -123,19 +107,10 @@ import {
   FolderHeart,
   FolderKey,
   FolderLock,
-  FolderOpen2,
-  FolderPause,
-  FolderPlay,
-  FolderQuestion,
-  FolderSearch,
-  FolderSettings,
-  FolderStar,
   FolderSync,
   FolderTree,
   FolderUp,
-  FolderUser,
-  FolderWarning,
-  FolderX2
+  DoorOpen,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -172,6 +147,17 @@ const mensagensMenuItems = [
   { icon: MessageCircle, text: 'Chat Interno', to: '/chat-interno', id: 'chat-interno' },
 ];
 
+// Módulo de Manutenção e Frota (Novo)
+const manutencaoMenuItems = [
+  { icon: Wrench, text: 'Dashboard Manutenção', to: '/manutencao', id: 'manutencao' },
+  { icon: Activity, text: 'Manutenção V2 (HUD)', to: '/manutencao/v2', id: 'manutencao-v2' },
+  { icon: ClipboardList, text: 'O.S. de Frota', to: '/frota/ordens-servico', id: 'frota-os' },
+  { icon: Fuel, text: 'Abastecimento', to: '/abastecimento', id: 'abastecimento' },
+  { icon: Car, text: 'Gestão de Pneus', to: '/pneus', id: 'pneus' },
+  { icon: DoorOpen, text: 'Gestão de Portaria', to: '/manutencao/portaria', id: 'gestao-portaria' },
+  { icon: ClipboardCheck, text: 'Gestão Checklist por Cliente', to: '/manutencao/checklist-cliente', id: 'gestao-checklist-cliente' },
+];
+
 // Módulo de Suporte
 const suporteMenuItems = [
   { icon: Headphones, text: 'Central de Suporte', to: '/suporte', id: 'suporte' },
@@ -198,12 +184,13 @@ const gestaoMensagensInternasMenuItems = [
 // Módulo RH - Menu principal
 const rhMenuItems = [
   { icon: Users, text: 'RH Principal', to: '/rh', id: 'rh' },
+  { icon: Clock, text: 'Controle de Horas', to: '/rh/controle-horas', id: 'rh-controle-horas' },
   { icon: User2, text: 'Funcionários', to: '/rh/funcionarios', id: 'rh-funcionarios' },
+  { icon: Settings, text: 'Departamentos', to: '/rh/departamentos', id: 'rh-departamentos' },
+  { icon: MapPin, text: 'Postos de Trabalho', to: '/rh/postos', id: 'rh-postos' },
   { icon: Briefcase, text: 'Vagas', to: '/rh/vagas', id: 'rh-vagas' },
   { icon: Award, text: 'Benefícios', to: '/rh/beneficios', id: 'rh-beneficios' },
   { icon: GraduationCap, text: 'Treinamentos', to: '/rh/treinamentos', id: 'rh-treinamentos' },
-  { icon: FileBarChart, text: 'Avaliação de Desempenho', to: '/rh/avaliacao-desempenho', id: 'rh-avaliacao-desempenho' },
-  { icon: TrendingUp, text: 'Plano de Carreira', to: '/rh/plano-carreira', id: 'rh-plano-carreira' },
   { icon: BarChart3Icon, text: 'Relatórios RH', to: '/rh/relatorios', id: 'rh-relatorios' },
 ];
 
@@ -214,34 +201,46 @@ const sstMenuItems = [
   { icon: HardHat, text: 'EPIs', to: '/rh/sst/epis', id: 'rh-sst-epis' },
   { icon: AlertTriangle, text: 'Acidentes', to: '/rh/sst/acidentes', id: 'rh-sst-acidentes' },
   { icon: GraduationCap, text: 'Treinamentos SST', to: '/rh/sst/treinamentos', id: 'rh-sst-treinamentos' },
-  { icon: FileCheck, text: 'Inspeções', to: '/rh/sst/inspecoes', id: 'rh-sst-inspecoes' },
+  // { icon: FileCheck, text: 'Inspeções', to: '/rh/sst/inspecoes', id: 'rh-sst-inspecoes' }, // TODO: Implementar página de inspeções
   { icon: Users, text: 'CIPA', to: '/rh/sst/cipa', id: 'rh-sst-cipa' },
   { icon: BarChart3Icon, text: 'Relatórios SST', to: '/rh/sst/relatorios', id: 'rh-sst-relatorios' },
 ];
 
 // Módulo Departamento Pessoal
 const departamentoPessoalMenuItems = [
-  { icon: UserPlus, text: 'Admissão de Funcionários', to: '/rh/admissao-funcionarios', id: 'dp-admissao-funcionarios' },
-  { icon: UserX, text: 'Demissão de Funcionários', to: '/rh/demissao-funcionarios', id: 'dp-demissao-funcionarios' },
+  // Gestão de Funcionários
+  { icon: Users, text: 'Funcionários', to: '/rh/funcionarios', id: 'dp-funcionarios' },
+  { icon: FileSpreadsheet, text: 'Importar Funcionários Excel', to: '/rh/funcionarios?importar=excel', id: 'dp-funcionarios-importar-excel' },
+  { icon: Banknote, text: 'Importar Dados Bancários', to: '/rh/funcionarios/importar-dados-bancarios', id: 'dp-funcionarios-importar-bancarios' },
   { icon: Handshake, text: 'Admissão/Demissão', to: '/rh/admissao-demissao', id: 'dp-admissao-demissao' },
   { icon: ArrowUpDown, text: 'Remanejamentos', to: '/rh/remanejamentos', id: 'dp-remanejamentos' },
+
+  // Gestão de Tempo e Frequência
   { icon: Calendar, text: 'Férias', to: '/rh/ferias', id: 'dp-ferias' },
   { icon: CalendarDays, text: 'Ponto Eletrônico', to: '/rh/ponto-eletronico', id: 'dp-ponto-eletronico' },
-  { icon: Clock3, text: 'Horas Extras', to: '/rh/horas-extras', id: 'dp-horas-extras' },
+  { icon: Clock, text: 'Controle de Horas', to: '/rh/controle-horas', id: 'dp-controle-horas' },
+  { icon: FileText, text: 'Fechamento de Horas', to: '/rh/fechamento-horas', id: 'rh-fechamento-horas' },
+
+  // Gestão de Ocorrências e Eventos
   { icon: FileText, text: 'Ocorrências', to: '/rh/ocorrencias', id: 'dp-ocorrencias' },
-  { icon: CreditCard, text: 'Vale Transporte', to: '/rh/vale-transporte', id: 'dp-vale-transporte' },
-  { icon: Home, text: 'Vale Refeição', to: '/rh/vale-refeicao', id: 'dp-vale-refeicao' },
-  { icon: Car, text: 'Vale Combustível', to: '/rh/vale-combustivel', id: 'dp-vale-combustivel' },
-  { icon: Heart, text: 'Plano de Saúde', to: '/rh/plano-saude', id: 'dp-plano-saude' },
-  { icon: FileSignature, text: 'Contratos', to: '/rh/contratos', id: 'dp-contratos' },
+
+  // Benefícios (agrupados)
+  { icon: Award, text: 'Benefícios', to: '/rh/beneficios', id: 'dp-beneficios' },
+
+  // Estrutura Organizacional
   { icon: Settings, text: 'Funções', to: '/rh/funcoes', id: 'dp-funcoes' },
   { icon: Briefcase, text: 'Cargos', to: '/rh/cargos', id: 'dp-cargos' },
-  { icon: MapPin, text: 'Postos', to: '/postos', id: 'dp-postos' },
-  { icon: Shield, text: 'EPIs', to: '/epis', id: 'dp-epis' },
-  { icon: FileCheck, text: 'Ordens de Serviço', to: '/rh/ordens-servico?emitir=1', id: 'dp-ordens-servico' },
-  { icon: UserCheck, text: 'LGPD', to: '/rh/lgpd', id: 'dp-lgpd' },
-  { icon: FileText, text: 'Gestão de Documentos', to: '/rh/gestao-documentos', id: 'dp-gestao-documentos' },
-  { icon: Send, text: 'Envio de Holerites', to: '/envio-holerites', id: 'dp-envio-holerites' },
+  { icon: MapPin, text: 'Postos', to: '/rh/postos', id: 'dp-postos' },
+
+  // Segurança e Compliance
+  { icon: Shield, text: 'EPIs', to: '/rh/epis', id: 'dp-epis' },
+
+  // Documentos e Contratos
+  { icon: FileSignature, text: 'Documentos', to: '/rh/documentos', id: 'dp-documentos' },
+
+  // Operações
+  { icon: FileCheck, text: 'Ordens de Serviço', to: '/rh/ordens-servico', id: 'dp-ordens-servico' },
+  { icon: Briefcase, text: 'Vagas', to: '/rh/vagas', id: 'dp-vagas' },
 ];
 
 // Módulo Operacional
@@ -283,6 +282,7 @@ const estoqueMenuItems = [
   { icon: Package, text: 'Produtos', to: '/estoque/produtos', id: 'estoque-produtos' },
   { icon: Package, text: 'Movimentações', to: '/estoque/movimentacoes', id: 'estoque-movimentacoes' },
   { icon: Package, text: 'Relatórios', to: '/estoque/relatorios', id: 'estoque-relatorios' },
+  { icon: Handshake, text: 'Fornecedores', to: '/estoque/fornecedores', id: 'estoque-fornecedores' },
 ];
 
 // Módulo de Estoque Simplificado
@@ -304,13 +304,14 @@ const administrativoMenuItems = [
   { icon: Users, text: 'Usuários', to: '/usuarios', id: 'usuarios' },
   { icon: Users, text: 'Grupos de Usuários', to: '/grupos', id: 'grupos' },
   { icon: Key, text: 'Roles', to: '/roles', id: 'roles' },
+  { icon: Upload, text: 'Importar WhatsApp (PDF)', to: '/sistema/importar-whatsapp', id: 'sistema-importar-whatsapp' },
 ];
 
 export function AppSidebar() {
   const location = useLocation();
   const { user } = useAuth();
-  
-  
+
+
 
   // Menu principal - incluir Roles apenas para SUPER_ADMIN
   const getMainMenuItems = () => {
@@ -318,10 +319,10 @@ export function AppSidebar() {
       { icon: BarChart3, text: 'Dashboard', to: '/dashboard', id: 'dashboard' },
       { icon: DollarSign, text: 'Financeiro', to: '/financeiro', id: 'financeiro' },
       { icon: FileSpreadsheet, text: 'Holerites', to: '/holerites', id: 'holerites' },
+      { icon: FileSpreadsheet, text: 'Folha de Pagamento', to: '/payrolls', id: 'payrolls' },
       { icon: FileText, text: 'Documentos Unificados', to: '/documentos-unificados', id: 'documentos-unificados' },
-      { icon: Truck, text: 'Frota', to: '/frota', id: 'frota' },
+      { icon: Bus, text: 'Frota', to: '/frota', id: 'frota' },
       { icon: FileText, text: 'Relatórios', to: '/relatorios', id: 'relatorios' },
-      { icon: Settings, text: 'Configurações', to: '/configuracoes', id: 'configuracoes' },
     ];
 
     // Adicionar Roles apenas para SUPER_ADMIN
@@ -333,11 +334,12 @@ export function AppSidebar() {
   };
 
   const mainMenuItems = getMainMenuItems();
-  
+
   const getActiveId = () => {
     const path = location.pathname;
     const allItems = [
       ...mainMenuItems,
+      ...manutencaoMenuItems,
       ...empresasMenuItems,
       ...rhMenuItems,
       ...departamentoPessoalMenuItems,
@@ -352,10 +354,10 @@ export function AppSidebar() {
       ...gestaoMensagensInternasMenuItems,
       ...administrativoMenuItems,
     ];
-    
+
     // Primeiro tenta encontrar uma correspondência exata
     let activeItem = allItems.find(item => item.to === path);
-    
+
     // Se não encontrar, tenta corresponder apenas o pathname (sem parâmetros)
     if (!activeItem) {
       activeItem = allItems.find(item => {
@@ -363,27 +365,47 @@ export function AppSidebar() {
         return itemPath === path;
       });
     }
-    
+
     return activeItem?.id || 'dashboard';
   };
 
   const isActive = (id: string) => getActiveId() === id;
 
   return (
-    <div className="bg-seguranca-graphite border-r border-gray-700 w-64 h-screen overflow-y-auto" style={{minHeight: '100vh'}}>
+    <div className="bg-seguranca-graphite border-r border-gray-700 w-64 h-screen overflow-y-auto" style={{ minHeight: '100vh' }}>
       <div className="p-4 border-b border-gray-700">
-        <div className="text-white font-bold">Secure Guard</div>
+        <div className="text-white font-bold italic">Flex<span className="text-primary not-italic">Bus</span></div>
       </div>
-      
-      <div className="p-4" style={{minHeight: 'calc(100vh - 80px)'}}>
+
+      <div className="p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
         <div className="text-seguranca-lightgray mb-4">Menu Principal</div>
         {mainMenuItems.map(item => (
           <div className="mb-2" key={item.id}>
-            <a 
-              href={item.to} 
+            <a
+              href={item.to}
               className="flex items-center p-3 rounded-lg text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow"
             >
               <item.icon size={20} className="text-seguranca-yellow mr-3" />
+              <span>{item.text}</span>
+            </a>
+          </div>
+        ))}
+
+        {/* Módulo de Manutenção e Frota */}
+        <div className="text-seguranca-lightgray mb-2 mt-6 flex items-center">
+          <Wrench size={16} className="mr-2 text-seguranca-yellow" />
+          Manutenção & Frota
+        </div>
+        {manutencaoMenuItems.map(item => (
+          <div className="mb-2 ml-4" key={item.id}>
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
+            >
+              <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
             </a>
           </div>
@@ -396,8 +418,8 @@ export function AppSidebar() {
         </div>
         {financeiroMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
+            <a
+              href={item.to}
               className="flex items-center p-3 rounded-lg text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow"
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
@@ -413,13 +435,12 @@ export function AppSidebar() {
         </div>
         {empresasMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -434,13 +455,12 @@ export function AppSidebar() {
         </div>
         {comercialMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -455,13 +475,12 @@ export function AppSidebar() {
         </div>
         {estoqueMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -476,13 +495,12 @@ export function AppSidebar() {
         </div>
         {estoqueSimplificadoMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -497,13 +515,12 @@ export function AppSidebar() {
         </div>
         {comprasMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -518,13 +535,12 @@ export function AppSidebar() {
         </div>
         {rhMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -539,13 +555,12 @@ export function AppSidebar() {
         </div>
         {sstMenuItems.map(item => (
           <div className="mb-2 ml-8" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -559,14 +574,13 @@ export function AppSidebar() {
           Departamento Pessoal
         </div>
         {departamentoPessoalMenuItems.map(item => (
-          <div className="mb-2 ml-8" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+          <div className="mb-2 ml-4" key={item.id}>
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -581,13 +595,12 @@ export function AppSidebar() {
         </div>
         {operacionalMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -602,13 +615,12 @@ export function AppSidebar() {
         </div>
         {mensagensMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -623,13 +635,12 @@ export function AppSidebar() {
         </div>
         {suporteMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -644,13 +655,12 @@ export function AppSidebar() {
         </div>
         {gestaoAtendimentoMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>
@@ -665,13 +675,12 @@ export function AppSidebar() {
         </div>
         {gestaoMensagensInternasMenuItems.map(item => (
           <div className="mb-2 ml-4" key={item.id}>
-            <a 
-              href={item.to} 
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive(item.id) 
-                  ? 'bg-seguranca-black text-seguranca-yellow' 
-                  : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-              }`}
+            <a
+              href={item.to}
+              className={`flex items-center p-3 rounded-lg transition-colors ${isActive(item.id)
+                ? 'bg-seguranca-black text-seguranca-yellow'
+                : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
+                }`}
             >
               <item.icon size={18} className="text-seguranca-yellow mr-3" />
               <span>{item.text}</span>

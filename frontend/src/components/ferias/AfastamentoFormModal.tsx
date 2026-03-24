@@ -7,6 +7,7 @@ import { X, AlertTriangle, User, FileText, Upload } from 'lucide-react';
 interface Props {
   onSuccess: () => void;
   onClose: () => void;
+  editingId?: string; // ID do registro sendo editado (se houver, é edição; caso contrário, é criação)
   initialData?: CreateAfastamentoRequest;
 }
 
@@ -19,7 +20,7 @@ const tipoOptions = [
   { value: 'OUTROS', label: 'Outros' },
 ];
 
-const AfastamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData }) => {
+const AfastamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, editingId, initialData }) => {
   const [form, setForm] = useState<CreateAfastamentoRequest>({
     employeeId: '',
     tipo: 'ATESTADO',
@@ -32,14 +33,32 @@ const AfastamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string>('');
 
   useEffect(() => {
-    if (initialData) {
+    // Se estiver editando, buscar dados completos do backend
+    if (editingId) {
+      feriasService.getAfastamentoById(editingId).then((afastamento) => {
+        setForm({
+          employeeId: afastamento.employeeId || '',
+          tipo: afastamento.tipo,
+          dataInicio: afastamento.dataInicio,
+          dataFim: afastamento.dataFim,
+          motivo: afastamento.motivo,
+          documento: afastamento.documento || '',
+          observacoes: afastamento.observacoes || ''
+        });
+        setStatus(afastamento.status);
+      }).catch((error) => {
+        console.error('Erro ao carregar dados do afastamento:', error);
+        setError('Erro ao carregar dados do afastamento');
+      });
+    } else if (initialData) {
       setForm(initialData);
     }
     // Buscar funcionários
-    employeeService.getEmployees().then(setEmployees);
-  }, [initialData]);
+    employeeService.getAllEmployees().then(setEmployees);
+  }, [editingId, initialData]);
 
   // Fechar com ESC
   useEffect(() => {
@@ -67,10 +86,28 @@ const AfastamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData
       if (!form.dataFim) throw new Error('Informe a data de fim');
       if (!form.motivo) throw new Error('Informe o motivo do afastamento');
       
-      await feriasService.createAfastamento(form);
+      // Se houver editingId, é uma edição - usar updateAfastamento
+      if (editingId) {
+        const updateData = {
+          employeeId: form.employeeId, // O backend precisa do employeeId
+          dataInicio: form.dataInicio,
+          dataFim: form.dataFim,
+          tipo: form.tipo, // CRÍTICO: Garantir que o tipo seja sempre enviado
+          motivo: form.motivo,
+          documento: form.documento || undefined,
+          observacoes: form.observacoes || undefined,
+          status: status || undefined // Incluir status se estiver editando
+        };
+        console.log('📝 Dados de atualização do afastamento:', updateData);
+        console.log('📝 Tipo sendo enviado:', updateData.tipo);
+        await feriasService.updateAfastamento(editingId, updateData);
+      } else {
+        // É uma criação - usar createAfastamento
+        await feriasService.createAfastamento(form);
+      }
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Erro ao salvar solicitação de afastamento');
+      setError(err.message || (editingId ? 'Erro ao atualizar solicitação de afastamento' : 'Erro ao salvar solicitação de afastamento'));
     } finally {
       setLoading(false);
     }
@@ -103,7 +140,7 @@ const AfastamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-seguranca-graphite sticky top-0 bg-seguranca-black z-10">
           <h2 className="text-base sm:text-lg font-bold text-seguranca-yellow flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
-            Nova Solicitação de Afastamento
+            {editingId ? 'Editar Solicitação de Afastamento' : 'Nova Solicitação de Afastamento'}
           </h2>
           <button
             onClick={onClose}
@@ -187,10 +224,32 @@ const AfastamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData
                   Total de Dias
                 </label>
                 <div className="w-full p-2 rounded bg-seguranca-graphite text-seguranca-lightgray border border-gray-600 text-sm flex items-center justify-center">
-                  {calculateDays()} dias
+                  {calculateDays()} dia{calculateDays() !== 1 ? 's' : ''}
                 </div>
               </div>
             </div>
+
+            {/* Campo de Status (editável quando editando) */}
+            {editingId && (
+              <div>
+                <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">
+                  Status
+                </label>
+                <select 
+                  name="status" 
+                  value={status || 'PENDENTE'} 
+                  onChange={(e) => setStatus(e.target.value)} 
+                  className="w-full p-2 rounded bg-seguranca-graphite text-seguranca-lightgray border border-gray-600 focus:border-seguranca-yellow focus:outline-none text-sm" 
+                >
+                  <option value="PENDENTE">Pendente</option>
+                  <option value="APROVADO">Aprovado</option>
+                  <option value="CANCELADO">Cancelado</option>
+                  <option value="REJECTED">Rejeitado</option>
+                  <option value="EM_ANDAMENTO">Em Andamento</option>
+                  <option value="CONCLUIDO">Concluído</option>
+                </select>
+              </div>
+            )}
 
             {/* Terceira linha - Motivo */}
             <div>
@@ -263,7 +322,7 @@ const AfastamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData
               disabled={loading} 
               className="px-3 py-2 sm:px-4 sm:py-2 bg-seguranca-yellow text-black font-bold rounded hover:bg-yellow-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              {loading ? 'Salvando...' : 'Solicitar Afastamento'}
+              {loading ? (editingId ? 'Atualizando...' : 'Salvando...') : (editingId ? 'Atualizar Afastamento' : 'Solicitar Afastamento')}
             </button>
           </div>
         </form>

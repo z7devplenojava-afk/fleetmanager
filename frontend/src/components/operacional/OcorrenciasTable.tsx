@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,10 +20,15 @@ import {
   UserX,
   Shield,
   Heart,
-  Coffee
+  Coffee,
+  Download
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Occurrence } from '@/services/occurrenceService';
+import { Occurrence, occurrenceService } from '@/services/occurrenceService';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { employeeService, Employee } from '@/services/employeeService';
 
 interface OcorrenciasTableProps {
   ocorrencias: Occurrence[];
@@ -47,6 +52,23 @@ const OcorrenciasTable: React.FC<OcorrenciasTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [tipoFilter, setTipoFilter] = useState('all');
+  const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [pdfFilters, setPdfFilters] = useState({
+    employeeId: '',
+    type: '',
+    status: '',
+    priority: '',
+    startDate: '',
+    endDate: '',
+    responsible: '',
+    location: ''
+  });
+
+  useEffect(() => {
+    employeeService.getAllEmployees().then(setEmployees);
+  }, []);
 
   const getStatusVariant = (status: string): 'destructive' | 'secondary' | 'outline' | 'default' => {
     switch (status.toLowerCase()) {
@@ -191,6 +213,46 @@ const OcorrenciasTable: React.FC<OcorrenciasTableProps> = ({
     }
   };
 
+  const handleGeneratePDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      const filters: any = {};
+      if (pdfFilters.employeeId && pdfFilters.employeeId !== 'all') filters.employeeId = pdfFilters.employeeId;
+      if (pdfFilters.type && pdfFilters.type !== 'all') filters.type = pdfFilters.type;
+      if (pdfFilters.status && pdfFilters.status !== 'all') filters.status = pdfFilters.status;
+      if (pdfFilters.priority && pdfFilters.priority !== 'all') filters.priority = pdfFilters.priority;
+      if (pdfFilters.startDate) filters.startDate = pdfFilters.startDate;
+      if (pdfFilters.endDate) filters.endDate = pdfFilters.endDate;
+      if (pdfFilters.responsible) filters.responsible = pdfFilters.responsible;
+      if (pdfFilters.location) filters.location = pdfFilters.location;
+
+      const blob = await occurrenceService.generatePDFReport(filters);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `relatorio-ocorrencias-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Sucesso!',
+        description: 'Relatório PDF gerado com sucesso.',
+      });
+      setIsPDFModalOpen(false);
+    } catch (error: any) {
+      console.error('Erro ao gerar PDF:', error);
+      toast({
+        title: 'Erro!',
+        description: error?.response?.data?.message || 'Erro ao gerar relatório PDF. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   if (safeOcorrencias.length === 0) {
     return (
       <Card className="bg-seguranca-graphite border-gray-600">
@@ -272,6 +334,15 @@ const OcorrenciasTable: React.FC<OcorrenciasTableProps> = ({
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Atualizar
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={() => setIsPDFModalOpen(true)}
+            className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black"
+          >
+            <FileText size={18} className="mr-2" />
+            Gerar Relatório PDF
           </Button>
           
           <Button 
@@ -378,6 +449,161 @@ const OcorrenciasTable: React.FC<OcorrenciasTableProps> = ({
           </TableBody>
         </Table>
       </div>
+
+      {/* Modal de Geração de PDF */}
+      <Dialog open={isPDFModalOpen} onOpenChange={setIsPDFModalOpen}>
+        <DialogContent className="sm:max-w-2xl bg-seguranca-graphite border-gray-600 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-seguranca-lightgray">
+              Gerar Relatório PDF de Ocorrências
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Funcionário</Label>
+                <Select 
+                  value={pdfFilters.employeeId} 
+                  onValueChange={(value) => setPdfFilters({ ...pdfFilters, employeeId: value })}
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                    <SelectValue placeholder="Todos os funcionários" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    <SelectItem value="all">Todos os funcionários</SelectItem>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Tipo</Label>
+                <Select 
+                  value={pdfFilters.type} 
+                  onValueChange={(value) => setPdfFilters({ ...pdfFilters, type: value })}
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                    <SelectValue placeholder="Todos os tipos" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    <SelectItem value="SEGURANCA">Segurança</SelectItem>
+                    <SelectItem value="DISCIPLINAR">Disciplinar</SelectItem>
+                    <SelectItem value="EQUIPAMENTO">Equipamento</SelectItem>
+                    <SelectItem value="INCIDENTE">Incidente</SelectItem>
+                    <SelectItem value="MANUTENCAO">Manutenção</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Status</Label>
+                <Select 
+                  value={pdfFilters.status} 
+                  onValueChange={(value) => setPdfFilters({ ...pdfFilters, status: value })}
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                    <SelectValue placeholder="Todos os status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="PENDENTE">Pendente</SelectItem>
+                    <SelectItem value="EM_ANDAMENTO">Em Andamento</SelectItem>
+                    <SelectItem value="RESOLVIDO">Resolvido</SelectItem>
+                    <SelectItem value="CONCLUIDO">Concluído</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Prioridade</Label>
+                <Select 
+                  value={pdfFilters.priority} 
+                  onValueChange={(value) => setPdfFilters({ ...pdfFilters, priority: value })}
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                    <SelectValue placeholder="Todas as prioridades" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    <SelectItem value="all">Todas as prioridades</SelectItem>
+                    <SelectItem value="BAIXA">Baixa</SelectItem>
+                    <SelectItem value="MEDIA">Média</SelectItem>
+                    <SelectItem value="ALTA">Alta</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Data Início</Label>
+                <Input
+                  type="date"
+                  value={pdfFilters.startDate}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, startDate: e.target.value })}
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Data Fim</Label>
+                <Input
+                  type="date"
+                  value={pdfFilters.endDate}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, endDate: e.target.value })}
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Responsável</Label>
+                <Input
+                  value={pdfFilters.responsible}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, responsible: e.target.value })}
+                  placeholder="Filtrar por responsável..."
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Local</Label>
+                <Input
+                  value={pdfFilters.location}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, location: e.target.value })}
+                  placeholder="Filtrar por local..."
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-700">
+              <Button
+                variant="outline"
+                onClick={() => setIsPDFModalOpen(false)}
+                className="border-gray-600 text-gray-400 hover:bg-gray-700"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleGeneratePDF}
+                disabled={isGeneratingPDF}
+                className="bg-seguranca-red hover:bg-seguranca-darkred"
+              >
+                {isGeneratingPDF ? 'Gerando...' : 'Gerar PDF'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

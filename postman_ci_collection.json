@@ -1,0 +1,150 @@
+{
+  "info": {
+    "name": "Secured Guard - CI Environment",
+    "description": "Collection para testar o backend no ambiente CI",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/health",
+          "host": ["{{BASE_URL}}"],
+          "path": ["health"]
+        },
+        "description": "Verifica se o backend está rodando (não precisa de autenticação)"
+      }
+    },
+    {
+      "name": "Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const jsonData = pm.response.json();",
+              "    pm.environment.set(\"TOKEN\", jsonData.token);",
+              "    pm.environment.set(\"REFRESH_TOKEN\", jsonData.refreshToken);",
+              "    console.log(\"Token salvo:\", jsonData.token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/auth/login",
+          "host": ["{{BASE_URL}}"],
+          "path": ["auth", "login"]
+        },
+        "description": "Faz login e salva o token automaticamente"
+      }
+    },
+    {
+      "name": "Obter Perfil do Usuário",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/users/profile",
+          "host": ["{{BASE_URL}}"],
+          "path": ["users", "profile"]
+        },
+        "description": "Obtém o perfil do usuário logado"
+      }
+    },
+    {
+      "name": "Listar Todos os Usuários",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/users",
+          "host": ["{{BASE_URL}}"],
+          "path": ["users"]
+        },
+        "description": "Lista todos os usuários (requer permissão SUPER_ADMIN)"
+      }
+    },
+    {
+      "name": "Listar Funcionários",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/employees",
+          "host": ["{{BASE_URL}}"],
+          "path": ["employees"]
+        },
+        "description": "Lista todos os funcionários"
+      }
+    },
+    {
+      "name": "Listar Holerites",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/payslips",
+          "host": ["{{BASE_URL}}"],
+          "path": ["payslips"]
+        },
+        "description": "Lista todos os holerites"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "https://ci.z7botsolutions.com.br/api",
+      "type": "string"
+    },
+    {
+      "key": "TOKEN",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "REFRESH_TOKEN",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
+

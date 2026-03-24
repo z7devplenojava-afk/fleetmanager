@@ -1,0 +1,15 @@
+{
+  "clientId": "SUBSTITUIR_PELO_ID_DO_CLIENTE_2",
+  "invoiceNumber": "FAT-2024-002",
+  "measurementNumber": "MED-2024-002",
+  "description": "Venda de produtos - Fevereiro 2024",
+  "amount": 8500.00,
+  "amountPaid": 8500.00,
+  "issueDate": "2024-02-01",
+  "dueDate": "2024-02-16",
+  "paymentDate": "2024-02-14",
+  "status": "PAID",
+  "category": "PRODUCT",
+  "paymentMethod": "PIX",
+  "notes": "Pagamento realizado"
+}

@@ -43,7 +43,7 @@ interface ProfileFormData {
 }
 
 const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) => {
-  const { user, profile, refreshUser } = useAuth();
+  const { user, profile, refreshUser, setUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswords, setShowPasswords] = useState({
@@ -189,7 +189,20 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
         }));
 
         // Atualizar dados do usuário no contexto
-        await refreshUser();
+        const refreshed = await refreshUser();
+        if (!refreshed) {
+          setUser(prev => {
+            if (!prev) return prev;
+            const updated = {
+              ...prev,
+              name: updateData.name,
+              email: updateData.email,
+              whatsapp: updateData.whatsapp ?? undefined,
+            };
+            localStorage.setItem('user', JSON.stringify(updated));
+            return updated;
+          });
+        }
       }
     } catch (error: any) {
       console.error('Erro ao atualizar perfil:', error);

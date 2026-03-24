@@ -1,11 +1,11 @@
-import React from 'react';
+﻿import React from 'react';
 import SEO from '@/components/SEO';
 import { PublicLayout } from '@/components/PublicLayout';
 import { FileText, Scale, Users, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
 
 const TermsAndConditions: React.FC = () => {
   const seoData = {
-    title: 'Termos e Condições - Secured Guard',
+    title: 'Termos e Condições - Fleet Manager',
     description: 'Conheça nossos termos e condições de uso dos serviços. Transparência e clareza em nossos compromissos.',
     keywords: 'termos e condições, condições de uso, contrato de serviços, segurança, vigilância',
     canonical: '/termos-condicoes'
@@ -46,7 +46,7 @@ const TermsAndConditions: React.FC = () => {
                   Introdução
                 </h2>
                 <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
-                  Estes Termos e Condições regulam o uso dos serviços oferecidos pela Secured Guard, 
+                  Estes Termos e Condições regulam o uso dos serviços oferecidos pela Fleet Manager, 
                   empresa especializada em soluções de segurança e vigilância. Ao contratar nossos 
                   serviços, você concorda com todas as condições estabelecidas neste documento.
                 </p>
@@ -63,15 +63,15 @@ const TermsAndConditions: React.FC = () => {
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Secured Guard</h3>
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Fleet Manager</h3>
                     <p className="text-sm sm:text-base text-gray-700">
-                      Refere-se à empresa Secured Guard, prestadora de serviços de segurança e vigilância.
+                      Refere-se à empresa Fleet Manager, prestadora de serviços de segurança e vigilância.
                     </p>
                   </div>
                   <div>
                     <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Cliente</h3>
                     <p className="text-sm sm:text-base text-gray-700">
-                      Pessoa física ou jurídica que contrata os serviços da Secured Guard.
+                      Pessoa física ou jurídica que contrata os serviços da Fleet Manager.
                     </p>
                   </div>
                   <div>
@@ -90,7 +90,7 @@ const TermsAndConditions: React.FC = () => {
                   Serviços Oferecidos
                 </h2>
                 <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
-                  A Secured Guard oferece os seguintes serviços:
+                  A Fleet Manager oferece os seguintes serviços:
                 </p>
                 <ul className="list-disc list-inside text-sm sm:text-base text-gray-700 space-y-2 ml-4">
                   <li>Vigilância patrimonial 24 horas</li>
@@ -122,14 +122,14 @@ const TermsAndConditions: React.FC = () => {
                 </ul>
               </section>
 
-              {/* Responsabilidades da Secured Guard */}
+              {/* Responsabilidades da Fleet Manager */}
               <section className="mb-6 sm:mb-8">
                 <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
                   <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 mr-2 sm:mr-3" />
-                  Responsabilidades da Secured Guard
+                  Responsabilidades da Fleet Manager
                 </h2>
                 <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
-                  A Secured Guard se compromete a:
+                  A Fleet Manager se compromete a:
                 </p>
                 <ul className="list-disc list-inside text-sm sm:text-base text-gray-700 space-y-2 ml-4">
                   <li>Prestar serviços com qualidade e profissionalismo</li>
@@ -174,7 +174,7 @@ const TermsAndConditions: React.FC = () => {
                   Limitações de Responsabilidade
                 </h2>
                 <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
-                  A Secured Guard não se responsabiliza por:
+                  A Fleet Manager não se responsabiliza por:
                 </p>
                 <ul className="list-disc list-inside text-sm sm:text-base text-gray-700 space-y-2 ml-4">
                   <li>Danos causados por força maior ou caso fortuito</li>
@@ -262,3 +262,4 @@ const TermsAndConditions: React.FC = () => {
 };
 
 export default TermsAndConditions;
+

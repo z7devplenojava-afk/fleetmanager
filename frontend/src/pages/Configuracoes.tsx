@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,13 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -37,30 +44,142 @@ import {
   Shield, 
   Users,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Building2,
+  Loader2,
+  RefreshCw,
+  Edit,
+  Power,
+  Trash2,
+  MoreHorizontal
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { companyService } from '@/services/companyService';
+import { userService, User } from '@/services/userService';
+import { securitySettingsService, SecuritySettings } from '@/services/securitySettingsService';
+import { notificationSettingsService, NotificationSettings } from '@/services/notificationSettingsService';
+import UserFormModal from '@/components/UserFormModal';
+import api from '@/lib/axios';
 
 const Configuracoes = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [emailNotifications, setEmailNotifications] = useState({
-    contractUpdates: true,
-    paymentReceived: true,
-    scheduleChanges: true,
-    dailySummary: false
+  const [loading, setLoading] = useState(false);
+  const [loadingCompany, setLoadingCompany] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingSecurity, setLoadingSecurity] = useState(true);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
+  const [users, setUsers] = useState<User[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userModalMode, setUserModalMode] = useState<'create' | 'edit'>('create');
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettings | null>(null);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
+  
+  // Estados para teste de email
+  const [testEmailAddress, setTestEmailAddress] = useState('');
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [emailConfig, setEmailConfig] = useState<any>(null);
+  const [loadingEmailConfig, setLoadingEmailConfig] = useState(false);
+
+  const [empresas, setEmpresas] = useState<any[]>([]);
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>('');
+  const [empresaForm, setEmpresaForm] = useState({
+    id: '',
+    name: '',
+    cnpj: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    website: '',
+    sigla: '',
+    description: '',
+    logoUrl: '',
+    status: 'ACTIVE'
   });
 
-  const [empresaForm, setEmpresaForm] = useState({
-    nome: 'Segurança Total LTDA',
-    cnpj: '12.345.678/0001-90',
-    inscricao_estadual: '123.456.789.000',
-    endereco: 'Av. Paulista, 1000, São Paulo - SP',
-    telefone: '(11) 3123-4567',
-    email: 'contato@segurancatotal.com.br',
-    website: 'www.segurancatotal.com.br'
-  });
+  // Carregar dados da empresa, usuários, configurações de segurança e notificações ao montar o componente
+  useEffect(() => {
+    loadCompanyData();
+    loadUsers();
+    loadSecuritySettings();
+    loadNotificationSettings();
+  }, []);
+
+  const loadCompaniesList = async () => {
+    try {
+      const companies = await companyService.getAllCompanies();
+      setEmpresas(companies || []);
+      
+      // Se houver empresas e nenhuma selecionada, selecionar a primeira
+      if (companies && companies.length > 0 && !selectedEmpresaId) {
+        setSelectedEmpresaId(companies[0].id);
+        await loadCompanyById(companies[0].id);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar lista de empresas:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar a lista de empresas.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const loadCompanyById = async (companyId: string) => {
+    try {
+      setLoadingCompany(true);
+      console.log('🔍 DEBUG: Carregando dados da empresa ID:', companyId);
+      
+      const company = await companyService.getCompanyById(companyId);
+      console.log('🔍 DEBUG: Empresa carregada:', company);
+      
+      setEmpresaForm({
+        id: company.id || '',
+        name: company.name || '',
+        cnpj: company.cnpj || '',
+        email: company.email || '',
+        phone: company.phone || '',
+        address: company.address || '',
+        city: company.city || '',
+        state: company.state || '',
+        zipCode: company.zipCode || '',
+        website: company.website || '',
+        sigla: company.sigla || '',
+        description: company.description || '',
+        logoUrl: company.logoUrl || '',
+        status: company.status || 'ACTIVE'
+      });
+      
+      toast({
+        title: "Dados carregados",
+        description: `Informações de ${company.name} carregadas com sucesso.`,
+      });
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados da empresa:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os dados da empresa.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingCompany(false);
+    }
+  };
+
+  const handleEmpresaSelect = async (companyId: string) => {
+    setSelectedEmpresaId(companyId);
+    await loadCompanyById(companyId);
+  };
+
+  const loadCompanyData = async () => {
+    await loadCompaniesList();
+  };
 
   const handleEmpresaChange = (field: string, value: string) => {
     setEmpresaForm(prev => ({
@@ -69,25 +188,278 @@ const Configuracoes = () => {
     }));
   };
 
-  const handleSaveEmpresa = () => {
-    toast({
-      title: "Dados da empresa salvos",
-      description: "As informações da empresa foram atualizadas com sucesso.",
-    });
+  const handleSaveEmpresa = async () => {
+    try {
+      setLoading(true);
+      
+      if (!empresaForm.name || !empresaForm.cnpj) {
+        toast({
+          title: "Erro",
+          description: "Nome da empresa e CNPJ são obrigatórios.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (empresaForm.id) {
+        // Atualizar empresa existente
+        await companyService.updateCompany(empresaForm.id, {
+          name: empresaForm.name,
+          cnpj: empresaForm.cnpj,
+          email: empresaForm.email,
+          phone: empresaForm.phone,
+          address: empresaForm.address,
+          website: empresaForm.website,
+          sigla: empresaForm.sigla,
+          description: empresaForm.description,
+          logoUrl: empresaForm.logoUrl,
+          status: empresaForm.status as any
+        });
+        
+        toast({
+          title: "Sucesso",
+          description: "Dados da empresa atualizados com sucesso.",
+        });
+      } else {
+        // Criar nova empresa
+        await companyService.createCompany({
+          name: empresaForm.name,
+          cnpj: empresaForm.cnpj,
+          email: empresaForm.email,
+          phone: empresaForm.phone,
+          address: empresaForm.address,
+          website: empresaForm.website,
+          sigla: empresaForm.sigla,
+          description: empresaForm.description,
+          status: empresaForm.status as any
+        });
+        
+        toast({
+          title: "Sucesso",
+          description: "Empresa criada com sucesso.",
+        });
+        
+        // Recarregar dados após criação
+        await loadCompanyData();
+      }
+    } catch (error) {
+      console.error('❌ Erro ao salvar empresa:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar os dados da empresa.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveSeguranca = () => {
+  // Funções para gerenciar configurações de segurança
+  const loadSecuritySettings = async () => {
+    try {
+      setLoadingSecurity(true);
+      console.log('🔍 DEBUG: Carregando configurações de segurança...');
+      
+      // Usar a primeira empresa como padrão (ou implementar lógica para escolher empresa principal)
+      const companies = await companyService.getAllCompanies();
+      if (companies && companies.length > 0) {
+        const companyId = companies[0].id;
+        const settings = await securitySettingsService.getSecuritySettings(companyId);
+        console.log('🔍 DEBUG: Configurações de segurança recebidas:', settings);
+        
+        setSecuritySettings(settings);
+        
     toast({
-      title: "Configurações de segurança salvas",
-      description: "As configurações de segurança foram atualizadas com sucesso.",
-    });
+          title: "Configurações carregadas",
+          description: "Configurações de segurança carregadas com sucesso.",
+        });
+      } else {
+        toast({
+          title: "Aviso",
+          description: "Nenhuma empresa encontrada para carregar configurações.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar configurações de segurança:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as configurações de segurança.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingSecurity(false);
+    }
   };
 
-  const handleSaveNotificacoes = () => {
+  const handleSaveSeguranca = async () => {
+    if (!securitySettings) {
     toast({
-      title: "Preferências de notificação salvas",
-      description: "Suas preferências de notificação foram atualizadas com sucesso.",
-    });
+        title: "Erro",
+        description: "Configurações de segurança não carregadas.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      await securitySettingsService.updateSecuritySettings(securitySettings.companyId, {
+        twoFactorEnabled: securitySettings.twoFactorEnabled,
+        twoFactorMethod: securitySettings.twoFactorMethod,
+        passwordExpiryEnabled: securitySettings.passwordExpiryEnabled,
+        passwordExpiryDays: securitySettings.passwordExpiryDays,
+        passwordMinLength: securitySettings.passwordMinLength,
+        passwordRequireUppercase: securitySettings.passwordRequireUppercase,
+        passwordRequireLowercase: securitySettings.passwordRequireLowercase,
+        passwordRequireNumbers: securitySettings.passwordRequireNumbers,
+        passwordRequireSymbols: securitySettings.passwordRequireSymbols,
+        accountLockoutEnabled: securitySettings.accountLockoutEnabled,
+        maxFailedAttempts: securitySettings.maxFailedAttempts,
+        lockoutDurationMinutes: securitySettings.lockoutDurationMinutes,
+        sessionTimeoutMinutes: securitySettings.sessionTimeoutMinutes,
+        ipWhitelistEnabled: securitySettings.ipWhitelistEnabled,
+        ipWhitelist: securitySettings.ipWhitelist,
+        auditLogEnabled: securitySettings.auditLogEnabled
+      });
+      
+      toast({
+        title: "Sucesso",
+        description: "Configurações de segurança salvas com sucesso.",
+      });
+      
+      // Recarregar configurações após salvar
+      await loadSecuritySettings();
+    } catch (error) {
+      console.error('❌ Erro ao salvar configurações de segurança:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações de segurança.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSecuritySettingChange = (field: keyof SecuritySettings, value: any) => {
+    if (securitySettings) {
+      setSecuritySettings(prev => ({
+        ...prev!,
+        [field]: value
+      }));
+    }
+  };
+
+  // Funções para gerenciar configurações de notificações
+  const loadNotificationSettings = async () => {
+    try {
+      setLoadingNotifications(true);
+      console.log('🔍 DEBUG: Carregando configurações de notificações...');
+      
+      const companies = await companyService.getAllCompanies();
+      if (companies && companies.length > 0) {
+        const companyId = companies[0].id;
+        const settings = await notificationSettingsService.getCompanyNotificationSettings(companyId);
+        console.log('🔍 DEBUG: Configurações de notificações recebidas:', settings);
+        
+        setNotificationSettings(settings);
+        
+        toast({
+          title: "Configurações carregadas",
+          description: "Configurações de notificações carregadas com sucesso.",
+        });
+      } else {
+        toast({
+          title: "Aviso",
+          description: "Nenhuma empresa encontrada para carregar configurações.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar configurações de notificações:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as configurações de notificações.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  const handleSaveNotificacoes = async () => {
+    if (!notificationSettings) {
+      toast({
+        title: "Erro",
+        description: "Configurações de notificações não carregadas.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      await notificationSettingsService.updateCompanyNotificationSettings(notificationSettings.companyId, {
+        emailEnabled: notificationSettings.emailEnabled,
+        emailContractUpdates: notificationSettings.emailContractUpdates,
+        emailPaymentReceived: notificationSettings.emailPaymentReceived,
+        emailScheduleChanges: notificationSettings.emailScheduleChanges,
+        emailDailySummary: notificationSettings.emailDailySummary,
+        emailWeeklyReport: notificationSettings.emailWeeklyReport,
+        emailSystemAlerts: notificationSettings.emailSystemAlerts,
+        smtpEnabled: notificationSettings.smtpEnabled,
+        smtpHost: notificationSettings.smtpHost,
+        smtpPort: notificationSettings.smtpPort,
+        smtpUsername: notificationSettings.smtpUsername,
+        smtpPassword: notificationSettings.smtpPassword,
+        smtpFromEmail: notificationSettings.smtpFromEmail,
+        smtpFromName: notificationSettings.smtpFromName,
+        smtpUseTls: notificationSettings.smtpUseTls,
+        smtpUseSsl: notificationSettings.smtpUseSsl,
+        pushEnabled: notificationSettings.pushEnabled,
+        pushContractUpdates: notificationSettings.pushContractUpdates,
+        pushPaymentReceived: notificationSettings.pushPaymentReceived,
+        pushScheduleChanges: notificationSettings.pushScheduleChanges,
+        pushSystemAlerts: notificationSettings.pushSystemAlerts,
+        smsEnabled: notificationSettings.smsEnabled,
+        smsUrgentOnly: notificationSettings.smsUrgentOnly,
+        whatsappEnabled: notificationSettings.whatsappEnabled,
+        whatsappContractUpdates: notificationSettings.whatsappContractUpdates,
+        whatsappPaymentReceived: notificationSettings.whatsappPaymentReceived,
+        whatsappScheduleChanges: notificationSettings.whatsappScheduleChanges,
+        quietHoursEnabled: notificationSettings.quietHoursEnabled,
+        quietHoursStart: notificationSettings.quietHoursStart,
+        quietHoursEnd: notificationSettings.quietHoursEnd
+      });
+      
+      toast({
+        title: "Sucesso",
+        description: "Preferências de notificação salvas com sucesso.",
+      });
+      
+      await loadNotificationSettings();
+    } catch (error) {
+      console.error('❌ Erro ao salvar configurações de notificações:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações de notificações.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNotificationSettingChange = (field: keyof NotificationSettings, value: any) => {
+    if (notificationSettings) {
+      setNotificationSettings(prev => ({
+        ...prev!,
+        [field]: value
+      }));
+    }
   };
 
   const handleSaveIntegracoes = () => {
@@ -102,6 +474,172 @@ const Configuracoes = () => {
       title: "Configurações operacionais salvas",
       description: "As configurações operacionais foram atualizadas com sucesso.",
     });
+  };
+
+  // Funções para teste de email
+  const loadEmailConfig = async () => {
+    try {
+      setLoadingEmailConfig(true);
+      const response = await api.get('/api/email/config');
+      setEmailConfig(response.data);
+      // Não mostrar toast ao carregar automaticamente
+    } catch (error: any) {
+      console.error('❌ Erro ao carregar configuração de email:', error);
+      setEmailConfig(null);
+    } finally {
+      setLoadingEmailConfig(false);
+    }
+  };
+
+
+  const handleTestEmail = async () => {
+    if (!testEmailAddress || !testEmailAddress.includes('@')) {
+      toast({
+        title: "Email inválido",
+        description: "Por favor, digite um endereço de email válido.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setTestingEmail(true);
+      const response = await api.post(`/api/email/test?toEmail=${encodeURIComponent(testEmailAddress)}`);
+
+      if (response.data.success) {
+        toast({
+          title: "Email enviado com sucesso!",
+          description: `Email de teste enviado para ${testEmailAddress}. Verifique sua caixa de entrada.`,
+        });
+      } else {
+        toast({
+          title: "Falha no envio",
+          description: response.data.message || "Não foi possível enviar o email de teste.",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao enviar email de teste:', error);
+      toast({
+        title: "Erro ao enviar email",
+        description: error.response?.data?.message || "Não foi possível enviar o email de teste. Verifique os logs do backend.",
+        variant: "destructive"
+      });
+    } finally {
+      setTestingEmail(false);
+    }
+  };
+
+  // Funções para gerenciar usuários
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      console.log('🔍 DEBUG: Carregando usuários...');
+      
+      const usersData = await userService.getAllUsers();
+      console.log('🔍 DEBUG: Usuários recebidos:', usersData);
+      
+      setUsers(usersData);
+      
+      toast({
+        title: "Usuários carregados",
+        description: `${usersData.length} usuários carregados com sucesso.`,
+      });
+    } catch (error) {
+      console.error('❌ Erro ao carregar usuários:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os usuários.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleSearchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const usersData = await userService.searchUsers(searchQuery);
+      setUsers(usersData);
+    } catch (error) {
+      console.error('❌ Erro ao buscar usuários:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível buscar os usuários.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleCreateUser = () => {
+    setSelectedUser(null);
+    setUserModalMode('create');
+    setShowUserModal(true);
+  };
+
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setUserModalMode('edit');
+    setShowUserModal(true);
+  };
+
+  const handleToggleUserStatus = async (user: User) => {
+    try {
+      setLoading(true);
+      await userService.toggleUserStatus(user.id, !user.active);
+      
+      toast({
+        title: "Sucesso",
+        description: `Usuário ${user.active ? 'desativado' : 'ativado'} com sucesso.`,
+      });
+      
+      // Recarregar lista de usuários
+      await loadUsers();
+    } catch (error) {
+      console.error('❌ Erro ao alterar status do usuário:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível alterar o status do usuário.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (user: User) => {
+    if (!confirm(`Tem certeza que deseja excluir o usuário "${user.name}"?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await userService.deleteUser(user.id);
+      
+      toast({
+        title: "Sucesso",
+        description: "Usuário excluído com sucesso.",
+      });
+      
+      // Recarregar lista de usuários
+      await loadUsers();
+    } catch (error) {
+      console.error('❌ Erro ao excluir usuário:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o usuário.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUserModalSuccess = () => {
+    loadUsers();
   };
 
   return (
@@ -131,107 +669,270 @@ const Configuracoes = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="empresa" className="w-full">
-          <TabsList className="grid grid-cols-6 w-full bg-seguranca-graphite border-gray-600">
-            <TabsTrigger value="empresa" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">Empresa</TabsTrigger>
-            <TabsTrigger value="usuarios" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">Usuários</TabsTrigger>
-            <TabsTrigger value="seguranca" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">Segurança</TabsTrigger>
-            <TabsTrigger value="notificacoes" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">Notificações</TabsTrigger>
-            <TabsTrigger value="integracao" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">Integrações</TabsTrigger>
-            <TabsTrigger value="operacional" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">Operacional</TabsTrigger>
+        <Tabs defaultValue="empresa" className="w-full" onValueChange={(value) => {
+          if (value === 'testes' && !emailConfig && !loadingEmailConfig) {
+            loadEmailConfig();
+          }
+        }}>
+          <TabsList className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 w-full bg-seguranca-graphite border-gray-600 p-1 rounded-lg">
+            <TabsTrigger value="empresa" className="text-sm sm:text-base rounded-md data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">Empresa</TabsTrigger>
+            <TabsTrigger value="usuarios" className="text-sm sm:text-base rounded-md data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">Usuários</TabsTrigger>
+            <TabsTrigger value="seguranca" className="text-sm sm:text-base rounded-md data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">Segurança</TabsTrigger>
+            <TabsTrigger value="notificacoes" className="text-sm sm:text-base rounded-md data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">Notificações</TabsTrigger>
+            <TabsTrigger value="integracao" className="text-sm sm:text-base rounded-md data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">Integrações</TabsTrigger>
+            <TabsTrigger value="operacional" className="text-sm sm:text-base rounded-md data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">Operacional</TabsTrigger>
+            <TabsTrigger value="testes" className="text-sm sm:text-base rounded-md data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">Testes</TabsTrigger>
           </TabsList>
           
           {/* Aba Dados da Empresa */}
           <TabsContent value="empresa" className="mt-6">
             <Card className="bg-seguranca-graphite border-gray-600">
               <CardHeader>
-                <CardTitle className="text-seguranca-lightgray">Dados da Empresa</CardTitle>
+                <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Dados da Empresa
+                </CardTitle>
                 <CardDescription className="text-gray-400">
                   Informações gerais sobre a empresa e contato
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="nome" className="text-seguranca-lightgray">Nome da Empresa</Label>
-                    <Input 
-                      id="nome" 
-                      value={empresaForm.nome} 
-                      onChange={(e) => handleEmpresaChange('nome', e.target.value)}
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cnpj" className="text-seguranca-lightgray">CNPJ</Label>
-                    <Input 
-                      id="cnpj" 
-                      value={empresaForm.cnpj} 
-                      onChange={(e) => handleEmpresaChange('cnpj', e.target.value)}
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                    />
-                  </div>
-                </div>
-
+                {/* Seletor de Empresas */}
                 <div className="space-y-2">
-                  <Label htmlFor="inscricao_estadual" className="text-seguranca-lightgray">Inscrição Estadual</Label>
-                  <Input 
-                    id="inscricao_estadual" 
-                    value={empresaForm.inscricao_estadual} 
-                    onChange={(e) => handleEmpresaChange('inscricao_estadual', e.target.value)}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="endereco" className="text-seguranca-lightgray">Endereço</Label>
-                  <Input 
-                    id="endereco" 
-                    value={empresaForm.endereco} 
-                    onChange={(e) => handleEmpresaChange('endereco', e.target.value)}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="telefone" className="text-seguranca-lightgray">Telefone</Label>
-                    <Input 
-                      id="telefone" 
-                      value={empresaForm.telefone} 
-                      onChange={(e) => handleEmpresaChange('telefone', e.target.value)}
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-seguranca-lightgray">Email</Label>
-                    <Input 
-                      id="email" 
-                      value={empresaForm.email} 
-                      onChange={(e) => handleEmpresaChange('email', e.target.value)}
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="website" className="text-seguranca-lightgray">Website</Label>
-                  <Input 
-                    id="website" 
-                    value={empresaForm.website} 
-                    onChange={(e) => handleEmpresaChange('website', e.target.value)}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  />
-                </div>
-
-                <div className="flex justify-end pt-4">
-                  <Button 
-                    onClick={handleSaveEmpresa}
-                    className="bg-seguranca-red hover:bg-seguranca-darkred"
+                  <Label htmlFor="empresa-select" className="text-seguranca-lightgray flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Selecionar Empresa
+                  </Label>
+                  <Select
+                    value={selectedEmpresaId}
+                    onValueChange={handleEmpresaSelect}
+                    disabled={loadingCompany || empresas.length === 0}
                   >
-                    <Save className="h-4 w-4 mr-2" />
-                    Salvar Dados da Empresa
-                  </Button>
+                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                      <SelectValue placeholder={empresas.length === 0 ? "Nenhuma empresa encontrada" : "Selecione uma empresa"} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-black border-gray-600">
+                      {empresas.map((empresa) => (
+                        <SelectItem 
+                          key={empresa.id} 
+                          value={empresa.id}
+                          className="text-seguranca-lightgray focus:bg-seguranca-graphite focus:text-seguranca-yellow"
+                        >
+                          {empresa.sigla ? `${empresa.sigla} - ${empresa.name}` : empresa.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {empresas.length === 0 && (
+                    <p className="text-xs text-gray-400">Nenhuma empresa cadastrada no sistema.</p>
+                  )}
                 </div>
+
+                {/* Logo da Empresa */}
+                <div className="space-y-2">
+                  <Label className="text-seguranca-lightgray">Logo da Empresa</Label>
+                  {empresaForm.logoUrl ? (
+                    <div className="flex items-start gap-4 p-4 bg-seguranca-black/50 rounded-lg border border-gray-700">
+                      <div className="flex-shrink-0">
+                        <img 
+                          src={empresaForm.logoUrl} 
+                          alt={`Logo ${empresaForm.name || 'Empresa'}`}
+                          className="max-h-32 max-w-32 object-contain rounded border border-gray-600"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const errorMsg = target.nextElementSibling as HTMLElement;
+                            if (errorMsg) errorMsg.style.display = 'block';
+                          }}
+                        />
+                        <p className="text-xs text-red-400 mt-2 hidden">Erro ao carregar imagem</p>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-400 mb-1">Preview da Logo:</p>
+                        <p className="text-xs text-seguranca-lightgray font-mono break-all">{empresaForm.logoUrl}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-seguranca-black/30 rounded-lg border border-dashed border-gray-600 text-center">
+                      <p className="text-sm text-gray-400">Nenhuma logo cadastrada</p>
+                      <p className="text-xs text-gray-500 mt-1">Adicione uma URL de imagem no campo abaixo</p>
+                    </div>
+                  )}
+                </div>
+
+                {loadingCompany ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-seguranca-yellow mr-2" />
+                    <span className="text-seguranca-lightgray">Carregando dados da empresa...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name" className="text-seguranca-lightgray flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          Nome da Empresa *
+                        </Label>
+                        <Input 
+                          id="name" 
+                          value={empresaForm.name} 
+                          onChange={(e) => handleEmpresaChange('name', e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                          placeholder="Ex: Empresa XYZ Ltda"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cnpj" className="text-seguranca-lightgray flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          CNPJ *
+                        </Label>
+                        <Input 
+                          id="cnpj" 
+                          value={empresaForm.cnpj} 
+                          onChange={(e) => handleEmpresaChange('cnpj', e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                          placeholder="00.000.000/0000-00"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="sigla" className="text-seguranca-lightgray">Sigla da Empresa</Label>
+                        <Input 
+                          id="sigla" 
+                          value={empresaForm.sigla} 
+                          onChange={(e) => handleEmpresaChange('sigla', e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                          placeholder="Ex: XYZ"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="website" className="text-seguranca-lightgray">Website</Label>
+                        <Input 
+                          id="website" 
+                          value={empresaForm.website} 
+                          onChange={(e) => handleEmpresaChange('website', e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                          placeholder="www.exemplo.com.br"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="address" className="text-seguranca-lightgray">Endereço</Label>
+                      <Input 
+                        id="address" 
+                        value={empresaForm.address} 
+                        onChange={(e) => handleEmpresaChange('address', e.target.value)}
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                        placeholder="Rua, número, bairro"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city" className="text-seguranca-lightgray">Cidade</Label>
+                        <Input 
+                          id="city" 
+                          value={empresaForm.city} 
+                          onChange={(e) => handleEmpresaChange('city', e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                          placeholder="São Paulo"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="state" className="text-seguranca-lightgray">Estado</Label>
+                        <Input 
+                          id="state" 
+                          value={empresaForm.state} 
+                          onChange={(e) => handleEmpresaChange('state', e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                          placeholder="SP"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="zipCode" className="text-seguranca-lightgray">CEP</Label>
+                        <Input 
+                          id="zipCode" 
+                          value={empresaForm.zipCode} 
+                          onChange={(e) => handleEmpresaChange('zipCode', e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                          placeholder="00000-000"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="phone" className="text-seguranca-lightgray">Telefone</Label>
+                        <Input 
+                          id="phone" 
+                          value={empresaForm.phone} 
+                          onChange={(e) => handleEmpresaChange('phone', e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                          placeholder="(11) 99999-9999"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-seguranca-lightgray">Email</Label>
+                        <Input 
+                          id="email" 
+                          type="email"
+                          value={empresaForm.email} 
+                          onChange={(e) => handleEmpresaChange('email', e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                          placeholder="contato@empresa.com.br"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="description" className="text-seguranca-lightgray">Descrição</Label>
+                      <Input 
+                        id="description" 
+                        value={empresaForm.description} 
+                        onChange={(e) => handleEmpresaChange('description', e.target.value)}
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                        placeholder="Breve descrição da empresa"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="logoUrl" className="text-seguranca-lightgray">URL da Logo</Label>
+                      <Input 
+                        id="logoUrl" 
+                        value={empresaForm.logoUrl} 
+                        onChange={(e) => handleEmpresaChange('logoUrl', e.target.value)}
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                        placeholder="https://exemplo.com/logo.png ou data:image/png;base64,..."
+                      />
+                      <p className="text-xs text-gray-400">URL da imagem ou base64 da logo da empresa</p>
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                      <Button 
+                        onClick={handleSaveEmpresa}
+                        disabled={loading}
+                        className="bg-seguranca-red hover:bg-seguranca-darkred"
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            {empresaForm.id ? 'Atualizar' : 'Salvar'} Dados da Empresa
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -246,56 +947,139 @@ const Configuracoes = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex justify-between items-center mb-6">
-                  <div className="flex-1">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+                  <div className="w-full sm:flex-1 flex gap-2">
                     <Input 
                       placeholder="Pesquisar usuários..." 
-                      className="max-w-sm bg-seguranca-black border-gray-600 text-seguranca-lightgray" 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full sm:max-w-sm bg-seguranca-black border-gray-600 text-seguranca-lightgray" 
                     />
+                    <Button 
+                      onClick={handleSearchUsers}
+                      variant="outline"
+                      className="border-gray-600 text-seguranca-lightgray"
+                    >
+                      Buscar
+                    </Button>
                   </div>
-                  <Button className="bg-seguranca-red hover:bg-seguranca-darkred">
+                  <Button 
+                    onClick={handleCreateUser}
+                    className="bg-seguranca-red hover:bg-seguranca-darkred w-full sm:w-auto"
+                  >
                     <Users className="h-4 w-4 mr-2" /> Adicionar Usuário
                   </Button>
                 </div>
 
+                {loadingUsers ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-seguranca-yellow mr-2" />
+                    <span className="text-seguranca-lightgray">Carregando usuários...</span>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-gray-600">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-seguranca-lightgray">Nome</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Email</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Função</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Status</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Ações</TableHead>
+                      <TableHead className="text-seguranca-lightgray w-[200px]">Nome</TableHead>
+                      <TableHead className="text-seguranca-lightgray w-[220px]">Email</TableHead>
+                        <TableHead className="text-seguranca-lightgray w-[130px]">Usuário</TableHead>
+                        <TableHead className="text-seguranca-lightgray w-[140px]">Funções</TableHead>
+                      <TableHead className="text-seguranca-lightgray w-[90px] text-center">Status</TableHead>
+                      <TableHead className="text-seguranca-lightgray w-[140px] text-center">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
+                      {users.length === 0 ? (
                     <TableRow>
+                          <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                            Nenhum usuário encontrado
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        users.map((userItem) => (
+                          <TableRow key={userItem.id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-full bg-seguranca-red/20 flex items-center justify-center text-seguranca-darkred">
-                            A
+                          <div className="h-8 w-8 rounded-full bg-seguranca-red/20 flex items-center justify-center text-seguranca-darkred flex-shrink-0">
+                                  {userItem.name.charAt(0).toUpperCase()}
                           </div>
-                          <span className="text-seguranca-lightgray">Admin</span>
+                                <span className="text-seguranca-lightgray truncate max-w-[140px]" title={userItem.name}>{userItem.name}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-seguranca-lightgray">{user?.email}</TableCell>
-                      <TableCell className="text-seguranca-lightgray">Administrador</TableCell>
-                      <TableCell>
-                        <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                          Ativo
+                            <TableCell className="text-seguranca-lightgray">
+                              <div className="truncate max-w-[200px]" title={userItem.email}>
+                                {userItem.email}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-seguranca-lightgray">
+                              <div className="truncate max-w-[110px]" title={userItem.username}>
+                                {userItem.username}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-seguranca-lightgray">
+                              <div className="flex flex-wrap gap-1">
+                                {userItem.roles.map((role) => (
+                                  <span 
+                                    key={role}
+                                    className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 whitespace-nowrap"
+                                  >
+                                    {role}
+                                  </span>
+                                ))}
+                              </div>
+                            </TableCell>
+                      <TableCell className="text-center">
+                              <span className={`px-2 py-1 rounded-full text-xs whitespace-nowrap inline-block ${
+                                userItem.active 
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              }`}>
+                                {userItem.active ? 'Ativo' : 'Inativo'}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Button variant="outline" size="sm" className="mr-2 border-gray-600 text-seguranca-lightgray">
-                          Editar
+                              <div className="flex gap-1 justify-center">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleEditUser(userItem)}
+                                  className="h-8 w-8 text-seguranca-lightgray hover:bg-gray-700 hover:text-seguranca-yellow"
+                                  title="Editar usuário"
+                                >
+                                  <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" className="border-red-500 text-red-500 hover:bg-red-50">
-                          Desativar
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleToggleUserStatus(userItem)}
+                                  className={`h-8 w-8 ${
+                                    userItem.active 
+                                      ? 'text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20' 
+                                      : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'
+                                  }`}
+                                  title={userItem.active ? 'Desativar usuário' : 'Ativar usuário'}
+                                >
+                                  <Power className="h-4 w-4" />
                         </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleDeleteUser(userItem)}
+                                  className="h-8 w-8 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  title="Excluir usuário"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                       </TableCell>
                     </TableRow>
+                        ))
+                      )}
                   </TableBody>
                 </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -310,13 +1094,24 @@ const Configuracoes = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {loadingSecurity ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-seguranca-yellow mr-2" />
+                    <span className="text-seguranca-lightgray">Carregando configurações de segurança...</span>
+                  </div>
+                ) : securitySettings ? (
+                  <>
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium flex items-center gap-2 text-seguranca-lightgray">
                     <Lock className="h-5 w-5" /> Autenticação
                   </h3>
                   
                   <div className="flex items-start space-x-3 pl-2">
-                    <Checkbox id="two_factor" />
+                        <Checkbox 
+                          id="two_factor" 
+                          checked={securitySettings.twoFactorEnabled}
+                          onCheckedChange={(checked) => handleSecuritySettingChange('twoFactorEnabled', checked)}
+                        />
                     <div className="space-y-1 leading-none">
                       <Label htmlFor="two_factor" className="text-seguranca-lightgray">
                         Habilitar autenticação de dois fatores (2FA)
@@ -335,10 +1130,14 @@ const Configuracoes = () => {
                   
                   <div className="grid gap-3 pl-2">
                     <div className="flex items-start space-x-3">
-                      <Checkbox id="password_expiry" defaultChecked />
+                          <Checkbox 
+                            id="password_expiry" 
+                            checked={securitySettings.passwordExpiryEnabled}
+                            onCheckedChange={(checked) => handleSecuritySettingChange('passwordExpiryEnabled', checked)}
+                          />
                       <div className="space-y-1 leading-none">
                         <Label htmlFor="password_expiry" className="text-seguranca-lightgray">
-                          Expirar senhas a cada 90 dias
+                              Expirar senhas a cada {securitySettings.passwordExpiryDays} dias
                         </Label>
                         <p className="text-sm text-gray-400">
                           Os usuários serão solicitados a redefinir suas senhas
@@ -347,25 +1146,77 @@ const Configuracoes = () => {
                     </div>
                     
                     <div className="flex items-start space-x-3">
-                      <Checkbox id="password_requirements" defaultChecked />
+                          <Checkbox 
+                            id="password_requirements" 
+                            checked={securitySettings.passwordRequireUppercase && securitySettings.passwordRequireLowercase && securitySettings.passwordRequireNumbers}
+                            onCheckedChange={(checked) => {
+                              handleSecuritySettingChange('passwordRequireUppercase', checked);
+                              handleSecuritySettingChange('passwordRequireLowercase', checked);
+                              handleSecuritySettingChange('passwordRequireNumbers', checked);
+                            }}
+                          />
                       <div className="space-y-1 leading-none">
                         <Label htmlFor="password_requirements" className="text-seguranca-lightgray">
                           Requisitos de senha forte
                         </Label>
                         <p className="text-sm text-gray-400">
-                          Mínimo 8 caracteres, incluindo letras maiúsculas, minúsculas e números
+                              Mínimo {securitySettings.passwordMinLength} caracteres, incluindo letras maiúsculas, minúsculas e números
                         </p>
                       </div>
                     </div>
                     
                     <div className="flex items-start space-x-3">
-                      <Checkbox id="failed_attempts" defaultChecked />
+                          <Checkbox 
+                            id="failed_attempts" 
+                            checked={securitySettings.accountLockoutEnabled}
+                            onCheckedChange={(checked) => handleSecuritySettingChange('accountLockoutEnabled', checked)}
+                          />
                       <div className="space-y-1 leading-none">
                         <Label htmlFor="failed_attempts" className="text-seguranca-lightgray">
-                          Bloquear conta após 5 tentativas falhas
+                              Bloquear conta após {securitySettings.maxFailedAttempts} tentativas falhas
                         </Label>
                         <p className="text-sm text-gray-400">
-                          A conta será bloqueada temporariamente após múltiplas tentativas falhas
+                              A conta será bloqueada por {securitySettings.lockoutDurationMinutes} minutos após múltiplas tentativas falhas
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium flex items-center gap-2 text-seguranca-lightgray">
+                        <Shield className="h-5 w-5" /> Configurações Avançadas
+                      </h3>
+                      
+                      <div className="grid gap-3 pl-2">
+                        <div className="flex items-start space-x-3">
+                          <Checkbox 
+                            id="audit_log" 
+                            checked={securitySettings.auditLogEnabled}
+                            onCheckedChange={(checked) => handleSecuritySettingChange('auditLogEnabled', checked)}
+                          />
+                          <div className="space-y-1 leading-none">
+                            <Label htmlFor="audit_log" className="text-seguranca-lightgray">
+                              Habilitar log de auditoria
+                            </Label>
+                            <p className="text-sm text-gray-400">
+                              Registra todas as ações importantes do sistema para auditoria
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-start space-x-3">
+                          <Checkbox 
+                            id="ip_whitelist" 
+                            checked={securitySettings.ipWhitelistEnabled}
+                            onCheckedChange={(checked) => handleSecuritySettingChange('ipWhitelistEnabled', checked)}
+                          />
+                          <div className="space-y-1 leading-none">
+                            <Label htmlFor="ip_whitelist" className="text-seguranca-lightgray">
+                              Habilitar whitelist de IP
+                            </Label>
+                            <p className="text-sm text-gray-400">
+                              Restringe acesso apenas a IPs autorizados
                         </p>
                       </div>
                     </div>
@@ -375,11 +1226,28 @@ const Configuracoes = () => {
                 <div className="flex justify-end pt-4">
                   <Button 
                     onClick={handleSaveSeguranca}
+                        disabled={loading}
                     className="bg-seguranca-red hover:bg-seguranca-darkred"
                   >
-                    <Save className="h-4 w-4 mr-2" /> Salvar Configurações
+                        {loading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Salvar Configurações
+                          </>
+                        )}
                   </Button>
                 </div>
+                  </>
+                ) : (
+                  <div className="text-center text-gray-400 py-8">
+                    Erro ao carregar configurações de segurança
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -394,16 +1262,27 @@ const Configuracoes = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {loadingNotifications ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-seguranca-yellow mr-2" />
+                    <span className="text-seguranca-lightgray">Carregando configurações de notificações...</span>
+                  </div>
+                ) : notificationSettings ? (
+                  <>
                 {/* Sistema de Email */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium flex items-center gap-2 text-seguranca-lightgray">
                     <Mail className="h-5 w-5" /> Sistema de Email
                   </h3>
                   
-                  <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20">
+                      <Alert className={`${notificationSettings.smtpEnabled ? 'border-green-200 bg-green-50 dark:bg-green-900/20' : 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20'}`}>
+                        {notificationSettings.smtpEnabled ? (
                     <CheckCircle className="h-4 w-4 text-green-600" />
-                    <AlertDescription className="text-green-800 dark:text-green-200">
-                      <strong>Status:</strong> Servidor SMTP configurado e funcionando corretamente.
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                        )}
+                        <AlertDescription className={notificationSettings.smtpEnabled ? 'text-green-800 dark:text-green-200' : 'text-yellow-800 dark:text-yellow-200'}>
+                          <strong>Status:</strong> {notificationSettings.smtpEnabled ? 'Servidor SMTP configurado e funcionando corretamente.' : 'Servidor SMTP não configurado.'}
                     </AlertDescription>
                   </Alert>
                   
@@ -411,10 +1290,8 @@ const Configuracoes = () => {
                     <div className="flex items-start space-x-3">
                       <Checkbox 
                         id="contract_updates" 
-                        checked={emailNotifications.contractUpdates}
-                        onCheckedChange={(checked) => 
-                          setEmailNotifications(prev => ({ ...prev, contractUpdates: checked as boolean }))
-                        }
+                            checked={notificationSettings.emailContractUpdates}
+                            onCheckedChange={(checked) => handleNotificationSettingChange('emailContractUpdates', checked)}
                       />
                       <div className="space-y-1 leading-none">
                         <Label htmlFor="contract_updates" className="text-seguranca-lightgray">
@@ -429,10 +1306,8 @@ const Configuracoes = () => {
                     <div className="flex items-start space-x-3">
                       <Checkbox 
                         id="payment_received" 
-                        checked={emailNotifications.paymentReceived}
-                        onCheckedChange={(checked) => 
-                          setEmailNotifications(prev => ({ ...prev, paymentReceived: checked as boolean }))
-                        }
+                            checked={notificationSettings.emailPaymentReceived}
+                            onCheckedChange={(checked) => handleNotificationSettingChange('emailPaymentReceived', checked)}
                       />
                       <div className="space-y-1 leading-none">
                         <Label htmlFor="payment_received" className="text-seguranca-lightgray">
@@ -447,10 +1322,8 @@ const Configuracoes = () => {
                     <div className="flex items-start space-x-3">
                       <Checkbox 
                         id="schedule_changes" 
-                        checked={emailNotifications.scheduleChanges}
-                        onCheckedChange={(checked) => 
-                          setEmailNotifications(prev => ({ ...prev, scheduleChanges: checked as boolean }))
-                        }
+                            checked={notificationSettings.emailScheduleChanges}
+                            onCheckedChange={(checked) => handleNotificationSettingChange('emailScheduleChanges', checked)}
                       />
                       <div className="space-y-1 leading-none">
                         <Label htmlFor="schedule_changes" className="text-seguranca-lightgray">
@@ -465,10 +1338,8 @@ const Configuracoes = () => {
                     <div className="flex items-start space-x-3">
                       <Checkbox 
                         id="daily_summary" 
-                        checked={emailNotifications.dailySummary}
-                        onCheckedChange={(checked) => 
-                          setEmailNotifications(prev => ({ ...prev, dailySummary: checked as boolean }))
-                        }
+                            checked={notificationSettings.emailDailySummary}
+                            onCheckedChange={(checked) => handleNotificationSettingChange('emailDailySummary', checked)}
                       />
                       <div className="space-y-1 leading-none">
                         <Label htmlFor="daily_summary" className="text-seguranca-lightgray">
@@ -479,17 +1350,50 @@ const Configuracoes = () => {
                         </p>
                       </div>
                     </div>
+
+                        <div className="flex items-start space-x-3">
+                          <Checkbox 
+                            id="system_alerts" 
+                            checked={notificationSettings.emailSystemAlerts}
+                            onCheckedChange={(checked) => handleNotificationSettingChange('emailSystemAlerts', checked)}
+                          />
+                          <div className="space-y-1 leading-none">
+                            <Label htmlFor="system_alerts" className="text-seguranca-lightgray">
+                              Alertas do sistema
+                            </Label>
+                            <p className="text-sm text-gray-400">
+                              Receba alertas importantes sobre o sistema
+                            </p>
+                          </div>
+                        </div>
                   </div>
                 </div>
 
                 <div className="flex justify-end pt-4">
                   <Button 
                     onClick={handleSaveNotificacoes}
+                        disabled={loading}
                     className="bg-seguranca-red hover:bg-seguranca-darkred"
                   >
-                    <Save className="h-4 w-4 mr-2" /> Salvar Preferências
+                        {loading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Salvar Preferências
+                          </>
+                        )}
                   </Button>
                 </div>
+                  </>
+                ) : (
+                  <div className="text-center text-gray-400 py-8">
+                    Erro ao carregar configurações de notificações
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -650,7 +1554,159 @@ const Configuracoes = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Aba Testes */}
+          <TabsContent value="testes" className="mt-6">
+            <div className="space-y-6">
+              {/* Teste de Email */}
+              <Card className="bg-seguranca-graphite border-gray-600">
+                <CardHeader>
+                  <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
+                    <Mail className="h-5 w-5" />
+                    Teste de Envio de Email
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    Teste a configuração SMTP enviando um email de teste
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Configuração Atual */}
+                  <div className="bg-seguranca-black/50 p-4 rounded-lg border border-gray-700">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-seguranca-lightgray">Configuração Atual</h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={loadEmailConfig}
+                        disabled={loadingEmailConfig}
+                        className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+                      >
+                        {loadingEmailConfig ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Carregando...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Atualizar
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {loadingEmailConfig ? (
+                      <div className="flex items-center gap-2 text-gray-400 py-4">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Carregando configuração...</span>
+                      </div>
+                    ) : emailConfig ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div className="flex items-center">
+                          <span className="text-gray-400 min-w-[100px]">Servidor SMTP:</span>
+                          <span className="ml-2 text-seguranca-lightgray font-mono">{emailConfig.host}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-gray-400 min-w-[100px]">Porta:</span>
+                          <span className="ml-2 text-seguranca-lightgray font-mono">{emailConfig.port}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-gray-400 min-w-[100px]">Usuário:</span>
+                          <span className="ml-2 text-seguranca-lightgray font-mono break-all">{emailConfig.username}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-gray-400 min-w-[100px]">SSL/TLS:</span>
+                          <span className={`ml-2 font-semibold ${emailConfig.ssl === 'true' || emailConfig.starttls === 'true' ? 'text-green-400' : 'text-yellow-400'}`}>
+                            {emailConfig.sslTlsStatus || (emailConfig.ssl === 'true' ? 'Habilitado (SSL)' : emailConfig.starttls === 'true' ? 'Habilitado (STARTTLS)' : 'Desabilitado')}
+                          </span>
+                        </div>
+                        {emailConfig.activeProfile && (
+                          <div className="flex items-center md:col-span-2">
+                            <span className="text-gray-400 min-w-[100px]">Perfil Ativo:</span>
+                            <span className="ml-2 text-seguranca-lightgray font-mono">{emailConfig.activeProfile}</span>
+                            <span className="ml-2 text-xs text-gray-500">({emailConfig.source || 'properties'})</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="py-4">
+                        <p className="text-gray-400 text-sm mb-2">Nenhuma configuração carregada.</p>
+                        <p className="text-xs text-gray-500">Clique em "Atualizar" para carregar a configuração atual do servidor.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Formulário de Teste */}
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="testEmail" className="text-seguranca-lightgray">
+                        Email de Destino
+                      </Label>
+                      <Input
+                        id="testEmail"
+                        type="email"
+                        placeholder="seu-email@exemplo.com"
+                        value={testEmailAddress}
+                        onChange={(e) => setTestEmailAddress(e.target.value)}
+                        className="mt-2 bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                        disabled={testingEmail}
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        Digite o endereço de email onde deseja receber o email de teste
+                      </p>
+                    </div>
+
+                    <Button
+                      onClick={handleTestEmail}
+                      disabled={!testEmailAddress || testingEmail}
+                      className="bg-seguranca-red hover:bg-seguranca-darkred w-full sm:w-auto"
+                    >
+                      {testingEmail ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Enviar Email de Teste
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Resultado do Teste */}
+                  {emailConfig && (
+                    <Alert className={`border ${emailConfig.configured ? 'border-green-500/50 bg-green-500/10' : 'border-red-500/50 bg-red-500/10'}`}>
+                      <div className="flex items-start gap-3">
+                        {emailConfig.configured ? (
+                          <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                        ) : (
+                          <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+                        )}
+                        <div>
+                          <AlertDescription className={emailConfig.configured ? 'text-green-200' : 'text-red-200'}>
+                            {emailConfig.configured 
+                              ? 'Configuração de email detectada e pronta para uso'
+                              : 'Configuração de email não encontrada ou incompleta'}
+                          </AlertDescription>
+                        </div>
+                      </div>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
         </Tabs>
+
+        {/* Modal de Usuário */}
+        <UserFormModal
+          isOpen={showUserModal}
+          onClose={() => setShowUserModal(false)}
+          onSuccess={handleUserModalSuccess}
+          user={selectedUser}
+          mode={userModalMode}
+        />
       </div>
     </StandardLayout>
   );

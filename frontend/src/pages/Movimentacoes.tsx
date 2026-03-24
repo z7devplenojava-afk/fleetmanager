@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { StandardLayout } from '@/components/StandardLayout';
+import { stockService } from '@/services/stockService';
+import { StockMovement, MovementType, MovementReason, MovementTypeLabels, MovementReasonLabels, MovementFilters } from '@/types/stock';
 import { 
   Plus, 
   Search, 
@@ -20,195 +22,133 @@ import {
   Trash2,
   Eye,
   Calendar,
-  User
+  User,
+  TrendingUp
 } from 'lucide-react';
-
-interface InventoryMovement {
-  id: string;
-  productId: string;
-  productName: string;
-  type: 'ENTRY' | 'EXIT' | 'ADJUSTMENT' | 'TRANSFER';
-  quantity: number;
-  previousStock: number;
-  newStock: number;
-  reason: string;
-  notes?: string;
-  userId: string;
-  userName: string;
-  unitId?: string;
-  unitName?: string;
-  costPrice?: number;
-  totalValue?: number;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export default function Movimentacoes() {
   const { toast } = useToast();
-  const [movements, setMovements] = useState<InventoryMovement[]>([]);
-  const [filteredMovements, setFilteredMovements] = useState<InventoryMovement[]>([]);
+  const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all');
-  const [userFilter, setUserFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [reasonFilter, setReasonFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 20;
   
   // Estatísticas
   const [stats, setStats] = useState({
     totalMovements: 0,
     entries: 0,
     exits: 0,
-    adjustments: 0,
-    transfers: 0,
   });
 
   useEffect(() => {
     loadMovements();
-    loadStats();
-  }, []);
+  }, [currentPage, typeFilter, reasonFilter, startDate, endDate]);
 
   useEffect(() => {
-    filterMovements();
-  }, [movements, searchTerm, typeFilter, dateFilter, userFilter]);
+    // Recarregar quando o termo de busca mudar (com debounce)
+    const timeoutId = setTimeout(() => {
+      if (currentPage === 0) {
+        loadMovements();
+      } else {
+        setCurrentPage(0);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const loadMovements = async () => {
     try {
       setLoading(true);
-      // Mock data - substituir por chamada real da API
-      const mockMovements: InventoryMovement[] = [
-        {
-          id: '1',
-          productId: '1',
-          productName: 'Produto A',
-          type: 'ENTRY',
-          quantity: 100,
-          previousStock: 50,
-          newStock: 150,
-          reason: 'Compra',
-          notes: 'Compra de fornecedor XYZ',
-          userId: '1',
-          userName: 'João Silva',
-          costPrice: 10.50,
-          totalValue: 1050.00,
-          createdAt: '2024-01-15T10:30:00Z',
-          updatedAt: '2024-01-15T10:30:00Z',
-        },
-        {
-          id: '2',
-          productId: '2',
-          productName: 'Produto B',
-          type: 'EXIT',
-          quantity: 25,
-          previousStock: 75,
-          newStock: 50,
-          reason: 'Venda',
-          notes: 'Venda para cliente ABC',
-          userId: '2',
-          userName: 'Maria Santos',
-          costPrice: 15.00,
-          totalValue: 375.00,
-          createdAt: '2024-01-15T14:20:00Z',
-          updatedAt: '2024-01-15T14:20:00Z',
-        },
-        {
-          id: '3',
-          productId: '3',
-          productName: 'Produto C',
-          type: 'ADJUSTMENT',
-          quantity: -5,
-          previousStock: 30,
-          newStock: 25,
-          reason: 'Ajuste de estoque',
-          notes: 'Produto com defeito',
-          userId: '1',
-          userName: 'João Silva',
-          costPrice: 8.00,
-          totalValue: -40.00,
-          createdAt: '2024-01-15T16:45:00Z',
-          updatedAt: '2024-01-15T16:45:00Z',
-        },
-      ];
-      setMovements(mockMovements);
-    } catch (error) {
+      const filters: MovementFilters = {
+        searchTerm: searchTerm || undefined,
+        movementType: typeFilter !== 'all' ? typeFilter as MovementType : undefined,
+        reason: reasonFilter !== 'all' ? reasonFilter as MovementReason : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      };
+
+      console.log('🔍 Buscando movimentações com filtros:', filters);
+      const result = await stockService.searchMovements(filters, currentPage, pageSize);
+      console.log('✅ Resultado da busca:', {
+        totalElements: result.totalElements,
+        contentLength: result.content?.length || 0,
+        content: result.content
+      });
+      
+      setMovements(result.content || []);
+      setTotalElements(result.totalElements || 0);
+      
+      // Calcular estatísticas
+      const entries = result.content?.filter(m => m.movementType === MovementType.ENTRADA).length || 0;
+      const exits = result.content?.filter(m => m.movementType === MovementType.SAIDA).length || 0;
+      
+      setStats({
+        totalMovements: result.totalElements || 0,
+        entries: entries,
+        exits: exits,
+      });
+    } catch (error: any) {
+      console.error('❌ Erro ao carregar movimentações:', error);
+      console.error('❌ Detalhes do erro:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       toast({
         title: "Erro",
-        description: "Erro ao carregar movimentações.",
+        description: error.response?.data?.message || "Erro ao carregar movimentações.",
         variant: "destructive",
       });
+      setMovements([]);
+      setTotalElements(0);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadStats = async () => {
-    try {
-      // Mock stats - substituir por chamada real da API
-      setStats({
-        totalMovements: movements.length,
-        entries: movements.filter(m => m.type === 'ENTRY').length,
-        exits: movements.filter(m => m.type === 'EXIT').length,
-        adjustments: movements.filter(m => m.type === 'ADJUSTMENT').length,
-        transfers: movements.filter(m => m.type === 'TRANSFER').length,
-      });
-    } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
-    }
+  const handleSearch = () => {
+    setCurrentPage(0);
+    loadMovements();
   };
 
-  const filterMovements = () => {
-    let filtered = movements;
-
-    // Filtro por termo de busca
-    if (searchTerm) {
-      filtered = filtered.filter(movement =>
-        movement.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        movement.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        movement.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        movement.notes?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filtro por tipo
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(movement => movement.type === typeFilter);
-    }
-
-    // Filtro por usuário
-    if (userFilter !== 'all') {
-      filtered = filtered.filter(movement => movement.userId === userFilter);
-    }
-
-    setFilteredMovements(filtered);
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setTypeFilter('all');
+    setReasonFilter('all');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(0);
   };
 
-  const getTypeColor = (type: string) => {
+  const getTypeColor = (type: MovementType) => {
     switch (type) {
-      case 'ENTRY': return 'bg-green-100 text-green-800';
-      case 'EXIT': return 'bg-red-100 text-red-800';
-      case 'ADJUSTMENT': return 'bg-yellow-100 text-yellow-800';
-      case 'TRANSFER': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case MovementType.ENTRADA: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case MovementType.SAIDA: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     }
   };
 
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'ENTRY': return 'Entrada';
-      case 'EXIT': return 'Saída';
-      case 'ADJUSTMENT': return 'Ajuste';
-      case 'TRANSFER': return 'Transferência';
-      default: return type;
-    }
+  const getTypeLabel = (type: MovementType) => {
+    return MovementTypeLabels[type] || type;
   };
 
-  const getTypeIcon = (type: string) => {
+  const getTypeIcon = (type: MovementType) => {
     switch (type) {
-      case 'ENTRY': return <ArrowDown className="w-4 h-4" />;
-      case 'EXIT': return <ArrowUp className="w-4 h-4" />;
-      case 'ADJUSTMENT': return <ArrowUpDown className="w-4 h-4" />;
-      case 'TRANSFER': return <ArrowUpDown className="w-4 h-4" />;
+      case MovementType.ENTRADA: return <ArrowDown className="w-4 h-4" />;
+      case MovementType.SAIDA: return <ArrowUp className="w-4 h-4" />;
       default: return <Package className="w-4 h-4" />;
     }
+  };
+
+  const getReasonLabel = (reason: MovementReason) => {
+    return MovementReasonLabels[reason] || reason;
   };
 
   const formatCurrency = (value: number) => {
@@ -223,6 +163,7 @@ export default function Movimentacoes() {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -230,11 +171,6 @@ export default function Movimentacoes() {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  const getUsers = () => {
-    const users = movements.map(m => ({ id: m.userId, name: m.userName }));
-    return [...new Set(users.map(u => JSON.stringify(u)))].map(u => JSON.parse(u));
   };
 
   return (
@@ -254,7 +190,7 @@ export default function Movimentacoes() {
         </div>
 
         {/* Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
@@ -291,29 +227,6 @@ export default function Movimentacoes() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <ArrowUpDown className="h-4 w-4 text-yellow-600" />
-                <div>
-                  <p className="text-sm font-medium">Ajustes</p>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.adjustments}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <Package className="h-4 w-4 text-blue-600" />
-                <div>
-                  <p className="text-sm font-medium">Transferências</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.transfers}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Filtros */}

@@ -1,0 +1,171 @@
+services:
+  # ========================================
+  # DATABASE (PROD)
+  # ========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: secured-guard-db-prod
+    environment:
+      POSTGRES_DB: secured_guard_prod
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "55434:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d
+    networks:
+      - secured-guard-prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # REDIS CACHE (PROD)
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: secured-guard-redis-prod
+    ports:
+      - "6382:6379"
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - secured-guard-prod
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # BACKEND API (PROD)
+  # ========================================
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-backend-prod
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/secured_guard_prod
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      # WhatsApp/Baileys REST API
+      BAILEYS_REST_URL: http://whatsapp-service-prod:3333
+      BAILEYS_INSTANCE_KEY: securedguard
+      LOG_LEVEL_ROOT: "INFO"
+      LOG_LEVEL_APP: "INFO"
+    ports:
+      - "8084:8080"
+    volumes:
+      - backend_logs_prod:/app/logs
+      - backend_uploads_prod:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - secured-guard-prod
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # FRONTEND (PROD)
+  # ========================================
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-frontend-prod
+    environment:
+      VITE_API_URL: https://secured-guard.com.br/api
+      VITE_WS_URL: wss://secured-guard.com.br/ws
+      NODE_ENV: production
+    ports:
+      - "5176:80"
+    depends_on:
+      - backend
+    networks:
+      - secured-guard-prod
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # WHATSAPP SERVICE (Baileys REST API - PROD)
+  # ========================================
+  whatsapp-service:
+    image: z7design/secured-guard-whatsapp:prod
+    container_name: whatsapp-service-prod
+    environment:
+      PORT: 3333
+      INSTANCE_KEY: securedguard
+      SESSION_DIR: /app/sessions
+    volumes:
+      - whatsapp_sessions_prod:/app/sessions
+      - ../backend/holerites:/app/holerites:ro
+    ports:
+      - "3335:3333"
+    networks:
+      - secured-guard-prod
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    restart: unless-stopped
+
+  # ========================================
+  # NGINX (PROD)
+  # ========================================
+  nginx:
+    image: nginx:alpine
+    container_name: secured-guard-nginx-prod
+    ports:
+      - "8085:80"
+    volumes:
+      - ./nginx/nginx-prod.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - secured-guard-prod
+    restart: unless-stopped
+
+# ========================================
+# VOLUMES
+# ========================================
+volumes:
+  postgres_data_prod:
+    driver: local
+  redis_data_prod:
+    driver: local
+  backend_logs_prod:
+    driver: local
+  backend_uploads_prod:
+    driver: local
+  whatsapp_sessions_prod:
+    driver: local
+
+# ========================================
+# NETWORKS
+# ========================================
+networks:
+  secured-guard-prod:
+    external: true
+    name: secured-guard

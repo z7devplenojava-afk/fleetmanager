@@ -20,6 +20,7 @@ export interface PurchaseRequest {
   approvalNotes?: string;
   supplier?: string;
   paymentMethod?: string;
+  installments?: number;
   deliveryMethod?: string;
   deliveryAddress?: string;
   contactPerson?: string;
@@ -94,6 +95,7 @@ export interface CreatePurchaseRequestRequest {
   approvalNotes?: string;
   supplier?: string;
   paymentMethod?: string;
+  installments?: number;
   deliveryMethod?: string;
   deliveryAddress?: string;
   contactPerson?: string;
@@ -111,7 +113,7 @@ export interface UpdatePurchaseRequestRequest extends CreatePurchaseRequestReque
 
 class PurchaseRequestService {
   async getAllPurchaseRequests(): Promise<PurchaseRequest[]> {
-    const response = await api.get('/purchase-requests');
+    const response = await api.get('/api/purchase-requests');
     return response.data;
   }
 
@@ -121,7 +123,7 @@ class PurchaseRequestService {
   }
 
   async createPurchaseRequest(request: CreatePurchaseRequestRequest): Promise<PurchaseRequest> {
-    const response = await api.post('/purchase-requests', request);
+    const response = await api.post('/api/purchase-requests', request);
     return response.data;
   }
 
@@ -185,17 +187,17 @@ class PurchaseRequestService {
   }
 
   async getOverdueRequests(): Promise<PurchaseRequest[]> {
-    const response = await api.get('/purchase-requests/overdue');
+    const response = await api.get('/api/purchase-requests/overdue');
     return response.data;
   }
 
   async getUrgentRequests(): Promise<PurchaseRequest[]> {
-    const response = await api.get('/purchase-requests/urgent');
+    const response = await api.get('/api/purchase-requests/urgent');
     return response.data;
   }
 
   async getPendingApprovalRequests(): Promise<PurchaseRequest[]> {
-    const response = await api.get('/purchase-requests/pending-approval');
+    const response = await api.get('/api/purchase-requests/pending-approval');
     return response.data;
   }
 
@@ -210,12 +212,12 @@ class PurchaseRequestService {
   }
 
   async getUrgentRequestsCount(): Promise<number> {
-    const response = await api.get('/purchase-requests/stats/urgent-count');
+    const response = await api.get('/api/purchase-requests/stats/urgent-count');
     return response.data;
   }
 
   async getOverdueRequestsCount(): Promise<number> {
-    const response = await api.get('/purchase-requests/stats/overdue-count');
+    const response = await api.get('/api/purchase-requests/stats/overdue-count');
     return response.data;
   }
 }

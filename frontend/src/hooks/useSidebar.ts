@@ -15,10 +15,12 @@ export const useSidebar = (): UseSidebarReturn => {
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
+      const wasMobile = isMobile;
       setIsMobile(mobile);
       
-      // Se for mobile, colapsar a sidebar por padrão
-      if (mobile && !collapsed) {
+      // Apenas colapsar sidebar quando MUDAR de desktop para mobile
+      // Não forçar collapsed = true toda vez que o componente re-renderizar
+      if (mobile && !wasMobile && !collapsed) {
         setCollapsed(true);
       }
     };
@@ -27,7 +29,7 @@ export const useSidebar = (): UseSidebarReturn => {
     window.addEventListener('resize', checkMobile);
     
     return () => window.removeEventListener('resize', checkMobile);
-  }, [collapsed]);
+  }, [isMobile, collapsed]);
 
   // Salvar estado no localStorage
   useEffect(() => {

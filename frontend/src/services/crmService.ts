@@ -12,12 +12,12 @@ export async function createOpportunity(opportunity) {
 }
 
 export async function updateOpportunity(id, opportunity) {
-  const { data } = await api.put(`/api/opportunities/${id}`, opportunity);
+  const { data } = await api.put(`/opportunities/${id}`, opportunity);
   return data;
 }
 
 export async function deleteOpportunity(id) {
-  await api.delete(`/api/opportunities/${id}`);
+  await api.delete(`/opportunities/${id}`);
 }
 
 // Status do Kanban
@@ -32,12 +32,12 @@ export async function createKanbanStatus(status) {
 }
 
 export async function updateKanbanStatus(id, status) {
-  const { data } = await api.put(`/api/kanban-status/${id}`, status);
+  const { data } = await api.put(`/kanban-status/${id}`, status);
   return data;
 }
 
 export async function deleteKanbanStatus(id) {
-  await api.delete(`/api/kanban-status/${id}`);
+  await api.delete(`/kanban-status/${id}`);
 }
 
 // Tarefas
@@ -99,6 +99,6 @@ export async function fetchKanbanSummary() {
 
 // Métricas e gráficos do dashboard CRM
 export async function fetchCrmMetrics() {
-  const { data } = await api.get('/crm/dashboard/metrics');
+  const { data } = await api.get('/api/crm/dashboard/metrics');
   return data;
 } 

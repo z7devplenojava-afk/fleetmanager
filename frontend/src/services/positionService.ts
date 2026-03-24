@@ -4,6 +4,7 @@ export interface Position {
   id: string;
   name: string;
   description?: string;
+  cbo?: string;
   baseSalary?: number;
   unitId?: string;
   createdAt: string;
@@ -13,6 +14,7 @@ export interface Position {
 export interface PositionDTO {
   name: string;
   description: string;
+  cbo?: string;
   baseSalary: number;
   unitId?: string;
 }
@@ -20,7 +22,15 @@ export interface PositionDTO {
 export const positionService = {
   // Buscar todas as posições
   async getPositions(): Promise<Position[]> {
-    const response = await api.get('/positions');
+    const response = await api.get('/api/positions');
+    return response.data;
+  },
+
+  // Buscar posições com filtro dinâmico
+  async searchPositions(query?: string): Promise<Position[]> {
+    const response = await api.get('/api/positions/search', {
+      params: query ? { query } : {}
+    });
     return response.data;
   },
 
@@ -32,7 +42,7 @@ export const positionService = {
 
   // Criar nova posição
   async createPosition(positionData: PositionDTO): Promise<Position> {
-    const response = await api.post('/positions', positionData);
+    const response = await api.post('/api/positions', positionData);
     return response.data;
   },
 

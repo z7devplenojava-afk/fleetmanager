@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste API Work Posts</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { margin: 5px; padding: 10px; }
+        textarea { width: 100%; height: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Teste API Work Posts</h1>
+    
+    <div>
+        <h3>1. Login</h3>
+        <input type="text" id="username" placeholder="Username" value="super_admin">
+        <input type="password" id="password" placeholder="Password" value="123456">
+        <button onclick="login()">Login</button>
+    </div>
+
+    <div>
+        <h3>2. Teste Work Posts</h3>
+        <button onclick="testWorkPosts()">Testar Work Posts API</button>
+        <button onclick="testWorkPostsWithAuth()">Testar Work Posts (com Auth)</button>
+    </div>
+
+    <div>
+        <h3>3. Resultado</h3>
+        <div id="result"></div>
+        <textarea id="resultDetails"></textarea>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8081';
+        let authToken = localStorage.getItem('token');
+
+        function showResult(message, type = 'info', details = '') {
+            const resultDiv = document.getElementById('result');
+            const resultDetails = document.getElementById('resultDetails');
+            
+            resultDiv.innerHTML = `<div class="result ${type}">${message}</div>`;
+            resultDetails.value = details;
+            
+            console.log(message, details);
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                showResult('🔐 Tentando fazer login...', 'info');
+                
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('token', authToken);
+                    showResult('✅ Login realizado com sucesso!', 'success', JSON.stringify(data, null, 2));
+                } else {
+                    showResult('❌ Erro no login', 'error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult('❌ Erro na requisição de login: ' + error.message, 'error', error.toString());
+            }
+        }
+
+        async function testWorkPosts() {
+            try {
+                showResult('🏢 Testando endpoint de work posts (sem auth)...', 'info');
+                
+                const response = await fetch(`${API_BASE}/api/work-posts/all`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('✅ Work Posts carregados com sucesso!', 'success', JSON.stringify(data, null, 2));
+                } else {
+                    showResult(`❌ Erro ao carregar work posts: ${response.status}`, 'error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult('❌ Erro na requisição: ' + error.message, 'error', error.toString());
+            }
+        }
+
+        async function testWorkPostsWithAuth() {
+            if (!authToken) {
+                showResult('❌ Erro: Faça login primeiro!', 'error');
+                return;
+            }
+            
+            try {
+                showResult('🏢 Testando endpoint de work posts (com auth)...', 'info');
+                
+                const response = await fetch(`${API_BASE}/api/work-posts/all`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(`✅ Work Posts carregados com sucesso! Total: ${data.length}`, 'success', JSON.stringify(data, null, 2));
+                } else {
+                    showResult(`❌ Erro ao carregar work posts: ${response.status}`, 'error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult('❌ Erro na requisição: ' + error.message, 'error', error.toString());
+            }
+        }
+
+        // Verificar se já há token no localStorage
+        if (authToken) {
+            showResult('🔑 Token encontrado no localStorage', 'info', `Token: ${authToken.substring(0, 50)}...`);
+        }
+    </script>
+</body>
+</html>

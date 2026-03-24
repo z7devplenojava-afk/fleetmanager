@@ -30,6 +30,8 @@ import { rondasService } from '@/services/rondasService';
 import { RondasTable } from '@/components/rondas/RondasTable';
 import { RondaFormModal } from '@/components/rondas/RondaFormModal';
 import { RondaViewModal } from '@/components/rondas/RondaViewModal';
+import { RondasRelatorios } from '@/components/rondas/RondasRelatorios';
+import { RondasConfiguracoes } from '@/components/rondas/RondasConfiguracoes';
 
 const ControleRondas: React.FC = () => {
   const { toast } = useToast();
@@ -84,13 +86,12 @@ const ControleRondas: React.FC = () => {
       setPrioridadeOptions(prioridadesData);
       
     } catch (error) {
-      console.warn('Erro ao carregar dados, usando dados mock:', error);
-      // Não mostrar toast de erro pois estamos usando dados mock
-      // toast({
-      //   title: "Aviso",
-      //   description: "Usando dados de demonstração. APIs do backend não estão disponíveis.",
-      //   variant: "default"
-      // });
+      console.error('Erro ao carregar dados:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os dados das rondas.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -106,7 +107,12 @@ const ControleRondas: React.FC = () => {
       const result = await rondasService.getRondasWithFilters(filtersWithSearch);
       setRondas(result.content);
     } catch (error) {
-      console.warn('Erro ao carregar rondas, usando dados mock:', error);
+      console.error('Erro ao carregar rondas:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as rondas.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -278,29 +284,33 @@ const ControleRondas: React.FC = () => {
 
   return (
     <StandardLayout>
-      <div className="space-y-6">
+      <div className="space-y-3 sm:space-y-4 md:space-y-6 p-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-seguranca-lightgray">Controle de Rondas</h1>
-            <p className="text-gray-400 mt-1">Gestão completa de rondas de segurança</p>
-            <div className="mt-2">
-              <Badge className="bg-yellow-100 text-yellow-800">
-                🚧 Modo Demonstração - Dados Mock
-              </Badge>
+        <div className="flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+            <div className="p-1.5 sm:p-2 bg-seguranca-darkred/20 rounded-lg">
+              <Route className="h-5 w-5 sm:h-6 sm:w-6 text-seguranca-darkred" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-seguranca-lightgray">Controle de Rondas</h1>
+              <p className="text-xs sm:text-sm text-gray-400 mt-0.5 sm:mt-1">Gestão completa de rondas de segurança</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2">
             <Button
               variant="outline"
               onClick={handleRefresh}
               disabled={refreshing}
+              className="border-gray-600 hover:bg-gray-700 w-full sm:w-auto h-10 sm:h-11 text-xs sm:text-sm"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
-            <Button onClick={handleCreateRonda} className="bg-seguranca-red hover:bg-seguranca-darkred">
-              <Plus className="h-4 w-4 mr-2" />
+            <Button 
+              onClick={handleCreateRonda} 
+              className="bg-seguranca-darkred hover:bg-seguranca-red text-white shadow-lg hover:shadow-xl transition-all w-full sm:w-auto h-10 sm:h-11 text-xs sm:text-sm"
+            >
+              <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
               Nova Ronda
             </Button>
           </div>
@@ -308,83 +318,91 @@ const ControleRondas: React.FC = () => {
 
         {/* Estatísticas */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-seguranca-graphite border-gray-600">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-seguranca-lightgray">Total</CardTitle>
-                <Route className="h-4 w-4 text-seguranca-yellow" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6 mb-4 sm:mb-6">
+            <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600 hover:border-seguranca-yellow transition-all shadow-lg hover:shadow-xl">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-2 sm:p-3 md:p-6">
+                <CardTitle className="text-[10px] sm:text-xs md:text-sm font-medium text-seguranca-lightgray truncate">Total</CardTitle>
+                <div className="p-1 sm:p-1.5 md:p-2 bg-blue-500/20 rounded-lg flex-shrink-0">
+                  <Route className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-blue-400" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-seguranca-lightgray">{stats.total}</div>
-                <p className="text-xs text-gray-400">Rondas cadastradas</p>
+              <CardContent className="p-2 sm:p-3 md:p-6 pt-0">
+                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-seguranca-lightgray mb-1">{stats.total}</div>
+                <p className="text-[10px] sm:text-xs text-gray-400 line-clamp-2">Rondas cadastradas</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-seguranca-graphite border-gray-600">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-seguranca-lightgray">Em Andamento</CardTitle>
-                <Play className="h-4 w-4 text-yellow-500" />
+            <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600 hover:border-yellow-500 transition-all shadow-lg hover:shadow-xl">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-2 sm:p-3 md:p-6">
+                <CardTitle className="text-[10px] sm:text-xs md:text-sm font-medium text-seguranca-lightgray truncate">Em Andamento</CardTitle>
+                <div className="p-1 sm:p-1.5 md:p-2 bg-yellow-500/20 rounded-lg flex-shrink-0">
+                  <Play className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-yellow-400" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-seguranca-lightgray">{stats.emAndamento}</div>
-                <p className="text-xs text-gray-400">Executando agora</p>
+              <CardContent className="p-2 sm:p-3 md:p-6 pt-0">
+                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-yellow-400 mb-1">{stats.emAndamento}</div>
+                <p className="text-[10px] sm:text-xs text-gray-400 line-clamp-2">Executando agora</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-seguranca-graphite border-gray-600">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-seguranca-lightgray">Concluídas</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-500" />
+            <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600 hover:border-green-500 transition-all shadow-lg hover:shadow-xl">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-2 sm:p-3 md:p-6">
+                <CardTitle className="text-[10px] sm:text-xs md:text-sm font-medium text-seguranca-lightgray truncate">Concluídas</CardTitle>
+                <div className="p-1 sm:p-1.5 md:p-2 bg-green-500/20 rounded-lg flex-shrink-0">
+                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-green-400" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-seguranca-lightgray">{stats.concluidas}</div>
-                <p className="text-xs text-gray-400">{stats.percentualConclusao.toFixed(1)}% do total</p>
+              <CardContent className="p-2 sm:p-3 md:p-6 pt-0">
+                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-green-400 mb-1">{stats.concluidas}</div>
+                <p className="text-[10px] sm:text-xs text-gray-400 line-clamp-2">{stats.percentualConclusao.toFixed(1)}% do total</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-seguranca-graphite border-gray-600">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-seguranca-lightgray">Hoje</CardTitle>
-                <Calendar className="h-4 w-4 text-blue-500" />
+            <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600 hover:border-blue-500 transition-all shadow-lg hover:shadow-xl">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-2 sm:p-3 md:p-6">
+                <CardTitle className="text-[10px] sm:text-xs md:text-sm font-medium text-seguranca-lightgray truncate">Hoje</CardTitle>
+                <div className="p-1 sm:p-1.5 md:p-2 bg-blue-500/20 rounded-lg flex-shrink-0">
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-blue-400" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-seguranca-lightgray">{stats.rondasHoje}</div>
-                <p className="text-xs text-gray-400">Rondas programadas</p>
+              <CardContent className="p-2 sm:p-3 md:p-6 pt-0">
+                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-blue-400 mb-1">{stats.rondasHoje}</div>
+                <p className="text-[10px] sm:text-xs text-gray-400 line-clamp-2">Rondas programadas</p>
               </CardContent>
             </Card>
           </div>
         )}
 
         {/* Filtros */}
-        <Card className="bg-seguranca-graphite border-gray-600">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
+        <Card className="bg-seguranca-graphite border-gray-600 mb-4 sm:mb-6">
+          <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-seguranca-lightgray text-sm sm:text-base">
+              <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-seguranca-yellow" />
               Filtros
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">Buscar</label>
+                <label className="text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2 block">Buscar</label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                   <Input
                     placeholder="Nome, local, responsável..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-8 sm:pl-10 h-10 sm:h-11 text-xs sm:text-sm"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">Status</label>
+                <label className="text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2 block">Status</label>
                 <Select
                   value={filters.status || 'all'}
                   onValueChange={(value) => handleFilterChange('status', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10 sm:h-11 text-xs sm:text-sm">
                     <SelectValue placeholder="Todos os status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -399,12 +417,12 @@ const ControleRondas: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">Tipo</label>
+                <label className="text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2 block">Tipo</label>
                 <Select
                   value={filters.tipo || 'all'}
                   onValueChange={(value) => handleFilterChange('tipo', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10 sm:h-11 text-xs sm:text-sm">
                     <SelectValue placeholder="Todos os tipos" />
                   </SelectTrigger>
                   <SelectContent>
@@ -419,12 +437,12 @@ const ControleRondas: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">Prioridade</label>
+                <label className="text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2 block">Prioridade</label>
                 <Select
                   value={filters.prioridade || 'all'}
                   onValueChange={(value) => handleFilterChange('prioridade', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10 sm:h-11 text-xs sm:text-sm">
                     <SelectValue placeholder="Todas as prioridades" />
                   </SelectTrigger>
                   <SelectContent>
@@ -439,8 +457,12 @@ const ControleRondas: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex justify-end mt-4">
-              <Button variant="outline" onClick={clearFilters}>
+            <div className="flex justify-end mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-700">
+              <Button 
+                variant="outline" 
+                onClick={clearFilters}
+                className="border-gray-600 hover:bg-gray-700 w-full sm:w-auto h-10 sm:h-11 text-xs sm:text-sm"
+              >
                 Limpar Filtros
               </Button>
             </div>
@@ -448,23 +470,34 @@ const ControleRondas: React.FC = () => {
         </Card>
 
         {/* Conteúdo Principal */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="rondas" className="flex items-center gap-2">
-              <Route className="h-4 w-4" />
-              Rondas
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 bg-seguranca-graphite border border-gray-600 h-auto sm:h-11 p-1 gap-1">
+            <TabsTrigger 
+              value="rondas" 
+              className="flex items-center justify-center gap-1 sm:gap-2 data-[state=active]:bg-seguranca-darkred data-[state=active]:text-white text-[10px] sm:text-xs md:text-sm h-9 sm:h-10 px-1.5 sm:px-3 md:px-4 py-2 transition-all"
+            >
+              <Route className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="truncate">Rondas</span>
             </TabsTrigger>
-            <TabsTrigger value="relatorios" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Relatórios
+            <TabsTrigger 
+              value="relatorios" 
+              className="flex items-center justify-center gap-1 sm:gap-2 data-[state=active]:bg-seguranca-darkred data-[state=active]:text-white text-[10px] sm:text-xs md:text-sm h-9 sm:h-10 px-1.5 sm:px-3 md:px-4 py-2 transition-all"
+            >
+              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="truncate hidden sm:inline">Relatórios</span>
+              <span className="truncate sm:hidden">Rel.</span>
             </TabsTrigger>
-            <TabsTrigger value="configuracoes" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Configurações
+            <TabsTrigger 
+              value="configuracoes" 
+              className="flex items-center justify-center gap-1 sm:gap-2 data-[state=active]:bg-seguranca-darkred data-[state=active]:text-white text-[10px] sm:text-xs md:text-sm h-9 sm:h-10 px-1.5 sm:px-3 md:px-4 py-2 transition-all"
+            >
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="truncate hidden md:inline">Configurações</span>
+              <span className="truncate md:hidden">Config</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="rondas" className="mt-6">
+          <TabsContent value="rondas" className="mt-3 sm:mt-6">
             <RondasTable
               rondas={rondas}
               loading={loading}
@@ -477,26 +510,12 @@ const ControleRondas: React.FC = () => {
             />
           </TabsContent>
 
-          <TabsContent value="relatorios" className="mt-6">
-            <Card className="bg-seguranca-graphite border-gray-600">
-              <CardHeader>
-                <CardTitle>Relatórios de Rondas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-400">Relatórios em desenvolvimento...</p>
-              </CardContent>
-            </Card>
+          <TabsContent value="relatorios" className="mt-3 sm:mt-6">
+            <RondasRelatorios stats={stats} />
           </TabsContent>
 
-          <TabsContent value="configuracoes" className="mt-6">
-            <Card className="bg-seguranca-graphite border-gray-600">
-              <CardHeader>
-                <CardTitle>Configurações</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-400">Configurações em desenvolvimento...</p>
-              </CardContent>
-            </Card>
+          <TabsContent value="configuracoes" className="mt-3 sm:mt-6">
+            <RondasConfiguracoes />
           </TabsContent>
         </Tabs>
 

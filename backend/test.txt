@@ -1,0 +1,2 @@
+Este é um arquivo de teste para upload de modelo de documento.
+Contém placeholders como {{nome_funcionario}} e {{data_atual}}.

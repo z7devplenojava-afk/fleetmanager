@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createRemanejamento, Remanejamento } from '../../services/remanejamentoService';
-import { unitService, Unit } from '../../services/unitService';
+import { remanejamentoService, Remanejamento, CreateRemanejamentoDTO } from '../../services/remanejamentoService';
 import { employeeService, Employee } from '../../services/employeeService';
 import { workPostService, WorkPost } from '../../services/workPostService';
 import type { RemanejamentoTipo } from '../../types/remanejamento';
@@ -15,8 +14,6 @@ interface Props {
 interface FormData {
   employeeId: string;
   tipo: string;
-  origem: string;
-  destino: string;
   dataRemanejamento: string;
   observacao?: string;
   sourceWorkPostId?: string;
@@ -40,21 +37,17 @@ const tipos: { value: RemanejamentoTipo; label: string }[] = [
 const RemanejamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialRemanejamento }) => {
   const [form, setForm] = useState<FormData>({
     employeeId: initialRemanejamento?.employeeId || '',
-    tipo: initialRemanejamento?.status || '',
-    origem: '',
-    destino: '',
-    dataRemanejamento: initialRemanejamento?.remanejamentoDate || '',
-    observacao: initialRemanejamento?.notes || '',
-    sourceWorkPostId: '',
-    destinationWorkPostId: '',
+    tipo: initialRemanejamento?.tipo || initialRemanejamento?.status || '',
+    dataRemanejamento: initialRemanejamento?.dataRemanejamento || initialRemanejamento?.remanejamentoDate || '',
+    observacao: initialRemanejamento?.observacao || initialRemanejamento?.notes || '',
+    sourceWorkPostId: initialRemanejamento?.originWorkstationId || '',
+    destinationWorkPostId: initialRemanejamento?.destinationWorkstationId || '',
     notifyRH: true, // Por padrão, RH sempre é notificado
     notifyOperacional: false,
     notifyDepartamentoPessoal: false
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [loadingUnits, setLoadingUnits] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [workPosts, setWorkPosts] = useState<WorkPost[]>([]);
@@ -85,7 +78,7 @@ const RemanejamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialRe
   const loadEmployees = async () => {
     setLoadingEmployees(true);
     try {
-      const data = await employeeService.getEmployees({ status: 'ACTIVE' });
+      const data = await employeeService.getAllEmployees();
       setEmployees(data);
     } catch (error) {
       console.warn('Erro ao carregar funcionários, usando dados estáticos:', error);
@@ -101,33 +94,140 @@ const RemanejamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialRe
     }
   };
 
-  // Carregar unidades
-  const loadUnits = async () => {
-    setLoadingUnits(true);
-    try {
-      const data = await unitService.getAllUnits();
-      setUnits(data);
-    } catch (error) {
-      console.warn('Erro ao carregar unidades, usando dados estáticos:', error);
-      // Dados estáticos como fallback
-      setUnits([
-        { id: '1', name: 'Unidade Central', address: 'Av. Principal, 123', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-        { id: '2', name: 'Unidade Norte', address: 'Rua Norte, 456', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-        { id: '3', name: 'Unidade Sul', address: 'Rua Sul, 789', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-        { id: '4', name: 'Unidade Leste', address: 'Av. Leste, 321', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-        { id: '5', name: 'Unidade Oeste', address: 'Rua Oeste, 654', createdAt: '2024-01-01', updatedAt: '2024-01-01' }
+  // Carregar funcionários e postos de trabalho ao montar o componente
+  useEffect(() => {
+    const loadAll = async () => {
+      await Promise.all([
+        loadEmployees(),
+        loadWorkPosts()
       ]);
-    } finally {
-      setLoadingUnits(false);
-    }
+    };
+    loadAll();
+  }, []);
+
+  // Função helper para verificar se uma string é um UUID válido
+  const isValidUUID = (str: string | undefined | null): boolean => {
+    if (!str) return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
   };
 
-  // Carregar unidades, funcionários e postos de trabalho ao montar o componente
+  // Atualizar formulário quando initialRemanejamento ou workPosts mudarem
   useEffect(() => {
-    loadUnits();
-    loadEmployees();
-    loadWorkPosts();
-  }, []);
+    if (initialRemanejamento) {
+      // Aguardar que os postos de trabalho sejam carregados antes de preencher
+      if (loadingWorkPosts) {
+        return;
+      }
+      
+      console.log('🔄 Atualizando formulário com remanejamento:', initialRemanejamento);
+      console.log('📍 originWorkstationId:', initialRemanejamento.originWorkstationId);
+      console.log('📍 destinationWorkstationId:', initialRemanejamento.destinationWorkstationId);
+      console.log('📍 workPosts carregados:', workPosts.length);
+        
+      // Converter data para formato YYYY-MM-DD se necessário
+      let dataFormatada = '';
+      if (initialRemanejamento.dataRemanejamento) {
+        dataFormatada = initialRemanejamento.dataRemanejamento.split('T')[0];
+      } else if (initialRemanejamento.remanejamentoDate) {
+        dataFormatada = initialRemanejamento.remanejamentoDate.split('T')[0];
+      }
+        
+      // Tratar campos de postos de trabalho - converter null/undefined para string vazia apenas se não existir
+      let sourceWorkPostId = '';
+      let destinationWorkPostId = '';
+        
+      // Normalizar IDs para comparação (remover espaços, converter para lowercase)
+      const normalizeId = (id: string | undefined | null): string => {
+        if (!id) return '';
+        return String(id).trim().toLowerCase();
+      };
+        
+      if (initialRemanejamento.originWorkstationId) {
+        const originId = normalizeId(initialRemanejamento.originWorkstationId);
+        console.log('🔍 Buscando posto de origem:', originId);
+        console.log('📋 IDs disponíveis nos workPosts:', workPosts.map(wp => normalizeId(wp.id)));
+          
+        // Buscar posto na lista - comparar normalizando ambos os IDs
+        const foundPost = workPosts.find(wp => normalizeId(wp.id) === originId);
+        if (foundPost) {
+          sourceWorkPostId = String(foundPost.id); // Usar o ID original do posto encontrado
+          console.log('✅ Posto de origem encontrado:', foundPost.name);
+        } else {
+          // Tentar também com o ID original sem normalização
+          const foundPostOriginal = workPosts.find(wp => String(wp.id) === String(initialRemanejamento.originWorkstationId));
+          if (foundPostOriginal) {
+            sourceWorkPostId = String(foundPostOriginal.id);
+            console.log('✅ Posto de origem encontrado (comparação direta):', foundPostOriginal.name);
+          } else {
+            console.warn('⚠️ Posto de origem não encontrado na lista:', {
+              buscado: initialRemanejamento.originWorkstationId,
+              tipoBuscado: typeof initialRemanejamento.originWorkstationId,
+              totalPostos: workPosts.length,
+              primeiroPostoId: workPosts[0]?.id,
+              primeiroPostoTipo: typeof workPosts[0]?.id
+            });
+          }
+        }
+      }
+        
+      if (initialRemanejamento.destinationWorkstationId) {
+        const destinationId = normalizeId(initialRemanejamento.destinationWorkstationId);
+        console.log('🔍 Buscando posto de destino:', destinationId);
+          
+        // Buscar posto na lista - comparar normalizando ambos os IDs
+        const foundPost = workPosts.find(wp => normalizeId(wp.id) === destinationId);
+        if (foundPost) {
+          destinationWorkPostId = String(foundPost.id); // Usar o ID original do posto encontrado
+          console.log('✅ Posto de destino encontrado:', foundPost.name);
+        } else {
+          // Tentar também com o ID original sem normalização
+          const foundPostOriginal = workPosts.find(wp => String(wp.id) === String(initialRemanejamento.destinationWorkstationId));
+          if (foundPostOriginal) {
+            destinationWorkPostId = String(foundPostOriginal.id);
+            console.log('✅ Posto de destino encontrado (comparação direta):', foundPostOriginal.name);
+          } else {
+            console.warn('⚠️ Posto de destino não encontrado na lista:', {
+              buscado: initialRemanejamento.destinationWorkstationId,
+              tipoBuscado: typeof initialRemanejamento.destinationWorkstationId,
+              totalPostos: workPosts.length
+            });
+          }
+        }
+      }
+        
+      console.log('✅ sourceWorkPostId processado:', sourceWorkPostId);
+      console.log('✅ destinationWorkPostId processado:', destinationWorkPostId);
+        
+      setForm(prev => ({
+        ...prev,
+        employeeId: initialRemanejamento.employeeId || '',
+        tipo: initialRemanejamento.tipo || initialRemanejamento.status || '',
+        dataRemanejamento: dataFormatada,
+        observacao: initialRemanejamento.observacao || initialRemanejamento.notes || '',
+        sourceWorkPostId: sourceWorkPostId,
+        destinationWorkPostId: destinationWorkPostId,
+      }));
+        
+      console.log('📝 Formulário atualizado:', {
+        sourceWorkPostId: sourceWorkPostId,
+        destinationWorkPostId: destinationWorkPostId
+      });
+    } else {
+      // Resetar formulário quando não há remanejamento inicial
+      setForm({
+        employeeId: '',
+        tipo: '',
+        dataRemanejamento: '',
+        observacao: '',
+        sourceWorkPostId: '',
+        destinationWorkPostId: '',
+        notifyRH: true,
+        notifyOperacional: false,
+        notifyDepartamentoPessoal: false
+      });
+    }
+  }, [initialRemanejamento, workPosts, loadingWorkPosts]);
 
   // Fechar com ESC
   useEffect(() => {
@@ -152,16 +252,25 @@ const RemanejamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialRe
       if (!form.employeeId) throw new Error('Selecione o funcionário');
       
       // Converter para CreateRemanejamentoDTO
-      const remanejamentoData = {
+      const remanejamentoData: CreateRemanejamentoDTO = {
         employeeId: form.employeeId,
-        originWorkstationId: form.origem,
-        destinationWorkstationId: form.destino,
-        remanejamentoDate: form.dataRemanejamento,
-        notes: form.observacao
+        tipo: form.tipo as RemanejamentoTipo,
+        dataRemanejamento: form.dataRemanejamento,
+        observacao: form.observacao,
+        originWorkstationId: form.sourceWorkPostId || undefined,
+        destinationWorkstationId: form.destinationWorkPostId || undefined
       };
       
-      await createRemanejamento(remanejamentoData);
+      if (initialRemanejamento?.id) {
+        // Editar remanejamento existente
+        await remanejamentoService.updateRemanejamento(initialRemanejamento.id, remanejamentoData);
+      } else {
+        // Criar novo remanejamento
+        await remanejamentoService.createRemanejamento(remanejamentoData);
+      }
+      
       onSuccess();
+      onClose();
     } catch (err: any) {
       setError(err.message || 'Erro ao salvar remanejamento');
     } finally {
@@ -245,51 +354,7 @@ const RemanejamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialRe
               </div>
             </div>
 
-            {/* Segunda linha - 2 colunas */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-              <div>
-                <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">Unidade de Origem</label>
-                <select 
-                  name="origem" 
-                  value={form.origem} 
-                  onChange={handleChange} 
-                  className="w-full p-2 rounded bg-seguranca-graphite text-seguranca-lightgray border border-gray-600 focus:border-seguranca-yellow focus:outline-none text-sm" 
-                  required
-                  disabled={loadingUnits}
-                >
-                  <option value="">
-                    {loadingUnits ? 'Carregando unidades...' : 'Selecione a unidade de origem'}
-                  </option>
-                  {units.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">Unidade de Destino</label>
-                <select 
-                  name="destino" 
-                  value={form.destino} 
-                  onChange={handleChange} 
-                  className="w-full p-2 rounded bg-seguranca-graphite text-seguranca-lightgray border border-gray-600 focus:border-seguranca-yellow focus:outline-none text-sm" 
-                  required
-                  disabled={loadingUnits}
-                >
-                  <option value="">
-                    {loadingUnits ? 'Carregando unidades...' : 'Selecione a unidade de destino'}
-                  </option>
-                  {units.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Terceira linha - Postos de Trabalho - 2 colunas */}
+            {/* Segunda linha - Postos de Trabalho - 2 colunas */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">Posto de Trabalho de Origem</label>
@@ -304,7 +369,7 @@ const RemanejamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialRe
                     {loadingWorkPosts ? 'Carregando postos...' : 'Selecione o posto de origem'}
                   </option>
                   {workPosts.map((post) => (
-                    <option key={post.id} value={post.id}>
+                    <option key={post.id} value={String(post.id)}>
                       {post.postCode} - {post.name}
                     </option>
                   ))}
@@ -323,7 +388,7 @@ const RemanejamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialRe
                     {loadingWorkPosts ? 'Carregando postos...' : 'Selecione o posto de destino'}
                   </option>
                   {workPosts.map((post) => (
-                    <option key={post.id} value={post.id}>
+                    <option key={post.id} value={String(post.id)}>
                       {post.postCode} - {post.name}
                     </option>
                   ))}

@@ -65,9 +65,9 @@ const ContasAReceberTab: React.FC = () => {
       // Calcular alertas de vencimento
       const hoje = new Date();
       const proximos7Dias = addDays(hoje, 7);
-      const alertas = data.filter(conta => 
-        conta.status === 'ABERTA' && 
-        isBefore(conta.vencimento, proximos7Dias) &&
+      const alertas = data.filter(conta =>
+        conta && conta.status === 'ABERTA' &&
+        conta.vencimento && isBefore(conta.vencimento, proximos7Dias) &&
         !isBefore(conta.vencimento, hoje)
       );
       setAlertasVencimento(alertas);
@@ -112,9 +112,10 @@ const ContasAReceberTab: React.FC = () => {
     // Filtro por texto
     if (searchTerm) {
       filtered = filtered.filter(conta =>
-        conta.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conta.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conta.numeroFatura?.toLowerCase().includes(searchTerm.toLowerCase())
+        conta && conta.descricao && conta.cliente &&
+        (conta.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         conta.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         conta.numeroFatura?.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -130,9 +131,15 @@ const ContasAReceberTab: React.FC = () => {
 
     // Filtro por ano e mês
     filtered = filtered.filter(conta => {
-      const dataVencimento = new Date(conta.vencimento);
-      return dataVencimento.getFullYear() === anoSelecionado &&
-             dataVencimento.getMonth() + 1 === mesSelecionado;
+      if (!conta || !conta.vencimento) return false;
+      try {
+        const dataVencimento = new Date(conta.vencimento);
+        if (isNaN(dataVencimento.getTime())) return false;
+        return dataVencimento.getFullYear() === anoSelecionado &&
+               dataVencimento.getMonth() + 1 === mesSelecionado;
+      } catch {
+        return false;
+      }
     });
 
     setContasFiltradas(filtered);
@@ -411,7 +418,7 @@ const ContasAReceberTab: React.FC = () => {
           <div className="flex items-center gap-4">
             <span className="text-white font-medium">Ano:</span>
             <div className="flex gap-2">
-              {[2024, 2025, 2026].map(ano => (
+              {[2025, 2026].map(ano => (
                 <Button
                   key={ano}
                   variant={ano === anoSelecionado ? "default" : "outline"}

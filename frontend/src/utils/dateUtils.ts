@@ -125,6 +125,37 @@ export const getLastDayOfMonth = (): Date => {
 };
 
 /**
+ * Formata uma data para exibição no formato brasileiro, lidando com valores inválidos
+ * @param dateString - String de data ou Date object
+ * @returns string no formato dd/MM/yyyy ou 'N/A' se inválida
+ */
+export const formatDateSafe = (dateString: string | Date | null | undefined): string => {
+  if (!dateString || dateString === 'null' || dateString === 'undefined' || dateString === '0') {
+    return 'N/A';
+  }
+  
+  try {
+    let date: Date;
+    
+    if (typeof dateString === 'string') {
+      date = new Date(dateString);
+    } else {
+      date = dateString;
+    }
+    
+    // Verificar se a data é válida
+    if (!isValid(date) || date.getFullYear() < 1900) {
+      return 'N/A';
+    }
+    
+    return format(date, 'dd/MM/yyyy', { locale: ptBR });
+  } catch (error) {
+    console.error('Erro ao formatar data:', dateString, error);
+    return 'N/A';
+  }
+};
+
+/**
  * Configurações padrão para DatePicker em português brasileiro
  */
 export const DEFAULT_DATE_PICKER_PROPS = {

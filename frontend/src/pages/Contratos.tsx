@@ -3,6 +3,7 @@ import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ContratosTable } from '@/components/contratos/ContratosTable';
+import { ContratosCards } from '@/components/contratos/ContratosCards';
 import { ContratoFormModal } from '@/components/contratos/ContratoFormModal';
 import { ContractsDashboard } from '@/components/contratos/ContractsDashboard';
 import { ContractsFilters } from '@/components/contratos/ContractsFilters';
@@ -264,82 +265,88 @@ const Contratos = () => {
 
   return (
     <StandardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 w-full max-w-full overflow-x-hidden px-2 sm:px-4 lg:px-6">
         <div className="space-y-4">
           <div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-seguranca-lightgray">Contratos</h1>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCompanySettings}
-              className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black text-xs sm:text-sm"
-            >
-              <Building className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Config. Empresa</span>
-              <span className="sm:hidden">Empresa</span>
-            </Button>
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-3 lg:gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCompanySettings}
+                className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black text-xs sm:text-sm flex-shrink-0"
+              >
+                <Building className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Config. Empresa</span>
+                <span className="sm:hidden">Empresa</span>
+              </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleGenerateContract()}
-              className="border-green-500 text-green-400 hover:bg-green-500 hover:text-white text-xs sm:text-sm"
-            >
-              <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Gerar Contrato</span>
-              <span className="sm:hidden">Gerar</span>
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleGenerateContract()}
+                className="border-green-500 text-green-400 hover:bg-green-500 hover:text-white text-xs sm:text-sm flex-shrink-0"
+              >
+                <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Gerar Contrato</span>
+                <span className="sm:hidden">Gerar</span>
+              </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfigModalOpen(true)}
-              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black text-xs sm:text-sm"
-            >
-              <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Config. Emails</span>
-              <span className="sm:hidden">Emails</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setRefreshing(true);
-                clearFilters();
-                setTimeout(() => setRefreshing(false), 1000);
-              }}
-              disabled={refreshing}
-              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
-            >
-              {refreshing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              {refreshing ? 'Atualizando...' : 'Atualizar'}
-            </Button>
-            
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-              <Input
-                placeholder="Pesquisar contratos..."
-                className="pl-10 w-64 bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfigModalOpen(true)}
+                className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black text-xs sm:text-sm flex-shrink-0"
+              >
+                <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Config. Emails</span>
+                <span className="sm:hidden">Emails</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRefreshing(true);
+                  clearFilters();
+                  setTimeout(() => setRefreshing(false), 1000);
+                }}
+                disabled={refreshing}
+                className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black flex-shrink-0"
+              >
+                {refreshing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                <span className="hidden sm:inline">{refreshing ? 'Atualizando...' : 'Atualizar'}</span>
+                <span className="sm:hidden">{refreshing ? '...' : 'Atualizar'}</span>
+              </Button>
             </div>
             
-            <Button
-              onClick={() => setModalOpen(true)}
-              className="bg-seguranca-red hover:bg-seguranca-darkred"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Contrato
-            </Button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-1 sm:flex-initial">
+              <div className="relative flex-1 sm:flex-initial min-w-0">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <Input
+                  placeholder="Pesquisar contratos..."
+                  className="pl-10 w-full sm:w-48 lg:w-64 bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              
+              <Button
+                onClick={() => setModalOpen(true)}
+                className="bg-seguranca-red hover:bg-seguranca-darkred flex-shrink-0 whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Novo Contrato</span>
+                <span className="sm:hidden">Novo</span>
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -359,9 +366,9 @@ const Contratos = () => {
           />
         )}
 
-        {/* Tabela de Contratos */}
+        {/* Cards de Contratos */}
         {!loading && (
-          <ContratosTable
+          <ContratosCards
             contratos={filteredContratos}
             onEdit={handleEditContrato}
             onDelete={handleDeleteSuccess}
@@ -370,18 +377,6 @@ const Contratos = () => {
           />
         )}
 
-        {/* Estado vazio */}
-        {filteredContratos.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <div className="mx-auto h-12 w-12 text-gray-400 mb-4">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-seguranca-lightgray mb-2">Nenhum contrato encontrado</h3>
-            <p className="text-gray-400">Tente ajustar os filtros de busca ou criar um novo contrato.</p>
-          </div>
-        )}
 
         {/* Modais */}
         <ContratoFormModal

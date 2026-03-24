@@ -1,0 +1,328 @@
+/**
+ * 📱 Melhorias Específicas para Mobile
+ * Corrige problemas visuais em telas pequenas
+ */
+
+/* ============================================
+   CORREÇÕES GLOBAIS PARA MOBILE
+   ============================================ */
+
+@media (max-width: 768px) {
+  
+  /* Prevenir zoom em inputs no iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important; /* Previne auto-zoom no iOS */
+    -webkit-appearance: none;
+  }
+  
+  /* Garantir que placeholders sejam visíveis */
+  ::placeholder {
+    opacity: 0.6 !important;
+    color: #9ca3af !important;
+  }
+  
+  /* Melhor espaçamento em mobile */
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Remover margens extras */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Botões maiores para touch */
+  button {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+  
+  /* Cards mais compactos */
+  .card-dashboard {
+    padding: 1rem !important;
+  }
+  
+  /* Textos mais legíveis */
+  h1 {
+    font-size: 1.5rem !important;
+    line-height: 2rem !important;
+  }
+  
+  h2 {
+    font-size: 1.25rem !important;
+    line-height: 1.75rem !important;
+  }
+  
+  h3 {
+    font-size: 1.125rem !important;
+    line-height: 1.5rem !important;
+  }
+  
+  /* Padding responsivo em cards */
+  [class*="rounded-2xl"] {
+    padding: 1rem !important;
+  }
+  
+  /* Melhorar grids */
+  [class*="grid-cols"] {
+    gap: 0.75rem !important;
+  }
+  
+  /* Tabs mais espaçadas para touch */
+  [role="tablist"] {
+    gap: 0.25rem !important;
+  }
+  
+  [role="tab"] {
+    min-height: 48px !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+  
+  /* Modais ocupam tela inteira em mobile */
+  [role="dialog"] {
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100vh - 2rem) !important;
+    margin: 0.5rem !important;
+  }
+  
+  /* Scroll suave */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Badges menores */
+  .badge {
+    font-size: 0.625rem !important;
+    padding: 0.125rem 0.375rem !important;
+  }
+  
+  /* Ícones apropriados - GARANTIR VISIBILIDADE */
+  svg {
+    flex-shrink: 0 !important;
+    min-width: 1rem !important;
+    min-height: 1rem !important;
+    display: inline-block !important;
+  }
+  
+  /* Ícones em botões */
+  button svg {
+    display: inline-block !important;
+    vertical-align: middle !important;
+  }
+  
+  /* Ícones em cards */
+  [class*="Card"] svg {
+    display: block !important;
+  }
+  
+  /* Lucide icons específicos */
+  .lucide {
+    flex-shrink: 0 !important;
+    display: inline-block !important;
+  }
+}
+
+/* ============================================
+   CORREÇÕES PARA TELAS MUITO PEQUENAS
+   ============================================ */
+
+@media (max-width: 380px) {
+  /* Espaçamento ainda mais compacto */
+  .space-y-6 > * + * {
+    margin-top: 1rem !important;
+  }
+  
+  .gap-6 {
+    gap: 0.75rem !important;
+  }
+  
+  /* Textos menores */
+  h1 {
+    font-size: 1.25rem !important;
+  }
+  
+  /* Padding reduzido */
+  .p-6, .p-8 {
+    padding: 0.75rem !important;
+  }
+}
+
+/* ============================================
+   MELHORIAS PARA TABLETS
+   ============================================ */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Aproveitar melhor o espaço em tablets */
+  .container {
+    max-width: 100% !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+  
+  /* Grids intermediários */
+  [class*="md:grid-cols-4"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  [class*="lg:grid-cols-3"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ============================================
+   CORREÇÕES ESPECÍFICAS DE COMPONENTES
+   ============================================ */
+
+/* Sidebar em mobile - prevenir scroll horizontal */
+@media (max-width: 768px) {
+  aside {
+    max-width: 80vw !important;
+  }
+  
+  /* Header mais compacto */
+  header {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  
+  /* Breadcrumb compacto */
+  nav[aria-label="Breadcrumb"] {
+    font-size: 0.75rem !important;
+  }
+  
+  /* Botões de ação empilhados */
+  .flex.space-x-4 {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+  
+  .flex.space-x-4 > * {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+}
+
+/* ============================================
+   CORREÇÕES PARA PWA
+   ============================================ */
+
+/* Compensar barra de status em PWA iOS */
+@supports (padding-top: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  header {
+    padding-top: calc(env(safe-area-inset-top) + 0.5rem) !important;
+  }
+}
+
+/* ============================================
+   ANIMAÇÕES SUAVES
+   ============================================ */
+
+/* Reduzir animações em mobile para melhor performance */
+@media (max-width: 768px) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.2s !important;
+    transition-duration: 0.2s !important;
+  }
+  
+  /* Remover hover effects em touch devices */
+  @media (hover: none) {
+    .hover\:scale-105:hover {
+      transform: none !important;
+    }
+    
+    .hover\:shadow-lg:hover {
+      box-shadow: inherit !important;
+    }
+  }
+}
+
+/* ============================================
+   TIPOGRAFIA MOBILE
+   ============================================ */
+
+@media (max-width: 640px) {
+  /* Ajustar tamanhos base */
+  :root {
+    font-size: 14px;
+  }
+  
+  /* Truncar textos longos */
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  /* Line clamp para múltiplas linhas */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ============================================
+   CORREÇÕES DE LAYOUT
+   ============================================ */
+
+/* Prevenir overflow horizontal */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+  
+  #root {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+  
+  main {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+  
+  /* Garantir que containers principais não causem scroll horizontal */
+  .container, [class*="Container"], section {
+    max-width: 100% !important;
+  }
+  
+  /* Permitir scroll apenas em containers específicos */
+  .overflow-x-auto, .overflow-x-scroll {
+    max-width: 100vw !important;
+    overflow-x: auto !important;
+  }
+  
+  /* Tabelas responsivas */
+  table {
+    display: block !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+  }
+}
+

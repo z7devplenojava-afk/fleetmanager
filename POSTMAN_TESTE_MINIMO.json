@@ -1,0 +1,8 @@
+{
+  "name": "TESTE MARIA",
+  "cpf": "111.222.333-44",
+  "status": "ACTIVE",
+  "address": {
+    "street": "Rua Teste 123"
+  }
+}

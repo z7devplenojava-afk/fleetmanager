@@ -393,6 +393,19 @@ class NotificationService {
     }
   }
 
+  // Buscar todas as notificações (alias para getPanelNotifications)
+  async getAllNotifications(): Promise<NotificationData[]> {
+    try {
+      console.log('🔗 Buscando notificações no backend');
+      const response = await api.get('/api/notifications');
+      console.log('✅ Notificações carregadas do backend:', response.data.length);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao buscar notificações:', error);
+      throw new Error('Falha ao conectar com o servidor de notificações');
+    }
+  }
+
   // Marcar notificação como lida
   async markAsRead(notificationId: string): Promise<void> {
     try {

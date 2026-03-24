@@ -1,7 +1,7 @@
 // Configuration file for environment variables
 export const config = {
   // API Configuration
-  API_URL: import.meta.env.VITE_API_URL || 'http://localhost:8081',
+  API_URL: import.meta.env.VITE_API_URL || 'https://ci.z7botsolutions.com.br/api',
   
   // Authentication
   TOKEN_KEY: import.meta.env.VITE_TOKEN_KEY || 'token',

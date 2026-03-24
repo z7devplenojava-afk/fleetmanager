@@ -1,0 +1,64 @@
+═══════════════════════════════════════════════════════════════════════
+  ERRO: ClassNotFoundException - BACKEND PRECISA SER RECOMPILADO
+═══════════════════════════════════════════════════════════════════════
+
+❌ PROBLEMA:
+   Quando limpei a pasta "target", as classes compiladas (.class) foram
+   deletadas. O Java não consegue encontrar a classe principal!
+
+✅ SOLUÇÃO (escolha a mais fácil para você):
+
+───────────────────────────────────────────────────────────────────────
+OPÇÃO 1: IntelliJ IDEA (MAIS RÁPIDO!)
+───────────────────────────────────────────────────────────────────────
+
+1. Clique com botão direito no projeto (raiz)
+2. Selecione: Build → Rebuild Project
+3. Aguarde terminar (30-60 segundos)
+4. Inicie o backend normalmente
+
+───────────────────────────────────────────────────────────────────────
+OPÇÃO 2: Eclipse
+───────────────────────────────────────────────────────────────────────
+
+1. Menu: Project → Clean...
+2. Selecione o projeto secured-guard
+3. Clique em: Clean
+4. Aguarde terminar
+5. Inicie o backend normalmente
+
+───────────────────────────────────────────────────────────────────────
+OPÇÃO 3: VSCode ou Terminal
+───────────────────────────────────────────────────────────────────────
+
+1. Abra o terminal na pasta: C:\dev\secured-guard
+2. Execute:
+   
+   cd backend
+   mvn clean install -DskipTests
+
+   (Se "mvn" não funcionar, use a IDE - Opção 1 ou 2)
+
+3. Aguarde terminar
+4. Inicie o backend normalmente
+
+───────────────────────────────────────────────────────────────────────
+DEPOIS DE RECOMPILAR:
+───────────────────────────────────────────────────────────────────────
+
+1. ✅ Execute RESET_FINAL.sql no DBeaver/pgAdmin
+2. ✅ Inicie o backend
+3. ✅ Backend vai funcionar!
+
+═══════════════════════════════════════════════════════════════════════
+
+RESUMO DO PROCESSO COMPLETO:
+
+1. ✅ Corrigidas 8 migrações (já feito)
+2. ⏳ Recompilar backend (VOCÊ - use Opção 1, 2 ou 3 acima)
+3. ⏳ Resetar banco (VOCÊ - execute RESET_FINAL.sql)
+4. ⏳ Iniciar backend (VOCÊ)
+5. ✅ Funcionar!
+
+═══════════════════════════════════════════════════════════════════════
+

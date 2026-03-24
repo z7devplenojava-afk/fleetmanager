@@ -1,0 +1,174 @@
+services:
+  # ========================================
+  # DATABASE (TEST)
+  # ========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: secured-guard-db-test
+    environment:
+      POSTGRES_DB: secured_guard_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "55433:5432"
+    volumes:
+      - postgres_data_test:/var/lib/postgresql/data
+      - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d
+    networks:
+      - secured-guard-test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # REDIS CACHE (TEST)
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: secured-guard-redis-test
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data_test:/data
+    networks:
+      - secured-guard-test
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # BACKEND API (TEST)
+  # ========================================
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-backend-test
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/secured_guard_test
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      # WhatsApp/Baileys REST API
+      BAILEYS_REST_URL: http://whatsapp-service-test:3333
+      BAILEYS_INSTANCE_KEY: securedguard
+      # Configurações para testes
+      TEST_SHOW_SQL: "false"
+      TEST_HIBERNATE_DDL_AUTO: "create-drop"
+      LOG_LEVEL_ROOT: "WARN"
+      LOG_LEVEL_APP: "INFO"
+    ports:
+      - "8082:8080"
+    volumes:
+      - backend_logs_test:/app/logs
+      - backend_uploads_test:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - secured-guard-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # FRONTEND (TEST)
+  # ========================================
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+    container_name: secured-guard-frontend-test
+    environment:
+      VITE_API_URL: http://localhost:8081/api
+      VITE_WS_URL: ws://localhost:8081/ws
+      NODE_ENV: test
+    ports:
+      - "5175:80"
+    depends_on:
+      - backend
+    networks:
+      - secured-guard-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # WHATSAPP SERVICE (Baileys REST API - TEST)
+  # ========================================
+  whatsapp-service:
+    image: z7design/secured-guard-whatsapp:test
+    container_name: whatsapp-service-test
+    environment:
+      PORT: 3333
+      INSTANCE_KEY: securedguard
+      SESSION_DIR: /app/sessions
+    volumes:
+      - whatsapp_sessions_test:/app/sessions
+      - ../backend/holerites:/app/holerites:ro
+    ports:
+      - "3334:3333"
+    networks:
+      - secured-guard-test
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    restart: unless-stopped
+
+  # ========================================
+  # NGINX (TEST)
+  # ========================================
+  nginx:
+    image: nginx:alpine
+    container_name: secured-guard-nginx-test
+    ports:
+      - "8083:80"
+    volumes:
+      - ./nginx/nginx-test.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - secured-guard-test
+    restart: unless-stopped
+
+# ========================================
+# VOLUMES
+# ========================================
+volumes:
+  postgres_data_test:
+    driver: local
+  redis_data_test:
+    driver: local
+  backend_logs_test:
+    driver: local
+  backend_uploads_test:
+    driver: local
+  whatsapp_sessions_test:
+    driver: local
+
+# ========================================
+# NETWORKS
+# ========================================
+networks:
+  secured-guard-test:
+    external: true
+    name: secured-guard

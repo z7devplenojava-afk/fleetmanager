@@ -1,0 +1,321 @@
+name: 🚀 Deploy Pipeline - Secured Guard (Completo)
+
+on:
+  push:
+    branches:
+      - main          # Produção
+      - develop       # Desenvolvimento
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:   # Permite execução manual
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================
+  # STAGE 1: CI - Build & Tests
+  # ============================================
+  ci:
+    name: 🔨 CI - Build & Tests
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🏷️ Gerar versão
+        id: version
+        run: |
+          VERSION="v$(date +%Y.%m.%d)-${GITHUB_SHA::7}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Versão: $VERSION"
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+          cache: 'maven'
+
+      - name: 🔨 Build Backend
+        run: |
+          cd backend
+          mvn clean package -DskipTests -B
+
+      - name: 🧪 Testes Backend
+        run: |
+          cd backend
+          mvn test -B
+
+      - name: 📦 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 🔨 Build Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: ✅ CI Completo
+        run: |
+          echo "✅ Build e testes concluídos!"
+          echo "📦 Versão: ${{ steps.version.outputs.version }}"
+
+  # ============================================
+  # STAGE 2: Deploy CI (Automático)
+  # ============================================
+  deploy-ci:
+    name: 🔧 Deploy CI
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    environment:
+      name: ci
+      url: https://ci.z7botsolutions.com.br
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🔐 Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.CI_SSH_KEY }}
+
+      - name: 🚀 Deploy para CI
+        run: |
+          echo "🚀 Iniciando deploy CI..."
+          echo "📦 Versão: ${{ needs.ci.outputs.version }}"
+          
+          sshpass -p "${{ secrets.CI_SSH_PASS }}" ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.CI_SSH_USER }}@${{ secrets.CI_SSH_HOST }} << 'ENDSSH'
+            
+            cd /var/www/secured_guard/ci
+            
+            echo "📥 Atualizando código..."
+            git pull origin main
+            
+            echo "🔨 Rebuilding containers..."
+            docker-compose -f docker-compose.ci.yml build
+            
+            echo "🚀 Reiniciando serviços..."
+            docker-compose -f docker-compose.ci.yml up -d
+            
+            echo "⏳ Aguardando health check..."
+            sleep 60
+            
+            echo "🔍 Verificando saúde..."
+            curl -f https://ci.z7botsolutions.com.br/api/health || exit 1
+            
+            echo "✅ Deploy CI concluído!"
+          ENDSSH
+
+      - name: 📊 Logs de Deploy
+        if: always()
+        run: |
+          echo "📊 Containers CI:"
+          sshpass -p "${{ secrets.CI_SSH_PASS }}" ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.CI_SSH_USER }}@${{ secrets.CI_SSH_HOST }} \
+            "cd /var/www/secured_guard/ci && docker-compose ps"
+
+  # ============================================
+  # STAGE 3: Deploy DEV (Após CI passar)
+  # ============================================
+  deploy-dev:
+    name: 🚀 Deploy DEV
+    needs: [ci, deploy-ci]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: development
+      url: https://dev.z7botsolutions.com.br
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🔐 Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEV_SSH_KEY }}
+
+      - name: 📦 Deploy para DEV
+        run: |
+          echo "🚀 Iniciando deploy DEV..."
+          
+          ssh ${{ secrets.DEV_USER }}@${{ secrets.DEV_HOST }} << 'ENDSSH'
+            cd /var/www/secured_guard/dev
+            
+            # Backup
+            docker tag secured-guard-dev-backend:latest secured-guard-dev-backend:backup-$(date +%Y%m%d-%H%M%S) 2>/dev/null || true
+            
+            # Pull e build
+            git pull origin develop
+            docker-compose -f docker-compose.dev.yml build
+            docker-compose -f docker-compose.dev.yml up -d
+            
+            # Health check
+            sleep 60
+            curl -f https://dev.z7botsolutions.com.br/api/health || exit 1
+            
+            echo "✅ Deploy DEV concluído!"
+          ENDSSH
+
+  # ============================================
+  # STAGE 4: Deploy TEST (Manual)
+  # ============================================
+  deploy-test:
+    name: 🧪 Deploy TEST
+    needs: [ci, deploy-dev]
+    runs-on: ubuntu-latest
+    environment:
+      name: testing
+      url: https://test.z7botsolutions.com.br
+    
+    steps:
+      - name: ⏸️ Aguardando aprovação manual
+        run: |
+          echo "⏸️ Deploy para TEST requer aprovação manual"
+          echo "👤 Aguardando aprovação de: ${{ github.actor }}"
+
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🔐 Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TEST_SSH_KEY }}
+
+      - name: 🧪 Deploy para TEST
+        run: |
+          echo "🚀 Iniciando deploy TEST..."
+          
+          ssh ${{ secrets.TEST_USER }}@${{ secrets.TEST_HOST }} << 'ENDSSH'
+            cd /var/www/secured_guard/test
+            
+            # Backup
+            docker tag secured-guard-test-backend:latest secured-guard-test-backend:backup-$(date +%Y%m%d-%H%M%S) 2>/dev/null || true
+            
+            # Deploy
+            git pull origin develop
+            docker-compose -f docker-compose.test.yml build
+            docker-compose -f docker-compose.test.yml up -d
+            
+            # Health check
+            sleep 60
+            curl -f https://test.z7botsolutions.com.br/api/health || exit 1
+            
+            echo "✅ Deploy TEST concluído!"
+          ENDSSH
+
+  # ============================================
+  # STAGE 5: Deploy PROD (Manual + Dupla Aprovação)
+  # ============================================
+  deploy-prod:
+    name: 🌟 Deploy PROD
+    needs: [ci, deploy-test]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://secured-guard.com.br
+    
+    steps:
+      - name: ⏸️ Aguardando DUPLA aprovação
+        run: |
+          echo "⏸️ Deploy para PRODUÇÃO requer DUPLA aprovação"
+          echo "👥 Aprovadores necessários: 2"
+          echo "📋 Checklist:"
+          echo "  ✅ Testes em TEST passaram?"
+          echo "  ✅ QA aprovou?"
+          echo "  ✅ Backup recente existe?"
+
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🔐 Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
+
+      - name: 💾 Backup PROD
+        run: |
+          echo "💾 Criando backup completo..."
+          
+          ssh ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'ENDSSH'
+            cd /var/www/secured_guard/prod
+            
+            # Backup banco
+            docker exec secured-guard-prod-db pg_dump -U postgres secured_guard > backup-$(date +%Y%m%d-%H%M%S).sql
+            
+            # Backup imagem
+            docker tag secured-guard-prod-backend:latest secured-guard-prod-backend:backup-$(date +%Y%m%d-%H%M%S)
+            
+            echo "✅ Backup concluído!"
+          ENDSSH
+
+      - name: 🌟 Deploy para PROD
+        run: |
+          echo "🚀 Iniciando deploy PRODUÇÃO..."
+          
+          ssh ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'ENDSSH'
+            cd /var/www/secured_guard/prod
+            
+            # Pull código
+            git pull origin main
+            
+            # Build
+            docker-compose -f docker-compose.prod.yml build
+            
+            # Deploy com zero downtime
+            docker-compose -f docker-compose.prod.yml up -d
+            
+            # Health check
+            sleep 60
+            curl -f https://secured-guard.com.br/api/health || exit 1
+            
+            echo "✅ Deploy PROD concluído!"
+          ENDSSH
+
+      - name: 🎉 Criar Release Tag
+        run: |
+          git tag -a ${{ needs.ci.outputs.version }} -m "Release ${{ needs.ci.outputs.version }}"
+          git push origin ${{ needs.ci.outputs.version }}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

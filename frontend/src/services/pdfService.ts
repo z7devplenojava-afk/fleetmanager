@@ -1,4 +1,4 @@
-import { ShiftChangeFormDTO } from '@/services/shiftChangeService';
+﻿import { ShiftChangeFormDTO } from '@/services/shiftChangeService';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -163,7 +163,7 @@ class PDFService {
         <div style="margin-top: 20px; text-align: center; border-top: 1px solid #ddd; padding-top: 15px;">
           <p style="margin: 0 0 3px 0; font-size: 11px; color: #666; font-weight: bold;">Promover Vigilância Patrimonial LTDA</p>
           <p style="margin: 0; font-size: 9px; color: #999;">
-            Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')} | Secured Guard v1.0
+            Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')} | Fleet Manager v1.0
           </p>
         </div>
       `;

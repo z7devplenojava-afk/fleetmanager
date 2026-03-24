@@ -58,7 +58,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
 
   return (
     <div className={`
-      fixed top-4 right-4 z-50 max-w-sm w-full
+      fixed top-4 right-4 z-[100000] max-w-sm w-full
       bg-seguranca-black border border-gray-700 rounded-lg shadow-lg
       transform transition-all duration-300 ease-in-out
       animate-in slide-in-from-right-full
@@ -96,7 +96,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
 
 export const NotificationContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className="fixed top-4 right-4 z-[100000] space-y-2">
       {children}
     </div>
   );

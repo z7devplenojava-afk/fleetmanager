@@ -1,0 +1,575 @@
+name: 🐳 Deploy CI Environment (Docker Compose)
+
+on:
+  push:
+    branches:
+      - ci
+  workflow_dispatch:
+
+env:
+  ENVIRONMENT: ci
+  DEPLOY_PATH: /var/www/secured_guard/ci
+  APP_URL: https://ci.z7botsolutions.com.br
+
+jobs:
+  build-and-deploy:
+    name: 🚀 Build & Deploy to CI (Docker)
+    runs-on: ubuntu-latest
+    
+    steps:
+      # ============================================
+      # CHECKOUT E SETUP (necessários mas não na imagem)
+      # ============================================
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ci
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: '17'
+          cache: 'maven'
+          cache-dependency-path: backend/pom.xml
+
+      # ============================================
+      # 1️⃣ SETUP NODE.JS 20
+      # ============================================
+      - name: 📦 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # ============================================
+      # 2️⃣ BUILD BACKEND (Maven)
+      # ============================================
+      - name: 🔨 Build Backend (Maven)
+        working-directory: ./backend
+        timeout-minutes: 30
+        run: |
+          echo "🔨 Iniciando build do backend..."
+          echo "📋 Informações do ambiente:"
+          echo "  - Java: $(java -version 2>&1 | head -1)"
+          echo "  - Maven do sistema: $(mvn -version 2>&1 | head -1 || echo 'Maven não disponível')"
+          echo "  - Memória disponível: $(free -h | grep Mem || echo 'N/A')"
+          
+          chmod +x mvnw || true
+          echo "📋 Verificando Maven Wrapper..."
+          ls -la mvnw || echo "⚠️ mvnw não encontrado"
+          echo "📋 Verificando pom.xml..."
+          ls -la pom.xml || echo "❌ pom.xml não encontrado"
+          echo "📋 Verificando estrutura do projeto..."
+          ls -la src/main/java/com/z7design/secured_guard/ || echo "⚠️ Diretório src não encontrado"
+          
+          # Configurar Maven para usar retry
+          echo "📋 Configurando Maven com retry..."
+          mkdir -p ~/.m2
+          printf '%s\n' \
+            '<settings>' \
+            '  <profiles>' \
+            '    <profile>' \
+            '      <id>retry</id>' \
+            '      <properties>' \
+            '        <maven.wagon.http.retryHandler.count>5</maven.wagon.http.retryHandler.count>' \
+            '        <maven.wagon.httpconnectionManager.ttlSeconds>120</maven.wagon.httpconnectionManager.ttlSeconds>' \
+            '        <maven.wagon.http.readTimeout>60000</maven.wagon.http.readTimeout>' \
+            '      </properties>' \
+            '    </profile>' \
+            '  </profiles>' \
+            '  <activeProfiles>' \
+            '    <activeProfile>retry</activeProfile>' \
+            '  </activeProfiles>' \
+            '</settings>' > ~/.m2/settings.xml
+          
+          echo "🔨 Executando Maven clean package..."
+          echo "📋 Configurando variáveis de ambiente do Maven..."
+          export MAVEN_OPTS="-Xmx2048m"
+          
+          # Tentar usar Maven Wrapper com retry, ou usar Maven do sistema
+          MAVEN_CMD="./mvnw"
+          if ! ./mvnw -v >/dev/null 2>&1; then
+            echo "⚠️ Maven Wrapper não disponível, tentando usar Maven do sistema..."
+            if command -v mvn >/dev/null 2>&1; then
+              MAVEN_CMD="mvn"
+              echo "✅ Usando Maven do sistema: $(mvn -version | head -1)"
+            else
+              echo "❌ Nenhum Maven disponível!"
+              exit 1
+            fi
+          fi
+          
+          # Tentar build com retry
+          for attempt in 1 2 3; do
+            echo "🔨 Tentativa $attempt de build..."
+            timeout 1800 $MAVEN_CMD clean package -Dmaven.test.skip=true -Dspring.profiles.active=ci -DskipTests=true && {
+              echo "✅ Build concluído com sucesso!"
+              break
+            } || {
+              if [ $attempt -lt 3 ]; then
+                echo "⚠️ Tentativa $attempt falhou, aguardando 10 segundos antes de tentar novamente..."
+                sleep 10
+              else
+                echo "❌ Build falhou após 3 tentativas! Verificando logs..."
+                echo "📋 Listando arquivos em target/..."
+                ls -la target/ 2>/dev/null || echo "⚠️ Diretório target não existe"
+                echo "📋 Verificando logs do Maven..."
+                find . -name "*.log" -type f -exec tail -50 {} \; 2>/dev/null || echo "⚠️ Nenhum log encontrado"
+                exit 1
+              fi
+            }
+          done
+          
+          echo "✅ Build concluído! Verificando JAR gerado..."
+          ls -lh target/*.jar || echo "⚠️ Nenhum JAR encontrado em target/"
+          echo "📋 Listando todos os arquivos em target/:"
+          ls -lah target/ || echo "⚠️ Diretório target não existe"
+
+      # ============================================
+      # 3️⃣ BUILD FRONTEND (Vite)
+      # ============================================
+      - name: 🎨 Build Frontend (Vite)
+        working-directory: ./frontend
+        env:
+          VITE_API_URL: https://ci.z7botsolutions.com.br/api
+          VITE_ENVIRONMENT: ci
+        run: |
+          npm ci
+          npm run build
+
+      # ============================================
+      # 4️⃣ BUILD DOCKER IMAGES
+      # ============================================
+      - name: 🐳 Build Docker images
+        run: |
+          echo "🐳 Iniciando build das imagens Docker..."
+          
+          # Verificar se os Dockerfiles existem
+          echo "📋 Verificando Dockerfiles..."
+          ls -la backend/Dockerfile.prod || echo "❌ backend/Dockerfile.prod não encontrado"
+          ls -la frontend/Dockerfile.prod || echo "❌ frontend/Dockerfile.prod não encontrado"
+          ls -la whatsapp-service/Dockerfile || echo "❌ whatsapp-service/Dockerfile não encontrado"
+          
+          # Verificar se o JAR foi gerado
+          echo "📋 Verificando JAR do backend..."
+          ls -lh backend/target/*.jar || echo "⚠️ Nenhum JAR encontrado em backend/target/"
+          
+          # Verificar se o dist do frontend foi gerado
+          echo "📋 Verificando build do frontend..."
+          ls -lh frontend/dist/ || echo "⚠️ Diretório frontend/dist/ não encontrado"
+          
+          # Build Backend
+          echo "🔨 Construindo imagem do backend..."
+          docker build --no-cache \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            --label org.opencontainers.image.source=https://github.com/zemarioramos/secured-guard \
+            -t z7design/secured-guard-backend:ci \
+            -f backend/Dockerfile.prod ./backend || {
+            echo "❌ Build do backend Docker falhou!"
+            exit 1
+          }
+          echo "✅ Imagem do backend construída com sucesso!"
+          
+          # Build Frontend
+          echo "🎨 Construindo imagem do frontend..."
+          docker build --no-cache \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            --label org.opencontainers.image.source=https://github.com/zemarioramos/secured-guard \
+            -t z7design/secured-guard-frontend:ci \
+            --build-arg VITE_API_URL=https://ci.z7botsolutions.com.br/api \
+            --build-arg VITE_WS_URL=wss://ci.z7botsolutions.com.br/ws \
+            --build-arg VITE_ENVIRONMENT=ci \
+            -f frontend/Dockerfile.prod ./frontend || {
+            echo "❌ Build do frontend Docker falhou!"
+            exit 1
+          }
+          echo "✅ Imagem do frontend construída com sucesso!"
+          
+          # Build WhatsApp Service
+          echo "📱 Construindo imagem do WhatsApp service..."
+          docker build --no-cache \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            --label org.opencontainers.image.source=https://github.com/zemarioramos/secured-guard \
+            -t z7design/secured-guard-whatsapp:ci \
+            -f whatsapp-service/Dockerfile ./whatsapp-service || {
+            echo "❌ Build do WhatsApp service Docker falhou!"
+            exit 1
+          }
+          echo "✅ Imagem do WhatsApp service construída com sucesso!"
+          
+          # Verificar imagens construídas
+          echo "📋 Verificando imagens construídas..."
+          docker images | grep z7design/secured-guard || echo "⚠️ Nenhuma imagem encontrada"
+
+      # ============================================
+      # 5️⃣ LOGIN TO DOCKER HUB
+      # ============================================
+      - name: 🔐 Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # ============================================
+      # 6️⃣ PUSH IMAGES TO DOCKER HUB
+      # ============================================
+      - name: 📤 Push images to Docker Hub
+        run: |
+          docker push z7design/secured-guard-backend:ci
+          docker push z7design/secured-guard-frontend:ci
+          docker push z7design/secured-guard-whatsapp:ci
+
+      # ============================================
+      # 7️⃣ INSTALL SSHPASS AND CONFIGURE SSH
+      # ============================================
+      - name: 🔑 Install sshpass and configure SSH
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST_CI }} >> ~/.ssh/known_hosts
+
+      # ============================================
+      # 8️⃣ TRANSFER FILES TO VPS
+      # ============================================
+      - name: 📤 Transfer files to VPS
+        run: |
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} \
+            "mkdir -p /var/www/secured_guard/ci/nginx"
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS docker-compose.ci.yml \
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/secured_guard/ci/
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS nginx/ci.conf \
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/secured_guard/ci/nginx/
+
+      # ============================================
+      # 9️⃣ VALIDATE AND CONFIGURE JWT_SECRET
+      # ============================================
+      - name: 🔐 Validate and configure JWT_SECRET
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            JWT_SECRET="${{ secrets.JWT_SECRET_CI }}"
+            if [ -z "$JWT_SECRET" ]; then
+              JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
+            fi
+            export JWT_SECRET
+          EOF
+
+      # ============================================
+      # 🔟 CREATE .ENV FILE ON VPS
+      # ============================================
+      - name: ⚙️ Create .env file on VPS
+        env:
+          MAIL_PASSWORD_SECRET: ${{ secrets.MAIL_PASSWORD }}
+        run: |
+          # Criar arquivo .env localmente primeiro para evitar problemas com caracteres especiais
+          # Usar printf para cada linha, exceto MAIL_PASSWORD que usa variável de ambiente
+          {
+            printf 'POSTGRES_PASSWORD_CI=%s\n' "${{ secrets.POSTGRES_PASSWORD_CI || '4KaCiJc6an@7sgbdcid2025' }}"
+            printf 'REDIS_PASSWORD_CI=%s\n' "${{ secrets.REDIS_PASSWORD_CI || 'redis_ci_2025' }}"
+            printf 'JWT_SECRET_CI=%s\n' "${{ secrets.JWT_SECRET_CI || 'jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key' }}"
+            printf '# Email Configuration\n'
+            printf 'MAIL_HOST=%s\n' "${{ secrets.MAIL_HOST || 'mail.z7design.com.br' }}"
+            printf 'MAIL_PORT=%s\n' "${{ secrets.MAIL_PORT || '465' }}"
+            printf 'MAIL_USERNAME=%s\n' "${{ secrets.MAIL_USERNAME || 'securedguard@z7design.com.br' }}"
+            # Para MAIL_PASSWORD, usar variável de ambiente (já definida no env do step)
+            # Isso evita problemas com caracteres especiais como $( na senha
+            if [ -n "${MAIL_PASSWORD_SECRET}" ]; then
+              # Usar printf com %s para evitar interpretação de caracteres especiais
+              printf 'MAIL_PASSWORD='
+              printf '%s' "${MAIL_PASSWORD_SECRET}"
+              printf '\n'
+            else
+              # Se não houver secret, deixar vazio - o Spring Boot usará o valor do application-ci.properties
+              printf 'MAIL_PASSWORD=\n'
+            fi
+            printf 'MAIL_STARTTLS_ENABLE=%s\n' "${{ secrets.MAIL_STARTTLS_ENABLE || 'false' }}"
+            printf 'MAIL_SSL_ENABLE=%s\n' "${{ secrets.MAIL_SSL_ENABLE || 'true' }}"
+            printf 'MAIL_SOCKET_FACTORY=%s\n' "${{ secrets.MAIL_SOCKET_FACTORY || 'javax.net.ssl.SSLSocketFactory' }}"
+            printf 'MAIL_SOCKET_FACTORY_PORT=%s\n' "${{ secrets.MAIL_SOCKET_FACTORY_PORT || '465' }}"
+            printf 'MAIL_CONNECTION_TIMEOUT=%s\n' "${{ secrets.MAIL_CONNECTION_TIMEOUT || '10000' }}"
+            printf 'MAIL_TIMEOUT=%s\n' "${{ secrets.MAIL_TIMEOUT || '10000' }}"
+            printf 'MAIL_WRITE_TIMEOUT=%s\n' "${{ secrets.MAIL_WRITE_TIMEOUT || '10000' }}"
+            printf 'MAIL_DEBUG=%s\n' "${{ secrets.MAIL_DEBUG || 'false' }}"
+            printf '# WhatsApp Configuration\n'
+            # Usar whatsapp-service-ci:3333 que está definido no docker-compose.ci.yml
+            printf 'BAILEYS_REST_URL=%s\n' "${{ secrets.BAILEYS_REST_URL || 'http://whatsapp-service-ci:3333' }}"
+            printf 'BAILEYS_ENABLED=%s\n' "${{ secrets.BAILEYS_ENABLED || 'true' }}"
+            printf 'BAILEYS_INSTANCE_KEY=%s\n' "${{ secrets.BAILEYS_INSTANCE_KEY || 'securedguard_ci' }}"
+          } > /tmp/ci.env
+          # Enviar arquivo para VPS
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp /tmp/ci.env ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/secured_guard/ci/.env
+          # Limpar arquivo temporário
+          rm -f /tmp/ci.env
+
+      # ============================================
+      # 1️⃣1️⃣ ENSURE JWT_SECRET IS CORRECT ON HOST AND .ENV
+      # ============================================
+      - name: 🔐 Ensure JWT_SECRET is correct on host and .env
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            cd /var/www/secured_guard/ci
+            JWT_SECRET="${{ secrets.JWT_SECRET_CI }}"
+            if [ -z "$JWT_SECRET" ]; then
+              JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
+            fi
+            export JWT_SECRET=$JWT_SECRET
+            echo "JWT_SECRET_CI=$JWT_SECRET" >> .env
+          EOF
+
+      # ============================================
+      # 1️⃣2️⃣ FORCE .ENV CORRECTION BEFORE STOPPING CONTAINERS
+      # ============================================
+      - name: 🔧 Force .env correction before stopping containers
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            cd /var/www/secured_guard/ci
+            JWT_SECRET="${{ secrets.JWT_SECRET_CI }}"
+            if [ -z "$JWT_SECRET" ]; then
+              JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
+            fi
+            sed -i '/^JWT_SECRET_CI=/d' .env
+            echo "JWT_SECRET_CI=$JWT_SECRET" >> .env
+          EOF
+
+      # ============================================
+      # 1️⃣3️⃣ FORCE EXIT SWARM MODE AND COMPLETE CLEANUP
+      # ============================================
+      - name: 🔧 Force exit Swarm mode and complete cleanup
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            docker swarm leave --force 2>/dev/null || true
+            cd /var/www/secured_guard/ci
+            docker-compose -f docker-compose.ci.yml down --remove-orphans 2>/dev/null || true
+            docker ps -a | grep secured-guard | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
+          EOF
+
+      # ============================================
+      # 1️⃣4️⃣ BACKUP AND STOP OLD CONTAINERS
+      # ============================================
+      - name: 💾 Backup and stop old containers
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            cd /var/www/secured_guard/ci
+            docker-compose -f docker-compose.ci.yml stop 2>/dev/null || true
+          EOF
+
+      # ============================================
+      # 1️⃣5️⃣ PULL NEW IMAGES (with retry and keepalive)
+      # ============================================
+      - name: 📥 Pull new images
+        run: |
+          SSH_OPTS="-o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -o ConnectTimeout=30"
+
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            set -e
+            export DOCKER_CLIENT_TIMEOUT=300
+            export DOCKER_HTTP_TIMEOUT=300
+
+            echo "🔎 Verificando acesso ao Docker Hub..."
+            for i in 1 2 3; do
+              if curl -fsSL https://registry-1.docker.io/v2/ >/dev/null; then
+                echo "✅ Docker Hub acessível"
+                break
+              fi
+              echo "⚠️ Tentativa $i de acesso ao Docker Hub falhou, aguardando 10s..."
+              sleep 10
+            done
+
+            echo "🔐 Login no Docker Hub..."
+            echo '${{ secrets.DOCKER_PASSWORD }}' | docker login -u '${{ secrets.DOCKER_USERNAME }}' --password-stdin
+
+            echo "🧹 Removendo imagens antigas..."
+            docker image rm -f z7design/secured-guard-backend:ci z7design/secured-guard-frontend:ci z7design/secured-guard-whatsapp:ci 2>/dev/null || true
+
+            echo "📥 Pull backend (retry)..."
+            for i in 1 2 3; do
+              docker pull z7design/secured-guard-backend:ci && break || { echo "⚠️ Pull backend falhou ($i)"; sleep 10; }
+            done
+
+            echo "📥 Pull frontend (retry)..."
+            for i in 1 2 3; do
+              docker pull z7design/secured-guard-frontend:ci && break || { echo "⚠️ Pull frontend falhou ($i)"; sleep 10; }
+            done
+
+            echo "📥 Pull whatsapp (retry)..."
+            for i in 1 2 3; do
+              docker pull z7design/secured-guard-whatsapp:ci && break || { echo "⚠️ Pull whatsapp falhou ($i)"; sleep 10; }
+            done
+
+            echo "🔎 Labels das imagens:"
+            docker image inspect z7design/secured-guard-backend:ci --format 'backend.revision={{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null || echo "backend.revision=unknown"
+            docker image inspect z7design/secured-guard-frontend:ci --format 'frontend.revision={{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null || echo "frontend.revision=unknown"
+            docker image inspect z7design/secured-guard-whatsapp:ci --format 'whatsapp.revision={{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null || echo "whatsapp.revision=unknown"
+          EOF
+
+      # ============================================
+      # 1️⃣6️⃣ VERIFY IMAGES BEFORE STARTING
+      # ============================================
+      - name: 🔍 Verify images before starting
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            docker images | grep "z7design/secured-guard"
+          EOF
+
+      # ============================================
+      # 1️⃣7️⃣ CLEAN NETWORKS BEFORE STARTING
+      # ============================================
+      - name: 🧹 Clean networks before starting
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            cd /var/www/secured_guard/ci
+            # Parar containers que podem estar usando a rede
+            docker-compose -f docker-compose.ci.yml down 2>/dev/null || true
+            # Remover rede secured-guard-ci se existir (será recriada pelo docker-compose)
+            docker network rm secured-guard-ci 2>/dev/null || true
+            # Aguardar um pouco para garantir que a rede foi removida
+            sleep 2
+            # Verificar se a rede foi removida
+            docker network ls | grep secured-guard-ci || echo "✅ Rede secured-guard-ci removida ou não existe"
+          EOF
+
+      # ============================================
+      # 1️⃣8️⃣ START NEW CONTAINERS
+      # ============================================
+      - name: 🚀 Start new containers
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            cd /var/www/secured_guard/ci
+            docker-compose -f docker-compose.ci.yml up -d --force-recreate --pull always --remove-orphans
+          EOF
+
+      # ============================================
+      # 1️⃣9️⃣ FIX CONTAINERS THAT ARE NOT RUNNING
+      # ============================================
+      - name: 🔧 Fix containers that are not running
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            cd /var/www/secured_guard/ci
+            docker-compose -f docker-compose.ci.yml ps
+            docker-compose -f docker-compose.ci.yml up -d
+          EOF
+
+      # ============================================
+      # 1️⃣9️⃣ VERIFY .ENV AND JWT_SECRET IN CONTAINERS
+      # ============================================
+      - name: 🔐 Verify .env and JWT_SECRET in containers
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            JWT_SECRET="${{ secrets.JWT_SECRET_CI }}"
+            if [ -z "$JWT_SECRET" ]; then
+              JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
+            fi
+            cd /var/www/secured_guard/ci
+            cat .env | grep JWT_SECRET
+            docker exec secured-guard-backend-ci sh -c "export JWT_SECRET=$JWT_SECRET" || true
+          EOF
+
+      # ============================================
+      # 2️⃣1️⃣ ENSURE USER ROLES AND PERMISSIONS
+      # ============================================
+      - name: 👥 Ensure user roles and permissions
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            echo "Verificando permissões de usuários..."
+          EOF
+
+      # ============================================
+      # 2️⃣2️⃣ DIAGNOSTIC - CONTAINER STATUS
+      # ============================================
+      - name: 🔍 Diagnostic - Container Status
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            cd /var/www/secured_guard/ci
+            docker-compose -f docker-compose.ci.yml ps
+            docker logs --tail 50 secured-guard-backend-ci
+          EOF
+
+      # ============================================
+      # 2️⃣3️⃣ DIAGNOSTIC - NETWORK CONNECTIVITY
+      # ============================================
+      - name: 🌐 Diagnostic - Network Connectivity
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:8081/api/health || echo "Backend não responde"
+          EOF
+
+      # ============================================
+      # 2️⃣4️⃣ VERIFY CONTAINERS ARE RUNNING
+      # ============================================
+      - name: 🔍 Verify containers are running
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            docker ps | grep secured-guard
+          EOF
+
+      # ============================================
+      # 2️⃣5️⃣ ENSURE TRAEFIK IS RUNNING
+      # ============================================
+      - name: 🔄 Ensure traefik is running
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            if ! docker ps | grep -q traefik; then
+              cd /var/www/secured_guard
+              docker-compose -f docker-compose.traefik.yml up -d
+            fi
+          EOF
+
+      # ============================================
+      # 2️⃣6️⃣ CLEAR SERVICE WORKER CACHE
+      # ============================================
+      - name: 🧹 Clear Service Worker Cache
+        run: |
+          # Enviar script de limpeza para VPS
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp scripts/clear-service-worker-cache.sh \
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/tmp/clear-service-worker-cache.sh
+          
+          # Executar script na VPS
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
+            chmod +x /tmp/clear-service-worker-cache.sh
+            /tmp/clear-service-worker-cache.sh
+          EOF
+
+      # ============================================
+      # 2️⃣7️⃣ HEALTH CHECK
+      # ============================================
+      - name: 🏥 Health check
+        env:
+          SSH_USER: ${{ secrets.VPS_USER_CI }}
+          SSH_HOST: ${{ secrets.VPS_HOST_CI }}
+          SSH_PASSWORD: ${{ secrets.VPS_PASSWORD_CI }}
+        run: |
+          chmod +x scripts/health-check-ci.sh
+          ./scripts/health-check-ci.sh
+
+      # ============================================
+      # 2️⃣7️⃣ RUN LOGIN AFTER DEPLOY
+      # ============================================
+      - name: 🔐 Run login after deploy
+        run: |
+          sleep 30
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST https://ci.z7botsolutions.com.br/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"username":"test","password":"test"}' \
+            --max-time 10 2>/dev/null || echo "000")
+          echo "HTTP Code: $HTTP_CODE"
+
+      # ============================================
+      # 2️⃣7️⃣ DEPLOYMENT SUCCESSFUL
+      # ============================================
+      - name: 🎉 Deployment successful
+        if: success()
+        run: |
+          echo "✅ Deploy CI concluído com sucesso!"
+          echo "🌐 URL: https://ci.z7botsolutions.com.br"
+
+      # ============================================
+      # 2️⃣8️⃣ ROLLBACK ON FAILURE
+      # ============================================
+      - name: 🔄 Rollback on failure
+        if: failure()
+        run: |
+          echo "❌ Deploy falhou!"

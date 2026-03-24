@@ -68,19 +68,41 @@ const GestaoFuncionarios: React.FC = () => {
   }, [cadastroModalOpen]);
 
   useEffect(() => {
-    if (cadastroModalOpen === false) {
-      employeeService.getEmployees().then(setEmployees);
-    }
-  }, [cadastroModalOpen]);
-
-  useEffect(() => {
+    console.log('[GestaoFuncionarios] Carregando funcionários, filtros:', filters);
+    console.log('[GestaoFuncionarios] employeeService disponível:', !!employeeService);
+    console.log('[GestaoFuncionarios] Métodos disponíveis:', Object.keys(employeeService));
+    
     const params: any = {};
     if (filters.registrationNumber) params.registrationNumber = filters.registrationNumber;
     if (filters.positionId) params.positionId = filters.positionId;
     if (filters.positionDescription) params.positionDescription = filters.positionDescription;
     if (filters.unitId) params.unitId = filters.unitId;
     if (filters.status) params.status = filters.status;
-    employeeService.getEmployees(params).then(setEmployees);
+    
+    // Se não há filtros, buscar todos os funcionários
+    if (Object.keys(params).length === 0) {
+      console.log('[GestaoFuncionarios] Buscando todos os funcionários (sem filtros)');
+      employeeService.getAllEmployees().then(setEmployees).catch(err => {
+        console.error('[GestaoFuncionarios] Erro ao buscar todos os funcionários:', err);
+        setEmployees([]);
+      });
+    } else {
+      console.log('[GestaoFuncionarios] Buscando funcionários com filtros:', params);
+      console.log('[GestaoFuncionarios] Método getEmployees disponível:', typeof employeeService.getEmployees);
+      // Verificar se o método existe antes de chamar
+      if (typeof employeeService.getEmployees === 'function') {
+        employeeService.getEmployees(params).then(setEmployees).catch(err => {
+          console.error('[GestaoFuncionarios] Erro ao buscar funcionários com filtros:', err);
+          setEmployees([]);
+        });
+      } else {
+        console.warn('[GestaoFuncionarios] Método getEmployees não encontrado, usando getAllEmployees');
+        employeeService.getAllEmployees().then(setEmployees).catch(err => {
+          console.error('[GestaoFuncionarios] Erro ao buscar funcionários:', err);
+          setEmployees([]);
+        });
+      }
+    }
   }, [filters, cadastroModalOpen]);
 
   const handleChange = (field: string, value: string) => {

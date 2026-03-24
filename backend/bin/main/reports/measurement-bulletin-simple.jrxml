@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="measurement-bulletin-simple" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="a1b2c3d4-e5f6-7890-abcd-ef1234567890">
+    
+    <!-- Parâmetros -->
+    <parameter name="CONTRACT_NUMBER" class="java.lang.String"/>
+    <parameter name="PERIOD_START" class="java.lang.String"/>
+    <parameter name="PERIOD_END" class="java.lang.String"/>
+    <parameter name="COMPANY_NAME" class="java.lang.String"/>
+    <parameter name="SUBTOTAL" class="java.math.BigDecimal"/>
+    <parameter name="ELABORATED_BY" class="java.lang.String"/>
+    <parameter name="MEASURED_BY" class="java.lang.String"/>
+    <parameter name="GENERATED_DATE" class="java.lang.String"/>
+    
+    <!-- Campos do datasource -->
+    <field name="id" class="java.util.UUID"/>
+    <field name="companyName" class="java.lang.String"/>
+    <field name="contractNumber" class="java.lang.String"/>
+    <field name="subtotal" class="java.math.BigDecimal"/>
+    <field name="elaboratedBy" class="java.lang.String"/>
+    <field name="measuredBy" class="java.lang.String"/>
+    
+    <!-- Cabeçalho da página -->
+    <title>
+        <band height="100" splitType="Stretch">
+            <!-- Título -->
+            <staticText>
+                <reportElement x="0" y="0" width="555" height="30" uuid="title"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font fontName="Arial" size="18" isBold="true" pdfFontName="Helvetica-Bold"/>
+                </textElement>
+                <text><![CDATA[BOLETIM DE MEDIÇÃO]]></text>
+            </staticText>
+            
+            <!-- Informações do contrato -->
+            <staticText>
+                <reportElement x="0" y="40" width="100" height="15" uuid="contract-label"/>
+                <textElement>
+                    <font fontName="Arial" size="12" pdfFontName="Helvetica"/>
+                </textElement>
+                <text><![CDATA[Nº Contrato:]]></text>
+            </staticText>
+            
+            <textField>
+                <reportElement x="80" y="40" width="200" height="15" uuid="contract-value"/>
+                <textElement>
+                    <font fontName="Arial" size="12" pdfFontName="Helvetica"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{CONTRACT_NUMBER}]]></textFieldExpression>
+            </textField>
+            
+            <staticText>
+                <reportElement x="300" y="40" width="100" height="15" uuid="period-label"/>
+                <textElement>
+                    <font fontName="Arial" size="12" pdfFontName="Helvetica"/>
+                </textElement>
+                <text><![CDATA[Período:]]></text>
+            </staticText>
+            
+            <textField>
+                <reportElement x="350" y="40" width="205" height="15" uuid="period-value"/>
+                <textElement>
+                    <font fontName="Arial" size="12" pdfFontName="Helvetica"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{PERIOD_START} + " a " + $P{PERIOD_END}]]></textFieldExpression>
+            </textField>
+            
+            <!-- Empresa -->
+            <staticText>
+                <reportElement x="0" y="60" width="100" height="15" uuid="company-label"/>
+                <textElement>
+                    <font fontName="Arial" size="12" pdfFontName="Helvetica"/>
+                </textElement>
+                <text><![CDATA[Empresa:]]></text>
+            </staticText>
+            
+            <textField>
+                <reportElement x="70" y="60" width="485" height="15" uuid="company-value"/>
+                <textElement>
+                    <font fontName="Arial" size="12" pdfFontName="Helvetica"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{companyName}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+    
+    <!-- Detalhes -->
+    <detail>
+        <band height="100" splitType="Stretch">
+            <!-- Subtotal -->
+            <staticText>
+                <reportElement x="400" y="20" width="100" height="20" uuid="subtotal-label"/>
+                <textElement textAlignment="Right">
+                    <font fontName="Arial" size="14" isBold="true" pdfFontName="Helvetica-Bold"/>
+                </textElement>
+                <text><![CDATA[Subtotal:]]></text>
+            </staticText>
+            
+            <textField pattern="R$ #,##0.00">
+                <reportElement x="500" y="20" width="55" height="20" uuid="subtotal-value"/>
+                <textElement textAlignment="Right">
+                    <font fontName="Arial" size="14" isBold="true" pdfFontName="Helvetica-Bold"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{subtotal}]]></textFieldExpression>
+            </textField>
+            
+            <!-- Seções de assinatura -->
+            <staticText>
+                <reportElement x="0" y="50" width="200" height="20" uuid="signature-1-label"/>
+                <textElement>
+                    <font fontName="Arial" size="12" isBold="true" pdfFontName="Helvetica-Bold"/>
+                </textElement>
+                <text><![CDATA[ELABORADO/APROVADO POR:]]></text>
+            </staticText>
+            
+            <line>
+                <reportElement x="0" y="75" width="200" height="1" uuid="signature-1-line"/>
+                <graphicElement>
+                    <pen lineWidth="1"/>
+                </graphicElement>
+            </line>
+            
+            <textField>
+                <reportElement x="0" y="80" width="200" height="15" uuid="signature-1-value"/>
+                <textElement>
+                    <font fontName="Arial" size="10" pdfFontName="Helvetica"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{elaboratedBy}]]></textFieldExpression>
+            </textField>
+            
+            <staticText>
+                <reportElement x="280" y="50" width="200" height="20" uuid="signature-2-label"/>
+                <textElement>
+                    <font fontName="Arial" size="12" isBold="true" pdfFontName="Helvetica-Bold"/>
+                </textElement>
+                <text><![CDATA[RESPONSÁVEL PELA MEDIÇÃO:]]></text>
+            </staticText>
+            
+            <line>
+                <reportElement x="280" y="75" width="200" height="1" uuid="signature-2-line"/>
+                <graphicElement>
+                    <pen lineWidth="1"/>
+                </graphicElement>
+            </line>
+            
+            <textField>
+                <reportElement x="280" y="80" width="200" height="15" uuid="signature-2-value"/>
+                <textElement>
+                    <font fontName="Arial" size="10" pdfFontName="Helvetica"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{measuredBy}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+    
+    <!-- Rodapé -->
+    <pageFooter>
+        <band height="30" splitType="Stretch">
+            <staticText>
+                <reportElement x="0" y="10" width="555" height="15" uuid="footer"/>
+                <textElement textAlignment="Center">
+                    <font fontName="Arial" size="8" pdfFontName="Helvetica"/>
+                </textElement>
+                <text><![CDATA[Promover Vigilância & Serviços - Gerado em: ]]></text>
+            </staticText>
+            
+            <textField>
+                <reportElement x="300" y="10" width="255" height="15" uuid="generated-date"/>
+                <textElement textAlignment="Left">
+                    <font fontName="Arial" size="8" pdfFontName="Helvetica"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{GENERATED_DATE}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+</jasperReport>

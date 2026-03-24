@@ -1,0 +1,3 @@
+-- Migração V400 - Estrutura básica para dados operacionais
+-- Esta migração foi limpa para evitar conflitos de dados
+-- Os dados podem ser inseridos manualmente ou via scripts separados

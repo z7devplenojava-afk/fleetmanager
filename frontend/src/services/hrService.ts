@@ -120,16 +120,18 @@ interface OccurrenceAPI {
 }
 
 interface VacationAPI {
-  id: number;
-  employeeId: number;
+  id: string | number;
+  employeeId: string | number;
   employeeName: string;
-  type: 'REGULAR' | 'COLLECTIVE' | 'COMPENSATORY';
-  acquisitionPeriod: string;
-  concessionPeriod: string;
+  type?: 'REGULAR' | 'COLLECTIVE' | 'COMPENSATORY';
+  acquisitionPeriod?: string;
+  concessionPeriod?: string;
   startDate: string;
   endDate: string;
-  days: number;
-  status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  daysTaken?: number;
+  days?: number;
+  remainingDays?: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -316,7 +318,7 @@ class HRService {
   // Buscar funcionários com experiência vencendo
   async getEmployeesWithExpiringProbation(days: number = 7): Promise<Employee[]> {
     try {
-      const response = await api.get(`/hr/employees/probation-expiring?days=${days}`);
+      const response = await api.get(`/api/hr/employees/probation-expiring?days=${days}`);
       return response.data.map((emp: EmployeeAPI) => this.mapEmployeeFromAPI(emp));
     } catch (error) {
       console.error('Erro ao buscar funcionários com experiência vencendo:', error);
@@ -569,24 +571,46 @@ class HRService {
       if (filters?.dateFrom) params.append('dateFrom', filters.dateFrom);
       if (filters?.dateTo) params.append('dateTo', filters.dateTo);
 
-      const url = `/hr/vacations${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = `/api/hr/vacations${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await api.get(url);
       
-      return response.data.map((vacation: VacationAPI) => ({
-        id: vacation.id,
-        employeeId: vacation.employeeId,
-        employeeName: vacation.employeeName,
-        type: vacation.type,
-        acquisitionPeriod: vacation.acquisitionPeriod,
-        concessionPeriod: vacation.concessionPeriod,
-        startDate: vacation.startDate,
-        endDate: vacation.endDate,
-        days: vacation.days,
-        status: vacation.status,
-        notes: vacation.notes,
-        createdAt: vacation.createdAt,
-        updatedAt: vacation.updatedAt
-      }));
+      return response.data.map((vacation: VacationAPI) => {
+        // Mapear status do backend para o formato do frontend
+        let status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' = 'PLANNED';
+        if (vacation.status === 'PENDING') {
+          status = 'PLANNED';
+        } else if (vacation.status === 'APPROVED') {
+          // Verificar se está em progresso ou completada baseado nas datas
+          const today = new Date();
+          const startDate = new Date(vacation.startDate);
+          const endDate = new Date(vacation.endDate);
+          if (today >= startDate && today <= endDate) {
+            status = 'IN_PROGRESS';
+          } else if (today > endDate) {
+            status = 'COMPLETED';
+          } else {
+            status = 'PLANNED';
+          }
+        } else if (vacation.status === 'CANCELLED') {
+          status = 'CANCELLED';
+        }
+        
+        return {
+          id: vacation.id,
+          employeeId: vacation.employeeId,
+          employeeName: vacation.employeeName,
+          type: vacation.type || 'REGULAR',
+          acquisitionPeriod: vacation.acquisitionPeriod || '',
+          concessionPeriod: vacation.concessionPeriod || '',
+          startDate: vacation.startDate,
+          endDate: vacation.endDate,
+          days: vacation.daysTaken || vacation.days || 0,
+          status: status,
+          notes: vacation.notes,
+          createdAt: vacation.createdAt,
+          updatedAt: vacation.updatedAt
+        };
+      });
     } catch (error) {
       console.error('Erro ao buscar férias:', error);
       return this.getMockVacations();

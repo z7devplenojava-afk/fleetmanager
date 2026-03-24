@@ -5,8 +5,11 @@ export interface CostCenterDTO {
   code?: string;
   name: string;
   description?: string;
-  owner?: string;
-  status?: 'ACTIVE' | 'INACTIVE';
+  responsible?: string;
+  department?: string;
+  budget?: number;
+  currentSpent?: number;
+  status?: 'ATIVO' | 'INATIVO' | 'SUSPENSO' | 'ACTIVE' | 'INACTIVE';
 }
 
 export const costCenterService = {

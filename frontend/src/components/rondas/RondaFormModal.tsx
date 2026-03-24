@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, MapPin, Clock, User, Shield } from 'lucide-react';
 import { Ronda, CreateRondaDTO, RondaTipo, RondaPrioridade, RondaStatus } from '@/types/rondas';
 import { rondasService } from '@/services/rondasService';
+import { workPostService, WorkPost } from '@/services/workPostService';
+import { employeeService } from '@/services/employeeService';
 
 interface RondaFormModalProps {
   open: boolean;
@@ -44,20 +46,9 @@ export const RondaFormModal: React.FC<RondaFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [tipos, setTipos] = useState<RondaTipo[]>([]);
   const [prioridades, setPrioridades] = useState<RondaPrioridade[]>([]);
-
-  // Mock de funcionários e locais
-  const funcionarios = [
-    { id: '1', nome: 'João Silva' },
-    { id: '2', nome: 'Maria Santos' },
-    { id: '3', nome: 'Pedro Costa' },
-    { id: '4', nome: 'Ana Oliveira' }
-  ];
-
-  const locais = [
-    { id: '1', nome: 'Shopping Norte', endereco: 'Av. Paulista, 1000 - São Paulo/SP' },
-    { id: '2', nome: 'Centro da Cidade', endereco: 'Centro - São Paulo/SP' },
-    { id: '3', nome: 'Condomínio Residencial', endereco: 'Rua das Flores, 500 - São Paulo/SP' }
-  ];
+  const [workPosts, setWorkPosts] = useState<WorkPost[]>([]);
+  const [employees, setEmployees] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingData, setLoadingData] = useState(false);
 
   const equipamentos = [
     { id: '1', nome: 'Rádio Comunicador', tipo: 'COMUNICACAO' },
@@ -69,6 +60,7 @@ export const RondaFormModal: React.FC<RondaFormModalProps> = ({
   useEffect(() => {
     if (open) {
       loadEnums();
+      loadWorkPostsAndEmployees();
       if (ronda) {
         setFormData({
           nome: ronda.nome,
@@ -114,6 +106,26 @@ export const RondaFormModal: React.FC<RondaFormModalProps> = ({
       setPrioridades(prioridadesData);
     } catch (error) {
       console.error('Erro ao carregar enums:', error);
+    }
+  };
+
+  const loadWorkPostsAndEmployees = async () => {
+    setLoadingData(true);
+    try {
+      const [workPostsData, employeesData] = await Promise.all([
+        workPostService.getAllWorkPosts(),
+        employeeService.getAllEmployees()
+      ]);
+      
+      setWorkPosts(workPostsData || []);
+      setEmployees((employeesData || []).map(emp => ({
+        id: emp.id,
+        name: emp.name
+      })));
+    } catch (error) {
+      console.error('Erro ao carregar postos de trabalho e funcionários:', error);
+    } finally {
+      setLoadingData(false);
     }
   };
 
@@ -383,14 +395,15 @@ export const RondaFormModal: React.FC<RondaFormModalProps> = ({
                   <Select
                     value={formData.responsavelId}
                     onValueChange={(value) => handleInputChange('responsavelId', value)}
+                    disabled={loadingData}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione o responsável" />
+                      <SelectValue placeholder={loadingData ? "Carregando..." : "Selecione o responsável"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {funcionarios.map(func => (
-                        <SelectItem key={func.id} value={func.id}>
-                          {func.nome}
+                      {employees.map(emp => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -401,14 +414,15 @@ export const RondaFormModal: React.FC<RondaFormModalProps> = ({
                   <Select
                     value={formData.supervisorId}
                     onValueChange={(value) => handleInputChange('supervisorId', value)}
+                    disabled={loadingData}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione o supervisor" />
+                      <SelectValue placeholder={loadingData ? "Carregando..." : "Selecione o supervisor"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {funcionarios.map(func => (
-                        <SelectItem key={func.id} value={func.id}>
-                          {func.nome}
+                      {employees.map(emp => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -432,20 +446,21 @@ export const RondaFormModal: React.FC<RondaFormModalProps> = ({
                 <Select
                   value={formData.localId}
                   onValueChange={(value) => {
-                    const local = locais.find(l => l.id === value);
+                    const workPost = workPosts.find(wp => wp.id === value);
                     handleInputChange('localId', value);
-                    if (local) {
-                      handleInputChange('endereco', local.endereco);
+                    if (workPost && workPost.address) {
+                      handleInputChange('endereco', workPost.address);
                     }
                   }}
+                  disabled={loadingData}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione o local" />
+                    <SelectValue placeholder={loadingData ? "Carregando..." : "Selecione o local"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {locais.map(local => (
-                      <SelectItem key={local.id} value={local.id}>
-                        {local.nome}
+                    {workPosts.map(workPost => (
+                      <SelectItem key={workPost.id} value={workPost.id}>
+                        {workPost.name || workPost.postCode || 'Sem nome'}
                       </SelectItem>
                     ))}
                   </SelectContent>

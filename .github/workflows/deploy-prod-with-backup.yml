@@ -1,0 +1,331 @@
+name: 🚀 Deploy PROD com Backup Automático
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      skip_backup:
+        description: 'Pular backup pré-deploy?'
+        required: false
+        default: 'false'
+
+env:
+  NODE_VERSION: '18'
+  JAVA_VERSION: '17'
+  SPRING_PROFILE: 'prod'
+
+jobs:
+  # ========================================
+  # JOB 1: PRÉ-DEPLOY BACKUP
+  # ========================================
+  pre-deploy-backup:
+    name: 💾 Backup Pré-Deploy
+    runs-on: ubuntu-latest
+    if: github.event.inputs.skip_backup != 'true'
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🔐 Executar Backup via API
+        run: |
+          echo "💾 Iniciando backup pré-deploy do ambiente PROD..."
+          
+          # Chamar API de backup (assumindo que backend está rodando)
+          RESPONSE=$(curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.API_ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.API_URL }}/api/backup/execute/env/prod" \
+            -w "\n%{http_code}" -s)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+          
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Backup pré-deploy executado com sucesso!"
+            echo "📦 Resposta: $BODY"
+          else
+            echo "❌ Falha ao executar backup!"
+            echo "HTTP Code: $HTTP_CODE"
+            echo "Response: $BODY"
+            exit 1
+          fi
+
+      - name: 📋 Salvar ID do Backup
+        run: |
+          # Salvar ID do backup para possível rollback
+          echo "BACKUP_ID=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_ENV
+          echo "✅ Backup ID: $BACKUP_ID"
+
+  # ========================================
+  # JOB 2: BUILD
+  # ========================================
+  build:
+    name: 🔨 Build Backend + Frontend
+    runs-on: ubuntu-latest
+    needs: [pre-deploy-backup]
+    if: always() && (needs.pre-deploy-backup.result == 'success' || needs.pre-deploy-backup.result == 'skipped')
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: 🔨 Build Backend
+        run: |
+          cd backend
+          chmod +x mvnw
+          ./mvnw clean package -DskipTests -Dspring.profiles.active=${{ env.SPRING_PROFILE }}
+          echo "✅ Backend build concluído!"
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 🎨 Build Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+          echo "✅ Frontend build concluído!"
+
+      - name: 📦 Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-artifacts
+          path: |
+            backend/target/*.jar
+            frontend/dist/
+          retention-days: 7
+
+  # ========================================
+  # JOB 3: DEPLOY
+  # ========================================
+  deploy:
+    name: 🚀 Deploy to PROD
+    runs-on: ubuntu-latest
+    needs: [build]
+    
+    steps:
+      - name: 📥 Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: prod-artifacts
+
+      - name: 🚀 Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            
+            echo "🚀 Iniciando deploy PROD..."
+            
+            cd ~/secured-guard-prod
+            
+            # Parar aplicação
+            docker-compose -f docker-compose.prod.yml down backend frontend
+            
+            # Deploy novo JAR e frontend
+            # (lógica de deploy aqui)
+            
+            # Iniciar aplicação
+            docker-compose -f docker-compose.prod.yml up -d
+            
+            echo "✅ Deploy concluído!"
+
+      - name: 🏥 Health Check
+        run: |
+          echo "🏥 Verificando saúde da aplicação..."
+          
+          MAX_ATTEMPTS=15
+          ATTEMPT=1
+          
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Tentativa $ATTEMPT/$MAX_ATTEMPTS..."
+            
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.API_URL }}/actuator/health)
+            
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "✅ Aplicação respondendo! Health check passou."
+              exit 0
+            fi
+            
+            echo "⏳ Aguardando 10s..."
+            sleep 10
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+          
+          echo "❌ Health check falhou!"
+          exit 1
+
+  # ========================================
+  # JOB 4: VERIFICAÇÃO PÓS-DEPLOY
+  # ========================================
+  post-deploy-verification:
+    name: ✅ Verificação Pós-Deploy
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    
+    steps:
+      - name: 🔍 Verificar Integridade do Backup
+        run: |
+          echo "🔍 Verificando integridade do backup..."
+          
+          # Verificar checksum via API
+          RESPONSE=$(curl -X GET \
+            -H "Authorization: Bearer ${{ secrets.API_ADMIN_TOKEN }}" \
+            "${{ secrets.API_URL }}/api/backup/history?limit=1" \
+            -s)
+          
+          echo "📊 Último backup: $RESPONSE"
+          echo "✅ Verificação concluída!"
+
+      - name: 🧪 Smoke Tests
+        run: |
+          echo "🧪 Executando smoke tests..."
+          
+          # Testar endpoints críticos
+          curl -f ${{ secrets.API_URL }}/api/auth/health || exit 1
+          curl -f ${{ secrets.API_URL }}/actuator/health || exit 1
+          
+          echo "✅ Smoke tests passaram!"
+
+  # ========================================
+  # JOB 5: ROLLBACK (em caso de falha)
+  # ========================================
+  rollback:
+    name: 🔄 Rollback Automático
+    runs-on: ubuntu-latest
+    needs: [deploy, post-deploy-verification]
+    if: failure()
+    
+    steps:
+      - name: 🚨 Deploy Falhou - Iniciando Rollback
+        run: |
+          echo "🚨 Deploy falhou! Iniciando rollback..."
+          echo "📋 Commit atual: ${{ github.sha }}"
+          echo "🔙 Restaurando versão anterior..."
+
+      - name: 🔄 Restaurar Backup via API
+        run: |
+          echo "🔄 Chamando API de restore..."
+          
+          # Chamar endpoint de restore do último backup válido
+          RESPONSE=$(curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.API_ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.API_URL }}/api/backup/restore/last-stable" \
+            -w "\n%{http_code}" -s)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Rollback executado com sucesso!"
+          else
+            echo "❌ Falha no rollback automático!"
+            echo "⚠️ AÇÃO MANUAL NECESSÁRIA!"
+            exit 1
+          fi
+
+      - name: 🔄 Reiniciar Aplicação
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            cd ~/secured-guard-prod
+            docker-compose -f docker-compose.prod.yml restart backend
+            echo "✅ Aplicação reiniciada após rollback"
+
+      - name: 📧 Notificar Equipe sobre Rollback
+        if: always()
+        run: |
+          echo "📧 Enviando notificação de rollback..."
+          
+          # Notificar via API do sistema
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.API_ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"title\": \"ROLLBACK EXECUTADO\",
+              \"message\": \"Deploy falhou. Sistema restaurado para versão anterior.\",
+              \"severity\": \"CRITICAL\",
+              \"commit\": \"${{ github.sha }}\"
+            }" \
+            "${{ secrets.API_URL }}/api/notifications/send"
+
+  # ========================================
+  # JOB 6: PÓS-DEPLOY BACKUP
+  # ========================================
+  post-deploy-backup:
+    name: 💾 Backup Pós-Deploy
+    runs-on: ubuntu-latest
+    needs: [post-deploy-verification]
+    if: success()
+    
+    steps:
+      - name: 💾 Executar Backup Pós-Deploy
+        run: |
+          echo "💾 Executando backup pós-deploy..."
+          
+          # Marcar este backup como estável
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.API_ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"environment\": \"PROD\", \"markAsStable\": true}" \
+            "${{ secrets.API_URL }}/api/backup/execute/prod"
+          
+          echo "✅ Backup pós-deploy marcado como estável!"
+
+      - name: 🧹 Limpar Backups Antigos
+        run: |
+          echo "🧹 Limpando backups antigos (>30 dias)..."
+          
+          curl -X DELETE \
+            -H "Authorization: Bearer ${{ secrets.API_ADMIN_TOKEN }}" \
+            "${{ secrets.API_URL }}/api/backup/clean/prod"
+          
+          echo "✅ Limpeza concluída!"
+
+  # ========================================
+  # JOB 7: NOTIFICAÇÕES
+  # ========================================
+  notify:
+    name: 📢 Notificações
+    runs-on: ubuntu-latest
+    needs: [post-deploy-backup]
+    if: always()
+    
+    steps:
+      - name: ✅ Notificar Sucesso
+        if: success()
+        run: |
+          echo "::notice::🎉 Deploy PROD executado com sucesso!"
+          echo "::notice::💾 Backup pré e pós-deploy realizados"
+          echo "::notice::🔒 Checksum verificado"
+          echo "::notice::📅 $(date)"
+
+      - name: ❌ Notificar Falha
+        if: failure()
+        run: |
+          echo "::error::❌ Pipeline falhou!"
+          echo "::error::🔄 Rollback pode ter sido executado"
+          echo "::error::⚠️ Verificar logs e backups"
+

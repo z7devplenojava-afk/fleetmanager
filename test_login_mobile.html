@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Login Mobile - Secured Guard</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: #000000;
+            color: #d1d5db;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            color: #fbbf24;
+            font-size: 24px;
+            margin: 0;
+        }
+        
+        .login-form {
+            background-color: #1f2937;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 24px;
+            color: #d1d5db;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #d1d5db;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #4b5563;
+            border-radius: 8px;
+            background-color: #1f2937;
+            color: #d1d5db;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #fbbf24;
+            box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.2);
+        }
+        
+        .form-button {
+            width: 100%;
+            padding: 12px;
+            background-color: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .form-button:hover {
+            background-color: #b91c1c;
+        }
+        
+        .form-button:disabled {
+            background-color: #6b7280;
+            cursor: not-allowed;
+        }
+        
+        .error-message {
+            background-color: rgba(251, 191, 36, 0.2);
+            border: 1px solid #fbbf24;
+            color: #fbbf24;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fbbf24;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+            
+            .login-form {
+                padding: 20px;
+            }
+            
+            .debug-info {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin-bottom: 20px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info" id="debugInfo">
+        <div>Screen: <span id="screenSize"></span></div>
+        <div>Viewport: <span id="viewportSize"></span></div>
+        <div>User Agent: <span id="userAgent"></span></div>
+        <div>Touch: <span id="touchSupport"></span></div>
+    </div>
+    
+    <div class="container">
+        <div class="logo">
+            <h1>🔒 Secured Guard</h1>
+        </div>
+        
+        <div class="login-form">
+            <h2 class="form-title">Acesso ao Sistema</h2>
+            
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="username">Usuário</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        class="form-input" 
+                        placeholder="Seu usuário"
+                        required
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="password">Senha</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        class="form-input" 
+                        placeholder="********"
+                        required
+                    >
+                </div>
+                
+                <button type="submit" class="form-button" id="loginButton">
+                    Entrar
+                </button>
+            </form>
+        </div>
+        
+        <div class="footer">
+            Secure Guard Control © 2024
+        </div>
+    </div>
+    
+    <script>
+        // Debug info
+        function updateDebugInfo() {
+            document.getElementById('screenSize').textContent = 
+                `${screen.width}x${screen.height}`;
+            document.getElementById('viewportSize').textContent = 
+                `${window.innerWidth}x${window.innerHeight}`;
+            document.getElementById('userAgent').textContent = 
+                navigator.userAgent.substring(0, 50) + '...';
+            document.getElementById('touchSupport').textContent = 
+                'ontouchstart' in window ? 'Sim' : 'Não';
+        }
+        
+        // Update debug info on load and resize
+        updateDebugInfo();
+        window.addEventListener('resize', updateDebugInfo);
+        
+        // Form handling
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const button = document.getElementById('loginButton');
+            
+            // Clear previous errors
+            errorDiv.style.display = 'none';
+            
+            if (!username || !password) {
+                showError('Por favor, preencha todos os campos.');
+                return;
+            }
+            
+            // Simulate login
+            button.disabled = true;
+            button.textContent = 'Entrando...';
+            
+            setTimeout(() => {
+                showError('Este é apenas um teste. A tela de login está funcionando corretamente no mobile!');
+                button.disabled = false;
+                button.textContent = 'Entrar';
+            }, 2000);
+        });
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        // Test if page is visible
+        document.addEventListener('visibilitychange', function() {
+            console.log('Visibility changed:', document.visibilityState);
+        });
+        
+        // Test if page loads correctly
+        window.addEventListener('load', function() {
+            console.log('Page loaded successfully');
+            console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
+            console.log('Screen:', screen.width, 'x', screen.height);
+        });
+    </script>
+</body>
+</html>

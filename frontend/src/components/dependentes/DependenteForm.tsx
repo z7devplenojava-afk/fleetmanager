@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Dependent, CreateDependentDTO, UpdateDependentDTO, RELATIONSHIP_TYPES } from '@/types/dependent';
-import { dependentService } from '@/services/dependentService';
+import { Dependent, DependentCreateRequest, DependentUpdateRequest, RELATIONSHIP_OPTIONS } from '@/types/dependent';
+import dependentService from '@/services/dependentService';
 
 interface DependenteFormProps {
   employeeId: string;
@@ -15,7 +15,7 @@ const DependenteForm: React.FC<DependenteFormProps> = ({
   onSuccess,
   onCancel
 }) => {
-  const [formData, setFormData] = useState<CreateDependentDTO | UpdateDependentDTO>({
+  const [formData, setFormData] = useState<DependentCreateRequest | DependentUpdateRequest>({
     employeeId,
     name: '',
     relationship: '',
@@ -96,7 +96,7 @@ const DependenteForm: React.FC<DependenteFormProps> = ({
         await dependentService.updateDependent(formData.id, formData);
       } else {
         // Criar novo dependente
-        await dependentService.createDependent(formData as CreateDependentDTO);
+        await dependentService.createDependent(formData as DependentCreateRequest);
       }
       
       onSuccess();
@@ -141,21 +141,18 @@ const DependenteForm: React.FC<DependenteFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h2 className="text-xl font-semibold">
-        {dependent ? 'Editar Dependente' : 'Adicionar Dependente'}
-      </h2>
-      
+    <form onSubmit={handleSubmit} className="space-y-6">
       {errors.form && (
-        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {errors.form}
+        <div className="p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 rounded-lg">
+          <p className="font-semibold">{errors.form}</p>
         </div>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-            Nome Completo *
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <div className="space-y-2.5">
+          <label htmlFor="name" className="block text-sm font-bold text-white flex items-center gap-2">
+            <span>Nome Completo</span>
+            <span className="text-red-500 text-lg">*</span>
           </label>
           <input
             type="text"
@@ -163,35 +160,38 @@ const DependenteForm: React.FC<DependenteFormProps> = ({
             name="name"
             value={formData.name}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.name ? 'border-red-500' : ''}`}
+            placeholder="Digite o nome completo do dependente"
+            className={`block w-full h-12 px-4 rounded-lg bg-white text-gray-900 border-2 ${errors.name ? 'border-red-500' : 'border-gray-400'} shadow-md transition-all text-base font-semibold placeholder:text-gray-700 placeholder:font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-600`}
           />
-          {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+          {errors.name && <p className="mt-1 text-sm text-red-400 font-medium">{errors.name}</p>}
         </div>
         
-        <div>
-          <label htmlFor="relationship" className="block text-sm font-medium text-gray-700">
-            Parentesco *
+        <div className="space-y-2.5">
+          <label htmlFor="relationship" className="block text-sm font-bold text-white flex items-center gap-2">
+            <span>Parentesco</span>
+            <span className="text-red-500 text-lg">*</span>
           </label>
           <select
             id="relationship"
             name="relationship"
             value={formData.relationship}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.relationship ? 'border-red-500' : ''}`}
+            className={`block w-full h-12 px-4 rounded-lg bg-white border-2 ${errors.relationship ? 'border-red-500' : 'border-gray-400'} shadow-md transition-all text-base font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-600 ${formData.relationship ? 'text-gray-900' : 'text-gray-700'}`}
           >
-            <option value="">Selecione...</option>
-            {Object.entries(RELATIONSHIP_TYPES).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+            <option value="" className="text-gray-700 font-semibold">Selecione o parentesco...</option>
+            {RELATIONSHIP_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value} className="text-gray-900">
+                {option.label}
               </option>
             ))}
           </select>
-          {errors.relationship && <p className="mt-1 text-sm text-red-600">{errors.relationship}</p>}
+          {errors.relationship && <p className="mt-1 text-sm text-red-400 font-medium">{errors.relationship}</p>}
         </div>
         
-        <div>
-          <label htmlFor="birthDate" className="block text-sm font-medium text-gray-700">
-            Data de Nascimento *
+        <div className="space-y-2.5">
+          <label htmlFor="birthDate" className="block text-sm font-bold text-white flex items-center gap-2">
+            <span>Data de Nascimento</span>
+            <span className="text-red-500 text-lg">*</span>
           </label>
           <input
             type="date"
@@ -199,14 +199,15 @@ const DependenteForm: React.FC<DependenteFormProps> = ({
             name="birthDate"
             value={formData.birthDate}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.birthDate ? 'border-red-500' : ''}`}
+            className={`block w-full h-12 px-4 rounded-lg bg-white text-gray-900 border-2 ${errors.birthDate ? 'border-red-500' : 'border-gray-400'} shadow-md transition-all text-base font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-600`}
           />
-          {errors.birthDate && <p className="mt-1 text-sm text-red-600">{errors.birthDate}</p>}
+          {errors.birthDate && <p className="mt-1 text-sm text-red-400 font-medium">{errors.birthDate}</p>}
         </div>
         
-        <div>
-          <label htmlFor="cpf" className="block text-sm font-medium text-gray-700">
-            CPF *
+        <div className="space-y-2.5">
+          <label htmlFor="cpf" className="block text-sm font-bold text-white flex items-center gap-2">
+            <span>CPF</span>
+            <span className="text-red-500 text-lg">*</span>
           </label>
           <input
             type="text"
@@ -216,13 +217,13 @@ const DependenteForm: React.FC<DependenteFormProps> = ({
             onChange={handleCpfChange}
             maxLength={14}
             placeholder="000.000.000-00"
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.cpf ? 'border-red-500' : ''}`}
+            className={`block w-full h-12 px-4 rounded-lg bg-white text-gray-900 border-2 ${errors.cpf ? 'border-red-500' : 'border-gray-400'} shadow-md transition-all text-base font-semibold placeholder:text-gray-700 placeholder:font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-600`}
           />
-          {errors.cpf && <p className="mt-1 text-sm text-red-600">{errors.cpf}</p>}
+          {errors.cpf && <p className="mt-1 text-sm text-red-400 font-medium">{errors.cpf}</p>}
         </div>
         
-        <div>
-          <label htmlFor="rg" className="block text-sm font-medium text-gray-700">
+        <div className="space-y-2.5">
+          <label htmlFor="rg" className="block text-sm font-bold text-white">
             RG
           </label>
           <input
@@ -231,26 +232,27 @@ const DependenteForm: React.FC<DependenteFormProps> = ({
             name="rg"
             value={formData.rg || ''}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            placeholder="Digite o número do RG"
+            className="block w-full h-12 px-4 rounded-lg bg-white text-gray-900 border-2 border-gray-400 shadow-md transition-all text-base font-semibold placeholder:text-gray-700 placeholder:font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-600"
           />
         </div>
       </div>
       
-      <div className="flex justify-end space-x-3 pt-4">
+      <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="px-6 py-2.5 h-11 border-2 border-gray-600 rounded-lg text-sm font-semibold text-gray-300 bg-transparent hover:bg-gray-800 hover:text-white hover:border-gray-500 transition-all focus:outline-none focus:ring-2 focus:ring-gray-500"
           disabled={isSubmitting}
         >
           Cancelar
         </button>
         <button
           type="submit"
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="px-6 py-2.5 h-11 border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red shadow-lg shadow-seguranca-red/20 transition-all focus:outline-none focus:ring-2 focus:ring-seguranca-red disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={isSubmitting}
         >
-          {isSubmitting ? 'Salvando...' : dependent ? 'Atualizar' : 'Adicionar'}
+          {isSubmitting ? 'Salvando...' : dependent ? 'Atualizar Dependente' : 'Adicionar Dependente'}
         </button>
       </div>
     </form>

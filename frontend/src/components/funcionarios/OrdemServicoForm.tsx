@@ -23,7 +23,7 @@ import {
   Save,
   X
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { ordemServicoPDFGenerator } from '@/utils/ordemServicoPDFGenerator';
 import { mockAPIData } from '@/utils/mockAPIData';
@@ -265,7 +265,7 @@ const OrdemServicoForm = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/ordem-servico', {
+      const response = await fetch('/api/orders-of-service', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -293,7 +293,7 @@ const OrdemServicoForm = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/ordem-servico/${selectedOrdem.id}`, {
+      const response = await fetch(`/api/orders-of-service/${selectedOrdem.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -320,7 +320,7 @@ const OrdemServicoForm = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/ordem-servico/${id}`, {
+      const response = await fetch(`/api/orders-of-service/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -470,9 +470,9 @@ const OrdemServicoForm = () => {
                       <DialogTitle>
                         {isEditing ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço'}
                       </DialogTitle>
-                      <p className="text-sm text-muted-foreground mt-2">
+                      <DialogDescription className="text-sm text-muted-foreground mt-2">
                         💡 Dica: Você pode fechar este modal clicando no X, pressionando ESC ou clicando fora da área do formulário
-                      </p>
+                      </DialogDescription>
                     </DialogHeader>
                     
                     <div className="grid gap-4">

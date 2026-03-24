@@ -1,0 +1,508 @@
+{
+  "info": {
+    "name": "SecuredGuard - Sistema de Grupos",
+    "description": "Collection para testar o sistema de grupos de usuários da Promover Vigilância Patrimonial",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "🔐 Autenticação",
+      "item": [
+        {
+          "name": "Login - Super Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"superadmin\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('token', response.token);",
+                  "    console.log('Token salvo:', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin@promover.com\",\n  \"password\": \"Admin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login - RH",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"rh@promover.com\",\n  \"password\": \"RH123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Usuários",
+      "item": [
+        {
+          "name": "Criar Usuário - Super Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"superadmin@promover.com\",\n  \"email\": \"superadmin@promover.com\",\n  \"password\": \"SuperAdmin123!\",\n  \"name\": \"Super Administrador\",\n  \"fullName\": \"Super Administrador do Sistema\",\n  \"role\": \"CEO\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Criar Usuário - Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin@promover.com\",\n  \"email\": \"admin@promover.com\",\n  \"password\": \"Admin123!\",\n  \"name\": \"Administrador\",\n  \"fullName\": \"Administrador do Sistema\",\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Criar Usuário - RH",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"rh@promover.com\",\n  \"email\": \"rh@promover.com\",\n  \"password\": \"RH123!\",\n  \"name\": \"Recursos Humanos\",\n  \"fullName\": \"Gerente de Recursos Humanos\",\n  \"role\": \"RH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Criar Usuário - DPE",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"dpe@promover.com\",\n  \"email\": \"dpe@promover.com\",\n  \"password\": \"DPE123!\",\n  \"name\": \"Departamento Pessoal\",\n  \"fullName\": \"Coordenador do Departamento Pessoal\",\n  \"role\": \"DEPARTAMENTO_PESSOAL\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Criar Usuário - Gestor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"gestor@promover.com\",\n  \"email\": \"gestor@promover.com\",\n  \"password\": \"Gestor123!\",\n  \"name\": \"Gestor\",\n  \"fullName\": \"Gestor de Contratos\",\n  \"role\": \"GESTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Criar Usuário - Supervisor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"supervisor@promover.com\",\n  \"email\": \"supervisor@promover.com\",\n  \"password\": \"Supervisor123!\",\n  \"name\": \"Supervisor\",\n  \"fullName\": \"Supervisor de Equipe\",\n  \"role\": \"SUPERVISOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Criar Usuário - Colaborador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"colaborador@promover.com\",\n  \"email\": \"colaborador@promover.com\",\n  \"password\": \"Colaborador123!\",\n  \"name\": \"Colaborador\",\n  \"fullName\": \"Colaborador da Empresa\",\n  \"role\": \"COLABORADOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Criar Usuário - Vigilante",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"vigilante@promover.com\",\n  \"email\": \"vigilante@promover.com\",\n  \"password\": \"Vigilante123!\",\n  \"name\": \"Vigilante\",\n  \"fullName\": \"Vigilante de Segurança\",\n  \"role\": \"VIGILANTE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Listar Todos os Usuários",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏷️ Grupos",
+      "item": [
+        {
+          "name": "Inicializar Grupos Padrão",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/initialize",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "initialize"]
+            }
+          }
+        },
+        {
+          "name": "Listar Todos os Grupos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups"]
+            }
+          }
+        },
+        {
+          "name": "Buscar Grupo por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "1"]
+            }
+          }
+        },
+        {
+          "name": "Criar Novo Grupo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupName\": \"GRUPO_TESTE\",\n  \"displayName\": \"Grupo de Teste\",\n  \"description\": \"Grupo criado para testes\",\n  \"permissions\": [\n    \"VIEW_PAYSLIP\",\n    \"DOWNLOAD_PAYSLIP\",\n    \"EDIT_PROFILE\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/groups",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups"]
+            }
+          }
+        },
+        {
+          "name": "Atualizar Grupo",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Grupo de Teste Atualizado\",\n  \"description\": \"Grupo atualizado para testes\",\n  \"permissions\": [\n    \"VIEW_PAYSLIP\",\n    \"DOWNLOAD_PAYSLIP\",\n    \"EDIT_PROFILE\",\n    \"VIEW_EMPLOYEES\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "1"]
+            }
+          }
+        },
+        {
+          "name": "Deletar Grupo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/9",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "9"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Gerenciamento de Usuários em Grupos",
+      "item": [
+        {
+          "name": "Buscar Grupos de um Usuário",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "user", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Buscar Permissões de um Usuário",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/user/{{userId}}/permissions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "user", "{{userId}}", "permissions"]
+            }
+          }
+        },
+        {
+          "name": "Adicionar Usuário ao Grupo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/1/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "1", "users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Remover Usuário do Grupo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/1/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "1", "users", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧪 Testes de Cenários",
+      "item": [
+        {
+          "name": "Teste 1: Usuário com Múltiplos Grupos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"multigrupo@promover.com\",\n  \"email\": \"multigrupo@promover.com\",\n  \"password\": \"Multi123!\",\n  \"name\": \"Usuário Multi Grupo\",\n  \"fullName\": \"Usuário com Múltiplos Grupos\",\n  \"role\": \"COLABORADOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Teste 2: Adicionar ao GRUPO_RH",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/4/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "4", "users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Teste 3: Adicionar ao GRUPO_SUPERVISOR",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/6/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "6", "users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Teste 4: Verificar Permissões Combinadas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/user/{{userId}}/permissions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "user", "{{userId}}", "permissions"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+} 

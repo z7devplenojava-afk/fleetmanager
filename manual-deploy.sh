@@ -1,0 +1,31 @@
+#!/bin/bash
+
+echo "🚀 Deploy Manual CI Environment"
+echo "================================"
+
+# Configurações
+VPS_HOST="185.225.233.18"
+VPS_USER="root"
+VPS_PASSWORD="4KaCiJc6an@72025"
+CI_DIR="/var/www/secured_guard/ci"
+
+echo "📋 Instruções para deploy manual:"
+echo ""
+echo "1. Conecte no VPS:"
+echo "   ssh $VPS_USER@$VPS_HOST"
+echo "   Senha: $VPS_PASSWORD"
+echo ""
+echo "2. Execute os comandos:"
+echo "   cd $CI_DIR"
+echo "   docker-compose -f docker-compose.ci.yml down"
+echo "   docker-compose -f docker-compose.ci.yml pull"
+echo "   docker-compose -f docker-compose.ci.yml up -d"
+echo ""
+echo "3. Verifique os containers:"
+echo "   docker ps"
+echo "   docker logs secured_guard_ci_backend"
+echo ""
+echo "4. Teste o health check:"
+echo "   curl https://ci.z7botsolutions.com.br/api/health"
+echo ""
+echo "✅ Script de deploy manual criado!"

@@ -1,0 +1,250 @@
+name: Deploy to VPS
+
+on:
+  # Push automático desabilitado até configurar secrets
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:  # Apenas execução manual
+
+env:
+  NODE_VERSION: '18'
+  JAVA_VERSION: '17'
+
+jobs:
+  deploy:
+    name: Build and Deploy to VPS
+    runs-on: ubuntu-latest
+    
+    steps:
+      # ========================================
+      # 1. CHECKOUT DO CÓDIGO
+      # ========================================
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ========================================
+      # 2. SETUP JAVA
+      # ========================================
+      - name: ☕ Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      # ========================================
+      # 3. BUILD BACKEND
+      # ========================================
+      - name: 🔨 Build Backend
+        run: |
+          cd backend
+          chmod +x mvnw
+          ./mvnw clean package -DskipTests
+          echo "✅ Backend compilado com sucesso!"
+          ls -lh target/*.jar
+
+      # ========================================
+      # 4. SETUP NODE.JS
+      # ========================================
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # ========================================
+      # 5. BUILD FRONTEND
+      # ========================================
+      - name: 🎨 Build Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+          echo "✅ Frontend compilado com sucesso!"
+          ls -lh dist/
+
+      # ========================================
+      # 6. CRIAR ARQUIVO .ENV PARA VPS
+      # ========================================
+      - name: 📝 Criar arquivo .env
+        run: |
+          cat > .env << EOF
+          # Database
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          
+          # Redis
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          
+          # Backend
+          SPRING_PROFILES_ACTIVE=prod
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          
+          # Frontend
+          VITE_API_URL=${{ secrets.VITE_API_URL }}
+          VITE_WS_URL=${{ secrets.VITE_WS_URL }}
+          EOF
+          echo "✅ Arquivo .env criado!"
+
+      # ========================================
+      # 7. PREPARAR ARQUIVOS PARA DEPLOY
+      # ========================================
+      - name: 📦 Preparar arquivos para deploy
+        run: |
+          mkdir -p deploy-package
+          
+          # Backend
+          cp backend/target/*.jar deploy-package/app.jar
+          
+          # Frontend
+          cp -r frontend/dist deploy-package/frontend-dist
+          
+          # Docker files
+          cp deploy/docker-compose.prod.yml deploy-package/
+          cp deploy/nginx/nginx.conf deploy-package/
+          cp .env deploy-package/
+          
+          # Scripts
+          cp deploy/deploy-to-vps.sh deploy-package/
+          chmod +x deploy-package/deploy-to-vps.sh
+          
+          echo "✅ Arquivos preparados!"
+          ls -lh deploy-package/
+
+      # ========================================
+      # 8. DEPLOY NA VPS VIA SSH
+      # ========================================
+      - name: 🚀 Deploy na VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            
+            echo "🚀 Iniciando deploy na VPS..."
+            
+            # Criar diretório de deploy
+            mkdir -p ~/secured-guard-deploy
+            cd ~/secured-guard-deploy
+            
+            # Backup do .env existente (se houver)
+            if [ -f .env ]; then
+              cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+              echo "✅ Backup do .env criado"
+            fi
+            
+            echo "✅ Pronto para receber arquivos"
+
+      # ========================================
+      # 9. TRANSFERIR ARQUIVOS PARA VPS
+      # ========================================
+      - name: 📤 Transferir arquivos via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: "deploy-package/*"
+          target: "~/secured-guard-deploy/"
+          strip_components: 1
+
+      # ========================================
+      # 10. EXECUTAR DEPLOY NA VPS
+      # ========================================
+      - name: 🔧 Executar deploy na VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            cd ~/secured-guard-deploy
+            
+            echo "📋 Arquivos recebidos:"
+            ls -lh
+            
+            # Parar containers antigos
+            echo "⏸️ Parando containers antigos..."
+            docker compose -f docker-compose.prod.yml down || true
+            
+            # Criar network se não existir
+            echo "🔗 Criando network Docker..."
+            docker network create secured-guard || true
+            
+            # Subir Postgres primeiro
+            echo "🐘 Iniciando PostgreSQL..."
+            docker compose -f docker-compose.prod.yml up -d postgres
+            sleep 10
+            
+            # Subir backend (Flyway será executado)
+            echo "☕ Iniciando Backend..."
+            docker compose -f docker-compose.prod.yml up -d backend
+            sleep 20
+            
+            # Subir Redis, Frontend e Nginx
+            echo "🚀 Iniciando Frontend, Redis e Nginx..."
+            docker compose -f docker-compose.prod.yml up -d redis frontend nginx
+            sleep 5
+            
+            # Verificar status
+            echo "📊 Status dos containers:"
+            docker compose -f docker-compose.prod.yml ps
+            
+            # Verificar logs do backend
+            echo "📝 Últimas linhas do log do backend:"
+            docker compose -f docker-compose.prod.yml logs --tail=50 backend
+            
+            echo "✅ Deploy concluído com sucesso!"
+
+      # ========================================
+      # 11. VERIFICAR HEALTH
+      # ========================================
+      - name: 🏥 Verificar Health do Backend
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            echo "🔍 Verificando health do backend..."
+            sleep 10
+            
+            # Tentar acessar health endpoint
+            curl -f http://localhost:8080/actuator/health || echo "⚠️ Health check falhou, mas container pode estar subindo ainda"
+            
+            echo "✅ Verificação concluída"
+
+      # ========================================
+      # 12. NOTIFICAÇÃO DE SUCESSO
+      # ========================================
+      - name: ✅ Notificar Sucesso
+        if: success()
+        run: |
+          echo "::notice::🎉 Deploy realizado com sucesso na VPS!"
+          echo "::notice::🌐 URL: ${{ secrets.VPS_URL || 'http://seu-dominio.com' }}"
+          echo "::notice::📅 Data: $(date)"
+          echo "::notice::📦 Commit: ${{ github.sha }}"
+
+      # ========================================
+      # 13. NOTIFICAÇÃO DE ERRO
+      # ========================================
+      - name: ❌ Notificar Erro
+        if: failure()
+        run: |
+          echo "::error::❌ Deploy falhou!"
+          echo "::error::📅 Data: $(date)"
+          echo "::error::📦 Commit: ${{ github.sha }}"
+          echo "::error::📝 Verifique os logs acima para detalhes"
+

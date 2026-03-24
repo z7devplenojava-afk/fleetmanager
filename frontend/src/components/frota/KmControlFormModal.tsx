@@ -4,16 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ResponsiveDrawer } from '@/components/ResponsiveDrawer';
 import { KmControl, Vehicle } from '@/types/fleet';
 import { Calendar, Clock, MapPin, Fuel, DollarSign, Calculator, AlertCircle } from 'lucide-react';
 import kmControlService from '@/services/kmControlService';
 import { useToast } from '@/components/ui/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import { workPostService, WorkPost } from '@/services/workPostService';
 
 interface KmControlFormModalProps {
   isOpen: boolean;
@@ -93,6 +90,15 @@ const KmControlFormModal: React.FC<KmControlFormModalProps> = ({
   const [isLoadingSupervisors, setIsLoadingSupervisors] = useState(false);
   const { toast } = useToast();
 
+  // Buscar postos de trabalho do banco de dados
+  const { data: workPosts, isLoading: workPostsLoading, error: workPostsError } = useQuery({
+    queryKey: ['workPosts', 'kmControl'],
+    queryFn: () => workPostService.getWorkPosts(),
+    retry: 2,
+    retryDelay: 1000,
+    enabled: isOpen // Só buscar quando o modal estiver aberto
+  });
+
   // Buscar supervisores ao abrir o modal
   useEffect(() => {
     if (isOpen) {
@@ -171,14 +177,14 @@ const KmControlFormModal: React.FC<KmControlFormModalProps> = ({
   const calculateTotalKm = () => {
     const initial = parseInt(formData.initialKm) || 0;
     const final = parseInt(formData.finalKm) || 0;
-    
+
     // Log para debug
     console.log('🔍 Calculando KM Total:');
     console.log('KM Inicial:', formData.initialKm, '->', initial);
     console.log('KM Final:', formData.finalKm, '->', final);
     console.log('Justificativa Inicial:', formData.initialKmJustification);
     console.log('Justificativa Final:', formData.finalKmJustification);
-    
+
     // Lógica de cálculo baseada no backend
     if (initial === 0 && final > 0 && formData.initialKmJustification) {
       console.log('Caso: KM inicial = 0 com justificativa -> Total =', final);
@@ -268,11 +274,11 @@ const KmControlFormModal: React.FC<KmControlFormModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     const totalKm = calculateTotalKm();
-    
+
     // Preparar dados do formulário para envio
     const parsedValue = parseFloat(formData.value);
     const safeValue = Number.isFinite(parsedValue) ? parsedValue : 0;
@@ -302,9 +308,9 @@ const KmControlFormModal: React.FC<KmControlFormModalProps> = ({
 
     try {
       console.log('🚀 Enviando dados para API:', kmControlData);
-      
+
       let savedKmControl: KmControl;
-      
+
       // Exibir toast se KM foi preenchido com 0 automaticamente
       if (!formData.initialKm && formData.initialKmJustification) {
         toast({
@@ -372,406 +378,407 @@ const KmControlFormModal: React.FC<KmControlFormModalProps> = ({
       ? normalizeToHHMM(value)
       : value;
     setFormData(prev => ({ ...prev, [field]: nextValue }));
-    
+
     // Limpar erro do campo quando usuário começar a digitar
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-seguranca-graphite border-gray-600">
-        <DialogHeader>
-          <DialogTitle className="text-seguranca-lightgray">
-            {kmControl ? 'Editar' : 'Novo'} Controle de Quilometragem
-          </DialogTitle>
-        </DialogHeader>
+  const footer = (
+    <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 w-full">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onClose}
+        className="flex-1 sm:flex-none h-10 sm:h-11 border-gray-600 text-gray-400 hover:bg-gray-700 font-medium"
+      >
+        Cancelar
+      </Button>
+      <Button
+        type="submit"
+        form="km-control-form"
+        disabled={isUploadingPhoto}
+        className="flex-1 sm:flex-none h-10 sm:h-11 bg-seguranca-red hover:bg-seguranca-darkred text-white disabled:opacity-50 font-medium"
+      >
+        {isUploadingPhoto ? 'Enviando Foto...' : (kmControl ? 'Atualizar' : 'Salvar')}
+      </Button>
+    </div>
+  );
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Primeira linha - Data e Supervisor */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <Label htmlFor="date" className="text-seguranca-lightgray font-medium">
-                <Calendar className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
-                Data
+  const renderForm = () => (
+    <form id="km-control-form" onSubmit={handleSubmit} className="space-y-6 text-left">
+      {/* Primeira linha - Data e Supervisor */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <Label htmlFor="date" className="text-seguranca-lightgray font-medium">
+            <Calendar className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
+            Data
+          </Label>
+          <Input
+            id="date"
+            type="date"
+            value={formData.date}
+            onChange={(e) => handleInputChange('date', e.target.value)}
+            className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 ${errors.date ? 'border-red-500' : ''
+              }`}
+          />
+          {errors.date && <p className="text-red-500 text-sm">{errors.date}</p>}
+        </div>
+
+        <div className="space-y-3">
+          <Label htmlFor="supervisor" className="text-seguranca-lightgray font-medium">
+            Supervisor
+          </Label>
+          <Select
+            value={formData.supervisor}
+            onValueChange={(value) => handleInputChange('supervisor', value)}
+          >
+            <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11">
+              <SelectValue placeholder={isLoadingSupervisors ? "Carregando..." : "Selecione um supervisor"} />
+            </SelectTrigger>
+            <SelectContent className="bg-seguranca-black border-gray-600">
+              <SelectItem value="none">Selecione um supervisor</SelectItem>
+              {supervisors.map((supervisor) => (
+                <SelectItem key={supervisor} value={supervisor}>
+                  {supervisor}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.supervisor && <p className="text-red-500 text-sm">{errors.supervisor}</p>}
+        </div>
+      </div>
+
+      {/* Segunda linha - Veículo e Combustível */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <Label htmlFor="vehicleId" className="text-seguranca-lightgray font-medium">
+            Veículo (Opcional)
+          </Label>
+          <Select
+            value={formData.vehicleId}
+            onValueChange={(value) => handleInputChange('vehicleId', value)}
+          >
+            <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11">
+              <SelectValue placeholder="Selecione um veículo" />
+            </SelectTrigger>
+            <SelectContent className="bg-seguranca-black border-gray-600">
+              <SelectItem value="none">Sem veículo</SelectItem>
+              {vehicles.map((vehicle) => (
+                <SelectItem key={vehicle.id} value={vehicle.id}>
+                  {vehicle.plate} - {vehicle.brand} {vehicle.model}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-3">
+          <Label htmlFor="fuelType" className="text-seguranca-lightgray font-medium">
+            <Fuel className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
+            Tipo de Combustível
+          </Label>
+          <Select
+            value={formData.fuelType}
+            onValueChange={(value: 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'FLEX') => handleInputChange('fuelType', value)}
+          >
+            <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11">
+              <SelectValue placeholder="Selecione o combustível" />
+            </SelectTrigger>
+            <SelectContent className="bg-seguranca-black border-gray-600">
+              <SelectItem value="GASOLINE">Gasolina</SelectItem>
+              <SelectItem value="ETHANOL">Etanol</SelectItem>
+              <SelectItem value="DIESEL">Diesel</SelectItem>
+              <SelectItem value="FLEX">Flex</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Nova linha para Quantidade de Combustível */}
+      <div className="space-y-3">
+        <Label htmlFor="fuelQuantity" className="text-seguranca-lightgray font-medium">
+          <Fuel className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
+          Quantidade de Combustível (Ex: 6/12)
+        </Label>
+        <Input
+          id="fuelQuantity"
+          type="text"
+          value={formData.fuelQuantity}
+          onChange={(e) => handleInputChange('fuelQuantity', e.target.value)}
+          placeholder="Ex: 6/12"
+          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11"
+        />
+      </div>
+
+      {/* Terceira linha - KM Inicial e Final */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <Label htmlFor="initialKm" className="text-seguranca-lightgray font-medium">
+            KM Inicial
+          </Label>
+          <Input
+            id="initialKm"
+            type="number"
+            value={formData.initialKm}
+            onChange={(e) => handleInputChange('initialKm', e.target.value)}
+            placeholder="0"
+            className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 font-mono ${errors.initialKm ? 'border-red-500' : ''
+              }`}
+          />
+          {errors.initialKm && <p className="text-red-500 text-sm">{errors.initialKm}</p>}
+
+          {/* Campo de justificativa para KM inicial */}
+          {(!formData.initialKm || formData.initialKm === '0') && (
+            <div className="mt-2">
+              <Label htmlFor="initialKmJustification" className="text-seguranca-lightgray font-medium text-sm">
+                <AlertCircle className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
+                Justificativa (obrigatório se não houver KM inicial)
               </Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => handleInputChange('date', e.target.value)}
-                className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 ${
-                  errors.date ? 'border-red-500' : ''
-                }`}
+              <Textarea
+                id="initialKmJustification"
+                value={formData.initialKmJustification}
+                onChange={(e) => handleInputChange('initialKmJustification', e.target.value)}
+                placeholder="Ex: Veículo em manutenção, pneu furado, problemas mecânicos..."
+                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-20 text-sm resize-none"
               />
-              {errors.date && <p className="text-red-500 text-sm">{errors.date}</p>}
+              {errors.initialKmJustification && <p className="text-red-500 text-sm">{errors.initialKmJustification}</p>}
             </div>
+          )}
+        </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="supervisor" className="text-seguranca-lightgray font-medium">
-                Supervisor
+        <div className="space-y-3">
+          <Label htmlFor="finalKm" className="text-seguranca-lightgray font-medium">
+            KM Final
+          </Label>
+          <Input
+            id="finalKm"
+            type="number"
+            value={formData.finalKm}
+            onChange={(e) => handleInputChange('finalKm', e.target.value)}
+            placeholder="0"
+            className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 font-mono ${errors.finalKm ? 'border-red-500' : ''
+              }`}
+          />
+          {errors.finalKm && <p className="text-red-500 text-sm">{errors.finalKm}</p>}
+
+          {/* Campo de justificativa para KM final */}
+          {(!formData.finalKm || formData.finalKm === '0') && (
+            <div className="mt-2">
+              <Label htmlFor="finalKmJustification" className="text-seguranca-lightgray font-medium text-sm">
+                <AlertCircle className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
+                Justificativa (obrigatório se não houver KM final)
               </Label>
-              <Select
-                value={formData.supervisor}
-                onValueChange={(value) => handleInputChange('supervisor', value)}
-              >
-                <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11">
-                  <SelectValue placeholder={isLoadingSupervisors ? "Carregando..." : "Selecione um supervisor"} />
-                </SelectTrigger>
-                <SelectContent className="bg-seguranca-black border-gray-600">
-                  <SelectItem value="none">Selecione um supervisor</SelectItem>
-                  {supervisors.map((supervisor) => (
-                    <SelectItem key={supervisor} value={supervisor}>
-                      {supervisor}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.supervisor && <p className="text-red-500 text-sm">{errors.supervisor}</p>}
+              <Textarea
+                id="finalKmJustification"
+                value={formData.finalKmJustification}
+                onChange={(e) => handleInputChange('finalKmJustification', e.target.value)}
+                placeholder="Ex: Veículo quebrou, turno interrompido, emergência..."
+                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-20 text-sm resize-none"
+              />
+              {errors.finalKmJustification && <p className="text-red-500 text-sm">{errors.finalKmJustification}</p>}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* KM Total calculado */}
+      <div className="bg-seguranca-black/50 p-6 rounded-lg border border-seguranca-yellow/30">
+        <div className="flex items-center justify-center space-x-4">
+          <div className="p-3 bg-seguranca-yellow/20 rounded-full">
+            <Calculator className="h-6 w-6 text-seguranca-yellow" />
+          </div>
+          <div className="text-center">
+            <Label className="text-seguranca-lightgray font-semibold text-lg">KM Total do Dia</Label>
+            <div className="text-3xl font-bold text-seguranca-yellow mt-1">
+              {calculateTotalKm() !== null && calculateTotalKm() !== undefined ? calculateTotalKm().toLocaleString() : '0'} km
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Segunda linha - Veículo e Combustível */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <Label htmlFor="vehicleId" className="text-seguranca-lightgray font-medium">
-                Veículo (Opcional)
-              </Label>
-              <Select
-                value={formData.vehicleId}
-                onValueChange={(value) => handleInputChange('vehicleId', value)}
-              >
-                <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11">
-                  <SelectValue placeholder="Selecione um veículo" />
-                </SelectTrigger>
-                <SelectContent className="bg-seguranca-black border-gray-600">
-                  <SelectItem value="none">Sem veículo</SelectItem>
-                  {vehicles.map((vehicle) => (
-                    <SelectItem key={vehicle.id} value={vehicle.id}>
-                      {vehicle.plate} - {vehicle.brand} {vehicle.model}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* Quarta linha - Valor e Posto */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <Label htmlFor="value" className="text-seguranca-lightgray font-medium">
+            <DollarSign className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
+            Valor
+          </Label>
+          <Input
+            id="value"
+            type="number"
+            step="0.01"
+            value={formData.value}
+            onChange={(e) => handleInputChange('value', e.target.value)}
+            placeholder="0.00"
+            className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 ${errors.value ? 'border-red-500' : ''
+              }`}
+          />
+          {errors.value && <p className="text-red-500 text-sm">{errors.value}</p>}
+        </div>
+
+        <div className="space-y-3">
+          <Label htmlFor="workPost" className="text-seguranca-lightgray font-medium">
+            <MapPin className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
+            Posto de Trabalho
+          </Label>
+          <Select
+            value={formData.workPost}
+            onValueChange={(value) => handleInputChange('workPost', value)}
+            disabled={workPostsLoading || !!workPostsError}
+          >
+            <SelectTrigger className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 ${errors.workPost ? 'border-red-500' : ''
+              }`}>
+              <SelectValue placeholder={workPostsLoading ? "Carregando postos..." : "Selecione um posto de trabalho"} />
+            </SelectTrigger>
+            <SelectContent className="bg-seguranca-black border-gray-600 max-h-60">
+              {workPosts && workPosts.map((workPost) => (
+                <SelectItem key={workPost.id} value={workPost.name} className="text-seguranca-lightgray hover:bg-gray-700">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-3 w-3 text-seguranca-yellow" />
+                    {workPost.name}
+                    {workPost.postCode && (
+                      <span className="text-xs text-gray-400">({workPost.postCode})</span>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.workPost && <p className="text-red-500 text-sm">{errors.workPost}</p>}
+        </div>
+      </div>
+
+      {/* Quinta linha - Horários */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <Label htmlFor="shiftStart" className="text-seguranca-lightgray font-medium">
+            <Clock className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
+            Início do Turno
+          </Label>
+          <Input
+            id="shiftStart"
+            type="time"
+            value={formData.shiftStart}
+            onChange={(e) => handleInputChange('shiftStart', e.target.value)}
+            className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 font-mono ${errors.shiftStart ? 'border-red-500' : ''
+              }`}
+          />
+          {errors.shiftStart && <p className="text-red-500 text-sm">{errors.shiftStart}</p>}
+        </div>
+
+        <div className="space-y-3">
+          <Label htmlFor="shiftEnd" className="text-seguranca-lightgray font-medium">
+            <Clock className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
+            Fim do Turno
+          </Label>
+          <Input
+            id="shiftEnd"
+            type="time"
+            value={formData.shiftEnd}
+            onChange={(e) => handleInputChange('shiftEnd', e.target.value)}
+            className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 font-mono ${errors.shiftEnd ? 'border-red-500' : ''
+              }`}
+          />
+          {errors.shiftEnd && <p className="text-red-500 text-sm">{errors.shiftEnd}</p>}
+        </div>
+      </div>
+
+      {/* Sexta linha - Descrições */}
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <Label htmlFor="problemDescription" className="text-seguranca-lightgray font-medium">
+            Descrição de Problemas
+          </Label>
+          <Textarea
+            id="problemDescription"
+            value={formData.problemDescription}
+            onChange={(e) => handleInputChange('problemDescription', e.target.value)}
+            placeholder="Descreva problemas encontrados durante o turno..."
+            className="bg-seguranca-black border-gray-600 text-seguranca-lightgray min-h-[100px] resize-none"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <Label htmlFor="workPostPerformance" className="text-seguranca-lightgray font-medium">
+            Rendimentos do Posto de Trabalho
+          </Label>
+          <Textarea
+            id="workPostPerformance"
+            value={formData.workPostPerformance}
+            onChange={(e) => handleInputChange('workPostPerformance', e.target.value)}
+            placeholder="Descreva o rendimento e produtividade do posto..."
+            className="bg-seguranca-black border-gray-600 text-seguranca-lightgray min-h-[100px] resize-none"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <Label htmlFor="observations" className="text-seguranca-lightgray font-medium">
+            Observações
+          </Label>
+          <Textarea
+            id="observations"
+            value={formData.observations}
+            onChange={(e) => handleInputChange('observations', e.target.value)}
+            placeholder="Descreva observações adicionais..."
+            className="bg-seguranca-black border-gray-600 text-seguranca-lightgray min-h-[100px] resize-none"
+          />
+        </div>
+
+        {/* Campo de Upload de Imagem do Painel */}
+        <div className="space-y-3 pt-4 border-t border-gray-700">
+          <Label htmlFor="dashboardPhoto" className="text-seguranca-lightgray font-medium">
+            Upload Foto do Painel (Opcional)
+          </Label>
+          <Input
+            id="dashboardPhoto"
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              setSelectedFile(file || null);
+            }}
+            className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 file:bg-seguranca-graphite file:text-seguranca-lightgray file:border-gray-600"
+          />
+          {selectedFile && (
+            <div className="mt-2 p-2 bg-seguranca-black rounded border border-gray-600">
+              <p className="text-xs text-gray-400 mb-2">Prévia:</p>
+              <img
+                src={URL.createObjectURL(selectedFile)}
+                alt="Prévia da foto"
+                className="max-w-full h-32 object-contain rounded"
+              />
             </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="fuelType" className="text-seguranca-lightgray font-medium">
-                <Fuel className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
-                Tipo de Combustível
-              </Label>
-              <Select
-                value={formData.fuelType}
-                onValueChange={(value: 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'FLEX') => handleInputChange('fuelType', value)}
-              >
-                <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11">
-                  <SelectValue placeholder="Selecione o combustível" />
-                </SelectTrigger>
-                <SelectContent className="bg-seguranca-black border-gray-600">
-                  <SelectItem value="GASOLINE">Gasolina</SelectItem>
-                  <SelectItem value="ETHANOL">Etanol</SelectItem>
-                  <SelectItem value="DIESEL">Diesel</SelectItem>
-                  <SelectItem value="FLEX">Flex</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Nova linha para Quantidade de Combustível */}
-          <div className="space-y-3">
-            <Label htmlFor="fuelQuantity" className="text-seguranca-lightgray font-medium">
-              <Fuel className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
-              Quantidade de Combustível (Ex: 6/12)
+          )}
+          <div className="mt-2">
+            <Label htmlFor="photoDescription" className="text-seguranca-lightgray font-medium text-sm">
+              Descrição da Foto (Opcional)
             </Label>
-            <Input
-              id="fuelQuantity"
-              type="text"
-              value={formData.fuelQuantity}
-              onChange={(e) => handleInputChange('fuelQuantity', e.target.value)}
-              placeholder="Ex: 6/12"
-              className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11"
+            <Textarea
+              id="photoDescription"
+              value={uploadPhotoDescription}
+              onChange={(e) => setUploadPhotoDescription(e.target.value)}
+              placeholder="Ex: Painel com 51.107 km, foto tirada antes do início do turno..."
+              className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-20 text-sm resize-none"
             />
           </div>
+        </div>
+      </div>
+    </form>
+  );
 
-          {/* Terceira linha - KM Inicial e Final */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <Label htmlFor="initialKm" className="text-seguranca-lightgray font-medium">
-                KM Inicial
-              </Label>
-              <Input
-                id="initialKm"
-                type="number"
-                value={formData.initialKm}
-                onChange={(e) => handleInputChange('initialKm', e.target.value)}
-                placeholder="0"
-                className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 font-mono ${
-                  errors.initialKm ? 'border-red-500' : ''
-                }`}
-              />
-              {errors.initialKm && <p className="text-red-500 text-sm">{errors.initialKm}</p>}
-              
-              {/* Campo de justificativa para KM inicial */}
-              {(() => {
-                const shouldShow = (!formData.initialKm || formData.initialKm === '0');
-                console.log('🔍 Campo Justificativa KM Inicial:');
-                console.log('  KM Inicial:', formData.initialKm);
-                console.log('  Deve mostrar:', shouldShow);
-                return shouldShow ? (
-                  <div className="mt-2">
-                    <Label htmlFor="initialKmJustification" className="text-seguranca-lightgray font-medium text-sm">
-                      <AlertCircle className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
-                      Justificativa (obrigatório se não houver KM inicial)
-                    </Label>
-                    <Textarea
-                      id="initialKmJustification"
-                      value={formData.initialKmJustification}
-                      onChange={(e) => handleInputChange('initialKmJustification', e.target.value)}
-                      placeholder="Ex: Veículo em manutenção, pneu furado, problemas mecânicos..."
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-20 text-sm resize-none"
-                    />
-                    {errors.initialKmJustification && <p className="text-red-500 text-sm">{errors.initialKmJustification}</p>}
-                  </div>
-                ) : null;
-              })()}
-            </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="finalKm" className="text-seguranca-lightgray font-medium">
-                KM Final
-              </Label>
-              <Input
-                id="finalKm"
-                type="number"
-                value={formData.finalKm}
-                onChange={(e) => handleInputChange('finalKm', e.target.value)}
-                placeholder="0"
-                className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 font-mono ${
-                  errors.finalKm ? 'border-red-500' : ''
-                }`}
-              />
-              {errors.finalKm && <p className="text-red-500 text-sm">{errors.finalKm}</p>}
-              
-              {/* Campo de justificativa para KM final */}
-              {(() => {
-                const shouldShow = (!formData.finalKm || formData.finalKm === '0');
-                console.log('🔍 Campo Justificativa KM Final:');
-                console.log('  KM Final:', formData.finalKm);
-                console.log('  Deve mostrar:', shouldShow);
-                return shouldShow ? (
-                  <div className="mt-2">
-                    <Label htmlFor="finalKmJustification" className="text-seguranca-lightgray font-medium text-sm">
-                      <AlertCircle className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
-                      Justificativa (obrigatório se não houver KM final)
-                    </Label>
-                    <Textarea
-                      id="finalKmJustification"
-                      value={formData.finalKmJustification}
-                      onChange={(e) => handleInputChange('finalKmJustification', e.target.value)}
-                      placeholder="Ex: Veículo quebrou, turno interrompido, emergência..."
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-20 text-sm resize-none"
-                    />
-                    {errors.finalKmJustification && <p className="text-red-500 text-sm">{errors.finalKmJustification}</p>}
-                  </div>
-                ) : null;
-              })()}
-            </div>
-          </div>
-
-          {/* KM Total calculado */}
-          <div className="bg-seguranca-black/50 p-6 rounded-lg border border-seguranca-yellow/30">
-            <div className="flex items-center justify-center space-x-4">
-              <div className="p-3 bg-seguranca-yellow/20 rounded-full">
-                <Calculator className="h-6 w-6 text-seguranca-yellow" />
-              </div>
-              <div className="text-center">
-                <Label className="text-seguranca-lightgray font-semibold text-lg">KM Total do Dia</Label>
-                <div className="text-3xl font-bold text-seguranca-yellow mt-1">
-                  {calculateTotalKm() !== null && calculateTotalKm() !== undefined ? calculateTotalKm().toLocaleString() : '0'} km
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quarta linha - Valor e Posto */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <Label htmlFor="value" className="text-seguranca-lightgray font-medium">
-                <DollarSign className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
-                Valor
-              </Label>
-              <Input
-                id="value"
-                type="number"
-                step="0.01"
-                value={formData.value}
-                onChange={(e) => handleInputChange('value', e.target.value)}
-                placeholder="0.00"
-                className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 ${
-                  errors.value ? 'border-red-500' : ''
-                }`}
-              />
-              {errors.value && <p className="text-red-500 text-sm">{errors.value}</p>}
-            </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="workPost" className="text-seguranca-lightgray font-medium">
-                <MapPin className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
-                Posto de Trabalho
-              </Label>
-              <Input
-                id="workPost"
-                value={formData.workPost}
-                onChange={(e) => handleInputChange('workPost', e.target.value)}
-                placeholder="Nome do posto"
-                className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 ${
-                  errors.workPost ? 'border-red-500' : ''
-                }`}
-              />
-              {errors.workPost && <p className="text-red-500 text-sm">{errors.workPost}</p>}
-            </div>
-          </div>
-
-          {/* Quinta linha - Horários */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <Label htmlFor="shiftStart" className="text-seguranca-lightgray font-medium">
-                <Clock className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
-                Início do Turno
-              </Label>
-              <Input
-                id="shiftStart"
-                type="time"
-                value={formData.shiftStart}
-                onChange={(e) => handleInputChange('shiftStart', e.target.value)}
-                className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 font-mono ${
-                  errors.shiftStart ? 'border-red-500' : ''
-                }`}
-              />
-              {errors.shiftStart && <p className="text-red-500 text-sm">{errors.shiftStart}</p>}
-            </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="shiftEnd" className="text-seguranca-lightgray font-medium">
-                <Clock className="inline h-4 w-4 mr-2 text-seguranca-yellow" />
-                Fim do Turno
-              </Label>
-              <Input
-                id="shiftEnd"
-                type="time"
-                value={formData.shiftEnd}
-                onChange={(e) => handleInputChange('shiftEnd', e.target.value)}
-                className={`bg-seguranca-black border-gray-600 text-seguranca-lightgray h-11 font-mono ${
-                  errors.shiftEnd ? 'border-red-500' : ''
-                }`}
-              />
-              {errors.shiftEnd && <p className="text-red-500 text-sm">{errors.shiftEnd}</p>}
-            </div>
-          </div>
-
-          {/* Sexta linha - Descrições */}
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="problemDescription" className="text-seguranca-lightgray font-medium">
-                Descrição de Problemas
-              </Label>
-              <Textarea
-                id="problemDescription"
-                value={formData.problemDescription}
-                onChange={(e) => handleInputChange('problemDescription', e.target.value)}
-                placeholder="Descreva problemas encontrados durante o turno..."
-                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray min-h-[100px] resize-none"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="workPostPerformance" className="text-seguranca-lightgray font-medium">
-                Rendimentos do Posto de Trabalho
-              </Label>
-              <Textarea
-                id="workPostPerformance"
-                value={formData.workPostPerformance}
-                onChange={(e) => handleInputChange('workPostPerformance', e.target.value)}
-                placeholder="Descreva o rendimento e produtividade do posto..."
-                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray min-h-[100px] resize-none"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="observations" className="text-seguranca-lightgray font-medium">
-                Observações
-              </Label>
-              <Textarea
-                id="observations"
-                value={formData.observations}
-                onChange={(e) => handleInputChange('observations', e.target.value)}
-                placeholder="Descreva observações adicionais..."
-                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray min-h-[100px] resize-none"
-              />
-            </div>
-
-            {/* Campo de Upload de Imagem do Painel */}
-            <div className="space-y-3 pt-4 border-t border-gray-700">
-              <Label htmlFor="dashboardPhoto" className="text-seguranca-lightgray font-medium">
-                Upload Foto do Painel (Opcional)
-              </Label>
-              <Input
-                id="dashboardPhoto"
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  setSelectedFile(file || null);
-                }}
-                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-              />
-              {selectedFile && (
-                <div className="mt-2 p-2 bg-seguranca-black rounded border border-gray-600">
-                  <p className="text-xs text-gray-400 mb-2">Prévia:</p>
-                  <img
-                    src={URL.createObjectURL(selectedFile)}
-                    alt="Prévia da foto"
-                    className="max-w-full h-32 object-contain rounded"
-                  />
-                </div>
-              )}
-              <div className="mt-2">
-                <Label htmlFor="photoDescription" className="text-seguranca-lightgray font-medium text-sm">
-                  Descrição da Foto (Opcional)
-                </Label>
-                <Textarea
-                  id="photoDescription"
-                  value={uploadPhotoDescription}
-                  onChange={(e) => setUploadPhotoDescription(e.target.value)}
-                  placeholder="Ex: Painel com 51.107 km, foto tirada antes do início do turno..."
-                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-20 text-sm resize-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Botões */}
-          <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-600">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="border-gray-600 text-gray-400 hover:bg-gray-700 h-11 px-6"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              className="bg-seguranca-red hover:bg-seguranca-darkred h-11 px-6"
-              disabled={isUploadingPhoto}
-            >
-              {isUploadingPhoto ? 'Enviando Foto...' : (kmControl ? 'Atualizar' : 'Salvar')}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+  return (
+    <ResponsiveDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`${kmControl ? 'Editar' : 'Novo'} Controle de Quilometragem`}
+      description={kmControl ? 'Atualize os dados do controle de quilometragem.' : 'Registre um novo controle de quilometragem.'}
+      footer={footer}
+      className="max-w-2xl"
+    >
+      {renderForm()}
+    </ResponsiveDrawer>
   );
 };
 

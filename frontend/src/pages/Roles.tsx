@@ -19,7 +19,7 @@ import {
   Key,
   Settings
 } from 'lucide-react';
-import { useAOS } from '@/hooks/use-aos';
+import { useGSAP } from '@/hooks/use-gsap';
 import { RoleViewModal } from '@/components/roles/RoleViewModal';
 import { RoleEditModal } from '@/components/roles/RoleEditModal';
 import { RoleDeleteDialog } from '@/components/roles/RoleDeleteDialog';
@@ -40,7 +40,7 @@ const Roles: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const { user } = useAuth();
-  const aos = useAOS();
+  useGSAP();
 
   // Estados dos modais
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);

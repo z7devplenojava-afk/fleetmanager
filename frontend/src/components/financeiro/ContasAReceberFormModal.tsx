@@ -32,6 +32,7 @@ export interface ContaAReceber {
   comprovante?: File;
   categoria?: string | undefined;
   centroCusto?: string | undefined;
+  paymentMethod?: string; // PaymentMethod enum: PIX, BOLETO, TRANSFER, CASH, CARD
   createdAt?: Date;
 }
 
@@ -66,17 +67,19 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
     descricao: '',
     tipo: 'FATURA',
     valor: 0,
-    codigoBarras: '',
     status: 'ABERTA',
     baixa: false,
     dataPagamento: undefined,
     observacoes: '',
-    categoria: undefined,
-    centroCusto: undefined
+    categoria: 'INVOICE', // Valor padrão - enum ReceivableCategory
+    centroCusto: undefined,
+    paymentMethod: 'PIX' // Valor padrão - enum PaymentMethod
   });
 
   const [categories, setCategories] = useState<string[]>([]);
   const [costCenters, setCostCenters] = useState<string[]>([]);
+  const [newCategoryModalOpen, setNewCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   // Carregar dados quando o modal abrir
   useEffect(() => {
@@ -96,37 +99,24 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
         });
 
       // Carregar empresas
+      console.log('🔍 DEBUG: Carregando empresas...');
       contasAReceberService.getEmpresas()
         .then(data => {
+          console.log('🔍 DEBUG: Empresas recebidas:', data);
           const empresasArray = Array.isArray(data) ? data : [];
+          console.log('🔍 DEBUG: Empresas processadas:', empresasArray);
           setEmpresas(empresasArray);
         })
         .catch(error => {
-          console.error('Erro ao carregar empresas:', error);
+          console.error('❌ Erro ao carregar empresas:', error);
           setEmpresas([
             { id: '1', name: 'Empresa Exemplo 1' },
             { id: '2', name: 'Empresa Exemplo 2' }
           ]);
         });
 
-      // Carregar categorias
-      contasAReceberService.getCategories()
-        .then(data => {
-          const categoriasArray = Array.isArray(data) ? data : [];
-          setCategories(categoriasArray);
-        })
-        .catch(error => {
-          console.error('Erro ao carregar categorias:', error);
-          setCategories([
-            'Serviços de Segurança',
-            'Consultoria',
-            'Manutenção',
-            'Equipamentos',
-            'Treinamento',
-            'Auditoria',
-            'Outros'
-          ]);
-        });
+      // Não precisamos mais carregar categorias via API, usando valores fixos do enum
+      // setCategories(['INVOICE', 'NOTE', 'ADVANCE', 'SERVICE', 'PRODUCT', 'OTHER']);
 
       // Carregar centros de custo
       contasAReceberService.getCostCenters()
@@ -156,14 +146,74 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
   useEffect(() => {
     if (open) {
       if (editMode && initialData) {
+        console.log('📝 Carregando dados para edição:', initialData);
+        
+        // Mapear dados corretamente, considerando campos alternativos
+        const valor = initialData.amount || initialData.valor || 0;
+        const vencimento = initialData.dueDate || initialData.vencimento || new Date();
+        const dataEmissao = initialData.dataEmissao || new Date();
+        const numeroFatura = initialData.invoiceNumber || initialData.numeroFatura || '';
+        const clienteId = initialData.clienteId || initialData.client?.id || '';
+        const cliente = initialData.client?.name || initialData.cliente || '';
+        const empresaId = initialData.empresaId || initialData.unitId || '';
+        const empresa = initialData.empresa || initialData.unitSigla || initialData.unitName || '';
+        
+        // Mapear categoria corretamente (pode vir como enum do backend: INVOICE, NOTE, etc)
+        let categoriaMapeada = undefined;
+        if (initialData.categoria) {
+          const catStr = String(initialData.categoria).toUpperCase();
+          // Se for um enum válido, manter como está
+          const validCategories = ['INVOICE', 'NOTE', 'ADVANCE', 'SERVICE', 'PRODUCT', 'OTHER'];
+          if (validCategories.includes(catStr)) {
+            categoriaMapeada = catStr;
+          } else {
+            categoriaMapeada = initialData.categoria;
+          }
+        }
+        
         setFormData({
-          ...initialData,
-          dataEmissao: initialData.dataEmissao || new Date(),
-          vencimento: initialData.vencimento || new Date(),
-          dataPagamento: initialData.dataPagamento || undefined,
+          id: initialData.id,
+          numeroFatura: numeroFatura,
+          dataEmissao: dataEmissao instanceof Date ? dataEmissao : new Date(dataEmissao),
+          vencimento: vencimento instanceof Date ? vencimento : new Date(vencimento),
+          cliente: cliente,
+          clienteId: clienteId,
+          empresa: empresa,
+          empresaId: empresaId,
+          descricao: initialData.descricao || '',
+          tipo: initialData.tipo || 'FATURA',
+          valor: typeof valor === 'number' ? valor : parseFloat(valor.toString()) || 0,
+          codigoBarras: initialData.codigoBarras || '',
+          status: initialData.status || 'ABERTA',
+          baixa: initialData.baixa || false,
+          dataPagamento: initialData.dataPagamento ? (initialData.dataPagamento instanceof Date ? initialData.dataPagamento : new Date(initialData.dataPagamento)) : undefined,
           observacoes: initialData.observacoes || '',
-          categoria: initialData.categoria || '',
-          centroCusto: initialData.centroCusto || ''
+          categoria: categoriaMapeada,
+          centroCusto: initialData.centroCusto ? String(initialData.centroCusto).trim() : undefined,
+          paymentMethod: initialData.paymentMethod || 'PIX'
+        });
+        
+        console.log('✅ FormData preenchido:', {
+          numeroFatura,
+          cliente,
+          clienteId,
+          empresa,
+          empresaId,
+          descricao: initialData.descricao,
+          valor,
+          vencimento,
+          categoria: categoriaMapeada,
+          centroCusto: initialData.centroCusto,
+          paymentMethod: initialData.paymentMethod
+        });
+        console.log('📋 initialData completo:', initialData);
+        console.log('📋 Campos de empresa e centro de custo:', {
+          empresaId: initialData.empresaId,
+          unitId: initialData.unitId,
+          empresa: initialData.empresa,
+          unitSigla: initialData.unitSigla,
+          unitName: initialData.unitName,
+          centroCusto: initialData.centroCusto
         });
       } else {
         // Resetar formulário para modo de criação
@@ -178,23 +228,167 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
           descricao: '',
           tipo: 'FATURA',
           valor: 0,
-          codigoBarras: '',
           status: 'ABERTA',
           baixa: false,
           dataPagamento: undefined,
           observacoes: '',
           categoria: undefined,
-          centroCusto: undefined
+          centroCusto: undefined,
+          paymentMethod: 'PIX'
         });
       }
     }
   }, [editMode, initialData, open]);
+
+  // Atualizar clienteId e empresaId quando clientes e empresas forem carregados (modo edição)
+  useEffect(() => {
+    if (open && editMode && initialData) {
+      // Encontrar cliente por ID ou nome
+      if (clientes.length > 0) {
+        if (initialData.clienteId) {
+          const clienteEncontrado = clientes.find(c => c.id === initialData.clienteId || c.id === String(initialData.clienteId));
+          if (clienteEncontrado) {
+            console.log('✅ Cliente encontrado por ID:', clienteEncontrado);
+            setFormData(prev => ({
+              ...prev,
+              clienteId: clienteEncontrado.id,
+              cliente: clienteEncontrado.name
+            }));
+          }
+        } else if (initialData.cliente || initialData.client?.name) {
+          const clienteEncontrado = clientes.find(c => 
+            c.name === initialData.cliente || 
+            c.name === initialData.client?.name ||
+            c.id === initialData.client?.id
+          );
+          if (clienteEncontrado) {
+            console.log('✅ Cliente encontrado por nome:', clienteEncontrado);
+            setFormData(prev => ({
+              ...prev,
+              clienteId: clienteEncontrado.id,
+              cliente: clienteEncontrado.name
+            }));
+          }
+        }
+      }
+
+      // Encontrar empresa por ID ou nome
+      if (empresas.length > 0) {
+        console.log('🔍 Procurando empresa. initialData.empresaId:', initialData.empresaId, 'initialData.empresa:', initialData.empresa);
+        console.log('🔍 Empresas disponíveis:', empresas.map(e => ({ id: e.id, name: e.name, sigla: e.sigla })));
+        
+        if (initialData.empresaId || initialData.unitId) {
+          const empresaIdToFind = initialData.empresaId || initialData.unitId;
+          const empresaEncontrada = empresas.find(e => 
+            String(e.id) === String(empresaIdToFind) ||
+            e.id === empresaIdToFind
+          );
+          if (empresaEncontrada) {
+            console.log('✅ Empresa encontrada por ID:', empresaEncontrada);
+            setFormData(prev => ({
+              ...prev,
+              empresaId: empresaEncontrada.id,
+              empresa: empresaEncontrada.sigla || empresaEncontrada.name
+            }));
+          } else {
+            console.log('⚠️ Empresa não encontrada por ID:', empresaIdToFind);
+          }
+        } else if (initialData.empresa || initialData.unitSigla || initialData.unitName) {
+          const empresaToFind = initialData.empresa || initialData.unitSigla || initialData.unitName;
+          const empresaEncontrada = empresas.find(e => 
+            e.sigla === empresaToFind || 
+            e.name === empresaToFind ||
+            e.sigla?.toUpperCase() === empresaToFind?.toUpperCase() ||
+            e.name?.toUpperCase() === empresaToFind?.toUpperCase()
+          );
+          if (empresaEncontrada) {
+            console.log('✅ Empresa encontrada por nome/sigla:', empresaEncontrada);
+            setFormData(prev => ({
+              ...prev,
+              empresaId: empresaEncontrada.id,
+              empresa: empresaEncontrada.sigla || empresaEncontrada.name
+            }));
+          } else {
+            console.log('⚠️ Empresa não encontrada. Procurando:', empresaToFind, 'empresas disponíveis:', empresas.map(e => ({ id: e.id, name: e.name, sigla: e.sigla })));
+          }
+        } else {
+          console.log('⚠️ Nenhuma informação de empresa encontrada em initialData');
+        }
+      } else {
+        console.log('⚠️ Lista de empresas vazia');
+      }
+      
+      // Atualizar categoria se necessário
+      if (initialData.categoria && initialData.categoria !== 'NENHUMA' && initialData.categoria !== '') {
+        const catStr = String(initialData.categoria).toUpperCase();
+        const validCategories = ['INVOICE', 'NOTE', 'ADVANCE', 'SERVICE', 'PRODUCT', 'OTHER'];
+        if (validCategories.includes(catStr)) {
+          setFormData(prev => ({
+            ...prev,
+            categoria: catStr
+          }));
+          console.log('✅ Categoria atualizada:', catStr);
+        }
+      }
+      
+      // Atualizar centro de custo se disponível
+      if (initialData.centroCusto && costCenters.length > 0) {
+        const centroEncontrado = costCenters.find(c => 
+          c === initialData.centroCusto ||
+          c.toLowerCase() === String(initialData.centroCusto).toLowerCase()
+        );
+        if (centroEncontrado) {
+          setFormData(prev => ({
+            ...prev,
+            centroCusto: centroEncontrado
+          }));
+          console.log('✅ Centro de custo atualizado:', centroEncontrado);
+        } else {
+          console.log('⚠️ Centro de custo não encontrado na lista. Valor:', initialData.centroCusto, 'Lista:', costCenters);
+          // Mesmo que não esteja na lista, manter o valor se existir
+          if (initialData.centroCusto && String(initialData.centroCusto).trim()) {
+            setFormData(prev => ({
+              ...prev,
+              centroCusto: String(initialData.centroCusto).trim()
+            }));
+            console.log('✅ Centro de custo mantido (não está na lista):', initialData.centroCusto);
+          }
+        }
+      } else if (initialData.centroCusto && String(initialData.centroCusto).trim()) {
+        // Se não houver lista de centros de custo, mas houver valor, manter
+        setFormData(prev => ({
+          ...prev,
+          centroCusto: String(initialData.centroCusto).trim()
+        }));
+        console.log('✅ Centro de custo mantido (sem lista):', initialData.centroCusto);
+      } else {
+        console.log('⚠️ Nenhum centro de custo encontrado em initialData');
+      }
+    }
+  }, [open, editMode, initialData, clientes, empresas, costCenters]);
 
   const handleInputChange = (field: keyof ContaAReceber, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleCreateCategory = () => {
+    const categoryName = newCategoryName.trim();
+    if (categoryName) {
+      setCategories(prev => {
+        const newCategories = Array.from(new Set([categoryName, ...prev]));
+        return newCategories;
+      });
+      handleInputChange('categoria', categoryName);
+      setNewCategoryName('');
+      setNewCategoryModalOpen(false);
+      toast({
+        title: "Sucesso",
+        description: `Categoria "${categoryName}" criada com sucesso!`
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -270,7 +464,7 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   value={formData.numeroFatura}
                   onChange={(e) => handleInputChange('numeroFatura', e.target.value)}
                   placeholder="Ex: FAT-2024-001"
-                  className="border-gray-600 bg-seguranca-black text-seguranca-lightgray placeholder:text-gray-400 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                  className="border-gray-600 bg-white text-black placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
                 />
               </div>
 
@@ -284,7 +478,7 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   value={formData.descricao}
                   onChange={(e) => handleInputChange('descricao', e.target.value)}
                   placeholder="Descrição do serviço/produto"
-                  className="border-gray-600 bg-seguranca-black text-seguranca-lightgray placeholder:text-gray-400 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                  className="border-gray-600 bg-white text-black placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
                   required
                 />
               </div>
@@ -300,34 +494,34 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Data de Emissão */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-blue-400 flex items-center gap-2">
+                <label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
                   <CalendarDays size={14} />
                   Data de Emissão *
                 </label>
                 <DatePicker
                   selected={formData.dataEmissao}
-                  onChange={(date) => handleInputChange('dataEmissao', date)}
+                  onChange={(date: Date | null) => handleInputChange('dataEmissao', date)}
                   dateFormat="dd/MM/yyyy"
                   locale={ptBR}
-                  className="w-full px-3 py-2 border border-blue-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white text-black font-medium [&>input]:text-black [&>input]:bg-white"
-                  {...DEFAULT_DATE_PICKER_PROPS}
+                  placeholderText="dd/mm/aaaa"
+                  className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-seguranca-yellow bg-white text-black font-medium [&_input]:text-black [&_input]:bg-white [&_input]:placeholder-gray-500"
                   required
                 />
               </div>
 
               {/* Data de Vencimento */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-green-400 flex items-center gap-2">
+                <label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
                   <CalendarDays size={14} />
                   Data de Vencimento *
                 </label>
                 <DatePicker
                   selected={formData.vencimento}
-                  onChange={(date) => handleInputChange('vencimento', date)}
+                  onChange={(date: Date | null) => handleInputChange('vencimento', date)}
                   dateFormat="dd/MM/yyyy"
                   locale={ptBR}
-                  className="w-full px-3 py-2 border border-green-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent bg-white text-black font-medium [&>input]:text-black [&>input]:bg-white"
-                  {...DEFAULT_DATE_PICKER_PROPS}
+                  placeholderText="dd/mm/aaaa"
+                  className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-seguranca-yellow bg-white text-black font-medium [&_input]:text-black [&_input]:bg-white [&_input]:placeholder-gray-500"
                   required
                 />
               </div>
@@ -356,19 +550,21 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   }}
                   required
                 >
-                  <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                  <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow">
                     <SelectValue placeholder="Selecione um cliente" />
                   </SelectTrigger>
                   <SelectContent className="bg-seguranca-black border-gray-600">
-                    {clientes.map((cliente) => (
-                      <SelectItem 
-                        key={cliente.id} 
-                        value={cliente.id}
-                        className="text-seguranca-lightgray hover:bg-seguranca-graphite"
-                      >
-                        {cliente.name}
-                      </SelectItem>
-                    ))}
+                    {clientes && Array.isArray(clientes) ? clientes
+                      .filter(cliente => cliente && cliente.id && cliente.name)
+                      .map((cliente) => (
+                        <SelectItem
+                          key={cliente.id}
+                          value={cliente.id}
+                          className="text-seguranca-lightgray hover:bg-seguranca-graphite"
+                        >
+                          {cliente.name}
+                        </SelectItem>
+                      )) : null}
                   </SelectContent>
                 </Select>
               </div>
@@ -384,23 +580,29 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   onValueChange={(value) => {
                     const empresa = empresas.find(e => e.id === value);
                     handleInputChange('empresaId', value);
-                    handleInputChange('empresa', empresa?.name || '');
+                    handleInputChange('empresa', empresa?.sigla || empresa?.name || '');
                   }}
                   required
                 >
-                  <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                  <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow">
                     <SelectValue placeholder="Selecione uma empresa" />
                   </SelectTrigger>
                   <SelectContent className="bg-seguranca-black border-gray-600">
-                    {empresas.map((empresa) => (
-                      <SelectItem 
-                        key={empresa.id} 
-                        value={empresa.id}
-                        className="text-seguranca-lightgray hover:bg-seguranca-graphite"
-                      >
-                        {empresa.name}
+                    {empresas.length === 0 ? (
+                      <SelectItem value="no-data" disabled className="text-gray-500">
+                        Carregando empresas...
                       </SelectItem>
-                    ))}
+                    ) : (
+                      empresas.map((empresa) => (
+                        <SelectItem 
+                          key={empresa.id} 
+                          value={empresa.id}
+                          className="text-seguranca-lightgray hover:bg-seguranca-graphite"
+                        >
+                          {empresa.sigla || empresa.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -425,7 +627,7 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   onValueChange={(value) => handleInputChange('tipo', value)}
                   required
                 >
-                  <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                  <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-seguranca-black border-gray-600">
@@ -458,7 +660,7 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   value={formData.valor}
                   onChange={(e) => handleInputChange('valor', parseFloat(e.target.value) || 0)}
                   placeholder="0,00"
-                  className="border-green-500 bg-seguranca-black text-green-300 placeholder:text-green-400/60 focus:border-green-400 focus:ring-green-400 font-medium"
+                  className="border-green-500 bg-white text-black placeholder:text-gray-500 focus:border-green-400 focus:ring-green-400 font-medium"
                   required
                 />
               </div>
@@ -478,29 +680,119 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   <Tag size={14} />
                   Categoria
                 </label>
-                <Select
-                  value={formData.categoria || 'NENHUMA'}
-                  onValueChange={(value) => handleInputChange('categoria', value)}
-                >
-                  <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
-                    <SelectValue placeholder="Selecione uma categoria" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-seguranca-black border-gray-600">
-                    <SelectItem 
-                      value="NENHUMA"
-                      className="text-seguranca-lightgray hover:bg-seguranca-graphite"
-                    >
-                      Nenhuma categoria
-                    </SelectItem>
-                    {categories.map((category) => (
+                <div className="flex gap-2">
+                  <Select
+                    value={formData.categoria && formData.categoria !== 'NENHUMA' ? formData.categoria : 'NENHUMA'}
+                    onValueChange={(value) => handleInputChange('categoria', value === 'NENHUMA' ? undefined : value)}
+                    className="flex-1"
+                  >
+                    <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                      <SelectValue placeholder="Selecione uma categoria">
+                        {formData.categoria && formData.categoria !== 'NENHUMA' 
+                          ? (() => {
+                              const categoryMap: { [key: string]: string } = {
+                                'INVOICE': 'Fatura',
+                                'NOTE': 'Nota Fiscal',
+                                'ADVANCE': 'Adiantamento',
+                                'SERVICE': 'Serviço',
+                                'PRODUCT': 'Produto',
+                                'OTHER': 'Outros'
+                              };
+                              return categoryMap[formData.categoria] || formData.categoria;
+                            })()
+                          : 'Nenhuma categoria'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-black border-gray-600">
                       <SelectItem 
-                        key={category} 
-                        value={category}
+                        value="NENHUMA"
                         className="text-seguranca-lightgray hover:bg-seguranca-graphite"
                       >
-                        {category}
+                        Nenhuma categoria
                       </SelectItem>
-                    ))}
+                      {/* Categorias padrão do enum */}
+                      {[
+                        { value: 'INVOICE', label: 'Fatura' },
+                        { value: 'NOTE', label: 'Nota Fiscal' },
+                        { value: 'ADVANCE', label: 'Adiantamento' },
+                        { value: 'SERVICE', label: 'Serviço' },
+                        { value: 'PRODUCT', label: 'Produto' },
+                        { value: 'OTHER', label: 'Outros' }
+                      ].map((cat) => (
+                        <SelectItem 
+                          key={cat.value} 
+                          value={cat.value}
+                          className="text-seguranca-lightgray hover:bg-seguranca-graphite"
+                        >
+                          {cat.label}
+                        </SelectItem>
+                      ))}
+                      {/* Categorias customizadas */}
+                      {categories.filter(cat => !['INVOICE', 'NOTE', 'ADVANCE', 'SERVICE', 'PRODUCT', 'OTHER'].includes(cat)).map((category) => (
+                        <SelectItem 
+                          key={category} 
+                          value={category}
+                          className="text-seguranca-lightgray hover:bg-seguranca-graphite"
+                        >
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setNewCategoryModalOpen(true)}
+                    className="border-gray-600 bg-white text-black hover:bg-gray-100 shrink-0"
+                    title="Cadastrar nova categoria"
+                  >
+                    <Plus size={16} />
+                  </Button>
+                </div>
+                {categories.length === 0 && (
+                  <div className="text-xs text-gray-400 mt-1">
+                    Nenhuma categoria cadastrada.{' '}
+                    <button 
+                      type="button" 
+                      className="text-seguranca-yellow underline hover:text-seguranca-yellow/80"
+                      onClick={() => setNewCategoryModalOpen(true)}
+                    >
+                      Cadastrar categoria
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Forma de Pagamento */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
+                  <DollarSign size={14} />
+                  Forma de Pagamento *
+                </label>
+                <Select
+                  value={formData.paymentMethod || 'PIX'}
+                  onValueChange={(value) => handleInputChange('paymentMethod', value)}
+                  required
+                >
+                  <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                    <SelectValue placeholder="Selecione a forma de pagamento" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-black border-gray-600">
+                    <SelectItem value="PIX" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                      PIX
+                    </SelectItem>
+                    <SelectItem value="BOLETO" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                      Boleto
+                    </SelectItem>
+                    <SelectItem value="TRANSFER" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                      Transferência
+                    </SelectItem>
+                    <SelectItem value="CASH" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                      Dinheiro
+                    </SelectItem>
+                    <SelectItem value="CARD" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                      Cartão
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -512,22 +804,24 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   Centro de Custo
                 </label>
                 <Select
-                  value={formData.centroCusto || 'NENHUM'}
-                  onValueChange={(value) => handleInputChange('centroCusto', value)}
+                  value={formData.centroCusto && formData.centroCusto !== 'NENHUM' ? formData.centroCusto : 'NENHUM'}
+                  onValueChange={(value) => handleInputChange('centroCusto', value === 'NENHUM' ? undefined : value)}
                 >
-                  <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
-                    <SelectValue placeholder="Selecione um centro de custo" />
+                  <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                    <SelectValue placeholder="Selecione um centro de custo">
+                      {formData.centroCusto && formData.centroCusto !== 'NENHUM' ? formData.centroCusto : 'Nenhum centro de custo'}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-seguranca-black border-gray-600">
-                    <SelectItem 
+                    <SelectItem
                       value="NENHUM"
                       className="text-seguranca-lightgray hover:bg-seguranca-graphite"
                     >
                       Nenhum centro de custo
                     </SelectItem>
                     {costCenters.map((center) => (
-                      <SelectItem 
-                        key={center} 
+                      <SelectItem
+                        key={center}
                         value={center}
                         className="text-seguranca-lightgray hover:bg-seguranca-graphite"
                       >
@@ -546,21 +840,7 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
               <FileText size={18} />
               Informações Adicionais
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Código de Barras */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
-                  <FileText size={14} />
-                  Código de Barras
-                </label>
-                <Input
-                  value={formData.codigoBarras}
-                  onChange={(e) => handleInputChange('codigoBarras', e.target.value)}
-                  placeholder="Código de barras (opcional)"
-                  className="border-gray-600 bg-seguranca-black text-seguranca-lightgray placeholder:text-gray-400 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
-                />
-              </div>
-
+            <div className="grid grid-cols-1 gap-6">
               {/* Observações */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
@@ -571,7 +851,7 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   value={formData.observacoes}
                   onChange={(e) => handleInputChange('observacoes', e.target.value)}
                   placeholder="Observações adicionais (opcional)"
-                  className="border-gray-600 bg-seguranca-black text-seguranca-lightgray placeholder:text-gray-400 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                  className="border-gray-600 bg-white text-black placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
                   rows={3}
                 />
               </div>
@@ -608,6 +888,55 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
             </Button>
           </div>
         </form>
+
+        {/* Modal de Nova Categoria */}
+        <Dialog open={newCategoryModalOpen} onOpenChange={setNewCategoryModalOpen}>
+          <DialogContent className="sm:max-w-[400px] bg-seguranca-graphite border-gray-600 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-seguranca-yellow">Nova Categoria</DialogTitle>
+              <DialogDescription className="text-gray-300">
+                Crie uma categoria para classificar a conta a receber
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input
+                placeholder="Nome da categoria"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newCategoryName.trim()) {
+                    e.preventDefault();
+                    handleCreateCategory();
+                  }
+                }}
+                className="border-gray-600 bg-white text-black placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setNewCategoryModalOpen(false);
+                    setNewCategoryName('');
+                  }}
+                  className="border-gray-600 text-white hover:bg-seguranca-black"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleCreateCategory}
+                  disabled={!newCategoryName.trim()}
+                  className="bg-seguranca-yellow hover:bg-seguranca-yellow/90 text-black"
+                >
+                  <Plus size={16} className="mr-2" />
+                  Criar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

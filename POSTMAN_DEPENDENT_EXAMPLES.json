@@ -1,0 +1,360 @@
+{
+  "EXEMPLO_MINIMO": {
+    "employeeId": "uuid-do-funcionario-aqui",
+    "name": "João Silva Filho",
+    "relationship": "FILHO",
+    "birthDate": "2010-05-15",
+    "cpf": "123.456.789-00"
+  },
+
+  "EXEMPLO_COMPLETO": {
+    "employeeId": "uuid-do-funcionario-aqui",
+    "name": "Maria Santos Oliveira",
+    "relationship": "FILHA",
+    "birthDate": "2008-03-20",
+    "cpf": "987.654.321-00",
+    "rg": "12.345.678-9",
+    "gender": "F",
+    "phone": "(11) 98765-4321",
+    "email": "maria.oliveira@email.com",
+    "address": "Rua das Flores, 123, Apto 45",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "01234-567",
+    "isStudent": true,
+    "schoolName": "Escola Municipal São Paulo",
+    "isBeneficiary": true,
+    "notes": "Estudante aplicada, necessita de acompanhamento médico especializado."
+  },
+
+  "EXEMPLO_CONJUGE": {
+    "employeeId": "uuid-do-funcionario-aqui",
+    "name": "Ana Paula Costa",
+    "relationship": "ESPOSA",
+    "birthDate": "1985-07-10",
+    "cpf": "111.222.333-44",
+    "rg": "22.333.444-5",
+    "gender": "F",
+    "phone": "(11) 99999-8888",
+    "email": "ana.costa@email.com",
+    "address": "Avenida Paulista, 1000",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "01310-100",
+    "isStudent": false,
+    "isBeneficiary": true,
+    "notes": "Cônjuge do funcionário, beneficiária do plano de saúde."
+  },
+
+  "EXEMPLO_PAI": {
+    "employeeId": "uuid-do-funcionario-aqui",
+    "name": "José da Silva",
+    "relationship": "PAI",
+    "birthDate": "1955-12-25",
+    "cpf": "555.666.777-88",
+    "rg": "33.444.555-6",
+    "gender": "M",
+    "phone": "(11) 97777-6666",
+    "address": "Rua dos Trabalhadores, 789",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "03456-789",
+    "isStudent": false,
+    "isBeneficiary": false,
+    "notes": "Pai do funcionário, aposentado."
+  },
+
+  "EXEMPLO_MAE": {
+    "employeeId": "uuid-do-funcionario-aqui",
+    "name": "Maria da Silva",
+    "relationship": "MAE",
+    "birthDate": "1960-08-15",
+    "cpf": "999.888.777-66",
+    "rg": "44.555.666-7",
+    "gender": "F",
+    "phone": "(11) 96666-5555",
+    "address": "Rua dos Trabalhadores, 789",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "03456-789",
+    "isStudent": false,
+    "isBeneficiary": true,
+    "notes": "Mãe do funcionário, beneficiária do plano de saúde."
+  },
+
+  "EXEMPLO_NETO": {
+    "employeeId": "uuid-do-funcionario-aqui",
+    "name": "Pedro Henrique Santos",
+    "relationship": "NETO",
+    "birthDate": "2015-01-10",
+    "cpf": "222.333.444-55",
+    "gender": "M",
+    "phone": "(11) 91111-2222",
+    "address": "Rua das Acácias, 456",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "04567-890",
+    "isStudent": true,
+    "schoolName": "Creche Municipal",
+    "isBeneficiary": true,
+    "notes": "Neto do funcionário, frequenta creche municipal."
+  },
+
+  "EXEMPLO_IRMAO": {
+    "employeeId": "uuid-do-funcionario-aqui",
+    "name": "Carlos Alberto Silva",
+    "relationship": "IRMAO",
+    "birthDate": "1988-11-30",
+    "cpf": "333.444.555-66",
+    "rg": "55.666.777-8",
+    "gender": "M",
+    "phone": "(11) 92222-3333",
+    "email": "carlos.silva@email.com",
+    "address": "Rua das Palmeiras, 321",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "05678-901",
+    "isStudent": false,
+    "isBeneficiary": false,
+    "notes": "Irmão do funcionário, mora na mesma cidade."
+  },
+
+  "EXEMPLO_SOGRO": {
+    "employeeId": "uuid-do-funcionario-aqui",
+    "name": "Roberto Oliveira",
+    "relationship": "SOGRO",
+    "birthDate": "1950-04-05",
+    "cpf": "444.555.666-77",
+    "rg": "66.777.888-9",
+    "gender": "M",
+    "phone": "(11) 93333-4444",
+    "address": "Rua dos Jardins, 654",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "06789-012",
+    "isStudent": false,
+    "isBeneficiary": false,
+    "notes": "Sogro do funcionário, aposentado."
+  },
+
+  "EXEMPLO_APENAS_OBRIGATORIOS": {
+    "employeeId": "uuid-do-funcionario-aqui",
+    "name": "Fernanda Lima",
+    "relationship": "FILHA",
+    "birthDate": "2012-06-18",
+    "cpf": "777.888.999-00"
+  },
+
+  "VALORES_VALIDOS": {
+    "relationship": [
+      "FILHO - Filho (masculino)",
+      "FILHA - Filha (feminino)",
+      "CONJUGE - Cônjuge (genérico)",
+      "ESPOSA - Esposa",
+      "ESPOSO - Esposo",
+      "PAI - Pai",
+      "MAE - Mãe",
+      "IRMAO - Irmão",
+      "IRMA - Irmã",
+      "NETO - Neto(a)",
+      "SOGRO - Sogro(a)",
+      "OUTRO - Outro relacionamento"
+    ],
+    "gender": [
+      "M - Masculino",
+      "F - Feminino",
+      "OUTRO - Outro"
+    ],
+    "states": [
+      "AC - Acre", "AL - Alagoas", "AP - Amapá", "AM - Amazonas",
+      "BA - Bahia", "CE - Ceará", "DF - Distrito Federal", "ES - Espírito Santo",
+      "GO - Goiás", "MA - Maranhão", "MT - Mato Grosso", "MS - Mato Grosso do Sul",
+      "MG - Minas Gerais", "PA - Pará", "PB - Paraíba", "PR - Paraná",
+      "PE - Pernambuco", "PI - Piauí", "RJ - Rio de Janeiro", "RN - Rio Grande do Norte",
+      "RS - Rio Grande do Sul", "RO - Rondônia", "RR - Roraima", "SC - Santa Catarina",
+      "SP - São Paulo", "SE - Sergipe", "TO - Tocantins"
+    ]
+  },
+
+  "ESTRUTURA_OBJETOS": {
+    "employeeId_exemplo": "UUID do funcionário (obrigatório) - obter via GET /api/employees",
+    "campos_obrigatorios": [
+      "employeeId - ID do funcionário",
+      "name - Nome completo do dependente",
+      "relationship - Relacionamento com o funcionário",
+      "birthDate - Data de nascimento (yyyy-MM-dd)",
+      "cpf - CPF do dependente"
+    ],
+    "campos_opcionais": [
+      "rg - RG do dependente",
+      "gender - Gênero (M, F, OUTRO)",
+      "phone - Telefone",
+      "email - Email",
+      "address - Endereço",
+      "city - Cidade",
+      "state - Estado (UF)",
+      "zipCode - CEP",
+      "isStudent - Se é estudante (true/false)",
+      "schoolName - Nome da escola",
+      "isBeneficiary - Se é beneficiário (true/false)",
+      "notes - Observações"
+    ]
+  },
+
+  "INSTRUCOES_POSTMAN": {
+    "method": "POST",
+    "url": "http://localhost:8081/api/dependents",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer SEU_TOKEN_JWT_AQUI"
+    },
+    "body": "Use um dos exemplos acima (EXEMPLO_MINIMO, EXEMPLO_COMPLETO, etc)",
+    "observacoes": [
+      "O campo 'employeeId' precisa de um UUID válido de um funcionário existente",
+      "Para obter o employeeId: GET /api/employees",
+      "Datas devem estar no formato yyyy-MM-dd (ex: 2024-01-15)",
+      "CPF pode ser enviado com ou sem formatação",
+      "Telefone pode ser enviado com ou sem formatação",
+      "CEP pode ser enviado com ou sem formatação"
+    ]
+  },
+
+  "ENDPOINTS_DISPONIVEIS": {
+    "1_listar_todos": {
+      "method": "GET",
+      "url": "http://localhost:8081/api/dependents",
+      "description": "Lista todos os dependentes"
+    },
+    "2_buscar_por_id": {
+      "method": "GET",
+      "url": "http://localhost:8081/api/dependents/{id}",
+      "description": "Busca dependente por ID"
+    },
+    "3_buscar_por_funcionario": {
+      "method": "GET",
+      "url": "http://localhost:8081/api/dependents/employee/{employeeId}",
+      "description": "Lista dependentes de um funcionário específico"
+    },
+    "4_buscar_por_cpf": {
+      "method": "GET",
+      "url": "http://localhost:8081/api/dependents/cpf/{cpf}",
+      "description": "Busca dependentes por CPF"
+    },
+    "5_buscar_por_relacionamento": {
+      "method": "GET",
+      "url": "http://localhost:8081/api/dependents/relationship/{relationship}",
+      "description": "Lista dependentes por tipo de relacionamento"
+    },
+    "6_criar_dependente": {
+      "method": "POST",
+      "url": "http://localhost:8081/api/dependents",
+      "description": "Cria novo dependente"
+    },
+    "7_atualizar_dependente": {
+      "method": "PUT",
+      "url": "http://localhost:8081/api/dependents/{id}",
+      "description": "Atualiza dependente existente"
+    },
+    "8_excluir_dependente": {
+      "method": "DELETE",
+      "url": "http://localhost:8081/api/dependents/{id}",
+      "description": "Exclui dependente"
+    }
+  },
+
+  "COMO_OBTER_IDS_NECESSARIOS": {
+    "1_listar_funcionarios": {
+      "method": "GET",
+      "url": "http://localhost:8081/api/employees",
+      "response_exemplo": [
+        {
+          "id": "uuid-aqui",
+          "name": "João da Silva",
+          "cpf": "123.456.789-00",
+          "status": "ACTIVE"
+        }
+      ]
+    },
+    "2_criar_dependente": {
+      "method": "POST",
+      "url": "http://localhost:8081/api/dependents",
+      "body": "Use um dos exemplos acima com employeeId correto"
+    }
+  },
+
+  "RESPOSTAS_ESPERADAS": {
+    "sucesso_201": {
+      "status": 201,
+      "body": {
+        "id": "uuid-gerado-automaticamente",
+        "employeeId": "uuid-do-funcionario",
+        "employeeName": "Nome do Funcionário",
+        "name": "Nome do Dependente",
+        "relationship": "FILHO",
+        "birthDate": "2010-05-15",
+        "cpf": "123.456.789-00",
+        "rg": "12.345.678-9",
+        "gender": "M",
+        "phone": "(11) 98765-4321",
+        "email": "dependente@email.com",
+        "address": "Rua das Flores, 123",
+        "city": "São Paulo",
+        "state": "SP",
+        "zipCode": "01234-567",
+        "isStudent": true,
+        "schoolName": "Escola Municipal",
+        "isBeneficiary": true,
+        "notes": "Observações",
+        "createdAt": "2024-10-16T14:30:00",
+        "updatedAt": "2024-10-16T14:30:00"
+      }
+    },
+    "erro_400": {
+      "status": 400,
+      "body": {
+        "timestamp": "2024-10-16T14:30:00",
+        "status": 400,
+        "error": "Bad Request",
+        "message": "Nome do dependente é obrigatório"
+      }
+    },
+    "erro_404": {
+      "status": 404,
+      "body": {
+        "timestamp": "2024-10-16T14:30:00",
+        "status": 404,
+        "error": "Not Found",
+        "message": "Funcionário não encontrado"
+      }
+    },
+    "erro_409": {
+      "status": 409,
+      "body": {
+        "timestamp": "2024-10-16T14:30:00",
+        "status": 409,
+        "error": "Conflict",
+        "message": "CPF já está cadastrado para outro dependente"
+      }
+    }
+  },
+
+  "TESTE_COMPLETO_PASSO_A_PASSO": {
+    "passo_1": "Fazer login para obter token JWT",
+    "passo_2": "Listar funcionários para obter employeeId",
+    "passo_3": "Criar dependente usando um dos exemplos",
+    "passo_4": "Listar dependentes do funcionário",
+    "passo_5": "Buscar dependente por ID",
+    "passo_6": "Atualizar dependente",
+    "passo_7": "Excluir dependente"
+  },
+
+  "DICAS_IMPORTANTES": [
+    "Dependente DEVE ser associado a um funcionário (employeeId obrigatório)",
+    "CPF deve ser único por dependente",
+    "Datas no formato yyyy-MM-dd",
+    "Relacionamento deve ser um dos valores válidos",
+    "Gênero é opcional mas recomendado",
+    "Campos de estudante e beneficiário são úteis para relatórios",
+    "Observações podem conter informações importantes sobre saúde, necessidades especiais, etc"
+  ]
+}

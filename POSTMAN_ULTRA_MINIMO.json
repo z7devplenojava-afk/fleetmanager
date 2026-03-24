@@ -1,0 +1,8 @@
+{
+  "name": "TESTE SIMPLES",
+  "cpf": "111.111.111-11",
+  "status": "ACTIVE",
+  "address": {
+    "street": "Rua Teste"
+  }
+}

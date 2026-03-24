@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Loader2
+  Loader2,
+  Route
 } from 'lucide-react';
 import { Ronda, RondaStatus, RondaTipo, RondaPrioridade } from '@/types/rondas';
 
@@ -128,10 +129,10 @@ export const RondasTable: React.FC<RondasTableProps> = ({
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">Carregando rondas...</span>
+      <Card className="bg-seguranca-graphite border-gray-600">
+        <CardContent className="flex items-center justify-center py-8 sm:py-12">
+          <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-seguranca-yellow" />
+          <span className="ml-2 text-sm sm:text-base text-seguranca-lightgray">Carregando rondas...</span>
         </CardContent>
       </Card>
     );
@@ -139,11 +140,13 @@ export const RondasTable: React.FC<RondasTableProps> = ({
 
   if (rondas.length === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-8">
-          <MapPin className="h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma ronda encontrada</h3>
-          <p className="text-gray-500 text-center">
+      <Card className="bg-seguranca-graphite border-gray-600">
+        <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
+          <div className="p-3 sm:p-4 bg-gray-700/50 rounded-full mb-3 sm:mb-4">
+            <MapPin className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
+          </div>
+          <h3 className="text-base sm:text-lg font-medium text-seguranca-lightgray mb-2 text-center">Nenhuma ronda encontrada</h3>
+          <p className="text-xs sm:text-sm text-gray-400 text-center max-w-md">
             Não há rondas cadastradas ou que correspondam aos filtros aplicados.
           </p>
         </CardContent>
@@ -152,192 +155,186 @@ export const RondasTable: React.FC<RondasTableProps> = ({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Rondas ({rondas.length})</CardTitle>
+    <Card className="bg-seguranca-graphite border-gray-600 w-full">
+      <CardHeader className="p-3 sm:p-6">
+        <CardTitle className="text-base sm:text-lg text-seguranca-lightgray flex items-center gap-2">
+          <Route className="h-4 w-4 sm:h-5 sm:w-5 text-seguranca-yellow" />
+          Rondas ({rondas.length})
+        </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Prioridade</TableHead>
-                <TableHead>Responsável</TableHead>
-                <TableHead>Local</TableHead>
-                <TableHead>Data/Hora</TableHead>
-                <TableHead>Duração</TableHead>
-                <TableHead>Checkpoints</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rondas.map((ronda) => (
-                <TableRow key={ronda.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{ronda.nome}</div>
-                      {ronda.descricao && (
-                        <div className="text-sm text-gray-500 truncate max-w-xs">
-                          {ronda.descricao}
+      <CardContent className="p-3 sm:p-6 pt-0 w-full">
+        {/* Cards Grid - Responsivo para todas as telas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {rondas.map((ronda) => (
+            <Card key={ronda.id} className="bg-seguranca-black/50 border-gray-700 hover:border-seguranca-yellow/50 transition-all h-full flex flex-col">
+              <CardContent className="p-4 sm:p-5 space-y-3 flex-1 flex flex-col">
+                {/* Header com Nome e Status */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-white text-base sm:text-lg mb-1 truncate">{ronda.nome}</h3>
+                    {ronda.descricao && (
+                      <p className="text-xs sm:text-sm text-gray-400 line-clamp-2">{ronda.descricao}</p>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0">
+                    {getStatusBadge(ronda.status)}
+                  </div>
+                </div>
+                
+                {/* Tipo e Prioridade */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-400">Tipo:</span>
+                    {getTipoBadge(ronda.tipo)}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-400">Prioridade:</span>
+                    {getPrioridadeBadge(ronda.prioridade)}
+                  </div>
+                </div>
+
+                {/* Informações Principais */}
+                <div className="space-y-2 text-sm border-t border-gray-700 pt-3 flex-1">
+                  <div className="flex items-start gap-2">
+                    <User className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-gray-400 text-xs">Responsável:</span>
+                      <div className="text-white font-medium truncate">{ronda.responsavelNome || 'N/A'}</div>
+                      {ronda.supervisorNome && (
+                        <div className="text-xs text-gray-400 truncate">
+                          Sup: {ronda.supervisorNome}
                         </div>
                       )}
                     </div>
-                  </TableCell>
+                  </div>
                   
-                  <TableCell>
-                    {getTipoBadge(ronda.tipo)}
-                  </TableCell>
-                  
-                  <TableCell>
-                    {getStatusBadge(ronda.status)}
-                  </TableCell>
-                  
-                  <TableCell>
-                    {getPrioridadeBadge(ronda.prioridade)}
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <div className="font-medium">{ronda.responsavelNome}</div>
-                        {ronda.supervisorNome && (
-                          <div className="text-sm text-gray-500">
-                            Sup: {ronda.supervisorNome}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <div className="font-medium">{ronda.localNome}</div>
-                        <div className="text-sm text-gray-500 truncate max-w-xs">
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-gray-400 text-xs">Local:</span>
+                      <div className="text-white font-medium truncate">{ronda.localNome || 'N/A'}</div>
+                      {ronda.endereco && (
+                        <div className="text-xs text-gray-400 line-clamp-2 mt-0.5">
                           {ronda.endereco}
                         </div>
-                      </div>
+                      )}
                     </div>
-                  </TableCell>
+                  </div>
                   
-                  <TableCell>
-                    <div className="text-sm">
-                      <div className="font-medium">
+                  <div className="flex items-start gap-2">
+                    <Clock className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-gray-400 text-xs">Data/Hora:</span>
+                      <div className="text-white text-sm">
                         {formatDate(ronda.dataInicio)}
                       </div>
-                      <div className="text-gray-500">
+                      <div className="text-xs text-gray-400">
                         até {formatDate(ronda.dataFim)}
                       </div>
                     </div>
-                  </TableCell>
+                  </div>
                   
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <div className="font-medium">
-                          {formatDuration(ronda.duracaoEstimada)}
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1">
+                      <span className="text-gray-400 text-xs">Duração:</span>
+                      <div className="text-white text-sm font-medium">
+                        {formatDuration(ronda.duracaoEstimada)}
+                      </div>
+                      {ronda.duracaoReal && (
+                        <div className="text-xs text-gray-400">
+                          Real: {formatDuration(ronda.duracaoReal)}
                         </div>
-                        {ronda.duracaoReal && (
-                          <div className="text-sm text-gray-500">
-                            Real: {formatDuration(ronda.duracaoReal)}
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
-                  </TableCell>
+                  </div>
                   
-                  <TableCell>
-                    <div className="text-sm">
-                      <div className="font-medium">
-                        {ronda.checkpoints.length} pontos
-                      </div>
-                      <div className="text-gray-500">
-                        {ronda.checkpoints.filter(cp => cp.obrigatorio).length} obrigatórios
+                  {ronda.checkpoints && ronda.checkpoints.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Route className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <div className="flex-1">
+                        <span className="text-gray-400 text-xs">Checkpoints:</span>
+                        <div className="text-white text-sm">
+                          {ronda.checkpoints.length} pontos
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {ronda.checkpoints.filter(cp => cp.obrigatorio).length} obrigatórios
+                        </div>
                       </div>
                     </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onView(ronda)}
-                        title="Visualizar"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      
-                      {canEdit(ronda) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEdit(ronda)}
-                          title="Editar"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      )}
-                      
-                      {canIniciar(ronda) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onIniciar(ronda)}
-                          title="Iniciar Ronda"
-                          className="text-green-600 hover:text-green-700"
-                        >
-                          <Play className="h-4 w-4" />
-                        </Button>
-                      )}
-                      
-                      {canConcluir(ronda) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onConcluir(ronda)}
-                          title="Concluir Ronda"
-                          className="text-blue-600 hover:text-blue-700"
-                        >
-                          <Square className="h-4 w-4" />
-                        </Button>
-                      )}
-                      
-                      {canCancelar(ronda) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onCancelar(ronda)}
-                          title="Cancelar Ronda"
-                          className="text-orange-600 hover:text-orange-700"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                      
-                      {canDelete(ronda) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDelete(ronda)}
-                          title="Excluir"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  )}
+                </div>
+
+                {/* Ações */}
+                <div className="flex items-center gap-1.5 pt-3 border-t border-gray-700 flex-wrap">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onView(ronda)}
+                    className="h-8 text-xs flex-1 min-w-[80px] hover:bg-gray-700"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    Ver
+                  </Button>
+                  {canEdit(ronda) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEdit(ronda)}
+                      className="h-8 text-xs flex-1 min-w-[80px] hover:bg-gray-700"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Editar
+                    </Button>
+                  )}
+                  {canIniciar(ronda) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onIniciar(ronda)}
+                      className="h-8 text-xs flex-1 min-w-[80px] text-green-400 hover:bg-green-500/20"
+                    >
+                      <Play className="h-3 w-3 mr-1" />
+                      Iniciar
+                    </Button>
+                  )}
+                  {canConcluir(ronda) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onConcluir(ronda)}
+                      className="h-8 text-xs flex-1 min-w-[80px] text-blue-400 hover:bg-blue-500/20"
+                    >
+                      <Square className="h-3 w-3 mr-1" />
+                      Concluir
+                    </Button>
+                  )}
+                  {canCancelar(ronda) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onCancelar(ronda)}
+                      className="h-8 text-xs flex-1 min-w-[80px] text-orange-400 hover:bg-orange-500/20"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Cancelar
+                    </Button>
+                  )}
+                  {canDelete(ronda) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDelete(ronda)}
+                      className="h-8 text-xs flex-1 min-w-[80px] text-red-400 hover:bg-red-500/20"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Excluir
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </CardContent>
     </Card>

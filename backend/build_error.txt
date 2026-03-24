@@ -1,0 +1,88 @@
+
+> Task :compileJava
+./gradlew : C:\dev\fleetmanager\backe
+nd\src\main\java\com\z7design\fleet_m
+anager\model\DriverWorkHour.java:57: 
+warning: @Builder will ignore the 
+initializing expression entirely. If 
+you want the initializing expression 
+to serve as default, add 
+@Builder.Default. If it is not 
+supposed to be settable during 
+building, make the field final.
+No linha:1 caractere:1
++ ./gradlew compileJava 
+--console=plain 2>&1 | Out-File 
+-FilePath build ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~
+    + CategoryInfo          : NotSpe 
+   cified: (C:\dev\fleetman...he fi  
+  eld final.:String) [], RemoteExc   
+ eption
+    + FullyQualifiedErrorId : Native 
+   CommandError
+ 
+    private Boolean isClosed = false;
+                    ^
+C:\dev\fleetmanager\backend\src\main\
+java\com\z7design\fleet_manager\servi
+ce\UserService.java:312: error: 
+cannot find symbol
+        if (request.getCompanyId() 
+!= null) {
+                   ^
+  symbol:   method getCompanyId()
+  location: variable request of type 
+UpdateUserRequest
+C:\dev\fleetmanager\backend\src\main\
+java\com\z7design\fleet_manager\servi
+ce\UserService.java:313: error: 
+cannot find symbol
+            existingUser.setCompanyId
+(request.getCompanyId());
+                                     
+        ^
+  symbol:   method getCompanyId()
+  location: variable request of type 
+UpdateUserRequest
+C:\dev\fleetmanager\backend\src\main\
+java\com\z7design\fleet_manager\servi
+ce\PayslipService.java:3155: 
+warning: [dep-ann] deprecated item 
+is not annotated with @Deprecated
+    private String 
+calculatePageHash(String pageText) {
+                   ^
+Note: Some input files use or 
+override a deprecated API.
+Note: Recompile with 
+-Xlint:deprecation for details.
+Note: C:\dev\fleetmanager\backend\src
+\main\java\com\z7design\fleet_manager
+\worker\ParserWorker.java uses 
+unchecked or unsafe operations.
+Note: Recompile with 
+-Xlint:unchecked for details.
+2 errors
+2 warnings
+
+> Task :compileJava FAILED
+
+FAILURE: Build failed with an 
+exception.
+
+* What went wrong:
+Execution failed for task 
+':compileJava'.
+> Compilation failed; see the 
+compiler error output for details.
+
+* Try:
+> Run with --info option to get more 
+log output.
+> Run with --scan to get full 
+insights.
+
+BUILD FAILED in 49s
+1 actionable task: 1 executed

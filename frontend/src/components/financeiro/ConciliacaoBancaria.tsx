@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -298,19 +298,19 @@ const ConciliacaoBancaria: React.FC = () => {
         <TabsList className="grid w-full grid-cols-3 bg-seguranca-graphite border-gray-600">
           <TabsTrigger 
             value="reconciliations" 
-            className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow"
+            className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow"
           >
             Conciliações
           </TabsTrigger>
           <TabsTrigger 
             value="accounts" 
-            className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow"
+            className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow"
           >
             Contas Bancárias
           </TabsTrigger>
           <TabsTrigger 
             value="statements" 
-            className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow"
+            className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow"
           >
             Extratos
           </TabsTrigger>

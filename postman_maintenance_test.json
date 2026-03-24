@@ -1,0 +1,360 @@
+{
+  "info": {
+    "name": "Teste Cadastro Manutenção - SecureGuard",
+    "description": "Coleção para testar o cadastro de manutenções de veículos",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "SEU_JWT_TOKEN_AQUI",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Login para obter token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin@securedguard.com\",\n  \"password\": \"admin123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "2. Criar Cliente",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Empresa Teste Ltda\",\n  \"cnpj\": \"12.345.678/0001-90\",\n  \"email\": \"contato@empresateste.com\",\n  \"phone\": \"(11) 99999-9999\",\n  \"address\": \"Rua das Flores, 123 - Centro - São Paulo/SP\",\n  \"contactPerson\": \"João Silva\",\n  \"contactPhone\": \"(11) 88888-8888\",\n  \"active\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/clients",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "clients"]
+        }
+      }
+    },
+    {
+      "name": "3. Criar Unidade",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Unidade Centro\",\n  \"code\": \"UC001\",\n  \"description\": \"Unidade principal no centro da cidade\",\n  \"address\": \"Av. Paulista, 1000 - Bela Vista - São Paulo/SP\",\n  \"phone\": \"(11) 3333-3333\",\n  \"email\": \"centro@empresateste.com\",\n  \"active\": true,\n  \"clientId\": \"{{clientId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/units",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "units"]
+        }
+      }
+    },
+    {
+      "name": "4. Criar Cargo",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Motorista\",\n  \"description\": \"Cargo de motorista de veículos\",\n  \"baseSalary\": 2500.00,\n  \"active\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/positions",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "positions"]
+        }
+      }
+    },
+    {
+      "name": "5. Criar Funcionário",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"João Motorista\",\n  \"cpf\": \"123.456.789-01\",\n  \"rg\": \"12.345.678-9\",\n  \"birthDate\": \"1985-05-15\",\n  \"email\": \"joao@empresateste.com\",\n  \"phone\": \"(11) 77777-7777\",\n  \"address\": \"Rua dos Motoristas, 456 - Vila Madalena - São Paulo/SP\",\n  \"emergencyContact\": \"Maria Silva\",\n  \"emergencyPhone\": \"(11) 66666-6666\",\n  \"positionId\": \"{{positionId}}\",\n  \"unitId\": \"{{unitId}}\",\n  \"hireDate\": \"2024-01-15\",\n  \"status\": \"ACTIVE\",\n  \"active\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/employees",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "employees"]
+        }
+      }
+    },
+    {
+      "name": "6. Criar Veículo",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"plate\": \"ABC-1234\",\n  \"model\": \"Sprinter\",\n  \"brand\": \"Mercedes-Benz\",\n  \"year\": 2020,\n  \"color\": \"Branco\",\n  \"status\": \"ACTIVE\",\n  \"fuelType\": \"DIESEL\",\n  \"capacity\": 12,\n  \"currentMileage\": 45000,\n  \"lastMaintenanceDate\": \"2024-12-15\",\n  \"nextMaintenanceDate\": \"2025-06-15\",\n  \"insuranceExpiryDate\": \"2025-12-31\",\n  \"documentationExpiryDate\": \"2025-12-31\",\n  \"unitId\": \"{{unitId}}\",\n  \"driverId\": \"{{employeeId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/vehicles",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "vehicles"]
+        }
+      }
+    },
+    {
+      "name": "7. Criar Manutenção - Preventiva",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"date\": \"2025-08-20\",\n  \"maintenanceType\": \"PREVENTIVE\",\n  \"description\": \"Manutenção preventiva programada - troca de óleo, filtros e verificação geral do sistema\",\n  \"cost\": 450.00,\n  \"provider\": \"Oficina Central Ltda\",\n  \"mileage\": 50000,\n  \"status\": \"SCHEDULED\",\n  \"priority\": \"MEDIUM\",\n  \"notes\": \"Manutenção de rotina a cada 10.000 km. Verificar também freios e suspensão.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/maintenances",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "maintenances"]
+        }
+      }
+    },
+    {
+      "name": "8. Criar Manutenção - Corretiva",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"date\": \"2025-08-15\",\n  \"maintenanceType\": \"CORRECTIVE\",\n  \"description\": \"Reparo no sistema de ar condicionado - compressor com vazamento\",\n  \"cost\": 1200.00,\n  \"provider\": \"Clima Express\",\n  \"mileage\": 48500,\n  \"status\": \"IN_PROGRESS\",\n  \"priority\": \"HIGH\",\n  \"notes\": \"Cliente reclamou que o ar não está gelando. Verificar também o sistema elétrico.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/maintenances",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "maintenances"]
+        }
+      }
+    },
+    {
+      "name": "9. Criar Manutenção - Preditiva",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"date\": \"2025-09-01\",\n  \"maintenanceType\": \"PREDICTIVE\",\n  \"description\": \"Análise preditiva do motor - verificação de vibrações e análise de óleo\",\n  \"cost\": 300.00,\n  \"provider\": \"Tecno Diagnósticos\",\n  \"mileage\": 52000,\n  \"status\": \"SCHEDULED\",\n  \"priority\": \"LOW\",\n  \"notes\": \"Análise preventiva para identificar possíveis problemas futuros no motor.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/maintenances",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "maintenances"]
+        }
+      }
+    },
+    {
+      "name": "10. Criar Manutenção - Urgente",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"date\": \"2025-08-14\",\n  \"maintenanceType\": \"CORRECTIVE\",\n  \"description\": \"Reparo emergencial no sistema de freios - pastilhas desgastadas e fluido vazando\",\n  \"cost\": 800.00,\n  \"provider\": \"Freios Seguros\",\n  \"mileage\": 49000,\n  \"status\": \"SCHEDULED\",\n  \"priority\": \"URGENT\",\n  \"notes\": \"URGENTE: Veículo com problema de segurança. Não deve circular até o reparo.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/maintenances",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "maintenances"]
+        }
+      }
+    },
+    {
+      "name": "11. Listar Todas as Manutenções",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/maintenances",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "maintenances"]
+        }
+      }
+    },
+    {
+      "name": "12. Buscar Manutenções por Veículo",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/maintenances/vehicle/{{vehicleId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "maintenances", "vehicle", "{{vehicleId}}"]
+        }
+      }
+    },
+    {
+      "name": "13. Buscar Manutenções por Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/maintenances/status/SCHEDULED",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "maintenances", "status", "SCHEDULED"]
+        }
+      }
+    },
+    {
+      "name": "14. Buscar Manutenções Urgentes",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/maintenances/urgent",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "maintenances", "urgent"]
+        }
+      }
+    },
+    {
+      "name": "15. Atualizar Status da Manutenção",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"COMPLETED\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/maintenances/{{maintenanceId}}/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "maintenances", "{{maintenanceId}}", "status"]
+        }
+      }
+    }
+  ]
+}

@@ -36,7 +36,6 @@ const OcorrenciaViewModal: React.FC<OcorrenciaViewModalProps> = ({
   open,
   onOpenChange
 }) => {
-  if (!ocorrencia) return null;
 
   const getTipoIcon = (type: string) => {
     switch (type.toLowerCase()) {
@@ -149,17 +148,23 @@ const OcorrenciaViewModal: React.FC<OcorrenciaViewModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-seguranca-graphite border-gray-600">
-        <DialogHeader>
-          <DialogTitle className="text-seguranca-lightgray flex items-center gap-2">
-            {getTipoIcon(ocorrencia.type)}
-            Detalhes da Ocorrência
-          </DialogTitle>
-          <DialogDescription className="text-gray-400">
-            Visualize todos os detalhes desta ocorrência
-          </DialogDescription>
-        </DialogHeader>
+        {!ocorrencia ? (
+          <div className="p-6 text-center">
+            <p className="text-seguranca-lightgray">Nenhuma ocorrência selecionada</p>
+          </div>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-seguranca-lightgray flex items-center gap-2">
+                {getTipoIcon(ocorrencia.type)}
+                Detalhes da Ocorrência
+              </DialogTitle>
+              <DialogDescription className="text-gray-400">
+                Visualize todos os detalhes desta ocorrência
+              </DialogDescription>
+            </DialogHeader>
 
-        <div className="space-y-6">
+            <div className="space-y-6">
           {/* Cabeçalho */}
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -202,10 +207,10 @@ const OcorrenciaViewModal: React.FC<OcorrenciaViewModalProps> = ({
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <p className="text-gray-400">
-                  <strong className="text-seguranca-lightgray">Funcionário:</strong> {ocorrencia.employeeName}
+                  <strong className="text-seguranca-lightgray">Funcionário:</strong> {ocorrencia.employeeName || 'N/A'}
                 </p>
                 <p className="text-gray-400">
-                  <strong className="text-seguranca-lightgray">Responsável:</strong> {ocorrencia.responsible}
+                  <strong className="text-seguranca-lightgray">Responsável:</strong> {ocorrencia.responsible || 'N/A'}
                 </p>
               </CardContent>
             </Card>
@@ -219,7 +224,7 @@ const OcorrenciaViewModal: React.FC<OcorrenciaViewModalProps> = ({
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <p className="text-gray-400">
-                  <strong className="text-seguranca-lightgray">Local:</strong> {ocorrencia.location}
+                  <strong className="text-seguranca-lightgray">Local:</strong> {ocorrencia.location || 'N/A'}
                 </p>
                 {ocorrencia.startDate && (
                   <p className="text-gray-400">
@@ -246,7 +251,9 @@ const OcorrenciaViewModal: React.FC<OcorrenciaViewModalProps> = ({
               </CardContent>
             </Card>
           )}
-        </div>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

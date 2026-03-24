@@ -1,0 +1,159 @@
+{
+  "roles": [
+    {
+      "username": "superadmin",
+      "email": "superadmin@promover.com",
+      "password": "Password123!",
+      "name": "Super Administrador",
+      "fullName": "Super Administrador do Sistema",
+      "role": "SUPER_ADMIN",
+      "description": "🟥 Acesso total e irrestrito a todas as funcionalidades e módulos do sistema",
+      "permissions": [
+        "ALL_PERMISSIONS"
+      ],
+      "color": "🟥",
+      "level": 1
+    },
+    {
+      "username": "admin",
+      "email": "admin@promover.com",
+      "password": "Password123!",
+      "name": "Administrador",
+      "fullName": "Administrador do Sistema",
+      "role": "ADMIN",
+      "description": "🟦 Acesso amplo, mas subordinado ao Super Admin",
+      "permissions": [
+        "USERS_READ", "USERS_WRITE", "USERS_CREATE",
+        "GROUPS_READ", "GROUPS_WRITE", "GROUPS_CREATE",
+        "CLIENTS_READ", "CLIENTS_WRITE", "CLIENTS_CREATE", "CLIENTS_DELETE",
+        "EMPLOYEES_READ", "EMPLOYEES_WRITE", "EMPLOYEES_CREATE", "EMPLOYEES_DELETE",
+        "CONTRACTS_READ", "CONTRACTS_WRITE", "CONTRACTS_CREATE", "CONTRACTS_DELETE",
+        "FINANCIAL_READ", "FINANCIAL_WRITE", "FINANCIAL_CREATE",
+        "PAYSLIPS_READ", "PAYSLIPS_WRITE", "PAYSLIPS_CREATE", "PAYSLIPS_PUBLISH",
+        "REPORTS_READ", "REPORTS_GENERATE", "REPORTS_EXPORT",
+        "DASHBOARD_READ", "DASHBOARD_WRITE",
+        "AUDIT_READ"
+      ],
+      "color": "🟦",
+      "level": 2
+    },
+    {
+      "username": "supervisor",
+      "email": "supervisor@promover.com",
+      "password": "Password123!",
+      "name": "Supervisor",
+      "fullName": "Supervisor de Operações",
+      "role": "SUPERVISOR",
+      "description": "🟩 Coordena operações de equipes ou setores",
+      "permissions": [
+        "EMPLOYEES_READ", "EMPLOYEES_WRITE",
+        "CONTRACTS_READ", "CONTRACTS_WRITE",
+        "PAYSLIPS_READ", "PAYSLIPS_WRITE",
+        "REPORTS_READ", "REPORTS_GENERATE",
+        "DASHBOARD_READ",
+        "PROFILE_READ", "PROFILE_WRITE"
+      ],
+      "color": "🟩",
+      "level": 3
+    },
+    {
+      "username": "rhumanos",
+      "email": "rh@promover.com",
+      "password": "Password123!",
+      "name": "Recursos Humanos",
+      "fullName": "Recursos Humanos",
+      "role": "RH",
+      "description": "🟨 Gerencia informações contratuais e pessoais dos colaboradores",
+      "permissions": [
+        "EMPLOYEES_READ", "EMPLOYEES_WRITE", "EMPLOYEES_CREATE", "EMPLOYEES_DELETE",
+        "PAYSLIPS_READ", "PAYSLIPS_WRITE", "PAYSLIPS_CREATE", "PAYSLIPS_PUBLISH",
+        "REPORTS_READ", "REPORTS_GENERATE",
+        "DASHBOARD_READ",
+        "PROFILE_READ", "PROFILE_WRITE"
+      ],
+      "color": "🟨",
+      "level": 3
+    },
+    {
+      "username": "financeiro",
+      "email": "financeiro@promover.com",
+      "password": "Password123!",
+      "name": "Financeiro",
+      "fullName": "Departamento Financeiro",
+      "role": "FINANCEIRO",
+      "description": "🟧 Controla relatórios financeiros, movimentações e conferências de pagamento",
+      "permissions": [
+        "FINANCIAL_READ", "FINANCIAL_WRITE", "FINANCIAL_CREATE", "FINANCIAL_DELETE",
+        "PAYSLIPS_READ", "PAYSLIPS_WRITE",
+        "REPORTS_READ", "REPORTS_GENERATE", "REPORTS_EXPORT",
+        "DASHBOARD_READ",
+        "PROFILE_READ", "PROFILE_WRITE"
+      ],
+      "color": "🟧",
+      "level": 3
+    },
+    {
+      "username": "tisuporte",
+      "email": "ti@promover.com",
+      "password": "Password123!",
+      "name": "TI Suporte",
+      "fullName": "TI e Suporte Técnico",
+      "role": "TI_SUPORTE",
+      "description": "🟪 Gerencia configuração técnica, logs, backups e integrações",
+      "permissions": [
+        "SYSTEM_CONFIG", "SYSTEM_LOGS", "SYSTEM_BACKUP", "SYSTEM_INTEGRATION",
+        "USERS_READ", "USERS_WRITE",
+        "GROUPS_READ", "GROUPS_WRITE",
+        "DASHBOARD_READ",
+        "PROFILE_READ", "PROFILE_WRITE"
+      ],
+      "color": "🟪",
+      "level": 3
+    },
+    {
+      "username": "auditor",
+      "email": "auditor@promover.com",
+      "password": "Password123!",
+      "name": "Auditor",
+      "fullName": "Auditor / Consultor",
+      "role": "AUDITOR",
+      "description": "🟫 Acesso somente leitura para fins de auditoria ou análise externa",
+      "permissions": [
+        "USERS_READ",
+        "CLIENTS_READ",
+        "EMPLOYEES_READ",
+        "CONTRACTS_READ",
+        "FINANCIAL_READ",
+        "PAYSLIPS_READ",
+        "REPORTS_READ",
+        "DASHBOARD_READ",
+        "AUDIT_READ",
+        "PROFILE_READ", "PROFILE_WRITE"
+      ],
+      "color": "🟫",
+      "level": 4
+    },
+    {
+      "username": "colaborador",
+      "email": "colaborador@promover.com",
+      "password": "Password123!",
+      "name": "Colaborador",
+      "fullName": "Colaborador",
+      "role": "COLABORADOR",
+      "description": "🟨 Acesso limitado exclusivamente ao seu próprio perfil",
+      "permissions": [
+        "PROFILE_READ", "PROFILE_WRITE",
+        "PAYSLIPS_READ"
+      ],
+      "color": "🟨",
+      "level": 5
+    }
+  ],
+  "metadata": {
+    "total_roles": 8,
+    "password_pattern": "Password123!",
+    "email_domain": "promover.com",
+    "created_at": "2025-01-27",
+    "description": "Usuários de teste para todos os roles registrados no sistema SecuredGuard"
+  }
+} 

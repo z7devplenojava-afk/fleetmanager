@@ -1,6 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import basicSsl from '@vitejs/plugin-basic-ssl';
+
+/** HTTPS no dev só se VITE_DEV_HTTPS=true — evita ERR_CERT_AUTHORITY_INVALID ao acessar por IP ou cert não confiável */
+const useDevHttps = process.env.VITE_DEV_HTTPS === 'true';
 // import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -8,60 +12,87 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig(({ mode }) => {
   const plugins = [
     react(),
+    ...(useDevHttps ? [basicSsl()] : []),
     // ...(mode === 'development' ? [componentTagger()] : []),
-    // VitePWA temporariamente desabilitado para resolver problemas de build
-    // VitePWA({
-    //   registerType: 'autoUpdate',
-    //   devOptions: {
-    //     enabled: false, // Desabilitado em desenvolvimento para evitar erros
-    //     type: 'module',
-    //   },
-    //   manifest: {
-    //     name: 'Promover Vigilância',
-    //     short_name: 'Promover',
-    //     description: 'Portal de Conteúdo da Promover Vigilância Patrimonial',
-    //     theme_color: '#2563eb',
-    //     background_color: '#ffffff',
-    //     display: 'standalone',
-    //     start_url: '/',
-    //     icons: [
-    //       {
-    //         src: '/icons/icon-192x192.svg',
-    //         sizes: '192x192',
-    //         type: 'image/svg+xml',
-    //       },
-    //       {
-    //         src: '/icons/icon-192x192.svg',
-    //         sizes: '512x512',
-    //         type: 'image/svg+xml',
-    //       },
-    //       {
-    //         src: '/icons/icon-192x192.svg',
-    //         sizes: '512x512',
-    //         type: 'image/svg+xml',
-    //         purpose: 'any maskable',
-    //       },
-    //     ],
-    //   },
-    //   workbox: {
-    //     globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-    //     skipWaiting: true,
-    //     clientsClaim: true,
-    //     maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
-    //   },
-    // }),
+    VitePWA({
+      registerType: 'autoUpdate',
+      // Service Worker em dev intercepta fetch/HMR e causa ERR_CERT / ERR_SSL_PROTOCOL_ERROR misturados com proxy /api
+      devOptions: {
+        enabled: false,
+        type: 'module',
+      },
+      manifest: {
+        name: 'Fleet Manager',
+        short_name: 'Fleet Manager',
+        description: 'Sistema completo de gestão de frotas',
+        theme_color: '#dc2626',
+        background_color: '#1f2937',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          {
+            src: '/icons/icon-192x192.svg',
+            sizes: '192x192',
+            type: 'image/svg+xml',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/icon-512x512.svg',
+            sizes: '512x512',
+            type: 'image/svg+xml',
+            purpose: 'any'
+          }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+        skipWaiting: true,
+        clientsClaim: true,
+        // Limpar caches antigos automaticamente
+        cleanupOutdatedCaches: true,
+        // Ignorar erros de precache (arquivos 404 não quebram o service worker)
+        // O Workbox irá apenas logar o erro mas continuar funcionando
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.js$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'js-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 // 24 horas
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ],
+        // Não cachear arquivos JS dinamicamente importados
+        navigateFallback: null,
+        navigateFallbackDenylist: [/^\/api/, /^\/ws/]
+      },
+      // Tratar erros de precache graciosamente
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,png,svg,ico}']
+      }
+    }),
   ];
 
   return {
     server: {
-      host: "::",
+      host: "0.0.0.0", // Permite acesso de qualquer IP na rede
       port: 3000,
+      strictPort: false, // Permite usar outra porta se 3000 estiver ocupada
+      // Alinhar protocolo do HMR ao do servidor: wss só com basicSsl; senão ws (evita "WebSocket closed without opened")
       hmr: {
-        overlay: false, // Desabilita overlay de erros HMR
+        overlay: false,
+        protocol: useDevHttps ? "wss" : "ws",
+        ...(useDevHttps ? { clientPort: 3000 } : {}),
       },
       proxy: {
         '/api': {
-          target: 'http://localhost:8081',
+          target: 'http://localhost:8083',
           changeOrigin: true,
           secure: false,
           configure: (proxy, options) => {
@@ -77,7 +108,7 @@ export default defineConfig(({ mode }) => {
           },
         },
         '/ws': {
-          target: 'http://localhost:8081',
+          target: 'http://localhost:8083',
           changeOrigin: true,
           secure: false,
           ws: true,
@@ -86,17 +117,29 @@ export default defineConfig(({ mode }) => {
     },
     plugins,
     build: {
-      chunkSizeWarningLimit: 1000, // 1MB - mais restritivo
+      // Melhorar geração de chunks para evitar problemas de carregamento
+      sourcemap: false, // Desabilitar sourcemaps em produção para reduzir tamanho
+      minify: 'terser', // Usar terser para melhor minificação
+      terserOptions: {
+        compress: {
+          drop_console: false, // Manter console.logs para debug
+        },
+      },
       rollupOptions: {
         output: {
+          // Garantir nomes de arquivos consistentes
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
+          // Melhorar code splitting
           manualChunks: {
             // Core React
             'react-vendor': ['react', 'react-dom'],
-            
+
             // UI Libraries
             'radix-ui': [
-              '@radix-ui/react-dialog', 
-              '@radix-ui/react-dropdown-menu', 
+              '@radix-ui/react-dialog',
+              '@radix-ui/react-dropdown-menu',
               '@radix-ui/react-select',
               '@radix-ui/react-toast',
               '@radix-ui/react-tooltip',
@@ -122,37 +165,37 @@ export default defineConfig(({ mode }) => {
               '@radix-ui/react-toggle',
               '@radix-ui/react-toggle-group'
             ],
-            
+
             // Icons
             'lucide': ['lucide-react'],
-            
+
             // Charts
             'charts': ['chart.js', 'react-chartjs-2', 'recharts'],
-            
+
             // Forms
             'forms': ['react-hook-form', '@hookform/resolvers', 'yup', 'zod'],
-            
+
             // Data fetching
             'query': ['@tanstack/react-query', '@tanstack/react-table'],
-            
+
             // Utils
             'utils': ['axios', 'date-fns', 'clsx', 'tailwind-merge', 'class-variance-authority'],
-            
+
             // Animations
-            'animations': ['framer-motion', 'aos'],
-            
+            'animations': ['framer-motion', 'gsap'],
+
             // PDF
             'pdf': ['html2pdf.js', 'pdf-lib'],
-            
+
             // WebSocket
             'websocket': ['@stomp/stompjs', 'sockjs-client'],
-            
+
             // Other UI
             'ui-other': [
-              'sonner', 
-              'vaul', 
-              'cmdk', 
-              'input-otp', 
+              'sonner',
+              'vaul',
+              'cmdk',
+              'input-otp',
               'react-currency-input-field',
               'react-datepicker',
               'react-day-picker',
@@ -160,8 +203,12 @@ export default defineConfig(({ mode }) => {
               'embla-carousel-react'
             ]
           },
+          // Melhorar tratamento de chunks dinâmicos
+          experimentalMinChunkSize: 20000, // 20KB mínimo por chunk
         },
       },
+      // Aumentar timeout para builds grandes
+      chunkSizeWarningLimit: 2000,
     },
     resolve: {
       alias: {
@@ -171,6 +218,9 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       global: 'window',
+    },
+    optimizeDeps: {
+      include: ['react-map-gl/mapbox', 'mapbox-gl'],
     },
   };
 });

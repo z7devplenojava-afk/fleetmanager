@@ -1,0 +1,266 @@
+{
+  "info": {
+    "name": "Task 12 - Contas a Receber Test Data",
+    "description": "JSONs para testar a funcionalidade de busca de números de fatura e medição no modal de contas a receber",
+    "version": "1.0.0"
+  },
+  "requests": [
+    {
+      "name": "1. Login - Obter Token",
+      "method": "POST",
+      "url": "http://localhost:8081/api/auth/login",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "username": "superadmin",
+        "password": "123456"
+      },
+      "description": "Fazer login para obter token de autenticação"
+    },
+    {
+      "name": "2. Criar Cliente - Empresa ABC",
+      "method": "POST",
+      "url": "http://localhost:8081/api/clients",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "name": "Empresa ABC Ltda",
+        "cnpj": "12.345.678/0001-90",
+        "email": "contato@empresaabc.com",
+        "phone": "(11) 99999-9999",
+        "mobile": "(11) 88888-8888",
+        "address": "Rua das Flores, 123",
+        "city": "São Paulo",
+        "state": "SP",
+        "zipCode": "01234-567",
+        "contactName": "João Silva",
+        "contactEmail": "joao@empresaabc.com",
+        "contactPhone": "(11) 99999-9999",
+        "status": "ACTIVE",
+        "notes": "Cliente principal para testes"
+      },
+      "description": "Criar cliente para associar às contas a receber"
+    },
+    {
+      "name": "3. Criar Cliente - Tech Solutions",
+      "method": "POST",
+      "url": "http://localhost:8081/api/clients",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "name": "Tech Solutions Ltda",
+        "cnpj": "98.765.432/0001-10",
+        "email": "contato@techsolutions.com",
+        "phone": "(11) 55555-5555",
+        "mobile": "(11) 44444-4444",
+        "address": "Rua da Tecnologia, 789",
+        "city": "São Paulo",
+        "state": "SP",
+        "zipCode": "04567-890",
+        "contactName": "Maria Santos",
+        "contactEmail": "maria@techsolutions.com",
+        "contactPhone": "(11) 55555-5555",
+        "status": "ACTIVE",
+        "notes": "Cliente de tecnologia"
+      },
+      "description": "Criar segundo cliente para testes"
+    },
+    {
+      "name": "4. Criar Conta a Receber - FAT-2024-001",
+      "method": "POST",
+      "url": "http://localhost:8081/api/accounts-receivable",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "clientId": "{{client1_id}}",
+        "invoiceNumber": "FAT-2024-001",
+        "measurementNumber": "MED-2024-001",
+        "description": "Serviços de consultoria - Janeiro 2024",
+        "amount": 15000.00,
+        "amountPaid": 0.00,
+        "issueDate": "2024-01-15",
+        "dueDate": "2024-02-15",
+        "status": "OVERDUE",
+        "category": "SERVICE",
+        "paymentMethod": "BOLETO",
+        "notes": "Cliente solicitou prazo adicional"
+      },
+      "description": "Criar primeira conta a receber com número de fatura e medição"
+    },
+    {
+      "name": "5. Criar Conta a Receber - FAT-2024-002",
+      "method": "POST",
+      "url": "http://localhost:8081/api/accounts-receivable",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "clientId": "{{client2_id}}",
+        "invoiceNumber": "FAT-2024-002",
+        "measurementNumber": "MED-2024-002",
+        "description": "Venda de produtos - Fevereiro 2024",
+        "amount": 8500.00,
+        "amountPaid": 8500.00,
+        "issueDate": "2024-02-01",
+        "dueDate": "2024-02-16",
+        "paymentDate": "2024-02-14",
+        "status": "PAID",
+        "category": "PRODUCT",
+        "paymentMethod": "PIX",
+        "notes": "Pagamento realizado"
+      },
+      "description": "Criar segunda conta a receber já paga"
+    },
+    {
+      "name": "6. Criar Conta a Receber - FAT-2024-003",
+      "method": "POST",
+      "url": "http://localhost:8081/api/accounts-receivable",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "clientId": "{{client1_id}}",
+        "invoiceNumber": "FAT-2024-003",
+        "measurementNumber": "MED-2024-003",
+        "description": "Manutenção de sistemas - Março 2024",
+        "amount": 12000.00,
+        "amountPaid": 6000.00,
+        "issueDate": "2024-03-01",
+        "dueDate": "2024-03-31",
+        "status": "PARTIAL",
+        "category": "SERVICE",
+        "paymentMethod": "TRANSFER",
+        "notes": "Pagamento parcial realizado"
+      },
+      "description": "Criar terceira conta a receber com pagamento parcial"
+    },
+    {
+      "name": "7. Criar Conta a Receber - FAT-2024-004",
+      "method": "POST",
+      "url": "http://localhost:8081/api/accounts-receivable",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "clientId": "{{client2_id}}",
+        "invoiceNumber": "FAT-2024-004",
+        "measurementNumber": "MED-2024-004",
+        "description": "Desenvolvimento de software - Abril 2024",
+        "amount": 25000.00,
+        "amountPaid": 0.00,
+        "issueDate": "2024-04-01",
+        "dueDate": "2024-05-01",
+        "status": "PENDING",
+        "category": "SERVICE",
+        "paymentMethod": "PIX",
+        "notes": "Projeto em andamento"
+      },
+      "description": "Criar quarta conta a receber pendente"
+    },
+    {
+      "name": "8. Criar Conta a Receber - FAT-2024-005",
+      "method": "POST",
+      "url": "http://localhost:8081/api/accounts-receivable",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "clientId": "{{client1_id}}",
+        "invoiceNumber": "FAT-2024-005",
+        "measurementNumber": "MED-2024-005",
+        "description": "Consultoria técnica - Maio 2024",
+        "amount": 8000.00,
+        "amountPaid": 0.00,
+        "issueDate": "2024-05-01",
+        "dueDate": "2024-05-31",
+        "status": "PENDING",
+        "category": "CONSULTANCY",
+        "paymentMethod": "BOLETO",
+        "notes": "Consultoria especializada"
+      },
+      "description": "Criar quinta conta a receber"
+    },
+    {
+      "name": "9. Testar Busca - Números de Fatura (FAT)",
+      "method": "GET",
+      "url": "http://localhost:8081/api/accounts-receivable/search/invoice-number?term=FAT",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      },
+      "description": "Testar busca de números de fatura que contenham 'FAT'"
+    },
+    {
+      "name": "10. Testar Busca - Números de Fatura (2024)",
+      "method": "GET",
+      "url": "http://localhost:8081/api/accounts-receivable/search/invoice-number?term=2024",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      },
+      "description": "Testar busca de números de fatura que contenham '2024'"
+    },
+    {
+      "name": "11. Testar Busca - Números de Medição (MED)",
+      "method": "GET",
+      "url": "http://localhost:8081/api/accounts-receivable/search/measurement-number?term=MED",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      },
+      "description": "Testar busca de números de medição que contenham 'MED'"
+    },
+    {
+      "name": "12. Testar Busca - Números de Medição (001)",
+      "method": "GET",
+      "url": "http://localhost:8081/api/accounts-receivable/search/measurement-number?term=001",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      },
+      "description": "Testar busca de números de medição que contenham '001'"
+    },
+    {
+      "name": "13. Listar Todas as Contas a Receber",
+      "method": "GET",
+      "url": "http://localhost:8081/api/accounts-receivable",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      },
+      "description": "Listar todas as contas a receber criadas para verificar os dados"
+    },
+    {
+      "name": "14. Buscar Contas por Cliente",
+      "method": "GET",
+      "url": "http://localhost:8081/api/accounts-receivable/client/{{client1_id}}",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      },
+      "description": "Buscar contas a receber de um cliente específico"
+    }
+  ],
+  "variables": [
+    {
+      "key": "token",
+      "value": "",
+      "description": "Token de autenticação obtido no login"
+    },
+    {
+      "key": "client1_id",
+      "value": "",
+      "description": "ID do primeiro cliente criado"
+    },
+    {
+      "key": "client2_id",
+      "value": "",
+      "description": "ID do segundo cliente criado"
+    }
+  ]
+}

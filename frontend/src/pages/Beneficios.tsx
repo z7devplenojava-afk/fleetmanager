@@ -188,139 +188,145 @@ const Beneficios: React.FC = () => {
   };
 
   return (
-    <StandardLayout title="Gestão de Benefícios">
-      <div className="space-y-6">
+    <StandardLayout title="">
+      <div className="space-y-4 md:space-y-6 p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Gestão de Benefícios</h1>
-            <p className="text-gray-600 mt-1">
+          <div className="text-center sm:text-left">
+            <h1 className="text-2xl md:text-3xl font-bold text-seguranca-yellow">Gestão de Benefícios</h1>
+            <p className="text-seguranca-lightgray mt-1 text-sm md:text-base">
               Gerencie os benefícios oferecidos aos funcionários
             </p>
           </div>
-          <Button onClick={handleCreate} className="flex items-center gap-2">
+          <Button
+            onClick={handleCreate}
+            className="flex items-center gap-2 bg-seguranca-red hover:bg-seguranca-red/90 text-white w-full sm:w-auto"
+          >
             <Plus className="h-4 w-4" />
-            Novo Benefício
+            <span className="hidden sm:inline">Novo Benefício</span>
+            <span className="sm:hidden">Novo</span>
           </Button>
         </div>
 
         {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total de Benefícios</p>
-                  <p className="text-2xl font-bold text-gray-900">{benefits.length}</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+          <Card className="bg-seguranca-darkgray border-seguranca-lightgray/20">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-2">
+                <div className="text-center md:text-left">
+                  <p className="text-xs md:text-sm font-medium text-seguranca-lightgray">Total de Benefícios</p>
+                  <p className="text-lg md:text-2xl font-bold text-seguranca-yellow">{benefits.length}</p>
                 </div>
-                <Award className="h-8 w-8 text-blue-600" />
+                <Award className="h-6 w-6 md:h-8 md:w-8 text-blue-400 flex-shrink-0" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Benefícios Ativos</p>
-                  <p className="text-2xl font-bold text-green-600">
+          <Card className="bg-seguranca-darkgray border-seguranca-lightgray/20">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-2">
+                <div className="text-center md:text-left">
+                  <p className="text-xs md:text-sm font-medium text-seguranca-lightgray">Benefícios Ativos</p>
+                  <p className="text-lg md:text-2xl font-bold text-green-400">
                     {benefits.filter(b => b.isActive).length}
                   </p>
                 </div>
-                <Calendar className="h-8 w-8 text-green-600" />
+                <Calendar className="h-6 w-6 md:h-8 md:w-8 text-green-400 flex-shrink-0" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Valor Total</p>
-                  <p className="text-2xl font-bold text-purple-600">
+          <Card className="bg-seguranca-darkgray border-seguranca-lightgray/20">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-2">
+                <div className="text-center md:text-left">
+                  <p className="text-xs md:text-sm font-medium text-seguranca-lightgray">Valor Total</p>
+                  <p className="text-lg md:text-2xl font-bold text-purple-400">
                     R$ {benefits.reduce((sum, b) => sum + b.value, 0).toFixed(2)}
                   </p>
                 </div>
-                <DollarSign className="h-8 w-8 text-purple-600" />
+                <DollarSign className="h-6 w-6 md:h-8 md:w-8 text-purple-400 flex-shrink-0" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Tipos Diferentes</p>
-                  <p className="text-2xl font-bold text-orange-600">
+          <Card className="bg-seguranca-darkgray border-seguranca-lightgray/20">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-2">
+                <div className="text-center md:text-left">
+                  <p className="text-xs md:text-sm font-medium text-seguranca-lightgray">Tipos Diferentes</p>
+                  <p className="text-lg md:text-2xl font-bold text-orange-400">
                     {new Set(benefits.map(b => b.type)).size}
                   </p>
                 </div>
-                <Building className="h-8 w-8 text-orange-600" />
+                <Building className="h-6 w-6 md:h-8 md:w-8 text-orange-400 flex-shrink-0" />
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Filtros */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="bg-seguranca-darkgray border-seguranca-lightgray/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-seguranca-yellow text-lg">
               <Filter className="h-5 w-5" />
               Filtros Avançados
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Buscar</label>
+                <label className="text-sm font-medium text-seguranca-lightgray">Buscar</label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-seguranca-lightgray/60" />
                   <Input
                     placeholder="Nome ou descrição..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 bg-seguranca-black border-seguranca-lightgray/30 text-white placeholder:text-seguranca-lightgray/60 focus:border-seguranca-yellow"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Tipo</label>
+                <label className="text-sm font-medium text-seguranca-lightgray">Tipo</label>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-seguranca-black border-seguranca-lightgray/30 text-white focus:border-seguranca-yellow">
                     <SelectValue placeholder="Todos os tipos" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os tipos</SelectItem>
-                    <SelectItem value="TRANSPORT">Transporte</SelectItem>
-                    <SelectItem value="MEAL">Refeição</SelectItem>
-                    <SelectItem value="HEALTH">Saúde</SelectItem>
-                    <SelectItem value="DENTAL">Odontológico</SelectItem>
-                    <SelectItem value="LIFE_INSURANCE">Seguro de Vida</SelectItem>
-                    <SelectItem value="OTHER">Outro</SelectItem>
+                  <SelectContent className="bg-seguranca-black border-seguranca-lightgray/30">
+                    <SelectItem value="all" className="text-white hover:bg-seguranca-darkgray">Todos os tipos</SelectItem>
+                    <SelectItem value="TRANSPORT" className="text-white hover:bg-seguranca-darkgray">Transporte</SelectItem>
+                    <SelectItem value="MEAL" className="text-white hover:bg-seguranca-darkgray">Refeição</SelectItem>
+                    <SelectItem value="HEALTH" className="text-white hover:bg-seguranca-darkgray">Saúde</SelectItem>
+                    <SelectItem value="DENTAL" className="text-white hover:bg-seguranca-darkgray">Odontológico</SelectItem>
+                    <SelectItem value="LIFE_INSURANCE" className="text-white hover:bg-seguranca-darkgray">Seguro de Vida</SelectItem>
+                    <SelectItem value="OTHER" className="text-white hover:bg-seguranca-darkgray">Outro</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Status</label>
+                <label className="text-sm font-medium text-seguranca-lightgray">Status</label>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-seguranca-black border-seguranca-lightgray/30 text-white focus:border-seguranca-yellow">
                     <SelectValue placeholder="Todos os status" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os status</SelectItem>
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="inactive">Inativo</SelectItem>
+                  <SelectContent className="bg-seguranca-black border-seguranca-lightgray/30">
+                    <SelectItem value="all" className="text-white hover:bg-seguranca-darkgray">Todos os status</SelectItem>
+                    <SelectItem value="active" className="text-white hover:bg-seguranca-darkgray">Ativo</SelectItem>
+                    <SelectItem value="inactive" className="text-white hover:bg-seguranca-darkgray">Inativo</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
-
             </div>
 
-            <div className="flex justify-end mt-4">
-              <Button variant="outline" onClick={exportData} className="flex items-center gap-2">
+            <div className="flex justify-center md:justify-end">
+              <Button 
+                variant="outline" 
+                onClick={exportData} 
+                className="flex items-center gap-2 border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow hover:text-seguranca-black w-full md:w-auto"
+              >
                 <Download className="h-4 w-4" />
                 Exportar
               </Button>

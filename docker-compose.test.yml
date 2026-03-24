@@ -1,0 +1,177 @@
+version: '3.8'
+
+# ============================================
+# SECURED GUARD - AMBIENTE TEST
+# Nomenclatura: secured-guard-test-*
+# Portas: 5433 (DB), 6380 (Redis), 8084 (Backend), 3001 (Frontend), 3334 (WhatsApp)
+# ============================================
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: secured-guard-test-db
+    hostname: secured-guard-test-db
+    environment:
+      POSTGRES_DB: secured_guard_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - secured-guard-test-db-data:/var/lib/postgresql/data
+      - ./seeds/schema:/docker-entrypoint-initdb.d/01-schema:ro
+      - ./seeds/common:/docker-entrypoint-initdb.d/02-common:ro
+      - ./seeds/test:/docker-entrypoint-initdb.d/03-test:ro
+    networks:
+      - secured-guard-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d secured_guard_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: secured-guard-test-redis
+    hostname: secured-guard-test-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - secured-guard-test-redis-data:/data
+    networks:
+      - secured-guard-test-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  whatsapp:
+    build:
+      context: ./whatsapp-service
+      dockerfile: Dockerfile
+    image: secured-guard-whatsapp:test
+    container_name: secured-guard-test-whatsapp
+    hostname: secured-guard-test-whatsapp
+    environment:
+      PORT: 3333
+      INSTANCE_KEY: secured_guard_test
+      SESSION_DIR: /app/sessions
+      NODE_ENV: test
+    volumes:
+      - secured-guard-test-whatsapp-sessions:/app/sessions
+    ports:
+      - "3334:3333"
+    networks:
+      - secured-guard-test-network
+    dns:
+      - 8.8.8.8
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    image: secured-guard-backend:test
+    container_name: secured-guard-test-backend
+    hostname: secured-guard-test-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:postgresql://secured-guard-test-db:5432/secured_guard_test
+      SPRING_DATASOURCE_USERNAME: test_user
+      SPRING_DATASOURCE_PASSWORD: test_pass
+      SPRING_REDIS_HOST: secured-guard-test-redis
+      SPRING_REDIS_PORT: 6379
+      BAILEYS_ENABLED: "true"
+      BAILEYS_REST_URL: http://secured-guard-test-whatsapp:3333
+      JWT_SECRET: ${JWT_SECRET_TEST}
+    ports:
+      - "8084:8083"
+    networks:
+      - secured-guard-test-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    image: secured-guard-frontend:test
+    container_name: secured-guard-test-frontend
+    hostname: secured-guard-test-frontend
+    environment:
+      VITE_API_URL: https://test.z7botsolutions.com.br
+      VITE_ENV: test
+    ports:
+      - "3001:80"
+    networks:
+      - secured-guard-test-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  secured-guard-test-db-data:
+    name: secured-guard-test-db-data
+  secured-guard-test-redis-data:
+    name: secured-guard-test-redis-data
+  secured-guard-test-whatsapp-sessions:
+    name: secured-guard-test-whatsapp-sessions
+
+networks:
+  secured-guard-test-network:
+    name: secured-guard-test-network
+    driver: bridge
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

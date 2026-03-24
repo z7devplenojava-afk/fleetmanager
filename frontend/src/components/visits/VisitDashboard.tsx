@@ -1,305 +1,486 @@
 import React, { useState, useEffect } from 'react';
+import { Calendar, MapPin, Clock, User, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Calendar, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle,
-  TrendingUp,
-  MapPin,
-  Users,
-  BarChart3,
-  RefreshCw,
-  Filter,
-  Download,
-  Eye
-} from 'lucide-react';
-import { Visit, VisitStatistics, VisitStatus } from '@/types/visit';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import { visitService } from '@/services/visitService';
-import { useAuth } from '@/contexts/AuthContext';
-import { cn } from '@/lib/utils';
+import { Visit, VisitFilters, VisitCalendarEvent } from '@/types/visit';
+import { VisitCalendar } from './VisitCalendar';
+import VisitList from './VisitList';
+import { VisitFormModal } from './VisitFormModal';
+import VisitControlReports from '@/components/operacional/VisitControlReports';
+import { VisitViewModal } from './VisitViewModal';
+import DayVisitsModal from './DayVisitsModal';
 
 interface VisitDashboardProps {
-  onViewVisits?: () => void;
-  onCreateVisit?: () => void;
-  onViewReports?: () => void;
+  supervisorId?: string;
 }
 
-const VisitDashboard: React.FC<VisitDashboardProps> = ({
-  onViewVisits,
-  onCreateVisit,
-  onViewReports
-}) => {
-  const { user } = useAuth();
-  const [statistics, setStatistics] = useState<VisitStatistics | null>(null);
-  const [todaysVisits, setTodaysVisits] = useState<Visit[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [loading, setLoading] = useState(true);
+const VisitDashboard: React.FC<VisitDashboardProps> = ({ supervisorId }) => {
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<VisitCalendarEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showDayVisitsModal, setShowDayVisitsModal] = useState(false);
+  const [selectedDayVisits, setSelectedDayVisits] = useState<Visit[]>([]);
+  const [selectedDayDate, setSelectedDayDate] = useState<Date>(new Date());
+  const [filters, setFilters] = useState<VisitFilters>({});
+  const [activeTab, setActiveTab] = useState('calendar');
+
+  const { toast } = useToast();
 
   useEffect(() => {
-    loadDashboardData();
-  }, [selectedMonth, selectedYear]);
+    loadVisits();
+  }, [filters, supervisorId]);
 
-  const loadDashboardData = async () => {
-    if (!user?.id) return;
-
+  const loadVisits = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [stats, visits] = await Promise.all([
-        visitService.getVisitStatistics(user.id, selectedYear, selectedMonth),
-        visitService.getTodaysVisits(user.id)
-      ]);
+      let visitsData: Visit[] = [];
       
-      setStatistics(stats);
-      setTodaysVisits(visits);
+      if (supervisorId) {
+        visitsData = await visitService.getVisitsBySupervisor(supervisorId);
+      } else if (filters.startDate && filters.endDate) {
+        const response = await visitService.getVisitsByDateRange(filters.startDate, filters.endDate);
+        visitsData = response.content;
+      } else {
+        const response = await visitService.getVisits(filters);
+        visitsData = response.content;
+      }
+
+      setVisits(visitsData);
+      setCalendarEvents(visitService.convertToCalendarEvents(visitsData));
     } catch (error) {
-      console.error('Erro ao carregar dados do dashboard:', error);
+      console.error('Erro ao carregar visitas:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao carregar visitas',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusBadge = (status: VisitStatus) => {
-    const statusConfig = {
-      [VisitStatus.PENDING]: { 
-        label: 'Pendente', 
-        className: 'bg-yellow-100 text-yellow-800 border-yellow-200' 
-      },
-      [VisitStatus.COMPLETED]: { 
-        label: 'Realizada', 
-        className: 'bg-green-100 text-green-800 border-green-200' 
-      },
-      [VisitStatus.NOT_COMPLETED]: { 
-        label: 'Não Realizada', 
-        className: 'bg-red-100 text-red-800 border-red-200' 
-      },
-      [VisitStatus.CANCELLED]: { 
-        label: 'Cancelada', 
-        className: 'bg-gray-100 text-gray-800 border-gray-200' 
-      }
-    };
-
-    const config = statusConfig[status];
-    return (
-      <Badge className={cn('border', config.className)}>
-        {config.label}
-      </Badge>
-    );
+  const handleCreateVisit = () => {
+    setSelectedVisit(null);
+    setShowFormModal(true);
   };
 
-  const getStatusIcon = (status: VisitStatus) => {
-    switch (status) {
-      case VisitStatus.COMPLETED:
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case VisitStatus.NOT_COMPLETED:
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case VisitStatus.CANCELLED:
-        return <AlertCircle className="h-4 w-4 text-gray-600" />;
-      default:
-        return <Clock className="h-4 w-4 text-yellow-600" />;
+  const handleEditVisit = (visit: Visit) => {
+    setSelectedVisit(visit);
+    setShowFormModal(true);
+  };
+
+  const handleViewVisit = async (visitOrEvent: Visit | VisitCalendarEvent) => {
+    try {
+      let visitToShow: Visit;
+      
+      // Se for um VisitCalendarEvent, buscar a visita completa
+      if ('title' in visitOrEvent && 'date' in visitOrEvent && !('visitDate' in visitOrEvent)) {
+        // É um VisitCalendarEvent, buscar a visita completa
+        console.log('🔍 Buscando visita completa pelo ID:', visitOrEvent.id);
+        const fullVisit = await visitService.getVisitById(visitOrEvent.id);
+        console.log('✅ Visita completa carregada:', fullVisit);
+        visitToShow = fullVisit;
+      } else {
+        // Já é um Visit completo
+        console.log('✅ Usando visita já completa:', visitOrEvent);
+        visitToShow = visitOrEvent as Visit;
+      }
+      
+      console.log('📋 Dados da visita para exibição:', {
+        id: visitToShow.id,
+        supervisorId: visitToShow.supervisorId,
+        supervisorName: visitToShow.supervisorName,
+        workPostId: visitToShow.workPostId,
+        workPostName: visitToShow.workPostName,
+        clientId: visitToShow.clientId,
+        clientName: visitToShow.clientName,
+        visitDate: visitToShow.visitDate,
+        visitTime: visitToShow.visitTime,
+        status: visitToShow.status,
+      });
+      
+      setSelectedVisit(visitToShow);
+      setShowViewModal(true);
+    } catch (error) {
+      console.error('❌ Erro ao buscar detalhes da visita:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao carregar detalhes da visita',
+        variant: 'destructive',
+      });
     }
   };
 
-  const formatTime = (timeString?: string) => {
-    if (!timeString) return '--:--';
-    return new Date(timeString).toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit'
+  const handleSaveVisit = async (visitData: any) => {
+    try {
+      if (selectedVisit) {
+        await visitService.updateVisit(selectedVisit.id, visitData);
+        toast({
+          title: 'Sucesso',
+          description: 'Visita atualizada com sucesso',
+        });
+      } else {
+        await visitService.createVisit(visitData);
+        toast({
+          title: 'Sucesso',
+          description: 'Visita criada com sucesso',
+        });
+      }
+      
+      setShowFormModal(false);
+      setSelectedVisit(null);
+      loadVisits();
+    } catch (error) {
+      console.error('Erro ao salvar visita:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao salvar visita',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteVisit = async (visitId: string) => {
+    try {
+      await visitService.deleteVisit(visitId);
+      toast({
+        title: 'Sucesso',
+        description: 'Visita excluída com sucesso',
+      });
+      loadVisits();
+    } catch (error) {
+      console.error('Erro ao excluir visita:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao excluir visita',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDateChange = (date: Date) => {
+    setSelectedDate(date);
+    const startDate = new Date(date);
+    startDate.setDate(1);
+    const endDate = new Date(date);
+    endDate.setMonth(endDate.getMonth() + 1);
+    endDate.setDate(0);
+
+    setFilters({
+      ...filters,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
     });
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+  const handleDayClick = async (date: Date, dayEvents: VisitCalendarEvent[]) => {
+    try {
+      // Normalizar a data para evitar problemas de timezone
+      // Criar uma data no início do dia no timezone local
+      const normalizedDate = new Date(date);
+      normalizedDate.setHours(0, 0, 0, 0);
+      
+      console.log('📅 Data clicada (raw):', date);
+      console.log('📅 Data normalizada:', normalizedDate);
+      console.log('📅 Data como string (YYYY-MM-DD):', normalizedDate.toISOString().split('T')[0]);
+      console.log('📊 Eventos recebidos do calendário:', dayEvents?.length || 0);
+      console.log('📊 IDs dos eventos:', dayEvents?.map(e => e.id) || []);
+      
+      // IMPORTANTE: Usar os eventos que já foram corretamente filtrados pelo calendário
+      // Isso evita problemas de timezone e garante que só mostramos visitas do dia correto
+      let dayVisits: Visit[] = [];
+      
+      if (dayEvents && dayEvents.length > 0) {
+        // Buscar visitas pelos IDs dos eventos que foram corretamente associados ao dia
+        const eventIds = dayEvents.map(event => event.id).filter(id => id);
+        console.log('🔍 Buscando visitas pelos IDs dos eventos do calendário:', eventIds);
+        
+        dayVisits = visits.filter(visit => eventIds.includes(visit.id));
+        console.log('✅ Visitas encontradas pelos IDs:', dayVisits.length);
+        console.log('✅ Detalhes das visitas:', dayVisits.map(v => ({ 
+          id: v.id, 
+          date: v.visitDate, 
+          workPost: v.workPostName 
+        })));
+      } else {
+        // Se não há eventos passados, significa que não há visitas neste dia
+        // Fazer uma verificação final para garantir (mas os eventos já são a fonte da verdade)
+        console.log('⚠️ Nenhum evento recebido do calendário - dia vazio confirmado');
+        dayVisits = [];
+        
+        // Verificação adicional apenas para debug (não usar para exibir)
+        const year = normalizedDate.getFullYear();
+        const month = normalizedDate.getMonth();
+        const day = normalizedDate.getDate();
+        
+        const debugVisits = visits.filter(visit => {
+          if (!visit.visitDate) return false;
+          
+          // Usar apenas a parte da data (YYYY-MM-DD) para comparação
+          const visitDateStr = visit.visitDate.split('T')[0];
+          const visitDateParts = visitDateStr.split('-');
+          if (visitDateParts.length !== 3) return false;
+          
+          const visitYear = parseInt(visitDateParts[0], 10);
+          const visitMonth = parseInt(visitDateParts[1], 10) - 1; // Mês é 0-indexed
+          const visitDay = parseInt(visitDateParts[2], 10);
+          
+          return visitYear === year && visitMonth === month && visitDay === day;
+        });
+        
+        console.log('🔍 Verificação adicional (apenas debug):', debugVisits.length, 'visitas encontradas');
+        if (debugVisits.length > 0) {
+          console.warn('⚠️ ATENÇÃO: Encontradas visitas na verificação adicional que não estavam nos eventos!', 
+            debugVisits.map(v => ({ id: v.id, date: v.visitDate })));
+        }
+      }
+
+      console.log('📋 Total final de visitas para o modal:', dayVisits.length);
+
+      setSelectedDayDate(normalizedDate);
+      setSelectedDayVisits(dayVisits); // Passar array vazio se não houver eventos
+      setShowDayVisitsModal(true);
+    } catch (error) {
+      console.error('❌ Erro ao carregar visitas do dia:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao carregar visitas do dia',
+        variant: 'destructive',
+      });
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="flex items-center space-x-2">
-            <RefreshCw className="h-6 w-6 animate-spin" />
-            <span>Carregando dados...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const todayVisits = visits.filter(visit => {
+    const visitDate = new Date(visit.visitDate);
+    const today = new Date();
+    return visitDate.toDateString() === today.toDateString();
+  });
+
+  const stats = {
+    total: visits.length,
+    scheduled: visits.filter(v => v.status === 'PENDING').length,
+    completed: visits.filter(v => v.status === 'COMPLETED').length,
+    today: todayVisits.length,
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header com controles */}
+      {/* Header - Responsivo */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Dashboard de Visitas</h2>
-          <p className="text-gray-600">Visão geral das suas visitas e estatísticas</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Controle de Visitas</h1>
+          <p className="text-sm sm:text-base text-gray-400">Gerencie visitas de supervisão</p>
         </div>
-        
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                <SelectItem key={month} value={month.toString()}>
-                  {new Date(2024, month - 1).toLocaleDateString('pt-BR', { month: 'long' })}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Button variant="outline" size="sm" onClick={loadDashboardData}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar
-          </Button>
-        </div>
+        <Button 
+          onClick={handleCreateVisit} 
+          className="bg-seguranca-yellow hover:bg-seguranca-yellow/90 w-full sm:w-auto"
+        >
+          <Calendar className="w-4 h-4 mr-2" />
+          Nova Visita
+        </Button>
       </div>
 
-      {/* Cards de estatísticas */}
-      {statistics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total de Visitas</p>
-                  <p className="text-2xl font-bold text-gray-900">{statistics.totalVisits}</p>
-                </div>
-                <BarChart3 className="h-8 w-8 text-blue-600" />
+      {/* Estatísticas - Responsivo */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="bg-seguranca-graphite border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Total de Visitas</p>
+                <p className="text-2xl font-bold text-white">{stats.total}</p>
               </div>
-            </CardContent>
-          </Card>
+              <Calendar className="w-8 h-8 text-seguranca-yellow" />
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Realizadas</p>
-                  <p className="text-2xl font-bold text-green-600">{statistics.completedVisits}</p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-green-600" />
+        <Card className="bg-seguranca-graphite border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Agendadas</p>
+                <p className="text-2xl font-bold text-white">{stats.scheduled}</p>
               </div>
-            </CardContent>
-          </Card>
+              <Clock className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Pendentes</p>
-                  <p className="text-2xl font-bold text-yellow-600">{statistics.pendingVisits}</p>
-                </div>
-                <Clock className="h-8 w-8 text-yellow-600" />
+        <Card className="bg-seguranca-graphite border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Concluídas</p>
+                <p className="text-2xl font-bold text-white">{stats.completed}</p>
               </div>
-            </CardContent>
-          </Card>
+              <User className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Taxa de Conclusão</p>
-                  <p className="text-2xl font-bold text-blue-600">{statistics.completionRate.toFixed(1)}%</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-blue-600" />
+        <Card className="bg-seguranca-graphite border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Hoje</p>
+                <p className="text-2xl font-bold text-white">{stats.today}</p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <MapPin className="w-8 h-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Visitas de hoje */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Visitas de Hoje
-          </CardTitle>
+      {/* Filtros - Responsivo */}
+      <Card className="bg-seguranca-graphite border-gray-700">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-white text-base sm:text-lg">Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          {todaysVisits.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>Nenhuma visita agendada para hoje</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div>
+              <Label className="text-gray-300">Data Início</Label>
+              <Input
+                type="date"
+                value={filters.startDate || ''}
+                onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                className="bg-seguranca-black border-gray-600 text-white"
+              />
             </div>
-          ) : (
-            <div className="space-y-3">
-              {todaysVisits.map((visit) => (
-                <div key={visit.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(visit.status)}
-                    <div>
-                      <p className="font-medium text-gray-900">{visit.unitName}</p>
-                      <p className="text-sm text-gray-600">{visit.unitAddress}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">
-                        Chegada: {formatTime(visit.arrivalTime)}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Saída: {formatTime(visit.departureTime)}
-                      </p>
-                    </div>
-                    {getStatusBadge(visit.status)}
-                  </div>
-                </div>
-              ))}
+            <div>
+              <Label className="text-gray-300">Data Fim</Label>
+              <Input
+                type="date"
+                value={filters.endDate || ''}
+                onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                className="bg-seguranca-black border-gray-600 text-white"
+              />
             </div>
-          )}
+            <div>
+              <Label className="text-gray-300">Status</Label>
+              <Select
+                value={filters.status || 'all'}
+                onValueChange={(value) => setFilters({ ...filters, status: value === 'all' ? undefined : value as any })}
+              >
+                <SelectTrigger className="bg-seguranca-black border-gray-600 text-white">
+                  <SelectValue placeholder="Todos os status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="PENDING">Pendente</SelectItem>
+                  <SelectItem value="COMPLETED">Concluída</SelectItem>
+                  <SelectItem value="NOT_COMPLETED">Não Realizada</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end sm:col-span-2 md:col-span-1">
+              <Button
+                onClick={loadVisits}
+                className="bg-seguranca-yellow hover:bg-seguranca-yellow/90 w-full sm:w-auto"
+              >
+                Aplicar Filtros
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Ações rápidas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={onViewVisits}>
-          <CardContent className="p-6 text-center">
-            <Eye className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-            <h3 className="font-semibold text-gray-900">Ver Todas as Visitas</h3>
-            <p className="text-sm text-gray-600">Visualizar lista completa</p>
-          </CardContent>
-        </Card>
+      {/* Tabs - Responsivo */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="bg-seguranca-graphite border-gray-700 w-full sm:w-auto grid grid-cols-3 sm:flex">
+          <TabsTrigger value="calendar" className="text-gray-300 data-[state='active']:text-white text-xs sm:text-sm">
+            <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Calendário</span>
+            <span className="sm:hidden">Cal.</span>
+          </TabsTrigger>
+          <TabsTrigger value="list" className="text-gray-300 data-[state='active']:text-white text-xs sm:text-sm">
+            <User className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Lista</span>
+            <span className="sm:hidden">List.</span>
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="text-gray-300 data-[state='active']:text-white text-xs sm:text-sm">
+            <FileText className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Relatórios</span>
+            <span className="sm:hidden">Rel.</span>
+          </TabsTrigger>
+        </TabsList>
 
-        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={onCreateVisit}>
-          <CardContent className="p-6 text-center">
-            <MapPin className="h-8 w-8 mx-auto mb-2 text-green-600" />
-            <h3 className="font-semibold text-gray-900">Nova Visita</h3>
-            <p className="text-sm text-gray-600">Agendar nova visita</p>
-          </CardContent>
-        </Card>
+        <TabsContent value="calendar" className="space-y-4 mt-4 sm:mt-6">
+          <Card className="bg-seguranca-graphite border-gray-700 overflow-hidden w-full max-w-full">
+            <CardHeader className="pb-2 sm:pb-3 md:pb-4 px-2 sm:px-3 md:px-4 lg:px-6">
+              <CardTitle className="text-white text-sm sm:text-base md:text-lg lg:text-xl">Calendário de Visitas</CardTitle>
+            </CardHeader>
+            <CardContent className="p-1 sm:p-2 md:p-3 lg:p-4 xl:p-6 overflow-hidden w-full max-w-full">
+              <div className="w-full max-w-full overflow-hidden">
+                <VisitCalendar
+                  events={calendarEvents}
+                  selectedDate={selectedDate}
+                  onDateChange={handleDateChange}
+                  onEventClick={handleViewVisit}
+                  onDayClick={handleDayClick}
+                  loading={loading}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={onViewReports}>
-          <CardContent className="p-6 text-center">
-            <BarChart3 className="h-8 w-8 mx-auto mb-2 text-purple-600" />
-            <h3 className="font-semibold text-gray-900">Relatórios</h3>
-            <p className="text-sm text-gray-600">Ver relatórios detalhados</p>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="list" className="space-y-4">
+          <Card className="bg-seguranca-graphite border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">Lista de Visitas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VisitList
+                visits={visits}
+                loading={loading}
+                onEdit={handleEditVisit}
+                onView={handleViewVisit}
+                onDelete={handleDeleteVisit}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-4">
+          <VisitControlReports />
+        </TabsContent>
+      </Tabs>
+
+      {/* Modals */}
+      <VisitFormModal
+        open={showFormModal}
+        onOpenChange={setShowFormModal}
+        visit={selectedVisit}
+        onSave={handleSaveVisit}
+      />
+
+      <VisitViewModal
+        open={showViewModal}
+        onOpenChange={setShowViewModal}
+        visit={selectedVisit}
+        onEdit={handleEditVisit}
+        onDelete={handleDeleteVisit}
+      />
+
+      <DayVisitsModal
+        open={showDayVisitsModal}
+        onOpenChange={setShowDayVisitsModal}
+        visits={selectedDayVisits}
+        date={selectedDayDate}
+        onVisitClick={handleViewVisit}
+      />
     </div>
   );
 };

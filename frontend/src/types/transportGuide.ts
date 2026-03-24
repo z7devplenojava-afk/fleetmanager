@@ -11,12 +11,16 @@ export interface TransportGuide {
   trajeto: string;
   motivo: string;
   arquivoGuia?: string;
+  arquivoGuiaPath?: string;
   status: TransportGuideStatus;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
   approvedBy?: string;
   approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
 }
 
 export interface CreateTransportGuideDTO {

@@ -357,12 +357,12 @@ const GestaoTarefas: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="posto" className="text-seguranca-lightgray">Posto</Label>
-                    <Select value={formData.postoId} onValueChange={(value) => setFormData({ ...formData, postoId: value })}>
+                    <Select value={formData.postoId || 'none'} onValueChange={(value) => setFormData({ ...formData, postoId: value === 'none' ? '' : value })}>
                       <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
                         <SelectValue placeholder="Selecione o posto (opcional)" />
                       </SelectTrigger>
                       <SelectContent className="bg-seguranca-black border-gray-600">
-                        <SelectItem value="" className="text-seguranca-lightgray">Não especificado</SelectItem>
+                        <SelectItem value="none" className="text-seguranca-lightgray">Não especificado</SelectItem>
                         {postos.map((posto) => (
                           <SelectItem key={posto.id} value={posto.id} className="text-seguranca-lightgray">
                             {posto.nome} - {posto.cliente}
@@ -373,12 +373,12 @@ const GestaoTarefas: React.FC = () => {
                   </div>
                   <div>
                     <Label htmlFor="responsavel" className="text-seguranca-lightgray">Responsável</Label>
-                    <Select value={formData.funcionarioResponsavelId} onValueChange={(value) => setFormData({ ...formData, funcionarioResponsavelId: value })}>
+                    <Select value={formData.funcionarioResponsavelId || 'none'} onValueChange={(value) => setFormData({ ...formData, funcionarioResponsavelId: value === 'none' ? '' : value })}>
                       <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
                         <SelectValue placeholder="Selecione o responsável (opcional)" />
                       </SelectTrigger>
                       <SelectContent className="bg-seguranca-black border-gray-600">
-                        <SelectItem value="" className="text-seguranca-lightgray">Não definido</SelectItem>
+                        <SelectItem value="none" className="text-seguranca-lightgray">Não definido</SelectItem>
                         {getFuncionariosDisponiveis().map((funcionario) => (
                           <SelectItem key={funcionario.id} value={funcionario.id} className="text-seguranca-lightgray">
                             {funcionario.nome} - {funcionario.matricula}

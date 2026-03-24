@@ -54,11 +54,11 @@ export const GroupUsersModal: React.FC<GroupUsersModalProps> = ({
       console.log('🔄 Carregando usuários do grupo:', group.id);
       
       // Buscar usuários que já estão no grupo
-      const usersInGroup = await userService.getUsersByGroup(group.id);
+      const usersInGroup = await groupService.getUsersByGroup(group.id);
       console.log('👥 Usuários no grupo:', usersInGroup.length, usersInGroup);
       
       // Buscar usuários disponíveis para adicionar
-      const available = await userService.getAvailableUsersForGroup(group.id);
+      const available = await groupService.getAvailableUsersForGroup(group.id);
       console.log('✅ Usuários disponíveis:', available.length, available);
       
       setGroupUsers(usersInGroup);
@@ -147,6 +147,19 @@ export const GroupUsersModal: React.FC<GroupUsersModalProps> = ({
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Quando a busca resultar em apenas 1 usuário, seleciona-o automaticamente
+  useEffect(() => {
+    if (!searchTerm) {
+      // Se limpar a busca, não deixa ninguém pré-selecionado
+      setSelectedUserId('');
+      return;
+    }
+
+    if (filteredAvailableUsers.length === 1) {
+      setSelectedUserId(filteredAvailableUsers[0].id);
+    }
+  }, [searchTerm, filteredAvailableUsers]);
+
   const getRoleDisplayName = (role: string) => {
     const roleNames: Record<string, string> = {
       'SUPER_ADMIN': 'Super Admin',
@@ -179,67 +192,77 @@ export const GroupUsersModal: React.FC<GroupUsersModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Users className="w-5 h-5" />
-            <span>Gerenciar Usuários - {group.displayName}</span>
+      <DialogContent className="w-[96vw] sm:w-[90vw] md:w-auto max-w-[920px] sm:max-w-[960px] max-h-[90vh] overflow-y-auto bg-seguranca-graphite border-gray-700 p-4 sm:p-6 rounded-lg">
+        <DialogHeader className="bg-gradient-to-r from-seguranca-red to-red-600 p-4 sm:p-5 -m-4 sm:-m-6 mb-4 rounded-t-lg">
+          <DialogTitle className="text-white text-lg sm:text-xl font-bold flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-white/15 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5" />
+              </div>
+              <span>Gerenciar Usuários - {group.displayName}</span>
+            </div>
           </DialogTitle>
-          <DialogDescription>
-            Adicione ou remova usuários deste grupo
+          <DialogDescription className="text-white/80 text-xs sm:text-sm mt-1">
+            Adicione ou remova usuários deste grupo. Layout otimizado para desktop e mobile (padrão SST).
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Estatísticas */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{groupUsers.length}</div>
-              <div className="text-sm text-blue-600">Usuários no Grupo</div>
+        <div className="space-y-5 sm:space-y-6">
+          {/* Estatísticas - Responsivo SST */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-2 sm:mt-3">
+            <div className="bg-blue-50/90 dark:bg-blue-900/20 p-3 sm:p-4 rounded-lg flex items-center justify-between">
+              <div>
+                <div className="text-xs sm:text-sm text-blue-700 dark:text-blue-200">Usuários no Grupo</div>
+                <div className="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-300">{groupUsers.length}</div>
+              </div>
             </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{availableUsers.length}</div>
-              <div className="text-sm text-green-600">Usuários Disponíveis</div>
+            <div className="bg-green-50/90 dark:bg-green-900/20 p-3 sm:p-4 rounded-lg flex items-center justify-between">
+              <div>
+                <div className="text-xs sm:text-sm text-green-700 dark:text-green-200">Usuários Disponíveis</div>
+                <div className="text-xl sm:text-2xl font-bold text-green-700 dark:text-green-300">{availableUsers.length}</div>
+              </div>
             </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">{group.permissions.length}</div>
-              <div className="text-sm text-purple-600">Permissões do Grupo</div>
+            <div className="bg-purple-50/90 dark:bg-purple-900/20 p-3 sm:p-4 rounded-lg flex items-center justify-between">
+              <div>
+                <div className="text-xs sm:text-sm text-purple-700 dark:text-purple-200">Permissões do Grupo</div>
+                <div className="text-xl sm:text-2xl font-bold text-purple-700 dark:text-purple-300">{group.permissions.length}</div>
+              </div>
             </div>
           </div>
 
-          {/* Adicionar Usuário */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center space-x-2">
-              <UserPlus className="w-5 h-5" />
+          {/* Adicionar Usuário - Layout SST/mobile */}
+          <div className="space-y-3 sm:space-y-4">
+            <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2 text-seguranca-lightgray">
+              <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Adicionar Usuário</span>
             </h3>
             
-            <div className="flex space-x-2">
-              <div className="flex-1">
-                <Label htmlFor="search">Buscar Usuários</Label>
-                <div className="relative">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
+              <div className="flex-1 min-w-0">
+                <Label htmlFor="search" className="text-xs sm:text-sm">Buscar Usuários</Label>
+                <div className="relative mt-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
                     id="search"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar por nome ou email..."
-                    className="pl-10"
+                    placeholder="Digite nome ou email para filtrar..."
+                    className="pl-10 bg-seguranca-black border-gray-700 text-seguranca-lightgray text-sm sm:text-base h-10 sm:h-11"
                   />
                 </div>
               </div>
-              <div className="w-64">
-                <Label htmlFor="userSelect">Selecionar Usuário</Label>
+              <div className="w-full sm:w-64">
+                <Label htmlFor="userSelect" className="text-xs sm:text-sm">Selecionar Usuário</Label>
                 <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1 bg-seguranca-black border-gray-700 text-seguranca-lightgray text-sm sm:text-base h-10 sm:h-11">
                     <SelectValue placeholder="Escolha um usuário" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-seguranca-black border-gray-700 max-h-[260px]">
                     {filteredAvailableUsers.map((user) => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
+                      <SelectItem key={user.id} value={user.id.toString()} className="text-seguranca-lightgray text-sm hover:bg-seguranca-red/10">
                         <div className="flex flex-col">
-                          <span className="font-medium">{user.name}</span>
-                          <span className="text-sm text-gray-500">{user.email}</span>
+                          <span className="font-medium truncate">{user.name}</span>
+                          <span className="text-xs text-gray-400 truncate">{user.email}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -250,10 +273,10 @@ export const GroupUsersModal: React.FC<GroupUsersModalProps> = ({
                 <Button
                   onClick={handleAddUser}
                   disabled={!selectedUserId || loading}
-                  className="h-10"
+                  className="w-full sm:w-auto h-10 sm:h-11 bg-seguranca-red hover:bg-seguranca-darkred text-white"
                 >
                   {loading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                   ) : (
                     <>
                       <Plus className="w-4 h-4 mr-2" />
@@ -265,71 +288,84 @@ export const GroupUsersModal: React.FC<GroupUsersModalProps> = ({
             </div>
           </div>
 
-          {/* Usuários no Grupo */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center space-x-2">
-              <Users className="w-5 h-5" />
+          {/* Usuários no Grupo - tabela responsiva SST */}
+          <div className="space-y-3 sm:space-y-4">
+            <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2 text-seguranca-lightgray">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Usuários no Grupo ({groupUsers.length})</span>
             </h3>
             
             {loadingUsers ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <div className="flex items-center justify-center p-6 sm:p-8">
+                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-gray-300"></div>
               </div>
             ) : groupUsers.length === 0 ? (
-              <div className="text-center p-8 text-gray-500">
-                Nenhum usuário neste grupo
+              <div className="text-center p-6 sm:p-8 text-gray-400 text-sm">
+                Nenhum usuário neste grupo.
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Cargo</TableHead>
-                    <TableHead>Grupos</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {groupUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Badge className={getRoleColor(user.role)}>
-                          {getRoleDisplayName(user.role)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {user.groups.slice(0, 2).map((group) => (
-                            <Badge key={group.id} variant="outline" className="text-xs">
-                              {group.displayName}
-                            </Badge>
-                          ))}
-                          {user.groups.length > 2 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{user.groups.length - 2}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleRemoveUser(user.id)}>
-                          <UserMinus className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </TableCell>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <Table className="min-w-full text-xs sm:text-sm">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[30%]">Nome</TableHead>
+                      <TableHead className="w-[30%]">Email</TableHead>
+                      <TableHead className="w-[15%]">Cargo</TableHead>
+                      <TableHead className="w-[15%]">Grupos</TableHead>
+                      <TableHead className="w-[10%] text-right">Ações</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {groupUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium text-seguranca-lightgray truncate max-w-[160px]">
+                          {user.name}
+                        </TableCell>
+                        <TableCell className="truncate max-w-[200px]">{user.email}</TableCell>
+                        <TableCell>
+                          <Badge className={`${getRoleColor(user.role)} text-[10px] sm:text-xs`}>
+                            {getRoleDisplayName(user.role)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {user.groups.slice(0, 2).map((group) => (
+                              <Badge key={group.id} variant="outline" className="text-[9px] sm:text-xs">
+                                {group.displayName}
+                              </Badge>
+                            ))}
+                            {user.groups.length > 2 && (
+                              <Badge variant="outline" className="text-[9px] sm:text-xs">
+                                +{user.groups.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveUser(user.id)}
+                            className="h-7 w-7 sm:h-8 sm:w-8"
+                          >
+                            <UserMinus className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </div>
 
-          {/* Botões */}
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" onClick={onClose}>
+          {/* Botão Fechar */}
+          <div className="flex justify-end pt-3 sm:pt-4">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+            >
               Fechar
             </Button>
           </div>

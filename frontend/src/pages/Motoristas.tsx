@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MotoristasTable } from '@/components/frota/MotoristasTable';
 import { DriverFormModal } from '@/components/frota/DriverFormModal';
+import { DriverDeleteDialog } from '@/components/frota/DriverDeleteDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Filter, Plus, Users, UserCheck, UserX } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,8 @@ const Motoristas: React.FC = () => {
   // Estados
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ATIVO' | 'INATIVO'>('all');
   
@@ -83,18 +86,40 @@ const Motoristas: React.FC = () => {
   });
 
   const deleteMutation = useMutation<void, Error, string>({
-    mutationFn: driverService.deleteDriver,
-    onSuccess: () => {
+    mutationFn: async (id: string) => {
+      console.log('🗑️ deleteMutation.mutationFn - Iniciando exclusão do motorista ID:', id);
+      try {
+        await driverService.deleteDriver(id);
+        console.log('✅ deleteMutation.mutationFn - Motorista excluído com sucesso no serviço');
+        return;
+      } catch (error: any) {
+        console.error('❌ deleteMutation.mutationFn - Erro capturado:', error);
+        console.error('❌ Tipo do erro:', typeof error);
+        console.error('❌ Response:', error.response);
+        console.error('❌ Status:', error.response?.status);
+        console.error('❌ Data:', error.response?.data);
+        console.error('❌ Message:', error.message);
+        throw error;
+      }
+    },
+    onSuccess: (data, variables) => {
+      console.log('✅ deleteMutation.onSuccess - Chamado com sucesso!');
+      console.log('✅ ID excluído:', variables);
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
       toast({
         title: "✅ Sucesso",
         description: "Motorista excluído com sucesso!"
       });
     },
-    onError: (error) => {
+    onError: (error: any, variables) => {
+      console.error('❌ deleteMutation.onError - Erro capturado na mutation');
+      console.error('❌ ID tentado:', variables);
+      console.error('❌ Erro completo:', error);
+      const errorMessage = error.response?.data?.message || error.message || "Erro ao excluir motorista";
+      console.error('❌ Mensagem de erro final:', errorMessage);
       toast({
         title: "❌ Erro",
-        description: error.message || "Erro ao excluir motorista",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -112,9 +137,15 @@ const Motoristas: React.FC = () => {
   };
 
   const handleDelete = (driver: Driver) => {
-    if (window.confirm(`Tem certeza que deseja EXCLUIR permanentemente o motorista "${driver.name}"?\n\n⚠️ Esta ação não pode ser desfeita!`)) {
-      deleteMutation.mutate(driver.id);
-    }
+    setDriverToDelete(driver);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = (driver: Driver) => {
+    console.log('✅ Usuário confirmou exclusão do motorista:', driver.name, driver.id);
+    deleteMutation.mutate(driver.id);
+    setIsDeleteDialogOpen(false);
+    setDriverToDelete(null);
   };
 
   const handleSuccess = () => {
@@ -263,6 +294,18 @@ const Motoristas: React.FC = () => {
           onOpenChange={setIsModalOpen}
           onSuccess={handleSuccess}
           driver={editingDriver}
+        />
+
+        {/* Dialog de Exclusão */}
+        <DriverDeleteDialog
+          isOpen={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false);
+            setDriverToDelete(null);
+          }}
+          driver={driverToDelete}
+          onConfirm={handleConfirmDelete}
+          isDeleting={deleteMutation.isPending}
         />
       </div>
     </div>

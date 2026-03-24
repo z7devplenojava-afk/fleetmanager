@@ -1,4 +1,4 @@
-export type FeriasStatus = 'PENDENTE' | 'APROVADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
+export type FeriasStatus = 'PENDENTE' | 'APROVADO' | 'REJECTED' | 'CANCELADO';
 export type FeriasTipo = 'FERIAS_NORMAIS' | 'FERIAS_VENDIDAS' | 'ABONO_PECUNIARIO';
 export type AfastamentoTipo = 'ATESTADO' | 'LICENCA_MEDICA' | 'LICENCA_MATERNIDADE' | 'LICENCA_PATERNIDADE' | 'SUSPENSAO' | 'OUTROS';
 
@@ -59,6 +59,7 @@ export interface CreateAfastamentoRequest {
 }
 
 export interface UpdateAfastamentoRequest {
+  employeeId?: string; // Necessário para o backend atualizar corretamente
   dataInicio?: string;
   dataFim?: string;
   status?: FeriasStatus;

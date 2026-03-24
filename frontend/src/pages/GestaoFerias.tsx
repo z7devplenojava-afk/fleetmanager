@@ -288,12 +288,12 @@ const GestaoFerias: React.FC = () => {
 
                 <div>
                   <Label htmlFor="cobertura" className="text-seguranca-lightgray">Funcionário de Cobertura</Label>
-                  <Select value={formData.funcionarioCoberturaId} onValueChange={(value) => setFormData({ ...formData, funcionarioCoberturaId: value })}>
+                  <Select value={formData.funcionarioCoberturaId || 'none'} onValueChange={(value) => setFormData({ ...formData, funcionarioCoberturaId: value === 'none' ? '' : value })}>
                     <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
                       <SelectValue placeholder="Selecione o funcionário de cobertura (opcional)" />
                     </SelectTrigger>
                     <SelectContent className="bg-seguranca-black border-gray-600">
-                      <SelectItem value="" className="text-seguranca-lightgray">Sem cobertura definida</SelectItem>
+                      <SelectItem value="none" className="text-seguranca-lightgray">Sem cobertura definida</SelectItem>
                       {getFuncionariosDisponiveis().map((funcionario) => (
                         <SelectItem key={funcionario.id} value={funcionario.id} className="text-seguranca-lightgray">
                           {funcionario.nome} - {funcionario.matricula}

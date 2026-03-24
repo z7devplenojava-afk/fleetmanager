@@ -9,15 +9,15 @@ export interface ProposalItem {
 }
 
 export interface Proposal {
-  id: number;
+  id: number | string; // Pode ser UUID (string) ou number
   title: string;
   proposalNumber: string;
   client?: {
-    id: number;
+    id: number | string;
     name: string;
   };
   lead?: {
-    id: number;
+    id: number | string;
     name: string;
   };
   status: string;
@@ -25,11 +25,11 @@ export interface Proposal {
   validUntil: string;
   description: string;
   assignedTo?: {
-    id: number;
+    id: number | string;
     name: string;
   };
   createdBy: {
-    id: number;
+    id: number | string;
     name: string;
   };
   createdAt: string;
@@ -39,12 +39,12 @@ export interface Proposal {
 
 export interface CreateProposalRequest {
   title: string;
-  clientId?: number;
-  leadId?: number;
+  clientId?: number | string; // Pode ser UUID (string) ou number
+  leadId?: number | string; // Pode ser UUID (string) ou number
   totalValue: number;
   validUntil?: string;
   description?: string;
-  assignedToId?: number;
+  assignedToId?: number | string; // Pode ser UUID (string) ou number
   items?: {
     description: string;
     quantity: number;
@@ -78,7 +78,7 @@ export interface ProposalValueStats {
 
 export const proposalService = {
   async getAllProposals(): Promise<Proposal[]> {
-    const response = await api.get('/proposals/all');
+    const response = await api.get('/api/proposals/all');
     return response.data;
   },
 
@@ -87,27 +87,27 @@ export const proposalService = {
     return response.data;
   },
 
-  async getProposalById(id: number): Promise<Proposal> {
+  async getProposalById(id: number | string): Promise<Proposal> {
     const response = await api.get(`/api/proposals/${id}`);
     return response.data;
   },
 
   async createProposal(proposalData: CreateProposalRequest): Promise<Proposal> {
-    const response = await api.post('/proposals', proposalData);
+    const response = await api.post('/api/proposals', proposalData);
     return response.data;
   },
 
-  async updateProposal(id: number, proposalData: UpdateProposalRequest): Promise<Proposal> {
+  async updateProposal(id: number | string, proposalData: UpdateProposalRequest): Promise<Proposal> {
     const response = await api.put(`/api/proposals/${id}`, proposalData);
     return response.data;
   },
 
-  async updateProposalStatus(id: number, status: string): Promise<Proposal> {
+  async updateProposalStatus(id: number | string, status: string): Promise<Proposal> {
     const response = await api.patch(`/api/proposals/${id}/status`, { status });
     return response.data;
   },
 
-  async deleteProposal(id: number): Promise<void> {
+  async deleteProposal(id: number | string): Promise<void> {
     await api.delete(`/api/proposals/${id}`);
   },
 

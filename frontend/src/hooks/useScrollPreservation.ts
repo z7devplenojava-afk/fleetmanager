@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 
 /**
@@ -9,56 +9,78 @@ export const useScrollPreservation = () => {
   const location = useLocation();
   const scrollPositions = useRef<Map<string, number>>(new Map());
   const currentPath = useRef<string>('');
+  const isNavigating = useRef<boolean>(false);
+
+  // Função para salvar posição de scroll
+  const saveScrollPosition = useCallback((path: string) => {
+    scrollPositions.current.set(path, window.scrollY);
+  }, []);
+
+  // Função para restaurar posição de scroll
+  const restoreScrollPosition = useCallback((path: string) => {
+    const savedPosition = scrollPositions.current.get(path);
+    if (savedPosition !== undefined) {
+      // Usar requestAnimationFrame para garantir que o DOM esteja renderizado
+      requestAnimationFrame(() => {
+        window.scrollTo({
+          top: savedPosition,
+          behavior: 'instant' // Scroll instantâneo para não interferir na navegação
+        });
+      });
+    } else {
+      // Se não há posição salva, ir para o topo
+      window.scrollTo({
+        top: 0,
+        behavior: 'instant'
+      });
+    }
+  }, []);
 
   useEffect(() => {
-    // Salvar posição de scroll da página atual antes de navegar
-    const saveScrollPosition = () => {
-      if (currentPath.current) {
-        scrollPositions.current.set(currentPath.current, window.scrollY);
-      }
-    };
-
-    // Restaurar posição de scroll da nova página
-    const restoreScrollPosition = () => {
-      const savedPosition = scrollPositions.current.get(location.pathname);
-      if (savedPosition !== undefined) {
-        // Usar setTimeout para garantir que o DOM esteja renderizado
-        setTimeout(() => {
-          window.scrollTo(0, savedPosition);
-        }, 0);
-      } else {
-        // Se não há posição salva, ir para o topo
-        window.scrollTo(0, 0);
-      }
-    };
+    // Se estamos navegando para a mesma página, não fazer nada
+    if (currentPath.current === location.pathname) {
+      return;
+    }
 
     // Salvar posição da página atual
-    saveScrollPosition();
+    if (currentPath.current) {
+      saveScrollPosition(currentPath.current);
+    }
 
     // Atualizar caminho atual
     currentPath.current = location.pathname;
 
     // Restaurar posição da nova página
-    restoreScrollPosition();
+    restoreScrollPosition(location.pathname);
 
     // Cleanup: salvar posição quando o componente for desmontado
     return () => {
-      saveScrollPosition();
+      if (currentPath.current) {
+        saveScrollPosition(currentPath.current);
+      }
     };
-  }, [location.pathname]);
+  }, [location.pathname, saveScrollPosition, restoreScrollPosition]);
 
   // Função para limpar posições salvas (útil para reset)
-  const clearScrollPositions = () => {
+  const clearScrollPositions = useCallback(() => {
     scrollPositions.current.clear();
-  };
+  }, []);
 
   // Função para forçar ir ao topo na próxima navegação
-  const forceScrollToTop = () => {
+  const forceScrollToTop = useCallback(() => {
     scrollPositions.current.delete(location.pathname);
-  };
+  }, [location.pathname]);
+
+  // Função para preservar scroll atual (não ir ao topo)
+  const preserveCurrentScroll = useCallback(() => {
+    // Não fazer nada - manter comportamento atual
+  }, []);
 
   return {
     clearScrollPositions,
-    forceScrollToTop
+    forceScrollToTop,
+    preserveCurrentScroll,
+    saveScrollPosition,
+    restoreScrollPosition
   };
 };

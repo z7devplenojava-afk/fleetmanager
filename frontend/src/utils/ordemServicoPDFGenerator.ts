@@ -1003,7 +1003,7 @@ class OrdemServicoPDFGenerator {
     `;
   }
 
-  public async generatePDF(data: OrdemServicoData): Promise<void> {
+  public async generatePDF(data: OrdemServicoData): Promise<Blob> {
     try {
       let htmlContent = '';
 
@@ -1072,14 +1072,28 @@ class OrdemServicoPDFGenerator {
         heightLeft -= pageHeight;
       }
 
-      // Download do PDF
-      const fileName = `ordem-servico-${data.ordem.numero}-${data.ordem.modelo}-${data.funcionario.name.replace(/\s+/g, '-').toLowerCase()}.pdf`;
-      pdf.save(fileName);
+      // Retornar blob do PDF
+      const pdfBlob = pdf.output('blob');
+      return pdfBlob;
 
     } catch (error) {
       console.error('Erro ao gerar ordem de serviço:', error);
       throw new Error('Erro ao gerar ordem de serviço');
     }
+  }
+
+  // Método para fazer download do PDF (mantido para compatibilidade)
+  public async generateAndDownloadPDF(data: OrdemServicoData): Promise<void> {
+    const blob = await this.generatePDF(data);
+    const fileName = `ordem-servico-${data.ordem.numero}-${data.ordem.modelo}-${data.funcionario.name.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 }
 

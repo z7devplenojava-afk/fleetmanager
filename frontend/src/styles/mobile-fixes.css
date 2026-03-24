@@ -1,0 +1,225 @@
+/**
+ * Mobile Responsiveness Fixes for PWA
+ * Ensures excellent mobile experience
+ */
+
+/* ========================================
+   GLOBAL MOBILE FIXES
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Prevent text overflow */
+  h1, h2, h3, h4, h5, h6 {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+
+  /* Ensure cards don't overflow */
+  .card, [class*="Card"] {
+    max-width: 100% !important;
+    overflow: hidden;
+  }
+
+  /* Fix icon containers */
+  [class*="icon"], [class*="Icon"] {
+    flex-shrink: 0;
+    max-width: fit-content;
+  }
+
+  /* Tabs should be visible and scroll horizontally if needed */
+  [role="tablist"] {
+    display: flex !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  
+  [role="tablist"]::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+
+  /* Ensure tab triggers are visible */
+  [role="tab"] {
+    flex-shrink: 0;
+    min-width: fit-content;
+  }
+
+  /* Buttons should not wrap */
+  button {
+    white-space: nowrap;
+  }
+
+  /* Badge fixes */
+  .badge, [class*="Badge"] {
+    font-size: 0.65rem !important;
+    padding: 0.125rem 0.375rem !important;
+  }
+}
+
+/* ========================================
+   HEADER MOBILE FIXES
+   ======================================== */
+
+@media (max-width: 640px) {
+  header {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  header h1 {
+    font-size: 0.875rem !important; /* 14px */
+  }
+
+  header button {
+    padding: 0.25rem !important;
+  }
+}
+
+/* ========================================
+   CONTENT AREA MOBILE FIXES
+   ======================================== */
+
+@media (max-width: 768px) {
+  main {
+    padding: 0.75rem !important;
+  }
+
+  /* Cards in grid */
+  [class*="grid-cols"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Spacing between elements */
+  [class*="space-x-4"] {
+    gap: 0.5rem !important;
+  }
+
+  [class*="gap-4"] {
+    gap: 0.75rem !important;
+  }
+}
+
+/* ========================================
+   SPECIFIC COMPONENTS
+   ======================================== */
+
+/* Login page tabs - ensure both tabs are visible */
+.login-tabs [role="tablist"],
+.login-tabs .grid-cols-2 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+}
+
+.login-tabs [role="tab"] {
+  display: flex !important;
+  visibility: visible !important;
+}
+
+/* Dashboard cards */
+@media (max-width: 640px) {
+  .dashboard-card {
+    padding: 1rem !important;
+  }
+
+  .dashboard-card h3 {
+    font-size: 1rem !important;
+  }
+
+  .dashboard-card .value {
+    font-size: 1.5rem !important;
+  }
+}
+
+/* Table fixes */
+@media (max-width: 768px) {
+  table {
+    font-size: 0.75rem;
+  }
+
+  th, td {
+    padding: 0.5rem !important;
+  }
+
+  /* Hide less important columns on mobile */
+  th:nth-child(n+4),
+  td:nth-child(n+4) {
+    display: none;
+  }
+}
+
+/* Modal fixes */
+@media (max-width: 640px) {
+  [role="dialog"] {
+    max-width: 95vw !important;
+    margin: 0.5rem !important;
+  }
+
+  [role="dialog"] h2 {
+    font-size: 1.125rem !important;
+  }
+}
+
+/* ========================================
+   PWA SPECIFIC FIXES
+   ======================================== */
+
+/* Fix for standalone PWA mode */
+@media (display-mode: standalone) {
+  header {
+    padding-top: env(safe-area-inset-top, 0.5rem);
+  }
+
+  main {
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+}
+
+/* Landscape mode fixes */
+@media (max-width: 896px) and (orientation: landscape) {
+  aside {
+    width: 3rem !important;
+  }
+
+  aside span {
+    display: none !important;
+  }
+
+  header {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+}
+
+/* ========================================
+   TOUCHSCREEN OPTIMIZATIONS
+   ======================================== */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent zoom on input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+  aside, header button, [class*="sidebar"] {
+    display: none !important;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}

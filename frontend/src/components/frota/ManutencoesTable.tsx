@@ -27,6 +27,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowUpDown, MoreHorizontal, Pencil, Trash2, Eye, Calendar, Wrench, Download, FileText, Trash2Icon, Edit3, Filter, Settings, AlertTriangle, Search, RefreshCw, BarChart3, Edit } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import fleetService from '@/services/fleetService';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -120,190 +123,190 @@ export const createColumns = (
   onEdit?: (maintenance: VehicleMaintenance) => void,
   onDelete?: (maintenance: VehicleMaintenance) => void
 ): ColumnDef<VehicleMaintenance>[] => [
-  {
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected()}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Selecionar todos"
-        className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label={`Selecionar manutenção ${row.getValue('vehiclePlate')}`}
-        className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: 'vehiclePlate',
-    header: 'Placa',
-    cell: ({ row }) => (
-      <div className="font-mono font-semibold text-seguranca-yellow">
-        {row.getValue('vehiclePlate')}
-      </div>
-    ),
-  },
-  {
-    accessorKey: 'date',
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        className="text-seguranca-lightgray hover:text-seguranca-yellow"
-      >
-        <Calendar className="mr-2 h-4 w-4" />
-        Data
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <Calendar className="h-4 w-4 text-blue-400" />
-        <span className="text-seguranca-lightgray font-medium">{formatDate(row.getValue('date'))}</span>
-      </div>
-    ),
-  },
-  {
-    accessorKey: 'maintenanceType',
-    header: 'Tipo',
-    cell: ({ row }) => {
-      const type = row.getValue('maintenanceType') as string;
-      return (
-        <Badge className={getTypeColor(type)}>
-          <Wrench className="mr-1 h-3 w-3" />
-          {type.replace('_', ' ')}
-        </Badge>
-      );
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Selecionar todos"
+          className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label={`Selecionar manutenção ${row.getValue('vehiclePlate')}`}
+          className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
     },
-  },
-  {
-    accessorKey: 'description',
-    header: 'Descrição',
-    cell: ({ row }) => (
-      <div className="max-w-sm text-seguranca-lightgray whitespace-normal" title={row.getValue('description')}>
-        {row.getValue('description')}
-      </div>
-    ),
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => {
-      const status = row.getValue('status') as string;
-      return (
-        <Badge className={getStatusColor(status)}>
-          {status === 'SCHEDULED' && 'Agendada'}
-          {status === 'IN_PROGRESS' && 'Em Andamento'}
-          {status === 'COMPLETED' && 'Concluída'}
-          {status === 'CANCELLED' && 'Cancelada'}
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: 'priority',
-    header: 'Prioridade',
-    cell: ({ row }) => {
-      const priority = row.getValue('priority') as string;
-      return (
-        <Badge className={getPriorityColor(priority)}>
-          {priority === 'LOW' && 'Baixa'}
-          {priority === 'MEDIUM' && 'Média'}
-          {priority === 'HIGH' && 'Alta'}
-          {priority === 'URGENT' && 'Urgente'}
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: 'mileage',
-    header: 'Quilometragem',
-    cell: ({ row }) => {
-      const mileage = row.getValue('mileage') as number;
-      return (
-        <div className="text-seguranca-lightgray font-mono">
-          {mileage ? `${Number(mileage).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} km` : 'N/A'}
+    {
+      accessorKey: 'vehiclePlate',
+      header: 'Placa',
+      cell: ({ row }) => (
+        <div className="font-mono font-semibold text-seguranca-yellow">
+          {row.getValue('vehiclePlate')}
         </div>
-      );
+      ),
     },
-  },
-  {
-    id: 'actions',
-    header: 'Ações',
-    cell: ({ row, table }) => {
-      const maintenance = row.original;
-      
-      // Debug log para verificar se as funções estão sendo passadas
-      console.log('🔍 Actions Cell - Funções disponíveis:', {
-        onView: typeof onView,
-        onEdit: typeof onEdit,
-        onDelete: typeof onDelete,
-        maintenance: maintenance.id
-      });
-
-      const handleView = () => {
-        console.log('👁️ Clicou em Visualizar:', maintenance);
-        onView?.(maintenance);
-      };
-
-      const handleEdit = () => {
-        console.log('✏️ Clicou em Editar:', maintenance);
-        onEdit?.(maintenance);
-      };
-
-      const handleDelete = () => {
-        console.log('🗑️ Clicou em Excluir:', maintenance);
-        onDelete?.(maintenance);
-      };
-
-      return (
-        <div className="flex items-center gap-1">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleView}
-            className="h-8 w-8 p-0 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
-            title="Visualizar detalhes"
-          >
-            <Eye size={14} />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleEdit}
-            className="h-8 w-8 p-0 border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-white"
-            title="Editar"
-          >
-            <Pencil size={14} />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleDelete}
-            className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-            title="Excluir"
-          >
-            <Trash2 size={14} />
-          </Button>
+    {
+      accessorKey: 'date',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          className="text-seguranca-lightgray hover:text-seguranca-yellow"
+        >
+          <Calendar className="mr-2 h-4 w-4" />
+          Data
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-blue-400" />
+          <span className="text-seguranca-lightgray font-medium">{formatDate(row.getValue('date'))}</span>
         </div>
-      );
+      ),
     },
-  },
-];
+    {
+      accessorKey: 'maintenanceType',
+      header: 'Tipo',
+      cell: ({ row }) => {
+        const type = row.getValue('maintenanceType') as string;
+        return (
+          <Badge className={getTypeColor(type)}>
+            <Wrench className="mr-1 h-3 w-3" />
+            {type.replace('_', ' ')}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'description',
+      header: 'Descrição',
+      cell: ({ row }) => (
+        <div className="max-w-sm text-seguranca-lightgray whitespace-normal" title={row.getValue('description')}>
+          {row.getValue('description')}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+        const status = row.getValue('status') as string;
+        return (
+          <Badge className={getStatusColor(status)}>
+            {status === 'SCHEDULED' && 'Agendada'}
+            {status === 'IN_PROGRESS' && 'Em Andamento'}
+            {status === 'COMPLETED' && 'Concluída'}
+            {status === 'CANCELLED' && 'Cancelada'}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'priority',
+      header: 'Prioridade',
+      cell: ({ row }) => {
+        const priority = row.getValue('priority') as string;
+        return (
+          <Badge className={getPriorityColor(priority)}>
+            {priority === 'LOW' && 'Baixa'}
+            {priority === 'MEDIUM' && 'Média'}
+            {priority === 'HIGH' && 'Alta'}
+            {priority === 'URGENT' && 'Urgente'}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'mileage',
+      header: 'Quilometragem',
+      cell: ({ row }) => {
+        const mileage = row.getValue('mileage') as number;
+        return (
+          <div className="text-seguranca-lightgray font-mono">
+            {mileage ? `${Number(mileage).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} km` : 'N/A'}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Ações',
+      cell: ({ row, table }) => {
+        const maintenance = row.original;
+
+        // Debug log para verificar se as funções estão sendo passadas
+        console.log('🔍 Actions Cell - Funções disponíveis:', {
+          onView: typeof onView,
+          onEdit: typeof onEdit,
+          onDelete: typeof onDelete,
+          maintenance: maintenance.id
+        });
+
+        const handleView = () => {
+          console.log('👁️ Clicou em Visualizar:', maintenance);
+          onView?.(maintenance);
+        };
+
+        const handleEdit = () => {
+          console.log('✏️ Clicou em Editar:', maintenance);
+          onEdit?.(maintenance);
+        };
+
+        const handleDelete = () => {
+          console.log('🗑️ Clicou em Excluir:', maintenance);
+          onDelete?.(maintenance);
+        };
+
+        return (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleView}
+              className="h-8 w-8 p-0 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+              title="Visualizar detalhes"
+            >
+              <Eye size={14} />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleEdit}
+              className="h-8 w-8 p-0 border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-white"
+              title="Editar"
+            >
+              <Pencil size={14} />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDelete}
+              className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+              title="Excluir"
+            >
+              <Trash2 size={14} />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
 
 export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: ManutencoesTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = React.useState('');
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-  
+
   const { toast } = useToast();
 
   // Debug logs
@@ -389,12 +392,91 @@ export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // State for PDF report modal
+  const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
+  const [pdfFilters, setPdfFilters] = useState({
+    startDate: '',
+    endDate: '',
+    vehiclePlate: '',
+    status: '',
+    maintenanceType: '',
+    description: ''
+  });
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  // Get unique vehicle plates from data
+  const uniquePlates = React.useMemo(() => {
+    const plates = new Set(data.map(m => m.vehiclePlate));
+    return Array.from(plates).sort();
+  }, [data]);
+
+  const handleGeneratePDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      const filters: any = {};
+
+      if (pdfFilters.startDate) filters.startDate = pdfFilters.startDate;
+      if (pdfFilters.endDate) filters.endDate = pdfFilters.endDate;
+      if (pdfFilters.vehiclePlate && pdfFilters.vehiclePlate !== 'all') {
+        // Find vehicleId from plate
+        const maintenance = data.find(m => m.vehiclePlate === pdfFilters.vehiclePlate);
+        if (maintenance) {
+          filters.vehicleId = maintenance.vehicleId;
+        }
+      }
+      if (pdfFilters.status && pdfFilters.status !== 'all') {
+        filters.status = pdfFilters.status;
+      }
+      if (pdfFilters.maintenanceType && pdfFilters.maintenanceType !== 'all') {
+        filters.maintenanceType = pdfFilters.maintenanceType;
+      }
+      if (pdfFilters.description && pdfFilters.description.trim() !== '') {
+        filters.description = pdfFilters.description.trim();
+      }
+
+      const blob = await fleetService.exportMaintenancesReportPDF(filters);
+
+      // Criar URL para download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Definir nome do arquivo
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+      link.download = `relatorio_manutencoes_${timestamp}.pdf`;
+
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Relatório gerado com sucesso!",
+        description: "O relatório de manutenções foi baixado com sucesso.",
+        variant: "default",
+      });
+
+      setIsPDFModalOpen(false);
+    } catch (error: any) {
+      console.error('Erro ao gerar relatório PDF:', error);
+      const errorMessage = error?.message || 'Ocorreu um erro ao gerar o relatório PDF. Tente novamente.';
+      toast({
+        title: "Erro ao gerar relatório",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   const confirmDelete = async () => {
     if (selectedForDelete.length === 0) return;
 
     setIsDeleting(true);
     try {
-      const deletePromises = selectedForDelete.map(maintenance => 
+      const deletePromises = selectedForDelete.map(maintenance =>
         api.delete(`/api/maintenances/${maintenance.id}`)
       );
       await Promise.all(deletePromises);
@@ -412,14 +494,14 @@ export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: 
 
     } catch (error: any) {
       console.error('❌ Erro ao excluir em lote:', error);
-      
+
       let errorMessage = 'Erro ao excluir manutenções selecionadas';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: "Erro",
         description: errorMessage,
@@ -475,25 +557,16 @@ export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: 
               )}
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.print()}
-              className="border-gray-600 text-gray-400 hover:bg-gray-700"
+              onClick={() => setIsPDFModalOpen(true)}
+              className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
             >
               <FileText size={16} className="mr-2" />
-              Imprimir
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              className="border-green-500 text-green-500 hover:bg-green-500 hover:text-white"
-            >
-              <Download size={16} className="mr-2" />
-              Exportar
+              Gerar Relatório PDF
             </Button>
           </div>
         </div>
@@ -560,7 +633,7 @@ export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: 
             className="max-w-sm bg-seguranca-graphite border-gray-600 text-seguranca-lightgray"
           />
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -574,31 +647,30 @@ export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: 
       </div>
 
       {/* Tabela */}
-      <div className="bg-seguranca-black border border-gray-600 rounded-lg overflow-hidden">
+      <div className="bg-seguranca-black border border-gray-600 rounded-lg overflow-x-auto">
         <Table className="w-full">
           <TableHeader className="bg-seguranca-graphite">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-gray-600 hover:bg-seguranca-graphite">
                 {headerGroup.headers.map((header) => (
-                  <TableHead 
-                    key={header.id} 
-                    className={`text-seguranca-lightgray font-semibold ${
-                      header.id === 'select' ? 'w-12' : 
-                      header.id === 'vehiclePlate' ? 'w-40' : // Aumentado para Placa
-                      header.id === 'date' ? 'w-32' :
-                      header.id === 'maintenanceType' ? 'w-32' :
-                      header.id === 'description' ? 'w-64' : // Diminuído para Descrição
-                      header.id === 'status' ? 'w-32' :
-                      header.id === 'priority' ? 'w-32' :
-                      header.id === 'actions' ? 'w-24' : 'w-auto'
-                    }`}
+                  <TableHead
+                    key={header.id}
+                    className={`text-seguranca-lightgray font-semibold ${header.id === 'select' ? 'w-12' :
+                        header.id === 'vehiclePlate' ? 'w-40' : // Aumentado para Placa
+                          header.id === 'date' ? 'w-32' :
+                            header.id === 'maintenanceType' ? 'w-32' :
+                              header.id === 'description' ? 'w-64' : // Diminuído para Descrição
+                                header.id === 'status' ? 'w-32' :
+                                  header.id === 'priority' ? 'w-32' :
+                                    header.id === 'actions' ? 'w-24' : 'w-auto'
+                      }`}
                   >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -613,18 +685,17 @@ export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: 
                   className="border-gray-600 hover:bg-seguranca-graphite/50 transition-colors"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell 
-                      key={cell.id} 
-                      className={`text-seguranca-lightgray ${
-                        cell.column.id === 'select' ? 'w-12' : 
-                        cell.column.id === 'vehiclePlate' ? 'w-40' : // Aumentado para Placa
-                        cell.column.id === 'date' ? 'w-32' :
-                        cell.column.id === 'maintenanceType' ? 'w-32' :
-                        cell.column.id === 'description' ? 'w-64' : // Diminuído para Descrição
-                        cell.column.id === 'status' ? 'w-32' :
-                        cell.column.id === 'priority' ? 'w-32' :
-                        cell.column.id === 'actions' ? 'w-24' : 'w-auto'
-                      }`}
+                    <TableCell
+                      key={cell.id}
+                      className={`text-seguranca-lightgray ${cell.column.id === 'select' ? 'w-12' :
+                          cell.column.id === 'vehiclePlate' ? 'w-40' : // Aumentado para Placa
+                            cell.column.id === 'date' ? 'w-32' :
+                              cell.column.id === 'maintenanceType' ? 'w-32' :
+                                cell.column.id === 'description' ? 'w-64' : // Diminuído para Descrição
+                                  cell.column.id === 'status' ? 'w-32' :
+                                    cell.column.id === 'priority' ? 'w-32' :
+                                      cell.column.id === 'actions' ? 'w-24' : 'w-auto'
+                        }`}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
@@ -717,23 +788,23 @@ export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: 
               Confirmar Exclusão
             </DialogTitle>
             <DialogDescription className="text-gray-300">
-              Tem certeza que deseja excluir <span className="font-semibold text-red-400">{selectedForDelete.length}</span> manutenção(ões)? 
+              Tem certeza que deseja excluir <span className="font-semibold text-red-400">{selectedForDelete.length}</span> manutenção(ões)?
               <br />
               <span className="text-red-400 font-medium">Esta ação não pode ser desfeita.</span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowDeleteConfirm(false)} 
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
               disabled={isDeleting}
               className="border-gray-600 text-gray-400 hover:bg-gray-700"
             >
               Cancelar
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={confirmDelete} 
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
@@ -750,6 +821,131 @@ export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: 
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Geração de PDF */}
+      <Dialog open={isPDFModalOpen} onOpenChange={setIsPDFModalOpen}>
+        <DialogContent className="sm:max-w-2xl bg-seguranca-graphite border-gray-600 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-seguranca-lightgray">
+              Gerar Relatório PDF de Manutenções
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Data Início</Label>
+                <Input
+                  type="date"
+                  value={pdfFilters.startDate}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, startDate: e.target.value })}
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Data Fim</Label>
+                <Input
+                  type="date"
+                  value={pdfFilters.endDate}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, endDate: e.target.value })}
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Placa</Label>
+                <Select
+                  value={pdfFilters.vehiclePlate}
+                  onValueChange={(value) => setPdfFilters({ ...pdfFilters, vehiclePlate: value })}
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                    <SelectValue placeholder="Todas as placas" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    <SelectItem value="all">Todas as placas</SelectItem>
+                    {uniquePlates.map((plate) => (
+                      <SelectItem key={plate} value={plate}>
+                        {plate}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Status</Label>
+                <Select
+                  value={pdfFilters.status}
+                  onValueChange={(value) => setPdfFilters({ ...pdfFilters, status: value })}
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                    <SelectValue placeholder="Todos os status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="SCHEDULED">Agendada</SelectItem>
+                    <SelectItem value="IN_PROGRESS">Em Andamento</SelectItem>
+                    <SelectItem value="COMPLETED">Concluída</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Tipo</Label>
+                <Select
+                  value={pdfFilters.maintenanceType}
+                  onValueChange={(value) => setPdfFilters({ ...pdfFilters, maintenanceType: value })}
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                    <SelectValue placeholder="Todos os tipos" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    <SelectItem value="PREVENTIVE">Preventiva</SelectItem>
+                    <SelectItem value="CORRECTIVE">Corretiva</SelectItem>
+                    <SelectItem value="PREDICTIVE">Preditiva</SelectItem>
+                    <SelectItem value="IMPROVEMENT">Melhoria</SelectItem>
+                    <SelectItem value="OTHER">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-seguranca-lightgray">Descrição (busca parcial)</Label>
+                <Input
+                  value={pdfFilters.description}
+                  onChange={(e) => setPdfFilters({ ...pdfFilters, description: e.target.value })}
+                  placeholder="Digite parte da descrição..."
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-700">
+              <Button
+                variant="outline"
+                onClick={() => setIsPDFModalOpen(false)}
+                className="border-gray-600 text-gray-400 hover:bg-gray-700"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleGeneratePDF}
+                disabled={isGeneratingPDF}
+                className="bg-seguranca-red hover:bg-seguranca-darkred"
+              >
+                {isGeneratingPDF ? 'Gerando...' : 'Gerar PDF'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

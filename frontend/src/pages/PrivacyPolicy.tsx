@@ -1,11 +1,11 @@
-import React from 'react';
+﻿import React from 'react';
 import SEO from '@/components/SEO';
 import { PublicLayout } from '@/components/PublicLayout';
 import { Shield, Eye, Lock, Database, UserCheck, FileText } from 'lucide-react';
 
 const PrivacyPolicy: React.FC = () => {
   const seoData = {
-    title: 'Políticas de Privacidade - Secured Guard',
+    title: 'Políticas de Privacidade - Fleet Manager',
     description: 'Conheça nossas políticas de privacidade e como protegemos seus dados pessoais. Transparência e segurança em primeiro lugar.',
     keywords: 'políticas de privacidade, proteção de dados, LGPD, segurança da informação, privacidade',
     canonical: '/politicas-privacidade'
@@ -46,7 +46,7 @@ const PrivacyPolicy: React.FC = () => {
                   Introdução
                 </h2>
                 <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
-                  A Secured Guard valoriza a privacidade e a proteção dos dados pessoais de nossos clientes, 
+                  A Fleet Manager valoriza a privacidade e a proteção dos dados pessoais de nossos clientes, 
                   funcionários e visitantes. Esta Política de Privacidade descreve como coletamos, usamos, 
                   armazenamos e protegemos suas informações pessoais.
                 </p>
@@ -201,3 +201,4 @@ const PrivacyPolicy: React.FC = () => {
 };
 
 export default PrivacyPolicy;
+

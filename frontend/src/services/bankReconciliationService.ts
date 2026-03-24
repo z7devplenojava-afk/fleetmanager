@@ -174,6 +174,53 @@ class BankReconciliationService {
     return response.data;
   }
   
+  // ===== RECONCILIATIONS =====
+  
+  async getReconciliations(filters?: {
+    accountId?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<any[]> {
+    try {
+      const params = new URLSearchParams();
+      if (filters?.accountId) params.append('accountId', filters.accountId);
+      if (filters?.status) params.append('status', filters.status);
+      if (filters?.startDate) params.append('startDate', filters.startDate);
+      if (filters?.endDate) params.append('endDate', filters.endDate);
+      
+      const response = await api.get(`/bank-reconciliation/reconciliations?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar conciliações:', error);
+      return [];
+    }
+  }
+  
+  async getReconciliationSummary(
+    accountId?: string, 
+    startDate?: string, 
+    endDate?: string
+  ): Promise<any> {
+    try {
+      const params = new URLSearchParams();
+      if (accountId) params.append('accountId', accountId);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      const response = await api.get(`/bank-reconciliation/summary?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar resumo de conciliação:', error);
+      return {
+        totalReconciliations: 0,
+        completedReconciliations: 0,
+        pendingReconciliations: 0,
+        totalDifference: 0
+      };
+    }
+  }
+  
   // ===== REPORTS =====
   
   async generateFileReport(fileId: string, statusFilter?: string): Promise<Blob> {

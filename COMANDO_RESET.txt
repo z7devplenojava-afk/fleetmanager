@@ -1,0 +1,25 @@
+═══════════════════════════════════════════════════════════════════════
+  COMANDO PARA RESETAR O BANCO - COPIE E COLE NO POWERSHELL
+═══════════════════════════════════════════════════════════════════════
+
+1. Abra o PowerShell como Administrador
+2. Navegue até a pasta do projeto: cd C:\dev\secured-guard
+3. COPIE e COLE este comando completo:
+
+───────────────────────────────────────────────────────────────────────
+
+Stop-Process -Name java -Force -ErrorAction SilentlyContinue; Remove-Item backend\target -Recurse -Force -ErrorAction SilentlyContinue; $env:PGPASSWORD = 'root'; & 'C:\Program Files\PostgreSQL\17\bin\psql.exe' -U postgres -h localhost -d secured_guard -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO postgres; GRANT ALL ON SCHEMA public TO public; SELECT 'BANCO RESETADO!' as status;"; Remove-Item Env:\PGPASSWORD; Write-Host "`n✓ PRONTO! Agora inicie o backend na IDE`n" -ForegroundColor Green
+
+───────────────────────────────────────────────────────────────────────
+
+4. Pressione ENTER
+5. Você deve ver: "BANCO RESETADO!"
+6. Inicie o backend na sua IDE
+
+═══════════════════════════════════════════════════════════════════════
+
+OU SIMPLESMENTE DÊ DUPLO CLIQUE NO ARQUIVO:
+reset_database.bat
+
+═══════════════════════════════════════════════════════════════════════
+

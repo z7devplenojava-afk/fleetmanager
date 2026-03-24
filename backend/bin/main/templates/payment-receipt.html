@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprovante de Operação</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #000;
+            background: #fff;
+            padding: 20px;
+        }
+        
+        .receipt-container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #fff;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #000;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .itau-logo {
+            background: #000;
+            color: #fff;
+            padding: 5px 10px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .horas-logo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .horas-logo .number {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .horas-logo .text {
+            font-size: 10px;
+        }
+        
+        .main-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .identification {
+            margin-left: 20px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        .account-section {
+            margin-bottom: 20px;
+        }
+        
+        .account-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .field {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        
+        .field-label {
+            font-weight: bold;
+        }
+        
+        .field-value {
+            text-align: right;
+        }
+        
+        .amount-section {
+            margin: 20px 0;
+            padding: 10px 0;
+            border-top: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+        }
+        
+        .amount-field {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .payer-info {
+            margin: 15px 0;
+        }
+        
+        .payer-info-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .transfer-info {
+            margin: 15px 0;
+            font-size: 11px;
+        }
+        
+        .authentication-section {
+            margin: 20px 0;
+        }
+        
+        .authentication-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .authentication-code {
+            font-family: monospace;
+            font-size: 10px;
+            word-break: break-all;
+            background: #f5f5f5;
+            padding: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            border-top: 2px dashed #000;
+            padding-top: 10px;
+        }
+        
+        .cut-here {
+            font-size: 10px;
+            color: #666;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+            }
+            
+            .receipt-container {
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt-container">
+        <div class="header">
+            <div class="logo-section">
+                <div class="itau-logo" th:text="${bankName}">Itaú</div>
+                <div class="horas-logo">
+                    <div class="number">30</div>
+                    <div class="text">horas</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-title">
+            <span>Comprovante de Operação</span>
+            <span>- Transferência de Conta Corrente para Conta Corrente</span>
+        </div>
+        
+        <div class="identification">
+            Identificação no Extrato: <span th:text="${statementIdentification}">SISPAG SALARIOS</span>
+        </div>
+        
+        <div class="account-section">
+            <div class="account-title">Dados da conta a ser debitada:</div>
+            <div class="field">
+                <span class="field-label">Agência:</span>
+                <span class="field-value" th:text="${debitedAgency}">0925</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Conta:</span>
+                <span class="field-value" th:text="${debitedAccount}">98240 - 7</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Nome:</span>
+                <span class="field-value" th:text="${debitedName}">PROMOVER VIGILANCIA PATRIMONIA</span>
+            </div>
+        </div>
+        
+        <div class="account-section">
+            <div class="account-title">Dados da conta a ser creditada:</div>
+            <div class="field">
+                <span class="field-label">Agência:</span>
+                <span class="field-value" th:text="${creditedAgency}">3804</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Conta:</span>
+                <span class="field-value" th:text="${creditedAccount}">68007 - 6</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Nome:</span>
+                <span class="field-value" th:text="${creditedName}">VARLEI MARCELINO DE OLIVEIRA</span>
+            </div>
+        </div>
+        
+        <div class="amount-section">
+            <div class="amount-field">
+                <span class="field-label">Valor:</span>
+                <span class="field-value" th:text="${amount}">R$ 4.500,00</span>
+            </div>
+        </div>
+        
+        <div class="payer-info">
+            <div class="payer-info-label">Informações fornecidas pelo pagador:</div>
+            <div th:text="${payerInfo}">Salário referente ao mês de [[${monthYear}]]</div>
+        </div>
+        
+        <div class="transfer-info">
+            Transferência realizada em <span th:text="${paymentDate}">04.07.2025</span> às <span th:text="${paymentTime}">19:10:47</span>, via Sispag, CTRL <span th:text="${controlNumber}">988802476000307</span>.
+        </div>
+        
+        <div class="authentication-section">
+            <div class="authentication-label">Autenticação:</div>
+            <div class="authentication-code" th:text="${authenticationCode}">DA2734C044771B57CF2F520A0EF4322491CBDBE6</div>
+        </div>
+        
+        <div class="footer">
+            <div class="cut-here">Cortar aqui</div>
+        </div>
+    </div>
+</body>
+</html>

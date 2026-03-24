@@ -29,6 +29,7 @@ import StockAlertsPanel from '@/components/stock/StockAlertsPanel';
 import StockItemModal from '@/components/stock/StockItemModal';
 import StockMovementModal from '@/components/stock/StockMovementModal';
 import QrCodeScanner from '@/components/stock/QrCodeScanner';
+import StockReportsContent from '@/components/stock/StockReportsContent';
 
 const EstoqueSimplificado: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -339,23 +340,23 @@ const EstoqueSimplificado: React.FC = () => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="bg-seguranca-graphite border-gray-600">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
+            <TabsTrigger value="dashboard" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               <BarChart3 className="h-4 w-4 mr-2" />
               Dashboard
             </TabsTrigger>
-            <TabsTrigger value="items" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
+            <TabsTrigger value="items" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               <Package className="h-4 w-4 mr-2" />
               Itens ({stockItems.length})
             </TabsTrigger>
-            <TabsTrigger value="movements" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
+            <TabsTrigger value="movements" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               <TrendingUp className="h-4 w-4 mr-2" />
               Movimentações
             </TabsTrigger>
-            <TabsTrigger value="alerts" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
+            <TabsTrigger value="alerts" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               <Bell className="h-4 w-4 mr-2" />
               Alertas ({Array.isArray(activeAlerts) ? activeAlerts.length : 0})
             </TabsTrigger>
-            <TabsTrigger value="reports" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
+            <TabsTrigger value="reports" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               <FileText className="h-4 w-4 mr-2" />
               Relatórios
             </TabsTrigger>
@@ -389,17 +390,7 @@ const EstoqueSimplificado: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="reports" className="mt-6">
-            <Card className="bg-seguranca-graphite border-gray-600 p-6">
-              <div className="text-center">
-                <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-seguranca-lightgray mb-2">
-                  Relatórios em Desenvolvimento
-                </h3>
-                <p className="text-gray-400">
-                  Relatórios detalhados de estoque, movimentações e entregas por funcionário em breve.
-                </p>
-              </div>
-            </Card>
+            <StockReportsContent />
           </TabsContent>
         </Tabs>
 

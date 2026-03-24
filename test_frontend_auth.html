@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Autenticação</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input { width: 100%; padding: 8px; margin-bottom: 10px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 10px; border: 1px solid #ddd; }
+        .error { background: #f8d7da; color: #721c24; }
+        .success { background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Teste de Autenticação - Chat Interno</h1>
+        
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" value="jose.ramos">
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" value="Password123!">
+        </div>
+        
+        <button onclick="testLogin()">Testar Login</button>
+        <button onclick="testChatAPI()">Testar API Chat</button>
+        <button onclick="testWorkPostsAPI()">Testar API Work Posts</button>
+        
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        let authToken = '';
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('http://localhost:8081/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    authToken = result.token;
+                    showResult('Login bem-sucedido! Token: ' + authToken.substring(0, 20) + '...', 'success');
+                } else {
+                    showResult('Erro no login: ' + JSON.stringify(result), 'error');
+                }
+            } catch (error) {
+                showResult('Erro na requisição: ' + error.message, 'error');
+            }
+        }
+
+        async function testChatAPI() {
+            if (!authToken) {
+                showResult('Faça login primeiro!', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8081/api/v1/chat/recent', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showResult('API Chat funcionando! Conversas: ' + result.length, 'success');
+                } else {
+                    showResult('Erro na API Chat: ' + JSON.stringify(result), 'error');
+                }
+            } catch (error) {
+                showResult('Erro na requisição Chat: ' + error.message, 'error');
+            }
+        }
+
+        async function testWorkPostsAPI() {
+            if (!authToken) {
+                showResult('Faça login primeiro!', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8081/api/work-posts/all', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showResult('API Work Posts funcionando! Posts: ' + result.length, 'success');
+                } else {
+                    showResult('Erro na API Work Posts: ' + JSON.stringify(result), 'error');
+                }
+            } catch (error) {
+                showResult('Erro na requisição Work Posts: ' + error.message, 'error');
+            }
+        }
+
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.className = 'result ' + type;
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

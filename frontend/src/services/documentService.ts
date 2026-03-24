@@ -118,6 +118,13 @@ class DocumentService {
     const response = await api.get('/documents');
     return response.data;
   }
+
+  async generatePDF(payload: any): Promise<Blob> {
+    const response = await api.post('/documents/generate-pdf', payload, {
+      responseType: 'blob',
+    });
+    return response.data;
+  }
 }
 
 export const documentService = new DocumentService();

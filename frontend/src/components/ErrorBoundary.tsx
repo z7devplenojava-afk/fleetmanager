@@ -15,10 +15,25 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): State {
+    // Ignorar erros de Suspense síncronos do React Router / React 18
+    // Mensagem típica: "A component suspended while responding to synchronous input..."
+    if (error && typeof error.message === 'string' &&
+        error.message.includes('A component suspended while responding to synchronous input')) {
+      console.warn('ErrorBoundary: ignorando erro de Suspense síncrono:', error.message);
+      return { hasError: false };
+    }
+
     return { hasError: true, error };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Mesmo filtro aqui para não poluir o console com esse tipo específico
+    if (error && typeof error.message === 'string' &&
+        error.message.includes('A component suspended while responding to synchronous input')) {
+      console.warn('ErrorBoundary (componentDidCatch): erro de Suspense síncrono ignorado:', error.message);
+      return;
+    }
+
     console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 

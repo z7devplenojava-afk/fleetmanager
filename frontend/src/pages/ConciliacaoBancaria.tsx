@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -286,10 +286,10 @@ const ConciliacaoBancaria: React.FC = () => {
         {/* Tabs principais */}
         <Tabs defaultValue="files" className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-seguranca-graphite/80 backdrop-blur border-gray-700 rounded-lg">
-            <TabsTrigger value="files" className="text-seguranca-lightgray data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
+            <TabsTrigger value="files" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               Arquivos Importados
             </TabsTrigger>
-            <TabsTrigger value="accounts" className="text-seguranca-lightgray data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
+            <TabsTrigger value="accounts" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               Contas Bancárias
             </TabsTrigger>
           </TabsList>

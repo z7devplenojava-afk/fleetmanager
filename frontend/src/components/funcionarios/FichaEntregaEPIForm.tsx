@@ -1,23 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
-import { FileText, Download, Eye, User, Building, Calendar, Shield, Plus, X, HardHat } from 'lucide-react';
-
-const mockFuncionarios = [
-  { id: '1', name: 'João da Silva', cpf: '123.456.789-00', cargo: 'Vigilante', setor: 'Segurança' },
-  { id: '2', name: 'Maria Oliveira', cpf: '987.654.321-00', cargo: 'Porteiro', setor: 'Portaria' },
-  { id: '3', name: 'Carlos Santos', cpf: '111.222.333-44', cargo: 'Supervisor', setor: 'Administrativo' },
-];
-
-const mockEmpresas = [
-  { id: '1', name: 'PROMOVER TERCEIRIZACAO & SERVIÇOS LTDA', cnpj: '12.345.678/0001-99' },
-  { id: '2', name: 'EMPRESA BETA', cnpj: '98.765.432/0001-11' },
-];
+import { Separator } from '../ui/separator';
+import { FileText, Download, Eye, User, Building, Calendar, Shield, Plus, X, HardHat, Loader2, CheckCircle2 } from 'lucide-react';
+import { employeeService, Employee } from '@/services/employeeService';
+import { companyService } from '@/services/companyService';
+import { epiDeliveryFormService } from '@/services/epiDeliveryFormService';
+import { useToast } from '@/hooks/use-toast';
+import api from '@/lib/axios';
+import { caepiService, CAEPIResponse } from '@/services/caepiService';
 
 const epiOptions = [
   'Capacete de Segurança',
@@ -37,34 +33,204 @@ const epiOptions = [
   'Outros',
 ];
 
-const FichaEntregaEPIForm = () => {
+const uniformePecasOptions = [
+  { value: 'CALCA', label: 'Calça' },
+  { value: 'CAMISA', label: 'Camisa' },
+  { value: 'CAMISA_SOCIAL', label: 'Camisa Social' },
+  { value: 'JAQUETA', label: 'Jaqueta' },
+  { value: 'SAPATO', label: 'Sapato' },
+  { value: 'SAPATA_SOCIAL', label: 'Sapata Social' },
+  { value: 'PERNEIRA', label: 'Perneira' },
+  { value: 'BLASER', label: 'Blaser' },
+  { value: 'LUVA_LATEX', label: 'Luva Latex' },
+];
+
+interface FichaEntregaEPIFormProps {
+  employeeId?: string;
+}
+
+const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId }) => {
+  const { toast } = useToast();
   const [form, setForm] = useState({
-    funcionarioId: '',
+    funcionarioId: employeeId || '',
     empresaId: '',
     dataEntrega: '',
     responsavelEntrega: '',
     observacoes: '',
   });
+  
+  // Atualizar funcionarioId quando employeeId mudar
+  useEffect(() => {
+    if (employeeId) {
+      setForm(prev => ({ ...prev, funcionarioId: employeeId }));
+    }
+  }, [employeeId]);
 
   const [epis, setEpis] = useState([
     { 
       nome: '', 
       quantidade: '1', 
-      ca: '', // Certificado de Aprovação
+      ca: '', // Número do Certificado de Aprovação
+      caName: '', // Nome/Descrição do CA
       validade: '',
-      observacoes: ''
+      observacoes: '',
+      uniformeTipo: '', // 'COMPLETO' ou 'INDIVIDUAL'
+      uniformePeca: '' // Peça específica se for individual
     }
   ]);
 
+  // Estados para autocomplete do CA
+  const [caSuggestions, setCaSuggestions] = useState<{ [key: number]: CAEPIResponse[] }>({});
+  const [caLoading, setCaLoading] = useState<{ [key: number]: boolean }>({});
+  const [caSearchTimeouts, setCaSearchTimeouts] = useState<{ [key: number]: NodeJS.Timeout }>({});
+  const [showCaSuggestions, setShowCaSuggestions] = useState<{ [key: number]: boolean }>({});
+
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
 
-  const funcionario = mockFuncionarios.find(f => f.id === form.funcionarioId);
-  const empresa = mockEmpresas.find(e => e.id === form.empresaId);
+  const funcionario = employees.find(f => f.id === form.funcionarioId);
+  const empresa = companies.find(e => e.id === form.empresaId);
+  const responsavel = employees.find(f => f.id === form.responsavelEntregaId);
 
-  const handleEpiChange = (idx, field, value) => {
-    setEpis(epis.map((epi, i) => 
-      i === idx ? { ...epi, [field]: value } : epi
-    ));
+  // Carregar dados do backend
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Carregar EPIs padrão quando empresa for selecionada
+  useEffect(() => {
+    if (form.empresaId && companies.length > 0) {
+      const selectedCompany = companies.find(c => c.id === form.empresaId);
+      if (selectedCompany) {
+        const companyDefaultEpis = (selectedCompany as any).defaultEpis;
+        if (companyDefaultEpis && companyDefaultEpis.length > 0) {
+          // Verificar se já não foram carregados (evitar loop)
+          const firstEpiName = epis.length > 0 ? epis[0].nome : '';
+          const shouldLoad = firstEpiName === '' || firstEpiName !== companyDefaultEpis[0]?.epiName;
+          
+          if (shouldLoad) {
+            const loadedEpis = companyDefaultEpis.map((epi: any) => ({
+              nome: epi.epiName || '',
+              quantidade: String(epi.quantity || 1),
+              ca: epi.caNumber || '',
+              validade: epi.validity || '',
+              observacoes: epi.observations || '',
+              uniformeTipo: '',
+              uniformePeca: ''
+            }));
+            setEpis(loadedEpis);
+            toast({
+              title: 'EPIs carregados',
+              description: `${loadedEpis.length} EPI(s) padrão da empresa foram carregados automaticamente.`,
+              variant: 'default'
+            });
+          }
+        } else {
+          // Se a empresa não tem EPIs padrão e não há EPIs preenchidos, manter apenas um campo vazio
+          if (epis.length === 0 || (epis.length === 1 && epis[0].nome === '')) {
+            setEpis([{ nome: '', quantidade: '1', ca: '', validade: '', observacoes: '', uniformeTipo: '', uniformePeca: '' }]);
+          }
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.empresaId]);
+
+  const loadData = async () => {
+    setLoadingData(true);
+    try {
+      const [employeesData, companiesData] = await Promise.all([
+        employeeService.getAllEmployees(),
+        companyService.getAllCompanies()
+      ]);
+      setEmployees(employeesData);
+      setCompanies(companiesData);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar funcionários e empresas.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const handleEpiChange = (idx: number, field: string, value: string) => {
+    setEpis(prevEpis => {
+      const updatedEpis = [...prevEpis];
+      updatedEpis[idx] = { ...updatedEpis[idx], [field]: value };
+      return updatedEpis;
+    });
+  };
+
+  // Função para buscar CA quando o usuário digita
+  const handleCABlur = async (idx: number, caNumber: string) => {
+    if (!caNumber || caNumber.trim().length < 3) {
+      setShowCaSuggestions(prev => ({ ...prev, [idx]: false }));
+      return;
+    }
+
+    try {
+      setCaLoading(prev => ({ ...prev, [idx]: true }));
+      const caInfo = await caepiService.buscarCA(caNumber);
+      
+      if (caInfo) {
+        handleEpiChange(idx, 'ca', caInfo.numero);
+        handleEpiChange(idx, 'caName', caInfo.nome || caInfo.descricao || '');
+        toast({
+          title: "CA encontrado",
+          description: `CA ${caInfo.numero} - ${caInfo.nome}`,
+          variant: "default"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CA:', error);
+    } finally {
+      setCaLoading(prev => ({ ...prev, [idx]: false }));
+      setShowCaSuggestions(prev => ({ ...prev, [idx]: false }));
+    }
+  };
+
+  // Função para buscar sugestões de CA enquanto digita
+  const handleCASearch = async (idx: number, searchTerm: string) => {
+    // Limpar timeout anterior
+    if (caSearchTimeouts[idx]) {
+      clearTimeout(caSearchTimeouts[idx]);
+    }
+
+    if (!searchTerm || searchTerm.trim().length < 3) {
+      setCaSuggestions(prev => ({ ...prev, [idx]: [] }));
+      setShowCaSuggestions(prev => ({ ...prev, [idx]: false }));
+      return;
+    }
+
+    // Debounce de 500ms
+    const timeout = setTimeout(async () => {
+      try {
+        setCaLoading(prev => ({ ...prev, [idx]: true }));
+        const resultados = await caepiService.buscarCAs(searchTerm);
+        setCaSuggestions(prev => ({ ...prev, [idx]: resultados }));
+        setShowCaSuggestions(prev => ({ ...prev, [idx]: resultados.length > 0 }));
+      } catch (error) {
+        console.error('Erro ao buscar sugestões de CA:', error);
+      } finally {
+        setCaLoading(prev => ({ ...prev, [idx]: false }));
+      }
+    }, 500);
+
+    setCaSearchTimeouts(prev => ({ ...prev, [idx]: timeout }));
+  };
+
+  // Função para selecionar uma sugestão de CA
+  const handleCASelect = (idx: number, ca: CAEPIResponse) => {
+    handleEpiChange(idx, 'ca', ca.numero);
+    handleEpiChange(idx, 'caName', ca.nome || ca.descricao || '');
+    setShowCaSuggestions(prev => ({ ...prev, [idx]: false }));
+    setCaSuggestions(prev => ({ ...prev, [idx]: [] }));
   };
 
   const addEpi = () => {
@@ -72,188 +238,540 @@ const FichaEntregaEPIForm = () => {
       nome: '', 
       quantidade: '1', 
       ca: '', 
+      caName: '',
       validade: '', 
-      observacoes: '' 
+      observacoes: '',
+      uniformeTipo: '',
+      uniformePeca: ''
     }]);
   };
 
-  const removeEpi = (idx) => {
+  const removeEpi = (idx: number) => {
     if (epis.length > 1) {
       setEpis(epis.filter((_, i) => i !== idx));
     }
   };
 
-  const handlePreview = () => {
-    // TODO: Implementar preview da ficha
-    console.log('Preview da ficha:', { form, epis });
-  };
-
-  const handleGerarPDF = async (e) => {
-    e.preventDefault();
-    
+  const handlePreview = async () => {
     if (!form.funcionarioId || !form.empresaId || !form.dataEntrega) {
-      alert('Preencha todos os campos obrigatórios!');
+      toast({
+        title: 'Atenção',
+        description: 'Preencha todos os campos obrigatórios para visualizar a ficha!',
+        variant: 'destructive'
+      });
       return;
     }
 
     if (epis.some(epi => !epi.nome)) {
-      alert('Preencha o nome de todos os EPIs!');
+      toast({
+        title: 'Atenção',
+        description: 'Preencha o nome de todos os EPIs para visualizar a ficha!',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    // Validar campos específicos de Uniforme de Trabalho
+    if (epis.some(epi => epi.nome === 'Uniforme de Trabalho' && !epi.uniformeTipo)) {
+      toast({
+        title: 'Atenção',
+        description: 'Para Uniforme de Trabalho, é necessário selecionar se é Completo ou Individual!',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    if (epis.some(epi => epi.nome === 'Uniforme de Trabalho' && epi.uniformeTipo === 'INDIVIDUAL' && !epi.uniformePeca)) {
+      toast({
+        title: 'Atenção',
+        description: 'Para Uniforme de Trabalho Individual, é necessário selecionar a peça específica!',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!funcionario || !empresa) {
+      toast({
+        title: 'Atenção',
+        description: 'Selecione funcionário e empresa para visualizar a ficha!',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Buscar dados completos do funcionário
+      const fullEmployee = await employeeService.getEmployeeById(funcionario.id);
+      if (!fullEmployee) {
+        toast({
+          title: 'Erro',
+          description: 'Funcionário não encontrado!',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      const payload = {
+        templateName: 'ficha-entrega-epi.html',
+        funcionario: fullEmployee.name,
+        cpf: fullEmployee.cpf || fullEmployee.document || '',
+        cargo: (fullEmployee as any).position?.name || '',
+        setor: (fullEmployee as any).unit?.name || '',
+        empresa: empresa.name,
+        cnpj: empresa.cnpj || '',
+        dataEntrega: form.dataEntrega,
+        responsavelEntrega: responsavel?.name || '',
+        epis: epis.map(epi => {
+          // Formatar nome do EPI para incluir informações de uniforme se aplicável
+          let nomeFormatado = epi.nome;
+          if (epi.nome === 'Uniforme de Trabalho') {
+            if (epi.uniformeTipo === 'INDIVIDUAL' && epi.uniformePeca) {
+              const pecaLabel = uniformePecasOptions.find(p => p.value === epi.uniformePeca)?.label || epi.uniformePeca;
+              nomeFormatado = `Uniforme de Trabalho - Individual (${pecaLabel})`;
+            } else if (epi.uniformeTipo === 'COMPLETO') {
+              nomeFormatado = 'Uniforme de Trabalho - Completo';
+            }
+          }
+          
+          return {
+            nome: nomeFormatado,
+            quantidade: epi.quantidade,
+            ca: epi.ca || '',
+            validade: epi.validade || '',
+            observacoes: epi.observacoes || '',
+            uniformeTipo: epi.uniformeTipo || '',
+            uniformePeca: epi.uniformePeca || ''
+          };
+        }),
+        observacoes: form.observacoes || '',
+        dataAtual: new Date().toLocaleDateString('pt-BR')
+      };
+
+      // Gerar PDF para visualização
+      const response = await api.post('/api/documents/generate-pdf', payload, {
+        responseType: 'blob'
+      });
+
+      // Abrir PDF em nova aba para visualização
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      
+      // Limpar URL após um tempo
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      
+    } catch (err: any) {
+      console.error('Erro ao gerar preview:', err);
+      toast({
+        title: 'Erro',
+        description: err.response?.data?.message || 'Erro ao gerar preview da ficha. Tente novamente.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGerarPDF = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!form.funcionarioId || !form.empresaId || !form.dataEntrega) {
+      toast({
+        title: 'Atenção',
+        description: 'Preencha todos os campos obrigatórios!',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (epis.some(epi => !epi.nome)) {
+      toast({
+        title: 'Atenção',
+        description: 'Preencha o nome de todos os EPIs!',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!funcionario || !empresa) {
+      toast({
+        title: 'Atenção',
+        description: 'Selecione funcionário e empresa!',
+        variant: 'destructive'
+      });
       return;
     }
 
     setLoading(true);
     try {
+      // Buscar dados completos do funcionário
+      const fullEmployee = await employeeService.getEmployeeById(funcionario.id);
+      if (!fullEmployee) {
+        throw new Error('Funcionário não encontrado');
+      }
+
       const payload = {
         templateName: 'ficha-entrega-epi.html',
-        funcionario: funcionario?.name || '',
-        cpf: funcionario?.cpf || '',
-        cargo: funcionario?.cargo || '',
-        setor: funcionario?.setor || '',
-        empresa: empresa?.name || '',
-        cnpj: empresa?.cnpj || '',
+        funcionario: fullEmployee.name,
+        cpf: fullEmployee.cpf || fullEmployee.document || '',
+        cargo: (fullEmployee as any).position?.name || '',
+        setor: (fullEmployee as any).unit?.name || '',
+        empresa: empresa.name,
+        cnpj: empresa.cnpj || '',
         dataEntrega: form.dataEntrega,
-        responsavelEntrega: form.responsavelEntrega,
-        epis: epis.map(epi => ({
-          nome: epi.nome,
-          quantidade: epi.quantidade,
-          ca: epi.ca,
-          validade: epi.validade,
-          observacoes: epi.observacoes
-        })),
-        observacoes: form.observacoes,
+        responsavelEntrega: responsavel?.name || '',
+        epis: epis.map(epi => {
+          // Formatar nome do EPI para incluir informações de uniforme se aplicável
+          let nomeFormatado = epi.nome;
+          if (epi.nome === 'Uniforme de Trabalho') {
+            if (epi.uniformeTipo === 'INDIVIDUAL' && epi.uniformePeca) {
+              const pecaLabel = uniformePecasOptions.find(p => p.value === epi.uniformePeca)?.label || epi.uniformePeca;
+              nomeFormatado = `Uniforme de Trabalho - Individual (${pecaLabel})`;
+            } else if (epi.uniformeTipo === 'COMPLETO') {
+              nomeFormatado = 'Uniforme de Trabalho - Completo';
+            }
+          }
+          
+          return {
+            nome: nomeFormatado,
+            quantidade: epi.quantidade,
+            ca: epi.ca || '',
+            validade: epi.validade || '',
+            observacoes: epi.observacoes || '',
+            uniformeTipo: epi.uniformeTipo || '',
+            uniformePeca: epi.uniformePeca || ''
+          };
+        }),
+        observacoes: form.observacoes || '',
         dataAtual: new Date().toLocaleDateString('pt-BR')
       };
 
-      const response = await fetch('/api/documents/generate-pdf', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(payload)
+      // Gerar PDF
+      const response = await api.post('/api/documents/generate-pdf', payload, {
+        responseType: 'blob'
       });
 
-      if (!response.ok) throw new Error('Erro ao gerar PDF');
-
-      const blob = await response.blob();
+      // Fazer download do PDF
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `ficha-entrega-epi-${funcionario?.name?.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+      a.download = `ficha-entrega-epi-${fullEmployee.name.replace(/\s+/g, '-').toLowerCase()}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (err) {
+
+      // Salvar ficha no banco de dados
+      try {
+        const formData = {
+          employeeId: form.funcionarioId,
+          companyId: form.empresaId,
+          deliveryDate: form.dataEntrega,
+          responsibleEmployeeId: form.responsavelEntregaId || undefined,
+          observations: form.observacoes || undefined,
+          items: epis.map(epi => ({
+            epiName: epi.nome,
+            quantity: parseInt(epi.quantidade) || 1,
+            ca: epi.ca || undefined,
+            caName: epi.caName || undefined,
+            validityDate: epi.validade || undefined,
+            uniformType: epi.uniformeTipo || undefined,
+            uniformPiece: epi.uniformePeca || undefined,
+            observations: epi.observacoes || undefined
+          }))
+        };
+
+        await epiDeliveryFormService.create(formData);
+        console.log('✅ Ficha de entrega de EPI salva no banco de dados');
+      } catch (saveError) {
+        console.error('⚠️ Erro ao salvar ficha no banco de dados:', saveError);
+        // Não interrompe o fluxo, apenas loga o erro
+      }
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Ficha de Entrega de EPI gerada e salva com sucesso!',
+      });
+    } catch (err: any) {
       console.error('Erro ao gerar PDF:', err);
-      alert('Erro ao gerar PDF. Tente novamente.');
+      toast({
+        title: 'Erro',
+        description: err.response?.data?.message || 'Erro ao gerar PDF. Tente novamente.',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <HardHat className="h-5 w-5" />
-            Ficha de Entrega de EPI
-          </CardTitle>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <Card className="border-t-4 border-t-primary shadow-md">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <HardHat className="h-6 w-6 text-primary" />
+                Ficha de Entrega de EPI
+              </CardTitle>
+              <CardDescription>
+                Registre a entrega de Equipamentos de Proteção Individual.
+              </CardDescription>
+            </div>
+            {(funcionario && empresa) && (
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 px-3 py-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Pronto para gerar
+              </Badge>
+            )}
+          </div>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Informações do Funcionário e Empresa */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Funcionário</Label>
-              <Select value={form.funcionarioId} onValueChange={(value) => setForm(prev => ({ ...prev, funcionarioId: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o funcionário" />
-                </SelectTrigger>
-                <SelectContent>
-                  {mockFuncionarios.map(f => (
-                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <CardContent className="space-y-8">
+          
+          {/* Identificação */}
+          <div className="bg-muted/30 p-6 rounded-xl border space-y-6">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
+              <User className="h-4 w-4" />
+              <span>Identificação</span>
             </div>
             
-            <div className="space-y-2">
-              <Label>Empresa</Label>
-              <Select value={form.empresaId} onValueChange={(value) => setForm(prev => ({ ...prev, empresaId: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {mockEmpresas.map(e => (
-                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Funcionário</Label>
+                <Select 
+                  value={form.funcionarioId} 
+                  onValueChange={(value) => setForm(prev => ({ ...prev, funcionarioId: value }))}
+                  disabled={loadingData}
+                >
+                  <SelectTrigger className="h-11 bg-background">
+                    <SelectValue placeholder={loadingData ? "Carregando..." : "Selecione o funcionário"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {loadingData ? (
+                      <div className="p-2 text-center text-sm text-gray-500">Carregando funcionários...</div>
+                    ) : employees.length > 0 ? (
+                      employees.map(f => (
+                        <SelectItem key={f.id} value={f.id}>
+                          <div className="flex flex-col py-1">
+                            <span className="font-medium text-base">{f.name}</span>
+                            {f.document && (
+                              <span className="text-xs text-muted-foreground">CPF: {f.document}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-2 text-center text-sm text-gray-500">Nenhum funcionário encontrado</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Empresa</Label>
+                <Select 
+                  value={form.empresaId} 
+                  onValueChange={(value) => setForm(prev => ({ ...prev, empresaId: value }))}
+                  disabled={loadingData}
+                >
+                  <SelectTrigger className="h-11 bg-background">
+                    <SelectValue placeholder={loadingData ? "Carregando..." : "Selecione a empresa"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {loadingData ? (
+                      <div className="p-2 text-center text-sm text-gray-500">Carregando empresas...</div>
+                    ) : companies.length > 0 ? (
+                      companies.map(e => (
+                        <SelectItem key={e.id} value={e.id}>
+                          <div className="flex flex-col py-1">
+                            <span className="font-medium text-base">
+                              {e.sigla || e.tradeName || e.name}
+                            </span>
+                            {(e.sigla || e.tradeName) && e.name && (
+                              <span className="text-xs text-muted-foreground">{e.name}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-2 text-center text-sm text-gray-500">Nenhuma empresa encontrada</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
-          {/* Informações do Funcionário Selecionado */}
-          {funcionario && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Nome</Label>
-                <Input value={funcionario.name} disabled className="bg-gray-100 dark:bg-gray-700" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Detalhes do Funcionário */}
+            {funcionario && (
+              <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-2 font-medium">
+                    <User className="h-4 w-4 text-primary" />
+                    Dados do Funcionário
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Nome</Label>
+                      <div className="p-2.5 bg-muted rounded-md text-sm font-medium border border-transparent hover:border-border transition-colors truncate">
+                        {funcionario.name}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">CPF</Label>
+                      <div className="p-2.5 bg-muted rounded-md text-sm font-medium border border-transparent hover:border-border transition-colors">
+                        {funcionario.cpf || funcionario.document || '-'}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Cargo</Label>
+                      <div className="p-2.5 bg-muted rounded-md text-sm font-medium border border-transparent hover:border-border transition-colors truncate">
+                        {(funcionario as any).position?.name || '-'}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Setor</Label>
+                      <div className="p-2.5 bg-muted rounded-md text-sm font-medium border border-transparent hover:border-border transition-colors truncate">
+                         {(funcionario as any).unit?.name || '-'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">CPF</Label>
-                <Input value={funcionario.cpf} disabled className="bg-gray-100 dark:bg-gray-700" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Cargo</Label>
-                <Input value={funcionario.cargo} disabled className="bg-gray-100 dark:bg-gray-700" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Setor</Label>
-                <Input value={funcionario.setor} disabled className="bg-gray-100 dark:bg-gray-700" />
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* Informações da Empresa Selecionada */}
-          {empresa && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Razão Social</Label>
-                <Input value={empresa.name} disabled className="bg-gray-100 dark:bg-gray-700" />
+            {/* Detalhes da Empresa */}
+            {empresa && (
+              <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300 delay-100">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Building className="h-4 w-4 text-primary" />
+                    Dados da Empresa
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Razão Social</Label>
+                    <div className="p-2.5 bg-muted rounded-md text-sm font-medium border border-transparent hover:border-border transition-colors truncate">
+                      {empresa.name}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">CNPJ</Label>
+                      <div className="p-2.5 bg-muted rounded-md text-sm font-medium border border-transparent hover:border-border transition-colors">
+                        {empresa.cnpj}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Sigla</Label>
+                      <div className="p-2.5 bg-muted rounded-md text-sm font-medium border border-transparent hover:border-border transition-colors">
+                        {empresa.sigla || '-'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">CNPJ</Label>
-                <Input value={empresa.cnpj} disabled className="bg-gray-100 dark:bg-gray-700" />
-              </div>
-            </div>
-          )}
+            )}
+          </div>
+          
+          {(funcionario || empresa) && <Separator />}
 
-          {/* Data de Entrega e Responsável */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Dados da Entrega */}
+          <div className="bg-muted/30 p-6 rounded-xl border space-y-6">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
+              <Calendar className="h-4 w-4" />
+              <span>Dados da Entrega</span>
+            </div>
+            
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label>Data de Entrega</Label>
+                <Label className="text-base font-semibold">Data de Entrega</Label>
               <Input 
                 type="date" 
                 value={form.dataEntrega} 
                 onChange={(e) => setForm(prev => ({ ...prev, dataEntrega: e.target.value }))}
+                className="h-11 bg-background"
               />
             </div>
             
             <div className="space-y-2">
-              <Label>Responsável pela Entrega</Label>
-              <Input 
-                value={form.responsavelEntrega} 
-                onChange={(e) => setForm(prev => ({ ...prev, responsavelEntrega: e.target.value }))}
-                placeholder="Nome do responsável"
-              />
+                <Label className="text-base font-semibold">Responsável pela Entrega</Label>
+                <Select 
+                  value={form.responsavelEntregaId} 
+                  onValueChange={(value) => setForm(prev => ({ ...prev, responsavelEntregaId: value }))}
+                  disabled={loadingData}
+                >
+                  <SelectTrigger className="h-11 bg-background">
+                    <SelectValue placeholder={loadingData ? "Carregando..." : "Selecione o responsável"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {loadingData ? (
+                      <div className="p-2 text-center text-sm text-gray-500">Carregando funcionários...</div>
+                    ) : employees.length > 0 ? (
+                      employees.map(f => (
+                        <SelectItem key={f.id} value={f.id}>
+                          <div className="flex flex-col py-1">
+                            <span className="font-medium text-base">{f.name}</span>
+                            {f.document && (
+                              <span className="text-xs text-muted-foreground">CPF: {f.document}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-2 text-center text-sm text-gray-500">Nenhum funcionário encontrado</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
+            {/* Exibir dados do responsável quando selecionado */}
+            {responsavel && (
+              <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300 pt-2">
+                <div className="flex items-center justify-between border-t pt-4">
+                  <div className="flex items-center gap-2 font-medium text-sm">
+                    <User className="h-4 w-4 text-primary" />
+                    Dados do Responsável
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Nome Completo</Label>
+                    <div className="p-2.5 bg-muted rounded-md text-sm font-medium border border-transparent hover:border-border transition-colors truncate">
+                      {responsavel.name}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">CPF</Label>
+                    <div className="p-2.5 bg-muted rounded-md text-sm font-medium border border-transparent hover:border-border transition-colors">
+                      {responsavel.cpf || responsavel.document || '-'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
+          <Separator />
+
           {/* Lista de EPIs */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <Label className="text-lg font-medium">EPIs Entregues</Label>
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Shield className="h-4 w-4" />
+                <span>EPIs Entregues</span>
+              </div>
               <Button type="button" size="sm" onClick={addEpi} className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 Adicionar EPI
@@ -262,80 +780,268 @@ const FichaEntregaEPIForm = () => {
             
             <div className="space-y-4">
               {epis.map((epi, idx) => (
-                <Card key={idx} className="p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-medium">EPI #{idx + 1}</h4>
+                <Card key={idx} className="relative overflow-hidden border-l-4 border-l-primary/50">
+                  <div className="absolute top-0 right-0 p-2">
                     <Button 
                       type="button" 
-                      size="sm" 
-                      variant="outline" 
+                      size="icon" 
+                      variant="ghost" 
                       onClick={() => removeEpi(idx)}
                       disabled={epis.length === 1}
-                      className="text-red-600 hover:text-red-700"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Nome do EPI</Label>
-                      <Select value={epi.nome} onValueChange={(value) => handleEpiChange(idx, 'nome', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o EPI" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {epiOptions.map(option => (
-                            <SelectItem key={option} value={option}>{option}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+
+                  <CardContent className="p-6 pt-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Badge variant="secondary" className="font-mono">#{idx + 1}</Badge>
                     </div>
                     
-                    <div className="space-y-2">
-                      <Label>Quantidade</Label>
-                      <Input 
-                        type="number" 
-                        min="1"
-                        value={epi.quantidade} 
-                        onChange={(e) => handleEpiChange(idx, 'quantidade', e.target.value)}
-                      />
+                    <div className="space-y-4">
+                      {/* Primeira linha: Nome do EPI */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="space-y-2 lg:col-span-2">
+                          <Label>Nome do EPI</Label>
+                          <Select 
+                            value={epi.nome || undefined} 
+                            onValueChange={(value) => {
+                              handleEpiChange(idx, 'nome', value);
+                              // Limpar campos de uniforme se mudar o EPI
+                              if (value !== 'Uniforme de Trabalho') {
+                                handleEpiChange(idx, 'uniformeTipo', '');
+                                handleEpiChange(idx, 'uniformePeca', '');
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="bg-background w-full">
+                              <SelectValue placeholder="Selecione o EPI" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px]">
+                              {epiOptions.map(option => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {/* Campos padrão quando NÃO é Uniforme de Trabalho */}
+                        {epi.nome !== 'Uniforme de Trabalho' && (
+                          <>
+                            <div className="space-y-2">
+                              <Label>Quantidade</Label>
+                              <Input 
+                                type="number" 
+                                min="1"
+                                value={epi.quantidade} 
+                                onChange={(e) => handleEpiChange(idx, 'quantidade', e.target.value)}
+                                className="bg-background"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2 relative">
+                              <Label>CA</Label>
+                              <div className="relative">
+                                <Input 
+                                  value={epi.ca} 
+                                  onChange={(e) => {
+                                    handleEpiChange(idx, 'ca', e.target.value);
+                                    handleCASearch(idx, e.target.value);
+                                  }}
+                                  onBlur={() => {
+                                    setTimeout(() => {
+                                      if (epi.ca) {
+                                        handleCABlur(idx, epi.ca);
+                                      }
+                                    }, 200);
+                                  }}
+                                  placeholder="Digite o número do CA"
+                                  className="bg-background pr-8"
+                                />
+                                {caLoading[idx] && (
+                                  <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                                )}
+                              </div>
+                              {epi.caName && (
+                                <p className="text-xs text-gray-500 mt-1">{epi.caName}</p>
+                              )}
+                              {showCaSuggestions[idx] && caSuggestions[idx] && caSuggestions[idx].length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                                  {caSuggestions[idx].map((suggestion, sugIdx) => (
+                                    <div
+                                      key={sugIdx}
+                                      onClick={() => handleCASelect(idx, suggestion)}
+                                      className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
+                                    >
+                                      <div className="font-medium text-sm">{suggestion.numero}</div>
+                                      <div className="text-xs text-gray-500">{suggestion.nome || suggestion.descricao}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      
+                      {/* Campos específicos para Uniforme de Trabalho */}
+                      {epi.nome === 'Uniforme de Trabalho' && (
+                        <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800 space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="font-semibold">Tipo de Uniforme *</Label>
+                              <Select 
+                                value={epi.uniformeTipo} 
+                                onValueChange={(value) => {
+                                  handleEpiChange(idx, 'uniformeTipo', value);
+                                  if (value !== 'INDIVIDUAL') {
+                                    handleEpiChange(idx, 'uniformePeca', '');
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="bg-background">
+                                  <SelectValue placeholder="Selecione o tipo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="COMPLETO">Completo</SelectItem>
+                                  <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            {/* Se for Individual, mostrar seleção de peça */}
+                            {epi.uniformeTipo === 'INDIVIDUAL' && (
+                              <div className="space-y-2">
+                                <Label className="font-semibold">Peça do Uniforme *</Label>
+                                <Select 
+                                  value={epi.uniformePeca} 
+                                  onValueChange={(value) => handleEpiChange(idx, 'uniformePeca', value)}
+                                >
+                                  <SelectTrigger className="bg-background">
+                                    <SelectValue placeholder="Selecione a peça" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {uniformePecasOptions.map(option => (
+                                      <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                            
+                            {/* Campos comuns para uniforme */}
+                            {epi.uniformeTipo && (
+                              <>
+                                <div className="space-y-2">
+                                  <Label>Quantidade</Label>
+                                  <Input 
+                                    type="number" 
+                                    min="1"
+                                    value={epi.quantidade} 
+                                    onChange={(e) => handleEpiChange(idx, 'quantidade', e.target.value)}
+                                    className="bg-background"
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2 relative">
+                                  <Label>CA</Label>
+                                  <div className="relative">
+                                    <Input 
+                                      value={epi.ca} 
+                                      onChange={(e) => {
+                                        handleEpiChange(idx, 'ca', e.target.value);
+                                        handleCASearch(idx, e.target.value);
+                                      }}
+                                      onBlur={() => {
+                                        setTimeout(() => {
+                                          if (epi.ca) {
+                                            handleCABlur(idx, epi.ca);
+                                          }
+                                        }, 200);
+                                      }}
+                                      placeholder="Digite o número do CA"
+                                      className="bg-background pr-8"
+                                    />
+                                    {caLoading[idx] && (
+                                      <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                                    )}
+                                  </div>
+                                  {epi.caName && (
+                                    <p className="text-xs text-gray-500 mt-1">{epi.caName}</p>
+                                  )}
+                                  {showCaSuggestions[idx] && caSuggestions[idx] && caSuggestions[idx].length > 0 && (
+                                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                                      {caSuggestions[idx].map((suggestion, sugIdx) => (
+                                        <div
+                                          key={sugIdx}
+                                          onClick={() => handleCASelect(idx, suggestion)}
+                                          className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
+                                        >
+                                          <div className="font-medium text-sm">{suggestion.numero}</div>
+                                          <div className="text-xs text-gray-500">{suggestion.nome || suggestion.descricao}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          
+                          {/* Validade para uniforme */}
+                          {epi.uniformeTipo && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>Validade</Label>
+                                <Input 
+                                  type="date" 
+                                  value={epi.validade} 
+                                  onChange={(e) => handleEpiChange(idx, 'validade', e.target.value)}
+                                  className="bg-background"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Validade para EPIs que não são uniforme */}
+                      {epi.nome !== 'Uniforme de Trabalho' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="space-y-2">
+                            <Label>Validade</Label>
+                            <Input 
+                              type="date" 
+                              value={epi.validade} 
+                              onChange={(e) => handleEpiChange(idx, 'validade', e.target.value)}
+                              className="bg-background"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Observações do Item (sempre visível) */}
+                      <div className="space-y-2">
+                        <Label>Observações do Item</Label>
+                        <Input 
+                          value={epi.observacoes} 
+                          onChange={(e) => handleEpiChange(idx, 'observacoes', e.target.value)}
+                          placeholder="Observações específicas..."
+                          className="bg-background"
+                        />
+                      </div>
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label>CA (Certificado de Aprovação)</Label>
-                      <Input 
-                        value={epi.ca} 
-                        onChange={(e) => handleEpiChange(idx, 'ca', e.target.value)}
-                        placeholder="Número do CA"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label>Data de Validade</Label>
-                      <Input 
-                        type="date" 
-                        value={epi.validade} 
-                        onChange={(e) => handleEpiChange(idx, 'validade', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2 md:col-span-2">
-                      <Label>Observações</Label>
-                      <Textarea 
-                        value={epi.observacoes} 
-                        onChange={(e) => handleEpiChange(idx, 'observacoes', e.target.value)}
-                        placeholder="Observações sobre este EPI..."
-                        rows={2}
-                      />
-                    </div>
-                  </div>
+                  </CardContent>
                 </Card>
               ))}
             </div>
           </div>
 
-          {/* Observações Gerais */}
           <div className="space-y-2">
             <Label>Observações Gerais</Label>
             <Textarea 
@@ -343,25 +1049,46 @@ const FichaEntregaEPIForm = () => {
               onChange={(e) => setForm(prev => ({ ...prev, observacoes: e.target.value }))}
               placeholder="Observações adicionais sobre a entrega dos EPIs..."
               rows={3}
+              className="resize-none bg-background"
             />
           </div>
 
+          <Separator />
+
           {/* Ações */}
-          <div className="flex gap-4 pt-4">
-            <Button onClick={handlePreview} variant="outline" className="flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              Visualizar Ficha
-            </Button>
-            <Button onClick={handleGerarPDF} className="flex items-center gap-2" disabled={loading}>
+          <div className="flex flex-col-reverse sm:flex-row gap-4 justify-end pt-2">
+            <Button 
+              onClick={handlePreview} 
+              variant="outline" 
+              className="flex items-center gap-2 w-full sm:w-auto h-11"
+              disabled={loading || loadingData || !funcionario || !empresa || !form.dataEntrega || epis.some(epi => !epi.nome)}
+            >
               {loading ? (
                 <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Gerando Preview...
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4" />
+                  Visualizar Ficha
+                </>
+              )}
+            </Button>
+            <Button 
+              onClick={handleGerarPDF} 
+              className="flex items-center gap-2 w-full sm:w-auto h-11 shadow-md hover:shadow-lg transition-all" 
+              disabled={loading || loadingData || !funcionario || !empresa}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Gerando PDF...
                 </>
               ) : (
                 <>
                   <Download className="h-4 w-4" />
-                  Gerar Ficha
+                  Gerar e Baixar
                 </>
               )}
             </Button>
@@ -372,4 +1099,4 @@ const FichaEntregaEPIForm = () => {
   );
 };
 
-export default FichaEntregaEPIForm; 
+export default FichaEntregaEPIForm;

@@ -1,0 +1,16 @@
+{
+  "name": "MARIA JOSÉ SANTOS OLIVEIRA",
+  "cpf": "987.654.321-00",
+  "rg": "SP9876543",
+  "phone": "(11) 98765-4321",
+  "birthDate": "1985-03-15",
+  "gender": "F",
+  "maritalStatus": "SOLTEIRA",
+  "registrationNumber": "000128",
+  "hireDate": "2024-02-01",
+  "status": "ACTIVE",
+  "notes": "Funcionária contratada para área administrativa",
+  "address": {
+    "street": "Avenida Paulista, 1000 - São Paulo/SP"
+  }
+}

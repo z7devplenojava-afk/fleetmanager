@@ -1,0 +1,14 @@
+{
+  "name": "JOSE DA SILVA",
+  "cpf": "123.456.789-00",
+  "status": "ACTIVE",
+  "address": {
+    "street": "Rua das Flores"
+  },
+  "user": {
+    "id": "COLE_AQUI_O_ID_DO_USUARIO"
+  },
+  "position": {
+    "id": "COLE_AQUI_O_ID_DO_CARGO"
+  }
+}

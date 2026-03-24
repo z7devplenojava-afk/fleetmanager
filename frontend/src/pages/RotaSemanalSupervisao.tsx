@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 // import { StandardLayout } from '@/components/StandardLayout'; // Removido para evitar navbar duplicada
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -438,15 +438,15 @@ const RotaSemanalSupervisao: React.FC = () => {
           <div className="flex justify-between items-center">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="bg-seguranca-black border-gray-600">
-                <TabsTrigger value="calendar" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-black">
+                <TabsTrigger value="calendar" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-black">
                   <Calendar className="w-4 h-4 mr-2" />
                   Calendário
                 </TabsTrigger>
-                <TabsTrigger value="list" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-black">
+                <TabsTrigger value="list" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-black">
                   <FileText className="w-4 h-4 mr-2" />
                   Lista
                 </TabsTrigger>
-                <TabsTrigger value="stats" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-black">
+                <TabsTrigger value="stats" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-black">
                   <BarChart3 className="w-4 h-4 mr-2" />
                   Estatísticas
                 </TabsTrigger>

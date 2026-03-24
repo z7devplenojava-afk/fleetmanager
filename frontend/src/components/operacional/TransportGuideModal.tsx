@@ -23,6 +23,7 @@ import {
   X
 } from 'lucide-react';
 import { TransportGuide, CreateTransportGuideDTO } from '@/types/transportGuide';
+import TransportGuidePDFGenerator from './TransportGuidePDFGenerator';
 
 // Definição do schema de validação usando Yup
 const schema = yup.object().shape({
@@ -47,17 +48,7 @@ const schema = yup.object().shape({
   arquivoGuia: yup.mixed()
 });
 
-type FormData = {
-  cnpj: string;
-  empresa: string;
-  numeroColete: string;
-  numeroArma: string;
-  calibre: string;
-  qtdMunicoes: number;
-  origem: string;
-  destino: string;
-  trajeto: string;
-  motivo: string;
+type TransportGuideFormData = yup.InferType<typeof schema> & {
   arquivoGuia: File | null;
 };
 
@@ -85,8 +76,8 @@ const TransportGuideModal: React.FC<TransportGuideModalProps> = ({
     reset,
     setValue,
     watch
-  } = useForm<FormData>({
-    resolver: yupResolver(schema),
+  } = useForm<TransportGuideFormData>({
+    resolver: yupResolver(schema) as any,
     defaultValues: {
       cnpj: '',
       empresa: '',
@@ -103,20 +94,36 @@ const TransportGuideModal: React.FC<TransportGuideModalProps> = ({
   });
 
   useEffect(() => {
-    if (guide) {
-      setValue('cnpj', guide.cnpj);
-      setValue('empresa', guide.empresa);
-      setValue('numeroColete', guide.numeroColete || '');
-      setValue('numeroArma', guide.numeroArma);
-      setValue('calibre', guide.calibre);
-      setValue('qtdMunicoes', guide.qtdMunicoes);
-      setValue('origem', guide.origem);
-      setValue('destino', guide.destino);
-      setValue('trajeto', guide.trajeto);
-      setValue('motivo', guide.motivo);
-    } else {
-      reset();
-      setSelectedFile(null);
+    if (open) {
+      if (guide) {
+        // Preencher formulário para edição
+        setValue('cnpj', guide.cnpj);
+        setValue('empresa', guide.empresa);
+        setValue('numeroColete', guide.numeroColete || '');
+        setValue('numeroArma', guide.numeroArma);
+        setValue('calibre', guide.calibre);
+        setValue('qtdMunicoes', guide.qtdMunicoes);
+        setValue('origem', guide.origem);
+        setValue('destino', guide.destino);
+        setValue('trajeto', guide.trajeto);
+        setValue('motivo', guide.motivo);
+      } else {
+        // Resetar formulário para novo cadastro
+        reset({
+          cnpj: '',
+          empresa: '',
+          numeroColete: '',
+          numeroArma: '',
+          calibre: '',
+          qtdMunicoes: 0,
+          origem: '',
+          destino: '',
+          trajeto: '',
+          motivo: '',
+          arquivoGuia: null
+        });
+        setSelectedFile(null);
+      }
     }
   }, [guide, open, setValue, reset]);
 
@@ -128,10 +135,23 @@ const TransportGuideModal: React.FC<TransportGuideModalProps> = ({
     }
   };
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: TransportGuideFormData) => {
     setIsSubmitting(true);
     try {
-      await onSave(data);
+      const saveData: CreateTransportGuideDTO = {
+        cnpj: data.cnpj || '',
+        empresa: data.empresa || '',
+        numeroColete: data.numeroColete || undefined,
+        numeroArma: data.numeroArma || '',
+        calibre: data.calibre || '',
+        qtdMunicoes: data.qtdMunicoes || 0,
+        origem: data.origem || '',
+        destino: data.destino || '',
+        trajeto: data.trajeto || '',
+        motivo: data.motivo || '',
+        arquivoGuia: data.arquivoGuia || undefined,
+      };
+      await onSave(saveData);
       toast({
         title: 'Sucesso',
         description: guide ? 'Guia de transporte atualizada com sucesso!' : 'Guia de transporte criada com sucesso!',
@@ -336,7 +356,10 @@ const TransportGuideModal: React.FC<TransportGuideModalProps> = ({
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="motivo" className="text-sm font-medium">Motivo do Transporte *</Label>
-                <Select onValueChange={(value) => setValue('motivo', value)}>
+                <Select 
+                  value={watch('motivo')} 
+                  onValueChange={(value) => setValue('motivo', value)}
+                >
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Selecione o motivo" />
                   </SelectTrigger>
@@ -399,7 +422,9 @@ const TransportGuideModal: React.FC<TransportGuideModalProps> = ({
                   )}
 
                   {errors.arquivoGuia && (
-                    <p className="text-red-500 text-xs mt-2">{errors.arquivoGuia.message}</p>
+                    <p className="text-red-500 text-xs mt-2">
+                      {typeof errors.arquivoGuia.message === 'string' ? errors.arquivoGuia.message : 'Erro no arquivo'}
+                    </p>
                   )}
                 </div>
               </div>
@@ -407,29 +432,52 @@ const TransportGuideModal: React.FC<TransportGuideModalProps> = ({
           </Card>
 
           {/* Botões de Ação */}
-          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t bg-muted/30 -mx-4 sm:-mx-0 px-4 sm:px-0 py-4 sm:py-0">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)} 
-              className="w-full sm:w-auto h-11 order-2 sm:order-1"
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting}
-              className="w-full sm:w-auto h-11 order-1 sm:order-2 bg-blue-600 hover:bg-blue-700"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                guide ? 'Atualizar Guia' : 'Criar Guia'
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t bg-muted/30 -mx-4 sm:-mx-0 px-4 sm:px-0 py-4 sm:py-0">
+            <div className="w-full sm:w-auto order-3 sm:order-1">
+              {watch('cnpj') && watch('empresa') && watch('numeroArma') && watch('calibre') && watch('origem') && watch('destino') && watch('trajeto') && watch('motivo') && (
+                <TransportGuidePDFGenerator
+                  data={{
+                    cnpj: watch('cnpj'),
+                    empresa: watch('empresa'),
+                    numeroColete: watch('numeroColete') || undefined,
+                    numeroArma: watch('numeroArma'),
+                    calibre: watch('calibre'),
+                    qtdMunicoes: watch('qtdMunicoes'),
+                    origem: watch('origem'),
+                    destino: watch('destino'),
+                    trajeto: watch('trajeto'),
+                    motivo: watch('motivo'),
+                  }}
+                  onGenerate={() => {
+                    console.log('PDF gerado com sucesso!');
+                  }}
+                />
               )}
-            </Button>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-1 sm:order-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)} 
+                className="w-full sm:w-auto h-11"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full sm:w-auto h-11 bg-blue-600 hover:bg-blue-700"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  guide ? 'Atualizar Guia' : 'Criar Guia'
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Dependent, RELATIONSHIP_TYPES } from '@/types/dependent';
-import { dependentService } from '@/services/dependentService';
+import { Dependent, RELATIONSHIP_OPTIONS } from '@/types/dependent';
+import dependentService from '@/services/dependentService';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -24,7 +24,7 @@ const DependentesList: React.FC<DependentesListProps> = ({
       try {
         setLoading(true);
         setError(null);
-        const data = await dependentService.getDependentsByEmployeeId(employeeId);
+        const data = await dependentService.getDependentsByEmployee(employeeId);
         setDependents(data);
       } catch (err) {
         console.error('Erro ao buscar dependentes:', err);
@@ -49,7 +49,8 @@ const DependentesList: React.FC<DependentesListProps> = ({
   };
 
   const getRelationshipLabel = (relationship: string) => {
-    return (RELATIONSHIP_TYPES as Record<string, string>)[relationship] || relationship;
+    const option = RELATIONSHIP_OPTIONS.find(opt => opt.value === relationship);
+    return option ? option.label : relationship;
   };
 
   if (loading) {

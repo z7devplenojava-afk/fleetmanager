@@ -351,9 +351,11 @@ export const ContaReceberModal: React.FC<ContaReceberModalProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__NONE__">Sem cliente</SelectItem>
-                    {clientes.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
+                    {clientes && Array.isArray(clientes) ? clientes
+                      .filter(c => c && c.id && c.name)
+                      .map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      )) : null}
                   </SelectContent>
                 </Select>
               </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -207,23 +207,23 @@ const RelatoriosOperacionais: React.FC = () => {
         {estatisticas && (
           <Tabs defaultValue="overview" className="space-y-4">
             <TabsList className="bg-seguranca-graphite border-gray-700">
-              <TabsTrigger value="overview" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-seguranca-black">
+              <TabsTrigger value="overview" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-seguranca-black">
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Visão Geral
               </TabsTrigger>
-              <TabsTrigger value="postos" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-seguranca-black">
+              <TabsTrigger value="postos" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-seguranca-black">
                 <Building2 className="h-4 w-4 mr-2" />
                 Postos
               </TabsTrigger>
-              <TabsTrigger value="funcionarios" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-seguranca-black">
+              <TabsTrigger value="funcionarios" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-seguranca-black">
                 <Users className="h-4 w-4 mr-2" />
                 Funcionários
               </TabsTrigger>
-              <TabsTrigger value="tarefas" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-seguranca-black">
+              <TabsTrigger value="tarefas" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-seguranca-black">
                 <CheckSquare className="h-4 w-4 mr-2" />
                 Tarefas
               </TabsTrigger>
-              <TabsTrigger value="escalas" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-seguranca-black">
+              <TabsTrigger value="escalas" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-seguranca-black">
                 <Clock className="h-4 w-4 mr-2" />
                 Escalas
               </TabsTrigger>

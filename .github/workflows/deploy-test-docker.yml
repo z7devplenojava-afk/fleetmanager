@@ -1,0 +1,139 @@
+name: 🧪 Deploy TEST Environment (Docker Compose)
+
+on:
+  push:
+    branches:
+      - test
+  workflow_dispatch:
+
+env:
+  ENVIRONMENT: test
+  DEPLOY_PATH: /var/www/secured_guard/test
+  APP_URL: https://test.z7botsolutions.com.br
+
+jobs:
+  build-and-deploy:
+    name: 🚀 Build & Deploy to TEST (Docker)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: test
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: 📦 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 🔨 Build Backend (Maven)
+        working-directory: ./backend
+        run: |
+          chmod +x mvnw
+          ./mvnw clean package -Dmaven.test.skip=true -Dspring.profiles.active=test
+          ls -lh target/*.jar
+
+      - name: 🎨 Build Frontend (Vite)
+        working-directory: ./frontend
+        env:
+          VITE_API_URL: https://test.z7botsolutions.com.br/api
+          VITE_ENVIRONMENT: test
+        run: |
+          npm ci
+          npm run build
+          ls -lh dist/
+
+      - name: 🐳 Build Docker images
+        run: |
+          docker build -t z7design/secured-guard-backend:test \
+            -f backend/Dockerfile.prod ./backend
+
+          docker build -t z7design/secured-guard-frontend:test \
+            -f frontend/Dockerfile.prod ./frontend
+
+          docker build -t z7design/secured-guard-whatsapp:test \
+            -f whatsapp-service/Dockerfile ./whatsapp-service
+
+      - name: 🔐 Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 📤 Push images to Docker Hub
+        run: |
+          docker push z7design/secured-guard-backend:test
+          docker push z7design/secured-guard-frontend:test
+          docker push z7design/secured-guard-whatsapp:test
+
+      - name: 🔑 Install sshpass and configure SSH
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST_TEST }} >> ~/.ssh/known_hosts
+
+      - name: ⚙️ Create/Update .env on TEST VPS
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_TEST }}" ssh ${{ secrets.VPS_USER_TEST }}@${{ secrets.VPS_HOST_TEST }} << 'EOF'
+            mkdir -p /var/www/secured_guard/test
+            cd /var/www/secured_guard/test
+            cat > .env << 'ENVEOF'
+POSTGRES_PASSWORD_TEST=${{ secrets.POSTGRES_PASSWORD_TEST }}
+REDIS_PASSWORD_TEST=${{ secrets.REDIS_PASSWORD_TEST }}
+JWT_SECRET_TEST=${{ secrets.JWT_SECRET_TEST }}
+ENVEOF
+          EOF
+
+      - name: 📤 Transfer files to TEST VPS
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_TEST }}" ssh ${{ secrets.VPS_USER_TEST }}@${{ secrets.VPS_HOST_TEST }} << 'EOF'
+            mkdir -p /var/www/secured_guard/test/nginx
+          EOF
+
+          sshpass -p "${{ secrets.VPS_PASSWORD_TEST }}" scp deploy/docker-compose.test.yml \
+            ${{ secrets.VPS_USER_TEST }}@${{ secrets.VPS_HOST_TEST }}:/var/www/secured_guard/test/docker-compose.test.yml
+
+          sshpass -p "${{ secrets.VPS_PASSWORD_TEST }}" scp deploy/nginx/nginx-test.conf \
+            ${{ secrets.VPS_USER_TEST }}@${{ secrets.VPS_HOST_TEST }}:/var/www/secured_guard/test/nginx/nginx-test.conf
+
+      - name: 🚀 Start TEST containers
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD_TEST }}" ssh ${{ secrets.VPS_USER_TEST }}@${{ secrets.VPS_HOST_TEST }} << 'EOF'
+            cd /var/www/secured_guard/test
+
+            if ! docker network ls | grep -q "secured-guard"; then
+              docker network create secured-guard
+            fi
+
+            docker-compose -f docker-compose.test.yml pull || true
+            docker-compose -f docker-compose.test.yml up -d
+          EOF
+
+      - name: 🏥 Health check TEST
+        run: |
+          echo "⏳ Aguardando aplicação iniciar (60s)..."
+          sleep 60
+
+          for i in {1..10}; do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" https://test.z7botsolutions.com.br/api/health || echo 000)
+            echo "Tentativa $i - HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              echo "✅ TEST OK"
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo "❌ Health check TEST falhou"
+          exit 1

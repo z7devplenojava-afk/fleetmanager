@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { feriasService } from '../../services/feriasService';
 import { employeeService, Employee } from '../../services/employeeService';
-import { FeriasTipo, CreateFeriasRequest } from '../../types/ferias';
+import { FeriasTipo, CreateFeriasRequest, UpdateFeriasRequest } from '../../types/ferias';
 import { X, Calendar, User, FileText } from 'lucide-react';
 
 interface Props {
   onSuccess: () => void;
   onClose: () => void;
+  editingId?: string; // ID do registro sendo editado (se houver, é edição; caso contrário, é criação)
   initialData?: CreateFeriasRequest;
 }
 
@@ -16,7 +17,7 @@ const tipoOptions = [
   { value: 'ABONO_PECUNIARIO', label: 'Abono Pecuniário' },
 ];
 
-const FeriasFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData }) => {
+const FeriasFormModal: React.FC<Props> = ({ onSuccess, onClose, editingId, initialData }) => {
   const [form, setForm] = useState<CreateFeriasRequest>({
     employeeId: '',
     periodoAquisitivo: '',
@@ -28,14 +29,31 @@ const FeriasFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData }) =
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string>('');
 
   useEffect(() => {
-    if (initialData) {
+    // Se estiver editando, buscar dados completos do backend
+    if (editingId) {
+      feriasService.getFeriasById(editingId).then((ferias) => {
+        setForm({
+          employeeId: ferias.employeeId || '',
+          periodoAquisitivo: ferias.periodoAquisitivo || '',
+          dataInicio: ferias.dataInicio,
+          dataFim: ferias.dataFim,
+          tipo: ferias.tipo,
+          observacoes: ferias.observacoes || ''
+        });
+        setStatus(ferias.status);
+      }).catch((error) => {
+        console.error('Erro ao carregar dados das férias:', error);
+        setError('Erro ao carregar dados das férias');
+      });
+    } else if (initialData) {
       setForm(initialData);
     }
     // Buscar funcionários
-    employeeService.getEmployees().then(setEmployees);
-  }, [initialData]);
+    employeeService.getAllEmployees().then(setEmployees);
+  }, [editingId, initialData]);
 
   // Fechar com ESC
   useEffect(() => {
@@ -63,10 +81,24 @@ const FeriasFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData }) =
       if (!form.dataInicio) throw new Error('Informe a data de início');
       if (!form.dataFim) throw new Error('Informe a data de fim');
       
-      await feriasService.createFerias(form);
+      // Se houver editingId, é uma edição - usar updateFerias
+      if (editingId) {
+        // Converter dados do formulário para o formato esperado pelo backend no update
+        const updateData: UpdateFeriasRequest = {
+          dataInicio: form.dataInicio,
+          dataFim: form.dataFim,
+          tipo: form.tipo,
+          status: status || undefined, // Incluir status se estiver editando
+          observacoes: form.observacoes || undefined
+        };
+        await feriasService.updateFerias(editingId, updateData);
+      } else {
+        // É uma criação - usar createFerias
+        await feriasService.createFerias(form);
+      }
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Erro ao salvar solicitação de férias');
+      setError(err.message || (editingId ? 'Erro ao atualizar solicitação de férias' : 'Erro ao salvar solicitação de férias'));
     } finally {
       setLoading(false);
     }
@@ -99,7 +131,7 @@ const FeriasFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData }) =
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-seguranca-graphite sticky top-0 bg-seguranca-black z-10">
           <h2 className="text-base sm:text-lg font-bold text-seguranca-yellow flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Nova Solicitação de Férias
+            {editingId ? 'Editar Solicitação de Férias' : 'Nova Solicitação de Férias'}
           </h2>
           <button
             onClick={onClose}
@@ -186,22 +218,43 @@ const FeriasFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData }) =
               </div>
             </div>
 
-            {/* Terceira linha - Tipo de Férias */}
-            <div>
-              <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">
-                Tipo de Férias
-              </label>
-              <select 
-                name="tipo" 
-                value={form.tipo} 
-                onChange={handleChange} 
-                className="w-full p-2 rounded bg-seguranca-graphite text-seguranca-lightgray border border-gray-600 focus:border-seguranca-yellow focus:outline-none text-sm" 
-                required
-              >
-                {tipoOptions.map(t => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
+            {/* Terceira linha - Tipo de Férias e Status (quando editando) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+              <div>
+                <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">
+                  Tipo de Férias
+                </label>
+                <select 
+                  name="tipo" 
+                  value={form.tipo} 
+                  onChange={handleChange} 
+                  className="w-full p-2 rounded bg-seguranca-graphite text-seguranca-lightgray border border-gray-600 focus:border-seguranca-yellow focus:outline-none text-sm" 
+                  required
+                >
+                  {tipoOptions.map(t => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Campo de Status (editável quando editando) */}
+              {editingId && (
+                <div>
+                  <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">
+                    Status
+                  </label>
+                  <select 
+                    name="status" 
+                    value={status || 'PENDENTE'} 
+                    onChange={(e) => setStatus(e.target.value)} 
+                    className="w-full p-2 rounded bg-seguranca-graphite text-seguranca-lightgray border border-gray-600 focus:border-seguranca-yellow focus:outline-none text-sm" 
+                  >
+                    <option value="PENDENTE">Pendente</option>
+                    <option value="APROVADO">Aprovado</option>
+                    <option value="CANCELADO">Cancelado</option>
+                    <option value="REJECTED">Rejeitado</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Quarta linha - Observações */}
@@ -241,7 +294,7 @@ const FeriasFormModal: React.FC<Props> = ({ onSuccess, onClose, initialData }) =
               disabled={loading} 
               className="px-3 py-2 sm:px-4 sm:py-2 bg-seguranca-yellow text-black font-bold rounded hover:bg-yellow-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              {loading ? 'Salvando...' : 'Solicitar Férias'}
+              {loading ? (editingId ? 'Atualizando...' : 'Salvando...') : (editingId ? 'Atualizar Férias' : 'Solicitar Férias')}
             </button>
           </div>
         </form>

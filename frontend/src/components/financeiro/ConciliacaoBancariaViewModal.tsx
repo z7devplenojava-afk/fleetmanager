@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -242,16 +242,16 @@ export const ConciliacaoBancariaViewModal: React.FC<ConciliacaoBancariaViewModal
           {file.status === 'COMPLETED' && (
             <Tabs defaultValue="all" className="w-full">
               <TabsList className="grid w-full grid-cols-4 bg-seguranca-graphite border-gray-700">
-                <TabsTrigger value="all" className="text-seguranca-lightgray data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
+                <TabsTrigger value="all" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
                   Todas ({transactions.length})
                 </TabsTrigger>
-                <TabsTrigger value="matched" className="text-seguranca-lightgray data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
+                <TabsTrigger value="matched" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
                   Conciliadas ({matchedTransactions.length})
                 </TabsTrigger>
-                <TabsTrigger value="unmatched" className="text-seguranca-lightgray data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
+                <TabsTrigger value="unmatched" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
                   Não Conciliadas ({unmatchedTransactions.length})
                 </TabsTrigger>
-                <TabsTrigger value="pending" className="text-seguranca-lightgray data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
+                <TabsTrigger value="pending" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
                   Pendentes ({pendingTransactions.length})
                 </TabsTrigger>
               </TabsList>

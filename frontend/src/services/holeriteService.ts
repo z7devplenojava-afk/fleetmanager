@@ -15,6 +15,11 @@ export interface Holerite {
   updatedAt?: string;
   createdBy?: string;
   updatedBy?: string;
+  companyName?: string;
+  companyCnpj?: string;
+  companySigla?: string;
+  companyId?: string;
+  workPostName?: string;
   // Campos adicionais específicos de holerites
   grossSalary?: number;
   netSalary?: number;
@@ -34,6 +39,72 @@ export interface HoleriteFilters {
   status?: string;
 }
 
+export interface HoleriteOrganizedEntry {
+  id: string;
+  employeeName: string;
+  cpf: string;
+  month: number;
+  year: number;
+  fileName: string;
+  companySigla: string;
+  companyName: string;
+  companyCnpj: string;
+  sectorName: string;
+  workPostName?: string;
+  processedAt?: string;
+}
+
+export interface HoleritePeriodGroup {
+  month: number;
+  year: number;
+  formattedPeriod: string;
+  totalPayslips: number;
+  payslips: HoleriteOrganizedEntry[];
+}
+
+export interface HoleriteSectorGroup {
+  sectorName: string;
+  normalizedSectorName: string;
+  totalPayslips: number;
+  periods: HoleritePeriodGroup[];
+}
+
+export interface HoleriteCompanyGroup {
+  companyId?: string;
+  companySigla: string;
+  companyName: string;
+  companyCnpj: string;
+  totalPayslips: number;
+  sectors: HoleriteSectorGroup[];
+}
+
+export interface HoleriteOrganizationResponse {
+  generatedAt?: string;
+  totalPayslips: number;
+  totalCompanies: number;
+  totalSectors: number;
+  companies: HoleriteCompanyGroup[];
+}
+
+export interface CompanyTypeOrganizationResponse {
+  generatedAt?: string;
+  totalPayslips: number;
+  totalCompanies: number;
+  totalSectors: number;
+  terceirizacao: CompanyTypeGroup;
+  vigilancia: CompanyTypeGroup;
+  administrativo: CompanyTypeGroup;
+}
+
+export interface CompanyTypeGroup {
+  typeName: string;
+  typeCode: string;
+  totalCompanies: number;
+  totalPayslips: number;
+  totalSectors: number;
+  companies: HoleriteCompanyGroup[];
+}
+
 export interface ProcessingResult {
   fileName: string;
   startTime: string;
@@ -48,12 +119,62 @@ export interface ProcessingResult {
 }
 
 class HoleriteService {
+  // Envio individual
+  async sendIndividual(funcionarioId: string, tipo: 'email' | 'whatsapp', mensagem?: string, assunto?: string): Promise<any> {
+    const payload: any = { tipo, funcionarioId };
+    if (mensagem) payload.mensagem = mensagem;
+    if (assunto) payload.assunto = assunto;
+    const response = await api.post('/api/envio/individual', payload);
+    return response.data;
+  }
+
+  // Envio em massa
+  async sendBatch(funcionarioIds: string[], tipo: 'email' | 'whatsapp', mensagem?: string, assunto?: string): Promise<any> {
+    const payload: any = { tipo, funcionarioIds };
+    if (mensagem) payload.mensagem = mensagem;
+    if (assunto) payload.assunto = assunto;
+    const response = await api.post('/api/envio/massa', payload);
+    return response.data;
+  }
+
+  // Reenvio por log
+  async resendByLog(logId: string): Promise<any> {
+    const response = await api.post(`/api/envio/resend/${logId}`);
+    return response.data;
+  }
+
+  // Listar logs
+  async listSendLogs(cpf?: string, month?: number, year?: number): Promise<any[]> {
+    const params: any = {};
+    if (cpf) params.cpf = cpf;
+    if (month) params.month = month;
+    if (year) params.year = year;
+    const response = await api.get('/envio/logs', { params });
+    return response.data || [];
+  }
   // Buscar todos os holerites
   async getAllHolerites(): Promise<Holerite[]> {
     try {
       console.log('🔍 Buscando todos os holerites...');
+      
+      // Verificar se é um colaborador e filtrar por CPF
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        console.log('👤 Usuário logado:', user.name, 'Role:', user.role);
+        
+        // Se for COLABORADOR, filtrar por CPF (username é o CPF)
+        if (user.role === 'COLABORADOR' && user.username) {
+          console.log('🔒 Filtrando holerites por CPF:', user.username);
+          const response = await api.get(`/payslips?cpf=${user.username}`);
+          console.log('✅ Holerites do colaborador carregados:', response.data.length);
+          return response.data;
+        }
+      }
+      
+      // Para outros roles, buscar todos
       const response = await api.get('/payslips');
-      console.log('✅ Holerites carregados:', response.data);
+      console.log('✅ Holerites carregados:', response.data.length);
       return response.data;
     } catch (error) {
       console.error('❌ Erro ao carregar holerites:', error);
@@ -173,7 +294,24 @@ class HoleriteService {
     }
   }
 
-  // Download de holerite
+  // Download de holerite por ID (recomendado - mais preciso)
+  async downloadHoleriteById(id: string): Promise<Blob> {
+    try {
+      console.log('📥 Iniciando download do holerite pelo ID:', id);
+      
+      const response = await api.get(`/payslips/download-by-id/${id}`, {
+        responseType: 'blob',
+      });
+      
+      console.log('✅ Download realizado com sucesso');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao fazer download do holerite:', error);
+      throw error;
+    }
+  }
+
+  // Download de holerite por fileName (fallback - pode retornar holerite errado se houver múltiplos)
   async downloadHolerite(fileName: string): Promise<Blob> {
     try {
       console.log('📥 Iniciando download do holerite:', fileName);
@@ -186,6 +324,64 @@ class HoleriteService {
       return response.data;
     } catch (error) {
       console.error('❌ Erro ao fazer download do holerite:', error);
+      throw error;
+    }
+  }
+
+  // Download em lote por empresa (ZIP)
+  async downloadByCompany(companyName: string): Promise<Blob> {
+    try {
+      console.log('📦 Iniciando download em lote por empresa:', companyName);
+      
+      const response = await api.get(`/unified-documents/download/company`, {
+        params: { name: companyName },
+        responseType: 'blob',
+      });
+      
+      console.log('✅ Download em lote por empresa realizado com sucesso');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao fazer download em lote por empresa:', error);
+      throw error;
+    }
+  }
+
+  // Download em lote por setor (ZIP)
+  async downloadBySector(sectorName: string): Promise<Blob> {
+    try {
+      console.log('📦 Iniciando download em lote por setor:', sectorName);
+      
+      const response = await api.get(`/unified-documents/download/sector`, {
+        params: { name: sectorName },
+        responseType: 'blob',
+      });
+      
+      console.log('✅ Download em lote por setor realizado com sucesso');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao fazer download em lote por setor:', error);
+      throw error;
+    }
+  }
+
+  // Download em lote por período (ZIP) - dentro de um setor
+  // Nota: O backend não tem endpoint específico para período, então usamos o endpoint de setor
+  // e filtramos os holerites do período específico no frontend antes de fazer o download
+  async downloadByPeriod(sectorName: string, month: number, year: number): Promise<Blob> {
+    try {
+      console.log('📦 Iniciando download em lote por período:', { sectorName, month, year });
+      
+      // Por enquanto, usamos o endpoint de setor que retorna todos os holerites do setor
+      // O backend pode ser atualizado no futuro para suportar filtro por período
+      const response = await api.get(`/unified-documents/download/sector`, {
+        params: { name: sectorName },
+        responseType: 'blob',
+      });
+      
+      console.log('✅ Download em lote por período realizado com sucesso');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao fazer download em lote por período:', error);
       throw error;
     }
   }
@@ -245,6 +441,28 @@ class HoleriteService {
     }
   }
 
+  async getOrganizationByCompany(): Promise<HoleriteOrganizationResponse> {
+    try {
+      console.log('📊 Buscando organização de holerites por empresa/setor/período...');
+      const response = await api.get('/payslips/organization');
+      return response.data as HoleriteOrganizationResponse;
+    } catch (error) {
+      console.error('❌ Erro ao carregar organização de holerites:', error);
+      throw error;
+    }
+  }
+
+  async getOrganizationByCompanyType(): Promise<CompanyTypeOrganizationResponse> {
+    try {
+      console.log('📊 Buscando organização de holerites por tipo de empresa...');
+      const response = await api.get('/payslips/organization-by-type');
+      return response.data as CompanyTypeOrganizationResponse;
+    } catch (error) {
+      console.error('❌ Erro ao carregar organização de holerites por tipo:', error);
+      throw error;
+    }
+  }
+
   // Buscar holerites por CPF
   async getHoleritesByCpf(cpf: string): Promise<Holerite[]> {
     try {
@@ -294,7 +512,7 @@ class HoleriteService {
   }
 
   // Verificar status de processamento assíncrono
-  async getProcessingStatus(sessionId: string): Promise<any> {
+  async getProcessingStatus(sessionId: string): Promise<unknown> {
     try {
       console.log('🔍 Verificando status de processamento:', sessionId);
       

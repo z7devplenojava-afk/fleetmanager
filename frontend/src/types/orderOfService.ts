@@ -1,6 +1,6 @@
 export interface OrderOfService {
-  id: number;
-  employeeId: number;
+  id: string;
+  employeeId: string;
   employeeName: string;
   employeeCpf: string;
   role: string;
@@ -17,7 +17,7 @@ export interface OrderOfService {
 }
 
 export interface CreateOrderOfServiceDTO {
-  employeeId: number;
+  employeeId: string;
   employeeName: string;
   employeeCpf: string;
   role: string;

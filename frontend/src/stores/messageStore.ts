@@ -19,6 +19,13 @@ export interface User {
     isOnline?: boolean;
 }
 
+export interface ReactionSummary {
+    emoji: string;
+    count: number;
+    userIds: string[];
+    currentUserReacted?: boolean;
+}
+
 export interface ChatMessage {
     id: string;
     content: string;
@@ -32,6 +39,12 @@ export interface ChatMessage {
     editedAt?: string;
     replyToId?: string;
     replyToMessage?: ChatMessage;
+    reactions?: ReactionSummary[];
+    // Informações do arquivo
+    fileUrl?: string;
+    fileName?: string;
+    fileSize?: number;
+    fileContentType?: string;
     createdAt: string;
     updatedAt?: string;
 }
@@ -60,6 +73,8 @@ export interface SystemMessage {
     readAt?: string;
     scheduledAt?: string;
     sentAt?: string;
+    replyToId?: string;
+    replyTo?: SystemMessage;
 }
 
 interface MessageState {
@@ -92,6 +107,7 @@ interface MessageState {
     removeChatMessage: (messageId: string) => void;
 
     setAvailableUsers: (users: User[]) => void;
+    updateUserStatus: (userId: string, isOnline: boolean) => void;
     setSystemMessages: (messages: SystemMessage[]) => void;
     addSystemMessage: (message: SystemMessage) => void;
     updateSystemMessage: (messageId: string, updates: Partial<SystemMessage>) => void;
@@ -130,7 +146,37 @@ export const useMessageStore = create<MessageState>()(
             isConnected: false,
 
             // Actions
-            setConversations: (conversations) => set({ conversations }),
+            setConversations: (conversations) => {
+                const validConversations = Array.isArray(conversations) ? conversations : [];
+                // Deduplicar conversas por ID e tipo
+                const uniqueConversations = validConversations.reduce((acc, conv) => {
+                    if (!conv || !conv.id) return acc;
+                    const key = `${conv.type}-${conv.id}`;
+                    const existing = acc.find(c => `${c.type}-${c.id}` === key);
+                    if (!existing) {
+                        acc.push(conv);
+                    } else {
+                        // Manter a conversa com mais informações (nome, última mensagem, etc)
+                        const betterConv = conv.name && conv.name !== 'Conversa sem nome' 
+                            ? conv 
+                            : existing.name && existing.name !== 'Conversa sem nome'
+                                ? existing
+                                : conv.lastMessage?.createdAt && existing.lastMessage?.createdAt
+                                    ? (new Date(conv.lastMessage.createdAt) > new Date(existing.lastMessage.createdAt) ? conv : existing)
+                                    : conv;
+                        const index = acc.indexOf(existing);
+                        acc[index] = betterConv;
+                    }
+                    return acc;
+                }, [] as Conversation[]);
+                // Ordenar por última mensagem (mais recente primeiro)
+                uniqueConversations.sort((a, b) => {
+                    const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+                    const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+                    return bTime - aTime;
+                });
+                set({ conversations: uniqueConversations });
+            },
 
             setSelectedConversation: (conversation) => {
                 set({ selectedConversation: conversation });
@@ -140,28 +186,171 @@ export const useMessageStore = create<MessageState>()(
                 }
             },
 
-            setChatMessages: (messages) => set({ chatMessages: messages }),
+            setChatMessages: (messages) => set({ 
+                chatMessages: Array.isArray(messages) ? messages : [] 
+            }),
 
-            addChatMessage: (message) => set((state) => ({
-                chatMessages: [...state.chatMessages, message],
-                conversations: state.conversations.map(conv =>
-                    conv.id === (message.recipient?.id || message.group?.id || message.department?.id)
-                        ? { ...conv, lastMessage: message, unreadCount: conv.unreadCount + 1 }
-                        : conv
-                )
-            })),
+            addChatMessage: (message) => set((state) => {
+                // Verificar se a mensagem já existe (evitar duplicatas)
+                const messageExists = Array.isArray(state.chatMessages) && 
+                    state.chatMessages.some(msg => msg.id === message.id);
+                
+                if (messageExists) {
+                    console.log('[Store] Mensagem já existe, ignorando:', message.id);
+                    return state;
+                }
+                
+                // Determinar o ID e tipo da conversa baseado no tipo de mensagem
+                let conversationId: string | undefined;
+                let conversationType: 'individual' | 'group' | 'department' = 'individual';
+                let conversationName: string = 'Conversa sem nome';
+                
+                if (message.recipient?.id) {
+                    conversationId = message.recipient.id;
+                    conversationType = 'individual';
+                    conversationName = message.recipient.name || message.recipient.username || 'Usuário';
+                } else if (message.group?.id) {
+                    conversationId = message.group.id;
+                    conversationType = 'group';
+                    conversationName = message.group.name || 'Grupo';
+                } else if (message.department?.id) {
+                    conversationId = message.department.id;
+                    conversationType = 'department';
+                    conversationName = message.department.name || 'Departamento';
+                }
+                
+                // Adicionar mensagem ao array
+                const updatedMessages = Array.isArray(state.chatMessages) 
+                    ? [...state.chatMessages, message]
+                    : [message];
+                
+                // Verificar se a conversa já existe (usando chave única: type-id)
+                const currentConversationId = state.selectedConversation?.id;
+                const conversations = Array.isArray(state.conversations) ? state.conversations : [];
+                const conversationKey = conversationId ? `${conversationType}-${conversationId}` : null;
+                const existingConversationIndex = conversationKey ? conversations.findIndex(conv => {
+                    const convKey = `${conv.type}-${conv.id}`;
+                    return convKey === conversationKey;
+                }) : -1;
+                
+                let updatedConversations: Conversation[];
+                
+                if (existingConversationIndex >= 0) {
+                    // Conversa existe, atualizar
+                    updatedConversations = conversations.map((conv, index) => {
+                        if (index === existingConversationIndex) {
+                            const shouldIncrementUnread = conv.id !== currentConversationId;
+                            return {
+                                ...conv,
+                                lastMessage: message,
+                                unreadCount: shouldIncrementUnread ? conv.unreadCount + 1 : conv.unreadCount,
+                                isOnline: conversationType === 'individual' && message.sender?.isOnline ? true : conv.isOnline
+                            };
+                        }
+                        return conv;
+                    });
+                    
+                    // Mover conversa atualizada para o topo
+                    const updatedConv = updatedConversations[existingConversationIndex];
+                    updatedConversations.splice(existingConversationIndex, 1);
+                    updatedConversations.unshift(updatedConv);
+                } else if (conversationId) {
+                    // Conversa não existe, criar nova apenas se tiver informações suficientes
+                    // Não criar conversas vazias ou sem nome adequado
+                    if (conversationName && conversationName !== 'Conversa sem nome') {
+                        const newConversation: Conversation = {
+                            id: conversationId,
+                            name: conversationName,
+                            type: conversationType,
+                            lastMessage: message,
+                            unreadCount: conversationId !== currentConversationId ? 1 : 0,
+                            isOnline: conversationType === 'individual' && message.sender?.isOnline ? true : false
+                        };
+                        // Adicionar no início da lista
+                        updatedConversations = [newConversation, ...conversations];
+                        console.log('[Store] Nova conversa criada:', newConversation);
+                    } else {
+                        // Se não tem nome adequado, não criar a conversa ainda
+                        // Ela será criada quando o backend retornar ou quando tiver mais informações
+                        updatedConversations = conversations;
+                        console.log('[Store] Conversa sem nome adequado, ignorando criação automática');
+                    }
+                } else {
+                    updatedConversations = conversations;
+                }
+                
+                return {
+                    chatMessages: updatedMessages,
+                    conversations: updatedConversations
+                };
+            }),
 
             updateChatMessage: (messageId, updates) => set((state) => ({
-                chatMessages: state.chatMessages.map(msg =>
+                chatMessages: Array.isArray(state.chatMessages) ? state.chatMessages.map(msg =>
                     msg.id === messageId ? { ...msg, ...updates } : msg
-                )
+                ) : []
             })),
 
             removeChatMessage: (messageId) => set((state) => ({
-                chatMessages: state.chatMessages.filter(msg => msg.id !== messageId)
+                chatMessages: Array.isArray(state.chatMessages) ? state.chatMessages.filter(msg => msg.id !== messageId) : []
             })),
 
-            setAvailableUsers: (users) => set({ availableUsers: users }),
+            setAvailableUsers: (users) => set({ 
+                availableUsers: Array.isArray(users) ? users : [] 
+            }),
+
+            updateUserStatus: (userId, isOnline) => {
+                if (!userId) return; // Ignorar se userId não for fornecido
+                
+                set((state) => {
+                    // Verificar se o status já está atualizado para evitar atualizações desnecessárias
+                    const currentUser = Array.isArray(state.availableUsers) 
+                        ? state.availableUsers.find(user => user.id === userId)
+                        : null;
+                    
+                    // Verificar se há conversas que precisam ser atualizadas
+                    const needsConversationUpdate = Array.isArray(state.conversations) && 
+                        state.conversations.some(conv => 
+                            conv.type === 'individual' && conv.id === userId && conv.isOnline !== isOnline
+                        );
+                    
+                    // Se o status já está correto e não há conversas para atualizar, não fazer nada
+                    if (currentUser && currentUser.isOnline === isOnline && !needsConversationUpdate) {
+                        return state; // Retornar estado inalterado para evitar re-renders
+                    }
+                    
+                    // Se o usuário não existe no availableUsers, não fazer nada (não criar novo array)
+                    if (!currentUser && !needsConversationUpdate) {
+                        return state;
+                    }
+                    
+                    // Atualizar usuários se necessário
+                    const updatedUsers = currentUser && currentUser.isOnline !== isOnline && Array.isArray(state.availableUsers)
+                        ? state.availableUsers.map(user =>
+                            user.id === userId ? { ...user, isOnline } : user
+                        )
+                        : state.availableUsers;
+                    
+                    // Atualizar conversas se necessário
+                    const updatedConversations = needsConversationUpdate && Array.isArray(state.conversations)
+                        ? state.conversations.map(conv =>
+                            conv.type === 'individual' && conv.id === userId
+                                ? { ...conv, isOnline }
+                                : conv
+                        )
+                        : state.conversations;
+                    
+                    // Só retornar novo objeto se houver mudanças reais
+                    if (updatedUsers === state.availableUsers && updatedConversations === state.conversations) {
+                        return state;
+                    }
+                    
+                    return {
+                        availableUsers: updatedUsers,
+                        conversations: updatedConversations
+                    };
+                });
+            },
 
             setSystemMessages: (messages) => set({ systemMessages: messages }),
 
@@ -201,15 +390,17 @@ export const useMessageStore = create<MessageState>()(
             // Computed getters
             getUnreadChatCount: () => {
                 const state = get();
-                return state.conversations.reduce((total, conv) => total + conv.unreadCount, 0);
+                const conversations = Array.isArray(state.conversations) ? state.conversations : [];
+                return conversations.reduce((total, conv) => total + (conv?.unreadCount || 0), 0);
             },
 
             getFilteredConversations: () => {
                 const state = get();
-                if (!state.searchTerm) return state.conversations;
+                const conversations = Array.isArray(state.conversations) ? state.conversations : [];
+                if (!state.searchTerm) return conversations;
 
-                return state.conversations.filter(conv =>
-                    conv.name.toLowerCase().includes(state.searchTerm.toLowerCase())
+                return conversations.filter(conv =>
+                    conv && conv.name && typeof conv.name === 'string' && conv.name.toLowerCase().includes(state.searchTerm.toLowerCase())
                 );
             },
 

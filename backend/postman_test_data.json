@@ -1,0 +1,211 @@
+{
+  "info": {
+    "name": "SecuredGuard - Dados de Teste",
+    "description": "Coleção para popular o banco de dados com dados de teste",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Criar Cargos",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Vigilante\",\n  \"description\": \"Vigilante de segurança\",\n  \"baseSalary\": 1800.00\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/positions",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "positions"]
+        }
+      }
+    },
+    {
+      "name": "2. Criar Funcionários",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"João Silva\",\n  \"cpf\": \"11111111111\",\n  \"rg\": \"111111111\",\n  \"birthDate\": \"1985-03-15\",\n  \"maritalStatus\": \"MARRIED\",\n  \"address\": \"Rua das Palmeiras, 100, São Paulo - SP, 01234-567\",\n  \"phone\": \"(11) 99999-9999\",\n  \"email\": \"joao.silva@empresa.com\",\n  \"hireDate\": \"2024-01-15\",\n  \"status\": \"ACTIVE\",\n  \"positionId\": \"{{positionId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/employees",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "employees"]
+        }
+      }
+    },
+    {
+      "name": "3. Criar Veículos",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"plate\": \"ABC1234\",\n  \"brand\": \"Toyota\",\n  \"model\": \"Corolla\",\n  \"year\": 2020,\n  \"color\": \"Prata\",\n  \"fuelType\": \"FLEX\",\n  \"mileage\": 50000,\n  \"status\": \"ACTIVE\",\n  \"unitId\": \"{{unitId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/vehicles",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "vehicles"]
+        }
+      }
+    },
+    {
+      "name": "4. Criar Unidades",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Unidade Centro\",\n  \"code\": \"UC001\",\n  \"address\": \"Rua das Flores, 123, Centro, São Paulo - SP\",\n  \"phone\": \"(11) 3333-3333\",\n  \"email\": \"centro@empresa.com\",\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/units",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "units"]
+        }
+      }
+    },
+    {
+      "name": "5. Criar Clientes",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Empresa ABC Ltda\",\n  \"cnpj\": \"12345678000199\",\n  \"email\": \"contato@empresaabc.com\",\n  \"phone\": \"(11) 4444-4444\",\n  \"address\": \"Av. Paulista, 1000, São Paulo - SP\",\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/clients",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "clients"]
+        }
+      }
+    },
+    {
+      "name": "6. Criar Equipamentos",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Rádio Comunicador\",\n  \"serialNumber\": \"RC001\",\n  \"type\": \"COMUNICACAO\",\n  \"brand\": \"Motorola\",\n  \"model\": \"GP300\",\n  \"status\": \"ACTIVE\",\n  \"unitId\": \"{{unitId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/equipments",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "equipments"]
+        }
+      }
+    },
+    {
+      "name": "7. Criar Manutenções de Veículos",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"date\": \"2024-08-15\",\n  \"maintenanceType\": \"PREVENTIVE\",\n  \"description\": \"Troca de óleo e filtros\",\n  \"cost\": 150.00,\n  \"provider\": \"Oficina Central\",\n  \"mileage\": 55000,\n  \"status\": \"SCHEDULED\",\n  \"priority\": \"MEDIUM\",\n  \"notes\": \"Manutenção preventiva mensal\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/maintenances",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "maintenances"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "SEU_TOKEN_JWT_AQUI",
+      "type": "string"
+    },
+    {
+      "key": "positionId",
+      "value": "ID_DO_CARGO_CRIADO",
+      "type": "string"
+    },
+    {
+      "key": "unitId",
+      "value": "ID_DA_UNIDADE_CRIADA",
+      "type": "string"
+    },
+    {
+      "key": "vehicleId",
+      "value": "ID_DO_VEICULO_CRIADO",
+      "type": "string"
+    }
+  ]
+}

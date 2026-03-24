@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { 
   Stethoscope, 
   Plus, 
@@ -14,20 +13,15 @@ import {
   Filter, 
   Calendar, 
   User, 
-  FileText,
   CheckCircle,
   XCircle,
-  Clock,
   AlertTriangle,
-  Edit,
-  Trash2,
-  Download,
-  Upload
+  Edit
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { sstService, MedicalExam, CreateMedicalExamDTO } from '@/services/sstService';
 import { useToast } from '@/hooks/use-toast';
-import { employeeService } from '@/services/employeeService';
+import MedicalExamFormModal from '@/components/sst/MedicalExamFormModal';
 
 const ExamesMedicos: React.FC = () => {
   const navigate = useNavigate();
@@ -43,15 +37,7 @@ const ExamesMedicos: React.FC = () => {
   
   // Estados para modal de criação
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState<CreateMedicalExamDTO>({
-    employeeId: '',
-    examType: '',
-    examCategory: 'ADMISSIONAL',
-    scheduledDate: '',
-    doctorName: '',
-    clinicName: '',
-    notes: ''
-  });
+  const [selectedExam, setSelectedExam] = useState<MedicalExam | null>(null);
 
   // Carregar exames
   useEffect(() => {
@@ -89,44 +75,41 @@ const ExamesMedicos: React.FC = () => {
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
-  // Criar novo exame
-  const handleCreateExam = async () => {
+  // Criar/Atualizar exame
+  const handleSubmitExam = async (data: CreateMedicalExamDTO) => {
     try {
-      if (!createForm.employeeId || !createForm.examType || !createForm.scheduledDate) {
+      if (selectedExam) {
+        await sstService.updateMedicalExam(selectedExam.id, data);
         toast({
-          title: "Erro",
-          description: "Preencha todos os campos obrigatórios",
-          variant: "destructive",
+          title: "Sucesso",
+          description: "Exame médico atualizado com sucesso",
         });
-        return;
+      } else {
+        await sstService.createMedicalExam(data);
+        toast({
+          title: "Sucesso",
+          description: "Exame médico criado com sucesso",
+        });
       }
-
-      await sstService.createMedicalExam(createForm);
-      toast({
-        title: "Sucesso",
-        description: "Exame médico criado com sucesso",
-      });
       
       setShowCreateModal(false);
-      setCreateForm({
-        employeeId: '',
-        examType: '',
-        examCategory: 'ADMISSIONAL',
-        scheduledDate: '',
-        doctorName: '',
-        clinicName: '',
-        notes: ''
-      });
-      
+      setSelectedExam(null);
       loadExams();
     } catch (err) {
-      console.error('Erro ao criar exame médico:', err);
+      console.error('Erro ao salvar exame médico:', err);
       toast({
         title: "Erro",
-        description: "Não foi possível criar o exame médico",
+        description: selectedExam ? "Não foi possível atualizar o exame médico" : "Não foi possível criar o exame médico",
         variant: "destructive",
       });
+      throw err;
     }
+  };
+
+  // Abrir modal para edição
+  const handleEditExam = (exam: MedicalExam) => {
+    setSelectedExam(exam);
+    setShowCreateModal(true);
   };
 
   // Atualizar status do exame
@@ -235,7 +218,10 @@ const ExamesMedicos: React.FC = () => {
               Voltar
             </Button>
             <Button 
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                setSelectedExam(null);
+                setShowCreateModal(true);
+              }}
               className="bg-seguranca-red hover:bg-seguranca-darkred"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -383,7 +369,7 @@ const ExamesMedicos: React.FC = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => navigate(`/rh/sst/exames/${exam.id}`)}
+                          onClick={() => handleEditExam(exam)}
                           className="border-gray-600 text-seguranca-lightgray"
                         >
                           <Edit className="h-4 w-4 mr-1" />
@@ -409,134 +395,18 @@ const ExamesMedicos: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Modal de Criação */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-6 w-full max-w-md">
-              <h2 className="text-xl font-bold text-seguranca-lightgray mb-4">
-                Novo Exame Médico
-              </h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="employeeId" className="text-seguranca-lightgray">
-                    Funcionário *
-                  </Label>
-                  <Input
-                    id="employeeId"
-                    placeholder="ID do funcionário"
-                    value={createForm.employeeId}
-                    onChange={(e) => setCreateForm({...createForm, employeeId: e.target.value})}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="examType" className="text-seguranca-lightgray">
-                    Tipo de Exame *
-                  </Label>
-                  <Input
-                    id="examType"
-                    placeholder="Ex: Clínico, Audiometria, Espirometria"
-                    value={createForm.examType}
-                    onChange={(e) => setCreateForm({...createForm, examType: e.target.value})}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="examCategory" className="text-seguranca-lightgray">
-                    Categoria *
-                  </Label>
-                  <Select 
-                    value={createForm.examCategory} 
-                    onValueChange={(value) => setCreateForm({...createForm, examCategory: value as any})}
-                  >
-                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ADMISSIONAL">Admissional</SelectItem>
-                      <SelectItem value="PERIODICO">Periódico</SelectItem>
-                      <SelectItem value="RETORNO">Retorno</SelectItem>
-                      <SelectItem value="MUDANCA_FUNCAO">Mudança de Função</SelectItem>
-                      <SelectItem value="DEMISSIONAL">Demissional</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="scheduledDate" className="text-seguranca-lightgray">
-                    Data Agendada *
-                  </Label>
-                  <Input
-                    id="scheduledDate"
-                    type="datetime-local"
-                    value={createForm.scheduledDate}
-                    onChange={(e) => setCreateForm({...createForm, scheduledDate: e.target.value})}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="doctorName" className="text-seguranca-lightgray">
-                    Médico
-                  </Label>
-                  <Input
-                    id="doctorName"
-                    placeholder="Nome do médico"
-                    value={createForm.doctorName}
-                    onChange={(e) => setCreateForm({...createForm, doctorName: e.target.value})}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="clinicName" className="text-seguranca-lightgray">
-                    Clínica
-                  </Label>
-                  <Input
-                    id="clinicName"
-                    placeholder="Nome da clínica"
-                    value={createForm.clinicName}
-                    onChange={(e) => setCreateForm({...createForm, clinicName: e.target.value})}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="notes" className="text-seguranca-lightgray">
-                    Observações
-                  </Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Observações adicionais"
-                    value={createForm.notes}
-                    onChange={(e) => setCreateForm({...createForm, notes: e.target.value})}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                    rows={3}
-                  />
-                </div>
-              </div>
-              
-              <div className="flex gap-2 mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 border-gray-600 text-seguranca-lightgray"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleCreateExam}
-                  className="flex-1 bg-seguranca-red hover:bg-seguranca-darkred"
-                >
-                  Criar Exame
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Modal de Criação/Edição */}
+        <MedicalExamFormModal
+          open={showCreateModal}
+          onOpenChange={(open) => {
+            setShowCreateModal(open);
+            if (!open) {
+              setSelectedExam(null);
+            }
+          }}
+          exam={selectedExam}
+          onSubmit={handleSubmitExam}
+        />
       </div>
     </StandardLayout>
   );

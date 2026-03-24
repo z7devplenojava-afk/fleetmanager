@@ -1,138 +1,196 @@
-import axios from '@/lib/axios';
-import { 
-  EquipmentReport, 
-  EquipmentReportFilters 
-} from '@/types/equipmentReport';
+import api from '@/lib/axios';
 
-class EquipmentReportService {
-  private readonly baseUrl = '/equipment-reports';
+export interface EquipmentReportRequest {
+  reportType: string;
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+  equipmentType?: string;
+  exportFormat?: string;
+}
+
+export interface EquipmentReportResponse {
+  data: any[];
+  summary?: any;
+  generatedAt: string;
+}
+
+export const equipmentReportService = {
+  // Gerar relatório de equipamentos por funcionário
+  async getEquipmentByEmployeeReport(filters?: Partial<EquipmentReportRequest>): Promise<EquipmentReportResponse> {
+    try {
+      console.log('🔗 Gerando relatório de equipamentos por funcionário:', filters);
+      
+      const params = new URLSearchParams();
+      if (filters?.startDate) params.append('startDate', filters.startDate);
+      if (filters?.endDate) params.append('endDate', filters.endDate);
+      if (filters?.status) params.append('status', filters.status);
+      if (filters?.equipmentType) params.append('equipmentType', filters.equipmentType);
+      
+      const response = await api.get(`/api/equipment-reports/equipment-by-employee?${params.toString()}`);
+      
+      console.log('✅ Relatório de equipamentos por funcionário gerado:', response.data);
+      
+      return {
+        data: response.data,
+        generatedAt: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('❌ Erro ao gerar relatório de equipamentos por funcionário:', error);
+      throw error;
+    }
+  },
+
+  // Gerar relatório de validade de armas
+  async getWeaponValidityReport(filters?: Partial<EquipmentReportRequest>): Promise<EquipmentReportResponse> {
+    try {
+      console.log('🔗 Gerando relatório de validade de armas:', filters);
+      
+      const params = new URLSearchParams();
+      if (filters?.startDate) params.append('startDate', filters.startDate);
+      if (filters?.endDate) params.append('endDate', filters.endDate);
+      
+      const response = await api.get(`/api/equipment-reports/weapon-validity?${params.toString()}`);
+      
+      console.log('✅ Relatório de validade de armas gerado:', response.data);
+      
+      return {
+        data: response.data,
+        generatedAt: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('❌ Erro ao gerar relatório de validade de armas:', error);
+      throw error;
+    }
+  },
+
+  // Gerar relatório de uso
+  async getUsageReport(filters?: Partial<EquipmentReportRequest>): Promise<EquipmentReportResponse> {
+    try {
+      console.log('🔗 Gerando relatório de uso:', filters);
+      
+      const params = new URLSearchParams();
+      if (filters?.startDate) params.append('startDate', filters.startDate);
+      if (filters?.endDate) params.append('endDate', filters.endDate);
+      
+      const response = await api.get(`/api/equipment-reports/usage-report?${params.toString()}`);
+      
+      console.log('✅ Relatório de uso gerado:', response.data);
+      
+      return {
+        data: response.data,
+        generatedAt: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('❌ Erro ao gerar relatório de uso:', error);
+      throw error;
+    }
+  },
+
+  // Gerar relatório de vencimento
+  async getExpirationReport(filters?: Partial<EquipmentReportRequest>): Promise<EquipmentReportResponse> {
+    try {
+      console.log('🔗 Gerando relatório de vencimento:', filters);
+      
+      const params = new URLSearchParams();
+      if (filters?.startDate) params.append('startDate', filters.startDate);
+      if (filters?.endDate) params.append('endDate', filters.endDate);
+      
+      const response = await api.get(`/api/equipment-reports/expiration-report?${params.toString()}`);
+      
+      console.log('✅ Relatório de vencimento gerado:', response.data);
+      
+      return {
+        data: response.data,
+        generatedAt: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('❌ Erro ao gerar relatório de vencimento:', error);
+      throw error;
+    }
+  },
 
   // Gerar relatório geral
-  async generateReport(filters: EquipmentReportFilters): Promise<EquipmentReport> {
+  async getGeneralReport(filters?: Partial<EquipmentReportRequest>): Promise<EquipmentReportResponse> {
     try {
-      const response = await axios.post(`${this.baseUrl}/generate`, filters);
-      return response.data;
+      console.log('🔗 Gerando relatório geral:', filters);
+      
+      const params = new URLSearchParams();
+      if (filters?.startDate) params.append('startDate', filters.startDate);
+      if (filters?.endDate) params.append('endDate', filters.endDate);
+      if (filters?.status) params.append('status', filters.status);
+      if (filters?.equipmentType) params.append('equipmentType', filters.equipmentType);
+      
+      const response = await api.get(`/api/equipment-reports/general-report?${params.toString()}`);
+      
+      console.log('✅ Relatório geral gerado:', response.data);
+      
+      return {
+        data: response.data,
+        generatedAt: new Date().toISOString()
+      };
     } catch (error) {
-      console.error('Erro ao gerar relatório:', error);
+      console.error('❌ Erro ao gerar relatório geral:', error);
       throw error;
     }
-  }
+  },
 
-  // Relatório de equipamentos por funcionário
-  async generateEquipmentByEmployeeReport(filters: EquipmentReportFilters): Promise<EquipmentReport> {
+  // Exportar relatório para PDF
+  async exportToPdf(reportRequest: EquipmentReportRequest): Promise<Blob> {
     try {
-      const response = await axios.post(`${this.baseUrl}/equipment-by-employee`, filters);
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao gerar relatório por funcionário:', error);
-      throw error;
-    }
-  }
-
-  // Relatório de validade de armas
-  async generateWeaponValidityReport(filters: EquipmentReportFilters): Promise<EquipmentReport> {
-    try {
-      const response = await axios.post(`${this.baseUrl}/weapon-validity`, filters);
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao gerar relatório de validade de armas:', error);
-      throw error;
-    }
-  }
-
-  // Relatório de uso
-  async generateUsageReport(filters: EquipmentReportFilters): Promise<EquipmentReport> {
-    try {
-      const response = await axios.post(`${this.baseUrl}/usage-report`, filters);
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao gerar relatório de uso:', error);
-      throw error;
-    }
-  }
-
-  // Relatório de vencimento
-  async generateExpiryReport(filters: EquipmentReportFilters): Promise<EquipmentReport> {
-    try {
-      const response = await axios.post(`${this.baseUrl}/expiry-report`, filters);
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao gerar relatório de vencimento:', error);
-      throw error;
-    }
-  }
-
-  // Exportar para PDF
-  async exportToPdf(filters: EquipmentReportFilters): Promise<Blob> {
-    try {
-      const response = await axios.post(`${this.baseUrl}/export/pdf`, filters, {
+      console.log('🔗 Exportando relatório para PDF:', reportRequest);
+      
+      const response = await api.post('/api/equipment-reports/export/pdf', reportRequest, {
         responseType: 'blob'
       });
+      
+      console.log('✅ Relatório PDF exportado com sucesso');
+      
       return response.data;
     } catch (error) {
-      console.error('Erro ao exportar PDF:', error);
+      console.error('❌ Erro ao exportar relatório para PDF:', error);
       throw error;
     }
-  }
+  },
 
-  // Exportar para Excel
-  async exportToExcel(filters: EquipmentReportFilters): Promise<Blob> {
+  // Exportar relatório para Excel
+  async exportToExcel(reportRequest: EquipmentReportRequest): Promise<Blob> {
     try {
-      const response = await axios.post(`${this.baseUrl}/export/excel`, filters, {
+      console.log('🔗 Exportando relatório para Excel:', reportRequest);
+      
+      const response = await api.post('/api/equipment-reports/export/excel', reportRequest, {
         responseType: 'blob'
       });
+      
+      console.log('✅ Relatório Excel exportado com sucesso');
+      
       return response.data;
     } catch (error) {
-      console.error('Erro ao exportar Excel:', error);
+      console.error('❌ Erro ao exportar relatório para Excel:', error);
       throw error;
     }
+  },
+
+  // Exportar relatório para CSV
+  async exportToCsv(reportRequest: EquipmentReportRequest): Promise<Blob> {
+    try {
+      console.log('🔗 Exportando relatório para CSV:', reportRequest);
+      
+      const response = await api.post('/api/equipment-reports/export/csv', reportRequest, {
+        responseType: 'blob'
+      });
+      
+      console.log('✅ Relatório CSV exportado com sucesso');
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao exportar relatório para CSV:', error);
+      throw error;
     }
-    
-    // Obter opções de filtros
-    async getFilterOptions(): Promise<any> {
-      try {
-        const response = await axios.get(`${this.baseUrl}/filters/options`);
-        return response.data;
-      } catch (error) {
-        console.error('Erro ao obter opções de filtros:', error);
-        throw error;
-      }
-    }
+  },
 
-  // Métodos utilitários
-  formatDateTime(date: string | undefined): string {
-    if (!date) return '-';
-    return new Date(date).toLocaleString('pt-BR');
-  }
-
-  formatDate(date: string | undefined): string {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('pt-BR');
-  }
-
-  getStatusColor(status: string): string {
-    switch (status) {
-      case 'Em uso':
-        return 'bg-blue-100 text-blue-800';
-      case 'Devolvido':
-        return 'bg-green-100 text-green-800';
-      case 'Atrasado':
-        return 'bg-red-100 text-red-800';
-      case 'Vencendo em breve':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  }
-
-  getExpiryColor(daysToExpiry?: number): string {
-    if (!daysToExpiry) return 'text-gray-600';
-    if (daysToExpiry < 0) return 'text-red-600 font-semibold';
-    if (daysToExpiry <= 30) return 'text-yellow-600 font-semibold';
-    return 'text-green-600';
-  }
-
-  downloadBlob(blob: Blob, filename: string): void {
+  // Função utilitária para download de arquivo
+  downloadFile(blob: Blob, filename: string) {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -142,7 +200,4 @@ class EquipmentReportService {
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
   }
-}
-
-export const equipmentReportService = new EquipmentReportService();
-export default equipmentReportService; 
+};

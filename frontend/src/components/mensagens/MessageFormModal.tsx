@@ -6,110 +6,160 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../ui/dialog';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Textarea } from '../ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Label } from '../ui/label';
-import { Message, messageService } from '../../services/messageService';
-import { useToast } from '../../hooks/use-toast';
-import { User, Users, Globe, Send, X } from 'lucide-react';
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Send, Users, Building2, Globe, Search, X } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { messageService } from '@/services/messageService';
+import { userService } from '@/services/userService';
+import { useDebounce } from '@/hooks/use-debounce';
 
 interface MessageFormModalProps {
-  open: boolean;
+  isOpen: boolean;
   onClose: () => void;
-  onMessageSent: () => void;
+  onSuccess: () => void;
+  message?: any | null;
+  mode: 'create' | 'edit' | 'reply';
+  replyTo?: any | null;
 }
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-}
-
-interface Group {
-  id: number;
-  name: string;
-  displayName: string;
-}
-
-const MessageFormModal: React.FC<MessageFormModalProps> = ({
-  open,
+export const MessageFormModal: React.FC<MessageFormModalProps> = ({
+  isOpen,
   onClose,
-  onMessageSent
+  onSuccess,
+  message,
+  mode,
+  replyTo
 }) => {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [type, setType] = useState<'INDIVIDUAL' | 'GROUP' | 'GLOBAL'>('INDIVIDUAL');
-  const [priority, setPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>('NORMAL');
-  const [recipientId, setRecipientId] = useState<number | null>(null);
-  const [recipientGroupId, setRecipientGroupId] = useState<number | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingData, setLoadingData] = useState(false);
-
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [recipientSearchTerm, setRecipientSearchTerm] = useState('');
+  const debouncedRecipientSearch = useDebounce(recipientSearchTerm, 300);
+
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    type: 'INDIVIDUAL' as 'INDIVIDUAL' | 'GROUP' | 'DEPARTMENT' | 'GLOBAL',
+    priority: 'NORMAL' as 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT',
+    recipientIds: [] as string[],
+    departmentIds: [] as string[],
+    sendEmail: false,
+    sendNotification: true,
+    scheduledAt: '',
+    replyToId: undefined as string | undefined
+  });
 
   useEffect(() => {
-    if (open) {
-      loadFormData();
-    }
-  }, [open]);
-
-  const loadFormData = async () => {
-    try {
-      setLoadingData(true);
-      // Aqui você pode carregar usuários e grupos disponíveis
-      // Por enquanto, vamos usar dados mockados
-      setUsers([
-        { id: 1, name: 'João Silva', email: 'joao@example.com' },
-        { id: 2, name: 'Maria Santos', email: 'maria@example.com' },
-        { id: 3, name: 'Pedro Costa', email: 'pedro@example.com' }
-      ]);
+    if (mode === 'edit' && message) {
+      setFormData({
+        title: message.title || '',
+        content: message.content || '',
+        type: message.type || 'INDIVIDUAL',
+        priority: message.priority || 'NORMAL',
+        recipientIds: message.recipients?.map((r: any) => r.id) || [],
+        departmentIds: message.departments?.map((d: any) => d.id) || [],
+        sendEmail: message.sendEmail || false,
+        sendNotification: message.sendNotification !== false,
+        scheduledAt: message.scheduledAt || '',
+        replyToId: undefined
+      });
+    } else if (mode === 'reply' && replyTo) {
+      // Pré-preencher dados para resposta
+      const replyTitle = replyTo.title?.startsWith('Re: ') 
+        ? replyTo.title 
+        : `Re: ${replyTo.title || ''}`;
       
-      setGroups([
-        { id: 1, name: 'GRUPO_ADMIN', displayName: 'Administradores' },
-        { id: 2, name: 'GRUPO_RH', displayName: 'Recursos Humanos' },
-        { id: 3, name: 'GRUPO_SUPERVISOR', displayName: 'Supervisores' }
-      ]);
+      setFormData({
+        title: replyTitle,
+        content: '',
+        type: 'INDIVIDUAL',
+        priority: replyTo.priority || 'NORMAL',
+        recipientIds: replyTo.sender?.id ? [replyTo.sender.id] : [],
+        departmentIds: [],
+        sendEmail: false,
+        sendNotification: true,
+        scheduledAt: '',
+        replyToId: replyTo.id
+      });
+    } else if (mode === 'create') {
+      // Resetar formulário para nova mensagem
+      setFormData({
+        title: '',
+        content: '',
+        type: 'INDIVIDUAL',
+        priority: 'NORMAL',
+        recipientIds: [],
+        departmentIds: [],
+        sendEmail: false,
+        sendNotification: true,
+        scheduledAt: '',
+        replyToId: undefined
+      });
+    }
+  }, [mode, message, replyTo]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadUsers();
+    }
+  }, [isOpen]);
+
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const usersList = await userService.getAllUsers();
+      setUsers(usersList);
     } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
       toast({
         title: "Erro",
-        description: "Erro ao carregar dados do formulário",
+        description: "Erro ao carregar lista de usuários",
         variant: "destructive"
       });
     } finally {
-      setLoadingData(false);
+      setLoadingUsers(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!title.trim() || !content.trim()) {
+
+    // Validações
+    if (!formData.title.trim()) {
       toast({
         title: "Erro",
-        description: "Título e conteúdo são obrigatórios",
+        description: "Título é obrigatório",
         variant: "destructive"
       });
       return;
     }
 
-    if (type === 'INDIVIDUAL' && !recipientId) {
+    if (!formData.content.trim()) {
       toast({
         title: "Erro",
-        description: "Selecione um destinatário",
+        description: "Conteúdo é obrigatório",
         variant: "destructive"
       });
       return;
     }
 
-    if (type === 'GROUP' && !recipientGroupId) {
+    if (formData.type === 'INDIVIDUAL' && formData.recipientIds.length === 0) {
       toast({
         title: "Erro",
-        description: "Selecione um grupo",
+        description: "Selecione pelo menos um destinatário",
         variant: "destructive"
       });
       return;
@@ -117,29 +167,31 @@ const MessageFormModal: React.FC<MessageFormModalProps> = ({
 
     try {
       setLoading(true);
-      
-      const messageData = {
-        title: title.trim(),
-        content: content.trim(),
-        type,
-        priority,
-        recipientId: type === 'INDIVIDUAL' ? recipientId : undefined,
-        recipientGroupId: type === 'GROUP' ? recipientGroupId : undefined
-      };
 
-      await messageService.sendMessage(messageData);
-      
-      toast({
-        title: "Sucesso",
-        description: "Mensagem enviada com sucesso"
-      });
-      
-      handleClose();
-      onMessageSent();
-    } catch (error) {
+      if (mode === 'create' || mode === 'reply') {
+        const messageData = {
+          ...formData,
+          replyToId: mode === 'reply' ? formData.replyToId : undefined
+        };
+        await messageService.sendSystemMessage(messageData);
+        toast({
+          title: "Sucesso",
+          description: mode === 'reply' ? "Resposta enviada com sucesso" : "Mensagem enviada com sucesso"
+        });
+      } else {
+        // TODO: Implementar edição
+        toast({
+          title: "Info",
+          description: "Edição será implementada em breve"
+        });
+      }
+
+      onSuccess();
+      onClose();
+    } catch (error: any) {
       toast({
         title: "Erro",
-        description: "Erro ao enviar mensagem",
+        description: error.message || "Erro ao enviar mensagem",
         variant: "destructive"
       });
     } finally {
@@ -148,158 +200,336 @@ const MessageFormModal: React.FC<MessageFormModalProps> = ({
   };
 
   const handleClose = () => {
-    setTitle('');
-    setContent('');
-    setType('INDIVIDUAL');
-    setPriority('NORMAL');
-    setRecipientId(null);
-    setRecipientGroupId(null);
-    onClose();
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'INDIVIDUAL':
-        return <User className="w-4 h-4" />;
-      case 'GROUP':
-        return <Users className="w-4 h-4" />;
-      case 'GLOBAL':
-        return <Globe className="w-4 h-4" />;
-      default:
-        return <User className="w-4 h-4" />;
+    if (!loading) {
+      setFormData({
+        title: '',
+        content: '',
+        type: 'INDIVIDUAL',
+        priority: 'NORMAL',
+        recipientIds: [],
+        departmentIds: [],
+        sendEmail: false,
+        sendNotification: true,
+        scheduledAt: ''
+      });
+      setRecipientSearchTerm('');
+      onClose();
     }
   };
 
+  // Filtrar usuários baseado no termo de busca
+  const filteredUsers = React.useMemo(() => {
+    if (!debouncedRecipientSearch.trim()) {
+      return users;
+    }
+    
+    const searchLower = debouncedRecipientSearch.toLowerCase().trim();
+    return users.filter(user => {
+      const name = (user.name || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      const username = (user.username || '').toLowerCase();
+      
+      return name.includes(searchLower) || 
+             email.includes(searchLower) || 
+             username.includes(searchLower);
+    });
+  }, [users, debouncedRecipientSearch]);
+
+  const selectedUsersCount = formData.recipientIds.length;
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Send className="w-5 h-5" />
-            <span>Nova Mensagem</span>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] flex flex-col bg-seguranca-graphite border-gray-600 text-white p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0 border-b border-gray-600">
+          <DialogTitle className="text-lg sm:text-2xl font-bold text-seguranca-yellow flex items-center gap-2">
+            <Send className="h-5 w-5 sm:h-6 sm:w-6" />
+            {mode === 'create' ? 'Nova Mensagem' : mode === 'reply' ? 'Responder Mensagem' : 'Editar Mensagem'}
           </DialogTitle>
-          <DialogDescription>
-            Envie uma mensagem para usuários ou grupos
+          <DialogDescription className="text-gray-300 text-sm mt-2">
+            {mode === 'create' 
+              ? 'Preencha os dados para enviar uma nova mensagem'
+              : mode === 'reply'
+              ? 'Responda à mensagem selecionada'
+              : 'Atualize as informações da mensagem'
+            }
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Tipo de Mensagem */}
-          <div className="space-y-2">
-            <Label htmlFor="type">Tipo de Mensagem</Label>
-            <Select value={type} onValueChange={(value: any) => setType(value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="INDIVIDUAL">
-                  <div className="flex items-center space-x-2">
-                    <User className="w-4 h-4" />
-                    <span>Individual</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="GROUP">
-                  <div className="flex items-center space-x-2">
-                    <Users className="w-4 h-4" />
-                    <span>Grupo</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="GLOBAL">
-                  <div className="flex items-center space-x-2">
-                    <Globe className="w-4 h-4" />
-                    <span>Global</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Destinatário */}
-          {type === 'INDIVIDUAL' && (
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="grid gap-6">
+            {/* Título */}
             <div className="space-y-2">
-              <Label htmlFor="recipient">Destinatário</Label>
-              <Select value={recipientId?.toString() || ''} onValueChange={(value) => setRecipientId(parseInt(value))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um usuário" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id.toString()}>
-                      {user.name} ({user.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="title" className="text-seguranca-lightgray">
+                Título *
+              </Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Digite o título da mensagem"
+                className="bg-seguranca-black border-gray-600 text-white placeholder:text-gray-500"
+                required
+              />
             </div>
-          )}
 
-          {type === 'GROUP' && (
+            {/* Tipo e Prioridade */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="type" className="text-seguranca-lightgray flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Tipo de Mensagem *
+                </Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value: any) => setFormData({ ...formData, type: value })}
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    <SelectItem value="INDIVIDUAL" className="text-white hover:bg-seguranca-black">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Individual
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="GROUP" className="text-white hover:bg-seguranca-black">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Grupo
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="DEPARTMENT" className="text-white hover:bg-seguranca-black">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        Departamento
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="GLOBAL" className="text-white hover:bg-seguranca-black">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4" />
+                        Global
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="priority" className="text-seguranca-lightgray">
+                  Prioridade *
+                </Label>
+                <Select
+                  value={formData.priority}
+                  onValueChange={(value: any) => setFormData({ ...formData, priority: value })}
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    <SelectItem value="LOW" className="text-green-400 hover:bg-seguranca-black">
+                      Baixa
+                    </SelectItem>
+                    <SelectItem value="NORMAL" className="text-blue-400 hover:bg-seguranca-black">
+                      Normal
+                    </SelectItem>
+                    <SelectItem value="HIGH" className="text-orange-400 hover:bg-seguranca-black">
+                      Alta
+                    </SelectItem>
+                    <SelectItem value="URGENT" className="text-red-400 hover:bg-seguranca-black">
+                      Urgente
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Destinatários - apenas para tipo INDIVIDUAL */}
+            {formData.type === 'INDIVIDUAL' && (
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <Label className="text-seguranca-lightgray text-sm font-medium">
+                    Destinatários *
+                  </Label>
+                  {selectedUsersCount > 0 && (
+                    <span className="text-xs text-gray-400">
+                      {selectedUsersCount} {selectedUsersCount === 1 ? 'selecionado' : 'selecionados'}
+                    </span>
+                  )}
+                </div>
+                
+                {/* Campo de busca */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Buscar por nome, email ou usuário..."
+                    value={recipientSearchTerm}
+                    onChange={(e) => setRecipientSearchTerm(e.target.value)}
+                    className="pl-9 pr-9 bg-seguranca-black border-gray-600 text-white placeholder:text-gray-500"
+                  />
+                  {recipientSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setRecipientSearchTerm('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                
+                {loadingUsers ? (
+                  <div className="flex items-center justify-center p-6 bg-seguranca-black rounded-lg border border-gray-600">
+                    <Loader2 className="h-5 w-5 animate-spin text-seguranca-yellow mr-2" />
+                    <span className="text-gray-400 text-sm">Carregando usuários...</span>
+                  </div>
+                ) : (
+                  <div className="bg-seguranca-black rounded-lg border border-gray-600 overflow-hidden">
+                    {filteredUsers.length === 0 ? (
+                      <div className="p-6 text-center text-gray-400 text-sm">
+                        {recipientSearchTerm ? (
+                          <>
+                            <Search className="h-8 w-8 mx-auto mb-2 text-gray-600" />
+                            <p>Nenhum usuário encontrado para "{recipientSearchTerm}"</p>
+                            <button
+                              type="button"
+                              onClick={() => setRecipientSearchTerm('')}
+                              className="text-seguranca-yellow hover:underline mt-2"
+                            >
+                              Limpar busca
+                            </button>
+                          </>
+                        ) : (
+                          <p>Nenhum usuário disponível</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="max-h-48 sm:max-h-64 overflow-y-auto p-3 space-y-2">
+                        {filteredUsers.map((user) => (
+                          <div 
+                            key={user.id} 
+                            className="flex items-start space-x-3 p-2 rounded-lg hover:bg-seguranca-graphite transition-colors"
+                          >
+                            <Checkbox
+                              id={`user-${user.id}`}
+                              checked={formData.recipientIds.includes(user.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setFormData({
+                                    ...formData,
+                                    recipientIds: [...formData.recipientIds, user.id]
+                                  });
+                                } else {
+                                  setFormData({
+                                    ...formData,
+                                    recipientIds: formData.recipientIds.filter(id => id !== user.id)
+                                  });
+                                }
+                              }}
+                              className="mt-1"
+                            />
+                            <Label
+                              htmlFor={`user-${user.id}`}
+                              className="text-seguranca-lightgray cursor-pointer flex-1 text-sm"
+                            >
+                              <div className="font-medium">{user.name}</div>
+                              <div className="text-xs text-gray-400 mt-0.5">
+                                {user.email || user.username}
+                              </div>
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {recipientSearchTerm && filteredUsers.length > 0 && (
+                      <div className="px-3 py-2 border-t border-gray-600 bg-seguranca-graphite text-xs text-gray-400">
+                        Mostrando {filteredUsers.length} de {users.length} usuários
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Conteúdo */}
             <div className="space-y-2">
-              <Label htmlFor="group">Grupo</Label>
-              <Select value={recipientGroupId?.toString() || ''} onValueChange={(value) => setRecipientGroupId(parseInt(value))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um grupo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {groups.map((group) => (
-                    <SelectItem key={group.id} value={group.id.toString()}>
-                      {group.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="content" className="text-seguranca-lightgray text-sm font-medium">
+                Mensagem *
+              </Label>
+              <Textarea
+                id="content"
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                placeholder="Digite o conteúdo da mensagem"
+                className="min-h-[100px] sm:min-h-[120px] bg-seguranca-black border-gray-600 text-white placeholder:text-gray-500 resize-none"
+                required
+              />
             </div>
-          )}
 
-          {/* Título */}
-          <div className="space-y-2">
-            <Label htmlFor="title">Título</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Digite o título da mensagem"
-              required
-            />
+            {/* Opções */}
+            <div className="space-y-3 bg-seguranca-black p-4 rounded-lg border border-gray-600">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="sendEmail"
+                  checked={formData.sendEmail}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, sendEmail: checked as boolean })
+                  }
+                />
+                <Label htmlFor="sendEmail" className="text-seguranca-lightgray cursor-pointer text-sm">
+                  Enviar por email
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="sendNotification"
+                  checked={formData.sendNotification}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, sendNotification: checked as boolean })
+                  }
+                />
+                <Label htmlFor="sendNotification" className="text-seguranca-lightgray cursor-pointer text-sm">
+                  Enviar notificação push
+                </Label>
+              </div>
+            </div>
+          </div>
           </div>
 
-          {/* Prioridade */}
-          <div className="space-y-2">
-            <Label htmlFor="priority">Prioridade</Label>
-            <Select value={priority} onValueChange={(value: any) => setPriority(value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="LOW">Baixa</SelectItem>
-                <SelectItem value="NORMAL">Normal</SelectItem>
-                <SelectItem value="HIGH">Alta</SelectItem>
-                <SelectItem value="URGENT">Urgente</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Conteúdo */}
-          <div className="space-y-2">
-            <Label htmlFor="content">Conteúdo</Label>
-            <Textarea
-              id="content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Digite o conteúdo da mensagem"
-              rows={6}
-              required
-            />
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              <X className="w-4 h-4 mr-2" />
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end px-6 py-4 border-t border-gray-600 bg-seguranca-graphite flex-shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={loading}
+              className="border-gray-600 text-white hover:bg-seguranca-black w-full sm:w-auto"
+            >
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading || loadingData}>
-              <Send className="w-4 h-4 mr-2" />
-              {loading ? 'Enviando...' : 'Enviar Mensagem'}
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-seguranca-red hover:bg-seguranca-darkred w-full sm:w-auto"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">
+                    {mode === 'create' ? 'Enviar Mensagem' : 'Salvar Alterações'}
+                  </span>
+                  <span className="sm:hidden">
+                    {mode === 'create' ? 'Enviar' : 'Salvar'}
+                  </span>
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -308,4 +538,4 @@ const MessageFormModal: React.FC<MessageFormModalProps> = ({
   );
 };
 
-export default MessageFormModal; 
+export default MessageFormModal;

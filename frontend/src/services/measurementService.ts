@@ -163,5 +163,73 @@ export const measurementService = {
       '4': 'Financeiro'
     };
     return costCenters[costCenterId] || 'Não definido';
+  },
+
+  /**
+   * Gera PDF de um boletim específico
+   */
+  async generateBulletinPDF(id: string): Promise<Blob> {
+    try {
+      console.log(`📄 Gerando PDF para boletim: ${id}`);
+      
+      const response = await api.get(`/measurements/${id}/pdf`, {
+        responseType: 'blob',
+        headers: {
+          'Accept': 'application/pdf',
+          'Content-Type': 'application/pdf'
+        }
+      });
+      
+      console.log('✅ PDF gerado com sucesso, tamanho:', response.data.size, 'bytes');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao gerar PDF do boletim:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Gera Excel de um boletim específico
+   */
+  async generateBulletinExcel(id: string): Promise<Blob> {
+    try {
+      const response = await api.get(`/measurements/${id}/excel`, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao gerar Excel do boletim:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Gera PDFs em lote de múltiplos boletins
+   */
+  async generateBulkBulletinsPDF(bulletinIds: string[]): Promise<Blob> {
+    try {
+      const response = await api.post('/measurements/bulk/pdf', bulletinIds, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao gerar PDFs em lote:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Gera Excel em lote com múltiplos boletins
+   */
+  async generateBulkBulletinsExcel(bulletinIds: string[]): Promise<Blob> {
+    try {
+      const response = await api.post('/measurements/bulk/excel', bulletinIds, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao gerar Excel em lote:', error);
+      throw error;
+    }
   }
 }; 

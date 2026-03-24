@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import SEO from '@/components/SEO';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,8 @@ import {
   Facebook,
   MessageCircle
 } from 'lucide-react';
-import { useAOS } from '@/hooks/use-aos';
+import { useGSAP } from '@/hooks/use-gsap';
+import { ensureAllContentVisible } from '@/utils/ensureVisibility';
 import Logo from '@/components/Logo';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
@@ -36,7 +37,13 @@ import ContactModal from '@/components/ContactModal';
 import SpecialistModal from '@/components/SpecialistModal';
 
 const PortalHome = () => {
-  const aos = useAOS();
+  const animate = useGSAP();
+  
+  // Fallback de segurança: garantir que o conteúdo sempre apareça
+  useEffect(() => {
+    ensureAllContentVisible();
+  }, []);
+  
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isSpecialistModalOpen, setIsSpecialistModalOpen] = useState(false);
@@ -112,15 +119,15 @@ const PortalHome = () => {
         {/* Hero Section */}
         <section id="inicio" className="py-12 sm:py-20 px-4" style={{ backgroundColor: '#292929' }}>
           <div className="container mx-auto text-center">
-            <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-white mb-6" data-aos={aos.fadeUp}>
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-white mb-6" data-animate="fadeUp">
               Estamos disponíveis para te atender
               <span className="text-red-600 block">24 horas por dia</span>
             </h1>
-            <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-8 max-w-4xl mx-auto" data-aos={aos.fadeUp} data-aos-delay="200">
+            <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-8 max-w-4xl mx-auto" data-animate="fadeUp" data-delay="200">
               Deixe o seu patrimônio, sua empresa e sua família mais segura. 
               Invista na tranquilidade e escolha a Promover.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center" data-aos={aos.fadeUp} data-aos-delay="400">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center" data-animate="fadeUp" data-delay="400">
   <Button 
     size="lg" 
     className="bg-red-600 hover:bg-red-700 text-lg px-8 py-4 flex items-center"
@@ -145,15 +152,15 @@ const PortalHome = () => {
         <section id="quem-somos" className="py-12 sm:py-20 px-4" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>Quem Somos</h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-4xl mx-auto" data-aos={aos.fadeUp} data-aos-delay="200">
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Quem Somos</h2>
+              <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-4xl mx-auto" data-animate="fadeUp" data-delay="200">
                 A Promover é um grupo empresarial especializado em terceirização de mão de obra, 
                 difundida em duas vertentes: <strong className="text-red-600">VIGILÂNCIA PATRIMONIAL & TERCEIRIZAÇÃO DE SERVIÇOS</strong>
               </p>
             </div>
             
             <div className="grid md:grid-cols-2 gap-8 sm:gap-12 items-center">
-              <div data-aos={aos.fadeRight}>
+              <div data-animate="fadeRight">
                 <p className="text-base sm:text-lg leading-relaxed text-gray-300 mb-6">
                   A empresa foi desenvolvida para tornar seus processos mais eficientes, 
                   agregando competência e qualidade técnica para suas entregas e etapas de produção. 
@@ -164,11 +171,11 @@ const PortalHome = () => {
                   nas áreas de segurança e facilities.
                 </p>
               </div>
-              <div className="bg-gray-800 p-6 sm:p-8 rounded-lg border border-gray-700" data-aos={aos.fadeLeft}>
+              <div className="bg-gray-800 p-6 sm:p-8 rounded-lg border border-gray-700" data-animate="fadeLeft">
                 <h3 className="text-xl sm:text-2xl font-bold text-white mb-6">Nossos Diferenciais</h3>
                 <div className="space-y-3 sm:space-y-4">
                   {differentials.map((differential, index) => (
-                    <div key={index} className="flex items-start space-x-3" data-aos={aos.fadeLeft} data-aos-delay={index * 100}>
+                    <div key={index} className="flex items-start space-x-3" data-animate="fadeLeft" data-delay={index * 100}>
                       <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-red-600 mt-1 flex-shrink-0" />
                       <p className="text-sm sm:text-base text-gray-300">{differential}</p>
                     </div>
@@ -183,8 +190,8 @@ const PortalHome = () => {
         <section id="servicos" className="py-12 sm:py-20 px-4" style={{ backgroundColor: '#292929' }}>
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>Nossos Segmentos</h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-2xl mx-auto" data-aos={aos.fadeUp} data-aos-delay="200">
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Nossos Segmentos</h2>
+              <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-2xl mx-auto" data-animate="fadeUp" data-delay="200">
                 Oferecemos soluções completas em segurança e facilities para atender 
                 às necessidades específicas de cada cliente.
               </p>
@@ -193,7 +200,7 @@ const PortalHome = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
               {services.map((service, index) => (
                 <Card key={index} className="bg-gray-900 hover:bg-gray-800 transition-all duration-300 border-0 shadow-lg border-gray-700" 
-                      data-aos={aos.fadeUp} data-aos-delay={index * 100}>
+                      data-animate="fadeUp" data-delay={index * 100}>
                   <CardHeader>
                     <div className="flex items-center space-x-3">
                       <service.icon className="h-7 w-7 sm:h-8 sm:w-8 text-red-600" />
@@ -221,8 +228,8 @@ const PortalHome = () => {
         <section className="py-12 sm:py-20 px-4" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>Setores de Atuação</h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-aos={aos.fadeUp} data-aos-delay="200">
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Setores de Atuação</h2>
+              <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
                 Temos uma lista variada dos setores que atuamos e disponibilizamos nossos serviços:
               </p>
             </div>
@@ -230,7 +237,7 @@ const PortalHome = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-8">
               {sectors.map((sector, index) => (
                 <Card key={index} className="bg-black text-center hover:bg-gray-800 transition-all duration-300 border-0 shadow-lg border-gray-700"
-                      data-aos={aos.zoomIn} data-aos-delay={index * 100}>
+                      data-animate="zoomIn" data-delay={index * 100}>
                   <CardContent className="p-4 sm:p-6">
                     <sector.icon className="h-10 w-10 sm:h-12 sm:w-12 text-red-600 mx-auto mb-2 sm:mb-4" />
                     <h3 className="text-sm sm:text-base font-semibold text-white">{sector.name}</h3>
@@ -245,8 +252,8 @@ const PortalHome = () => {
         <section className="py-12 sm:py-20 px-4 bg-gradient-to-r from-yellow-600 to-yellow-500">
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-black mb-4" data-aos={aos.fadeUp}>Benefícios</h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-800" data-aos={aos.fadeUp} data-aos-delay="200">
+              <h2 className="text-3xl sm:text-4xl font-bold text-black mb-4" data-animate="fadeUp">Benefícios</h2>
+              <p className="text-base sm:text-lg md:text-xl text-gray-800" data-animate="fadeUp" data-delay="200">
                 Vantagens de ter a Promover como parceira:
               </p>
             </div>
@@ -254,7 +261,7 @@ const PortalHome = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
               {benefits.map((benefit, index) => (
                 <Card key={index} className="bg-white text-center hover:shadow-lg transition-all duration-300 border-0 shadow-md"
-                      data-aos={aos.fadeUp} data-aos-delay={index * 150}>
+                      data-animate="fadeUp" data-delay={index * 150}>
                   <CardContent className="p-4 sm:p-6">
                     <Award className="h-10 w-10 sm:h-12 sm:w-12 text-red-600 mx-auto mb-2 sm:mb-4" />
                     <p className="text-sm sm:text-base text-gray-800 font-medium">{benefit}</p>
@@ -268,14 +275,14 @@ const PortalHome = () => {
         {/* CTA Section */}
         <section className="py-12 sm:py-20 px-4 bg-red-600">
           <div className="container mx-auto text-center">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">
               Pronto para Proteger seu Patrimônio?
             </h2>
-            <p className="text-base sm:text-lg md:text-xl text-red-100 mb-8 max-w-2xl mx-auto" data-aos={aos.fadeUp} data-aos-delay="200">
+            <p className="text-base sm:text-lg md:text-xl text-red-100 mb-8 max-w-2xl mx-auto" data-animate="fadeUp" data-delay="200">
               Entre em contato conosco e descubra como podemos ajudar a garantir 
               a segurança que você precisa.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center" data-aos={aos.fadeUp} data-aos-delay="400">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center" data-animate="fadeUp" data-delay="400">
               <Button 
                 size="lg" 
                 variant="secondary" 
@@ -302,7 +309,7 @@ const PortalHome = () => {
           <div className="container mx-auto">
             {/* Primeira linha - Logo e Links */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12 mb-8">
-              <div data-aos={aos.fadeRight} className="sm:col-span-2 lg:col-span-1">
+              <div data-animate="fadeRight" className="sm:col-span-2 lg:col-span-1">
                 <div className="flex items-center space-x-3 mb-4 sm:mb-6">
                   <Logo size="lg" type="full" />
                 </div>
@@ -325,22 +332,22 @@ const PortalHome = () => {
                 </div>
               </div>
               
-              <div data-aos={aos.fadeUp} data-aos-delay="100">
+              <div data-animate="fadeUp" data-delay="100">
                 <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Serviços</h3>
                 <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Vigilância Patrimonial</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Portaria</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Controlador de Acesso</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Facilities</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Vigilância Patrimonial</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Portaria</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Controlador de Acesso</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Facilities</a></li>
                 </ul>
               </div>
               
-              <div data-aos={aos.fadeUp} data-aos-delay="200">
+              <div data-animate="fadeUp" data-delay="200">
                 <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Empresa</h3>
                 <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
                   <li><a href="/quem-somos" className="hover:text-white transition-colors block py-1">Quem Somos</a></li>
                   <li><a href="/trabalhe-conosco" className="hover:text-white transition-colors block py-1">Trabalhe Conosco</a></li>
-                  <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Orçamento</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Orçamento</a></li>
                   <li><a href="/contato" className="hover:text-white transition-colors block py-1">Contato</a></li>
                   <li className="mt-3 sm:mt-4">
                     <a href="/login" className="inline-block text-black hover:text-gray-800 px-3 py-2 sm:px-4 sm:py-2 rounded text-sm sm:text-base font-medium transition-colors" style={{ backgroundColor: '#FFF600' }}>
@@ -350,7 +357,7 @@ const PortalHome = () => {
                 </ul>
               </div>
               
-              <div data-aos={aos.fadeUp} data-aos-delay="300">
+              <div data-animate="fadeUp" data-delay="300">
                 <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Legal</h3>
                 <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
                   <li><a href="/politicas-privacidade" className="hover:text-white transition-colors block py-1">Política de Privacidade</a></li>
@@ -362,7 +369,7 @@ const PortalHome = () => {
 
             {/* Segunda linha - Contatos centralizados em 2 colunas */}
             <div className="flex justify-center">
-              <div className="w-full max-w-5xl" data-aos={aos.fadeUp} data-aos-delay="400">
+              <div className="w-full max-w-5xl" data-animate="fadeUp" data-delay="400">
                 <h3 className="text-center text-xl sm:text-2xl lg:text-3xl font-semibold text-white mb-6 sm:mb-8">Contatos</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
                   {/* Sede Contagem */}
@@ -426,7 +433,7 @@ const PortalHome = () => {
               </div>
             </div>
             
-            <div className="border-t border-gray-800 mt-6 pt-6 text-center text-gray-400" data-aos={aos.fadeUp}>
+            <div className="border-t border-gray-800 mt-6 pt-6 text-center text-gray-400" data-animate="fadeUp">
               <p className="text-xs sm:text-sm">&copy; 2025 Promover Vigilância Patrimonial. Todos os direitos reservados.</p>
             </div>
           </div>

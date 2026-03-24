@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 // Estrutura local da linha para a UI
 type TrainingRow = {
   id: string;
+  employeeId: string; // ID do funcionário para edição
   employee: string;
   cpf?: string;
   position?: string;
@@ -47,15 +48,14 @@ type TrainingRow = {
 
 const mockTrainings: TrainingRow[] = [
   {
-    id: 1,
+    id: '1',
+    employeeId: '00000000-0000-0000-0000-000000000001',
     employee: 'João Silva',
     cpf: '123.456.789-00',
     position: 'Vigilante',
     sector: 'Posto 1',
     workSchedule: '07:00-19:00',
     validUntil: '2026-07-20',
-    asoDate: '2025-07-20',
-    psicotecnicoDate: '2025-07-20',
     status: 'valid',
     lastUpdate: '2025-01-15',
     trainingType: 'NR-33',
@@ -63,15 +63,14 @@ const mockTrainings: TrainingRow[] = [
     hours: 40,
   },
   {
-    id: 2,
+    id: '2',
+    employeeId: '00000000-0000-0000-0000-000000000002',
     employee: 'Maria Souza',
     cpf: '987.654.321-00',
     position: 'Porteiro',
     sector: 'Posto 2',
     workSchedule: '19:00-07:00',
     validUntil: '2025-12-10',
-    asoDate: '',
-    psicotecnicoDate: '',
     status: 'expiring',
     lastUpdate: '2025-01-10',
     trainingType: 'NR-35',
@@ -79,15 +78,14 @@ const mockTrainings: TrainingRow[] = [
     hours: 32,
   },
   {
-    id: 3,
+    id: '3',
+    employeeId: '00000000-0000-0000-0000-000000000003',
     employee: 'Pedro Costa',
     cpf: '111.222.333-44',
     position: 'Supervisor',
     sector: 'Administrativo',
     workSchedule: '08:00-18:00',
     validUntil: '2024-11-15',
-    asoDate: '2024-11-15',
-    psicotecnicoDate: '2024-11-15',
     status: 'expired',
     lastUpdate: '2024-11-15',
     trainingType: 'NR-10',
@@ -95,15 +93,14 @@ const mockTrainings: TrainingRow[] = [
     hours: 48,
   },
   {
-    id: 4,
+    id: '4',
+    employeeId: '00000000-0000-0000-0000-000000000004',
     employee: 'Ana Santos',
     cpf: '555.666.777-88',
     position: 'Vigilante',
     sector: 'Posto 3',
     workSchedule: '06:00-18:00',
     validUntil: '2027-03-20',
-    asoDate: '2025-03-20',
-    psicotecnicoDate: '2025-03-20',
     status: 'valid',
     lastUpdate: '2025-01-20',
     trainingType: 'NR-33',
@@ -148,20 +145,54 @@ const EmployeeTrainingTab = () => {
       try {
         // Buscar certificações de funcionários (histórico de treinamentos concluídos)
         const certs: EmployeeCertification[] = await trainingService.getEmployeeCertifications();
+        
         const rows: TrainingRow[] = certs.map(c => {
           const validUntil = c.expirationDate || '';
           const status = getTrainingStatus(validUntil);
+          
+          // Priorizar workPostName da certificação, senão usar employeeDepartment
+          let sectorName = '';
+          if (c.workPostName) {
+            sectorName = c.workPostName;
+          } else if (c.employeeDepartment) {
+            sectorName = c.employeeDepartment;
+          }
+          
+          // Debug: verificar se os dados estão chegando
+          console.log('📋 Certificação:', {
+            id: c.id,
+            employeeName: c.employeeName,
+            employeePosition: c.employeePosition,
+            employeeDepartment: c.employeeDepartment,
+            workPostName: c.workPostName,
+            employeeId: c.employeeId
+          });
+          
+          // Verificar se employeePosition está vazio/null
+          if (!c.employeePosition && c.employeeName) {
+            console.warn('⚠️ Certificação sem cargo (position):', {
+              certificationId: c.id,
+              employeeName: c.employeeName,
+              employeeId: c.employeeId
+            });
+          }
+          
           return {
             id: c.id,
-            employee: (c as any).employee?.name || (c as any).employee?.id || 'Funcionário',
+            employeeId: c.employeeId, // ID do funcionário para edição
+            employee: c.employeeName || 'Funcionário',
+            cpf: c.employeeDocument || '',
+            position: c.employeePosition || '',
+            sector: sectorName,
             validUntil,
             status,
-            trainingType: c.training?.name || 'Treinamento',
-            hours: c.training?.duration,
+            trainingType: c.trainingName || 'Treinamento',
+            hours: c.renewalPeriodMonths ? c.renewalPeriodMonths * 8 : undefined, // Estimativa: 8h por mês
           };
         });
         setTrainings(rows);
       } catch (e) {
+        console.error('Erro ao carregar treinamentos:', e);
         toast({ title: 'Erro', description: 'Falha ao carregar treinamentos.', variant: 'destructive' });
       } finally {
         setLoading(false);
@@ -214,20 +245,82 @@ const EmployeeTrainingTab = () => {
     setOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('Tem certeza que deseja excluir este treinamento?')) {
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este treinamento?')) {
+      return;
+    }
+
+    try {
+      console.log('🗑️ Excluindo certificação:', id);
+      
+      // Chamar API para excluir do banco
+      await trainingService.deleteEmployeeCertification(id);
+      
+      console.log('✅ Certificação excluída com sucesso');
+      
+      // Atualizar lista local
       setTrainings(trainings.filter(t => t.id !== id));
+      
+      toast({ 
+        title: 'Sucesso', 
+        description: 'Treinamento excluído com sucesso!' 
+      });
+    } catch (error) {
+      console.error('❌ Erro ao excluir certificação:', error);
+      toast({ 
+        title: 'Erro', 
+        description: 'Falha ao excluir treinamento. Tente novamente.', 
+        variant: 'destructive' 
+      });
     }
   };
 
   // Salvar novo ou editar
-  const handleSave = (data: any) => {
-    if (data.id) {
-      setTrainings(trainings.map(t => t.id === data.id ? data : t));
-    } else {
-      setTrainings([...trainings, { ...data, id: Date.now() }]);
-    }
+  const handleSave = async (data: any) => {
+    console.log('📝 handleSave chamado com:', data);
+    
+    // Recarregar lista completa do backend
+    setLoading(true);
+    try {
+      // Buscar certificações de funcionários (histórico de treinamentos concluídos)
+      const certs: EmployeeCertification[] = await trainingService.getEmployeeCertifications();
+      
+      const rows: TrainingRow[] = certs.map(c => {
+        const validUntil = c.expirationDate || '';
+        const status = getTrainingStatus(validUntil);
+        
+        // Priorizar workPostName da certificação, senão usar employeeDepartment
+        let sectorName = '';
+        if (c.workPostName) {
+          sectorName = c.workPostName;
+        } else if (c.employeeDepartment) {
+          sectorName = c.employeeDepartment;
+        }
+        
+        return {
+          id: c.id,
+          employeeId: c.employeeId, // ID do funcionário para edição
+          employee: c.employeeName || 'Funcionário',
+          cpf: c.employeeDocument || '',
+          position: c.employeePosition || '',
+          sector: sectorName,
+          validUntil,
+          status,
+          trainingType: c.trainingName || 'Treinamento',
+          hours: c.renewalPeriodMonths ? c.renewalPeriodMonths * 8 : undefined, // Estimativa: 8h por mês
+        };
+      });
+      
+      console.log('✅ Lista de treinamentos recarregada:', rows.length);
+      setTrainings(rows);
+      toast({ title: 'Sucesso', description: 'Lista atualizada com sucesso!' });
+    } catch (e) {
+      console.error('❌ Erro ao recarregar treinamentos:', e);
+      toast({ title: 'Erro', description: 'Falha ao recarregar lista.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
     setOpen(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -411,14 +504,13 @@ const EmployeeTrainingTab = () => {
                   <th className="px-3 py-2 border text-left">Treinamento</th>
                   <th className="px-3 py-2 border text-left">Validade</th>
                   <th className="px-3 py-2 border text-left">Status</th>
-                  <th className="px-3 py-2 border text-left">Instrutor</th>
                   <th className="px-3 py-2 border text-left">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTrainings.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-seguranca-lightgray">
+                    <td colSpan={7} className="text-center py-8 text-seguranca-lightgray">
                       <div className="flex flex-col items-center gap-2">
                         <FileText className="h-8 w-8 text-gray-400" />
                         <p>Nenhum treinamento encontrado</p>
@@ -435,7 +527,9 @@ const EmployeeTrainingTab = () => {
                           <div className="text-xs text-seguranca-lightgray/70">{t.cpf}</div>
                         </div>
                       </td>
-                      <td className="px-3 py-3 border">{t.position}</td>
+                      <td className="px-3 py-3 border">
+                        {t.position || <span className="text-gray-500 italic">Não informado</span>}
+                      </td>
                       <td className="px-3 py-3 border">{t.sector}</td>
                       <td className="px-3 py-3 border">
                         <div>
@@ -457,7 +551,6 @@ const EmployeeTrainingTab = () => {
                           {getStatusBadge(t.status)}
                         </div>
                       </td>
-                      <td className="px-3 py-3 border">{t.instructor}</td>
                       <td className="px-3 py-3 border">
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => handleEdit(t)}>
@@ -497,12 +590,11 @@ const EmployeeTrainingTab = () => {
                     </div>
                     
                     <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                      <div className="text-seguranca-lightgray"><span className="font-medium">Cargo:</span> {t.position}</div>
-                      <div className="text-seguranca-lightgray"><span className="font-medium">Setor:</span> {t.sector}</div>
+                      <div className="text-seguranca-lightgray"><span className="font-medium">Cargo:</span> {t.position || 'N/A'}</div>
+                      <div className="text-seguranca-lightgray"><span className="font-medium">Setor:</span> {t.sector || 'N/A'}</div>
                       <div className="text-seguranca-lightgray"><span className="font-medium">Treinamento:</span> {t.trainingType}</div>
-                      <div className="text-seguranca-lightgray"><span className="font-medium">Instrutor:</span> {t.instructor}</div>
                       <div className="text-seguranca-lightgray"><span className="font-medium">Validade:</span> {new Date(t.validUntil).toLocaleDateString('pt-BR')}</div>
-                      <div className="text-seguranca-lightgray"><span className="font-medium">Carga Horária:</span> {t.hours}h</div>
+                      <div className="text-seguranca-lightgray"><span className="font-medium">Carga Horária:</span> {t.hours || 0}h</div>
                     </div>
                     
                     <div className="flex gap-2">

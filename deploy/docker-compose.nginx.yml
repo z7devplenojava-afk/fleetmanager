@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Nginx - Proxy Reverso para todos os ambientes
+  nginx:
+    image: nginx:alpine
+    container_name: secured-guard-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx-multi-env.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - frontend-prod
+      - frontend-dev
+      - frontend-ci
+      - frontend-test
+    networks:
+      - secured-guard-network
+    restart: unless-stopped
+
+networks:
+  secured-guard-network:
+    external: true
+    name: secured-guard

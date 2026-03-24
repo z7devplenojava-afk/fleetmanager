@@ -1,0 +1,90 @@
+# ========================================
+# SECURED GUARD - DESENVOLVIMENTO LOCAL
+# BAILEYS WHATSAPP SERVICE (STANDALONE)
+# ========================================
+
+services:
+  # ========================================
+  # DATABASE
+  # ========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: secured-guard-db-local
+    environment:
+      POSTGRES_DB: secured_guard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - secured-guard-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # REDIS CACHE
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: secured-guard-redis-local
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - secured-guard-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # WHATSAPP SERVICE (BAILEYS STANDALONE)
+  # ========================================
+  whatsapp-service:
+    build:
+      context: ./whatsapp-service
+      dockerfile: Dockerfile
+    image: secured-guard-whatsapp:latest
+    container_name: whatsapp-service
+    environment:
+      PORT: 3333
+      INSTANCE_KEY: securedguard
+      SESSION_DIR: /app/sessions
+    volumes:
+      - whatsapp_sessions:/app/sessions
+      - ./backend/holerites:/app/holerites
+    ports:
+      - "3333:3333"
+    networks:
+      - secured-guard-network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    extra_hosts:
+      - "raw.githubusercontent.com:185.199.108.133"
+      - "github.com:140.82.121.4"
+    restart: unless-stopped
+
+# ========================================
+# VOLUMES
+# ========================================
+volumes:
+  postgres_data:
+  redis_data:
+  whatsapp_sessions:
+
+# ========================================
+# NETWORKS
+# ========================================
+networks:
+  secured-guard-network:
+    external: true
+    name: secured-guard

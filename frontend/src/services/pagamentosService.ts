@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { isConnectionError } from '@/utils/connectionError';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -103,10 +104,24 @@ class PagamentosService {
       const response = await axios.get(`${API_BASE_URL}/accounts-receivable/all`, {
         headers: this.getAuthHeaders()
       });
-      // Garantir que sempre retornamos um array
-      return Array.isArray(response.data) ? response.data : this.getMockPagamentos();
-    } catch (error) {
-      console.error('Erro ao buscar pagamentos:', error);
+      // Garantir que sempre retornamos um array válido
+      const pagamentos = Array.isArray(response.data) ? response.data : [];
+      // Filtrar e validar cada pagamento
+      return pagamentos
+        .filter((p: any) => p && p.id) // Remover itens inválidos
+        .map((p: any) => ({
+          ...p,
+          dataVencimento: p.dataVencimento || p.dueDate || '',
+          clienteNome: p.clienteNome || p.clientName || '-',
+          descricao: p.descricao || p.description || '-',
+          valor: p.valor || p.amount || 0
+        }));
+    } catch (error: any) {
+      if (isConnectionError(error)) {
+        console.warn('⚠️ Backend não está disponível. Usando dados mockados para pagamentos.');
+      } else {
+        console.error('Erro ao buscar pagamentos:', error);
+      }
       // Retornar dados mockados temporariamente
       return this.getMockPagamentos();
     }
@@ -281,8 +296,12 @@ class PagamentosService {
         headers: this.getAuthHeaders()
       });
       return response.data;
-    } catch (error) {
-      console.error('Erro ao buscar agendamentos:', error);
+    } catch (error: any) {
+      if (isConnectionError(error)) {
+        console.warn('⚠️ Backend não está disponível. Usando dados mockados para agendamentos.');
+      } else {
+        console.error('Erro ao buscar agendamentos:', error);
+      }
       // Retornar dados mockados temporariamente
       return this.getMockAgendamentos();
     }
@@ -346,10 +365,22 @@ class PagamentosService {
       const response = await axios.get(`${API_BASE_URL}/clients/all`, {
         headers: this.getAuthHeaders()
       });
-      // Garantir que sempre retornamos um array
-      return Array.isArray(response.data) ? response.data : [];
-    } catch (error) {
-      console.error('Erro ao buscar clientes:', error);
+      // Garantir que sempre retornamos um array válido
+      const clientes = Array.isArray(response.data) ? response.data : [];
+      // Filtrar clientes inválidos e garantir que têm nome
+      return clientes
+        .filter((c: any) => c && c.id && (c.name || c.nome))
+        .map((c: any) => ({
+          ...c,
+          nome: c.nome || c.name || '-',
+          id: c.id
+        }));
+    } catch (error: any) {
+      if (isConnectionError(error)) {
+        console.warn('⚠️ Backend não está disponível. Usando dados mockados para clientes.');
+      } else {
+        console.error('Erro ao buscar clientes:', error);
+      }
       // Retornar dados mockados temporariamente
       return this.getMockClientes();
     }

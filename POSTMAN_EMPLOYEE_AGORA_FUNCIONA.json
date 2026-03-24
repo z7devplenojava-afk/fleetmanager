@@ -1,0 +1,13 @@
+{
+  "name": "MARIA JOSÉ SANTOS OLIVEIRA",
+  "cpf": "987.654.321-00",
+  "email": "maria.santos@empresa.com.br",
+  "phone": "(11) 98765-4321",
+  "birthDate": "1985-03-15",
+  "status": "ACTIVE",
+  "registrationNumber": "000128",
+  "hireDate": "2024-02-01",
+  "address": {
+    "street": "Avenida Paulista, 1000 - São Paulo/SP"
+  }
+}

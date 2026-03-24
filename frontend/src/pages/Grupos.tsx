@@ -4,10 +4,10 @@ import { UserGroupsTable } from '@/components/grupos/UserGroupsTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getGroupDisplayName, getGroupColor } from '@/utils/permissions';
-import { useAOS } from '@/hooks/use-aos';
+import { useGSAP } from '@/hooks/use-gsap';
 
 export default function Grupos() {
-  const aos = useAOS();
+  useGSAP();
   
   const handleEditGroup = (group: any) => {
     console.log('Editar grupo:', group);
@@ -32,7 +32,7 @@ export default function Grupos() {
       <div className="space-y-6">
         {/* Estatísticas */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card data-aos={aos.fadeUp} data-aos-delay="100" className="bg-seguranca-graphite border-gray-600">
+          <Card data-animate="fadeUp" data-delay="100" className="bg-seguranca-graphite border-gray-600">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-seguranca-lightgray">Total de Grupos</CardTitle>
               <Badge variant="outline">8</Badge>
@@ -45,7 +45,7 @@ export default function Grupos() {
             </CardContent>
           </Card>
 
-          <Card data-aos={aos.fadeUp} data-aos-delay="200" className="bg-seguranca-graphite border-gray-600">
+          <Card data-animate="fadeUp" data-delay="200" className="bg-seguranca-graphite border-gray-600">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-seguranca-lightgray">Super Admin</CardTitle>
               <Badge className={getGroupColor('GRUPO_SUPER_ADMIN')}>
@@ -60,7 +60,7 @@ export default function Grupos() {
             </CardContent>
           </Card>
 
-          <Card data-aos={aos.fadeUp} data-aos-delay="300" className="bg-seguranca-graphite border-gray-600">
+          <Card data-animate="fadeUp" data-delay="300" className="bg-seguranca-graphite border-gray-600">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-seguranca-lightgray">Administradores</CardTitle>
               <Badge className={getGroupColor('GRUPO_ADMIN')}>
@@ -75,7 +75,7 @@ export default function Grupos() {
             </CardContent>
           </Card>
 
-          <Card data-aos={aos.fadeUp} data-aos-delay="400" className="bg-seguranca-graphite border-gray-600">
+          <Card data-animate="fadeUp" data-delay="400" className="bg-seguranca-graphite border-gray-600">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-seguranca-lightgray">Colaboradores</CardTitle>
               <Badge className={getGroupColor('GRUPO_COLABORADORES')}>
@@ -92,7 +92,7 @@ export default function Grupos() {
         </div>
 
         {/* Tabela de Grupos */}
-        <div data-aos={aos.fadeUp} data-aos-delay="500">
+        <div data-animate="fadeUp" data-delay="500">
           <UserGroupsTable
             onEditGroup={handleEditGroup}
             onDeleteGroup={handleDeleteGroup}
@@ -101,7 +101,7 @@ export default function Grupos() {
         </div>
 
         {/* Informações sobre o Sistema de Grupos */}
-        <div data-aos={aos.fadeUp} data-aos-delay="600">
+        <div data-animate="fadeUp" data-delay="600">
           <Card className="bg-seguranca-graphite border-gray-600">
             <CardHeader>
               <CardTitle className="text-seguranca-lightgray">Sobre o Sistema de Grupos</CardTitle>

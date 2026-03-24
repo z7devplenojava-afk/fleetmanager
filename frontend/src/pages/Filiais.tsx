@@ -549,43 +549,45 @@ const Filiais = () => {
                             {isCheckingDelete ? 'Verificando...' : 
                              deleteCheck && !deleteCheck.canDelete ? 'Não é possível excluir' : 'Confirmar exclusão'}
                           </AlertDialogTitle>
-                          <AlertDialogDescription className="text-gray-400">
-                            {isCheckingDelete ? (
-                              <div className="flex items-center gap-2">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-seguranca-red"></div>
-                                Verificando dependências...
-                              </div>
-                            ) : deleteCheck && !deleteCheck.canDelete ? (
-                              <div className="space-y-2">
-                                <p>A unidade "{unit.name}" não pode ser excluída devido às seguintes dependências:</p>
-                                <ul className="list-disc list-inside space-y-1 text-sm">
-                                  {deleteCheck.dependencies.employees && deleteCheck.dependencies.employees > 0 && (
-                                    <li>{deleteCheck.dependencies.employees} funcionário(s)</li>
-                                  )}
-                                  {deleteCheck.dependencies.positions && deleteCheck.dependencies.positions > 0 && (
-                                    <li>{deleteCheck.dependencies.positions} cargo(s)</li>
-                                  )}
-                                  {deleteCheck.dependencies.payrolls && deleteCheck.dependencies.payrolls > 0 && (
-                                    <li>{deleteCheck.dependencies.payrolls} folha(s) de pagamento</li>
-                                  )}
-                                  {deleteCheck.dependencies.locations && deleteCheck.dependencies.locations > 0 && (
-                                    <li>{deleteCheck.dependencies.locations} localização(ões)</li>
-                                  )}
-                                  {deleteCheck.dependencies.children && deleteCheck.dependencies.children > 0 && (
-                                    <li>{deleteCheck.dependencies.children} subunidade(s)</li>
-                                  )}
-                                </ul>
-                                <p className="text-yellow-400 mt-2">
-                                  Remova essas dependências antes de tentar excluir a unidade.
-                                </p>
-                                <p className="text-orange-400 mt-2 text-sm">
-                                  ⚠️ <strong>Atenção:</strong> Você pode excluir a unidade junto com suas dependências, 
-                                  mas isso irá remover permanentemente todos os dados relacionados.
-                                </p>
-                              </div>
-                            ) : (
-                              `Tem certeza que deseja excluir a unidade "${unit.name}"? Esta ação não pode ser desfeita.`
-                            )}
+                          <AlertDialogDescription asChild>
+                            <div className="text-gray-400">
+                              {isCheckingDelete ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-seguranca-red"></div>
+                                  Verificando dependências...
+                                </div>
+                              ) : deleteCheck && !deleteCheck.canDelete ? (
+                                <div className="space-y-2">
+                                  <p>A unidade "{unit.name}" não pode ser excluída devido às seguintes dependências:</p>
+                                  <ul className="list-disc list-inside space-y-1 text-sm">
+                                    {deleteCheck.dependencies?.employees && deleteCheck.dependencies.employees > 0 && (
+                                      <li>{deleteCheck.dependencies.employees} funcionário(s)</li>
+                                    )}
+                                    {deleteCheck.dependencies?.positions && deleteCheck.dependencies.positions > 0 && (
+                                      <li>{deleteCheck.dependencies.positions} cargo(s)</li>
+                                    )}
+                                    {deleteCheck.dependencies?.payrolls && deleteCheck.dependencies.payrolls > 0 && (
+                                      <li>{deleteCheck.dependencies.payrolls} folha(s) de pagamento</li>
+                                    )}
+                                    {deleteCheck.dependencies?.locations && deleteCheck.dependencies.locations > 0 && (
+                                      <li>{deleteCheck.dependencies.locations} localização(ões)</li>
+                                    )}
+                                    {deleteCheck.dependencies?.children && deleteCheck.dependencies.children > 0 && (
+                                      <li>{deleteCheck.dependencies.children} subunidade(s)</li>
+                                    )}
+                                  </ul>
+                                  <p className="text-yellow-400 mt-2">
+                                    Remova essas dependências antes de tentar excluir a unidade.
+                                  </p>
+                                  <p className="text-orange-400 mt-2 text-sm">
+                                    ⚠️ <strong>Atenção:</strong> Você pode excluir a unidade junto com suas dependências, 
+                                    mas isso irá remover permanentemente todos os dados relacionados.
+                                  </p>
+                                </div>
+                              ) : (
+                                <span>Tem certeza que deseja excluir a unidade "{unit.name}"? Esta ação não pode ser desfeita.</span>
+                              )}
+                            </div>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

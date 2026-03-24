@@ -1,0 +1,183 @@
+name: 🔍 Diagnóstico de Falhas no Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ci
+
+jobs:
+  diagnose:
+    name: 🔍 Diagnosticar Problemas
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ci
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: 🔨 Test Build Backend
+        id: build-backend
+        continue-on-error: true
+        working-directory: ./backend
+        run: |
+          echo "🔨 Testando build do backend..."
+          chmod +x mvnw
+          ./mvnw clean package -Dmaven.test.skip=true -Dspring.profiles.active=ci || {
+            echo "❌ Build do backend falhou"
+            echo "build_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          }
+          echo "✅ Build do backend OK"
+          echo "build_status=success" >> $GITHUB_OUTPUT
+
+      - name: 📦 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 🎨 Test Build Frontend
+        id: build-frontend
+        continue-on-error: true
+        working-directory: ./frontend
+        env:
+          VITE_API_URL: https://ci.z7botsolutions.com.br/api
+          VITE_ENVIRONMENT: ci
+        run: |
+          echo "🎨 Testando build do frontend..."
+          npm ci || {
+            echo "❌ npm ci falhou"
+            echo "build_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          }
+          npm run build || {
+            echo "❌ npm run build falhou"
+            echo "build_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          }
+          echo "✅ Build do frontend OK"
+          echo "build_status=success" >> $GITHUB_OUTPUT
+
+      - name: 🐳 Test Docker Build
+        id: docker-build
+        continue-on-error: true
+        run: |
+          echo "🐳 Testando build das imagens Docker..."
+          
+          # Verificar se Dockerfiles existem
+          if [ ! -f "backend/Dockerfile.prod" ]; then
+            echo "❌ backend/Dockerfile.prod não encontrado"
+            echo "build_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          if [ ! -f "frontend/Dockerfile.prod" ]; then
+            echo "❌ frontend/Dockerfile.prod não encontrado"
+            echo "build_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          # Tentar build (sem push)
+          docker build -t test-backend -f backend/Dockerfile.prod ./backend || {
+            echo "❌ Build da imagem backend falhou"
+            echo "build_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          }
+          
+          docker build -t test-frontend \
+            --build-arg VITE_API_URL=https://ci.z7botsolutions.com.br/api \
+            --build-arg VITE_WS_URL=wss://ci.z7botsolutions.com.br/ws \
+            --build-arg VITE_ENVIRONMENT=ci \
+            -f frontend/Dockerfile.prod ./frontend || {
+            echo "❌ Build da imagem frontend falhou"
+            echo "build_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          }
+          
+          echo "✅ Build das imagens Docker OK"
+          echo "build_status=success" >> $GITHUB_OUTPUT
+
+      - name: 🔐 Verificar Secrets
+        id: check-secrets
+        continue-on-error: true
+        run: |
+          echo "🔐 Informações sobre secrets necessários..."
+          echo "ℹ️ Nota: Secrets não são necessários para o diagnóstico de build"
+          echo "ℹ️ Eles são necessários apenas para o deploy"
+          echo ""
+          echo "📋 Secrets necessários para deploy:"
+          echo "  - DOCKER_USERNAME (para fazer push das imagens)"
+          echo "  - DOCKER_PASSWORD (para fazer push das imagens)"
+          echo "  - VPS_HOST (endereço do servidor VPS)"
+          echo "  - VPS_USER (usuário SSH do servidor)"
+          echo "  - VPS_PASSWORD (senha SSH do servidor)"
+          echo "  - POSTGRES_PASSWORD_CI (senha do banco de dados PostgreSQL)"
+          echo "  - REDIS_PASSWORD (senha do Redis)"
+          echo "  - JWT_SECRET (opcional, tem valor padrão se não definido)"
+          echo ""
+          echo "ℹ️ Não é possível verificar se os secrets estão configurados sem expô-los"
+          echo "ℹ️ Se o deploy falhar com erro de autenticação, verifique se os secrets estão configurados em:"
+          echo "   Settings → Secrets and variables → Actions"
+          echo ""
+          echo "secrets_status=info" >> $GITHUB_OUTPUT
+
+      - name: 📊 Resumo do Diagnóstico
+        run: |
+          echo "📊 ========================================"
+          echo "📊 RESUMO DO DIAGNÓSTICO"
+          echo "📊 ========================================"
+          echo ""
+          echo "Backend Build: ${{ steps.build-backend.outputs.build_status || 'not_run' }}"
+          echo "Frontend Build: ${{ steps.build-frontend.outputs.build_status || 'not_run' }}"
+          echo "Docker Build: ${{ steps.docker-build.outputs.build_status || 'not_run' }}"
+          echo "Secrets: ${{ steps.check-secrets.outputs.secrets_status || 'not_run' }}"
+          echo ""
+          
+          # Verificar apenas builds (secrets são apenas aviso)
+          BUILD_FAILED=false
+          
+          if [ "${{ steps.build-backend.outputs.build_status }}" = "failed" ]; then
+            echo "❌ Backend Build falhou!"
+            BUILD_FAILED=true
+          fi
+          
+          if [ "${{ steps.build-frontend.outputs.build_status }}" = "failed" ]; then
+            echo "❌ Frontend Build falhou!"
+            BUILD_FAILED=true
+          fi
+          
+          if [ "${{ steps.docker-build.outputs.build_status }}" = "failed" ]; then
+            echo "❌ Docker Build falhou!"
+            BUILD_FAILED=true
+          fi
+          
+          if [ "$BUILD_FAILED" = "true" ]; then
+            echo ""
+            echo "❌ DIAGNÓSTICO: Problemas encontrados nos builds!"
+            echo "💡 Corrija os problemas de build antes de tentar deploy."
+            exit 1
+          fi
+          
+          # Informação sobre secrets
+          if [ "${{ steps.check-secrets.outputs.secrets_status }}" = "info" ]; then
+            echo ""
+            echo "ℹ️ INFORMAÇÃO: Secrets são necessários para o deploy"
+            echo "💡 Se o deploy falhar, verifique se todos os secrets estão configurados"
+            echo "💡 Configure os secrets em: Settings → Secrets and variables → Actions"
+          fi
+          
+          echo ""
+          echo "✅ DIAGNÓSTICO: Todos os builds passaram!"
+          echo "💡 Se o deploy ainda falhar, o problema está no deploy ou health check."
+          echo "💡 Verifique os logs do workflow de deploy para mais detalhes."
+

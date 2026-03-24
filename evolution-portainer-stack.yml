@@ -1,0 +1,149 @@
+version: '3.8'
+
+# ========================================
+# EVOLUTION API - STACK PORTAINER
+# ========================================
+# COMO USAR:
+# 1. Copie este arquivo completo
+# 2. No Portainer: Stacks → Add stack
+# 3. Nome: evolution-api-whatsapp
+# 4. Cole este conteúdo no Web editor
+# 5. Deploy the stack
+# ========================================
+
+services:
+  # ========================================
+  # REDIS (para Evolution API)
+  # ========================================
+  redis-evolution:
+    image: redis:7-alpine
+    container_name: redis-evolution
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_evolution_data:/data
+    networks:
+      - z7network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # EVOLUTION API
+  # ========================================
+  evolution-api:
+    image: atendai/evolution-api:v2.1.1
+    container_name: evolution-api-portainer
+    ports:
+      - "9000:8080"
+    environment:
+      # ==================== BÁSICO ====================
+      - SERVER_URL=https://evolution.z7botsolutions.com.br
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=B6D711FCDE4D4FD5936544120E713976
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+      
+      # ==================== SESSÃO ====================
+      - LANGUAGE=pt-BR
+      - CONFIG_SESSION_PHONE_CLIENT=SecuredGuard
+      - CONFIG_SESSION_PHONE_NAME=chrome
+      - CONFIG_SESSION_PHONE_VERSION=2.2413.51
+      
+      # ==================== QR CODE ====================
+      - QRCODE_LIMIT=1902
+      - QRCODE_COLOR=#000000
+      
+      # ==================== DATABASE ====================
+      # OPÇÃO 1: COM PostgreSQL (comentar para desabilitar)
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://secured_guard_ci:4KaCiJc6an@7sgbdcid2025@secured-guard-db-ci:5432/evolution_db?schema=public
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution_portainer
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=true
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - DATABASE_SAVE_DATA_CHATS=true
+      
+      # OPÇÃO 2: SEM BANCO (descomentar se der loop)
+      # - DATABASE_ENABLED=false
+      
+      # ==================== CACHE ====================
+      # Usando Redis próprio da stack
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis-evolution:6379/0
+      - CACHE_REDIS_PREFIX_KEY=evolution
+      - CACHE_REDIS_SAVE_INSTANCES=false
+      - CACHE_LOCAL_ENABLED=false
+      
+      # ==================== STORAGE ====================
+      - S3_ENABLED=false
+      
+      # ==================== MÓDULOS DESABILITADOS ====================
+      - TYPEBOT_ENABLED=false
+      - CHATWOOT_ENABLED=false
+      - RABBITMQ_ENABLED=false
+      
+      # ==================== WEBHOOK ====================
+      - WEBHOOK_GLOBAL_ENABLED=false
+      - WEBHOOK_EVENTS_QRCODE_UPDATED=true
+      - WEBHOOK_EVENTS_CONNECTION_UPDATE=true
+      
+      # ==================== LOGS ====================
+      - LOG_LEVEL=INFO
+      - LOG_COLOR=true
+    
+    volumes:
+      # Dados da Evolution API
+      - evolution_instances:/evolution/instances
+      # Holerites do sistema
+      - /var/www/secured_guard/ci/holerites:/evolution/holerites
+    
+    networks:
+      - z7network
+    
+    # ==================== CHROMIUM/PUPPETEER ====================
+    # Memória compartilhada necessária para Chromium gerar QR Code
+    shm_size: 512mb
+    
+    # Permitir execução do sandbox do Chromium
+    security_opt:
+      - seccomp=unconfined
+    
+    # Dependências
+    depends_on:
+      redis-evolution:
+        condition: service_healthy
+    
+    restart: unless-stopped
+    
+    # ==================== TRAEFIK (SSL/Domínio) ====================
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.evolution-portainer.rule=Host(`evolution.z7botsolutions.com.br`)"
+      - "traefik.http.routers.evolution-portainer.entrypoints=websecure"
+      - "traefik.http.routers.evolution-portainer.tls.certresolver=letsencryptresolver"
+      - "traefik.http.services.evolution-portainer.loadbalancer.server.port=8080"
+
+# ========================================
+# VOLUMES
+# ========================================
+volumes:
+  evolution_instances:
+    external: false
+    name: evolution_instances_portainer
+  
+  redis_evolution_data:
+    external: false
+    name: redis_evolution_data
+
+# ========================================
+# NETWORKS
+# ========================================
+networks:
+  z7network:
+    external: true
+    name: z7network
+

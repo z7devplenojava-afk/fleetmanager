@@ -143,9 +143,9 @@ export const ContratosTable: React.FC<ContratosTableProps> = ({
 
   return (
     <>
-      <div className="rounded-lg border border-gray-600 bg-seguranca-graphite overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
+      <div className="rounded-lg border border-gray-600 bg-seguranca-graphite overflow-hidden w-full">
+        <div className="overflow-x-auto w-full">
+          <Table className="w-full min-w-[800px]">
             <TableHeader>
               <TableRow className="border-gray-600">
                 <TableHead className="text-seguranca-lightgray text-xs sm:text-sm min-w-[120px]">Cliente</TableHead>
@@ -155,7 +155,7 @@ export const ContratosTable: React.FC<ContratosTableProps> = ({
                 <TableHead className="text-seguranca-lightgray text-xs sm:text-sm hidden md:table-cell min-w-[80px]">Início</TableHead>
                 <TableHead className="text-seguranca-lightgray text-xs sm:text-sm hidden md:table-cell min-w-[80px]">Término</TableHead>
                 <TableHead className="text-seguranca-lightgray text-xs sm:text-sm min-w-[80px]">Status</TableHead>
-                <TableHead className="text-seguranca-lightgray text-xs sm:text-sm text-right min-w-[120px]">Ações</TableHead>
+                <TableHead className="text-seguranca-lightgray text-xs sm:text-sm text-right min-w-[140px] sticky right-0 bg-seguranca-graphite z-10">Ações</TableHead>
               </TableRow>
             </TableHeader>
           <TableBody>
@@ -221,7 +221,7 @@ export const ContratosTable: React.FC<ContratosTableProps> = ({
                 <TableCell>
                   {getStatusBadge(contrato.status)}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right sticky right-0 bg-seguranca-graphite z-10">
                   <div className="flex justify-end gap-1 sm:gap-2">
                     {onGenerateContract && (
                       <Button

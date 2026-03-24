@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Navegação Contato</title>
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: white;
+        }
+        .section {
+            min-height: 100vh;
+            padding: 40px 20px;
+            margin: 20px 0;
+            border: 2px solid #333;
+            border-radius: 10px;
+        }
+        .contato {
+            background-color: #2a2a2a;
+            border-color: #ff0000;
+        }
+        h1 {
+            color: #ff0000;
+            text-align: center;
+        }
+        h2 {
+            color: #ffff00;
+        }
+        .nav {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .nav a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            margin: 10px 0;
+            padding: 10px;
+            background: #555;
+            border-radius: 5px;
+        }
+        .nav a:hover {
+            background: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <h3>Navegação</h3>
+        <a href="#inicio">Início</a>
+        <a href="#contato">Contato</a>
+        <a href="#teste">Teste</a>
+    </div>
+
+    <div id="inicio" class="section">
+        <h1>Seção Início</h1>
+        <p>Esta é a seção inicial da página.</p>
+        <p>Clique em "Contato" na navegação para testar o scroll.</p>
+    </div>
+
+    <div id="contato" class="section contato">
+        <h1>Seção Contato</h1>
+        <h2>Entre em Contato</h2>
+        <p>Esta é a seção de contato que deve aparecer quando você clica no link.</p>
+        <p>Se você consegue ver esta seção, a navegação está funcionando!</p>
+        
+        <h3>Informações de Contato:</h3>
+        <ul>
+            <li>Telefone: (31) 2559-1245</li>
+            <li>Email: comercial@promovervigilancia.com.br</li>
+            <li>Endereço: Rua Cel. João Camargos, 267 - Centro - Contagem - MG</li>
+        </ul>
+    </div>
+
+    <div id="teste" class="section">
+        <h1>Seção Teste</h1>
+        <p>Esta é uma seção de teste para verificar se o scroll está funcionando.</p>
+    </div>
+
+    <script>
+        // Teste adicional com JavaScript
+        console.log('Página de teste carregada');
+        
+        // Verificar se os elementos existem
+        const contatoSection = document.getElementById('contato');
+        if (contatoSection) {
+            console.log('✅ Seção de contato encontrada:', contatoSection);
+        } else {
+            console.log('❌ Seção de contato NÃO encontrada');
+        }
+        
+        // Testar scroll programático
+        function testScroll() {
+            const contato = document.getElementById('contato');
+            if (contato) {
+                contato.scrollIntoView({ behavior: 'smooth' });
+                console.log('Scroll para contato executado');
+            }
+        }
+        
+        // Adicionar botão de teste
+        const testButton = document.createElement('button');
+        testButton.textContent = 'Testar Scroll para Contato';
+        testButton.style.cssText = 'position: fixed; bottom: 20px; left: 20px; padding: 10px; background: #ff0000; color: white; border: none; border-radius: 5px; cursor: pointer;';
+        testButton.onclick = testScroll;
+        document.body.appendChild(testButton);
+    </script>
+</body>
+</html>

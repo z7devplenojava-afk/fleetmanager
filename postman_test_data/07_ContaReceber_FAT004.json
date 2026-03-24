@@ -1,0 +1,14 @@
+{
+  "clientId": "SUBSTITUIR_PELO_ID_DO_CLIENTE_2",
+  "invoiceNumber": "FAT-2024-004",
+  "measurementNumber": "MED-2024-004",
+  "description": "Desenvolvimento de software - Abril 2024",
+  "amount": 25000.00,
+  "amountPaid": 0.00,
+  "issueDate": "2024-04-01",
+  "dueDate": "2024-05-01",
+  "status": "PENDING",
+  "category": "SERVICE",
+  "paymentMethod": "PIX",
+  "notes": "Projeto em andamento"
+}

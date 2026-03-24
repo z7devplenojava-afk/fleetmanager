@@ -1,0 +1,19 @@
+{
+  "id": "550e8400-e29b-41d4-a716-446655440001",
+  "title": "Vigilante Patrimonial Atualizado",
+  "position": "Vigilante",
+  "function": "Segurança Patrimonial",
+  "location": "São Paulo, SP",
+  "requirements": [
+    "Ensino Médio Completo",
+    "Carteira de vigilante válida"
+  ],
+  "workSchedule": "12x36",
+  "salary": 2000.00,
+  "benefits": [
+    "Vale refeição",
+    "Vale transporte"
+  ],
+  "deadline": "2025-12-31T23:59:59",
+  "status": "OPEN"
+} 

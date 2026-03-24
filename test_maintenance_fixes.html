@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste de Correções - Manutenções e Postos</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Teste de Correções - Manutenções e Postos de Trabalho</h1>
+    
+    <div class="section info">
+        <h2>1. Autenticação</h2>
+        <input type="text" id="username" placeholder="Username" value="admin">
+        <input type="password" id="password" placeholder="Password" value="admin123">
+        <button onclick="login()">🔐 Login</button>
+        <div id="authStatus"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Testar Endpoints Corrigidos</h2>
+        <button onclick="testMaintenances()">🔧 Testar /api/maintenances</button>
+        <button onclick="testWorkPosts()">🏢 Testar /api/work-posts/all</button>
+        <button onclick="testVehicles()">🚗 Testar /api/vehicles</button>
+        <button onclick="testAllEndpoints()">🚀 Testar Todos</button>
+    </div>
+    
+    <div class="section">
+        <h2>3. Resultados dos Testes</h2>
+        <pre id="results"></pre>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8081';
+        let token = null;
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'success' ? 'green' : type === 'error' ? 'red' : 'blue';
+            results.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function updateAuthStatus(message, isSuccess = false) {
+            const authStatus = document.getElementById('authStatus');
+            authStatus.innerHTML = `<span style="color: ${isSuccess ? 'green' : 'red'}">${message}</span>`;
+        }
+        
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                log('🔐 Tentando fazer login...');
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    token = data.token;
+                    log('✅ Login bem-sucedido! Token obtido.', 'success');
+                    updateAuthStatus('✅ Autenticado com sucesso!', true);
+                } else {
+                    log('❌ Erro no login: ' + JSON.stringify(data, null, 2), 'error');
+                    updateAuthStatus('❌ Falha na autenticação', false);
+                }
+            } catch (error) {
+                log('❌ Erro na requisição de login: ' + error.message, 'error');
+                updateAuthStatus('❌ Erro de conexão', false);
+            }
+        }
+        
+        async function testMaintenances() {
+            if (!token) {
+                log('❌ Erro: Faça login primeiro!', 'error');
+                return;
+            }
+            
+            try {
+                log('🔧 Testando endpoint de manutenções...');
+                const response = await fetch(`${API_BASE}/api/maintenances`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('✅ Manutenções carregadas com sucesso!', 'success');
+                    log(`📊 Quantidade: ${data.length} manutenções`);
+                    if (data.length > 0) {
+                        log(`📋 Primeira manutenção: ${JSON.stringify(data[0], null, 2)}`);
+                    }
+                } else {
+                    log(`❌ Erro ao carregar manutenções: ${response.status} - ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log('❌ Erro na requisição de manutenções: ' + error.message, 'error');
+            }
+        }
+        
+        async function testWorkPosts() {
+            if (!token) {
+                log('❌ Erro: Faça login primeiro!', 'error');
+                return;
+            }
+            
+            try {
+                log('🏢 Testando endpoint de postos de trabalho...');
+                const response = await fetch(`${API_BASE}/api/work-posts/all`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('✅ Postos de trabalho carregados com sucesso!', 'success');
+                    log(`📊 Quantidade: ${data.length} postos`);
+                    if (data.length > 0) {
+                        log(`📋 Primeiro posto: ${JSON.stringify(data[0], null, 2)}`);
+                    }
+                } else {
+                    log(`❌ Erro ao carregar postos: ${response.status} - ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log('❌ Erro na requisição de postos: ' + error.message, 'error');
+            }
+        }
+        
+        async function testVehicles() {
+            if (!token) {
+                log('❌ Erro: Faça login primeiro!', 'error');
+                return;
+            }
+            
+            try {
+                log('🚗 Testando endpoint de veículos...');
+                const response = await fetch(`${API_BASE}/api/vehicles`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('✅ Veículos carregados com sucesso!', 'success');
+                    log(`📊 Quantidade: ${data.length} veículos`);
+                } else {
+                    log(`❌ Erro ao carregar veículos: ${response.status} - ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log('❌ Erro na requisição de veículos: ' + error.message, 'error');
+            }
+        }
+        
+        async function testAllEndpoints() {
+            log('🚀 Iniciando testes completos...');
+            await testMaintenances();
+            await testWorkPosts();
+            await testVehicles();
+            log('🎉 Testes completos finalizados!');
+        }
+        
+        // Verificar se há token no localStorage
+        const savedToken = localStorage.getItem('token');
+        if (savedToken && savedToken !== 'fake-token') {
+            token = savedToken;
+            log('🔑 Token encontrado no localStorage', 'success');
+            updateAuthStatus('✅ Token carregado do localStorage', true);
+        }
+    </script>
+</body>
+</html>

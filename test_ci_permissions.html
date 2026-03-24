@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Permissões CI</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #log { background: #f8f9fa; padding: 15px; border: 1px solid #dee2e6; border-radius: 5px; max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Teste de Permissões - Ambiente CI</h1>
+    
+    <div>
+        <button onclick="testHealth()">🏥 Health Check</button>
+        <button onclick="testLogin()">🔐 Login</button>
+        <button onclick="testPayslips()">📄 Holerites</button>
+        <button onclick="testReceipts()">🧾 Comprovantes</button>
+        <button onclick="testUnified()">📋 Unificados</button>
+        <button onclick="clearLog()">🧹 Limpar</button>
+    </div>
+
+    <div id="results"></div>
+    <div id="log"></div>
+
+    <script>
+        const API_BASE = 'https://ci.z7botsolutions.com.br/api';
+        let authToken = null;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'warning';
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testHealth() {
+            try {
+                log('🏥 Testando Health Check...', 'info');
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Health OK: ${data.status} - ${data.service}`, 'success');
+                } else {
+                    log(`❌ Health falhou: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro Health: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            try {
+                log('🔐 Testando Login...', 'info');
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'jose.ramos',
+                        password: 'Admin1234'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.token;
+                    log(`✅ Login OK! Token obtido (${authToken.substring(0, 30)}...)`, 'success');
+                } else {
+                    log(`❌ Login falhou: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro Login: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPayslips() {
+            if (!authToken) {
+                log('⚠️ Faça login primeiro!', 'warning');
+                return;
+            }
+
+            try {
+                log('📄 Testando Holerites...', 'info');
+                const response = await fetch(`${API_BASE}/payslips`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Holerites OK! Encontrados: ${Array.isArray(data) ? data.length : 'N/A'}`, 'success');
+                } else if (response.status === 403) {
+                    log(`⚠️ Holerites: 403 Forbidden - Permissões ainda não deployadas`, 'warning');
+                } else {
+                    log(`❌ Holerites falhou: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro Holerites: ${error.message}`, 'error');
+            }
+        }
+
+        async function testReceipts() {
+            if (!authToken) {
+                log('⚠️ Faça login primeiro!', 'warning');
+                return;
+            }
+
+            try {
+                log('🧾 Testando Comprovantes...', 'info');
+                const response = await fetch(`${API_BASE}/receipts`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Comprovantes OK! Encontrados: ${Array.isArray(data) ? data.length : 'N/A'}`, 'success');
+                } else if (response.status === 403) {
+                    log(`⚠️ Comprovantes: 403 Forbidden - Permissões ainda não deployadas`, 'warning');
+                } else {
+                    log(`❌ Comprovantes falhou: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro Comprovantes: ${error.message}`, 'error');
+            }
+        }
+
+        async function testUnified() {
+            try {
+                log('📋 Testando Documentos Unificados (público)...', 'info');
+                const response = await fetch(`${API_BASE}/unified-documents/public/list`);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Unificados OK! Total: ${data.total || 0}`, 'success');
+                    
+                    if (authToken) {
+                        log('📋 Testando Documentos Unificados (protegido)...', 'info');
+                        const protectedResponse = await fetch(`${API_BASE}/unified-documents/list`, {
+                            headers: { 'Authorization': `Bearer ${authToken}` }
+                        });
+                        
+                        if (protectedResponse.ok) {
+                            const protectedData = await protectedResponse.json();
+                            log(`✅ Unificados Protegido OK! Total: ${protectedData.total || 0}`, 'success');
+                        } else if (protectedResponse.status === 403) {
+                            log(`⚠️ Unificados Protegido: 403 Forbidden - Permissões ainda não deployadas`, 'warning');
+                        } else {
+                            log(`❌ Unificados Protegido falhou: ${protectedResponse.status}`, 'error');
+                        }
+                    }
+                } else {
+                    log(`❌ Unificados falhou: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro Unificados: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-executar health check ao carregar
+        window.onload = () => {
+            log('🚀 Iniciando testes automáticos...', 'info');
+            testHealth();
+        };
+    </script>
+</body>
+</html>

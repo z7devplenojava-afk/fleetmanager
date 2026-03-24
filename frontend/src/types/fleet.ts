@@ -1,6 +1,7 @@
 export interface Vehicle {
   id: string;
   plate: string;
+  fleetNumber?: string;
   brand: string;
   model: string;
   year: number;
@@ -22,6 +23,9 @@ export interface Vehicle {
   insuranceExpiryDate?: string;
   documentationExpiryDate?: string;
   responsibleEmployeeId?: string;
+  workPostId?: string;
+  companyId?: string;
+  departmentId?: string;
   photos?: FileList | null;
 }
 
@@ -62,6 +66,7 @@ export interface Fine {
   status: 'PENDING' | 'PAID' | 'CANCELLED';
   dueDate?: string;
   paymentDate?: string;
+  points?: number; // Pontos na CNH
   createdAt: string;
 }
 

@@ -37,17 +37,32 @@ const generateQRCode = () => {
     `;
 };
 
-// Iniciar servidor
-const PORT = 8080;
+// Iniciar servidor com fallback de porta
+const PREFERRED_PORT = process.env.PORT ? Number(process.env.PORT) : 8082;
 
-app.listen(PORT, () => {
-    console.log('🚀 Servidor WhatsApp Simulator iniciado!');
-    console.log(`📱 Porta: ${PORT}`);
-    console.log(`🔗 Status: http://localhost:${PORT}/api/status`);
-    console.log('\n' + generateQRCode());
-    console.log('\n📋 Para conectar, escaneie o QR Code acima');
-    console.log('⏳ Aguardando conexão...');
-});
+const startServer = (port) => {
+    const server = app.listen(port, () => {
+        console.log('🚀 Servidor WhatsApp Simulator iniciado!');
+        console.log(`📱 Porta: ${port}`);
+        console.log(`🔗 Status: http://localhost:${port}/api/status`);
+        console.log('\n' + generateQRCode());
+        console.log('\n📋 Para conectar, escaneie o QR Code acima');
+        console.log('⏳ Aguardando conexão...');
+    });
+
+    server.on('error', (error) => {
+        if (error.code === 'EADDRINUSE') {
+            const nextPort = port + 1;
+            console.warn(`⚠️ Porta ${port} em uso, tentando porta ${nextPort}...`);
+            startServer(nextPort);
+        } else {
+            console.error('Falha ao iniciar servidor:', error);
+            process.exit(1);
+        }
+    });
+};
+
+startServer(PREFERRED_PORT);
 
 // Endpoints da API
 app.get('/api/status', (req, res) => {

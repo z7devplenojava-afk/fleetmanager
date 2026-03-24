@@ -20,7 +20,10 @@ import {
   Building2,
   Zap,
   RefreshCw,
-  Bug
+  Bug,
+  Download,
+  FileSpreadsheet,
+  FileDown
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { measurementService } from '@/services/measurementService';
@@ -30,6 +33,7 @@ import { MeasurementViewModal } from './MeasurementViewModal';
 import { MeasurementDeleteDialog } from './MeasurementDeleteDialog';
 import { MeasurementValidationModal } from './MeasurementValidationModal';
 import { BulkDeleteDialog } from './BulkDeleteDialog';
+import api from '@/lib/axios';
 
 interface MeasurementCompleteTableProps {
   onView?: (bulletin: MeasurementBulletin) => void;
@@ -103,44 +107,27 @@ export default function MeasurementCompleteTable({
     }
   };
 
-  // Função para testar a API
+  // Função para testar a API (usa axios com token do interceptor)
   const testAPI = async () => {
     try {
       console.log('🧪 Testando conectividade com API de medições...');
-      
-      // Testar endpoint básico
-      const response = await fetch('http://localhost:8081/api/measurements', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
+      const response = await api.get('/measurements');
       console.log('📡 Status da resposta:', response.status);
-      console.log('📡 Headers da resposta:', Object.fromEntries(response.headers.entries()));
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ API funcionando! Dados recebidos:', data);
-        toast({
-          title: "API OK!",
-          description: `Endpoint funcionando. ${Array.isArray(data) ? data.length : 0} registros encontrados.`,
-          variant: "default"
-        });
-      } else {
-        const errorText = await response.text();
-        console.error('❌ API retornou erro:', response.status, errorText);
-        toast({
-          title: "Erro na API",
-          description: `Status ${response.status}: ${errorText}`,
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('💥 Erro ao testar API:', error);
+      console.log('📡 Headers da resposta:', response.headers);
+      const data = response.data;
+      console.log('✅ API funcionando! Dados recebidos:', data);
       toast({
-        title: "Erro de Conectividade",
-        description: "Não foi possível conectar com a API",
+        title: "API OK!",
+        description: `Endpoint funcionando. ${Array.isArray(data?.content) ? data.content.length : Array.isArray(data) ? data.length : 0} registros encontrados.`,
+        variant: "default"
+      });
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const details = error?.response?.data ? JSON.stringify(error.response.data) : String(error);
+      console.error('❌ API retornou erro:', status, details);
+      toast({
+        title: "Erro na API",
+        description: `Status ${status || 'desconhecido'}: ${details}`,
         variant: "destructive"
       });
     }
@@ -150,8 +137,34 @@ export default function MeasurementCompleteTable({
     loadBulletins();
   }, []);
 
-  // Filtrar boletins
+  // Função helper para determinar se uma medição é completa
+  const isCompleteMeasurement = (bulletin: MeasurementBulletin): boolean => {
+    // Priorizar notas explícitas
+    const hasCompleteNote = bulletin.notes?.toLowerCase().includes('completa') || 
+                          bulletin.notes?.toLowerCase().includes('detalhada');
+    if (hasCompleteNote) return true;
+    
+    // Se tiver nota de simplificada, não é completa
+    const hasSimplifiedNote = bulletin.notes?.toLowerCase().includes('simplificada') || 
+                             bulletin.notes?.toLowerCase().includes('rápida');
+    if (hasSimplifiedNote) return false;
+    
+    // Medição completa: múltiplos itens OU valor alto
+    const hasMultipleItems = bulletin.items && bulletin.items.length > 1;
+    const totalValue = bulletin.items?.reduce((sum, item) => {
+      const itemValue = item.totalValue || ((item.quantity || 0) * (item.unitPrice || 0));
+      return sum + itemValue;
+    }, 0) || 0;
+    const hasHighValue = totalValue > 10000;
+    
+    return hasMultipleItems || hasHighValue;
+  };
+
+  // Filtrar boletins - apenas medições completas
   const filteredBulletins = Array.isArray(bulletins) ? bulletins.filter(bulletin => {
+    // Filtrar apenas medições completas
+    const matchesType = isCompleteMeasurement(bulletin);
+    
     const matchesSearch = 
       bulletin.contractNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bulletin.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -160,7 +173,7 @@ export default function MeasurementCompleteTable({
     const matchesStatus = statusFilter === 'all' || bulletin.status === statusFilter;
     const matchesContract = contractFilter === 'all' || bulletin.contractNumber === contractFilter;
 
-    return matchesSearch && matchesStatus && matchesContract;
+    return matchesType && matchesSearch && matchesStatus && matchesContract;
   }) : [];
 
   // Obter contratos únicos para filtro
@@ -274,6 +287,135 @@ export default function MeasurementCompleteTable({
     setSelectedBulletin(null);
   };
 
+  // Funções de exportação
+  const handleExportPDF = async (bulletin: MeasurementBulletin) => {
+    try {
+      console.log(`📄 Iniciando geração de PDF para boletim: ${bulletin.id}`);
+      
+      const blob = await measurementService.generateBulletinPDF(bulletin.id);
+      
+      // Verificar se o blob é válido
+      if (!blob || blob.size === 0) {
+        throw new Error('PDF gerado está vazio');
+      }
+      
+      console.log('✅ PDF recebido, tamanho:', blob.size, 'bytes');
+      console.log('📄 Tipo do blob:', blob.type);
+      
+      // Criar URL do blob
+      const url = window.URL.createObjectURL(blob);
+      
+      // Criar link de download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `boletim_medicao_${bulletin.id}.pdf`;
+      link.style.display = 'none';
+      
+      // Adicionar ao DOM, clicar e remover
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Limpar URL do blob
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+      
+      toast({
+        title: "Sucesso",
+        description: `PDF gerado com sucesso! (${Math.round(blob.size / 1024)} KB)`,
+      });
+    } catch (error) {
+      console.error('❌ Erro ao gerar PDF:', error);
+      toast({
+        title: "Erro",
+        description: `Erro ao gerar PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportExcel = async (bulletin: MeasurementBulletin) => {
+    try {
+      const blob = await measurementService.generateBulletinExcel(bulletin.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `boletim_medicao_${bulletin.id}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Sucesso",
+        description: "Excel gerado com sucesso!",
+      });
+    } catch (error) {
+      console.error('Erro ao gerar Excel:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar Excel. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkExportPDF = async () => {
+    try {
+      const selectedBulletinIds = Array.from(selectedBulletins);
+      const blob = await measurementService.generateBulkBulletinsPDF(selectedBulletinIds);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `boletins_medicao_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Sucesso",
+        description: "PDF com múltiplos boletins gerado com sucesso!",
+      });
+    } catch (error) {
+      console.error('Erro ao gerar PDF em lote:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar PDF em lote. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkExportExcel = async () => {
+    try {
+      const selectedBulletinIds = Array.from(selectedBulletins);
+      const blob = await measurementService.generateBulkBulletinsExcel(selectedBulletinIds);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `boletins_medicao_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Sucesso",
+        description: "Excel com múltiplos boletins gerado com sucesso!",
+      });
+    } catch (error) {
+      console.error('Erro ao gerar Excel em lote:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar Excel em lote. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+
   // Obter propriedades do status
   const getStatusProps = (status: MeasurementStatus) => {
     switch (status) {
@@ -386,14 +528,32 @@ export default function MeasurementCompleteTable({
               Testar API
             </Button>
             {selectedBulletins.size > 0 && (
-              <Button
-                onClick={handleBulkDelete}
-                variant="destructive"
-                className="bg-red-600 hover:bg-red-700"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Excluir Selecionados ({selectedBulletins.size})
-              </Button>
+              <>
+                <Button
+                  onClick={handleBulkDelete}
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir Selecionados ({selectedBulletins.size})
+                </Button>
+                <Button
+                  onClick={handleBulkExportPDF}
+                  variant="outline"
+                  className="border-red-600 text-red-400 hover:bg-red-600/20"
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Exportar PDF ({selectedBulletins.size})
+                </Button>
+                <Button
+                  onClick={handleBulkExportExcel}
+                  variant="outline"
+                  className="border-green-600 text-green-400 hover:bg-green-600/20"
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Exportar Excel ({selectedBulletins.size})
+                </Button>
+              </>
             )}
           </div>
 
@@ -526,6 +686,24 @@ export default function MeasurementCompleteTable({
                               className="h-8 w-8 p-0 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10"
                             >
                               <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleExportPDF(bulletin)}
+                              className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                              title="Exportar PDF"
+                            >
+                              <FileDown className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleExportExcel(bulletin)}
+                              className="h-8 w-8 p-0 text-green-400 hover:text-green-300 hover:bg-green-400/10"
+                              title="Exportar Excel"
+                            >
+                              <FileSpreadsheet className="h-4 w-4" />
                             </Button>
                             {bulletin.status === 'PENDING' && (
                               <Button

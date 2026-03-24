@@ -108,8 +108,14 @@ export const ContasAReceberDashboard: React.FC<ContasAReceberDashboardProps> = (
       const fimMes = endOfMonth(data);
       
       const contasMes = contas.filter(c => {
-        const dataVencimento = new Date(c.vencimento);
-        return dataVencimento >= inicioMes && dataVencimento <= fimMes;
+        if (!c || !c.vencimento) return false;
+        try {
+          const dataVencimento = new Date(c.vencimento);
+          if (isNaN(dataVencimento.getTime())) return false;
+          return dataVencimento >= inicioMes && dataVencimento <= fimMes;
+        } catch {
+          return false;
+        }
       });
       
       const valorMes = contasMes.reduce((sum, c) => sum + c.valor, 0);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -104,23 +104,23 @@ const Supervisao: React.FC = () => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 bg-seguranca-graphite border-gray-600">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-seguranca-black">
+            <TabsTrigger value="dashboard" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-seguranca-black">
               <BarChart3 className="w-4 h-4 mr-2" />
               Dashboard
             </TabsTrigger>
-            <TabsTrigger value="facial" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-seguranca-black">
+            <TabsTrigger value="facial" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-seguranca-black">
               <Camera className="w-4 h-4 mr-2" />
               Login Facial
             </TabsTrigger>
-            <TabsTrigger value="visitas" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-seguranca-black">
+            <TabsTrigger value="visitas" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-seguranca-black">
               <MapPin className="w-4 h-4 mr-2" />
               Visitas
             </TabsTrigger>
-            <TabsTrigger value="rotas" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-seguranca-black">
+            <TabsTrigger value="rotas" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-seguranca-black">
               <Route className="w-4 h-4 mr-2" />
               Rotas
             </TabsTrigger>
-            <TabsTrigger value="config" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-seguranca-black">
+            <TabsTrigger value="config" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-seguranca-black">
               <Settings className="w-4 h-4 mr-2" />
               Config
             </TabsTrigger>

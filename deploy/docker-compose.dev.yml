@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # ========================================
+  # DATABASE
+  # ========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: secured-guard-db-dev
+    env_file:
+      - ./env.dev
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-secured_guard_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-postgressg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ../scripts/init-databases.sh:/docker-entrypoint-initdb.d/01-init-databases.sh:ro
+      - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d/migration:ro
+    networks:
+      - secured-guard-dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgressg}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # REDIS CACHE
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: secured-guard-redis-dev
+    env_file:
+      - ./env.dev
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - secured-guard-dev
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-secured_guard_redis_dev}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-secured_guard_redis_dev}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # BACKEND API
+  # ========================================
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.dev
+    container_name: secured-guard-backend-dev
+    env_file:
+      - ./env.dev
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-secured_guard_dev}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgressg}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+    ports:
+      - "8082:8081"
+    volumes:
+      - backend_logs_dev:/app/logs
+      - backend_uploads_dev:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - secured-guard-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # FRONTEND
+  # ========================================
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.dev
+    container_name: secured-guard-frontend-dev
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+    networks:
+      - secured-guard-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+# ========================================
+# VOLUMES
+# ========================================
+volumes:
+  postgres_data_dev:
+  redis_data_dev:
+  backend_logs_dev:
+  backend_uploads_dev:
+
+# ========================================
+# NETWORKS
+# ========================================
+networks:
+  secured-guard-dev:
+    external: true
+    name: secured-guard

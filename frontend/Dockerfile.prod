@@ -1,47 +1,76 @@
-# Dockerfile para produção do frontend
-FROM node:18-alpine as builder
+# ============================================
+# SECURED GUARD FRONTEND - PRODUÇÃO
+# Multi-stage build com Nginx otimizado
+# ============================================
 
-# Instalar dependências necessárias para build
-RUN apk add --no-cache python3 make g++
+# ============================================
+# STAGE 1: Build
+# ============================================
+FROM node:20-alpine AS builder
 
-# Definir diretório de trabalho
-WORKDIR /app
+WORKDIR /build
 
-# Copiar arquivos de dependências
+# Argumentos de build (variáveis de ambiente do Vite)
+ARG VITE_API_URL
+ARG VITE_WS_URL
+ARG VITE_ENVIRONMENT
+
+# Definir como variáveis de ambiente para o Vite usar durante o build
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_WS_URL=${VITE_WS_URL}
+ENV VITE_ENVIRONMENT=${VITE_ENVIRONMENT}
+
+# Copiar package files
 COPY package*.json ./
 
-# Limpar cache do npm e reinstalar dependências
-RUN npm cache clean --force && \
-    rm -rf node_modules package-lock.json && \
-    npm install --include=dev
+# Instalar dependências
+RUN npm ci
 
 # Copiar código fonte
 COPY . .
 
-# Build da aplicação
+# Build para produção
 RUN npm run build
 
-# Limpar dependências de desenvolvimento após build
-RUN npm prune --omit=dev
+# ============================================
+# STAGE 2: Runtime com Nginx
+# ============================================
+FROM nginx:1.25-alpine AS production
 
-# Stage de produção com nginx
-FROM nginx:alpine
+# Metadados
+LABEL maintainer="Secured Guard Team"
+LABEL environment="production"
+LABEL version="1.0.0"
 
 # Instalar curl para health check
 RUN apk add --no-cache curl
 
-# Copiar arquivos buildados
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Remover configuração padrão do Nginx
+RUN rm /etc/nginx/conf.d/default.conf
 
-# Copiar configuração customizada do nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copiar configuração customizada do Nginx
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+
+# Copiar build do builder
+COPY --from=builder /build/dist /usr/share/nginx/html
+
+# Configurar permissões para usuário nginx
+# (A imagem nginx:alpine já vem com usuário/grupo nginx criados)
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid
+
+USER nginx
 
 # Expor porta
 EXPOSE 80
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost/ || exit 1
 
-# Comando para produção
+# Executar Nginx
 CMD ["nginx", "-g", "daemon off;"]

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,6 +77,19 @@ const WorkPostFormModal: React.FC<WorkPostFormModalProps> = ({
 
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  const generatePostCodeFromName = (name: string) => {
+    if (!name) return '';
+    const normalized = name
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .replace(/[^a-zA-Z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-');
+    const slug = normalized.toUpperCase().replace(/-+/g, '-').slice(0, 28);
+    const hasSuffix = /-\d{2,}$/.test(slug);
+    return hasSuffix ? slug : `${slug}-001`;
+  };
 
   useEffect(() => {
     if (workPost) {
@@ -257,13 +270,32 @@ const WorkPostFormModal: React.FC<WorkPostFormModalProps> = ({
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="postCode">Código do Posto *</Label>
-              <Input
-                id="postCode"
-                value={formData.postCode}
-                onChange={(e) => handleInputChange('postCode', e.target.value)}
-                placeholder="Ex: POSTO-001"
-                required
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  id="postCode"
+                  value={formData.postCode}
+                  onChange={(e) => handleInputChange('postCode', e.target.value)}
+                  placeholder="Ex: POSTO-001"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const code = generatePostCodeFromName(formData.name);
+                    if (!code) {
+                      toast({ title: 'Informe o Nome do Posto', description: 'Preencha o campo Nome do Posto para gerar o código automaticamente.', variant: 'default' });
+                      return;
+                    }
+                    setFormData(prev => ({ ...prev, postCode: code }));
+                  }}
+                  disabled={!formData.name}
+                  className="border-gray-600 text-gray-300 hover:bg-seguranca-black"
+                  title="Gerar código a partir do nome"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             
             <div className="space-y-2">

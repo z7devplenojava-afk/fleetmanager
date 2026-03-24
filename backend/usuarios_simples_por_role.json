@@ -1,0 +1,66 @@
+[
+  {
+    "username": "superadmin",
+    "email": "superadmin@promover.com",
+    "password": "Password123!",
+    "name": "Super Administrador",
+    "fullName": "Super Administrador do Sistema",
+    "role": "SUPER_ADMIN"
+  },
+  {
+    "username": "admin",
+    "email": "admin@promover.com",
+    "password": "Password123!",
+    "name": "Administrador",
+    "fullName": "Administrador do Sistema",
+    "role": "ADMIN"
+  },
+  {
+    "username": "supervisor",
+    "email": "supervisor@promover.com",
+    "password": "Password123!",
+    "name": "Supervisor",
+    "fullName": "Supervisor de Operações",
+    "role": "SUPERVISOR"
+  },
+  {
+    "username": "rhumanos",
+    "email": "rh@promover.com",
+    "password": "Password123!",
+    "name": "Recursos Humanos",
+    "fullName": "Recursos Humanos",
+    "role": "RH"
+  },
+  {
+    "username": "financeiro",
+    "email": "financeiro@promover.com",
+    "password": "Password123!",
+    "name": "Financeiro",
+    "fullName": "Departamento Financeiro",
+    "role": "FINANCEIRO"
+  },
+  {
+    "username": "tisuporte",
+    "email": "ti@promover.com",
+    "password": "Password123!",
+    "name": "TI Suporte",
+    "fullName": "TI e Suporte Técnico",
+    "role": "TI_SUPORTE"
+  },
+  {
+    "username": "auditor",
+    "email": "auditor@promover.com",
+    "password": "Password123!",
+    "name": "Auditor",
+    "fullName": "Auditor / Consultor",
+    "role": "AUDITOR"
+  },
+  {
+    "username": "colaborador",
+    "email": "colaborador@promover.com",
+    "password": "Password123!",
+    "name": "Colaborador",
+    "fullName": "Colaborador",
+    "role": "COLABORADOR"
+  }
+] 

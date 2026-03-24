@@ -1,0 +1,242 @@
+{
+  "examples": {
+    "createUnit": {
+      "description": "Exemplo de criação de unidade",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/units",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "name": "Unidade BH Shopping",
+        "description": "Unidade operacional no BH Shopping",
+        "address": "Av. Cristiano Machado, 4000 - Belo Horizonte, MG",
+        "phone": "(31) 99999-8888",
+        "email": "bhshopping@securedguard.com",
+        "parentId": null,
+        "clientId": null
+      }
+    },
+    "createUnitWithParent": {
+      "description": "Exemplo de criação de unidade com unidade pai",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/units",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "name": "Subunidade BH Shopping - Setor A",
+        "description": "Subunidade do setor A do BH Shopping",
+        "address": "Av. Cristiano Machado, 4000 - Setor A - Belo Horizonte, MG",
+        "phone": "(31) 99999-7777",
+        "email": "setor.a@securedguard.com",
+        "parentId": "{{parentUnitId}}",
+        "clientId": null
+      }
+    },
+    "createUnitWithClient": {
+      "description": "Exemplo de criação de unidade com cliente",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/units",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "name": "Unidade Cliente ABC",
+        "description": "Unidade dedicada ao cliente ABC",
+        "address": "Rua do Cliente, 123 - Belo Horizonte, MG",
+        "phone": "(31) 88888-9999",
+        "email": "cliente.abc@securedguard.com",
+        "parentId": null,
+        "clientId": 1
+      }
+    },
+    "updateUnit": {
+      "description": "Exemplo de atualização de unidade",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/units/{{unitId}}",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "name": "Unidade BH Shopping - Atualizada",
+        "description": "Unidade operacional no BH Shopping - Versão atualizada",
+        "address": "Av. Cristiano Machado, 4000 - Belo Horizonte, MG",
+        "phone": "(31) 99999-9999",
+        "email": "bhshopping.updated@securedguard.com",
+        "parentId": null,
+        "clientId": null
+      }
+    },
+    "updateUnitPartial": {
+      "description": "Exemplo de atualização parcial de unidade",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/units/{{unitId}}",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      },
+      "body": {
+        "phone": "(31) 99999-0000",
+        "email": "novo.email@securedguard.com"
+      }
+    },
+    "listUnits": {
+      "description": "Listar todas as unidades",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/units",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      }
+    },
+    "getUnitById": {
+      "description": "Buscar unidade por ID",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/units/{{unitId}}",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      }
+    },
+    "getUnitByName": {
+      "description": "Buscar unidade por nome",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/units/name/{{unitName}}",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      }
+    },
+    "getUnitByEmail": {
+      "description": "Buscar unidade por email",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/units/email/{{unitEmail}}",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      }
+    },
+    "getUnitsByAddress": {
+      "description": "Buscar unidades por endereço",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/units/address/{{address}}",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      }
+    },
+    "getUnitsByParent": {
+      "description": "Buscar subunidades",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/units/parent/{{parentUnitId}}",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      }
+    },
+    "deleteUnit": {
+      "description": "Excluir unidade",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/units/{{unitId}}",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      }
+    }
+  },
+  "responses": {
+    "unitResponse": {
+      "id": "575fa8dc-0bbd-4a7f-91b9-84f4741d9196",
+      "name": "Unidade BH Shopping",
+      "description": "Unidade operacional no BH Shopping",
+      "address": "Av. Cristiano Machado, 4000 - Belo Horizonte, MG",
+      "phone": "(31) 99999-8888",
+      "email": "bhshopping@securedguard.com",
+      "parentId": null,
+      "clientId": null,
+      "createdAt": "2025-06-25T08:30:00",
+      "updatedAt": "2025-06-25T08:30:00"
+    },
+    "unitsListResponse": [
+      {
+        "id": "575fa8dc-0bbd-4a7f-91b9-84f4741d9196",
+        "name": "Unidade BH Shopping",
+        "description": "Unidade operacional no BH Shopping",
+        "address": "Av. Cristiano Machado, 4000 - Belo Horizonte, MG",
+        "phone": "(31) 99999-8888",
+        "email": "bhshopping@securedguard.com",
+        "parentId": null,
+        "clientId": null,
+        "createdAt": "2025-06-25T08:30:00",
+        "updatedAt": "2025-06-25T08:30:00"
+      },
+      {
+        "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+        "name": "Unidade Centro",
+        "description": "Unidade operacional no centro da cidade",
+        "address": "Rua da Liberdade, 100 - Centro - Belo Horizonte, MG",
+        "phone": "(31) 88888-7777",
+        "email": "centro@securedguard.com",
+        "parentId": null,
+        "clientId": 1,
+        "createdAt": "2025-06-25T07:15:00",
+        "updatedAt": "2025-06-25T07:15:00"
+      }
+    ],
+    "errorResponse": {
+      "timestamp": "2025-06-25T08:30:00",
+      "status": 400,
+      "error": "Bad Request",
+      "message": "Validation failed",
+      "path": "/api/units",
+      "details": {
+        "name": "Name is required",
+        "address": "Address is required"
+      }
+    },
+    "notFoundResponse": {
+      "timestamp": "2025-06-25T08:30:00",
+      "status": 404,
+      "error": "Resource Not Found",
+      "message": "Unit not found with id: invalid-id",
+      "path": "/api/units/invalid-id"
+    }
+  },
+  "validationRules": {
+    "name": {
+      "required": true,
+      "minLength": 3,
+      "maxLength": 100,
+      "message": "Name must be between 3 and 100 characters"
+    },
+    "description": {
+      "required": false,
+      "maxLength": 500,
+      "message": "Description cannot exceed 500 characters"
+    },
+    "address": {
+      "required": true,
+      "minLength": 5,
+      "maxLength": 255,
+      "message": "Address must be between 5 and 255 characters"
+    },
+    "phone": {
+      "required": false,
+      "pattern": "^(\\()?[0-9]{2}(\\))?\\s?[0-9]{4,5}-?[0-9]{4}$",
+      "message": "Phone number must be in the format (XX) XXXX-XXXX or (XX) XXXXX-XXXX"
+    },
+    "email": {
+      "required": false,
+      "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+      "message": "Invalid email format"
+    },
+    "parentId": {
+      "required": false,
+      "type": "UUID",
+      "message": "Parent ID must be a valid UUID"
+    },
+    "clientId": {
+      "required": false,
+      "type": "Long",
+      "message": "Client ID must be a valid number"
+    }
+  }
+} 

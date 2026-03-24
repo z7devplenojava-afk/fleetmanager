@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { Plus, Search, Filter, Download, Eye, Edit, Trash2, AlertTriangle, Calendar, DollarSign, FileText, TrendingUp, BarChart3, PieChart } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import { ContasAPagarTable } from './ContasAPagarTable';
 import { ContasAPagarDashboard } from './ContasAPagarDashboard';
 import { ContasAPagarFormModal } from './ContasAPagarFormModal';
@@ -60,9 +62,17 @@ export const ContasAPagar: React.FC = () => {
     }
   };
 
-  const handleEdit = (conta: ContaAPagar) => {
-    setEditingConta(conta);
-    setShowFormModal(true);
+  const handleEdit = async (conta: ContaAPagar) => {
+    try {
+      // Buscar a conta completa para garantir campos como companySigla e datas corretas
+      const full = await contasAPagarService.getContaAPagarById(conta.id!);
+      setEditingConta(full);
+    } catch (e) {
+      // fallback com o objeto atual
+      setEditingConta(conta);
+    } finally {
+      setShowFormModal(true);
+    }
   };
 
   const handleView = (conta: ContaAPagar) => {
@@ -107,15 +117,93 @@ export const ContasAPagar: React.FC = () => {
   const handleExportPDF = async () => {
     setExportLoading(true);
     try {
-      // Implementar exportação PDF
+      // Usar as contas já filtradas no frontend
+      const contasParaExportar = filteredContas;
+
+      if (contasParaExportar.length === 0) {
+        toast({
+          title: 'Aviso',
+          description: 'Não há contas para exportar com os filtros aplicados.',
+          variant: 'destructive'
+        });
+        setExportLoading(false);
+        return;
+      }
+
+      // Criar PDF usando jsPDF
+      const doc = new jsPDF('landscape'); // Modo paisagem para mais espaço
+      
+      // Título
+      doc.setFontSize(16);
+      doc.text('Relatório de Contas a Pagar', 14, 15);
+      
+      // Informações do período
+      doc.setFontSize(10);
+      const periodoTexto = dateRange?.from && dateRange?.to
+        ? `Período: ${format(dateRange.from, 'dd/MM/yyyy', { locale: ptBR })} a ${format(dateRange.to, 'dd/MM/yyyy', { locale: ptBR })}`
+        : 'Período: Todos';
+      doc.text(periodoTexto, 14, 22);
+      doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 27);
+      doc.text(`Total de contas: ${contasParaExportar.length}`, 14, 32);
+
+      // Preparar dados da tabela
+      const tableData = contasParaExportar.map(conta => [
+        format(new Date(conta.vencimento), 'dd/MM/yyyy', { locale: ptBR }),
+        conta.fornecedor?.nome || 'Não informado',
+        conta.descricao || '',
+        conta.empresa || '',
+        conta.tipo || '',
+        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(conta.valor),
+        conta.status || '',
+        conta.dataPagamento ? format(new Date(conta.dataPagamento), 'dd/MM/yyyy', { locale: ptBR }) : '-'
+      ]);
+
+      // Adicionar tabela
+      (doc as any).autoTable({
+        head: [['Vencimento', 'Fornecedor', 'Descrição', 'Empresa', 'Tipo', 'Valor', 'Status', 'Dt. Pagamento']],
+        body: tableData,
+        startY: 38,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [66, 139, 202], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { top: 38 },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 25 },
+          5: { cellWidth: 30, halign: 'right' },
+          6: { cellWidth: 25 },
+          7: { cellWidth: 25 }
+        }
+      });
+
+      // Calcular totais
+      const valorTotal = contasParaExportar.reduce((sum, conta) => sum + conta.valor, 0);
+      const finalY = (doc as any).lastAutoTable.finalY || 38;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'bold');
+      doc.text(
+        `Valor Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorTotal)}`,
+        14,
+        finalY + 10
+      );
+
+      // Salvar PDF
+      const fileName = `contas-a-pagar-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      doc.save(fileName);
+
       toast({
         title: 'Sucesso',
-        description: 'Relatório PDF gerado com sucesso'
+        description: 'Relatório PDF gerado e baixado com sucesso'
       });
     } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao gerar relatório PDF',
+        description: 'Erro ao gerar relatório PDF. Tente novamente.',
         variant: 'destructive'
       });
     } finally {
@@ -126,15 +214,38 @@ export const ContasAPagar: React.FC = () => {
   const handleExportExcel = async () => {
     setExportLoading(true);
     try {
-      // Implementar exportação Excel
+      // Preparar filtros para exportação
+      const filtros: any = {};
+      if (searchTerm) filtros.searchTerm = searchTerm;
+      if (statusFilter !== 'all') filtros.status = statusFilter;
+      if (tipoFilter !== 'all') filtros.type = tipoFilter;
+      if (fornecedorFilter !== 'all') filtros.supplierId = fornecedorFilter;
+      if (centroCustoFilter !== 'all') filtros.centroCusto = centroCustoFilter;
+      if (dateRange?.from) filtros.startDate = format(dateRange.from, 'yyyy-MM-dd');
+      if (dateRange?.to) filtros.endDate = format(dateRange.to, 'yyyy-MM-dd');
+
+      // Chamar serviço de exportação
+      const blob = await contasAPagarService.exportarDados('excel', filtros);
+
+      // Criar URL do blob e fazer download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contas-a-pagar-${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
       toast({
         title: 'Sucesso',
-        description: 'Relatório Excel gerado com sucesso'
+        description: 'Relatório Excel gerado e baixado com sucesso'
       });
     } catch (error) {
+      console.error('Erro ao exportar Excel:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao gerar relatório Excel',
+        description: 'Erro ao gerar relatório Excel. Verifique se há contas para exportar.',
         variant: 'destructive'
       });
     } finally {
@@ -361,6 +472,7 @@ export const ContasAPagar: React.FC = () => {
         open={showFormModal}
         onOpenChange={setShowFormModal}
         onSuccess={handleFormSuccess}
+        editMode={!!editingConta}
         initialData={editingConta}
       />
 

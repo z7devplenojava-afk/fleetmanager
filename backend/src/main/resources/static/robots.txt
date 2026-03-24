@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://promover.com.br/sitemap.xml
+
+# Disallow admin areas
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /login/
+Disallow: /api/
+
+# Allow public areas
+Allow: /portal/
+Allow: /portal/vagas/
+
+# Crawl-delay
+Crawl-delay: 1

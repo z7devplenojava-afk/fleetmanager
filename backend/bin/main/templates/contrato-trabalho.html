@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Contrato de Trabalho</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      font-size: 11px; 
+      margin: 20px;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .header { 
+      text-align: center; 
+      margin-bottom: 30px;
+      border-bottom: 3px solid #333;
+      padding-bottom: 10px;
+    }
+    
+    .header h1 { 
+      font-size: 18px; 
+      margin: 0 0 5px 0;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+    
+    .header p {
+      margin: 2px 0;
+      font-size: 10px;
+      color: #666;
+    }
+    
+    .secao { 
+      margin-bottom: 20px;
+      page-break-inside: avoid;
+    }
+    
+    .secao-titulo {
+      background-color: #f5f5f5;
+      padding: 6px 10px;
+      font-weight: bold;
+      font-size: 12px;
+      border-left: 4px solid #333;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+    
+    table.info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+    
+    table.info-table td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      background-color: #fafafa;
+      vertical-align: top;
+    }
+    
+    table.info-table td.label {
+      font-weight: bold;
+      font-size: 9px;
+      text-transform: uppercase;
+      color: #666;
+      width: 30%;
+    }
+    
+    table.info-table td.valor {
+      font-size: 11px;
+      color: #333;
+      width: 70%;
+    }
+    
+    .texto-contrato {
+      text-align: justify;
+      margin: 15px 0;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      line-height: 1.8;
+      font-size: 11px;
+    }
+    
+    .clausula {
+      margin: 15px 0;
+      padding: 10px;
+      background-color: #fafafa;
+      border-left: 3px solid #666;
+    }
+    
+    .clausula-titulo {
+      font-weight: bold;
+      font-size: 11px;
+      margin-bottom: 5px;
+      color: #333;
+    }
+    
+    .clausula-texto {
+      font-size: 10px;
+      text-align: justify;
+      line-height: 1.7;
+    }
+    
+    .assinatura-table {
+      width: 100%;
+      margin-top: 50px;
+      border-collapse: collapse;
+    }
+    
+    .assinatura-table td {
+      text-align: center;
+      padding: 40px 20px 0 20px;
+      vertical-align: top;
+      width: 50%;
+    }
+    
+    .linha-assinatura {
+      border-top: 2px solid #333;
+      margin-bottom: 8px;
+      padding-top: 8px;
+    }
+    
+    .assinatura-nome {
+      font-weight: bold;
+      font-size: 11px;
+    }
+    
+    .assinatura-info {
+      font-size: 9px;
+      color: #666;
+      margin-top: 3px;
+    }
+    
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 9px;
+      color: #999;
+      border-top: 1px solid #ddd;
+      padding-top: 10px;
+    }
+    
+    .data-local {
+      text-align: right;
+      font-size: 10px;
+      margin-bottom: 20px;
+      color: #666;
+    }
+    
+    .beneficios-list {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    
+    .beneficios-list li {
+      margin: 5px 0;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Cabeçalho -->
+  <div class="header">
+    <h1>Contrato de Trabalho</h1>
+    <p>Conforme disposto na Consolidação das Leis do Trabalho (CLT)</p>
+  </div>
+  
+  <!-- Data e Local -->
+  <div class="data-local">
+    <b>Data:</b> <span th:text="${dataAtual}"></span>
+  </div>
+  
+  <!-- Identificação das Partes -->
+  <div class="texto-contrato">
+    <p>
+      Pelo presente instrumento particular de <b>CONTRATO DE TRABALHO</b>, de um lado, 
+      <b><span th:text="${empresa}">EMPRESA</span></b>, pessoa jurídica de direito privado, 
+      inscrita no CNPJ sob o nº <b><span th:text="${cnpj}">00.000.000/0000-00</span></b>, 
+      com sede em <span th:text="${enderecoEmpresa}">Endereço</span>, 
+      doravante denominada <b>EMPREGADORA</b>, e de outro lado, 
+      <b><span th:text="${funcionario}">FUNCIONÁRIO</span></b>, 
+      <span th:text="${nacionalidade} ?: 'brasileiro(a)'">brasileiro(a)</span>, 
+      <span th:text="${estadoCivil} ?: ''"></span>, 
+      portador(a) do CPF nº <span th:text="${cpf}">000.000.000-00</span>, 
+      <span th:if="${rg != null and rg != ''}">RG nº <span th:text="${rg}"></span>,</span>
+      <span th:if="${ctps != null and ctps != ''}">CTPS nº <span th:text="${ctps}"></span>,</span>
+      residente e domiciliado(a) em <span th:text="${endereco}">Endereço</span>, 
+      doravante denominado(a) <b>EMPREGADO(A)</b>, 
+      têm entre si justo e contratado o presente contrato de trabalho, que se regerá pelas cláusulas seguintes:
+    </p>
+  </div>
+  
+  <!-- Dados do Contrato -->
+  <div class="secao">
+    <div class="secao-titulo">Dados do Contrato</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">Cargo:</td>
+        <td class="valor" th:text="${cargo}">-</td>
+      </tr>
+      <tr>
+        <td class="label">Tipo de Contrato:</td>
+        <td class="valor" th:text="${tipoContrato}">-</td>
+      </tr>
+      <tr th:if="${isExperienceContract != null and isExperienceContract == true}" style="background-color: #fff3cd;">
+        <td class="label" style="color: #856404;">Duração da Experiência:</td>
+        <td class="valor" style="font-weight: bold; color: #856404;" th:text="${experienceDuration} ?: '-'">-</td>
+      </tr>
+      <tr>
+        <td class="label">Departamento/Centro de Custo:</td>
+        <td class="valor">
+          <span th:text="${departamento} ?: '-'">-</span>
+          <span th:if="${departamentoCode != null and departamentoCode != ''}" th:text="' (' + ${departamentoCode} + ')'"></span>
+        </td>
+      </tr>
+      <tr>
+        <td class="label">Data de Início:</td>
+        <td class="valor" th:text="${dataInicio}">-</td>
+      </tr>
+      <tr>
+        <td class="label">Data de Término:</td>
+        <td class="valor" th:text="${dataFim}">-</td>
+      </tr>
+      <tr>
+        <td class="label">Salário Base:</td>
+        <td class="valor" th:text="'R$ ' + ${salario}">-</td>
+      </tr>
+      <tr>
+        <td class="label">Jornada de Trabalho:</td>
+        <td class="valor" th:text="${jornada}">-</td>
+      </tr>
+      <tr th:if="${supervisor != null and supervisor != ''}">
+        <td class="label">Supervisor:</td>
+        <td class="valor" th:text="${supervisor}">-</td>
+      </tr>
+    </table>
+  </div>
+  
+  <!-- Cláusulas do Contrato -->
+  <div class="secao">
+    <div class="secao-titulo">Cláusulas Contratuais</div>
+    
+    <div class="clausula">
+      <div class="clausula-titulo">CLÁUSULA PRIMEIRA - DO OBJETO</div>
+      <div class="clausula-texto">
+        O presente contrato tem por objeto a prestação de serviços do(a) EMPREGADO(A) 
+        à EMPREGADORA, no cargo de <b><span th:text="${cargo}">CARGO</span></b>, 
+        devendo o(a) EMPREGADO(A) executar todas as atividades inerentes ao cargo 
+        e outras que lhe forem atribuídas pela EMPREGADORA, observadas as suas 
+        qualificações e aptidões profissionais.
+      </div>
+    </div>
+    
+    <div class="clausula">
+      <div class="clausula-titulo">CLÁUSULA SEGUNDA - DA JORNADA DE TRABALHO</div>
+      <div class="clausula-texto">
+        A jornada de trabalho do(a) EMPREGADO(A) será de <b><span th:text="${jornada}">JORNADA</span></b>, 
+        podendo ser ajustada conforme as necessidades da EMPREGADORA, respeitados os 
+        limites estabelecidos pela legislação trabalhista vigente.
+      </div>
+    </div>
+    
+    <div class="clausula">
+      <div class="clausula-titulo">CLÁUSULA TERCEIRA - DA REMUNERAÇÃO</div>
+      <div class="clausula-texto">
+        O(A) EMPREGADO(A) receberá da EMPREGADORA, a título de salário mensal, 
+        o valor de <b>R$ <span th:text="${salario}">0,00</span></b>, 
+        que será pago até o 5º (quinto) dia útil do mês subsequente ao trabalhado, 
+        mediante depósito em conta bancária indicada pelo(a) EMPREGADO(A).
+      </div>
+    </div>
+    
+    <div class="clausula" th:if="${beneficios != null and beneficios != ''}">
+      <div class="clausula-titulo">CLÁUSULA QUARTA - DOS BENEFÍCIOS</div>
+      <div class="clausula-texto">
+        Além do salário base, o(a) EMPREGADO(A) fará jus aos seguintes benefícios:
+        <ul class="beneficios-list" th:if="${beneficios != null and beneficios != ''}">
+          <li th:each="beneficio : ${#strings.arraySplit(beneficios, ',')}" th:text="${beneficio}">Benefício</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="clausula">
+      <div class="clausula-titulo">CLÁUSULA QUINTA - DAS OBRIGAÇÕES DO EMPREGADO</div>
+      <div class="clausula-texto">
+        São obrigações do(a) EMPREGADO(A):
+        <ul class="beneficios-list">
+          <li>Cumprir fielmente as ordens e instruções da EMPREGADORA;</li>
+          <li>Observar as normas de segurança e medicina do trabalho;</li>
+          <li>Guardar sigilo sobre informações confidenciais da EMPREGADORA;</li>
+          <li>Zelar pela conservação dos bens e equipamentos da EMPREGADORA;</li>
+          <li>Manter conduta compatível com os padrões éticos e profissionais;</li>
+          <li>Comunicar imediatamente qualquer irregularidade;</li>
+          <li>Cumprir a jornada de trabalho estabelecida;</li>
+          <li>Apresentar atestados médicos em caso de falta por motivo de saúde.</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="clausula">
+      <div class="clausula-titulo">CLÁUSULA SEXTA - DAS OBRIGAÇÕES DA EMPREGADORA</div>
+      <div class="clausula-texto">
+        São obrigações da EMPREGADORA:
+        <ul class="beneficios-list">
+          <li>Efetuar o pagamento do salário na forma e prazo estabelecidos;</li>
+          <li>Fornecer ambiente de trabalho seguro e adequado;</li>
+          <li>Respeitar a dignidade e os direitos do(a) EMPREGADO(A);</li>
+          <li>Cumprir todas as obrigações previstas na legislação trabalhista;</li>
+          <li>Fornecer os equipamentos necessários para execução do trabalho;</li>
+          <li>Conceder férias anuais remuneradas;</li>
+          <li>Recolher as contribuições previdenciárias e FGTS;</li>
+          <li>Fornecer comprovante de pagamento mensal.</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="clausula" th:if="${isExperienceContract != null and isExperienceContract == true}" style="background-color: #fff3cd; border-left-color: #ffc107;">
+      <div class="clausula-titulo" style="color: #856404;">CLÁUSULA SÉTIMA - DO CONTRATO DE EXPERIÊNCIA</div>
+      <div class="clausula-texto">
+        O presente contrato é celebrado a título de <b>EXPERIÊNCIA</b>, com duração de 
+        <b><span th:text="${experienceDuration}">XX dias</span></b>, conforme o art. 443, §2º, alínea "c" da CLT. 
+        Durante este período, ambas as partes poderão avaliar a conveniência da continuidade da relação de emprego. 
+        Ao término do prazo de experiência, o contrato poderá ser:
+        <ul class="beneficios-list">
+          <li><b>Convertido em contrato por prazo indeterminado</b>, caso ambas as partes manifestem interesse na continuidade;</li>
+          <li><b>Rescindido automaticamente</b> ao final do período, sem ônus para qualquer das partes;</li>
+          <li><b>Rescindido antecipadamente</b> por qualquer das partes, mediante o pagamento de indenização correspondente à metade da remuneração devida até o término do contrato.</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="clausula">
+      <div class="clausula-titulo" th:text="${isExperienceContract != null and isExperienceContract == true} ? 'CLÁUSULA OITAVA - DA RESCISÃO' : 'CLÁUSULA SÉTIMA - DA RESCISÃO'">CLÁUSULA SÉTIMA - DA RESCISÃO</div>
+      <div class="clausula-texto">
+        <span th:if="${isExperienceContract != null and isExperienceContract == true}">
+          Findo o período de experiência sem manifestação em contrário, o contrato será automaticamente 
+          convertido em contrato por prazo indeterminado, aplicando-se as regras gerais de rescisão.
+        </span>
+        <span th:unless="${isExperienceContract != null and isExperienceContract == true}">
+          O presente contrato poderá ser rescindido por qualquer das partes, 
+          mediante aviso prévio de 30 (trinta) dias, ou indenização correspondente, 
+          nos termos da legislação trabalhista vigente. A rescisão imotivada 
+          por iniciativa da EMPREGADORA ensejará o pagamento de todas as verbas 
+          rescisórias previstas na CLT.
+        </span>
+      </div>
+    </div>
+    
+    <div class="clausula">
+      <div class="clausula-titulo" th:text="${isExperienceContract != null and isExperienceContract == true} ? 'CLÁUSULA NONA - DAS DISPOSIÇÕES GERAIS' : 'CLÁUSULA OITAVA - DAS DISPOSIÇÕES GERAIS'">CLÁUSULA OITAVA - DAS DISPOSIÇÕES GERAIS</div>
+      <div class="clausula-texto">
+        O presente contrato é regido pelas disposições da Consolidação das Leis 
+        do Trabalho (CLT) e legislação trabalhista complementar. Quaisquer alterações 
+        nas condições aqui estabelecidas somente terão validade se formalizadas 
+        por escrito e assinadas por ambas as partes.
+      </div>
+    </div>
+    
+    <div class="clausula" th:if="${observacoes != null and observacoes != ''}">
+      <div class="clausula-titulo" th:text="${isExperienceContract != null and isExperienceContract == true} ? 'CLÁUSULA DÉCIMA - OBSERVAÇÕES ADICIONAIS' : 'CLÁUSULA NONA - OBSERVAÇÕES ADICIONAIS'">CLÁUSULA NONA - OBSERVAÇÕES ADICIONAIS</div>
+      <div class="clausula-texto" th:text="${observacoes}">
+        Observações adicionais
+      </div>
+    </div>
+  </div>
+  
+  <!-- Declaração Final -->
+  <div class="texto-contrato" style="background-color: #e3f2fd; border-color: #2196F3;">
+    <p style="text-align: center; font-weight: bold; font-size: 12px;">DECLARAÇÃO</p>
+    <p style="margin-top: 10px;">
+      E por estarem assim justos e contratados, assinam o presente instrumento 
+      em 2 (duas) vias de igual teor e forma, na presença de 2 (duas) testemunhas, 
+      para que produza seus efeitos legais.
+    </p>
+  </div>
+  
+  <!-- Assinaturas -->
+  <table class="assinatura-table">
+    <tr>
+      <td>
+        <div class="linha-assinatura">
+          <div class="assinatura-nome" th:text="${empresa}">Empresa</div>
+          <div class="assinatura-info">Representante Legal (Empregadora)</div>
+          <div class="assinatura-info" th:text="'CNPJ: ' + ${cnpj}">CNPJ:</div>
+        </div>
+      </td>
+      <td>
+        <div class="linha-assinatura">
+          <div class="assinatura-nome" th:text="${funcionario}">Funcionário</div>
+          <div class="assinatura-info">Empregado(a)</div>
+          <div class="assinatura-info" th:text="'CPF: ' + ${cpf}">CPF:</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+  
+  <!-- Testemunhas -->
+  <table class="assinatura-table" style="margin-top: 30px;">
+    <tr>
+      <td>
+        <div class="linha-assinatura">
+          <div class="assinatura-nome">Testemunha 1</div>
+          <div class="assinatura-info">Nome: _____________________________</div>
+          <div class="assinatura-info">CPF: _____________________________</div>
+        </div>
+      </td>
+      <td>
+        <div class="linha-assinatura">
+          <div class="assinatura-nome">Testemunha 2</div>
+          <div class="assinatura-info">Nome: _____________________________</div>
+          <div class="assinatura-info">CPF: _____________________________</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+  
+  <!-- Rodapé -->
+  <div class="footer">
+    <p>Contrato gerado em <span th:text="${dataAtual}"></span></p>
+    <p>Este documento está em conformidade com a Consolidação das Leis do Trabalho (CLT - Decreto-Lei nº 5.452/1943).</p>
+  </div>
+  
+</body>
+</html>
+

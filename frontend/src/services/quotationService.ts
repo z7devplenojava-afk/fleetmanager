@@ -11,6 +11,9 @@ export interface Quotation {
   supplierName?: string;
   unitId?: string;
   unitName?: string;
+  purchaseRequestId?: string;
+  purchaseRequestNumber?: string;
+  purchaseRequestTitle?: string;
   status: QuotationStatus;
   totalValue: number;
   validUntil: string;
@@ -30,6 +33,7 @@ export interface CreateQuotationRequest {
   title: string;
   description?: string;
   supplierId?: string;
+  purchaseRequestId?: string;
   unitId?: string;
   totalValue: number;
   validUntil: string;
@@ -45,7 +49,7 @@ export interface UpdateQuotationRequest extends Partial<CreateQuotationRequest> 
 }
 
 class QuotationService {
-  private base = '/purchase-quotations';
+  private base = '/api/purchase-quotations';
 
   async getAll(): Promise<Quotation[]> {
     const { data } = await api.get(this.base);

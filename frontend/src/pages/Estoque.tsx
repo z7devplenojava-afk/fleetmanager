@@ -25,6 +25,8 @@ import {
   Trash2,
   Eye
 } from 'lucide-react';
+import { contasAPagarService, Supplier } from '@/services/contasAPagarService';
+import { SupplierFormModal } from '@/components/estoque/SupplierFormModal';
 
 export default function Estoque() {
   const { toast } = useToast();
@@ -38,6 +40,12 @@ export default function Estoque() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
   const [abcFilter, setAbcFilter] = useState('all');
+  // Suppliers state
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [supplierLoading, setSupplierLoading] = useState(false);
+  const [supplierModalOpen, setSupplierModalOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   
   // Estatísticas
   const [stats, setStats] = useState({
@@ -51,6 +59,7 @@ export default function Estoque() {
   useEffect(() => {
     loadProducts();
     loadStats();
+    loadSuppliers();
   }, []);
 
   useEffect(() => {
@@ -71,6 +80,36 @@ export default function Estoque() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadSuppliers = async () => {
+    try {
+      setSupplierLoading(true);
+      const data = await contasAPagarService.getFornecedores();
+      setSuppliers(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('Erro ao carregar fornecedores:', e);
+      toast({ title: 'Erro', description: 'Erro ao carregar fornecedores.', variant: 'destructive' });
+    } finally {
+      setSupplierLoading(false);
+    }
+  };
+
+  const handleSaveSupplier = async (payload: any) => {
+    if (editingSupplier) {
+      await contasAPagarService.updateFornecedor(String(editingSupplier.id), payload);
+    } else {
+      await contasAPagarService.createFornecedor(payload);
+    }
+    await loadSuppliers();
+    setSupplierModalOpen(false);
+    setEditingSupplier(null);
+  };
+
+  const handleDeleteSupplier = async (s: Supplier) => {
+    if (!window.confirm('Excluir este fornecedor?')) return;
+    await contasAPagarService.deleteFornecedor(String(s.id));
+    await loadSuppliers();
   };
 
   const loadStats = async () => {
@@ -397,6 +436,14 @@ export default function Estoque() {
           </CardContent>
         </Card>
 
+        {/* Abas Produtos/Fornecedores */}
+        <Tabs defaultValue="produtos" className="mt-4">
+          <TabsList>
+            <TabsTrigger value="produtos">Produtos</TabsTrigger>
+            <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="produtos">
         {/* Tabela de Produtos */}
         <Card>
           <CardHeader>
@@ -517,14 +564,92 @@ export default function Estoque() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
 
-        {/* Modal de Formulário */}
+          <TabsContent value="fornecedores">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Fornecedores ({suppliers.length})</CardTitle>
+                  <Button onClick={() => { setEditingSupplier(null); setSupplierModalOpen(true); }}>
+                    <Plus className="w-4 h-4 mr-2" /> Novo Fornecedor
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-3 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input className="pl-8" placeholder="Buscar fornecedor..." value={supplierSearch} onChange={(e) => setSupplierSearch(e.target.value)} />
+                  </div>
+                  <Button variant="outline" onClick={loadSuppliers}>
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                </div>
+                {supplierLoading ? (
+                  <div className="flex justify-center items-center h-24"><RefreshCw className="w-6 h-6 animate-spin" /></div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>CNPJ</TableHead>
+                          <TableHead>Cidade/UF</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {suppliers.filter(s => {
+                          const q = supplierSearch.trim().toLowerCase();
+                          if (!q) return true;
+                          return (s.name || '').toLowerCase().includes(q) || (s.cnpj || '').toLowerCase().includes(q);
+                        }).map((s) => (
+                          <TableRow key={String(s.id)}>
+                            <TableCell>{s.name}</TableCell>
+                            <TableCell>{s.cnpj || '-'}</TableCell>
+                            <TableCell>{s.city ? `${s.city}/${s.state || ''}` : '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant={s.isActive ? 'default' : 'secondary'}>{s.isActive ? 'Ativo' : 'Inativo'}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => { setEditingSupplier(s); setSupplierModalOpen(true); }}>
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleDeleteSupplier(s)}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Modais */}
+        {/* Modal Item de Produto */}
         <ProductFormModal
           isOpen={isModalOpen}
           onClose={handleCloseModal}
           product={editingProduct}
           onSave={editingProduct ? handleUpdateProduct : handleCreateProduct}
           loading={loading}
+        />
+
+        {/* Modal Fornecedor */}
+        <SupplierFormModal
+          isOpen={supplierModalOpen}
+          onClose={() => { setSupplierModalOpen(false); setEditingSupplier(null); }}
+          supplier={editingSupplier as any}
+          onSave={handleSaveSupplier}
         />
       </div>
     </StandardLayout>

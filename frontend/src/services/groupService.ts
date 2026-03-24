@@ -4,7 +4,7 @@ import { UserGroupData } from '@/types/user';
 export const groupService = {
   // Buscar todos os grupos
   async getGroups(): Promise<UserGroupData[]> {
-    const response = await api.get('/groups');
+    const response = await api.get('/api/groups');
     return response.data;
   },
 
@@ -28,13 +28,13 @@ export const groupService = {
 
   // Buscar permissões do usuário por grupo
   async getUserGroupPermissions(userId: string | number): Promise<any> {
-    const response = await api.get(`/groups/user/${userId}/permissions`);
+    const response = await api.get(`/api/groups/user/${userId}/permissions`);
     return response.data;
   },
 
   // Criar novo grupo
   async createGroup(groupData: Partial<UserGroupData>): Promise<UserGroupData> {
-    const response = await api.post('/groups', groupData);
+    const response = await api.post('/api/groups', groupData);
     return response.data;
   },
 
@@ -59,6 +59,18 @@ export const groupService = {
     await api.delete(`/api/groups/${groupId}/users/${userId}`);
   },
 
+  // Buscar usuários de um grupo
+  async getUsersByGroup(groupId: string): Promise<any[]> {
+    const response = await api.get(`/api/groups/${groupId}/users`);
+    return response.data;
+  },
+
+  // Buscar usuários disponíveis para adicionar ao grupo
+  async getAvailableUsersForGroup(groupId: string): Promise<any[]> {
+    const response = await api.get(`/api/groups/${groupId}/available-users`);
+    return response.data;
+  },
+
   // Adicionar permissão ao grupo
   async addPermissionToGroup(groupId: string, permission: string): Promise<void> {
     await api.post(`/api/groups/${groupId}/permissions`, { permission });
@@ -71,6 +83,6 @@ export const groupService = {
 
   // Inicializar grupos padrão
   async initializeGroups(): Promise<void> {
-    await api.post('/groups/initialize');
+    await api.post('/api/groups/initialize');
   }
 }; 

@@ -8,10 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { userService } from '@/services/userService';
 import { User, UserRole } from '@/types/user';
-import { 
-  Users, 
-  Plus, 
-  Search, 
+import { useNavigate } from 'react-router-dom';
+import {
+  Users,
+  Plus,
+  Search,
   Filter,
   RefreshCw,
   User as UserIcon,
@@ -20,22 +21,30 @@ import {
   Calendar,
   Edit,
   Trash2,
-  Eye
+  Eye,
+  MessageCircle,
+  Send,
+  Bell
 } from 'lucide-react';
-import { useAOS } from '@/hooks/use-aos';
+import { useGSAP } from '@/hooks/use-gsap';
 import { UserViewModal } from '@/components/usuarios/UserViewModal';
 import { UserEditModal } from '@/components/usuarios/UserEditModal';
 import { UserDeleteDialog } from '@/components/usuarios/UserDeleteDialog';
 import { UserCreateModal } from '@/components/usuarios/UserCreateModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 const Usuarios: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'online'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const aos = useAOS();
+  const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
+  useGSAP();
 
   // Estados dos modais
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -50,16 +59,16 @@ const Usuarios: React.FC = () => {
 
   useEffect(() => {
     filterUsers();
-  }, [users, searchTerm, roleFilter]);
+  }, [users, searchTerm, roleFilter, activeTab]);
 
   const loadUsers = async () => {
     try {
       setIsLoading(true);
-      const usersData = await userService.getUsers();
+      const usersData = await userService.getAllUsers();
       setUsers(usersData);
     } catch (error: any) {
       console.error('Erro ao carregar usuários:', error);
-      
+
       if (error.response?.status === 403 || error.response?.status === 401) {
         toast({
           title: 'Acesso Negado',
@@ -91,16 +100,28 @@ const Usuarios: React.FC = () => {
 
     // Filtro por busca
     if (searchTerm) {
+      const normalizedTerm = searchTerm.toLowerCase();
       filtered = filtered.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        extractRoleNames(user.roles).some((r: string) => r.toLowerCase().includes(searchTerm.toLowerCase()))
+        (user.name && user.name.toLowerCase().includes(normalizedTerm)) ||
+        (user.email && user.email.toLowerCase().includes(normalizedTerm)) ||
+        (user.username && user.username.toLowerCase().includes(normalizedTerm)) ||
+        extractRoleNames(user.roles).some((r: string) => r.toLowerCase().includes(normalizedTerm))
       );
     }
 
     // Filtro por role
     if (roleFilter !== 'all') {
       filtered = filtered.filter(user => extractRoleNames(user.roles).includes(roleFilter));
+    }
+
+    const isFlexAdmin = currentUser && (currentUser.role === 'FLEX_ADMIN' || currentUser.role === 'SUPER_ADMIN');
+
+    // Filtro de segurança: esconder usuários FLEX_ADMIN e SUPER_ADMIN de quem não é FlexAdmin
+    if (!isFlexAdmin) {
+      filtered = filtered.filter(user => {
+        const userRoles = extractRoleNames(user.roles);
+        return !userRoles.includes('FLEX_ADMIN') && !userRoles.includes('SUPER_ADMIN');
+      });
     }
 
     setFilteredUsers(filtered);
@@ -181,10 +202,19 @@ const Usuarios: React.FC = () => {
   };
 
   const roles = Array.from(new Set(users.flatMap(user => extractRoleNames(user.roles))));
+  const onlineCount = users.filter(user => Boolean(user.isOnline)).length;
+
+  useWebSocket({
+    token: localStorage.getItem('token') || '',
+    username: currentUser?.username || currentUser?.email || currentUser?.id || '',
+    onUserStatus: (event) => {
+      setUsers(prev => prev.map(u => u.id === event.userId ? { ...u, isOnline: event.isOnline } : u));
+    }
+  });
 
   if (isLoading) {
     return (
-      <StandardLayout 
+      <StandardLayout
         title="Usuários"
         subtitle="Carregando usuários..."
       >
@@ -200,13 +230,13 @@ const Usuarios: React.FC = () => {
   }
 
   return (
-    <StandardLayout 
+    <StandardLayout
       title="Usuários"
-      subtitle={`${filteredUsers.length} usuário${filteredUsers.length !== 1 ? 's' : ''} encontrado${filteredUsers.length !== 1 ? 's' : ''}`}
+      subtitle={`${filteredUsers.length} usuário${filteredUsers.length !== 1 ? 's' : ''} encontrado${filteredUsers.length !== 1 ? 's' : ''} • ${onlineCount} online`}
     >
       <div className="space-y-6">
         {/* Filtros */}
-        <Card className="bg-seguranca-graphite border-gray-600" data-aos={aos.fadeUp}>
+        <Card className="bg-seguranca-graphite border-gray-600" data-animate="fadeUp">
           <CardHeader>
             <CardTitle className="text-seguranca-lightgray">Filtros</CardTitle>
           </CardHeader>
@@ -221,32 +251,56 @@ const Usuarios: React.FC = () => {
                   className="pl-10 bg-seguranca-black border-gray-600 text-seguranca-lightgray"
                 />
               </div>
-              
+
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
                 className="bg-seguranca-black border border-gray-600 rounded-md px-3 py-2 text-seguranca-lightgray"
               >
                 <option value="all">Todos os cargos</option>
-                {roles.map(role => (
-                  <option key={role} value={role}>{getRoleDisplayName(role)}</option>
-                ))}
+                {roles
+                  .filter(role => {
+                    const isFlexAdmin = currentUser && (currentUser.role === 'FLEX_ADMIN' || currentUser.role === 'SUPER_ADMIN');
+                    if (!isFlexAdmin) {
+                      return role !== 'FLEX_ADMIN' && role !== 'SUPER_ADMIN' && role !== 'TI_SUPORTE';
+                    }
+                    return true;
+                  })
+                  .map(role => (
+                    <option key={role} value={role}>{getRoleDisplayName(role)}</option>
+                  ))}
               </select>
-              
-              <Button 
+
+              <Button
                 className="bg-seguranca-red hover:bg-seguranca-darkred"
                 onClick={handleCreateUser}
               >
                 <Plus size={20} className="mr-2" />
                 Novo Usuário
               </Button>
-              
-              <Button 
+            </div>
+            <div className="flex flex-wrap gap-3 mt-4">
+              <Button
+                variant={activeTab === 'all' ? 'default' : 'outline'}
+                className={activeTab === 'all' ? 'bg-seguranca-red hover:bg-seguranca-darkred' : 'border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black'}
+                onClick={() => setActiveTab('all')}
+              >
+                Todos ({users.length})
+              </Button>
+              <Button
+                variant={activeTab === 'online' ? 'default' : 'outline'}
+                className={activeTab === 'online' ? 'bg-emerald-600 hover:bg-emerald-700' : 'border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black'}
+                onClick={() => setActiveTab('online')}
+              >
+                Online ({onlineCount})
+              </Button>
+              <Button
                 variant="outline"
                 className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
                 onClick={() => {
                   setSearchTerm('');
                   setRoleFilter('all');
+                  setActiveTab('all');
                 }}
               >
                 <RefreshCw size={20} className="mr-2" />
@@ -257,9 +311,11 @@ const Usuarios: React.FC = () => {
         </Card>
 
         {/* Lista de Usuários */}
-        <Card className="bg-seguranca-graphite border-gray-600" data-aos={aos.fadeUp}>
+        <Card className="bg-seguranca-graphite border-gray-600" data-animate="fadeUp">
           <CardHeader>
-            <CardTitle className="text-seguranca-lightgray">Lista de Usuários</CardTitle>
+            <CardTitle className="text-seguranca-lightgray">
+              {activeTab === 'online' ? 'Usuários Online em Tempo Real' : 'Lista de Usuários'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {filteredUsers.length === 0 ? (
@@ -269,107 +325,194 @@ const Usuarios: React.FC = () => {
                   Nenhum usuário encontrado
                 </h3>
                 <p className="text-seguranca-lightgray">
-                  {searchTerm || roleFilter !== 'all' 
-                    ? 'Tente ajustar os filtros de busca.' 
-                    : 'Não há usuários cadastrados no sistema.'
+                  {activeTab === 'online'
+                    ? 'Nenhum usuário online no momento.'
+                    : (searchTerm || roleFilter !== 'all'
+                      ? 'Tente ajustar os filtros de busca.'
+                      : 'Não há usuários cadastrados no sistema.'
+                    )
                   }
                 </p>
               </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-600">
-                    <TableHead className="text-seguranca-lightgray">Usuário</TableHead>
-                    <TableHead className="text-seguranca-lightgray">Email</TableHead>
-                    <TableHead className="text-seguranca-lightgray">Cargo</TableHead>
-                    <TableHead className="text-seguranca-lightgray">Status</TableHead>
-                    <TableHead className="text-seguranca-lightgray">Grupos</TableHead>
-                    <TableHead className="text-seguranca-lightgray text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => (
-                    <TableRow key={user.id} className="border-gray-600">
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-seguranca-red rounded-full flex items-center justify-center">
-                            <UserIcon className="text-white" size={20} />
-                          </div>
-                          <div>
-                            <div className="font-medium text-seguranca-lightgray">{user.name}</div>
-                            <div className="text-sm text-gray-400">ID: {user.id}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Mail size={16} className="text-gray-400" />
-                          <span className="text-seguranca-lightgray">{user.email}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {extractRoleNames(user.roles).map((role: string) => (
-                          <Badge key={role} className={getRoleColor(role)}>{getRoleDisplayName(role)}</Badge>
-                        ))}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(user)}>
-                          {getStatusText(user)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {user.groups && user.groups.length > 0 ? (
-                            user.groups.slice(0, 2).map((group) => (
-                              <Badge key={group.id} variant="outline" className="text-xs">
-                                {group.displayName}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-gray-400 text-sm">Sem grupos</span>
-                          )}
-                          {user.groups && user.groups.length > 2 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{user.groups.length - 2}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewUser(user)}
-                            title="Visualizar Usuário"
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditUser(user)}
-                            title="Editar Usuário"
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteUser(user)}
-                            title="Excluir Usuário"
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+            ) : activeTab === 'online' ? (
+              <div className="w-full overflow-x-auto">
+                <Table className="min-w-[900px]">
+                  <TableHeader>
+                    <TableRow className="border-gray-600">
+                      <TableHead className="text-seguranca-lightgray">Usuário</TableHead>
+                      <TableHead className="text-seguranca-lightgray">Email</TableHead>
+                      <TableHead className="text-seguranca-lightgray">Cargo</TableHead>
+                      <TableHead className="text-seguranca-lightgray">Ações</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((user) => (
+                      <TableRow key={user.id} className="border-gray-600">
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center">
+                              <UserIcon className="text-white" size={20} />
+                            </div>
+                            <div>
+                              <div className="font-medium text-seguranca-lightgray">{user.name}</div>
+                              {/* ID oculto conforme solicitado */}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-[260px]">
+                          <div className="flex items-center space-x-2">
+                            <Mail size={16} className="text-gray-400" />
+                            <span className="text-seguranca-lightgray truncate">{user.email}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {extractRoleNames(user.roles).map((role: string) => (
+                            <Badge key={role} className={getRoleColor(role)}>{getRoleDisplayName(role)}</Badge>
+                          ))}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+                              onClick={() => navigate(`/chat-interno?user=${user.id}`)}
+                            >
+                              <MessageCircle className="h-4 w-4 mr-1.5" />
+                              Chat Interno
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+                              onClick={() => navigate(`/mensagens?user=${user.id}`)}
+                            >
+                              <Send className="h-4 w-4 mr-1.5" />
+                              Enviar Mensagem
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+                              onClick={() => navigate(`/gestao-mensagens/notificacoes?user=${user.id}`)}
+                            >
+                              <Bell className="h-4 w-4 mr-1.5" />
+                              Notificações
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="w-full overflow-x-auto">
+                <Table className="min-w-[1000px]">
+                  <TableHeader>
+                    <TableRow className="border-gray-600">
+                      <TableHead className="text-seguranca-lightgray">Usuário</TableHead>
+                      <TableHead className="text-seguranca-lightgray">Email</TableHead>
+                      <TableHead className="text-seguranca-lightgray">Cargo</TableHead>
+                      <TableHead className="text-seguranca-lightgray">Status</TableHead>
+                      <TableHead className="text-seguranca-lightgray">Grupos</TableHead>
+                      <TableHead className="text-seguranca-lightgray text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((user) => (
+                      <TableRow key={user.id} className="border-gray-600">
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-seguranca-red rounded-full flex items-center justify-center relative">
+                              <UserIcon className="text-white" size={20} />
+                              <span
+                                className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-seguranca-graphite ${user.isOnline ? 'bg-emerald-500' : 'bg-gray-500'
+                                  }`}
+                                title={user.isOnline ? 'Online' : 'Offline'}
+                              />
+                            </div>
+                            <div>
+                              <div className="font-medium text-seguranca-lightgray flex items-center gap-2">
+                                {user.name}
+                                <span className={`text-xs ${user.isOnline ? 'text-emerald-400' : 'text-gray-400'}`}>
+                                  {user.isOnline ? 'Online' : 'Offline'}
+                                </span>
+                              </div>
+                              <div className="text-sm text-gray-400">ID: {user.id}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Mail size={16} className="text-gray-400" />
+                            <span className="text-seguranca-lightgray">{user.email}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {extractRoleNames(user.roles).map((role: string) => (
+                            <Badge key={role} className={getRoleColor(role)}>{getRoleDisplayName(role)}</Badge>
+                          ))}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={user.isOnline ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'}>
+                            {user.isOnline ? 'Online' : 'Offline'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {user.groups && user.groups.length > 0 ? (
+                              user.groups.slice(0, 2).map((group) => (
+                                <Badge key={group.id} variant="outline" className="text-xs">
+                                  {group.displayName}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-gray-400 text-sm">Sem grupos</span>
+                            )}
+                            {user.groups && user.groups.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{user.groups.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end space-x-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewUser(user)}
+                              title="Visualizar Usuário"
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditUser(user)}
+                              title="Editar Usuário"
+                              className="text-green-600 hover:text-green-700"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteUser(user)}
+                              title="Excluir Usuário"
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>

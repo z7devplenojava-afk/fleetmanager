@@ -1,110 +1,87 @@
 import api from '@/lib/axios';
-import { User } from '@/types/user';
-import { PermissionDTO } from '@/types/user';
+
+export interface User {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  active: boolean;
+  roles: string[];
+  companyId?: string;
+}
+
+export interface CreateUserRequest {
+  name: string;
+  username: string;
+  email: string;
+  password: string;
+  whatsapp?: string;
+  roles?: string[]; // Backend DTO espera List<String>
+  active?: boolean;
+  companyId?: string;
+}
+
+export interface UpdateUserRequest {
+  name?: string;
+  username?: string;
+  email?: string;
+  whatsapp?: string;
+  password?: string;
+  active?: boolean;
+  roles?: string[]; // Backend DTO espera List<String>
+  companyId?: string;
+  avatar?: string;
+  department?: string;
+  position?: string;
+  employeeCode?: string;
+  phone?: string;
+  address?: string;
+}
 
 export const userService = {
-  // Buscar todos os usuários
-  async getUsers(): Promise<User[]> {
+  async getAllUsers(): Promise<User[]> {
     const response = await api.get('/api/users');
     return response.data;
   },
 
-  // Buscar usuário por ID
+  async searchUsers(query?: string): Promise<User[]> {
+    const params = query ? { query } : {};
+    const response = await api.get('/api/users/search', { params });
+    return response.data;
+  },
+
   async getUserById(id: string): Promise<User> {
-    const response = await api.get(`/users/${id}`);
+    const response = await api.get(`/api/users/${id}`);
     return response.data;
   },
 
-  // Buscar usuário por email
-  async getUserByEmail(email: string): Promise<User> {
-    const response = await api.get(`/users/email/${email}`);
+  async createUser(data: CreateUserRequest): Promise<User> {
+    const response = await api.post('/api/users', data);
     return response.data;
   },
 
-  // Buscar usuários por role
-  async getUsersByRole(role: string): Promise<User[]> {
-    const response = await api.get(`/users/role/${role}`);
+  async updateUser(id: string, data: UpdateUserRequest): Promise<User> {
+    const response = await api.put(`/api/users/${id}`, data);
     return response.data;
   },
 
-  // Buscar usuários por departamento
-  async getUsersByDepartment(department: string): Promise<User[]> {
-    const response = await api.get(`/users/department/${department}`);
-    return response.data;
-  },
-
-  // Criar novo usuário
-  async createUser(userData: Partial<User>): Promise<User> {
-    const response = await api.post('/api/users', userData);
-    return response.data;
-  },
-
-  // Atualizar usuário
-  async updateUser(id: string, userData: Partial<User>): Promise<User> {
-    const response = await api.put(`/users/${id}`, userData);
-    return response.data;
-  },
-
-  // Excluir usuário
   async deleteUser(id: string): Promise<void> {
-    await api.delete(`/users/${id}`);
+    await api.delete(`/api/users/${id}`);
   },
 
-  // Buscar perfil do usuário logado
-  async getMyProfile(): Promise<User> {
-    const response = await api.get('/api/users/me');
-    return response.data;
-  },
-
-  // Atualizar perfil do usuário logado
-  async updateMyProfile(userData: Partial<User>): Promise<User> {
-    const response = await api.put('/api/users/profile', userData);
-    return response.data;
-  },
-
-  // Alterar senha
-  async changePassword(passwordData: { currentPassword: string; newPassword: string }): Promise<void> {
-    await api.post('/api/users/change-password', passwordData);
-  },
-
-  // Ativar/desativar usuário
   async toggleUserStatus(id: string, active: boolean): Promise<User> {
-    const response = await api.patch(`/api/users/${id}/status`, { active });
-    return response.data;
+    return this.updateUser(id, { active });
   },
 
-  // Buscar estatísticas de usuários
-  async getUserStats(): Promise<any> {
-    const response = await api.get('/api/users/stats');
-    return response.data;
-  },
-
-  // Buscar usuários que já estão em um grupo
-  async getUsersByGroup(groupId: string): Promise<User[]> {
-    const response = await api.get(`/api/groups/${groupId}/users`);
-    return response.data;
-  },
-
-  // Buscar usuários disponíveis para adicionar ao grupo
-  async getAvailableUsersForGroup(groupId: string): Promise<User[]> {
-    const response = await api.get(`/api/groups/${groupId}/available-users`);
-    return response.data;
-  },
-
-  async getUserPermissions(userId: string): Promise<PermissionDTO[]> {
-    const response = await api.get(`/api/users/${userId}/permissions`);
-    return response.data;
-  },
-  async setUserPermissions(userId: string, permissionIds: string[]): Promise<PermissionDTO[]> {
-    const response = await api.put(`/api/users/${userId}/permissions`, { permissionIds });
-    return response.data;
-  },
-  async addUserPermissions(userId: string, permissionIds: string[]): Promise<PermissionDTO[]> {
+  async addUserPermissions(userId: string, permissionIds: string[]): Promise<any[]> {
     const response = await api.post(`/api/users/${userId}/permissions`, { permissionIds });
     return response.data;
   },
-  async removeUserPermissions(userId: string, permissionIds: string[]): Promise<PermissionDTO[]> {
+
+  async removeUserPermissions(userId: string, permissionIds: string[]): Promise<any[]> {
     const response = await api.delete(`/api/users/${userId}/permissions`, { data: { permissionIds } });
     return response.data;
-  },
-}; 
+  }
+};
+
+export default userService;

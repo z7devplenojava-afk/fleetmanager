@@ -1,19 +1,22 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
-import { 
-  BarChart3, 
-  FileText, 
-  Calendar, 
-  Users, 
-  User2, 
-  ClipboardList, 
-  DollarSign, 
-  FileSpreadsheet, 
-  Building2, 
+import {
+  BarChart3,
+  FileText,
+  Calendar,
+  Users,
+  User2,
+  ClipboardList,
+  DollarSign,
+  FileSpreadsheet,
+  Building2,
   Settings,
   Truck,
-  Route
+  Bus,
+  Clock,
+  Route,
+  UserCheck
 } from 'lucide-react';
 
 interface SidebarItemProps {
@@ -52,9 +55,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage = 'dashboard' }) => {
     { icon: <Calendar size={20} />, text: 'Escalas', to: '/escalas', id: 'escalas' },
     { icon: <Building2 size={20} />, text: 'Clientes', to: '/clientes', id: 'clientes' },
     { icon: <ClipboardList size={20} />, text: 'Serviços', to: '/operacional?tab=servicos', id: 'operacional-servicos' },
+    { icon: <UserCheck size={20} />, text: 'RH / Dept. Pessoal', to: '/rh', id: 'rh' },
+    { icon: <Clock size={20} />, text: 'Controle de Horas', to: '/rh/controle-horas', id: 'rh-controle-horas' },
     { icon: <DollarSign size={20} />, text: 'Financeiro', to: '/financeiro', id: 'financeiro' },
     { icon: <FileSpreadsheet size={20} />, text: 'Holerites', to: '/holerites', id: 'holerites' },
-    { icon: <Truck size={20} />, text: 'Frota', to: '/frota', id: 'frota' },
+    { icon: <FileSpreadsheet size={20} />, text: 'Folha de Pagamento', to: '/payrolls', id: 'payrolls' },
+    { icon: <Bus size={20} />, text: 'Frota', to: '/frota', id: 'frota' },
     { icon: <Building2 size={20} />, text: 'Filiais', to: '/filiais', id: 'filiais' },
     { icon: <Route size={20} />, text: 'Rota Semanal', to: '/rota-semanal-supervisao', id: 'rota-semanal' },
     { icon: <Settings size={20} />, text: 'Configurações', to: '/configuracoes', id: 'configuracoes' },
@@ -69,10 +75,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage = 'dashboard' }) => {
       <div className="flex flex-col p-4 flex-grow overflow-y-auto">
         <nav className="space-y-1">
           {menuItems.map((item) => (
-            <SidebarItem 
+            <SidebarItem
               key={item.id}
-              icon={item.icon} 
-              text={item.text} 
+              icon={item.icon}
+              text={item.text}
               to={item.to}
               active={activePage === item.id}
             />

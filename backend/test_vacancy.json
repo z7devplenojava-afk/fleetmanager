@@ -1,0 +1,13 @@
+{
+  "title": "Vigilante",
+  "position": "Vigilante",
+  "function": "Segurança",
+  "location": "São Paulo",
+  "workSchedule": "8h/dia",
+  "salary": 2500.00,
+  "deadline": "2025-07-30T23:59:59",
+  "requirements": [
+    "Ensino médio completo",
+    "Disponibilidade para plantões"
+  ]
+} 

@@ -15,6 +15,10 @@ import {
   Plus,
   Activity
 } from 'lucide-react';
+import NewVisitModal from './NewVisitModal';
+import AllVisitsModal from './AllVisitsModal';
+import { visitService } from '@/services/visitService';
+import { Visit } from '@/types/visit';
 
 interface VisitSummary {
   totalVisits: number;
@@ -46,6 +50,8 @@ const VisitWidget: React.FC = () => {
   });
   const [recentVisits, setRecentVisits] = useState<RecentVisit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showNewVisitModal, setShowNewVisitModal] = useState(false);
+  const [showAllVisitsModal, setShowAllVisitsModal] = useState(false);
 
   useEffect(() => {
     fetchVisitData();
@@ -54,44 +60,93 @@ const VisitWidget: React.FC = () => {
   const fetchVisitData = async () => {
     setIsLoading(true);
     try {
-      // Simular dados para demonstração
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Buscar visitas recentes do backend (últimas 3, ordenadas por data descendente)
+      // Usar o endpoint com ordenação por visitDate DESC para pegar as mais recentes
+      const visitsResponse = await visitService.getVisits({}, 0, 10, 'visitDate', 'DESC');
+      let visits = visitsResponse.content || [];
+      
+      // Garantir que pegamos as 3 mais recentes
+      visits = visits.slice(0, 3);
+      
+      // Calcular estatísticas
+      const today = new Date().toISOString().split('T')[0];
+      const todayVisits = visits.filter(v => v.visitDate === today);
+      const completedVisits = visits.filter(v => v.status === 'COMPLETED').length;
+      const pendingVisits = visits.filter(v => v.status === 'PENDING' || v.status === 'SCHEDULED').length;
+      const cancelledVisits = visits.filter(v => v.status === 'CANCELLED').length;
+      const totalVisits = visits.length;
+      const completionRate = totalVisits > 0 ? (completedVisits / totalVisits) * 100 : 0;
+      
+      // Buscar todas as visitas para calcular estatísticas completas
+      const allVisitsResponse = await visitService.getVisits({}, 0, 1000);
+      const allVisits = allVisitsResponse.content || [];
+      const allCompleted = allVisits.filter(v => v.status === 'COMPLETED').length;
+      const allPending = allVisits.filter(v => v.status === 'PENDING' || v.status === 'SCHEDULED').length;
+      const allCancelled = allVisits.filter(v => v.status === 'CANCELLED').length;
+      const allTotal = allVisitsResponse.totalElements || 0;
+      const allCompletionRate = allTotal > 0 ? (allCompleted / allTotal) * 100 : 0;
+      
+      // Contar supervisores únicos
+      const uniqueSupervisors = new Set(allVisits.map(v => v.supervisorId).filter(Boolean));
       
       setSummary({
-        totalVisits: 142,
-        completedVisits: 128,
-        pendingVisits: 8,
-        cancelledVisits: 6,
-        completionRate: 90.1,
-        activeSupervisors: 12,
-        todayVisits: 15
+        totalVisits: allTotal,
+        completedVisits: allCompleted,
+        pendingVisits: allPending,
+        cancelledVisits: allCancelled,
+        completionRate: allCompletionRate,
+        activeSupervisors: uniqueSupervisors.size,
+        todayVisits: todayVisits.length
       });
 
-      setRecentVisits([
-        {
-          id: '1',
-          time: '14:30',
-          supervisor: 'Maria Santos',
-          unit: 'Shopping Center Norte',
-          status: 'COMPLETED'
-        },
-        {
-          id: '2',
-          time: '10:15',
-          supervisor: 'João Silva',
-          unit: 'Condomínio Residencial',
-          status: 'IN_PROGRESS'
-        },
-        {
-          id: '3',
-          time: '09:00',
-          supervisor: 'Ana Costa',
-          unit: 'Empresa ABC Ltda',
-          status: 'PENDING'
+      // Converter visitas para o formato RecentVisit
+      const recentVisitsData: RecentVisit[] = visits.slice(0, 3).map(visit => {
+        // Formatar hora da visita
+        let timeStr = '';
+        if (visit.visitTime) {
+          try {
+            // Se visitTime já está no formato HH:mm, usar diretamente
+            if (visit.visitTime.match(/^\d{2}:\d{2}$/)) {
+              timeStr = visit.visitTime;
+            } else {
+              // Tentar parsear como datetime
+              const timeParts = visit.visitTime.split('T')[1]?.split(':') || [];
+              if (timeParts.length >= 2) {
+                timeStr = `${timeParts[0]}:${timeParts[1]}`;
+              } else {
+                timeStr = visit.visitTime.substring(0, 5);
+              }
+            }
+          } catch (e) {
+            timeStr = visit.visitTime.substring(0, 5) || '00:00';
+          }
+        } else {
+          timeStr = '00:00';
         }
-      ]);
+        
+        return {
+          id: visit.id,
+          time: timeStr,
+          supervisor: visit.supervisorName || 'Não informado',
+          unit: visit.workPostName || visit.clientName || 'Não informado',
+          status: (visit.status || 'SCHEDULED') as 'COMPLETED' | 'PENDING' | 'CANCELLED' | 'IN_PROGRESS'
+        };
+      });
+      
+      setRecentVisits(recentVisitsData);
     } catch (error) {
       console.error('Erro ao buscar dados de visitas:', error);
+      // Em caso de erro, manter dados vazios
+      setSummary({
+        totalVisits: 0,
+        completedVisits: 0,
+        pendingVisits: 0,
+        cancelledVisits: 0,
+        completionRate: 0,
+        activeSupervisors: 0,
+        todayVisits: 0
+      });
+      setRecentVisits([]);
     } finally {
       setIsLoading(false);
     }
@@ -119,9 +174,10 @@ const VisitWidget: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Resumo de Métricas */}
-      <Card className="bg-seguranca-graphite border-gray-600">
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Resumo de Métricas */}
+        <Card className="bg-seguranca-graphite border-gray-600">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-seguranca-lightgray text-lg">
             <Calendar className="w-5 h-5 text-seguranca-darkred" />
@@ -168,6 +224,7 @@ const VisitWidget: React.FC = () => {
                 <Button 
                   size="sm" 
                   className="flex-1 bg-seguranca-darkred hover:bg-seguranca-red text-white text-xs"
+                  onClick={() => setShowNewVisitModal(true)}
                 >
                   <Plus className="w-3 h-3 mr-1" />
                   Nova Visita
@@ -176,6 +233,7 @@ const VisitWidget: React.FC = () => {
                   size="sm" 
                   variant="outline"
                   className="bg-transparent border-gray-600 text-seguranca-lightgray hover:bg-gray-700 text-xs"
+                  onClick={() => setShowAllVisitsModal(true)}
                 >
                   <Eye className="w-3 h-3 mr-1" />
                   Ver Todas
@@ -239,6 +297,22 @@ const VisitWidget: React.FC = () => {
         </CardContent>
       </Card>
     </div>
+
+    {/* Modais */}
+    <NewVisitModal 
+      open={showNewVisitModal}
+      onOpenChange={setShowNewVisitModal}
+      onVisitCreated={() => {
+        fetchVisitData(); // Recarregar dados após criar visita
+        setShowNewVisitModal(false);
+      }}
+    />
+    
+    <AllVisitsModal 
+      open={showAllVisitsModal}
+      onOpenChange={setShowAllVisitsModal}
+    />
+    </>
   );
 };
 

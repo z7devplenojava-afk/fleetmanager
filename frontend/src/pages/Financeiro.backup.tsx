@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -251,31 +251,31 @@ const Financeiro: React.FC = () => {
       <div className="container mx-auto p-6">
         <Tabs defaultValue="dashboard" className="space-y-6">
           <TabsList className="bg-seguranca-graphite border-gray-600 p-1 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-1">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow text-xs px-2 py-1">
+            <TabsTrigger value="dashboard" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-xs px-2 py-1">
               Dashboard
             </TabsTrigger>
-            <TabsTrigger value="contas-pagar" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow text-xs px-2 py-1">
+            <TabsTrigger value="contas-pagar" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-xs px-2 py-1">
               Contas a Pagar
             </TabsTrigger>
-            <TabsTrigger value="contas-receber" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow text-xs px-2 py-1">
+            <TabsTrigger value="contas-receber" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-xs px-2 py-1">
               Contas a Receber
             </TabsTrigger>
-            <TabsTrigger value="fluxo-caixa" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow text-xs px-2 py-1">
+            <TabsTrigger value="fluxo-caixa" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-xs px-2 py-1">
               Fluxo de Caixa
             </TabsTrigger>
-            <TabsTrigger value="pagamentos" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow text-xs px-2 py-1">
+            <TabsTrigger value="pagamentos" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-xs px-2 py-1">
               Pagamentos
             </TabsTrigger>
-            <TabsTrigger value="relatorios-financeiros" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow text-xs px-2 py-1">
+            <TabsTrigger value="relatorios-financeiros" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-xs px-2 py-1">
               Relatórios Financeiros
             </TabsTrigger>
-            <TabsTrigger value="centro-custos" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow text-xs px-2 py-1">
+            <TabsTrigger value="centro-custos" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-xs px-2 py-1">
               Centro de Custos
             </TabsTrigger>
-            <TabsTrigger value="faturas" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow text-xs px-2 py-1">
+            <TabsTrigger value="faturas" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-xs px-2 py-1">
               Faturas
             </TabsTrigger>
-            <TabsTrigger value="medicoes" className="data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow text-xs px-2 py-1">
+            <TabsTrigger value="medicoes" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-xs px-2 py-1">
               Medições
             </TabsTrigger>
           </TabsList>
@@ -1695,10 +1695,10 @@ const Financeiro: React.FC = () => {
               {/* Tabelas de Medição */}
               <Tabs defaultValue="complete" className="space-y-4">
                 <TabsList className="bg-seguranca-black border-gray-600">
-                  <TabsTrigger value="complete" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-black">
+                  <TabsTrigger value="complete" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-black">
                     Medições Completas
                   </TabsTrigger>
-                  <TabsTrigger value="simple" className="data-[state=active]:bg-seguranca-yellow data-[state=active]:text-black">
+                  <TabsTrigger value="simple" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-black">
                     Medições Simplificadas
                   </TabsTrigger>
                 </TabsList>

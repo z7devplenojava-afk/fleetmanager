@@ -1,71 +1,108 @@
-import axios from '@/lib/axios';
-import { Client, ClientPage, ClientSearchParams } from '@/types/client';
+import api from '@/lib/axios';
+import { ClientPage, ClientSearchParams } from '@/types/client';
+import { isConnectionError } from '@/utils/connectionError';
 
-const BASE_URL = '/clients';
+export interface Client {
+  id: string;
+  name: string;
+  cnpj?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  status?: string;
+}
 
 export const clientService = {
-  /**
-   * Lista todos os clientes ativos (para selects, etc.)
-   */
-  async getAllClients(): Promise<Client[]> {
-    const response = await axios.get(`${BASE_URL}/select`);
-    return response.data;
-  },
-
-  /**
-   * Busca clientes com paginação, filtro e busca
-   */
+  // Listar clientes paginados (com filtros opcionais)
   async getClients(params: ClientSearchParams = {}): Promise<ClientPage> {
-    const queryParams = new URLSearchParams();
-    if (params.searchTerm) queryParams.append('searchTerm', params.searchTerm);
-    if (params.status) queryParams.append('status', params.status);
-    if (params.page !== undefined) queryParams.append('page', params.page.toString());
-    if (params.size) queryParams.append('size', params.size.toString());
-    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
-    if (params.sortDir) queryParams.append('sortDir', params.sortDir);
+    const query = new URLSearchParams();
+    if (params.searchTerm) query.append('searchTerm', params.searchTerm);
+    if (params.status) query.append('status', params.status);
+    if (params.page !== undefined) query.append('page', String(params.page));
+    if (params.size !== undefined) query.append('size', String(params.size));
+    if (params.sortBy) query.append('sortBy', params.sortBy);
+    if (params.sortDir) query.append('sortDir', params.sortDir);
 
-    const response = await axios.get(`${BASE_URL}?${queryParams.toString()}`);
-    return response.data;
+    const response = await api.get(`/api/clients?${query.toString()}`);
+    const data = response.data;
+    // Normalizar resposta (Page do backend ou array)
+    if (Array.isArray(data)) {
+      return {
+        content: data,
+        totalElements: data.length,
+        totalPages: 1,
+        size: data.length,
+        number: 0,
+        first: true,
+        last: true,
+      } as ClientPage;
+    }
+    return data as ClientPage;
+  },
+  // Buscar todos os clientes
+  async getAllClients(): Promise<Client[]> {
+    try {
+      const response = await api.get('/api/clients/all');
+      return response.data;
+    } catch (error: any) {
+      if (isConnectionError(error)) {
+        console.warn('⚠️ Backend não está disponível. Retornando array vazio para clientes.');
+        return [];
+      }
+      console.error('Erro ao buscar clientes:', error);
+      throw new Error('Falha ao buscar clientes');
+    }
   },
 
-  /**
-   * Busca cliente por ID
-   */
+  // Buscar clientes para seleção
+  async getClientsForSelect(): Promise<Client[]> {
+    try {
+      const response = await api.get('/api/clients/select');
+      return response.data;
+    } catch (error: any) {
+      if (isConnectionError(error)) {
+        console.warn('⚠️ Backend não está disponível. Retornando array vazio para seleção de clientes.');
+        return [];
+      }
+      console.error('Erro ao buscar clientes para seleção:', error);
+      throw new Error('Falha ao buscar clientes para seleção');
+    }
+  },
+
+  // Buscar cliente por ID
   async getClientById(id: string): Promise<Client> {
-    const response = await axios.get(`${BASE_URL}/${id}`);
+    try {
+      const response = await api.get(`/api/clients/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar cliente:', error);
+      throw new Error('Falha ao buscar cliente');
+    }
+  },
+
+  // Criar cliente
+  async createClient(data: any): Promise<Client> {
+    console.log('[DEBUG] clientService.createClient - Dados recebidos:', data);
+    try {
+      const response = await api.post('/api/clients', data);
+      console.log('[DEBUG] clientService.createClient - Resposta:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[ERROR] clientService.createClient - Erro:', error);
+      throw error;
+    }
+  },
+
+  // Atualizar cliente
+  async updateClient(id: string, data: any): Promise<Client> {
+    const response = await api.put(`/api/clients/${id}`, data);
     return response.data;
   },
 
-  /**
-   * Busca cliente com suas unidades
-   */
-  async getClientWithUnits(id: string): Promise<Client> {
-    const response = await axios.get(`${BASE_URL}/${id}/units`);
-    return response.data;
-  },
-
-  /**
-   * Cria um novo cliente
-   */
-  async createClient(clientData: any): Promise<Client> {
-    const response = await axios.post(BASE_URL, clientData);
-    return response.data;
-  },
-
-  /**
-   * Atualiza um cliente existente
-   */
-  async updateClient(id: string, clientData: any): Promise<Client> {
-    const response = await axios.put(`${BASE_URL}/${id}`, clientData);
-    return response.data;
-  },
-
-  /**
-   * Exclui um cliente
-   */
+  // Excluir cliente
   async deleteClient(id: string): Promise<void> {
-    await axios.delete(`${BASE_URL}/${id}`);
-  },
+    await api.delete(`/api/clients/${id}`);
+  }
 };
 
 export default clientService;

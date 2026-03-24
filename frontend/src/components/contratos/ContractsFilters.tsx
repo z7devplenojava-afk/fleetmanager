@@ -89,12 +89,12 @@ export const ContractsFilters: React.FC<ContractsFiltersProps> = ({
       </div>
 
       {/* Filtros rápidos - ocultos em telas muito pequenas */}
-      <div className="hidden sm:flex flex-wrap gap-2 lg:ml-auto">
+      <div className="hidden sm:flex flex-wrap gap-2 lg:ml-auto min-w-0">
         <Button
           variant={statusFilter === 'ACTIVE' ? 'default' : 'outline'}
           size="sm"
           onClick={() => onStatusFilterChange(statusFilter === 'ACTIVE' ? 'all' : 'ACTIVE')}
-          className={`text-xs ${
+          className={`text-xs flex-shrink-0 ${
             statusFilter === 'ACTIVE' 
               ? 'bg-green-500 hover:bg-green-600 text-white' 
               : 'border-green-500 text-green-400 hover:bg-green-500/20'
@@ -107,7 +107,7 @@ export const ContractsFilters: React.FC<ContractsFiltersProps> = ({
           variant={statusFilter === 'PENDING' ? 'default' : 'outline'}
           size="sm"
           onClick={() => onStatusFilterChange(statusFilter === 'PENDING' ? 'all' : 'PENDING')}
-          className={`text-xs ${
+          className={`text-xs flex-shrink-0 ${
             statusFilter === 'PENDING' 
               ? 'bg-yellow-500 hover:bg-yellow-600 text-white' 
               : 'border-yellow-500 text-yellow-400 hover:bg-yellow-500/20'
@@ -124,10 +124,11 @@ export const ContractsFilters: React.FC<ContractsFiltersProps> = ({
             // Esta funcionalidade seria implementada na página pai
             console.log('Filtrar vencendo em breve');
           }}
-          className="text-xs border-red-500 text-red-400 hover:bg-red-500/20"
+          className="text-xs border-red-500 text-red-400 hover:bg-red-500/20 flex-shrink-0 whitespace-nowrap"
         >
           <Calendar className="h-3 w-3 mr-1" />
           <span className="hidden md:inline">Vencendo</span>
+          <span className="md:hidden">Venc.</span>
         </Button>
       </div>
     </div>

@@ -29,7 +29,8 @@ import {
 import Logo from '@/components/Logo';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
-import { useAOS } from '@/hooks/use-aos';
+import { useGSAP } from '@/hooks/use-gsap';
+import { ensureAllContentVisible } from '@/utils/ensureVisibility';
 import { useToast } from '@/hooks/use-toast';
 import { JobVacancy } from '@/types/hr';
 import hrService from '@/services/hrService';
@@ -38,8 +39,13 @@ import { CandidateFormData } from '@/types/candidate';
 import { DatePicker } from "@/components/ui/date-picker";
 
 const PortalVagas = () => {
-  const aos = useAOS();
+  const animate = useGSAP();
   const { toast } = useToast();
+  
+  // Fallback de segurança: garantir que o conteúdo sempre apareça
+  useEffect(() => {
+    ensureAllContentVisible();
+  }, []);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -258,14 +264,14 @@ const PortalVagas = () => {
       {/* Hero Section */}
       <section className="py-12 sm:py-20 px-4" style={{ backgroundColor: '#292929' }}>
         <div className="container mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-white mb-6" data-aos={aos.fadeUp}>
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-white mb-6" data-animate="fadeUp">
             Trabalhe Conosco
           </h1>
-          <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-8 max-w-3xl mx-auto" data-aos={aos.fadeUp} data-aos-delay="200">
+          <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-8 max-w-3xl mx-auto" data-animate="fadeUp" data-delay="200">
             Faça parte de uma empresa que valoriza seus colaboradores e oferece 
             oportunidades de crescimento profissional.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4 text-gray-300" data-aos={aos.fadeUp} data-aos-delay="400">
+          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4 text-gray-300" data-animate="fadeUp" data-delay="400">
             <div className="flex items-center">
               <Users className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
               <span className="text-sm sm:text-base">Equipe Qualificada</span>
@@ -286,8 +292,8 @@ const PortalVagas = () => {
       <section className="py-12 sm:py-20 px-4">
         <div className="container mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>Vagas Disponíveis</h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-300" data-aos={aos.fadeUp} data-aos-delay="200">
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Vagas Disponíveis</h2>
+            <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
               Encontre a oportunidade perfeita para sua carreira profissional.
             </p>
           </div>
@@ -311,7 +317,7 @@ const PortalVagas = () => {
                   {jobs.map((job, index) => (
                     <Card key={job.id} className="hover:bg-gray-800 transition-all duration-300 border-0 shadow-lg border-gray-700 w-full max-w-xs sm:max-w-sm" 
                           style={{ backgroundColor: '#292929' }}
-                          data-aos={aos.fadeUp} data-aos-delay={index * 150}>
+                          data-animate="fadeUp" data-delay={index * 150}>
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <div>
@@ -554,8 +560,8 @@ const PortalVagas = () => {
       <section className="py-12 sm:py-20 px-4" style={{ backgroundColor: '#292929' }}>
         <div className="container mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-aos={aos.fadeUp}>Por Que Trabalhar na Promover?</h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-300" data-aos={aos.fadeUp} data-aos-delay="200">
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Por Que Trabalhar na Promover?</h2>
+            <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
               Descubra os benefícios de fazer parte da nossa equipe
             </p>
           </div>
@@ -563,7 +569,7 @@ const PortalVagas = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             <Card className="text-center border-0 shadow-md hover:bg-gray-800 transition-all duration-300" 
                   style={{ backgroundColor: '#1a1a1a' }}
-                  data-aos={aos.fadeUp} data-aos-delay="100">
+                  data-animate="fadeUp" data-delay="100">
               <CardContent className="p-4 sm:p-6">
                 <Users className="h-10 w-10 sm:h-12 sm:w-12 text-red-600 mx-auto mb-2 sm:mb-4" />
                 <h3 className="text-base sm:text-xl font-semibold text-white mb-2">Equipe Qualificada</h3>
@@ -575,7 +581,7 @@ const PortalVagas = () => {
             
             <Card className="text-center border-0 shadow-md hover:bg-gray-800 transition-all duration-300" 
                   style={{ backgroundColor: '#1a1a1a' }}
-                  data-aos={aos.fadeUp} data-aos-delay="200">
+                  data-animate="fadeUp" data-delay="200">
               <CardContent className="p-4 sm:p-6">
                 <Building className="h-10 w-10 sm:h-12 sm:w-12 text-red-600 mx-auto mb-2 sm:mb-4" />
                 <h3 className="text-base sm:text-xl font-semibold text-white mb-2">Ambiente Profissional</h3>
@@ -587,7 +593,7 @@ const PortalVagas = () => {
             
             <Card className="text-center border-0 shadow-md hover:bg-gray-800 transition-all duration-300" 
                   style={{ backgroundColor: '#1a1a1a' }}
-                  data-aos={aos.fadeUp} data-aos-delay="300">
+                  data-animate="fadeUp" data-delay="300">
               <CardContent className="p-4 sm:p-6">
                 <Calendar className="h-10 w-10 sm:h-12 sm:w-12 text-red-600 mx-auto mb-2 sm:mb-4" />
                 <h3 className="text-base sm:text-xl font-semibold text-white mb-2">Crescimento</h3>
@@ -702,10 +708,10 @@ const PortalVagas = () => {
             <div>
               <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Serviços</h3>
               <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
-                <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Vigilância Patrimonial</a></li>
-                <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Portaria</a></li>
-                <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Controlador de Acesso</a></li>
-                <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Facilities</a></li>
+                <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Vigilância Patrimonial</a></li>
+                <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Portaria</a></li>
+                <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Controlador de Acesso</a></li>
+                <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Facilities</a></li>
               </ul>
             </div>
             
@@ -714,7 +720,7 @@ const PortalVagas = () => {
               <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
                 <li><a href="/quem-somos" className="hover:text-white transition-colors block py-1">Quem Somos</a></li>
                 <li><a href="/trabalhe-conosco" className="hover:text-white transition-colors block py-1">Trabalhe Conosco</a></li>
-                <li><a href="/servicos" className="hover:text-white transition-colors block py-1">Orçamento</a></li>
+                <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Orçamento</a></li>
                 <li><a href="/contato" className="hover:text-white transition-colors block py-1">Contato</a></li>
                 <li className="mt-3 sm:mt-4">
                   <a href="/login" className="inline-block text-black hover:text-gray-800 px-3 py-2 sm:px-4 sm:py-2 rounded text-sm sm:text-base font-medium transition-colors" style={{ backgroundColor: '#FFF600' }}>

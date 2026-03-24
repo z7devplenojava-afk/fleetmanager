@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -94,23 +94,23 @@ const GestaoVisitasSupervisor: React.FC = () => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 bg-gray-100">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsTrigger value="dashboard" className="data-[state='active']:bg-blue-600 data-[state='active']:text-white">
               <BarChart3 className="w-4 h-4 mr-2" />
               Dashboard
             </TabsTrigger>
-            <TabsTrigger value="visits" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsTrigger value="visits" className="data-[state='active']:bg-blue-600 data-[state='active']:text-white">
               <List className="w-4 h-4 mr-2" />
               Visitas
             </TabsTrigger>
-            <TabsTrigger value="checklist" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsTrigger value="checklist" className="data-[state='active']:bg-blue-600 data-[state='active']:text-white">
               <CheckSquare className="w-4 h-4 mr-2" />
               Checklist
             </TabsTrigger>
-            <TabsTrigger value="reports" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsTrigger value="reports" className="data-[state='active']:bg-blue-600 data-[state='active']:text-white">
               <TrendingUp className="w-4 h-4 mr-2" />
               Relatórios
             </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsTrigger value="settings" className="data-[state='active']:bg-blue-600 data-[state='active']:text-white">
               <Settings className="w-4 h-4 mr-2" />
               Configurações
             </TabsTrigger>
