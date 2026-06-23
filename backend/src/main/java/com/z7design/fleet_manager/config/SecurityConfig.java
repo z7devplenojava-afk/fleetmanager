@@ -333,6 +333,7 @@ public class SecurityConfig {
                                                                 "PAYSLIPS_DELETE",
                                                                 "PAYSLIPS_PUBLISH", "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
                                                                 "ROLE_RH", "ROLE_FINANCEIRO",
+                                                                "ROLE_COMPANY_ADMIN", "ROLE_FLEX_ADMIN",
                                                                 "ROLE_COLABORADOR", "ROLE_MOTORISTA", "ROLE_MECANICO",
                                                                 "ROLE_PORTARIA")
                                                 // Endpoints de recibos - requerem permissÃµes especÃ­ficas
@@ -340,7 +341,8 @@ public class SecurityConfig {
                                                 .hasAnyAuthority("PAYSLIPS_READ", "PAYSLIPS_WRITE", "PAYSLIPS_CREATE",
                                                                 "PAYSLIPS_DELETE",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_RH",
-                                                                "ROLE_FINANCEIRO", "ROLE_COLABORADOR")
+                                                                "ROLE_FINANCEIRO", "ROLE_COMPANY_ADMIN",
+                                                                "ROLE_FLEX_ADMIN", "ROLE_COLABORADOR")
                                                 // Endpoints de documentos unificados - arquivos pÃºblicos para
                                                 // download/visualizaÃ§Ã£o
                                                 .requestMatchers("/api/unified-documents/public/**").permitAll()

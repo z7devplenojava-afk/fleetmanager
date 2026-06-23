@@ -225,7 +225,7 @@ const FirstAccessActivate2FA = () => {
 
         <div className="mt-10 flex flex-col items-center space-y-1 opacity-60">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white brightness-150">
-            FlexBus Fleet Control
+            FluxBus Fleet Control
           </p>
         </div>
       </div>

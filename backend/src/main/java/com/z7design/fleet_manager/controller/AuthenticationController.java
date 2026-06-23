@@ -190,12 +190,12 @@ public class AuthenticationController {
             com.z7design.fleet_manager.model.User user = userRepository.findByUsername("jose.ramos")
                     .orElseThrow(() -> new RuntimeException("User jose.ramos not found"));
 
-            user.setPassword(passwordEncoder.encode("FlexBus@2026"));
+            user.setPassword(passwordEncoder.encode("FluxBus@2026"));
             user.setActive(true);
             user.setStatus(com.z7design.fleet_manager.model.enums.UserStatus.ACTIVE);
             userRepository.save(user);
 
-            return ResponseEntity.ok("User jose.ramos fixed successfully. Password set to FlexBus@2026");
+            return ResponseEntity.ok("User jose.ramos fixed successfully. Password set to FluxBus@2026");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error: " + e.getMessage());
         }

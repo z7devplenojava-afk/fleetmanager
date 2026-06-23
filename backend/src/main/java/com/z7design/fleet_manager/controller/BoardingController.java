@@ -1,42 +1,76 @@
 package com.z7design.fleet_manager.controller;
 
-import com.z7design.fleet_manager.model.BoardingRecord;
-import com.z7design.fleet_manager.model.Trip;
-import com.z7design.fleet_manager.model.RoutePoint;
-import com.z7design.fleet_manager.model.Employee;
+import com.z7design.fleet_manager.dto.BoardingDTO;
 import com.z7design.fleet_manager.service.BoardingService;
-import com.z7design.fleet_manager.repository.TripRepository;
-import com.z7design.fleet_manager.repository.RoutePointRepository;
-import com.z7design.fleet_manager.repository.EmployeeRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/boarding")
+@RequestMapping("/api/boardings")
 @RequiredArgsConstructor
+@Tag(name = "Embarques", description = "Endpoints para gestão de embarques")
 public class BoardingController {
+
     private final BoardingService boardingService;
-    private final TripRepository tripRepository;
-    private final RoutePointRepository routePointRepository;
-    private final EmployeeRepository employeeRepository;
 
-    @PostMapping("/scan")
-    @PreAuthorize("hasAnyAuthority('BOARDING_EXECUTE', 'ROLE_MANAGER_TRAFEGO')")
-    public ResponseEntity<BoardingRecord> recordBoarding(
-            @RequestParam("tripId") UUID tripId,
-            @RequestParam("pointId") UUID pointId,
-            @RequestParam("passengerId") UUID passengerId,
-            @RequestParam("lat") Double lat,
-            @RequestParam("lng") Double lng) {
+    @PostMapping
+    @Operation(summary = "Criar embarque", description = "Cria um novo registro de embarque")
+    public ResponseEntity<BoardingDTO> create(@RequestBody BoardingDTO dto) {
+        BoardingDTO created = boardingService.create(dto);
+        return ResponseEntity.ok(created);
+    }
 
-        Trip trip = tripRepository.findById(tripId).orElseThrow();
-        RoutePoint point = routePointRepository.findById(pointId).orElseThrow();
-        Employee passenger = employeeRepository.findById(passengerId).orElseThrow();
+    @PutMapping("/{id}")
+    @Operation(summary = "Atualizar embarque", description = "Atualiza um registro de embarque existente")
+    public ResponseEntity<BoardingDTO> update(@PathVariable UUID id, @RequestBody BoardingDTO dto) {
+        BoardingDTO updated = boardingService.update(id, dto);
+        return ResponseEntity.ok(updated);
+    }
 
-        return ResponseEntity.ok(boardingService.recordBoarding(trip, point, passenger, lat, lng));
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Excluir embarque", description = "Exclui um registro de embarque")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        boardingService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Buscar embarque por ID", description = "Retorna um registro de embarque pelo ID")
+    public ResponseEntity<BoardingDTO> getById(@PathVariable UUID id) {
+        BoardingDTO boarding = boardingService.getById(id);
+        return ResponseEntity.ok(boarding);
+    }
+
+    @GetMapping("/trip/{tripId}")
+    @Operation(summary = "Listar embarques por viagem", description = "Retorna todos os embarques de uma viagem")
+    public ResponseEntity<List<BoardingDTO>> getByTripId(@PathVariable UUID tripId) {
+        List<BoardingDTO> boardings = boardingService.getByTripId(tripId);
+        return ResponseEntity.ok(boardings);
+    }
+
+    @GetMapping("/passenger/{passengerId}")
+    @Operation(summary = "Listar embarques por passageiro", description = "Retorna todos os embarques de um passageiro")
+    public ResponseEntity<List<BoardingDTO>> getByPassengerId(@PathVariable UUID passengerId) {
+        List<BoardingDTO> boardings = boardingService.getByPassengerId(passengerId);
+        return ResponseEntity.ok(boardings);
+    }
+
+    @PostMapping("/check-in")
+    @Operation(summary = "Realizar check-in", description = "Registra o embarque de um passageiro em uma viagem")
+    public ResponseEntity<BoardingDTO> checkIn(@RequestBody Map<String, Object> request) {
+        UUID tripId = UUID.fromString((String) request.get("tripId"));
+        UUID passengerId = UUID.fromString((String) request.get("passengerId"));
+        Double latitude = request.get("latitude") != null ? Double.parseDouble(request.get("latitude").toString()) : null;
+        Double longitude = request.get("longitude") != null ? Double.parseDouble(request.get("longitude").toString()) : null;
+        
+        BoardingDTO boarding = boardingService.checkIn(tripId, passengerId, latitude, longitude);
+        return ResponseEntity.ok(boarding);
     }
 }

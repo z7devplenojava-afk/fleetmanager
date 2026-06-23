@@ -110,6 +110,8 @@ services:
         condition: service_healthy
       whatsapp-service-ci:
         condition: service_started
+      evolution-api-ci:
+        condition: service_started
     networks:
       - secured-guard-ci-network
       - z7network
@@ -158,6 +160,76 @@ services:
     restart: unless-stopped
     # Memória compartilhada para Chromium/Puppeteer
     shm_size: 256mb
+    labels:
+      - "traefik.enable=false"
+
+  # ========================================
+  # REDIS (para Evolution API CI)
+  # ========================================
+  redis-evolution-ci:
+    image: redis:7-alpine
+    container_name: redis-evolution-ci
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_evolution_data_ci:/data
+    networks:
+      - secured-guard-ci-network
+      - z7network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # EVOLUTION API CI
+  # ========================================
+  evolution-api-ci:
+    build:
+      context: ./evolution-api
+      dockerfile: Dockerfile
+    image: z7design/secured-guard-evolution-api:ci
+    container_name: secured-guard-evolution-ci
+    environment:
+      SERVER_URL: https://ci.z7botsolutions.com.br
+      AUTHENTICATION_TYPE: apikey
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-B6D711FCDE4D4FD5936544120E713976}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+      LANGUAGE: pt-BR
+      CONFIG_SESSION_PHONE_CLIENT: SecuredGuard
+      CONFIG_SESSION_PHONE_NAME: chrome
+      QRCODE_LIMIT: 1902
+      QRCODE_COLOR: "#000000"
+      DATABASE_ENABLED: "false"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis-evolution-ci:6379/0
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+      TYPEBOT_ENABLED: "false"
+      CHATWOOT_ENABLED: "false"
+      RABBITMQ_ENABLED: "false"
+      WEBHOOK_GLOBAL_ENABLED: "false"
+      WEBHOOK_EVENTS_QRCODE_UPDATED: "true"
+      WEBHOOK_EVENTS_CONNECTION_UPDATE: "true"
+      LOG_LEVEL: INFO
+      LOG_COLOR: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_instances_ci:/evolution/instances
+      - uploads_ci:/evolution/holerites
+    networks:
+      - secured-guard-ci-network
+      - z7network
+    depends_on:
+      redis-evolution-ci:
+        condition: service_healthy
+    shm_size: 512mb
+    security_opt:
+      - seccomp=unconfined
+    restart: unless-stopped
     labels:
       - "traefik.enable=false"
 
@@ -256,6 +328,10 @@ volumes:
   logs_ci:
     driver: local
   whatsapp_sessions_ci:
+    driver: local
+  evolution_instances_ci:
+    driver: local
+  redis_evolution_data_ci:
     driver: local
 
 # ========================================

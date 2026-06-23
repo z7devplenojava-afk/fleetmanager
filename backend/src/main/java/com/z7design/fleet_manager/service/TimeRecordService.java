@@ -33,27 +33,27 @@ public class TimeRecordService {
             String qrCode, String location, Double latitude,
             Double longitude, String ipAddress, String userAgent) {
 
-        log.info("ðŸ“ Registrando ponto - Employee: {}, Tipo: {}, QRCode: {}",
+        log.info("📝 Registrando ponto - Employee: {}, Tipo: {}, QRCode: {}",
                 employeeId, recordType, qrCode);
 
-        // Buscar funcionÃ¡rio
+        // Buscar funcionário
         Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("FuncionÃ¡rio nÃ£o encontrado"));
+                .orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
 
         // Validar QR Code se fornecido
         WorkPost workPost = null;
         if (qrCode != null && !qrCode.isEmpty()) {
             QRCodeWorkPost qrCodeWorkPost = qrCodeWorkPostRepository
                     .findValidQRCode(qrCode, LocalDateTime.now())
-                    .orElseThrow(() -> new RuntimeException("QR Code invÃ¡lido ou expirado"));
+                    .orElseThrow(() -> new RuntimeException("QR Code inválido ou expirado"));
 
             workPost = qrCodeWorkPost.getWorkPost();
-            log.info("âœ… QR Code vÃ¡lido para posto: {}", workPost.getName());
+            log.info("✅ QR Code válido para posto: {}", workPost.getName());
 
-            // Validar geolocalizaÃ§Ã£o se configurado
+            // Validar geolocalização se configurado
             if (qrCodeWorkPost.getLatitude() != null && qrCodeWorkPost.getLongitude() != null) {
                 if (latitude == null || longitude == null) {
-                    throw new RuntimeException("GeolocalizaÃ§Ã£o obrigatÃ³ria para este posto");
+                    throw new RuntimeException("Geolocalização obrigatória para este posto");
                 }
 
                 double distance = calculateDistance(
@@ -61,14 +61,14 @@ public class TimeRecordService {
                         latitude, longitude);
 
                 if (distance > qrCodeWorkPost.getRadiusMeters()) {
-                    log.warn("âš ï¸ DistÃ¢ncia excedida: {} metros (limite: {})",
+                    log.warn("⚠️ Distância excedida: {} metros (limite: {})",
                             distance, qrCodeWorkPost.getRadiusMeters());
-                    throw new RuntimeException("VocÃª estÃ¡ fora da Ã¡rea permitida para registro");
+                    throw new RuntimeException("Você está fora da área permitida para registro");
                 }
             }
         }
 
-        // Validar sequÃªncia de registros
+        // Validar sequência de registros
         validateRecordSequence(employeeId, recordType);
 
         // Criar registro
@@ -87,7 +87,7 @@ public class TimeRecordService {
         record.setStatus(TimeRecord.RecordStatus.APPROVED);
 
         TimeRecord saved = timeRecordRepository.save(record);
-        log.info("âœ… Ponto registrado com sucesso - ID: {}", saved.getId());
+        log.info("✅ Ponto registrado com sucesso - ID: {}", saved.getId());
 
         return saved;
     }
@@ -102,25 +102,25 @@ public class TimeRecordService {
         if (!todayRecords.isEmpty()) {
             TimeRecord lastRecord = todayRecords.get(0);
 
-            // Validar sequÃªncia lÃ³gica
+            // Validar sequência lógica
             switch (lastRecord.getRecordType()) {
                 case ENTRADA:
                     if (newRecordType == TimeRecord.RecordType.ENTRADA) {
-                        throw new RuntimeException("JÃ¡ existe uma entrada registrada");
+                        throw new RuntimeException("Já existe uma entrada registrada");
                     }
                     break;
                 case SAIDA_ALMOCO:
                     if (newRecordType != TimeRecord.RecordType.RETORNO_ALMOCO) {
-                        throw new RuntimeException("ApÃ³s saÃ­da para almoÃ§o, deve registrar retorno");
+                        throw new RuntimeException("Após saída para almoço, deve registrar retorno");
                     }
                     break;
                 case RETORNO_ALMOCO:
                     if (newRecordType == TimeRecord.RecordType.RETORNO_ALMOCO) {
-                        throw new RuntimeException("Retorno do almoÃ§o jÃ¡ registrado");
+                        throw new RuntimeException("Retorno do almoço já registrado");
                     }
                     break;
                 case SAIDA:
-                    throw new RuntimeException("Jornada jÃ¡ foi encerrada hoje");
+                    throw new RuntimeException("Jornada já foi encerrada hoje");
             }
         }
     }
@@ -159,7 +159,7 @@ public class TimeRecordService {
     @Transactional
     public TimeRecord approveRecord(UUID recordId, UUID approverId) {
         TimeRecord record = timeRecordRepository.findById(recordId)
-                .orElseThrow(() -> new RuntimeException("Registro nÃ£o encontrado"));
+                .orElseThrow(() -> new RuntimeException("Registro não encontrado"));
 
         record.setStatus(TimeRecord.RecordStatus.APPROVED);
         record.setApprovedById(approverId);
@@ -171,7 +171,7 @@ public class TimeRecordService {
     @Transactional
     public TimeRecord rejectRecord(UUID recordId, UUID approverId, String reason) {
         TimeRecord record = timeRecordRepository.findById(recordId)
-                .orElseThrow(() -> new RuntimeException("Registro nÃ£o encontrado"));
+                .orElseThrow(() -> new RuntimeException("Registro não encontrado"));
 
         record.setStatus(TimeRecord.RecordStatus.REJECTED);
         record.setApprovedById(approverId);
@@ -225,5 +225,11 @@ public class TimeRecordService {
     public TimeRecord.RecordType getNextRecordType(UUID employeeId) {
         // Simple logic placeholder to fix the build
         return TimeRecord.RecordType.ENTRADA;
+    }
+
+    @Transactional
+    public TimeRecord registerPunch(UUID employeeId, TimeRecord.RecordType punchType,
+            Double latitude, Double longitude, String photoBase64) {
+        return registerTimeRecord(employeeId, punchType, null, "Portal do Colaborador", latitude, longitude, null, null);
     }
 }

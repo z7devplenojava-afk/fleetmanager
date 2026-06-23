@@ -31,10 +31,12 @@ import {
   LayoutDashboard,
   Truck,
   UserCheck,
-  PackageCheck
+  PackageCheck,
+  Calculator
 } from 'lucide-react';
 import { StandardLayout } from '@/components/StandardLayout';
 import Equipamentos from './Equipamentos';
+import ServiceRatingManagement from './transport/ServiceRatingManagement';
 
 import EscalaTrabalhoTable from '@/components/operacional/EscalaTrabalhoTable';
 import NotificacoesList from '@/components/operacional/NotificacoesList';
@@ -832,7 +834,7 @@ const Operacional: React.FC = () => {
                 w-full
                 flex md:grid
                 overflow-x-auto md:overflow-x-visible
-                md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-11
+                md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12
                 glass-card border-0
                 p-2 md:p-2
                 gap-2 md:gap-2
@@ -1029,6 +1031,22 @@ const Operacional: React.FC = () => {
                     <TooltipContent side="bottom" className="bg-seguranca-graphite text-white border-seguranca-red">
                       <p className="font-semibold">Guia de Transporte</p>
                       <p className="text-xs text-gray-400">Gestão de transporte</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger
+                        value="rateio-servicos"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                      >
+                        <Calculator className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
+                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Rateio</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="bg-seguranca-graphite text-white border-seguranca-red">
+                      <p className="font-semibold">Rateio de Serviços</p>
+                      <p className="text-xs text-gray-400">Cálculo de custos e contratos</p>
                     </TooltipContent>
                   </Tooltip>
 
@@ -1246,6 +1264,10 @@ const Operacional: React.FC = () => {
 
             <TabsContent value="guia-transporte" className="mt-6">
               <TransportGuideTab />
+            </TabsContent>
+
+            <TabsContent value="rateio-servicos" className="mt-6">
+              <ServiceRatingManagement />
             </TabsContent>
 
             <TabsContent value="parte-diaria" className="mt-6">

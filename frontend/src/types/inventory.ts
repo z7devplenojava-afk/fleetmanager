@@ -124,4 +124,65 @@ export enum MovementType {
   TRANSFER = 'TRANSFER',
   LOSS = 'LOSS',
   EXPIRATION = 'EXPIRATION'
-} 
+}
+
+export interface InventoryRequest {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  items: InventoryRequestItem[];
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+  requestedAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectionReason?: string;
+  completedAt?: string;
+}
+
+export interface InventoryRequestItem {
+  id: string;
+  itemId: string;
+  itemDescription: string;
+  requestedQuantity: number;
+  approvedQuantity?: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface ServiceOrder {
+  id: string;
+  orderNumber: string;
+  clientId: string;
+  clientName: string;
+  vehicleId: string;
+  vehiclePlate: string;
+  items: ServiceOrderItem[];
+  laborCost: number;
+  partsCost: number;
+  totalCost: number;
+  status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  createdBy: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface ServiceOrderItem {
+  id: string;
+  type: 'PART' | 'LABOR';
+  description: string;
+  partNumber?: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  appliedQuantity?: number;
+  returnedQuantity?: number;
+}
+
+export interface InventoryStats {
+  totalItems: number;
+  lowStockItems: number;
+  totalValue: number;
+  entriesThisMonth: number;
+  exitsThisMonth: number;
+  pendingRequests: number;
+}

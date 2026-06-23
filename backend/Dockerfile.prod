@@ -1,121 +1,66 @@
 # ============================================
-# SECURED GUARD BACKEND - PRODUÇÃO
-# Multi-stage build otimizado
+# FLUXBUS BACKEND - PRODUÇÃO
+# Multi-stage build otimizado com Gradle
 # ============================================
 
 # ============================================
 # STAGE 1: Build
 # ============================================
-FROM maven:3.9-eclipse-temurin-17-alpine AS builder
+FROM gradle:8.5-jdk17-alpine AS builder
 
 WORKDIR /build
 
-# Configurar Maven para usar retry e repositórios alternativos
-RUN mkdir -p /root/.m2 && \
-    printf '%s\n' \
-      '<settings>' \
-      '  <profiles>' \
-      '    <profile>' \
-      '      <id>retry</id>' \
-      '      <properties>' \
-      '        <maven.wagon.http.retryHandler.count>5</maven.wagon.http.retryHandler.count>' \
-      '        <maven.wagon.httpconnectionManager.ttlSeconds>120</maven.wagon.httpconnectionManager.ttlSeconds>' \
-      '        <maven.wagon.http.readTimeout>60000</maven.wagon.http.readTimeout>' \
-      '      </properties>' \
-      '      <repositories>' \
-      '        <repository>' \
-      '          <id>central</id>' \
-      '          <name>Maven Central</name>' \
-      '          <url>https://repo1.maven.org/maven2</url>' \
-      '          <releases><enabled>true</enabled></releases>' \
-      '          <snapshots><enabled>false</enabled></snapshots>' \
-      '        </repository>' \
-      '        <repository>' \
-      '          <id>central-alt</id>' \
-      '          <name>Maven Central Alternative</name>' \
-      '          <url>https://repo.maven.apache.org/maven2</url>' \
-      '          <releases><enabled>true</enabled></releases>' \
-      '          <snapshots><enabled>false</enabled></snapshots>' \
-      '        </repository>' \
-      '      </repositories>' \
-      '      <pluginRepositories>' \
-      '        <pluginRepository>' \
-      '          <id>central</id>' \
-      '          <name>Maven Central</name>' \
-      '          <url>https://repo1.maven.org/maven2</url>' \
-      '          <releases><enabled>true</enabled></releases>' \
-      '          <snapshots><enabled>false</enabled></snapshots>' \
-      '        </pluginRepository>' \
-      '      </pluginRepositories>' \
-      '    </profile>' \
-      '  </profiles>' \
-      '  <activeProfiles>' \
-      '    <activeProfile>retry</activeProfile>' \
-      '  </activeProfiles>' \
-      '</settings>' > /root/.m2/settings.xml
+# Copiar arquivos de configuração do Gradle primeiro (para cache de dependências)
+COPY gradle/ gradle/
+COPY build.gradle settings.gradle gradlew ./
 
-# Copiar pom.xml primeiro (para cache de dependências)
-COPY pom.xml .
-
-# Tentar baixar dependências com retry
-RUN for i in 1 2 3; do \
-      echo "🔄 Tentativa $i de baixar dependências..." && \
-      mvn dependency:go-offline -B && break || \
-      (echo "⚠️ Tentativa $i falhou, aguardando 5 segundos..." && sleep 5); \
-    done || echo "⚠️ Aviso: Algumas dependências podem não ter sido baixadas"
+# Baixar dependências (ajuda a acelerar builds subsequentes)
+RUN ./gradlew dependencies --no-daemon || true
 
 # Copiar código fonte
 COPY src ./src
 
-# Build do projeto com retry (skip tests em produção)
-RUN for i in 1 2 3; do \
-      echo "🔨 Tentativa $i de build..." && \
-      mvn clean package -DskipTests -B -Dmaven.test.skip=true && break || \
-      (echo "⚠️ Tentativa $i falhou, aguardando 10 segundos..." && sleep 10); \
-    done && \
-    find target -name "*.jar" -not -name "*sources.jar" -not -name "*javadoc.jar" -not -name "*-original.jar" | head -1 | xargs -I {} sh -c 'mv "{}" app.jar' || \
-    (echo "❌ Erro: Nenhum JAR encontrado após build" && ls -la target/ && exit 1)
+# Build do projeto (ignora testes em produção para agilizar)
+RUN ./gradlew bootJar -x test --no-daemon && \
+    mv build/libs/*.jar app.jar
 
 # ============================================
 # STAGE 2: Runtime
 # ============================================
 FROM eclipse-temurin:17-jre-alpine AS production
 
-# Metadados
-LABEL maintainer="Secured Guard Team"
+LABEL maintainer="Fluxbus Team"
 LABEL environment="production"
 LABEL version="1.0.0"
 
-# Instalar apenas o necessário
+# Instalar pacotes necessários e configurar timezone America/Sao_Paulo
 RUN apk add --no-cache curl bash tzdata && \
     cp /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime && \
     echo "America/Sao_Paulo" > /etc/timezone
 
-# Criar usuário não-root
+# Criar usuário não-root por segurança
 RUN addgroup -S spring && adduser -S spring -G spring
 
 WORKDIR /app
 
-# Copiar JAR do builder
+# Copiar o executável gerado
 COPY --from=builder /build/app.jar app.jar
 
-# Criar diretórios e definir permissões
+# Criar diretórios necessários com permissão correta
 RUN mkdir -p /app/holerites && \
     mkdir -p /app/uploads && \
     mkdir -p /app/logs && \
     chown -R spring:spring /app
 
-# Mudar para usuário não-root
 USER spring
 
-# Expor porta
-EXPOSE 8083
+ENV SPRING_PROFILES_ACTIVE=prod
+EXPOSE 8080
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8083/api/health || exit 1
+    CMD curl -f http://localhost:8080/api/health || exit 1
 
-# JVM otimizada para container
+# Otimizações da JVM para containers Docker
 ENV JAVA_OPTS="-XX:+UseContainerSupport \
     -XX:MaxRAMPercentage=75.0 \
     -XX:InitialRAMPercentage=50.0 \
@@ -123,5 +68,4 @@ ENV JAVA_OPTS="-XX:+UseContainerSupport \
     -XX:+UseStringDeduplication \
     -Djava.security.egd=file:/dev/./urandom"
 
-# Executar aplicação
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

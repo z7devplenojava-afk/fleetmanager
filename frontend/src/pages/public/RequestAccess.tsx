@@ -61,7 +61,7 @@ const RequestAccess: React.FC = () => {
                         </div>
                         <CardTitle className="text-2xl text-emerald-700">Solicitação Recebida!</CardTitle>
                         <CardDescription>
-                            Sua solicitação de acesso foi enviada com sucesso para a equipe administrativa da FlexBus.
+                            Sua solicitação de acesso foi enviada com sucesso para a equipe administrativa da FluxBus.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="text-center text-slate-600 space-y-4">

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
-export type Theme = 'white' | 'light-gray' | 'dark' | 'dark-red' | 'system';
+export type Theme = 'dark' | 'graphite' | 'white' | 'system';
 
 interface ThemeContextType {
   theme: Theme;
@@ -27,11 +27,13 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    // Forçar tema Dark Red Premium
+    // Forçar tema Dark como padrão
     const savedTheme = localStorage.getItem('theme') as Theme;
-    if (savedTheme === 'dark-red') return 'dark-red';
+    if (savedTheme && ['dark', 'graphite', 'white', 'system'].includes(savedTheme)) {
+      return savedTheme;
+    }
 
-    return 'dark-red';
+    return 'dark';
   });
 
   const [isDark, setIsDark] = useState(false);
@@ -54,19 +56,19 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     const root = window.document.documentElement;
 
     // Remover classes anteriores
-    root.classList.remove('white', 'light-gray', 'dark', 'dark-red', 'light');
+    root.classList.remove('dark', 'graphite', 'white');
 
     let currentTheme = theme;
 
     if (theme === 'system') {
-      currentTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark-red' : 'white';
+      currentTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'white';
     }
 
     // Aplicar tema
     root.classList.add(currentTheme);
 
     // Essencial: Adicionar classe 'dark' para compatibilidade com Tailwind shadcn
-    if (['dark', 'dark-red'].includes(currentTheme)) {
+    if (['dark', 'graphite'].includes(currentTheme)) {
       root.classList.add('dark');
       setIsDark(true);
     } else {
@@ -80,9 +82,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
       let color = '#ffffff';
-      if (currentTheme === 'dark') color = '#020617';
-      else if (currentTheme === 'dark-red') color = '#0A0000';
-      else if (currentTheme === 'light-gray') color = '#F1F5F9';
+      if (currentTheme === 'dark') color = '#000000';
+      else if (currentTheme === 'graphite') color = '#2d2d2d';
+      else if (currentTheme === 'white') color = '#ffffff';
 
       metaThemeColor.setAttribute('content', color);
     }
@@ -122,10 +124,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     const handleChange = () => {
       if (theme === 'system') {
         const root = window.document.documentElement;
-        root.classList.remove('white', 'dark');
+        root.classList.remove('dark', 'graphite', 'white');
         const newTheme = mediaQuery.matches ? 'dark' : 'white';
         root.classList.add(newTheme);
-        setIsDark(newTheme === 'dark');
+        setIsDark(newTheme === 'dark' || newTheme === 'graphite');
       }
     };
 

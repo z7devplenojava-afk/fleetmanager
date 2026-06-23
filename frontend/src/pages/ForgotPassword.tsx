@@ -57,7 +57,7 @@ const ForgotPassword: React.FC = () => {
   if (sent) {
     return (
       <>
-        <SEO title="Link Enviado - FlexBus" noindex={true} />
+        <SEO title="Link Enviado - FluxBus" noindex={true} />
         <div className="fixed inset-0 bg-[#050505] overflow-hidden -z-10">
           <div className="absolute inset-0 bg-gradient-to-t from-[#821414] via-[#1a0505] to-[#050505]" />
           <div className="absolute inset-0 opacity-[0.04] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
@@ -107,7 +107,7 @@ const ForgotPassword: React.FC = () => {
 
   return (
     <>
-      <SEO title="Esqueceu a Senha - FlexBus" noindex={true} />
+      <SEO title="Esqueceu a Senha - FluxBus" noindex={true} />
       <div className="fixed inset-0 bg-[#050505] overflow-hidden -z-10">
         <div className="absolute inset-0 bg-gradient-to-t from-[#821414] via-[#1a0505] to-[#050505]" />
         <div className="absolute inset-0 opacity-[0.04] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
@@ -246,7 +246,7 @@ const ForgotPassword: React.FC = () => {
 
         <div className="mt-10 flex flex-col items-center space-y-1 opacity-60">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white brightness-150">
-            FlexBus Fleet Control
+            FluxBus Fleet Control
           </p>
         </div>
       </div>

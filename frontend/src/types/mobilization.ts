@@ -1,5 +1,14 @@
-export type MobilizationType = 'GENERAL_INSPECTION' | 'BUS_RAC02';
+export type MobilizationType = 'GENERAL_INSPECTION' | 'BUS_RAC02' | 'PRE_USO';
 export type SyncStatus = 'PENDING' | 'SYNCED';
+
+export interface ChecklistItemDetail {
+    id: string;
+    label: string;
+    category: string;
+    positivo: number | null;
+    negativo: number | null;
+    observacao: string;
+}
 
 export interface TransportMobilization {
     id: string;
@@ -12,6 +21,7 @@ export interface TransportMobilization {
     kmReading?: number;
     odometerPhotoUrl?: string;
     jsonData?: string;
+    checklistData?: string;
     damageData?: string;
     partsRequestData?: string;
     observations?: string;
@@ -29,9 +39,11 @@ export interface CreateTransportMobilizationDTO {
     occurredAt?: string;
     kmReading?: number;
     jsonData?: string;
+    checklistData?: string;
     damageData?: string;
     partsRequestData?: string;
     observations?: string;
+    descricaoAvaria?: string;
     companyId?: string;
     syncStatus?: SyncStatus;
 }

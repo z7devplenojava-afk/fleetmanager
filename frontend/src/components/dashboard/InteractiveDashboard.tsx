@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 // import { useResponsive } from '@/hooks/useResponsive';
@@ -595,7 +595,7 @@ const InteractiveDashboard: React.FC = () => {
                   Bem-vindo, <span className="text-primary italic">{user?.name?.split(' ')[0] || 'Gestor'}</span>!
                 </h1>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  Acompanhe seus indicadores estratégicos e gerencie sua frota com <span className="text-primary font-bold">FlexBus</span>.
+                  Acompanhe seus indicadores estratégicos e gerencie sua frota com <span className="text-primary font-bold">FluxBus</span>.
                 </p>
                 <div className="flex flex-wrap items-center gap-2 pt-2">
                   <Badge className="bg-primary/20 text-primary border-primary/30 font-bold px-3 py-1">

@@ -63,7 +63,7 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Sistema de segurança - Mapeado para FlexBus
+				// Sistema de segurança - Mapeado para FluxBus
 				seguranca: {
 					black: 'hsl(var(--background))',
 					graphite: 'hsl(var(--muted))',

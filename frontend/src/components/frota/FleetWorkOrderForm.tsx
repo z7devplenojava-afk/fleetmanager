@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import fleetWorkOrderService, {
     WorkOrderStatus,
     LaborType,
+    WorkOrderItemType,
     WorkOrderItem,
     FleetWorkOrder
 } from '@/services/fleetWorkOrderService';
@@ -95,6 +96,7 @@ const FleetWorkOrderForm: React.FC<FleetWorkOrderFormProps> = ({
     const handleAddItem = () => {
         const newItem: WorkOrderItem = {
             description: '',
+            type: WorkOrderItemType.PART,
             quantity: 1,
             unitPrice: 0,
             totalPrice: 0
@@ -158,15 +160,21 @@ const FleetWorkOrderForm: React.FC<FleetWorkOrderFormProps> = ({
 
         setIsLoading(true);
         try {
+            const itemsWithType = (formData.items || []).map((item) => ({
+                ...item,
+                type: item.type ?? WorkOrderItemType.PART
+            }));
+
             const dataToSave = {
                 ...formData,
+                items: itemsWithType,
                 status: submitStatus || formData.status || WorkOrderStatus.DRAFT
             };
 
             if (order?.id) {
-                // If we had an update method, we'd call it here. For now, we only have create and updateStatus in service.
-                // Assuming we'll add update soon or just re-save.
-                await fleetWorkOrderService.create(dataToSave);
+                // Backend ainda não expõe PUT completo: não reenviar id (evita confusão / duplicidade).
+                const { id: _omit, ...createPayload } = dataToSave as FleetWorkOrder & { id?: string };
+                await fleetWorkOrderService.create(createPayload);
             } else {
                 await fleetWorkOrderService.create(dataToSave);
             }

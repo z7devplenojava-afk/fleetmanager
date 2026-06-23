@@ -111,6 +111,7 @@ import {
   FolderTree,
   FolderUp,
   DoorOpen,
+  UserCircle,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -307,6 +308,11 @@ const administrativoMenuItems = [
   { icon: Upload, text: 'Importar WhatsApp (PDF)', to: '/sistema/importar-whatsapp', id: 'sistema-importar-whatsapp' },
 ];
 
+// Módulo Portal do Funcionário
+const portalFuncionarioMenuItems = [
+  { icon: UserCircle, text: 'Portal do Funcionário', to: '/employee-portal', id: 'employee-portal' },
+];
+
 export function AppSidebar() {
   const location = useLocation();
   const { user } = useAuth();
@@ -353,6 +359,7 @@ export function AppSidebar() {
       ...gestaoAtendimentoMenuItems,
       ...gestaoMensagensInternasMenuItems,
       ...administrativoMenuItems,
+      ...portalFuncionarioMenuItems,
     ];
 
     // Primeiro tenta encontrar uma correspondência exata
@@ -374,7 +381,7 @@ export function AppSidebar() {
   return (
     <div className="bg-seguranca-graphite border-r border-gray-700 w-64 h-screen overflow-y-auto" style={{ minHeight: '100vh' }}>
       <div className="p-4 border-b border-gray-700">
-        <div className="text-white font-bold italic">Flex<span className="text-primary not-italic">Bus</span></div>
+        <div className="text-white font-bold italic">Flux<span className="text-primary not-italic">bus</span></div>
       </div>
 
       <div className="p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
@@ -698,7 +705,8 @@ export function AppSidebar() {
             </Link>
           </div>
         ))}
-      </div>
+
+              </div>
     </div>
   );
 }

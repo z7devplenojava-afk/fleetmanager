@@ -12,7 +12,7 @@
     --sidebar-width-mobile: 18rem;
   }
 
-  /* Tema FlexBus Light - Clean / Premium */
+  /* Tema FluxBus Light - Clean / Premium */
   .white,
   .light {
     --background: 210 20% 98.5%;
@@ -22,7 +22,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 47% 11.2%;
     --primary: 0 84% 44%;
-    /* FlexBus Crimson */
+    /* FluxBus Crimson */
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -111,7 +111,48 @@
     --sidebar-ring: 212.7 26.8% 83.9%;
   }
 
-  /* Tema FlexBus Crimson - PRECISE SECURE GUARD COLORS */
+  /* Tema Cinza Grafite - Intermediate */
+  .graphite {
+    --background: 220 13% 18%;
+    /* Grafite escuro (#2d2d2d) */
+    --foreground: 210 40% 98%;
+    --card: 220 13% 20%;
+    /* Grafite médio (#333333) */
+    --card-foreground: 210 40% 98%;
+    --popover: 220 13% 20%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 0 84% 44%;
+    /* FluxBus Crimson */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 220 13% 25%;
+    /* Grafite claro (#404040) */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 220 13% 25%;
+    --muted-foreground: 220 13% 60%;
+    --accent: 0 84% 44%;
+    /* FluxBus Crimson */
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    /* FluxBus Red */
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 13% 30%;
+    /* Grafite borda (#4d4d4d) */
+    --input: 220 13% 25%;
+    --ring: 0 84% 44%;
+
+    --sidebar-background: 220 13% 15%;
+    /* Sidebar grafite */
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-primary: 0 84% 44%;
+    /* FluxBus Crimson */
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 220 13% 25%;
+    --sidebar-accent-foreground: 0 84% 44%;
+    --sidebar-border: 220 13% 30%;
+    --sidebar-ring: 0 84% 44%;
+  }
+
+  /* Tema FluxBus Crimson - PRECISE SECURE GUARD COLORS */
   .dark-red {
     --background: 240 10% 3.9%;
     /* Deep Zinc-950 (#0a0a0a) */
@@ -184,6 +225,14 @@
 
   .dark .scroll-indicator-right {
     background: linear-gradient(to left, rgba(31, 41, 55, 1), rgba(31, 41, 55, 0));
+  }
+
+  .graphite .scroll-indicator-left {
+    background: linear-gradient(to right, rgba(45, 45, 45, 1), rgba(45, 45, 45, 0));
+  }
+
+  .graphite .scroll-indicator-right {
+    background: linear-gradient(to left, rgba(45, 45, 45, 1), rgba(45, 45, 45, 0));
   }
 }
 

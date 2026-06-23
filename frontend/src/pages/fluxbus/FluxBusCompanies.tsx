@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { companyService, CreateCompanyRequest } from '@/services/companyService';
 import { Loader2 } from 'lucide-react';
 
-const FlexBusCompanies: React.FC = () => {
+const FluxBusCompanies: React.FC = () => {
     const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [companies, setCompanies] = useState<any[]>([]);
@@ -88,7 +88,7 @@ const FlexBusCompanies: React.FC = () => {
                         <Shield className="text-seguranca-yellow" />
                         Gestão de Empresas (SaaS)
                     </h1>
-                    <p className="text-gray-400">Gerencie os clientes da plataforma FlexBus e seus limites de uso.</p>
+                    <p className="text-gray-400">Gerencie os clientes da plataforma FluxBus e seus limites de uso.</p>
                 </div>
                 <Button className="bg-seguranca-red hover:bg-seguranca-darkred text-white flex gap-2">
                     <Plus size={18} />
@@ -231,4 +231,4 @@ const FlexBusCompanies: React.FC = () => {
     );
 };
 
-export default FlexBusCompanies;
+export default FluxBusCompanies;

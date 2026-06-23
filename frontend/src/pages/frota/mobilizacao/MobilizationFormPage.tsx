@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { StandardLayout } from '@/components/StandardLayout';
@@ -9,18 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     Truck,
     ArrowLeft,
     Save,
     Loader2,
     Camera,
-    ClipboardList,
     AlertTriangle,
-    CheckCircle2,
-    ListChecks
+    ClipboardList,
+    FileText
 } from 'lucide-react';
 import {
     Select,
@@ -35,33 +33,45 @@ import transportMobilizationService from '@/services/transportMobilizationServic
 import fleetService from '@/services/fleetService';
 import driverService from '@/services/driverService';
 import { useToast } from '@/hooks/use-toast';
-import type { MobilizationType, CreateTransportMobilizationDTO } from '@/types/mobilization';
+import type { MobilizationType, CreateTransportMobilizationDTO, ChecklistItemDetail } from '@/types/mobilization';
 
-interface ChecklistItem {
-    id: string;
-    label: string;
-    checked: boolean;
-    category: string;
-}
-
-const GENERAL_CHECKLIST: ChecklistItem[] = [
-    { id: 'cnh', label: 'CNH em dia', checked: false, category: 'Docs' },
-    { id: 'crlv', label: 'CRLV em dia', checked: false, category: 'Docs' },
-    { id: 'oleo', label: 'Nível de óleo', checked: false, category: 'Mecânica' },
-    { id: 'agua', label: 'Líquido arrefecimento', checked: false, category: 'Mecânica' },
-    { id: 'pneus', label: 'Pneus (calib/desgaste)', checked: false, category: 'Segurança' },
-    { id: 'luzes', label: 'Luzes (farol/seta)', checked: false, category: 'Segurança' },
-    { id: 'cinto', label: 'Cinto de segurança', checked: false, category: 'Segurança' },
-    { id: 'limpeza', label: 'Limpeza geral', checked: false, category: 'Outros' },
+const PRE_USO_CHECKLIST: ChecklistItemDetail[] = [
+    { id: 'documentos', label: 'Documentos (CNH, DUT, Seguro p/evento, ATF)', category: 'Documentação', positivo: null, negativo: null, observacao: '' },
+    { id: 'selo', label: 'Selo - Validade da vistoria do veículo', category: 'Documentação', positivo: null, negativo: null, observacao: '' },
+    { id: 'cintos', label: 'Cintos de segurança (motorista e passageiros)', category: 'Segurança', positivo: null, negativo: null, observacao: '' },
+    { id: 'extintor', label: 'Extintor de incêndio', category: 'Segurança', positivo: null, negativo: null, observacao: '' },
+    { id: 'freio', label: 'Sistema de freio', category: 'Segurança', positivo: null, negativo: null, observacao: '' },
+    { id: 'cones', label: 'Cones de sinalização', category: 'Segurança', positivo: null, negativo: null, observacao: '' },
+    { id: 'giroflex', label: 'Giroflex', category: 'Segurança', positivo: null, negativo: null, observacao: '' },
+    { id: 'alarme_re', label: 'Alarme de ré (luzes e sensor)', category: 'Segurança', positivo: null, negativo: null, observacao: '' },
+    { id: 'para_brisa', label: 'Para-brisa (direito e esquerdo)', category: 'Visibilidade', positivo: null, negativo: null, observacao: '' },
+    { id: 'limpador', label: 'Limpador e lavador do para-brisa', category: 'Visibilidade', positivo: null, negativo: null, observacao: '' },
+    { id: 'pneus', label: 'Pneus (do veículo e estepe)', category: 'Pneus', positivo: null, negativo: null, observacao: '' },
+    { id: 'macaco', label: 'Macaco, chave de roda e triângulo', category: 'Pneus', positivo: null, negativo: null, observacao: '' },
+    { id: 'motor', label: 'Motor (ruído, lubrificação, etc.)', category: 'Mecânica', positivo: null, negativo: null, observacao: '' },
+    { id: 'vazamentos', label: 'Vazamentos (hidráulicos, óleo, caixa de marcha, etc.)', category: 'Mecânica', positivo: null, negativo: null, observacao: '' },
+    { id: 'luzes', label: 'Sistema de luzes (painel, setas, lanternas, faróis)', category: 'Elétrica', positivo: null, negativo: null, observacao: '' },
+    { id: 'chip', label: 'Chip de abastecimento', category: 'Elétrica', positivo: null, negativo: null, observacao: '' },
+    { id: 'tacografo', label: 'Tacógrafo (aparelho, leitura e disco)', category: 'Equipamentos', positivo: null, negativo: null, observacao: '' },
+    { id: 'prancheta', label: 'Prancheta', category: 'Equipamentos', positivo: null, negativo: null, observacao: '' },
+    { id: 'poltronas', label: 'Poltronas', category: 'Estrutura', positivo: null, negativo: null, observacao: '' },
+    { id: 'portas_janelas', label: 'Porta/Janelas (saída de emergência, cortinas)', category: 'Estrutura', positivo: null, negativo: null, observacao: '' },
+    { id: 'limpeza', label: 'Limpeza (externa e interna)', category: 'Limpeza', positivo: null, negativo: null, observacao: '' },
+    { id: 'condicoes_gerais', label: 'Condições gerais do veículo', category: 'Geral', positivo: null, negativo: null, observacao: '' },
 ];
 
-const BUS_RAC02_CHECKLIST: ChecklistItem[] = [
-    ...GENERAL_CHECKLIST,
-    { id: 'pneu_diant', label: 'Pneus diant. s/ recape', checked: false, category: 'RAC 02' },
-    { id: 'tacografo', label: 'Tacógrafo funcional', checked: false, category: 'RAC 02' },
-    { id: 'emergencia', label: 'Saídas de emergência', checked: false, category: 'RAC 02' },
-    { id: 'extintor', label: 'Extintor carregado', checked: false, category: 'RAC 02' },
-    { id: 'elevador', label: 'Elevador acessibilidade', checked: false, category: 'RAC 02' },
+const POSITIVO_OPTIONS = [
+    { value: 1, label: 'P1' },
+    { value: 2, label: 'P2' },
+    { value: 3, label: 'P3' },
+    { value: 4, label: 'P4' },
+];
+
+const NEGATIVO_OPTIONS = [
+    { value: 1, label: 'N1' },
+    { value: 2, label: 'N2' },
+    { value: 3, label: 'N3' },
+    { value: 4, label: 'N4' },
 ];
 
 const MobilizationFormPage: React.FC = () => {
@@ -73,7 +83,7 @@ const MobilizationFormPage: React.FC = () => {
     const isEditing = !!id;
 
     const [type, setType] = useState<MobilizationType>(
-        (searchParams.get('type') as MobilizationType) || 'GENERAL_INSPECTION'
+        (searchParams.get('type') as MobilizationType) || 'PRE_USO'
     );
 
     const [formData, setFormData] = useState({
@@ -81,17 +91,17 @@ const MobilizationFormPage: React.FC = () => {
         driverId: '',
         kmReading: '',
         observations: '',
+        descricaoAvaria: '',
     });
 
-    const [checklist, setChecklist] = useState<ChecklistItem[]>(
-        type === 'BUS_RAC02' ? [...BUS_RAC02_CHECKLIST] : [...GENERAL_CHECKLIST]
+    const [checklist, setChecklist] = useState<ChecklistItemDetail[]>(() =>
+        PRE_USO_CHECKLIST.map(item => ({ ...item }))
     );
 
     const [damagePoints, setDamagePoints] = useState<DamagePoint[]>([]);
     const [odometerPhoto, setOdometerPhoto] = useState<File | null>(null);
     const [generalPhotos, setGeneralPhotos] = useState<File[]>([]);
 
-    // Fetch initial data if editing
     const { data: existingMobilization, isLoading: isLoadingExisting } = useQuery({
         queryKey: ['transport-mobilization', id],
         queryFn: () => transportMobilizationService.findById(id!),
@@ -103,23 +113,29 @@ const MobilizationFormPage: React.FC = () => {
             setType(existingMobilization.type);
             setFormData({
                 vehicleId: existingMobilization.vehicleId,
-                driverId: existingMobilization.driverId,
-                kmReading: existingMobilization.kmReading.toString(),
+                driverId: existingMobilization.driverId || '',
+                kmReading: existingMobilization.kmReading?.toString() || '',
                 observations: existingMobilization.observations || '',
+                descricaoAvaria: '',
             });
 
-            try {
-                const items = JSON.parse(existingMobilization.checklistData);
-                setChecklist(items);
-            } catch (e) {
-                console.error("Error parsing checklist data", e);
+            const data = existingMobilization.checklistData || existingMobilization.jsonData;
+            if (data) {
+                try {
+                    const items = JSON.parse(data);
+                    if (Array.isArray(items) && items.length > 0 && 'positivo' in items[0]) {
+                        setChecklist(items);
+                    }
+                } catch (e) {
+                    console.error("Erro ao fazer parse do checklist", e);
+                }
             }
 
             try {
                 const damages = JSON.parse(existingMobilization.damageData || '[]');
                 setDamagePoints(damages);
             } catch (e) {
-                console.error("Error parsing damage data", e);
+                console.error("Erro ao fazer parse do mapa de avarias", e);
             }
         }
     }, [existingMobilization]);
@@ -142,24 +158,21 @@ const MobilizationFormPage: React.FC = () => {
             } else {
                 result = await transportMobilizationService.create(payload.data);
             }
-
             if (payload.odometer) {
                 await transportMobilizationService.uploadOdometerPhoto(result.id, payload.odometer);
             }
-
             if (payload.photos.length > 0) {
-                await transportMobilizationService.uploadGeneralPhotos(result.id, payload.photos);
+                await transportMobilizationService.uploadPhotos(result.id, payload.photos);
             }
-
             return result;
         },
         onSuccess: () => {
-            toast({ title: 'Sucesso', description: `Inspeção ${isEditing ? 'atualizada' : 'registrada'} com sucesso.` });
+            toast({ title: 'Sucesso', description: `Checklist ${isEditing ? 'atualizado' : 'registrado'} com sucesso.` });
             queryClient.invalidateQueries({ queryKey: ['transport-mobilizations'] });
             navigate('/frota/mobilizacao');
         },
         onError: (err: any) => {
-            toast({ title: 'Erro', description: err.message || 'Falha ao salvar inspeção.', variant: 'destructive' });
+            toast({ title: 'Erro', description: err.message || 'Falha ao salvar checklist.', variant: 'destructive' });
         }
     });
 
@@ -171,19 +184,23 @@ const MobilizationFormPage: React.FC = () => {
         }
 
         const payload: CreateTransportMobilizationDTO = {
-            ...formData,
+            vehicleId: formData.vehicleId,
+            driverId: formData.driverId || undefined,
             type,
             kmReading: parseInt(formData.kmReading),
             checklistData: JSON.stringify(checklist),
             damageData: JSON.stringify(damagePoints),
-            partsRequestData: '[]', // Placeholder for now
+            observations: formData.observations,
+            descricaoAvaria: formData.descricaoAvaria,
         };
 
         mutation.mutate({ data: payload, odometer: odometerPhoto || undefined, photos: generalPhotos });
     };
 
-    const toggleChecklistItem = (id: string) => {
-        setChecklist(prev => prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
+    const updateChecklistItem = (id: string, field: keyof ChecklistItemDetail, value: any) => {
+        setChecklist(prev =>
+            prev.map(item => (item.id === id ? { ...item, [field]: value } : item))
+        );
     };
 
     if (isEditing && isLoadingExisting) {
@@ -195,27 +212,27 @@ const MobilizationFormPage: React.FC = () => {
     }
 
     return (
-        <StandardLayout title={isEditing ? 'Editar Inspeção' : 'Nova Inspeção'}>
-            <div className="max-w-4xl mx-auto space-y-6">
+        <StandardLayout title={isEditing ? 'Editar Checklist' : 'Novo Checklist de Pré-Uso'}>
+            <div className="max-w-5xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <Button variant="ghost" onClick={() => navigate('/frota/mobilizacao')} className="text-gray-400">
                         <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
                     </Button>
                     <h1 className="text-2xl font-bold text-seguranca-lightgray">
-                        {type === 'BUS_RAC02' ? 'Checklist Ônibus (RAC 02)' : 'Inspeção Geral de Veículo'}
+                        Relatório de Pré-Uso (Checklist)
                     </h1>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6 pb-20">
-                    {/* 1. Identification Section */}
+                    {/* Identificação do Veículo */}
                     <Card className="bg-seguranca-graphite border-gray-600">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
-                                <Truck className="h-5 w-5 text-seguranca-yellow" /> Identificação
+                                <Truck className="h-5 w-5 text-seguranca-yellow" /> Identificação do Veículo
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <Label>Veículo *</Label>
                                     <Select
@@ -249,7 +266,7 @@ const MobilizationFormPage: React.FC = () => {
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Odômetro Atual (KM) *</Label>
+                                    <Label>Odômetro (KM) *</Label>
                                     <Input
                                         type="number"
                                         value={formData.kmReading}
@@ -258,60 +275,88 @@ const MobilizationFormPage: React.FC = () => {
                                         placeholder="0"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Foto do Odômetro</Label>
-                                    <div className="flex items-center gap-2">
-                                        <CameraCapture
-                                            onPhotosChange={(photos) => setOdometerPhoto(photos[0] || null)}
-                                            maxPhotos={1}
-                                            label="Capturar KM"
-                                        />
-                                    </div>
-                                </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* 2. Checklist Section */}
+                    {/* Checklist de Pré-Uso */}
                     <Card className="bg-seguranca-graphite border-gray-600">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
-                                <ListChecks className="h-5 w-5 text-seguranca-yellow" /> Itens de Verificação
+                                <ClipboardList className="h-5 w-5 text-seguranca-yellow" />
+                                Inspeção de Pré-Uso (Checklist)
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-6">
+                            <div className="space-y-8">
                                 {Object.entries(
                                     checklist.reduce((acc, item) => {
                                         if (!acc[item.category]) acc[item.category] = [];
                                         acc[item.category].push(item);
                                         return acc;
-                                    }, {} as Record<string, ChecklistItem[]>)
+                                    }, {} as Record<string, ChecklistItemDetail[]>)
                                 ).map(([category, items]) => (
-                                    <div key={category} className="space-y-3">
-                                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest border-l-2 border-seguranca-yellow pl-2">
+                                    <div key={category}>
+                                        <h3 className="text-sm font-bold text-seguranca-yellow uppercase tracking-widest border-l-2 border-seguranca-yellow pl-2 mb-3">
                                             {category}
                                         </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+                                        <div className="space-y-3">
                                             {items.map((item) => (
                                                 <div
                                                     key={item.id}
-                                                    className={`flex items-center space-x-3 p-2 rounded-lg transition-all ${item.checked ? 'bg-seguranca-yellow/5 border border-seguranca-yellow/20' : 'bg-seguranca-black/30 border border-transparent'
-                                                        }`}
+                                                    className="bg-seguranca-black/30 border border-gray-700 rounded-lg p-3 space-y-2"
                                                 >
-                                                    <Checkbox
-                                                        id={item.id}
-                                                        checked={item.checked}
-                                                        onCheckedChange={() => toggleChecklistItem(item.id)}
-                                                        className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:text-black"
-                                                    />
-                                                    <Label
-                                                        htmlFor={item.id}
-                                                        className={`flex-1 cursor-pointer text-sm font-medium ${item.checked ? 'text-seguranca-lightgray' : 'text-gray-400'}`}
-                                                    >
+                                                    <p className="text-sm font-medium text-seguranca-lightgray">
                                                         {item.label}
-                                                    </Label>
-                                                    {item.checked && <CheckCircle2 className="h-3.5 w-3.5 text-seguranca-yellow" />}
+                                                    </p>
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                        <div>
+                                                            <span className="text-xs text-gray-500 mr-2">Positivo:</span>
+                                                            <RadioGroup
+                                                                value={item.positivo?.toString() || ''}
+                                                                onValueChange={(v) => updateChecklistItem(item.id, 'positivo', parseInt(v))}
+                                                                className="flex gap-1"
+                                                            >
+                                                                {POSITIVO_OPTIONS.map(opt => (
+                                                                    <div key={opt.value} className="flex items-center gap-1">
+                                                                        <RadioGroupItem
+                                                                            value={opt.value.toString()}
+                                                                            id={`${item.id}-p${opt.value}`}
+                                                                            className="h-4 w-4 border-gray-500 text-seguranca-yellow"
+                                                                        />
+                                                                        <Label htmlFor={`${item.id}-p${opt.value}`} className="text-xs text-gray-400">{opt.label}</Label>
+                                                                    </div>
+                                                                ))}
+                                                            </RadioGroup>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-xs text-gray-500 mr-2">Negativo:</span>
+                                                            <RadioGroup
+                                                                value={item.negativo?.toString() || ''}
+                                                                onValueChange={(v) => updateChecklistItem(item.id, 'negativo', parseInt(v))}
+                                                                className="flex gap-1"
+                                                            >
+                                                                {NEGATIVO_OPTIONS.map(opt => (
+                                                                    <div key={opt.value} className="flex items-center gap-1">
+                                                                        <RadioGroupItem
+                                                                            value={opt.value.toString()}
+                                                                            id={`${item.id}-n${opt.value}`}
+                                                                            className="h-4 w-4 border-gray-500 text-red-400"
+                                                                        />
+                                                                        <Label htmlFor={`${item.id}-n${opt.value}`} className="text-xs text-gray-400">{opt.label}</Label>
+                                                                    </div>
+                                                                ))}
+                                                            </RadioGroup>
+                                                        </div>
+                                                        <div>
+                                                            <Input
+                                                                placeholder="Observação"
+                                                                value={item.observacao}
+                                                                onChange={(e) => updateChecklistItem(item.id, 'observacao', e.target.value)}
+                                                                className="bg-seguranca-black border-gray-600 h-8 text-xs"
+                                                            />
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -321,22 +366,36 @@ const MobilizationFormPage: React.FC = () => {
                         </CardContent>
                     </Card>
 
-                    {/* 3. Damage Map Section */}
+                    {/* Descrição da Avaria */}
                     <Card className="bg-seguranca-graphite border-gray-600">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5 text-seguranca-yellow" /> Mapa de Avarias
+                                <AlertTriangle className="h-5 w-5 text-seguranca-yellow" /> Descrição da Avaria
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <DamageMap
-                                points={damagePoints}
-                                onChange={setDamagePoints}
+                            <Textarea
+                                value={formData.descricaoAvaria}
+                                onChange={(e) => setFormData(f => ({ ...f, descricaoAvaria: e.target.value }))}
+                                placeholder="Descreva detalhadamente qualquer avaria encontrada..."
+                                className="bg-seguranca-black border-gray-600 min-h-[80px]"
                             />
                         </CardContent>
                     </Card>
 
-                    {/* 4. Photos and Observations */}
+                    {/* Mapa de Avarias */}
+                    <Card className="bg-seguranca-graphite border-gray-600">
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-seguranca-yellow" /> Mapa de Avarias
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <DamageMap points={damagePoints} onChange={setDamagePoints} />
+                        </CardContent>
+                    </Card>
+
+                    {/* Fotos e Observações */}
                     <Card className="bg-seguranca-graphite border-gray-600">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
@@ -345,14 +404,20 @@ const MobilizationFormPage: React.FC = () => {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
+                                <Label>Foto do Odômetro</Label>
+                                <CameraCapture
+                                    onPhotosChange={(photos) => setOdometerPhoto(photos[0] || null)}
+                                    maxPhotos={1}
+                                    label="Capturar KM"
+                                />
+                            </div>
+                            <div className="space-y-2">
                                 <Label>Fotos Gerais do Veículo</Label>
-                                <div className="flex flex-col gap-2">
-                                    <CameraCapture
-                                        onPhotosChange={(photos) => setGeneralPhotos(photos)}
-                                        label="Anexar Fotos (Até 10)"
-                                        maxPhotos={10}
-                                    />
-                                </div>
+                                <CameraCapture
+                                    onPhotosChange={(photos) => setGeneralPhotos(photos)}
+                                    label="Anexar Fotos (Até 10)"
+                                    maxPhotos={10}
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label>Observações Adicionais</Label>
@@ -386,7 +451,7 @@ const MobilizationFormPage: React.FC = () => {
                             ) : (
                                 <Save className="mr-2 h-4 w-4" />
                             )}
-                            {isEditing ? 'Atualizar Inspeção' : 'Salvar Inspeção'}
+                            {isEditing ? 'Atualizar Checklist' : 'Salvar Checklist'}
                         </Button>
                     </div>
                 </form>

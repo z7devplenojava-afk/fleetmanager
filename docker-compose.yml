@@ -73,6 +73,70 @@ services:
       - "github.com:140.82.121.4"
     restart: unless-stopped
 
+  # ========================================
+  # EVOLUTION API (WhatsApp)
+  # ========================================
+  evolution-api:
+    build:
+      context: ./evolution-api
+      dockerfile: Dockerfile
+    image: secured-guard-evolution-api:latest
+    container_name: evolution-api-local
+    environment:
+      SERVER_URL: http://localhost:8080
+      AUTHENTICATION_TYPE: apikey
+      AUTHENTICATION_API_KEY: B6D711FCDE4D4FD5936544120E713976
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+      LANGUAGE: pt-BR
+      CONFIG_SESSION_PHONE_CLIENT: SecuredGuard
+      CONFIG_SESSION_PHONE_NAME: chrome
+      QRCODE_LIMIT: 1902
+      QRCODE_COLOR: "#000000"
+      DATABASE_ENABLED: "false"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis-evolution:6379/0
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+      TYPEBOT_ENABLED: "false"
+      CHATWOOT_ENABLED: "false"
+      RABBITMQ_ENABLED: "false"
+      WEBHOOK_GLOBAL_ENABLED: "false"
+      LOG_LEVEL: INFO
+      LOG_COLOR: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+      - ./backend/holerites:/evolution/holerites
+    networks:
+      - secured-guard-network
+    depends_on:
+      redis-evolution:
+        condition: service_started
+    shm_size: 512mb
+    security_opt:
+      - seccomp=unconfined
+    restart: unless-stopped
+
+  # ========================================
+  # REDIS (para Evolution API)
+  # ========================================
+  redis-evolution:
+    image: redis:7-alpine
+    container_name: redis-evolution-local
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_evolution_data:/data
+    networks:
+      - secured-guard-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 # ========================================
 # VOLUMES
 # ========================================
@@ -80,6 +144,8 @@ volumes:
   postgres_data:
   redis_data:
   whatsapp_sessions:
+  evolution_instances:
+  redis_evolution_data:
 
 # ========================================
 # NETWORKS

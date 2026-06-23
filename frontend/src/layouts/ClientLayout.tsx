@@ -39,7 +39,7 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ children }) => {
                         <Bus className="w-4 h-4 text-white" />
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-sm font-bold leading-none tracking-tight">FlexBus</span>
+                        <span className="text-sm font-bold leading-none tracking-tight">FluxBus</span>
                         <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-widest">Client Portal</span>
                     </div>
                 </div>

@@ -61,7 +61,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                         </div>
                         {!collapsed && (
                             <div className="flex flex-col animate-in fade-in duration-300">
-                                <span className="font-bold text-lg leading-none tracking-tight">FlexBus</span>
+                                <span className="font-bold text-lg leading-none tracking-tight">FluxBus</span>
                                 <span className="text-xs text-amber-500 font-medium uppercase tracking-wider">Admin Area</span>
                             </div>
                         )}

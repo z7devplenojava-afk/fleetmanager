@@ -1,0 +1,13 @@
+# =============================================================================
+# FluxBus DEV — FRONTEND (application separada no Coolify)
+# =============================================================================
+#   Base Directory : frontend
+#   Dockerfile     : Dockerfile.prod
+#   Port Exposed   : 80
+#   Domain         : dev.fluxbus.com.br
+#   Health Check   : /health
+# =============================================================================
+
+VITE_API_URL=https://api.dev.fluxbus.com.br/api
+VITE_WS_URL=wss://api.dev.fluxbus.com.br/ws
+VITE_ENVIRONMENT=development

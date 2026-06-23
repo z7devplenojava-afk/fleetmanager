@@ -82,6 +82,10 @@ def find_pages(project_path: Path) -> list:
     files = []
     for pattern in patterns:
         for f in project_path.glob(pattern):
+            # Only check files under the frontend directory
+            if 'frontend' not in [p.lower() for p in f.parts]:
+                continue
+                
             # Skip excluded directories
             if any(skip in f.parts for skip in SKIP_DIRS):
                 continue

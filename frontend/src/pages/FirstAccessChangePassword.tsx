@@ -99,7 +99,7 @@ const FirstAccessChangePassword = () => {
     <>
       <SEO
         title="Primeiro Acesso - Alterar Senha"
-        description="Por segurança, altere sua senha no primeiro acesso ao FlexBus."
+        description="Por segurança, altere sua senha no primeiro acesso ao FluxBus."
         noindex={true}
       />
 
@@ -249,7 +249,7 @@ const FirstAccessChangePassword = () => {
 
         <div className="mt-10 flex flex-col items-center space-y-1 opacity-60">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white brightness-150">
-            FlexBus Fleet Control
+            FluxBus Fleet Control
           </p>
         </div>
       </div>

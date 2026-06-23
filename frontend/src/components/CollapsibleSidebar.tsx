@@ -78,7 +78,8 @@ import {
   DoorOpen,
   Ticket,
   Armchair,
-  Truck
+  Truck,
+  UserCircle
 } from 'lucide-react';
 
 interface CollapsibleSidebarProps {
@@ -90,6 +91,7 @@ interface CollapsibleSidebarProps {
 // Menu principal
 const mainMenuItems = [
   { icon: Home, text: 'Dashboard', to: '/dashboard', id: 'dashboard' },
+  { icon: UserCircle, text: 'Portal do Funcionário', to: '/employee-portal', id: 'employee-portal' },
   { icon: User2, text: 'Portal do Motorista', to: '/driver-dashboard', id: 'driver-dashboard' },
   { icon: FileSpreadsheet, text: 'Holerites', to: '/holerites', id: 'holerites' },
   { icon: Building2, text: 'Filiais', to: '/filiais', id: 'filiais' },
@@ -127,6 +129,7 @@ const trafegoMenuItems = [
   { icon: Bus, text: 'Gestão de Viagens', to: '/fretamento/viagens', id: 'trafego-viagens', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: Clock, text: 'Gestão de Turnos', to: '/fretamento/turnos', id: 'trafego-turnos', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: ClipboardList, text: 'Atribuições de Transportes', to: '/fretamento/atribuicoes', id: 'trafego-atribuicoes', permission: 'TRAFFIC_MANAGEMENT_READ' },
+  { icon: Users, text: 'Gestão de Passageiros', to: '/fretamento/passageiros', id: 'trafego-passageiros', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: Bus, text: 'Minhas Viagens', to: '/driver/trips', id: 'driver-trips', permission: 'TRIPS_READ' },
   { icon: QrCode, text: 'Meu Embarque', to: '/passenger/qrcode', id: 'passenger-qrcode', permission: 'BOARDING_READ' },
 ];
@@ -153,6 +156,7 @@ const operacionalMenuItems = [
   { icon: Activity, text: 'Parte Diária', to: '/operacional?tab=parte-diaria', id: 'operacional-parte-diaria', color: 'text-red-500' },
   { icon: Route, text: 'Controle de Rondas', to: '/controle-rondas', id: 'controle-rondas' },
   { icon: FileText, text: 'Guia de Transporte', to: '/operacional?tab=guia-transporte', id: 'operacional-guia-transporte' },
+  { icon: Calculator, text: 'Rateio de Serviços', to: '/operacional?tab=rateio-servicos', id: 'operacional-rateio-servicos' },
   { icon: ClipboardCheck, text: 'Gestão Operacional', to: '/operacional?tab=gestao-operacional', id: 'operacional-gestao' },
 ];
 
@@ -308,6 +312,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-mensagens-notificacoes',
     'ticketing-booking',
     'mobilizacao-transportes',
+    'operacional-rateio-servicos',
   ]),
   // RH e Departamento Pessoal NÃO veem módulo Operacional
   RH: new Set([
@@ -409,6 +414,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'mensagens',
     'ticketing-booking',
     'mobilizacao-transportes',
+    'operacional-rateio-servicos',
   ]),
   MECANICO: new Set([
     'dashboard',
@@ -419,6 +425,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'chat-interno',
     'mensagens',
     'mobilizacao-transportes',
+    'operacional-rateio-servicos',
   ]),
   PORTARIA: new Set([
     'dashboard',
@@ -427,6 +434,165 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'chat-interno',
     'mensagens',
     'mobilizacao-transportes',
+    'operacional-rateio-servicos',
+  ]),
+  EMPLOYEE: new Set([
+    'dashboard',
+    'employee-portal',
+    'holerites',
+    'chat-interno',
+    'mensagens',
+    'operacional-rateio-servicos',
+  ]),
+  SUPER_ADMIN: new Set([
+    // Menu Principal
+    'dashboard',
+    'employee-portal',
+    'driver-dashboard',
+    'holerites',
+    'filiais',
+    
+    // Manutenção & Frota
+    'manutencao',
+    'frota',
+    'manutencao-v2',
+    'mechanic-dashboard',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    
+    // Mobilização
+    'mobilizacao-transportes',
+    
+    // Passagens
+    'ticketing-booking',
+    'ticketing-templates',
+    'ticketing-trips',
+    
+    // Tráfego
+    'trafego-dashboard',
+    'trafego-rotas',
+    'trafego-viagens',
+    'trafego-turnos',
+    'trafego-atribuicoes',
+    'driver-trips',
+    'passenger-qrcode',
+    
+    // Fiscal
+    'fiscal-dashboard',
+    'fiscal-importar',
+    'fiscal-impostos',
+    'fiscal-relatorios',
+    
+    // Operacional
+    'operacional-dashboard',
+    'operacional-servicos',
+    'operacional-equipamentos',
+    'operacional-controle-visitas',
+    'operacional-escalas',
+    'operacional-notificacoes',
+    'operacional-ocorrencias',
+    'operacional-atividades',
+    'operacional-troca-plantao',
+    'operacional-parte-diaria',
+    'controle-rondas',
+    'operacional-guia-transporte',
+    'operacional-rateio-servicos',
+    'operacional-gestao',
+    
+    // RH
+    'rh',
+    'rh-controle-horas',
+    'rh-funcionarios',
+    'rh-postos',
+    'rh-vagas',
+    'rh-beneficios',
+    'rh-treinamentos',
+    'rh-relatorios',
+    'rh-sst',
+    'rh-sst-exames',
+    'rh-sst-epis',
+    'rh-sst-acidentes',
+    'rh-sst-treinamentos',
+    'rh-sst-cipa',
+    'rh-sst-relatorios',
+    'dp-funcionarios',
+    'dp-funcionarios-importar-bancarios',
+    'dp-admissao-demissao',
+    'dp-remanejamentos',
+    'dp-ferias',
+    'dp-ponto-eletronico',
+    'rh-fechamento-horas',
+    'dp-ocorrencias',
+    'dp-beneficios',
+    'dp-funcoes',
+    'dp-cargos',
+    'dp-postos',
+    'dp-epis',
+    'dp-documentos',
+    'dp-ordens-servico',
+    'dp-vagas',
+    
+    // Comercial
+    'leads',
+    'empresas',
+    'clientes',
+    'propostas',
+    'orcamentos',
+    'contratos',
+    'crm',
+    
+    // Estoque
+    'estoque-simplificado',
+    'estoque-relatorios',
+    'estoque-alertas',
+    'estoque-fornecedores',
+    
+    // Compras
+    'compras',
+    'compras-solicitacoes',
+    'compras-aprovacoes',
+    'compras-cotacoes',
+    'compras-relatorios',
+    
+    // Comunicação Interna
+    'chat-interno',
+    'mensagens',
+    'gestao-mensagens-grupos',
+    'gestao-mensagens-notificacoes',
+    
+    // Atendimento
+    'gestao-atendimento-dashboard',
+    'gestao-atendimento-tickets',
+    'gestao-atendimento-historico',
+    'gestao-atendimento-agentes',
+    'gestao-atendimento-metricas',
+    'gestao-atendimento-chatbot',
+    
+    // Financeiro
+    'financeiro',
+    'financeiro-contas-pagar',
+    'financeiro-contas-receber',
+    'financeiro-fluxo-caixa',
+    'financeiro-pagamentos',
+    'financeiro-conciliacao-bancaria',
+    'financeiro-bancos',
+    'financeiro-agencias',
+    'financeiro-relatorios',
+    'financeiro-centro-custos',
+    'financeiro-medicao',
+    
+    // Sistema
+    'usuarios',
+    'grupos',
+    'whatsapp-connection',
+    'sistema-importar-whatsapp',
+    'atividades',
+    'sistema',
+    'backup',
+    'configuracoes',
   ]),
 };
 
@@ -445,6 +611,13 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     [user?.role]
   );
   const allowedItemIds = useMemo(() => ROLE_ALLOWED_ITEM_IDS[normalizedRole], [normalizedRole]);
+
+  // Debug: Verificar papel e permissões
+  console.log('🔍 CollapsibleSidebar Debug:');
+  console.log('- User role:', user?.role);
+  console.log('- Normalized role:', normalizedRole);
+  console.log('- Allowed item IDs:', allowedItemIds);
+  console.log('- Can see employee-portal:', allowedItemIds?.has('employee-portal'));
 
   // Referências para controlar o scroll da própria sidebar
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -620,7 +793,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
             </div>
             {!collapsed && (
               <span className="text-lg font-bold text-white uppercase italic">
-                Flex<span className="text-white not-italic">Bus</span>
+                Flux<span className="text-white not-italic">bus</span>
               </span>
             )}
           </div>

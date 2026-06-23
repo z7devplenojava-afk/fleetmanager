@@ -10,6 +10,7 @@ import com.z7design.fleet_manager.repository.FleetWorkOrderRepository;
 import com.z7design.fleet_manager.repository.MaintenancePlanRepository;
 import com.z7design.fleet_manager.repository.VehicleRepository;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +57,11 @@ public class FleetWorkOrderService {
                             "MaintenancePlan not found with id: " + dto.getPlanId()));
         }
 
+        UUID companyId = TenantContext.get();
+        if (companyId == null && vehicle.getCompanyId() != null) {
+            companyId = vehicle.getCompanyId();
+        }
+
         FleetWorkOrder entity = FleetWorkOrder.builder()
                 .vehicle(vehicle)
                 .plan(plan)
@@ -67,6 +73,7 @@ public class FleetWorkOrderService {
                 .totalCost(BigDecimal.ZERO)
                 .notes(dto.getNotes())
                 .photoAttachments(dto.getPhotoAttachments())
+                .companyId(companyId)
                 .build();
 
         if (dto.getItems() != null) {
@@ -107,6 +114,10 @@ public class FleetWorkOrderService {
     }
 
     private void addItemToEntity(FleetWorkOrder workOrder, WorkOrderItemDTO itemDto) {
+        WorkOrderItem.ItemType itemType = itemDto.getType() != null
+                ? itemDto.getType()
+                : WorkOrderItem.ItemType.PART;
+
         BigDecimal totalItemPrice = itemDto.getUnitPrice().multiply(itemDto.getQuantity());
 
         // Consumir estoque se for um produto
@@ -120,7 +131,7 @@ public class FleetWorkOrderService {
         WorkOrderItem item = WorkOrderItem.builder()
                 .workOrder(workOrder)
                 .description(itemDto.getDescription())
-                .type(itemDto.getType())
+                .type(itemType)
                 .quantity(itemDto.getQuantity())
                 .unitPrice(itemDto.getUnitPrice())
                 .totalPrice(totalItemPrice)

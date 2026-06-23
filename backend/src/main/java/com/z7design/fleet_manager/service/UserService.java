@@ -496,7 +496,7 @@ public class UserService {
                     log.warn("Limite de usuários atingido para a empresa {}: {}/{}",
                             company.getName(), activeUsersCount, company.getMaxUsers());
                     throw new IllegalStateException("Limite de usuários atingido para esta empresa (" +
-                            company.getMaxUsers() + "). Contate o suporte da FlexBus para expandir seu plano.");
+                            company.getMaxUsers() + "). Contate o suporte da FluxBus para expandir seu plano.");
                 }
             }
         });

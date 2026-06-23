@@ -110,9 +110,9 @@ const Login = () => {
   return (
     <>
       <SEO
-        title="Login - FlexBus Fleet Management"
-        description="Acesse a plataforma FlexBus para gestão de frotas e logística."
-        keywords="login, acesso, flexbus, gestão de frotas, logística"
+        title="Login - FluxBus Fleet Management"
+        description="Acesse a plataforma FluxBus para gestão de frotas e logística."
+        keywords="login, acesso, fluxbus, gestão de frotas, logística"
         noindex={true}
         nofollow={true}
       />
@@ -165,7 +165,7 @@ const Login = () => {
               Acesso ao <span className="text-primary underline decoration-primary/50 underline-offset-8">Sistema</span>
             </h2>
             <p className="text-sm text-gray-200 font-medium">
-              Informe suas credenciais para entrar no <span className="text-white font-bold">{lastEmpresa?.nome || 'FlexBus'}</span>.
+              Informe suas credenciais para entrar no <span className="text-white font-bold">{lastEmpresa?.nome || 'FluxBus'}</span>.
             </p>
           </div>
 
@@ -260,7 +260,7 @@ const Login = () => {
 
         <div className="mt-10 flex flex-col items-center space-y-1 opacity-60 hover:opacity-100 transition-opacity" data-animate="fadeUp" data-delay="500">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white brightness-150">
-            {lastEmpresa?.nome ? `${lastEmpresa.nome}` : 'FlexBus Fleet Control'}
+            {lastEmpresa?.nome ? `${lastEmpresa.nome}` : 'FluxBus Fleet Control'}
           </p>
           <p className="text-[9px] font-bold text-white/40">
             &copy; {new Date().getFullYear()} &bull; Todos os direitos reservados

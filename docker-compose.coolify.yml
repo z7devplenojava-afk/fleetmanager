@@ -1,0 +1,163 @@
+version: "3.8"
+
+services:
+  # =============================================================================
+  # 🐘 DATABASE (PostgreSQL)
+  # =============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: fluxbus-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-secured_guard}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD é obrigatório}
+    volumes:
+      - fluxbus-db-data:/var/lib/postgresql/data
+    networks:
+      - fluxbus-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # =============================================================================
+  # 🔴 REDIS (Cache & Sessions)
+  # =============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: fluxbus-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD é obrigatório}
+    volumes:
+      - fluxbus-redis-data:/data
+    networks:
+      - fluxbus-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # =============================================================================
+  # 📱 WHATSAPP SERVICE (Baileys REST API)
+  # =============================================================================
+  whatsapp:
+    image: ghcr.io/zemarioramos/fluxbus-whatsapp:latest
+    container_name: fluxbus-whatsapp
+    environment:
+      PORT: 3333
+      INSTANCE_KEY: ${WHATSAPP_INSTANCE_KEY:-fluxbus}
+      SESSION_DIR: /app/sessions
+      NODE_ENV: production
+    volumes:
+      - fluxbus-whatsapp-sessions:/app/sessions
+    networks:
+      - fluxbus-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # =============================================================================
+  # ☕ BACKEND API (Spring Boot Java)
+  # =============================================================================
+  backend:
+    image: ghcr.io/zemarioramos/fluxbus-backend:latest
+    container_name: fluxbus-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      
+      # Database connection
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-secured_guard}
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      
+      # Redis connection
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      
+      # Security (JWT)
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET é obrigatório}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-604800000}
+      
+      # Mail settings
+      MAIL_HOST: ${MAIL_HOST:-mail.z7design.com.br}
+      MAIL_PORT: ${MAIL_PORT:-465}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM:-securedguard@z7design.com.br}
+      
+      # WhatsApp settings
+      BAILEYS_ENABLED: ${BAILEYS_ENABLED:-true}
+      BAILEYS_REST_URL: http://whatsapp:3333
+      BAILEYS_INSTANCE_KEY: ${WHATSAPP_INSTANCE_KEY:-fluxbus}
+      
+      # App configs
+      RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY:-}
+      N8N_ENABLED: ${N8N_ENABLED:-false}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:+UseG1GC}
+    volumes:
+      - fluxbus-uploads:/app/uploads
+      - fluxbus-holerites:/app/holerites
+      - fluxbus-logs:/app/logs
+    networks:
+      - fluxbus-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "coolify.link=https://api.fluxbus.com.br"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped
+
+  # =============================================================================
+  # 🎨 FRONTEND VITE (Nginx)
+  # =============================================================================
+  frontend:
+    image: ghcr.io/zemarioramos/fluxbus-frontend:latest
+    container_name: fluxbus-frontend
+    networks:
+      - fluxbus-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    labels:
+      - "coolify.link=https://app.fluxbus.com.br"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+# =============================================================================
+# 💾 PERSISTENT VOLUMES
+# =============================================================================
+volumes:
+  fluxbus-db-data:
+  fluxbus-redis-data:
+  fluxbus-whatsapp-sessions:
+  fluxbus-uploads:
+  fluxbus-holerites:
+  fluxbus-logs:
+
+# =============================================================================
+# 🌐 NETWORKS
+# =============================================================================
+networks:
+  fluxbus-network:
+    driver: bridge

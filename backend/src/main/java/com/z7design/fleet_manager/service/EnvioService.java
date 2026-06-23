@@ -14,6 +14,7 @@ import com.z7design.fleet_manager.repository.PayslipRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -50,6 +51,13 @@ public class EnvioService {
     // WhatsApp provider: Baileys REST API
     @Autowired(required = false)
     private BaileysRestService baileysRestService;
+
+    // WhatsApp provider: Evolution API
+    @Autowired(required = false)
+    private EvolutionApiService evolutionApiService;
+
+    @Value("${whatsapp.provider:baileys}")
+    private String whatsappProvider;
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -774,49 +782,66 @@ public class EnvioService {
         return fallbackMessage;
     }
 
-    /**
-     * Envia mensagem via WhatsApp usando Baileys REST API (com correÃ§Ã£o DDI 55)
-     */
-    private boolean sendWhatsAppMessage(String phoneNumber, String message, String filePath) {
-        log.info("ðŸ“¤ Enviando via Baileys REST API (porta 3333)");
-
-        if (baileysRestService == null) {
-            log.error("âŒ BaileysRestService nÃ£o disponÃ­vel!");
-            return false;
-        }
-
-        return baileysRestService.sendFileMessage(phoneNumber, message, filePath);
+    private boolean isEvolutionProvider() {
+        return "evolution".equalsIgnoreCase(whatsappProvider);
     }
 
     /**
-     * Envia mensagem via WhatsApp e retorna resultado com mensagem de erro (se
-     * houver)
-     * 
-     * @return Array com [sucesso (boolean como string), mensagemErro]
+     * Envia mensagem via WhatsApp usando o provider configurado (Evolution API ou Baileys)
      */
-    private String[] sendWhatsAppMessageWithError(String phoneNumber, String message, String filePath) {
-        log.info("ðŸ“¤ Enviando via Baileys REST API (porta 3333)");
-
-        if (baileysRestService == null) {
-            log.error("âŒ BaileysRestService nÃ£o disponÃ­vel!");
-            return new String[] { "false", "ServiÃ§o Baileys nÃ£o disponÃ­vel" };
+    private boolean sendWhatsAppMessage(String phoneNumber, String message, String filePath) {
+        if (isEvolutionProvider()) {
+            log.info("Enviando via Evolution API");
+            if (evolutionApiService == null) {
+                log.error("EvolutionApiService não disponível!");
+                return false;
+            }
+            return evolutionApiService.sendFileMessage(phoneNumber, message, filePath);
         }
 
+        log.info("Enviando via Baileys REST API");
+        if (baileysRestService == null) {
+            log.error("BaileysRestService não disponível!");
+            return false;
+        }
+        return baileysRestService.sendFileMessage(phoneNumber, message, filePath);
+    }
+
+    private String[] sendWhatsAppMessageWithError(String phoneNumber, String message, String filePath) {
+        if (isEvolutionProvider()) {
+            log.info("Enviando via Evolution API");
+            if (evolutionApiService == null) {
+                log.error("EvolutionApiService não disponível!");
+                return new String[] { "false", "Serviço Evolution não disponível" };
+            }
+            try {
+                boolean sent = evolutionApiService.sendFileMessage(phoneNumber, message, filePath);
+                if (sent) {
+                    return new String[] { "true", null };
+                }
+                String errorDetail = evolutionApiService.getLastErrorMessage();
+                return new String[] { "false", errorDetail != null ? errorDetail : "Erro sem detalhes do Evolution" };
+            } catch (Exception e) {
+                log.error("Exceção ao enviar via Evolution: {}", e.getMessage(), e);
+                return new String[] { "false", "Erro ao comunicar com Evolution API: " + e.getMessage() };
+            }
+        }
+
+        log.info("Enviando via Baileys REST API");
+        if (baileysRestService == null) {
+            log.error("BaileysRestService não disponível!");
+            return new String[] { "false", "Serviço Baileys não disponível" };
+        }
         try {
             boolean sent = baileysRestService.sendFileMessage(phoneNumber, message, filePath);
             if (sent) {
                 return new String[] { "true", null };
-            } else {
-                // Tentar obter detalhes do erro do Baileys
-                String errorDetail = baileysRestService.getLastErrorMessage();
-                if (errorDetail != null && !errorDetail.isEmpty()) {
-                    return new String[] { "false", errorDetail };
-                }
-                return new String[] { "false", "ServiÃ§o Baileys retornou erro sem detalhes" };
             }
+            String errorDetail = baileysRestService.getLastErrorMessage();
+            return new String[] { "false", errorDetail != null ? errorDetail : "Erro sem detalhes do Baileys" };
         } catch (Exception e) {
-            log.error("âŒ ExceÃ§Ã£o ao enviar via Baileys: {}", e.getMessage(), e);
-            return new String[] { "false", "Erro ao comunicar com serviÃ§o Baileys: " + e.getMessage() };
+            log.error("Exceção ao enviar via Baileys: {}", e.getMessage(), e);
+            return new String[] { "false", "Erro ao comunicar com serviço Baileys: " + e.getMessage() };
         }
     }
 

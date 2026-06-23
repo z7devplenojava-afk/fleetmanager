@@ -13,6 +13,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { EmpresaThemeSync } from '@/components/EmpresaThemeSync';
+import ThemeToggle from '@/components/ThemeToggle';
 import '@/styles/gsap-animations.css';
 
 // Registrar plugins GSAP
@@ -130,6 +131,7 @@ const Dashboard = lazy(() => import('@/pages/Dashboard').catch(() => ({ default:
 const DashboardColaborador = lazy(() => import('@/pages/DashboardColaborador'));
 const DriverDashboard = lazy(() => import('@/pages/DriverDashboard'));
 const DashboardVigilante = lazy(() => import('@/pages/DashboardVigilante'));
+const EmployeePortal = lazy(() => import('@/pages/employee/EmployeePortal'));
 const Funcionarios = lazyWithRetry(() => import('@/pages/Funcionarios'), 'Funcionarios');
 const Usuarios = lazy(() => import('@/pages/Usuarios'));
 const Roles = lazy(() => import('@/pages/Roles'));
@@ -213,6 +215,7 @@ const CargosPage = lazy(() => import('@/pages/Cargos'));
 const FuncoesPage = lazy(() => import('@/pages/Funcoes'));
 const EstoqueSimplificado = lazy(() => import('@/pages/EstoqueSimplificado'));
 const Estoque = lazy(() => import('@/pages/Estoque'));
+const InventoryManagement = lazy(() => import('@/pages/inventory/InventoryManagement'));
 const Produtos = lazy(() => import('@/pages/Produtos'));
 const Movimentacoes = lazy(() => import('@/pages/Movimentacoes'));
 const EstoqueRelatorios = lazy(() => import('@/pages/EstoqueRelatorios'));
@@ -256,8 +259,9 @@ const SeatMapEditor = lazy(() => import('@/pages/ticketing/SeatMapEditor'));
 const TripBooking = lazy(() => import('@/pages/ticketing/TripBooking'));
 const TripManagement = lazy(() => import('@/pages/ticketing/TripManagement'));
 
-// Módulo FlexBus (SaaS)
-const FlexBusCompanies = lazy(() => import('@/pages/flexbus/FlexBusCompanies'));
+// Módulo FluxBus (SaaS)
+const FluxBusCompanies = lazy(() => import('@/pages/fluxbus/FluxBusCompanies'));
+const PassengerManagement = lazy(() => import('@/pages/PassengerManagement'));
 
 // Configurações avançadas
 const ConfiguracaoBackup = lazy(() => import('@/pages/ConfiguracaoBackup'));
@@ -271,6 +275,7 @@ const GestaoEscalas = lazy(() => import('@/pages/GestaoEscalas'));
 const GestaoFerias = lazy(() => import('@/pages/GestaoFerias'));
 const GestaoTarefas = lazy(() => import('@/pages/GestaoTarefas'));
 const RelatoriosOperacionais = lazy(() => import('@/pages/RelatoriosOperacionais'));
+
 
 // Módulo Admin (Super Admin)
 const CompanyList = lazy(() => import('@/pages/admin/CompanyList'));
@@ -520,6 +525,13 @@ function App() {
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <DashboardVigilante />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/employee-portal" element={
+                        <ProtectedRoute requiredRoles={['EMPLOYEE', 'SUPER_ADMIN', 'ADMIN']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <EmployeePortal />
                           </Suspense>
                         </ProtectedRoute>
                       } />
@@ -866,6 +878,13 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/fretamento/passageiros" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <PassengerManagement />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/fretamento/:page" element={
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -906,6 +925,11 @@ function App() {
                           <Estoque />
                         </ProtectedRoute>
                       } />
+                      <Route path="/inventory" element={
+                        <ProtectedRoute requiredPermissions={['STOCK_READ']}>
+                          <InventoryManagement />
+                        </ProtectedRoute>
+                      } />
                       <Route path="/estoque/produtos" element={
                         <ProtectedRoute requiredPermissions={['STOCK_READ']}>
                           <Produtos />
@@ -932,11 +956,11 @@ function App() {
                         </ProtectedRoute>
                       } />
 
-                      {/* Módulo FlexBus (SaaS) */}
-                      <Route path="/flexbus/empresas" element={
+                      {/* Módulo FluxBus (SaaS) */}
+                      <Route path="/fluxbus/empresas" element={
                         <ProtectedRoute requiredRoles={['FLEX_ADMIN', 'SUPER_ADMIN']}>
                           <Suspense fallback={<LoadingSpinner />}>
-                            <FlexBusCompanies />
+                            <FluxBusCompanies />
                           </Suspense>
                         </ProtectedRoute>
                       } />

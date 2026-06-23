@@ -21,6 +21,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { NotificationBell } from './NotificationBell';
 import UserProfileModal from './UserProfileModal';
 import { BottomNav } from './BottomNav';
+import ThemeToggle from './ThemeToggle';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -155,6 +156,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               </div>
 
               <NotificationBell />
+
+              <ThemeToggle />
 
               <Button
                 variant="ghost"

@@ -71,6 +71,16 @@ public class TransportMobilizationService {
             driver = driverRepository.findById(dto.getDriverId()).orElse(null);
         }
 
+        String jsonData = dto.getJsonData();
+        if (jsonData == null && dto.getChecklistData() != null) {
+            jsonData = dto.getChecklistData();
+        }
+        String observations = dto.getObservations();
+        if (dto.getDescricaoAvaria() != null && !dto.getDescricaoAvaria().isBlank()) {
+            String avaria = "DESCRIÇÃO DA AVARIA: " + dto.getDescricaoAvaria();
+            observations = observations != null ? observations + "\n\n" + avaria : avaria;
+        }
+
         TransportMobilization entity = TransportMobilization.builder()
                 .vehicle(vehicle)
                 .driver(driver)
@@ -78,10 +88,10 @@ public class TransportMobilizationService {
                 .occurredAt(dto.getOccurredAt() != null ? dto.getOccurredAt() : LocalDateTime.now())
                 .kmReading(dto.getKmReading())
                 .odometerPhotoUrl(dto.getOdometerPhotoUrl())
-                .jsonData(dto.getJsonData())
+                .jsonData(jsonData)
                 .damageData(dto.getDamageData())
                 .partsRequestData(dto.getPartsRequestData())
-                .observations(dto.getObservations())
+                .observations(observations)
                 .photos(dto.getPhotos())
                 .companyId(dto.getCompanyId())
                 .syncStatus(dto.getSyncStatus() != null ? dto.getSyncStatus() : TransportMobilization.SyncStatus.SYNCED)
@@ -122,12 +132,19 @@ public class TransportMobilizationService {
             entity.setKmReading(dto.getKmReading());
         if (dto.getJsonData() != null)
             entity.setJsonData(dto.getJsonData());
+        else if (dto.getChecklistData() != null)
+            entity.setJsonData(dto.getChecklistData());
         if (dto.getDamageData() != null)
             entity.setDamageData(dto.getDamageData());
         if (dto.getPartsRequestData() != null)
             entity.setPartsRequestData(dto.getPartsRequestData());
-        if (dto.getObservations() != null)
-            entity.setObservations(dto.getObservations());
+        if (dto.getObservations() != null) {
+            String obs = dto.getObservations();
+            if (dto.getDescricaoAvaria() != null && !dto.getDescricaoAvaria().isBlank()) {
+                obs += "\n\nDESCRIÇÃO DA AVARIA: " + dto.getDescricaoAvaria();
+            }
+            entity.setObservations(obs);
+        }
         if (dto.getSyncStatus() != null)
             entity.setSyncStatus(dto.getSyncStatus());
 
@@ -154,6 +171,7 @@ public class TransportMobilizationService {
                 .kmReading(entity.getKmReading())
                 .odometerPhotoUrl(entity.getOdometerPhotoUrl())
                 .jsonData(entity.getJsonData())
+                .checklistData(entity.getJsonData())
                 .damageData(entity.getDamageData())
                 .partsRequestData(entity.getPartsRequestData())
                 .observations(entity.getObservations())

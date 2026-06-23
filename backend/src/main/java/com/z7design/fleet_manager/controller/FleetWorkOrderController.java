@@ -39,6 +39,13 @@ public class FleetWorkOrderController {
         return ResponseEntity.ok(service.updateStatus(id, status));
     }
 
+    @PutMapping("/{id}/status")
+    public ResponseEntity<FleetWorkOrderDTO> updateStatusPut(
+            @PathVariable UUID id,
+            @RequestParam FleetWorkOrder.WorkOrderStatus status) {
+        return ResponseEntity.ok(service.updateStatus(id, status));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.delete(id);

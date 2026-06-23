@@ -14,9 +14,16 @@ export enum LaborType {
     EXTERNAL = 'EXTERNAL'
 }
 
+/** Alinhado a work_order_items.type no backend (PART | LABOR). */
+export enum WorkOrderItemType {
+    PART = 'PART',
+    LABOR = 'LABOR'
+}
+
 export interface WorkOrderItem {
     id?: string;
     description: string;
+    type?: WorkOrderItemType;
     quantity: number;
     unitPrice: number;
     totalPrice: number;
@@ -58,7 +65,7 @@ class FleetWorkOrderService {
     }
 
     async updateStatus(id: string, status: WorkOrderStatus): Promise<FleetWorkOrder> {
-        const response = await api.put(`/api/fleet-work-orders/${id}/status`, null, {
+        const response = await api.patch(`/api/fleet-work-orders/${id}/status`, null, {
             params: { status }
         });
         return response.data;

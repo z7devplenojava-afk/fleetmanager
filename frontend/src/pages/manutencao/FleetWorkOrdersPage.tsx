@@ -17,6 +17,7 @@ import {
     Clock,
     AlertTriangle,
     Eye,
+    FileText,
     Hammer,
     CircleDashed,
     TrendingUp,
@@ -35,6 +36,7 @@ import fleetWorkOrderService, {
 } from '@/services/fleetWorkOrderService';
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
 import { useToast } from '@/hooks/use-toast';
+import { generateFleetWorkOrderPDFBlob } from '@/utils/fleetWorkOrderPDFGenerator';
 
 const STATUS_CONFIG: Record<WorkOrderStatus, { label: string, color: string, icon: any }> = {
     [WorkOrderStatus.DRAFT]: { label: 'Rascunho', color: 'bg-gray-500', icon: CircleDashed },
@@ -64,6 +66,19 @@ const FleetWorkOrdersPage: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
         } catch (error) {
             toast({ title: 'Erro', description: 'Falha ao atualizar status.', variant: 'destructive' });
+        }
+    };
+
+    const handleGeneratePDF = async (order: FleetWorkOrder) => {
+        try {
+            const blob = await generateFleetWorkOrderPDFBlob(order);
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank', 'noopener,noreferrer');
+
+            // Cleanup o URL depois de um tempo (não bloqueia o usuário)
+            window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        } catch (error) {
+            toast({ title: 'Erro', description: 'Falha ao gerar PDF da O.S.', variant: 'destructive' });
         }
     };
 
@@ -209,6 +224,13 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                         <DropdownMenuContent align="end" className="bg-seguranca-graphite border-gray-600">
                                                             <DropdownMenuItem onClick={() => { setSelectedOrder(order); setIsFormOpen(true); }} className="text-gray-200">
                                                                 <Eye className="mr-2 h-4 w-4" /> Detalhes / Editar
+                                                            </DropdownMenuItem>
+
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleGeneratePDF(order)}
+                                                                className="text-gray-200"
+                                                            >
+                                                                <FileText className="mr-2 h-4 w-4" /> Gerar PDF / Imprimir
                                                             </DropdownMenuItem>
 
                                                             {order.status === WorkOrderStatus.PENDING_APPROVAL && (

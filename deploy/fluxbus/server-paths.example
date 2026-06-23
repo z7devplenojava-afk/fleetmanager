@@ -1,0 +1,80 @@
+# =============================================================================
+# FluxBus — estrutura de pastas no VPS (198.7.116.227)
+# =============================================================================
+# Coolify: http://198.7.116.227:8000
+# IPv6:    http://[2a02:c202:2196:8228::1]:8000
+#
+# Criar pastas: bash deploy/scripts/setup-server-dirs.sh
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Mapa ambiente → pasta no servidor
+# -----------------------------------------------------------------------------
+# | Ambiente | Pasta raiz              | Frontend              | API                    |
+# |----------|-------------------------|-----------------------|------------------------|
+# | PROD     | /var/www/fluxbus        | www.fluxbus.com.br    | api.fluxbus.com.br     |
+# | DEV      | /var/www/fluxbus/dev    | dev.fluxbus.com.br    | api.dev.fluxbus.com.br |
+# | CI       | /ci                     | ci.fluxbus.com.br     | api.ci.fluxbus.com.br  |
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Árvore de diretórios
+# -----------------------------------------------------------------------------
+#
+# /var/www/fluxbus/                    ← PROD
+# ├── app/                             clone Git (debug manual, opcional)
+# ├── data/
+# │   ├── uploads/                     volume backend → /app/uploads
+# │   ├── holerites/                   volume backend → /app/holerites
+# │   ├── logs/                        volume backend → /app/logs
+# │   ├── backups/                     dumps PostgreSQL
+# │   └── whatsapp-sessions/           volume whatsapp → /app/sessions
+# └── dev/                             ← DEV
+#     ├── app/
+#     └── data/
+#         ├── uploads/
+#         ├── holerites/
+#         ├── logs/
+#         ├── backups/
+#         └── whatsapp-sessions/
+#
+# /ci/                                 ← CI
+# ├── app/
+# └── data/
+#     ├── uploads/
+#     ├── holerites/
+#     ├── logs/
+#     ├── backups/
+#     └── whatsapp-sessions/
+
+# -----------------------------------------------------------------------------
+# Volumes no Coolify (Persistent Storage → host path)
+# -----------------------------------------------------------------------------
+#
+# PROD backend:
+#   /var/www/fluxbus/data/uploads      → /app/uploads
+#   /var/www/fluxbus/data/holerites    → /app/holerites
+#   /var/www/fluxbus/data/logs         → /app/logs
+#
+# DEV backend:
+#   /var/www/fluxbus/dev/data/uploads      → /app/uploads
+#   /var/www/fluxbus/dev/data/holerites    → /app/holerites
+#   /var/www/fluxbus/dev/data/logs         → /app/logs
+#
+# CI backend:
+#   /ci/data/uploads      → /app/uploads
+#   /ci/data/holerites    → /app/holerites
+#   /ci/data/logs         → /app/logs
+#
+# WhatsApp (por ambiente):
+#   .../data/whatsapp-sessions → /app/sessions
+
+# -----------------------------------------------------------------------------
+# Arquivos de configuração no repositório
+# -----------------------------------------------------------------------------
+# PROD: deploy/fluxbus/prod/coolify.frontend.example
+#       deploy/fluxbus/prod/coolify.backend.example
+# DEV:  deploy/fluxbus/dev/coolify.frontend.example
+#       deploy/fluxbus/dev/coolify.backend.example
+# CI:   deploy/ci/coolify.frontend.example
+#       deploy/ci/coolify.backend.example

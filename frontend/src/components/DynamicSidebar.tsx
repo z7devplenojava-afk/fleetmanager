@@ -829,28 +829,28 @@ export function DynamicSidebar() {
       id: 'compras-relatorios',
       requiredPermission: 'REPORTS_READ'
     },
-    // ===== PLATAFORMA FLEXBUS (SaaS) =====
+    // ===== PLATAFORMA FLUXBUS (SaaS) =====
     {
       icon: Building2,
       text: 'Gestão de Empresas',
-      to: '/flexbus/empresas',
-      id: 'flexbus-empresas',
+      to: '/fluxbus/empresas',
+      id: 'fluxbus-empresas',
       requiredPermission: 'SYSTEM_CONFIG',
       role: 'FLEX_ADMIN'
     },
     {
       icon: Users,
       text: 'Usuários Globais',
-      to: '/flexbus/usuarios',
-      id: 'flexbus-usuarios',
+      to: '/fluxbus/usuarios',
+      id: 'fluxbus-usuarios',
       requiredPermission: 'USERS_READ',
       role: 'FLEX_ADMIN'
     },
     {
       icon: Activity,
       text: 'Métricas da Plataforma',
-      to: '/flexbus/metricas',
-      id: 'flexbus-metricas',
+      to: '/fluxbus/metricas',
+      id: 'fluxbus-metricas',
       requiredPermission: 'REPORTS_READ',
       role: 'FLEX_ADMIN'
     }
@@ -920,7 +920,7 @@ export function DynamicSidebar() {
         ['atividades', 'usuarios', 'grupos', 'sistema', 'configuracoes', 'configuracoes-email'].includes(item.id)
       ),
       plataforma: filteredItems.filter(item =>
-        ['flexbus-empresas', 'flexbus-usuarios', 'flexbus-metricas'].includes(item.id)
+        ['fluxbus-empresas', 'fluxbus-usuarios', 'fluxbus-metricas'].includes(item.id)
       ),
       passagens: filteredItems.filter(item =>
         ['ticketing-booking', 'ticketing-templates', 'ticketing-trips'].includes(item.id)

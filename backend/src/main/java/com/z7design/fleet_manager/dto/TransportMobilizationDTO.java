@@ -25,8 +25,10 @@ public class TransportMobilizationDTO {
     private Integer kmReading;
     private String odometerPhotoUrl;
     private String jsonData;
+    private String checklistData;
     private String damageData;
     private String partsRequestData;
+    private String descricaoAvaria;
     private String observations;
     private String photos;
     private UUID companyId;
