@@ -129,6 +129,10 @@ public class Company {
     @JsonManagedReference("company-default-epis")
     private List<CompanyDefaultEPI> defaultEpis;
 
+    @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference("company-passengers")
+    private List<Passenger> passengers;
+
     public enum CompanyStatus {
         ACTIVE("Ativo"),
         INACTIVE("Inativo"),
