@@ -44,7 +44,7 @@ services:
   # 📱 WHATSAPP SERVICE (Baileys REST API)
   # =============================================================================
   whatsapp:
-    image: ghcr.io/zemarioramos/fluxbus-whatsapp:latest
+    image: ghcr.io/zmarioramos/fluxbus-whatsapp:latest
     container_name: fluxbus-whatsapp
     environment:
       PORT: 3333
@@ -67,7 +67,7 @@ services:
   # ☕ BACKEND API (Spring Boot Java)
   # =============================================================================
   backend:
-    image: ghcr.io/zemarioramos/fluxbus-backend:latest
+    image: ghcr.io/zmarioramos/fluxbus-backend:latest
     container_name: fluxbus-backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -127,7 +127,7 @@ services:
   # 🎨 FRONTEND VITE (Nginx)
   # =============================================================================
   frontend:
-    image: ghcr.io/zemarioramos/fluxbus-frontend:latest
+    image: ghcr.io/zmarioramos/fluxbus-frontend:latest
     container_name: fluxbus-frontend
     networks:
       - fluxbus-network
