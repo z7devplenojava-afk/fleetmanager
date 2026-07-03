@@ -20,12 +20,12 @@ ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_WS_URL=${VITE_WS_URL}
 ENV VITE_ENVIRONMENT=${VITE_ENVIRONMENT}
 
-# Copiar package files
-COPY package*.json ./
+# Copiar package.json apenas (remover package-lock.json para evitar travamento de dependências opcionais)
+COPY package.json ./
 
 # Configurar para ignorar dependências opcionais e instalar
 ENV npm_config_ignore_optional=true
-RUN npm install --no-optional --legacy-peer-deps
+RUN npm install --omit=optional --legacy-peer-deps
 
 # Copiar código fonte
 COPY . .
