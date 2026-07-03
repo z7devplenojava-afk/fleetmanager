@@ -23,8 +23,8 @@ ENV VITE_ENVIRONMENT=${VITE_ENVIRONMENT}
 # Copiar package files
 COPY package*.json ./
 
-# Instalar dependências
-RUN npm ci
+# Instalar dependências (ignorar opcionais específicos de plataforma)
+RUN npm ci --omit=optional
 
 # Copiar código fonte
 COPY . .
