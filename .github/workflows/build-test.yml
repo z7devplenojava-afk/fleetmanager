@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
   JAVA_VERSION: '17'
 
 jobs:
@@ -27,21 +27,21 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
+          cache: 'gradle'
 
       - name: 🔨 Build Backend
         run: |
           cd backend
-          chmod +x mvnw
-          ./mvnw clean package -DskipTests
+          chmod +x gradlew
+          ./gradlew clean bootJar -x test
           echo "✅ Backend compilado com sucesso!"
-          ls -lh target/*.jar
+          ls -lh build/libs/*.jar
 
       - name: 📦 Upload Backend Artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-jar
-          path: backend/target/*.jar
+          path: backend/build/libs/*.jar
           retention-days: 7
 
   build-frontend:
@@ -57,12 +57,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: frontend/package.json
 
       - name: 🎨 Build Frontend
         run: |
           cd frontend
-          npm ci
+          npm install --omit=optional --legacy-peer-deps
           npm run build
           echo "✅ Frontend compilado com sucesso!"
           ls -lh dist/
@@ -85,5 +85,3 @@ jobs:
           echo "::notice::✅ Backend compilado com sucesso!"
           echo "::notice::✅ Frontend compilado com sucesso!"
           echo "::notice::📦 Artefatos prontos para deploy"
-          echo "::notice::🎯 Próximo passo: Configurar secrets e habilitar deploy-vps.yml"
-
