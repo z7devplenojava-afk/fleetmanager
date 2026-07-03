@@ -23,9 +23,12 @@ ENV VITE_ENVIRONMENT=${VITE_ENVIRONMENT}
 # Copiar package.json apenas (remover package-lock.json para evitar travamento de dependências opcionais)
 COPY package.json ./
 
-# Configurar para ignorar dependências opcionais e instalar
+# Configurar npm para ignorar dependências opcionais e ignorar erros de plataforma
 ENV npm_config_ignore_optional=true
-RUN npm install --omit=optional --legacy-peer-deps
+ENV npm_config_platform=linux
+ENV npm_config_arch=x64
+ENV npm_config_force=true
+RUN npm install --force --legacy-peer-deps
 
 # Copiar código fonte
 COPY . .
