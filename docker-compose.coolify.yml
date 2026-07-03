@@ -41,22 +41,56 @@ services:
     restart: unless-stopped
 
   # =============================================================================
-  # 📱 WHATSAPP SERVICE (Baileys REST API)
+  # 🔴 REDIS FOR EVOLUTION API
   # =============================================================================
-  whatsapp:
-    image: ghcr.io/zmarioramos/fluxbus-whatsapp:latest
-    container_name: fluxbus-whatsapp
-    environment:
-      PORT: 3333
-      INSTANCE_KEY: ${WHATSAPP_INSTANCE_KEY:-fluxbus}
-      SESSION_DIR: /app/sessions
-      NODE_ENV: production
+  redis-evolution:
+    image: redis:7-alpine
+    container_name: fluxbus-redis-evolution
+    command: redis-server --appendonly yes
     volumes:
-      - fluxbus-whatsapp-sessions:/app/sessions
+      - fluxbus-redis-evolution-data:/data
     networks:
       - fluxbus-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3333/health"]
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # =============================================================================
+  # 📱 EVOLUTION API
+  # =============================================================================
+  evolution-api:
+    image: ghcr.io/zmarioramos/fluxbus-evolution:latest
+    container_name: fluxbus-evolution
+    environment:
+      SERVER_URL: http://localhost:8080
+      DATABASE_PROVIDER: sqlite
+      DATABASE_CONNECTION_URI: /evolution/store/evolution.db
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-B6D711FCDE4D4FD5936544120E713976}
+      CACHE_REDIS_URI: redis://redis-evolution:6379/0
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_TTL: 3600
+      WEBHOOK_GLOBAL_ENABLED: false
+      WEBHOOK_GLOBAL_URL: ''
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: false
+      LOG_LEVEL: INFO
+      LOG_COLOR: true
+      LOG_BAILEYS: info
+      DELAY_INSTANCE_AUTOMATIC_CREATE: 0
+      DELAY_INSTANCE_AUTOMATIC_DELETE: 0
+    volumes:
+      - fluxbus-evolution-instances:/evolution/instances
+      - fluxbus-uploads:/evolution/uploads
+      - fluxbus-evolution-store:/evolution/store
+    networks:
+      - fluxbus-network
+    depends_on:
+      redis-evolution:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -94,9 +128,14 @@ services:
       MAIL_FROM: ${MAIL_FROM:-securedguard@z7design.com.br}
       
       # WhatsApp settings
-      BAILEYS_ENABLED: ${BAILEYS_ENABLED:-true}
+      WHATSAPP_PROVIDER: ${WHATSAPP_PROVIDER:-evolution}
+      BAILEYS_ENABLED: ${BAILEYS_ENABLED:-false}
       BAILEYS_REST_URL: http://whatsapp:3333
       BAILEYS_INSTANCE_KEY: ${WHATSAPP_INSTANCE_KEY:-fluxbus}
+      EVOLUTION_API_ENABLED: ${EVOLUTION_API_ENABLED:-true}
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-http://evolution-api:8080}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-B6D711FCDE4D4FD5936544120E713976}
+      EVOLUTION_API_INSTANCE: ${EVOLUTION_API_INSTANCE:-fluxbus}
       
       # App configs
       RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY:-}
@@ -151,6 +190,9 @@ volumes:
   fluxbus-db-data:
   fluxbus-redis-data:
   fluxbus-whatsapp-sessions:
+  fluxbus-redis-evolution-data:
+  fluxbus-evolution-instances:
+  fluxbus-evolution-store:
   fluxbus-uploads:
   fluxbus-holerites:
   fluxbus-logs:

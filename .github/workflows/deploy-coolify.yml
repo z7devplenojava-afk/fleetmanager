@@ -45,7 +45,20 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # ----------------------------------------------------
-      # 1. BUILD & PUSH WHATSAPP SERVICE
+      # 1. BUILD & PUSH EVOLUTION API
+      # ----------------------------------------------------
+      - name: 📱 Build & Push Evolution API
+        uses: docker/build-push-action@v5
+        with:
+          context: ./evolution-api
+          file: ./evolution-api/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-evolution:latest
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-evolution:${{ github.sha }}
+
+      # ----------------------------------------------------
+      # 2. BUILD & PUSH WHATSAPP SERVICE (Baileys)
       # ----------------------------------------------------
       - name: 📱 Build & Push WhatsApp Service
         uses: docker/build-push-action@v5
@@ -58,7 +71,7 @@ jobs:
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-whatsapp:${{ github.sha }}
 
       # ----------------------------------------------------
-      # 2. BUILD & PUSH BACKEND API
+      # 3. BUILD & PUSH BACKEND API
       # ----------------------------------------------------
       - name: 🔨 Build & Push Backend API
         uses: docker/build-push-action@v5
