@@ -14,6 +14,9 @@ WORKDIR /build
 COPY gradle/ gradle/
 COPY build.gradle settings.gradle gradlew ./
 
+# Dar permissão de execução para o gradlew
+RUN chmod +x gradlew
+
 # Baixar dependências (ajuda a acelerar builds subsequentes)
 RUN ./gradlew dependencies --no-daemon || true
 
