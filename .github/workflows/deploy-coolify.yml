@@ -91,7 +91,12 @@ jobs:
       # 4. TRIGGER COOLIFY REDEPLOY
       # ----------------------------------------------------
       - name: 🚀 Trigger Coolify Redeploy
-        if: ${{ secrets.COOLIFY_WEBHOOK != '' }}
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
         run: |
+          if [ -z "$COOLIFY_WEBHOOK" ]; then
+            echo "⚠️ COOLIFY_WEBHOOK não configurado — pulando o webhook."
+            exit 0
+          fi
           echo "🔄 Disparando Webhook de Deploy do Coolify..."
-          curl -i -X GET "${{ secrets.COOLIFY_WEBHOOK }}"
+          curl -i -X GET "$COOLIFY_WEBHOOK"
