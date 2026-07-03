@@ -1,4 +1,4 @@
-FROM atendai/evolution-api:v2.1.1
+FROM evolutionapi/evolution-api:latest
 
 # Instalar Chromium e dependências (Alpine Linux)
 RUN apk add --no-cache \
