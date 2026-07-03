@@ -45,20 +45,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # ----------------------------------------------------
-      # 1. BUILD & PUSH EVOLUTION API
-      # ----------------------------------------------------
-      - name: 📱 Build & Push Evolution API
-        uses: docker/build-push-action@v5
-        with:
-          context: ./evolution-api
-          file: ./evolution-api/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-evolution:latest
-            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-evolution:${{ github.sha }}
-
-      # ----------------------------------------------------
-      # 2. BUILD & PUSH WHATSAPP SERVICE (Baileys)
+      # 1. BUILD & PUSH WHATSAPP SERVICE (Baileys)
       # ----------------------------------------------------
       - name: 📱 Build & Push WhatsApp Service
         uses: docker/build-push-action@v5
@@ -71,7 +58,7 @@ jobs:
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-whatsapp:${{ github.sha }}
 
       # ----------------------------------------------------
-      # 3. BUILD & PUSH BACKEND API
+      # 2. BUILD & PUSH BACKEND API
       # ----------------------------------------------------
       - name: 🔨 Build & Push Backend API
         uses: docker/build-push-action@v5
@@ -108,8 +95,8 @@ jobs:
           COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
         run: |
           if [ -z "$COOLIFY_WEBHOOK" ]; then
-            echo "⚠️ COOLIFY_WEBHOOK não configurado — pulando o webhook."
+            echo "⚠️ COOLIFY_WEBHOOK not configured — skipping webhook."
             exit 0
           fi
-          echo "🔄 Disparando Webhook de Deploy do Coolify..."
+          echo "🔄 Triggering Coolify Deploy Webhook..."
           curl -i -X GET "$COOLIFY_WEBHOOK"
