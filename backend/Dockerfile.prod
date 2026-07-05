@@ -58,10 +58,10 @@ RUN mkdir -p /app/holerites && \
 USER spring
 
 ENV SPRING_PROFILES_ACTIVE=prod
-EXPOSE 8080
+EXPOSE 8083
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=10 \
-    CMD curl -f http://localhost:8080/api/health || exit 1
+    CMD curl -f http://localhost:8083/api/health || exit 1
 
 # Otimizações da JVM para containers Docker
 ENV JAVA_OPTS="-XX:+UseContainerSupport \
