@@ -116,7 +116,7 @@ services:
     labels:
       - "coolify.link=https://api.fluxbus.com.br"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8083/api/health"]
       interval: 30s
       timeout: 10s
       retries: 10
