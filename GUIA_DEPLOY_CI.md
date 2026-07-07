@@ -15,9 +15,14 @@
 | `VPS_HOST_CI` | `198.7.116.227` |
 | `VPS_USER_CI` | `root` |
 | `VPS_PASSWORD_CI` | `4KaCiJc6an@7sg@2026` |
+| `POSTGRES_DB_CI` | `fluxbus_db_ci` |
+| `POSTGRES_USER_CI` | `fluxbus_user_ci` |
 | `POSTGRES_PASSWORD_CI` | `4KaCiJc6an@7sgbdcid2026` |
 | `REDIS_PASSWORD_CI` | `redis_ci_2026` |
 | `JWT_SECRET_CI` | `z7_Secure_Guard_Prod_2026_High_Security_Key_Minimum_64_Bytes_JWT_Secret_!!!` |
+| `MAIL_HOST` | `186.209.113.105` |
+| `MAIL_PORT` | `465` |
+| `MAIL_USERNAME` | `securedguard@z7design.com.br` |
 | `MAIL_PASSWORD` | `D8rKeqSFZfaS$(y7` |
 
 ---
