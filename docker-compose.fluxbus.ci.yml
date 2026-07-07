@@ -1,0 +1,153 @@
+version: '3.8'
+
+# ========================================
+# DOCKER COMPOSE PARA CI.FLUXBUS.COM.BR
+# ========================================
+
+services:
+  # ========================================
+  # DATABASE CI
+  # ========================================
+  postgres-ci:
+    image: postgres:15-alpine
+    container_name: fluxbus-db-ci
+    environment:
+      POSTGRES_DB: fluxbus_db_ci
+      POSTGRES_USER: fluxbus_user_ci
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_CI:-4KaCiJc6an@7sgbdcid2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_ci:/var/lib/postgresql/data
+    networks:
+      - fluxbus-ci-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fluxbus_user_ci -d fluxbus_db_ci"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # REDIS CACHE CI
+  # ========================================
+  redis-ci:
+    image: redis:7-alpine
+    container_name: fluxbus-redis-ci
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_ci:/data
+    networks:
+      - fluxbus-ci-network
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD_CI:-redis_ci_2026}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD_CI:-redis_ci_2026}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # BACKEND API CI
+  # ========================================
+  backend-ci:
+    image: z7design/fluxbus-backend:ci
+    container_name: fluxbus-backend-ci
+    environment:
+      SPRING_PROFILES_ACTIVE: ci
+      DB_URL: jdbc:postgresql://postgres-ci:5432/fluxbus_db_ci
+      DB_USERNAME: fluxbus_user_ci
+      DB_PASSWORD: ${POSTGRES_PASSWORD_CI:-4KaCiJc6an@7sgbdcid2026}
+      REDIS_HOST: redis-ci
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD_CI:-redis_ci_2026}
+      JWT_SECRET: ${JWT_SECRET_CI:-z7_Secure_Guard_Prod_2026_High_Security_Key_Minimum_64_Bytes_JWT_Secret_!!!}
+      # Email Configuration
+      MAIL_HOST: 186.209.113.105
+      MAIL_PORT: ${MAIL_PORT:-465}
+      MAIL_USERNAME: ${MAIL_USERNAME:-securedguard@z7design.com.br}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-D8rKeqSFZfaS$(y7}
+      MAIL_SSL_ENABLE: true
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres-ci:
+        condition: service_healthy
+      redis-ci:
+        condition: service_healthy
+      whatsapp-service-ci:
+        condition: service_started
+    networks:
+      - fluxbus-ci-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8083/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 240s
+    restart: unless-stopped
+
+  # ========================================
+  # WHATSAPP SERVICE (Baileys) CI
+  # ========================================
+  whatsapp-service-ci:
+    image: z7design/fluxbus-whatsapp:ci
+    container_name: fluxbus-whatsapp-ci
+    environment:
+      PORT: 3333
+      INSTANCE_KEY: fluxbus_ci
+      SESSION_DIR: /app/sessions
+      WEBHOOK_URL: http://backend-ci:8083/api/whatsapp/webhook
+      NODE_ENV: production
+    ports:
+      - "3333:3333"
+    volumes:
+      - whatsapp_sessions_ci:/app/sessions
+    depends_on:
+      redis-ci:
+        condition: service_healthy
+    networks:
+      - fluxbus-ci-network
+    restart: unless-stopped
+    shm_size: 256mb
+
+  # ========================================
+  # FRONTEND CI
+  # ========================================
+  frontend-ci:
+    image: z7design/fluxbus-frontend:ci
+    container_name: fluxbus-frontend-ci
+    ports:
+      - "80:80"
+    depends_on:
+      backend-ci:
+        condition: service_started
+    networks:
+      - fluxbus-ci-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+# ========================================
+# VOLUMES CI
+# ========================================
+volumes:
+  postgres_data_ci:
+    driver: local
+  redis_data_ci:
+    driver: local
+  whatsapp_sessions_ci:
+    driver: local
+
+# ========================================
+# NETWORKS CI
+# ========================================
+networks:
+  fluxbus-ci-network:
+    driver: bridge
+    name: fluxbus-ci
