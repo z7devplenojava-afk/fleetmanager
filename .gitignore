@@ -58,6 +58,9 @@ jspm_packages/
 *.swp
 *.swo
 
+# Agent files
+.agent/
+
 # OS generated files
 .DS_Store
 .DS_Store?
