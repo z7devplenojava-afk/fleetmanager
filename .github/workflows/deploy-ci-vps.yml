@@ -116,7 +116,7 @@ jobs:
           target: "/var/www/fluxbus/ci/"
           strip_components: 0
 
-      - name: 🔧 Renomear arquivo e criar .env na VPS
+      - name: 🔧 Criar pastas (ci/dev/prod), renomear arquivo e criar .env na VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST_CI }}
@@ -124,8 +124,10 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD_CI }}
           port: 22
           script: |
-            # Criar diretório se não existir
+            # Criar diretório principal e subpastas se não existirem
             mkdir -p /var/www/fluxbus/ci
+            mkdir -p /var/www/fluxbus/dev
+            mkdir -p /var/www/fluxbus/prod
             cd /var/www/fluxbus/ci
 
             # Renomear arquivo para docker-compose.yml
@@ -147,8 +149,10 @@ jobs:
             MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
             EOF
 
-            echo ".env e docker-compose.yml criados com sucesso!"
-            ls -la
+            echo "Pastas ci/dev/prod criadas!"
+            echo ".env e docker-compose.yml criados com sucesso em /var/www/fluxbus/ci!"
+            ls -la /var/www/fluxbus/
+            ls -la /var/www/fluxbus/ci/
 
       - name: 🚀 Pull das novas imagens e restart dos containers
         uses: appleboy/ssh-action@v1.0.3
