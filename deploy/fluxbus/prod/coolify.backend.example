@@ -3,7 +3,7 @@
 # =============================================================================
 # Base Directory : backend
 # Dockerfile     : Dockerfile.prod
-# Port Exposed   : 8080
+# Port Exposed   : 8083
 # Domain         : api.fluxbus.com.br
 # Health Check   : /api/health
 #
