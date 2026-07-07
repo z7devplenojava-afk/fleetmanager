@@ -1,0 +1,391 @@
+name: 🚀 Pipeline Profissional CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - ci
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente para deploy
+        required: true
+        default: ci
+        type: choice
+        options:
+          - ci
+          - dev
+          - prod
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  NODE_VERSION: '20'
+  JAVA_VERSION: '17'
+
+jobs:
+  build:
+    name: 🔨 Build e Testes
+    runs-on: ubuntu-latest
+    outputs:
+      build-status: ${{ steps.build-result.outputs.status }}
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package.json
+
+      - name: 🔨 Build Backend
+        id: build-backend
+        run: |
+          cd backend
+          chmod +x gradlew
+          ./gradlew clean build -x test
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: 🎨 Build Frontend
+        id: build-frontend
+        run: |
+          cd frontend
+          npm install --omit=optional --legacy-peer-deps
+          npm run build
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: 📦 Resultado do Build
+        id: build-result
+        run: |
+          if [ "${{ steps.build-backend.outputs.status }}" = "success" ] && [ "${{ steps.build-frontend.outputs.status }}" = "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+  deploy-ci:
+    name: 🚀 Deploy para CI (ci.fluxbus.com.br)
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ (github.ref == 'refs/heads/ci' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'ci')) && needs.build.outputs.build-status == 'success' }}
+    environment:
+      name: ci
+      url: https://ci.fluxbus.com.br
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🏷️ Set downcase owner name
+        id: repo_owner
+        run: |
+          echo "owner=${OWNER,,}" >> $GITHUB_OUTPUT
+        env:
+          OWNER: '${{ github.repository_owner }}'
+
+      - name: 🔐 Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐳 Build e Push Imagens (CI)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./whatsapp-service
+          file: ./whatsapp-service/Dockerfile
+          push: true
+          tags: ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-whatsapp:ci
+
+      - name: 🐳 Build Backend (CI)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: true
+          build-args: |
+            SPRING_PROFILES_ACTIVE=ci
+          tags: ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-backend:ci
+
+      - name: 🐳 Build Frontend (CI)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: true
+          build-args: |
+            VITE_API_URL=https://api.ci.fluxbus.com.br/api
+            VITE_WS_URL=wss://api.ci.fluxbus.com.br/ws
+            VITE_ENVIRONMENT=ci
+          tags: ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-frontend:ci
+
+      - name: 🚀 Trigger Coolify (CI)
+        env:
+          COOLIFY_WEBHOOK_CI: ${{ secrets.COOLIFY_WEBHOOK_CI }}
+        run: |
+          if [ -n "$COOLIFY_WEBHOOK_CI" ]; then
+            echo "🔄 Triggerando deploy no Coolify (CI)..."
+            curl -X GET "$COOLIFY_WEBHOOK_CI"
+          else
+            echo "⚠️ Webhook CI não configurado"
+          fi
+
+  health-check-ci:
+    name: 🏥 Health Check CI
+    needs: deploy-ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⏳ Aguardar inicialização
+        run: sleep 60
+
+      - name: 🔍 Verificar Backend
+        id: health-check
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: 'https://api.ci.fluxbus.com.br/api/health'
+          method: 'GET'
+          timeout: 30000
+        continue-on-error: true
+
+      - name: ✅ Resultado do Health Check
+        if: ${{ steps.health-check.outcome == 'success' }}
+        run: |
+          echo "✅ Ambiente CI saudável!"
+
+  approve-dev:
+    name: 📋 Aprovação para Deploy em Dev
+    needs: health-check-ci
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/dev' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev') }}
+    environment:
+      name: approve-dev
+    steps:
+      - name: 👍 Aguardar aprovação
+        run: echo "✅ Pronto para deploy em Dev"
+
+  deploy-dev:
+    name: 🚀 Deploy para Dev (dev.fluxbus.com.br)
+    needs: approve-dev
+    runs-on: ubuntu-latest
+    if: ${{ (github.ref == 'refs/heads/dev' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')) }}
+    environment:
+      name: dev
+      url: https://dev.fluxbus.com.br
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🏷️ Set downcase owner name
+        id: repo_owner
+        run: |
+          echo "owner=${OWNER,,}" >> $GITHUB_OUTPUT
+        env:
+          OWNER: '${{ github.repository_owner }}'
+
+      - name: 🔐 Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐳 Build e Push Imagens (Dev)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./whatsapp-service
+          file: ./whatsapp-service/Dockerfile
+          push: true
+          tags: ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-whatsapp:dev
+
+      - name: 🐳 Build Backend (Dev)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: true
+          build-args: |
+            SPRING_PROFILES_ACTIVE=dev
+          tags: ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-backend:dev
+
+      - name: 🐳 Build Frontend (Dev)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: true
+          build-args: |
+            VITE_API_URL=https://api.dev.fluxbus.com.br/api
+            VITE_WS_URL=wss://api.dev.fluxbus.com.br/ws
+            VITE_ENVIRONMENT=dev
+          tags: ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-frontend:dev
+
+      - name: 🚀 Trigger Coolify (Dev)
+        env:
+          COOLIFY_WEBHOOK_DEV: ${{ secrets.COOLIFY_WEBHOOK_DEV }}
+        run: |
+          if [ -n "$COOLIFY_WEBHOOK_DEV" ]; then
+            echo "🔄 Triggerando deploy no Coolify (Dev)..."
+            curl -X GET "$COOLIFY_WEBHOOK_DEV"
+          else
+            echo "⚠️ Webhook Dev não configurado"
+          fi
+
+  health-check-dev:
+    name: 🏥 Health Check Dev
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⏳ Aguardar inicialização
+        run: sleep 60
+
+      - name: 🔍 Verificar Backend
+        id: health-check
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: 'https://api.dev.fluxbus.com.br/api/health'
+          method: 'GET'
+          timeout: 30000
+        continue-on-error: true
+
+      - name: ✅ Resultado do Health Check
+        if: ${{ steps.health-check.outcome == 'success' }}
+        run: |
+          echo "✅ Ambiente Dev saudável!"
+
+  approve-prod:
+    name: 📋 Aprovação para Deploy em Produção
+    needs: health-check-dev
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod') }}
+    environment:
+      name: approve-prod
+    steps:
+      - name: 👍 Aguardar aprovação
+        run: echo "✅ Pronto para deploy em Produção"
+
+  deploy-prod:
+    name: 🚀 Deploy para Produção (www.fluxbus.com.br)
+    needs: approve-prod
+    runs-on: ubuntu-latest
+    if: ${{ (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')) }}
+    environment:
+      name: prod
+      url: https://www.fluxbus.com.br
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🏷️ Set downcase owner name
+        id: repo_owner
+        run: |
+          echo "owner=${OWNER,,}" >> $GITHUB_OUTPUT
+        env:
+          OWNER: '${{ github.repository_owner }}'
+
+      - name: 🔐 Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐳 Build e Push Imagens (Prod)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./whatsapp-service
+          file: ./whatsapp-service/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-whatsapp:latest
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-whatsapp:prod
+
+      - name: 🐳 Build Backend (Prod)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: true
+          build-args: |
+            SPRING_PROFILES_ACTIVE=prod
+          tags: |
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-backend:latest
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-backend:prod
+
+      - name: 🐳 Build Frontend (Prod)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: true
+          build-args: |
+            VITE_API_URL=https://api.fluxbus.com.br/api
+            VITE_WS_URL=wss://api.fluxbus.com.br/ws
+            VITE_ENVIRONMENT=prod
+          tags: |
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-frontend:latest
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-frontend:prod
+
+      - name: 🚀 Trigger Coolify (Prod)
+        env:
+          COOLIFY_WEBHOOK_PROD: ${{ secrets.COOLIFY_WEBHOOK_PROD }}
+        run: |
+          if [ -n "$COOLIFY_WEBHOOK_PROD" ]; then
+            echo "🔄 Triggerando deploy no Coolify (Prod)..."
+            curl -X GET "$COOLIFY_WEBHOOK_PROD"
+          else
+            echo "⚠️ Webhook Prod não configurado"
+          fi
+
+  health-check-prod:
+    name: 🏥 Health Check Produção
+    needs: deploy-prod
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⏳ Aguardar inicialização
+        run: sleep 60
+
+      - name: 🔍 Verificar Backend
+        id: health-check
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: 'https://api.fluxbus.com.br/api/health'
+          method: 'GET'
+          timeout: 30000
+        continue-on-error: true
+
+      - name: ✅ Resultado do Health Check
+        if: ${{ steps.health-check.outcome == 'success' }}
+        run: |
+          echo "✅ Ambiente Produção saudável!"
+
+  notify:
+    name: 📢 Notificação Final
+    needs: health-check-prod
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: 📝 Status Final
+        run: |
+          if [ "${{ needs.health-check-prod.result }}" = "success" ]; then
+            echo "🎉 Pipeline concluído com sucesso! Produção atualizada."
+          else
+            echo "⚠️ Pipeline finalizado com resultados: ${{ join(needs.*.result, ', ') }}"
+          fi

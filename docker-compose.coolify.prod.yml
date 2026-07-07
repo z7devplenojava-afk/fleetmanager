@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-prod
+    environment:
+      POSTGRES_DB: ${DB_NAME:-fluxbus_prod}
+      POSTGRES_USER: ${DB_USER:-fluxbus}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-fluxbus123}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    networks:
+      - fluxbus_prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-fluxbus} -d ${DB_NAME:-fluxbus_prod}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-prod
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redispassword}
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - fluxbus_prod
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispassword}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  whatsapp:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/fluxbus-whatsapp:prod
+    container_name: whatsapp-prod
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redispassword}@redis-prod:6379
+    volumes:
+      - whatsapp_prod_data:/app/.wwebjs_auth
+      - whatsapp_prod_cache:/app/.wwebjs_cache
+    networks:
+      - fluxbus_prod
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/fluxbus-backend:prod
+    container_name: backend-prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_URL=jdbc:postgresql://postgres-prod:5432/${DB_NAME:-fluxbus_prod}
+      - DB_USERNAME=${DB_USER:-fluxbus}
+      - DB_PASSWORD=${DB_PASSWORD:-fluxbus123}
+      - REDIS_HOST=redis-prod
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redispassword}
+      - JWT_SECRET=${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    networks:
+      - fluxbus_prod
+    expose:
+      - 8083
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8083/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/fluxbus-frontend:prod
+    container_name: frontend-prod
+    depends_on:
+      - backend
+    networks:
+      - fluxbus_prod
+    expose:
+      - 80
+    restart: unless-stopped
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+  whatsapp_prod_data:
+  whatsapp_prod_cache:
+
+networks:
+  fluxbus_prod:
+    driver: bridge
