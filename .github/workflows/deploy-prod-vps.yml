@@ -1,0 +1,210 @@
+name: 🚀 Deploy Automático para Prod (www.fluxbus.com.br)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  NODE_VERSION: '20'
+  JAVA_VERSION: '17'
+  DOCKER_REGISTRY: docker.io
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+
+jobs:
+  build:
+    name: 🔨 Build das Imagens Docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package.json
+
+      - name: 🔐 Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 📱 Build e Push do WhatsApp Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./whatsapp-service
+          file: ./whatsapp-service/Dockerfile
+          push: true
+          tags: |
+            z7design/fluxbus-whatsapp:latest
+            z7design/fluxbus-whatsapp:prod
+
+      - name: 🔧 Build Backend (Gradle)
+        run: |
+          cd backend
+          chmod +x gradlew
+          ./gradlew clean bootJar -x test
+
+      - name: ☕ Build e Push do Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: true
+          tags: |
+            z7design/fluxbus-backend:latest
+            z7design/fluxbus-backend:prod
+
+      - name: 🎨 Build Frontend
+        run: |
+          cd frontend
+          npm install --omit=optional --legacy-peer-deps
+          npm run build
+        env:
+          VITE_API_URL: https://www.fluxbus.com.br/api
+          VITE_WS_URL: wss://www.fluxbus.com.br/ws
+          VITE_ENVIRONMENT: prod
+
+      - name: 🖥️ Build e Push do Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: true
+          build-args: |
+            VITE_API_URL=https://www.fluxbus.com.br/api
+            VITE_WS_URL=wss://www.fluxbus.com.br/ws
+            VITE_ENVIRONMENT=prod
+          tags: |
+            z7design/fluxbus-frontend:latest
+            z7design/fluxbus-frontend:prod
+
+  deploy:
+    name: 🚀 Deploy na VPS Prod
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: 🔑 Instalar sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
+      - name: 📋 Copiar docker-compose.fluxbus.prod.yml para a VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST_PROD }}
+          username: ${{ secrets.VPS_USER_PROD }}
+          password: ${{ secrets.VPS_PASSWORD_PROD }}
+          port: 22
+          source: "docker-compose.fluxbus.prod.yml"
+          target: "/var/www/fluxbus/prod/"
+          strip_components: 0
+
+      - name: 🔧 Renomear arquivo e criar .env na VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST_PROD }}
+          username: ${{ secrets.VPS_USER_PROD }}
+          password: ${{ secrets.VPS_PASSWORD_PROD }}
+          port: 22
+          script: |
+            # Criar diretório principal e subpastas se não existirem
+            mkdir -p /var/www/fluxbus/ci
+            mkdir -p /var/www/fluxbus/dev
+            mkdir -p /var/www/fluxbus/prod
+            cd /var/www/fluxbus/prod
+
+            # Renomear arquivo para docker-compose.yml
+            mv -f docker-compose.fluxbus.prod.yml docker-compose.yml
+
+            # Criar arquivo .env com as variáveis USANDO AS SECRETS
+            cat > .env << 'EOF'
+            # ========================================
+            # VARIÁVEIS DE AMBIENTE PARA WWW.FLUXBUS.COM.BR
+            # ========================================
+            POSTGRES_DB_PROD=fluxbus_db_prod
+            POSTGRES_USER_PROD=fluxbus_user_prod
+            POSTGRES_PASSWORD_PROD=${{ secrets.POSTGRES_PASSWORD_PROD }}
+            REDIS_PASSWORD_PROD=${{ secrets.REDIS_PASSWORD_PROD }}
+            JWT_SECRET_PROD=${{ secrets.JWT_SECRET_PROD }}
+            MAIL_HOST=186.209.113.105
+            MAIL_PORT=465
+            MAIL_USERNAME=securedguard@z7design.com.br
+            MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+            EOF
+
+            echo ".env e docker-compose.yml criados com sucesso em /var/www/fluxbus/prod!"
+            ls -la /var/www/fluxbus/
+            ls -la /var/www/fluxbus/prod/
+
+      - name: 🚀 Pull das novas imagens e restart dos containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST_PROD }}
+          username: ${{ secrets.VPS_USER_PROD }}
+          password: ${{ secrets.VPS_PASSWORD_PROD }}
+          port: 22
+          script: |
+            cd /var/www/fluxbus/prod
+
+            echo "🔐 Logando no Docker Hub..."
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+            echo "📥 Pull das últimas imagens..."
+            docker-compose pull
+
+            echo "🔄 Parando containers antigos..."
+            docker-compose down
+
+            echo "🚀 Subindo novos containers..."
+            docker-compose up -d
+
+            echo "✅ Deploy concluído!"
+            echo "📊 Status dos containers:"
+            docker-compose ps
+
+  health-check:
+    name: 🏥 Health Check do Prod
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⏳ Aguardar inicialização (2 minutos)
+        run: sleep 120
+
+      - name: 🔍 Verificar Health do Backend
+        id: health-check
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: 'https://www.fluxbus.com.br/api/health'
+          method: 'GET'
+          timeout: 30000
+        continue-on-error: true
+
+      - name: ✅ Resultado Final
+        if: steps.health-check.outcome == 'success'
+        run: |
+          echo "🎉 Deploy para Produção concluído com sucesso!"
+          echo "🌐 Acesse: https://www.fluxbus.com.br"
+        if: always()
