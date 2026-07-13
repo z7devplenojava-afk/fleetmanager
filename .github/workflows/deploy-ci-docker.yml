@@ -90,10 +90,9 @@ jobs:
           VITE_API_URL: https://ci.z7botsolutions.com.br/api
           VITE_ENVIRONMENT: ci
         run: |
-          # Regenerar lockfile para linux (o atual foi gerado no Windows)
-          rm -f package-lock.json node_modules/.package-lock.json
-          npm install --package-lock-only
-          npm ci --ignore-scripts
+          # npm install resolve optional deps corretamente por plataforma
+          # ao contrário do npm ci que falha com lockfile do Windows
+          npm install
           npm run build
 
       # ============================================
