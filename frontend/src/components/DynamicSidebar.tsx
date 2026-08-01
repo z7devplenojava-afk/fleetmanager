@@ -287,6 +287,13 @@ export function DynamicSidebar() {
       requiredPermission: 'CLIENTS_READ'
     },
     {
+      icon: FolderTree,
+      text: 'Doc. de Clientes',
+      to: '/clientes/documentacao',
+      id: 'clientes-documentacao',
+      requiredPermission: 'CLIENTS_READ'
+    },
+    {
       icon: User2,
       text: 'Funcionários',
       to: '/funcionarios',
@@ -693,6 +700,13 @@ export function DynamicSidebar() {
       id: 'configuracoes-email',
       requiredPermission: 'SYSTEM_CONFIG_MANAGE'
     },
+    {
+      icon: Mail,
+      text: 'Gestão de E-mails',
+      to: '/email',
+      id: 'email-module',
+      color: 'text-seguranca-yellow'
+    },
 
     // ===== CENTRAL DE SUPORTE =====
     {
@@ -917,7 +931,7 @@ export function DynamicSidebar() {
         ['gestao-atendimento', 'gestao-atendimento-chat', 'gestao-atendimento-historico', 'gestao-atendimento-metricas', 'gestao-atendimento-configuracoes'].includes(item.id)
       ),
       sistema: filteredItems.filter(item =>
-        ['atividades', 'usuarios', 'grupos', 'sistema', 'configuracoes', 'configuracoes-email'].includes(item.id)
+        ['atividades', 'usuarios', 'grupos', 'sistema', 'configuracoes', 'configuracoes-email', 'email-module'].includes(item.id)
       ),
       plataforma: filteredItems.filter(item =>
         ['fluxbus-empresas', 'fluxbus-usuarios', 'fluxbus-metricas'].includes(item.id)

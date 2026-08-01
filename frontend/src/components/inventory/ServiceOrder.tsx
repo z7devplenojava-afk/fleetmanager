@@ -302,13 +302,13 @@ export default function ServiceOrder() {
       const pdfData = {
         order,
         company: {
-          name: 'Fleet Manager System',
+          name: 'FluxBus Fleet Management',
           document: '12.345.678/0001-90',
           address: 'Rua Principal, 123 - Centro, São Paulo - SP',
           phone: '(11) 3456-7890',
-          email: 'contato@fleetmanager.com'
+          email: 'contato@fluxbus.com.br'
         },
-        generatedBy: 'Sistema Fleet Manager',
+        generatedBy: 'Sistema FluxBus',
         generatedAt: new Date().toISOString()
       };
 

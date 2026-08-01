@@ -94,14 +94,14 @@ class FuelPumpControllerTest {
         dto.setName("New Tank");
         dto.setCapacity(new BigDecimal("10000"));
         dto.setCurrentLevel(new BigDecimal("0"));
-        dto.setFuelType(Vehicle.FuelType.GASOLINA);
+        dto.setFuelType(Vehicle.FuelType.GASOLINE);
 
         FuelTank savedTank = FuelTank.builder()
                 .id(UUID.randomUUID())
                 .name("New Tank")
                 .capacity(new BigDecimal("10000"))
                 .currentLevel(new BigDecimal("0"))
-                .fuelType(Vehicle.FuelType.GASOLINA)
+                .fuelType(Vehicle.FuelType.GASOLINE)
                 .build();
 
         when(fuelPumpService.saveTank(any(FuelTank.class), any(UUID.class))).thenReturn(savedTank);
@@ -112,6 +112,6 @@ class FuelPumpControllerTest {
                 .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("New Tank"))
-                .andExpect(jsonPath("$.fuelType").value("GASOLINA"));
+                .andExpect(jsonPath("$.fuelType").value("GASOLINE"));
     }
 }

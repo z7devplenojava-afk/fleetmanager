@@ -333,23 +333,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.removeItem('empresa');
       }
 
-      // IMPORTANTE: Setar o user ANTES de qualquer outra operação assíncrona
-      // para garantir que o ProtectedRoute veja o usuário autenticado
-      setUser(userData);
-      setRefreshToken(response.data.token);
-
-      console.log('✅ Usuário setado no estado:', userData.name, userData.role);
-
-      // Carregar grupos em background (não bloquear navegação)
-      const roleKey = (userData.role ?? '').toUpperCase();
-      if (!['COLABORADOR', 'ROLE_COLABORADOR'].includes(roleKey) && userData.id) {
-        // Carregar grupos sem await para não bloquear a navegação
-        loadUserGroups(userData.id).catch(err => {
-          console.warn('⚠️ Erro ao carregar grupos (não crítico):', err);
-        });
-      }
-
-      // Verificar se precisa de mudança de senha ou primeiro acesso
+      // Verificar requisitos de acesso ANTES de setar o estado
       const requiresPasswordChange = response.data?.requiresPasswordChange === true;
       const firstAccessCompleted = response.data?.firstAccessCompleted === true;
       const requires2FA = response.data?.requires2FA === true;
@@ -362,29 +346,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         requiresLgpdConsent
       });
 
-      // IMPORTANTE: Setar isLoading como false ANTES de navegar
-      // para evitar que ProtectedRoute redirecione para login
+      // Definir para onde navegar
+      let destination = '/dashboard';
+      if (requiresPasswordChange || !firstAccessCompleted) {
+        destination = '/first-access/change-password';
+      } else if (requires2FA) {
+        destination = '/first-access/activate-2fa';
+      } else if (requiresLgpdConsent) {
+        destination = '/lgpd-consent';
+      }
+
+      // ORDEM CRÍTICA: setar user e isLoading=false juntos, navegar depois
+      // O React processa os dois setStates no mesmo batch, então quando
+      // ProtectedRoute renderizar ele verá user != null e isLoading = false
+      setUser(userData);
+      setRefreshToken(response.data.token);
       setIsLoading(false);
 
-      // Aguardar um tick do React para garantir que o estado foi atualizado
-      // antes de navegar
-      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log('✅ Usuário setado no estado:', userData.name, userData.role, '→', destination);
 
-      // Redirecionar baseado nos requisitos
-      if (requiresPasswordChange || !firstAccessCompleted) {
-        console.log('🚀 Redirecionando para primeiro acesso (mudança de senha)');
-        navigate('/first-access/change-password');
-      } else if (requires2FA) {
-        console.log('🚀 Redirecionando para ativação de 2FA');
-        navigate('/first-access/activate-2fa');
-      } else if (requiresLgpdConsent) {
-        console.log('🚀 Redirecionando para consentimento LGPD');
-        navigate('/lgpd-consent');
-      } else {
-        // Navegar apenas após login bem-sucedido e estado atualizado
-        console.log('🚀 Navegando para /dashboard');
-        navigate('/dashboard');
+      // Carregar grupos em background (não bloquear navegação)
+      const roleKey = (userData.role ?? '').toUpperCase();
+      if (!['COLABORADOR', 'ROLE_COLABORADOR'].includes(roleKey) && userData.id) {
+        loadUserGroups(userData.id).catch(err => {
+          console.warn('⚠️ Erro ao carregar grupos (não crítico):', err);
+        });
       }
+
+      // Navegar após um microtick para garantir que o React processou os setState
+      await new Promise(resolve => setTimeout(resolve, 50));
+      console.log('🚀 Navegando para:', destination);
+      navigate(destination);
     } catch (error: any) {
       console.error('❌ Erro no login:', error);
       console.error('📋 Detalhes do erro:', {

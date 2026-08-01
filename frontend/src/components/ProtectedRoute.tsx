@@ -21,6 +21,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
+  // Enquanto carregando, mostra spinner — nunca redireciona
   if (isLoading) {
     return (
       <div className="flex items-center justify-center w-full h-screen bg-seguranca-black">
@@ -31,8 +32,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   if (!user) {
     console.log('🔒 ProtectedRoute: Usuário não autenticado, redirecionando para login');
-    console.log('🔒 ProtectedRoute: isLoading =', isLoading);
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   console.log('🔒 ProtectedRoute: Usuário autenticado:', user.name, 'Role:', user.role);

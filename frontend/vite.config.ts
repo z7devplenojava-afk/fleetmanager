@@ -84,28 +84,18 @@ export default defineConfig(({ mode }) => {
       host: "0.0.0.0", // Permite acesso de qualquer IP na rede
       port: 3000,
       strictPort: false, // Permite usar outra porta se 3000 estiver ocupada
-      // Alinhar protocolo do HMR ao do servidor: wss só com basicSsl; senão ws (evita "WebSocket closed without opened")
+      // HMR: host explícito evita falha de WebSocket quando o servidor escuta em 0.0.0.0
       hmr: {
         overlay: false,
+        host: "localhost",
+        port: 3000,
         protocol: useDevHttps ? "wss" : "ws",
-        ...(useDevHttps ? { clientPort: 3000 } : {}),
       },
       proxy: {
         '/api': {
           target: 'http://localhost:8083',
           changeOrigin: true,
           secure: false,
-          configure: (proxy, options) => {
-            proxy.on('error', (err, req, res) => {
-              console.log('proxy error', err);
-            });
-            proxy.on('proxyReq', (proxyReq, req, res) => {
-              console.log('Sending Request to the Target:', req.method, req.url);
-            });
-            proxy.on('proxyRes', (proxyRes, req, res) => {
-              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
-            });
-          },
         },
         '/ws': {
           target: 'http://localhost:8083',

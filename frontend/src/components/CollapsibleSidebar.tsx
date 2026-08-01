@@ -246,6 +246,11 @@ const estoqueMenuItems = [
 //   { icon: Send, text: 'Tickets', to: '/tickets', id: 'tickets' },
 // ];
 
+// ===== MÓDULO DE GESTÃO DE E-MAILS (IMAP/SMTP) =====
+const emailMenuItems = [
+  { icon: Mail, text: 'Gestão de E-mails', to: '/email', id: 'email-module' },
+];
+
 // ===== MÓDULO DE COMUNICAÇÃO INTERNA (SIMPLIFICADO) =====
 const comunicacaoInternaMenuItems = [
   // Chat e Mensagens Básicas
@@ -593,6 +598,9 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'sistema',
     'backup',
     'configuracoes',
+
+    // E-mails
+    'email-module',
   ]),
 };
 
@@ -686,6 +694,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const filteredComercialItems = useMemo(() => filterItemsForRole(comercialMenuItems), [filterItemsForRole]);
   const filteredEstoqueItems = useMemo(() => filterItemsForRole(estoqueMenuItems), [filterItemsForRole]);
   const filteredComprasItems = useMemo(() => filterItemsForRole(comprasMenuItems), [filterItemsForRole]);
+  const filteredEmailItems = useMemo(() => filterItemsForRole(emailMenuItems), [filterItemsForRole]);
   const filteredComunicacaoInternaItems = useMemo(
     () => filterItemsForRole(comunicacaoInternaMenuItems).filter(item => {
       // Regras por permissão para cada item de comunicação interna
@@ -724,6 +733,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 
     const allItems = [
       ...mainMenuItems,
+      ...emailMenuItems,
       ...manutencaoMenuItems,
       ...financeiroMenuItems,
       ...operacionalMenuItems,
@@ -837,6 +847,42 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
               ))}
             </nav>
           </div>
+
+          {/* Módulo de Gestão de E-mails */}
+          {filteredEmailItems.length > 0 && (
+            <div className="mb-6">
+              {!collapsed && (
+                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
+                  E-mails
+                </div>
+              )}
+              <nav className="space-y-1 px-4">
+                {filteredEmailItems.map((item) => (
+                  <ScrollPreservingLink
+                    key={item.id}
+                    to={item.to}
+                    preserveScroll={true}
+                    ref={isActive(item.id) ? activeItemRef : undefined}
+                    className={`
+                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
+                    ${isActive(item.id)
+                        ? 'bg-red-600 text-white shadow-md'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                      }
+                  `}
+                  >
+                    <item.icon
+                      size={20}
+                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
+                    />
+                    {!collapsed && (
+                      <span className="truncate tracking-wide">{item.text}</span>
+                    )}
+                  </ScrollPreservingLink>
+                ))}
+              </nav>
+            </div>
+          )}
 
           {/* Módulo de Manutenção e Frota */}
           {filteredManutencaoItems.length > 0 && (

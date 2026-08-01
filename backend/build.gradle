@@ -42,6 +42,7 @@ dependencies {
 	implementation 'org.flywaydb:flyway-core:10.10.0'
 	runtimeOnly 'org.flywaydb:flyway-database-postgresql:10.10.0'
 	testImplementation 'com.h2database:h2'
+    testImplementation 'com.icegreen:greenmail:2.0.1'
 
     // Lombok & MapStruct - Lombok PRIMEIRO para gerar getters/setters antes do MapStruct
     compileOnly "org.projectlombok:lombok:${lombokVersion}"
@@ -109,6 +110,16 @@ dependencies {
 // Lombok deve rodar antes do MapStruct - ordem das dependências annotationProcessor
 tasks.withType(JavaCompile).configureEach {
 	options.compilerArgs += ["-parameters"]
+}
+
+sourceSets {
+	test {
+		java {
+			// Testes antigos que referenciam classes removidas ficam no pacote
+			// *.disabled/* e são excluídos da compilação de testes.
+			exclude '**/disabled/**'
+		}
+	}
 }
 
 tasks.named('test') {

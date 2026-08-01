@@ -41,6 +41,27 @@ public interface TimeRecordRepository extends JpaRepository<TimeRecord, UUID> {
 
        Page<TimeRecord> findByStatusOrderByRecordedAtDesc(TimeRecord.RecordStatus status, Pageable pageable);
 
+       @Query("SELECT tr FROM TimeRecord tr WHERE tr.status = :status ORDER BY tr.recordedAt DESC")
+       List<TimeRecord> findListByStatus(@Param("status") TimeRecord.RecordStatus status);
+
+       List<TimeRecord> findByRecordedAtBetweenOrderByRecordedAtDesc(LocalDateTime start, LocalDateTime end);
+
+       long countByRecordedAtBetween(LocalDateTime start, LocalDateTime end);
+
+       long countByStatus(TimeRecord.RecordStatus status);
+
+       @Query("SELECT COUNT(tr) FROM TimeRecord tr WHERE tr.status = :status AND tr.recordedAt BETWEEN :start AND :end")
+       long countByStatusAndRecordedAtBetween(@Param("status") TimeRecord.RecordStatus status,
+               @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+       @Query("SELECT COUNT(DISTINCT tr.employee.id) FROM TimeRecord tr WHERE tr.recordedAt BETWEEN :start AND :end")
+       long countDistinctEmployeeIdsByRecordedAtBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+       @Query("SELECT tr FROM TimeRecord tr JOIN tr.employee e WHERE e.department = :department " +
+               "AND tr.recordedAt BETWEEN :start AND :end ORDER BY tr.recordedAt DESC")
+       List<TimeRecord> findByEmployeeDepartmentAndPeriod(@Param("department") String department,
+               @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
        // Time Control Module - Buscar registros por funcionário e data específica
        @Query("SELECT tr FROM TimeRecord tr WHERE tr.employee.id = :employeeId " +
                      "AND CAST(tr.recordedAt AS date) = :date ORDER BY tr.recordedAt ASC")

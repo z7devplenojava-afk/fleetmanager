@@ -89,8 +89,8 @@ class JwtTenantFilterTest {
 
         // Security Context (Normal User)
         when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.getAuthorities())
-                .thenReturn(Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+        doReturn(Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")))
+                .when(authentication).getAuthorities();
 
         // Act
         jwtTenantFilter.doFilterInternal(request, response, filterChain);

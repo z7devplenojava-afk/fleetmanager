@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.controller;
 
 import com.z7design.fleet_manager.model.TimeRecord;
+import com.z7design.fleet_manager.service.TimeRecordReportService;
 import com.z7design.fleet_manager.service.TimeRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+
 @RestController
 @RequestMapping("/api/time-records")
 @RequiredArgsConstructor
@@ -26,6 +30,7 @@ import java.util.UUID;
 public class TimeRecordController {
 
     private final TimeRecordService timeRecordService;
+    private final TimeRecordReportService timeRecordReportService;
 
     @PostMapping("/register")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_CREATE', 'SUPER_ADMIN', 'ADMIN')")
@@ -215,6 +220,177 @@ public class TimeRecordController {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "error", e.getMessage()));
+        }
+    }
+
+    // ==================== ADMIN / MANAGEMENT ENDPOINTS ====================
+
+    @GetMapping("/admin/consolidated/report/pdf")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
+    public ResponseEntity<byte[]> exportConsolidatedPdf(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        try {
+            byte[] pdfBytes = timeRecordReportService.generateConsolidatedPdf(startDate, endDate);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment",
+                    String.format("relatorio-consolidado-ponto-%s-%s.pdf", startDate, endDate));
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(pdfBytes);
+        } catch (Exception e) {
+            log.error("Erro ao exportar PDF consolidado: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/admin/consolidated/report/excel")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
+    public ResponseEntity<byte[]> exportConsolidatedExcel(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        try {
+            byte[] excelBytes = timeRecordReportService.generateConsolidatedExcel(startDate, endDate);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment",
+                    String.format("relatorio-consolidado-ponto-%s-%s.xlsx", startDate, endDate));
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(excelBytes);
+        } catch (Exception e) {
+            log.error("Erro ao exportar Excel consolidado: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/admin/consolidated")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
+    public ResponseEntity<?> getConsolidatedIndicators(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        try {
+            Map<String, Object> indicators = timeRecordService.getConsolidatedIndicators(startDate, endDate);
+            return ResponseEntity.ok(Map.of("success", true, "data", indicators));
+        } catch (Exception e) {
+            log.error("Erro ao buscar indicadores consolidados: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/admin/indicators")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> getIndicators(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) String department) {
+        try {
+            Map<String, Object> indicators = timeRecordService.getIndicators(startDate, endDate, department);
+            return ResponseEntity.ok(Map.of("success", true, "data", indicators));
+        } catch (Exception e) {
+            log.error("Erro ao buscar indicadores: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/admin/dashboard")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> getAdminDashboard() {
+        try {
+            Map<String, Object> stats = timeRecordService.getDashboardStats();
+            return ResponseEntity.ok(Map.of("success", true, "data", stats));
+        } catch (Exception e) {
+            log.error("Erro ao buscar dashboard admin: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/admin/records")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> getAdminRecords(
+            @RequestParam(required = false) UUID employeeId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String department) {
+        try {
+            TimeRecord.RecordStatus recordStatus = status != null ? TimeRecord.RecordStatus.valueOf(status.toUpperCase()) : null;
+            List<TimeRecord> records = timeRecordService.getAdminRecords(
+                    employeeId, startDate, endDate, recordStatus, department);
+            return ResponseEntity.ok(Map.of("success", true, "data", records));
+        } catch (Exception e) {
+            log.error("Erro ao buscar registros admin: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/admin/batch-approve")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> batchApproveRecords(
+            @RequestBody Map<String, Object> request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<String> recordIdStrings = (List<String>) request.get("recordIds");
+            List<UUID> recordIds = recordIdStrings.stream().map(UUID::fromString).toList();
+            UUID approverId = UUID.fromString((String) request.get("approverId"));
+
+            List<TimeRecord> records = timeRecordService.batchApproveRecords(recordIds, approverId);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", records.size() + " registro(s) aprovado(s)",
+                    "data", records));
+        } catch (Exception e) {
+            log.error("Erro ao aprovar registros em lote: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/admin/batch-reject")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> batchRejectRecords(
+            @RequestBody Map<String, Object> request) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<String> recordIdStrings = (List<String>) request.get("recordIds");
+            List<UUID> recordIds = recordIdStrings.stream().map(UUID::fromString).toList();
+            UUID approverId = UUID.fromString((String) request.get("approverId"));
+            String reason = (String) request.getOrDefault("reason", "Rejeitado em lote");
+
+            List<TimeRecord> records = timeRecordService.batchRejectRecords(recordIds, approverId, reason);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", records.size() + " registro(s) rejeitado(s)",
+                    "data", records));
+        } catch (Exception e) {
+            log.error("Erro ao rejeitar registros em lote: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{recordId}/justify")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_CREATE', 'TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> submitJustification(
+            @PathVariable UUID recordId,
+            @RequestBody Map<String, String> request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            String justification = request.get("justification");
+            UUID employeeId = UUID.fromString(request.get("employeeId"));
+
+            TimeRecord record = timeRecordService.submitJustification(recordId, justification, employeeId);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Justificativa enviada com sucesso",
+                    "data", record));
+        } catch (Exception e) {
+            log.error("Erro ao enviar justificativa: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
         }
     }
 }

@@ -54,12 +54,10 @@ const Login = () => {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (user && !loading) {
-        navigate('/dashboard');
-      }
-    }, 200);
-    return () => clearTimeout(timer);
+    // Se já está autenticado e não está em processo de login, redireciona
+    if (user && !loading) {
+      navigate('/dashboard', { replace: true });
+    }
   }, [user, navigate, loading]);
 
   const handleSubmit = async (e: React.FormEvent) => {

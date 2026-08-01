@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
@@ -16,6 +17,7 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class TimeRecord {
 
     @Id
@@ -91,6 +93,9 @@ public class TimeRecord {
     @Column(name = "status")
     @Enumerated(EnumType.STRING)
     private RecordStatus status = RecordStatus.APPROVED;
+
+    @Column(name = "company_id", nullable = false)
+    private UUID companyId;
 
     @Column(name = "processing_notes")
     private String processingNotes;

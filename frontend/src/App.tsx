@@ -136,6 +136,7 @@ const Funcionarios = lazyWithRetry(() => import('@/pages/Funcionarios'), 'Funcio
 const Usuarios = lazy(() => import('@/pages/Usuarios'));
 const Roles = lazy(() => import('@/pages/Roles'));
 const Clientes = lazyWithRetry(() => import('@/pages/Clientes'), 'Clientes');
+const ClienteDocumentacao = lazy(() => import('@/pages/ClienteDocumentacao'));
 const Fornecedores = lazy(() => import('@/pages/Fornecedores'));
 const Contratos = lazy(() => import('@/pages/Contratos'));
 const Financeiro = lazy(() => import('@/pages/Financeiro').catch(() => ({ default: () => <div>Erro ao carregar Financeiro</div> })));
@@ -184,6 +185,14 @@ const SSTCIPA = lazy(() => import('@/pages/RH/SST/CIPA'));
 const SSTTreinamentos = lazy(() => import('@/pages/RH/SST/Treinamentos'));
 const Treinamentos = lazy(() => import('@/pages/RH/Treinamentos'));
 const PontoEletronico = lazy(() => import('@/pages/RH/PontoEletronico'));
+const AdminPontoDashboard = lazy(() => import('@/pages/RH/AdminPontoDashboard'));
+const AdminPontoPending = lazy(() => import('@/pages/RH/AdminPontoPending'));
+const AdminPontoReports = lazy(() => import('@/pages/RH/AdminPontoReports'));
+const AdminPontoIndicators = lazy(() => import('@/pages/RH/AdminPontoIndicators'));
+const AdminPontoConsolidated = lazy(() => import('@/pages/RH/AdminPontoConsolidated'));
+const AdminPontoConsolidatedReport = lazy(() => import('@/pages/RH/AdminPontoConsolidatedReport'));
+const AdminWorkJourneyConfig = lazy(() => import('@/pages/RH/AdminWorkJourneyConfig'));
+const AdminPontoExecutive = lazy(() => import('@/pages/RH/AdminPontoExecutive'));
 const ControleHoras = lazy(() => import('@/pages/RH/ControleHoras'));
 const FechamentoHoras = lazy(() => import('@/pages/RH/FechamentoHoras'));
 const FechamentoHorasDetalhes = lazy(() => import('@/pages/RH/FechamentoHorasDetalhes'));
@@ -205,6 +214,7 @@ const GestaoMensagens = lazy(() => import('@/pages/GestaoMensagens'));
 const GestaoAtendimento = lazy(() => import('@/pages/GestaoAtendimento'));
 const ChatInterno = lazy(() => import('@/pages/ChatInterno'));
 const WhatsAppConnection = lazy(() => import('@/pages/WhatsAppConnection'));
+const EmailModule = lazy(() => import('@/pages/EmailModule'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 const OrdemServico = lazy(() => import('@/pages/OrdemServico'));
 const FuncionarioNovo = lazy(() => import('@/pages/FuncionarioNovo'));
@@ -588,6 +598,15 @@ function App() {
                         </ProtectedRoute>
                       } />
 
+                      {/* Módulo de Gestão de E-mails (IMAP/SMTP) */}
+                      <Route path="/email" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <EmailModule />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+
                       {/* Funcionários e Operacional */}
                       <Route path="/employees" element={
                         <ProtectedRoute requiredPermissions={['EMPLOYEES_READ']}>
@@ -640,6 +659,11 @@ function App() {
                       <Route path="/filiais" element={
                         <ProtectedRoute requiredPermissions={['CLIENTS_READ']}>
                           <Filiais />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/clientes/documentacao" element={
+                        <ProtectedRoute requiredPermissions={['CLIENTS_READ']}>
+                          <ClienteDocumentacao />
                         </ProtectedRoute>
                       } />
 
@@ -1135,6 +1159,62 @@ function App() {
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <PontoEletronico />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/rh/ponto-admin/dashboard" element={
+                        <ProtectedRoute requiredPermissions={['TIME_RECORD_MANAGE']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <AdminPontoDashboard />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/rh/ponto-admin/pending" element={
+                        <ProtectedRoute requiredPermissions={['TIME_RECORD_MANAGE']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <AdminPontoPending />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/rh/ponto-admin/reports" element={
+                        <ProtectedRoute requiredPermissions={['TIME_RECORD_MANAGE']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <AdminPontoReports />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/rh/ponto-admin/indicators" element={
+                        <ProtectedRoute requiredPermissions={['TIME_RECORD_MANAGE']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <AdminPontoIndicators />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/rh/ponto-admin/consolidated" element={
+                        <ProtectedRoute requiredRoles={['SUPER_ADMIN', 'FLEX_ADMIN']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <AdminPontoConsolidated />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/rh/ponto-admin/consolidated-report" element={
+                        <ProtectedRoute requiredRoles={['SUPER_ADMIN', 'FLEX_ADMIN']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <AdminPontoConsolidatedReport />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/rh/ponto-admin/journey-config" element={
+                        <ProtectedRoute requiredRoles={['SUPER_ADMIN', 'FLEX_ADMIN']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <AdminWorkJourneyConfig />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/rh/ponto-admin/executive" element={
+                        <ProtectedRoute requiredPermissions={['TIME_RECORD_MANAGE']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <AdminPontoExecutive />
                           </Suspense>
                         </ProtectedRoute>
                       } />
