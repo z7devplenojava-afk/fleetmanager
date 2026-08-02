@@ -8,6 +8,8 @@ import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, Doll
 import VeiculosTable from '@/components/frota/VeiculosTable';
 import AbastecimentosTable from '@/components/frota/AbastecimentosTable';
 import MultasTable from '@/components/frota/MultasTable';
+import BateriasTable from '@/components/frota/BateriasTable';
+import VehicleDocumentsTable from '@/components/frota/VehicleDocumentsTable';
 import VeiculoFormModal from '@/components/frota/VeiculoFormModal';
 import VeiculoEditModal from '@/components/frota/VeiculoEditModal';
 import AbastecimentoFormModal from '@/components/frota/AbastecimentoFormModal';
@@ -110,6 +112,7 @@ interface MultaComponent {
   local_infracao: string;
   status: 'pendente' | 'paga' | 'vencida';
   observacoes?: string;
+  driverPhone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -207,7 +210,7 @@ const Frota: React.FC = () => {
     // Carregar dados da empresa para o layout premium
     const fetchCompany = async () => {
       try {
-        const companies = await companyService.getCompanies();
+        const companies = await companyService.getAllCompanies();
         if (companies && companies.length > 0) {
           setEmpresa(companies[0]);
         }
@@ -399,6 +402,7 @@ const Frota: React.FC = () => {
       local_infracao: fine.location,
       status: fine.status === 'PAID' ? 'paga' : fine.status === 'PENDING' ? 'pendente' : 'vencida',
       observacoes: undefined,
+      driverPhone: fine.driverPhone || undefined,
       created_at: fine.createdAt,
       updated_at: fine.createdAt
     };
@@ -1356,6 +1360,12 @@ const Frota: React.FC = () => {
             <TabsTrigger value="multas" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               Multas
             </TabsTrigger>
+            <TabsTrigger value="baterias" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
+              Baterias
+            </TabsTrigger>
+            <TabsTrigger value="documentos" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
+              Documentos
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="veiculos" className="mt-6 space-y-4">
@@ -1780,6 +1790,14 @@ const Frota: React.FC = () => {
                 />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="baterias" className="mt-6 space-y-4">
+            <BateriasTable />
+          </TabsContent>
+
+          <TabsContent value="documentos" className="mt-6 space-y-4">
+            <VehicleDocumentsTable />
           </TabsContent>
         </Tabs>
 

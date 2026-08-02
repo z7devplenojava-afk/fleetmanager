@@ -31,11 +31,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!user) {
-    console.log('🔒 ProtectedRoute: Usuário não autenticado, redirecionando para login');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-
-  console.log('🔒 ProtectedRoute: Usuário autenticado:', user.name, 'Role:', user.role);
 
   // Verificar se o usuário precisa completar o primeiro acesso
   // Exceto se estiver na própria página de primeiro acesso ou se allowWithoutFirstAccess for true
@@ -43,7 +40,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     // Permitir acesso apenas às páginas de primeiro acesso
     const firstAccessPaths = ['/first-access/change-password', '/first-access/activate-2fa'];
     if (!firstAccessPaths.includes(location.pathname)) {
-      console.log('🔒 ProtectedRoute: Usuário precisa completar primeiro acesso, redirecionando...');
       return <Navigate to="/first-access/change-password" replace />;
     }
   }
@@ -67,7 +63,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (requiredRoles && requiredRoles.length > 0) {
     const hasRole = requiredRoles.includes(user.role);
     if (!hasRole) {
-      console.log(`🔒 ProtectedRoute: Usuário ${user.name} não possui um dos roles requeridos: ${requiredRoles.join(', ')}`);
       return <Navigate to="/dashboard" replace />;
     }
   }

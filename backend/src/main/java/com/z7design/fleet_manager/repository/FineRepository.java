@@ -18,6 +18,8 @@ public interface FineRepository extends JpaRepository<Fine, UUID> {
     List<Fine> findByStatus(Fine.FineStatus status);
     
     List<Fine> findByVehicleIdAndStatus(UUID vehicleId, Fine.FineStatus status);
+
+    List<Fine> findByDriverId(UUID driverId);
     
     @Query("SELECT f FROM Fine f WHERE f.vehicle.plate = :plate")
     List<Fine> findByVehiclePlate(@Param("plate") String plate);
@@ -26,6 +28,13 @@ public interface FineRepository extends JpaRepository<Fine, UUID> {
     Double getTotalPendingAmountByVehicleId(@Param("vehicleId") UUID vehicleId);
     
     List<Fine> findByDueDateBeforeAndStatus(LocalDate date, Fine.FineStatus status);
+    
+    /** Multas PENDING vencendo até a data limite que ainda precisam de algum alerta (próxima do vencimento ou vencida). */
+    @Query("SELECT f FROM Fine f WHERE f.status = :status AND f.dueDate IS NOT NULL AND f.dueDate <= :limitDate "
+            + "AND ((f.dueReminderSent IS NULL OR f.dueReminderSent = false) "
+            + "OR (f.overdueReminderSent IS NULL OR f.overdueReminderSent = false))")
+    List<Fine> findPendingFinesNeedingDueReminder(@Param("status") Fine.FineStatus status,
+                                                  @Param("limitDate") LocalDate limitDate);
     
     @Query("SELECT f FROM Fine f LEFT JOIN FETCH f.vehicle LEFT JOIN FETCH f.driver")
     List<Fine> findAllWithRelations();

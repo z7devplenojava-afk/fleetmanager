@@ -70,11 +70,24 @@ public class MeasurementService {
                     BigDecimal disregarded = item.getDisregardedKm() != null ? item.getDisregardedKm()
                             : BigDecimal.ZERO;
 
-                    BigDecimal quantity = diff.subtract(franchise).subtract(disregarded);
+                    // KM considerado = diferença entre KM final e inicial
+                    BigDecimal kmConsiderado = diff;
+
+                    // KM excedido = KM considerado - franquia - desconsiderado
+                    BigDecimal quantity = kmConsiderado.subtract(franchise).subtract(disregarded);
                     if (quantity.compareTo(BigDecimal.ZERO) < 0) {
                         quantity = BigDecimal.ZERO;
                     }
+
+                    item.setKmConsiderado(kmConsiderado);
+                    item.setKmExcedido(quantity);
                     item.setQuantity(quantity);
+
+                    // Valor do KM excedido = KM excedido x preço unitário
+                    if (item.getUnitPrice() != null) {
+                        item.setValorKmExcedido(quantity.multiply(item.getUnitPrice()));
+                    }
+
                     log.info("Cálculo de KM Excedente item {}: ({} - {}) - {} - {} = {}",
                             item.getItemNumber(), item.getFinalKm(), item.getInitialKm(), franchise, disregarded,
                             quantity);

@@ -29,6 +29,9 @@ public class Driver implements TenantAware {
     @Column(name = "license_number", unique = true)
     private String licenseNumber;
 
+    @Column(name = "phone", length = 20)
+    private String phone; // WhatsApp do motorista para notificações
+
     @Column(nullable = false)
     private String status; // ATIVO, INATIVO
 

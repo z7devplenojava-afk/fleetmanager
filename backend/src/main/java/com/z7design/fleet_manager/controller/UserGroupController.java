@@ -24,48 +24,41 @@ public class UserGroupController {
         return ResponseEntity.ok(groups);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<UserGroupDTO> getGroupById(@PathVariable("id") UUID id) {
-        UserGroupDTO group = userGroupService.getGroupById(id);
-        return ResponseEntity.ok(group);
-    }
-
     @GetMapping("/user/{userId}")
-    // PermissÃ£o jÃ¡ gerenciada pelo SecurityConfig - permite acesso autenticado
+    // Deve ficar ANTES de /{id} para não conflitar com o path variable
     public ResponseEntity<List<UserGroupDTO>> getGroupsByUserId(@PathVariable("userId") String userId) {
         try {
             UUID uuid = UUID.fromString(userId);
             List<UserGroupDTO> groups = userGroupService.getGroupsByUserId(uuid);
             return ResponseEntity.ok(groups);
         } catch (IllegalArgumentException e) {
-            // Se nÃ£o for um UUID vÃ¡lido, retornar lista vazia
             return ResponseEntity.ok(List.of());
         } catch (Exception e) {
-            // Log do erro para debug
-            System.err.println("Erro ao buscar grupos do usuÃ¡rio " + userId + ": " + e.getMessage());
+            System.err.println("Erro ao buscar grupos do usuário " + userId + ": " + e.getMessage());
             e.printStackTrace();
-            // Retornar lista vazia em caso de erro para nÃ£o quebrar o frontend
             return ResponseEntity.ok(List.of());
         }
     }
 
     @GetMapping("/user/{userId}/permissions")
-    // PermissÃ£o jÃ¡ gerenciada pelo SecurityConfig - permite acesso autenticado
     public ResponseEntity<Set<String>> getUserPermissions(@PathVariable("userId") String userId) {
         try {
             UUID uuid = UUID.fromString(userId);
             Set<String> permissions = userGroupService.getUserPermissions(uuid);
             return ResponseEntity.ok(permissions);
         } catch (IllegalArgumentException e) {
-            // Se nÃ£o for um UUID vÃ¡lido, retornar conjunto vazio
             return ResponseEntity.ok(Set.of());
         } catch (Exception e) {
-            // Log do erro para debug
-            System.err.println("Erro ao buscar permissÃµes do usuÃ¡rio " + userId + ": " + e.getMessage());
+            System.err.println("Erro ao buscar permissões do usuário " + userId + ": " + e.getMessage());
             e.printStackTrace();
-            // Retornar conjunto vazio em caso de erro para nÃ£o quebrar o frontend
             return ResponseEntity.ok(Set.of());
         }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<UserGroupDTO> getGroupById(@PathVariable("id") UUID id) {
+        UserGroupDTO group = userGroupService.getGroupById(id);
+        return ResponseEntity.ok(group);
     }
 
     @GetMapping("/{groupId}/users")

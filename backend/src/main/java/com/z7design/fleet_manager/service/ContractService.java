@@ -9,6 +9,7 @@ import com.z7design.fleet_manager.model.Client;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.UserGroupEntity;
 import com.z7design.fleet_manager.model.enums.ContractStatus;
+import com.z7design.fleet_manager.model.enums.ContractType;
 import com.z7design.fleet_manager.model.enums.MessageType;
 import com.z7design.fleet_manager.model.enums.MessagePriority;
 import com.z7design.fleet_manager.model.enums.UserGroup;
@@ -173,6 +174,7 @@ public class ContractService {
         existingContract.setEndDate(contractDTO.getEndDate());
         existingContract.setValue(contractDTO.getValue());
         existingContract.setStatus(contractDTO.getStatus());
+        existingContract.setContractType(contractDTO.getContractType());
         existingContract.setNotes(contractDTO.getNotes());
         existingContract.setClient(client);
         existingContract.setUpdatedAt(LocalDateTime.now());
@@ -243,6 +245,7 @@ public class ContractService {
         contract.setEndDate(dto.getEndDate());
         contract.setValue(dto.getValue());
         contract.setStatus(dto.getStatus() != null ? dto.getStatus() : ContractStatus.ACTIVE);
+        contract.setContractType(dto.getContractType());
         contract.setNotes(dto.getNotes());
     }
     

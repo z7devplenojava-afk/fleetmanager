@@ -59,6 +59,7 @@ export interface Fine {
   driverId?: string;
   driverName?: string;
   driverLicenseNumber?: string;
+  driverPhone?: string; // WhatsApp do motorista para notificação
   date: string;
   description: string;
   amount: number;

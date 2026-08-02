@@ -6,6 +6,7 @@ export type { Driver };
 export interface CreateDriverDTO {
   name: string;
   licenseNumber?: string;
+  phone?: string;
   status?: 'ATIVO' | 'INATIVO';
 }
 

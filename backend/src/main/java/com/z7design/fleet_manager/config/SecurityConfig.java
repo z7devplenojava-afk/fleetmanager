@@ -208,6 +208,15 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/frota/vehicle-gate-checklists/**")
                                                 .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
                                                                 "ROLE_FLEX_ADMIN", "ROLE_PORTARIA",
+                                                                "ROLE_MECANICO", "ROLE_MOTORISTA")
+                                                // Configuração de itens de checklist por veículo - leitura autenticada
+                                                // (motorista lê para executar o checklist), escrita para admin/portaria
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                                                "/api/frota/checklist-configs/**")
+                                                .authenticated()
+                                                .requestMatchers("/api/frota/checklist-configs/**")
+                                                .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
+                                                                "ROLE_FLEX_ADMIN", "ROLE_PORTARIA",
                                                                 "ROLE_MECANICO")
                                                 .requestMatchers("/api/mechanic/dashboard/**")
                                                 .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
@@ -441,6 +450,8 @@ public class SecurityConfig {
                                                 // para
                                                 // desenvolvimento)
                                                 .requestMatchers("/api/fines/**").authenticated()
+                                                // Pneus / gestão de pneus
+                                                .requestMatchers("/api/tires/**").authenticated()
                                                 // Endpoints de dashboard - requerem apenas autenticaÃ§Ã£o para
                                                 // usuÃ¡rios
                                                 // logados

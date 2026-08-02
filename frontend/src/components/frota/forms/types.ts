@@ -71,6 +71,7 @@ export interface InfractionFormData {
     id?: string;
     vehicleId: string;
     driverId?: string;
+    driverPhone?: string; // WhatsApp do motorista para notificação
     date: string; // YYYY-MM-DD
     dueDate: string; // YYYY-MM-DD
     type: string;

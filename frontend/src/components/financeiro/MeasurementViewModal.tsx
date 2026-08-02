@@ -196,11 +196,11 @@ export const MeasurementViewModal: React.FC<MeasurementViewModalProps> = ({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-gray-400">Cliente</label>
-                  <p className="text-seguranca-lightgray">{bulletin.client?.name || 'Cliente não definido'}</p>
+                  <p className="text-seguranca-lightgray">{bulletin.clientName || bulletin.client?.name || 'Cliente não definido'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-400">Unidade</label>
-                  <p className="text-seguranca-lightgray">{bulletin.unit?.name || 'Unidade não definida'}</p>
+                  <p className="text-seguranca-lightgray">{bulletin.unitName || bulletin.unit?.name || 'Unidade não definida'}</p>
                 </div>
               </div>
 
@@ -267,9 +267,20 @@ export const MeasurementViewModal: React.FC<MeasurementViewModalProps> = ({
                         <div className="text-[10px] text-gray-500 italic">
                           {CATEGORY_LABELS[item.category || MeasurementCategory.OTHER] || item.category}
                         </div>
+                        {item.diaria && item.diaria > 0 && (
+                          <div className="text-[10px] text-gray-500 mt-0.5">Diária: {formatCurrency(item.diaria)}</div>
+                        )}
                         {item.category === MeasurementCategory.EXCESS_KM && (
                           <div className="text-[10px] text-blue-400 mt-0.5">
-                            KM: {item.initialKm} → {item.finalKm} (Franq: {item.franchiseKm})
+                            KM Consid: {(item.kmConsiderado ?? ((item.finalKm ?? 0) - (item.initialKm ?? 0))).toFixed(2)} | KM Exced: {(item.kmExcedido ?? 0).toFixed(2)} | Val KM Exc: {formatCurrency(item.valorKmExcedido || 0)}
+                          </div>
+                        )}
+                        {item.isExtraTrip && (
+                          <div className="text-[10px] text-orange-400 mt-0.5">
+                            {item.tripDate && <span>Data: {formatDate(item.tripDate)} | </span>}
+                            {item.vehiclePlate && <span>Placa: {item.vehiclePlate} | </span>}
+                            {item.route && <span>Trajeto: {item.route} | </span>}
+                            {item.vehicleType && <span>Tipo: {item.vehicleType}</span>}
                           </div>
                         )}
                       </div>

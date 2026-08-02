@@ -25,10 +25,10 @@ public class VehicleGateChecklistController {
 
     @GetMapping
     public ResponseEntity<List<VehicleGateChecklistDTO>> findAll(
-            @RequestParam(required = false) UUID vehicleId,
-            @RequestParam(required = false) VehicleGateChecklist.ChecklistType type,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
+            @RequestParam(name = "vehicleId", required = false) UUID vehicleId,
+            @RequestParam(name = "type", required = false) VehicleGateChecklist.ChecklistType type,
+            @RequestParam(name = "dateFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(name = "dateTo", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
         if (vehicleId != null || type != null || dateFrom != null || dateTo != null) {
             return ResponseEntity.ok(service.findByFilters(vehicleId, type, dateFrom, dateTo));
         }
@@ -36,7 +36,7 @@ public class VehicleGateChecklistController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<VehicleGateChecklistDTO> findById(@PathVariable UUID id) {
+    public ResponseEntity<VehicleGateChecklistDTO> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(service.findById(id));
     }
 
@@ -47,20 +47,20 @@ public class VehicleGateChecklistController {
 
     @PutMapping("/{id}")
     public ResponseEntity<VehicleGateChecklistDTO> update(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody VehicleGateChecklistDTO dto) {
         return ResponseEntity.ok(service.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/odometer-photo")
     public ResponseEntity<VehicleGateChecklistDTO> uploadOdometerPhoto(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestParam("photo") MultipartFile file,
             @RequestParam(value = "description", required = false) String description) {
         return ResponseEntity.ok(service.uploadOdometerPhoto(id, file, description));
@@ -68,7 +68,7 @@ public class VehicleGateChecklistController {
 
     @PostMapping("/{id}/vehicle-photos")
     public ResponseEntity<VehicleGateChecklistDTO> uploadVehiclePhotos(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestParam(value = "photos", required = false) MultipartFile[] files) {
         MultipartFile[] safeFiles = (files != null) ? files : new MultipartFile[0];
         return ResponseEntity.ok(service.uploadVehiclePhotos(id, safeFiles));

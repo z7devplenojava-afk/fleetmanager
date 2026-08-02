@@ -72,5 +72,12 @@ public class ReportLayoutConfig {
      */
     @Builder.Default
     private float rightMargin = 50f;
+
+    /**
+     * Orientação da página. Quando true, usa A4 paisagem (landscape).
+     * PadrÃ£o: false (retrato)
+     */
+    @Builder.Default
+    private boolean landscape = false;
 }
 

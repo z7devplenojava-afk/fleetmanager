@@ -10,6 +10,7 @@ import { ContractsFilters } from '@/components/contratos/ContractsFilters';
 import { ContractGenerator } from '@/components/contratos/ContractGenerator';
 import { CompanySettings } from '@/components/contratos/CompanySettings';
 import { EditContractModal } from '@/components/contratos/EditContractModal';
+import { ContractDocumentsModal } from '@/components/contratos/ContractDocumentsModal';
 import DepartamentosEmailConfig from '@/components/comercial/DepartamentosEmailConfig';
 import { useToast } from '@/hooks/use-toast';
 import { notificationService } from '@/services/notificationService';
@@ -31,6 +32,8 @@ const Contratos = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedContractForGeneration, setSelectedContractForGeneration] = useState<Contract | null>(null);
   const [selectedContractForEdit, setSelectedContractForEdit] = useState<Contract | null>(null);
+  const [documentsModalOpen, setDocumentsModalOpen] = useState(false);
+  const [selectedContractForDocuments, setSelectedContractForDocuments] = useState<Contract | null>(null);
 
   // Carregar contratos
   const loadContracts = async (filters: ContractFilters = {}) => {
@@ -180,6 +183,11 @@ const Contratos = () => {
     console.log('Contrato editado com sucesso');
     loadContractsWithFilters(); // Recarregar lista
     setSelectedContractForEdit(null);
+  };
+
+  const handleDocumentsContrato = (contract: Contract) => {
+    setSelectedContractForDocuments(contract);
+    setDocumentsModalOpen(true);
   };
 
   const handleGenerateContract = (contract?: Contract) => {
@@ -374,6 +382,7 @@ const Contratos = () => {
             onDelete={handleDeleteSuccess}
             onStatusChange={updateContractStatus}
             onGenerateContract={handleGenerateContract}
+            onDocuments={handleDocumentsContrato}
           />
         )}
 
@@ -433,6 +442,14 @@ const Contratos = () => {
           onOpenChange={setEditModalOpen}
           contract={selectedContractForEdit}
           onSuccess={handleEditSuccess}
+        />
+
+        {/* Modal de Documentos do Contrato */}
+        <ContractDocumentsModal
+          open={documentsModalOpen}
+          onOpenChange={setDocumentsModalOpen}
+          contractId={selectedContractForDocuments?.id || ''}
+          contractNumber={selectedContractForDocuments?.contractNumber || ''}
         />
       </div>
     </StandardLayout>

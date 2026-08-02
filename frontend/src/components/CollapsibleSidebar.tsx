@@ -93,6 +93,7 @@ const mainMenuItems = [
   { icon: Home, text: 'Dashboard', to: '/dashboard', id: 'dashboard' },
   { icon: UserCircle, text: 'Portal do Funcionário', to: '/employee-portal', id: 'employee-portal' },
   { icon: User2, text: 'Portal do Motorista', to: '/driver-dashboard', id: 'driver-dashboard' },
+  { icon: ClipboardCheck, text: 'Check-in / Check-out', to: '/driver/checklist', id: 'driver-checklist' },
   { icon: FileSpreadsheet, text: 'Holerites', to: '/holerites', id: 'holerites' },
   { icon: Building2, text: 'Filiais', to: '/filiais', id: 'filiais' },
 ];
@@ -108,6 +109,7 @@ const manutencaoMenuItems = [
   { icon: Database, text: 'Gestão de Pneus', to: '/pneus', id: 'pneus' },
   { icon: DoorOpen, text: 'Gestão de Portaria', to: '/manutencao/portaria', id: 'gestao-portaria' },
   { icon: ClipboardCheck, text: 'Gestão Checklist por Cliente', to: '/manutencao/checklist-cliente', id: 'gestao-checklist-cliente' },
+  { icon: ClipboardCheck, text: 'Checklist por Veículo', to: '/manutencao/checklist-veiculo', id: 'gestao-checklist-veiculo' },
 ];
 
 // Módulo de Mobilização (Novo)
@@ -414,6 +416,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'dashboard',
     'holerites',
     'driver-dashboard',
+    'driver-checklist',
     'driver-trips',
     'chat-interno',
     'mensagens',
@@ -435,6 +438,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
   PORTARIA: new Set([
     'dashboard',
     'gestao-portaria',
+    'gestao-checklist-veiculo',
     'frota',
     'chat-interno',
     'mensagens',
@@ -454,6 +458,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'dashboard',
     'employee-portal',
     'driver-dashboard',
+    'driver-checklist',
     'holerites',
     'filiais',
     
@@ -467,6 +472,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'pneus',
     'gestao-portaria',
     'gestao-checklist-cliente',
+    'gestao-checklist-veiculo',
     
     // Mobilização
     'mobilizacao-transportes',
@@ -619,13 +625,6 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     [user?.role]
   );
   const allowedItemIds = useMemo(() => ROLE_ALLOWED_ITEM_IDS[normalizedRole], [normalizedRole]);
-
-  // Debug: Verificar papel e permissões
-  console.log('🔍 CollapsibleSidebar Debug:');
-  console.log('- User role:', user?.role);
-  console.log('- Normalized role:', normalizedRole);
-  console.log('- Allowed item IDs:', allowedItemIds);
-  console.log('- Can see employee-portal:', allowedItemIds?.has('employee-portal'));
 
   // Referências para controlar o scroll da própria sidebar
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);

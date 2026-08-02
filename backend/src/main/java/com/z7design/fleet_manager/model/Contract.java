@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.model;
 
 import com.z7design.fleet_manager.model.enums.ContractStatus;
+import com.z7design.fleet_manager.model.enums.ContractType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -44,6 +45,10 @@ public class Contract {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private ContractStatus status = ContractStatus.ACTIVE;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "contract_type")
+    private ContractType contractType;
     
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
@@ -126,6 +131,14 @@ public class Contract {
     
     public void setStatus(ContractStatus status) {
         this.status = status;
+    }
+    
+    public ContractType getContractType() {
+        return contractType;
+    }
+    
+    public void setContractType(ContractType contractType) {
+        this.contractType = contractType;
     }
     
     public String getNotes() {

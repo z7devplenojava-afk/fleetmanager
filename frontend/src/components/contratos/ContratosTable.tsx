@@ -39,6 +39,7 @@ interface ContratosTableProps {
   onDelete: () => void;
   onStatusChange?: (contractId: string, newStatus: string) => void;
   onGenerateContract?: (contrato: Contrato) => void;
+  onDocuments?: (contrato: Contrato) => void;
 }
 
 export const ContratosTable: React.FC<ContratosTableProps> = ({
@@ -46,7 +47,8 @@ export const ContratosTable: React.FC<ContratosTableProps> = ({
   onEdit,
   onDelete,
   onStatusChange,
-  onGenerateContract
+  onGenerateContract,
+  onDocuments
 }) => {
   const { toast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -232,6 +234,17 @@ export const ContratosTable: React.FC<ContratosTableProps> = ({
                         title="Gerar contrato personalizado"
                       >
                         <Download size={12} className="sm:w-4 sm:h-4" />
+                      </Button>
+                    )}
+                    {onDocuments && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDocuments(contrato)}
+                        className="text-blue-400 hover:bg-seguranca-black p-1 sm:p-2"
+                        title="Documentos do contrato"
+                      >
+                        <FileText size={12} className="sm:w-4 sm:h-4" />
                       </Button>
                     )}
                     <Button

@@ -109,13 +109,24 @@ export const SimplifiedMeasurementModal: React.FC<SimplifiedMeasurementModalProp
         status: fullBulletin.status || MeasurementStatus.DRAFT
       });
 
-      // Carregar cliente e unidade
-      if (fullBulletin.client) {
-        setSelectedClient(fullBulletin.client);
-      }
-      if (fullBulletin.unit) {
-        setSelectedUnit(fullBulletin.unit);
-      }
+      // Carregar cliente e unidade a partir dos campos planos do DTO
+      // (clientName/unitName/clientId/unitId) — o backend não retorna objetos aninhados
+      const clientId = fullBulletin.clientId?.toString() || '';
+      const unitId = fullBulletin.unitId?.toString() || '';
+
+      const resolvedClient = clientId
+        ? clients.find((c: any) => c.id?.toString() === clientId)
+        : undefined;
+      setSelectedClient(
+        resolvedClient || (fullBulletin.clientName ? { id: clientId, name: fullBulletin.clientName } : null)
+      );
+
+      const resolvedUnit = unitId
+        ? units.find((u: any) => u.id?.toString() === unitId)
+        : undefined;
+      setSelectedUnit(
+        resolvedUnit || (fullBulletin.unitName ? { id: unitId, name: fullBulletin.unitName } : null)
+      );
     } catch (error) {
       console.error('Erro ao carregar boletim:', error);
       toast({

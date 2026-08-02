@@ -110,6 +110,8 @@ dependencies {
 // Lombok deve rodar antes do MapStruct - ordem das dependências annotationProcessor
 tasks.withType(JavaCompile).configureEach {
 	options.compilerArgs += ["-parameters"]
+	// Garantir encoding UTF-8 na compilação para evitar mojibake em strings acentuadas
+	options.encoding = 'UTF-8'
 }
 
 sourceSets {

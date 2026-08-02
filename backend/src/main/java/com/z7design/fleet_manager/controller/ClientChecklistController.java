@@ -27,7 +27,7 @@ public class ClientChecklistController {
 
     @GetMapping("/templates")
     public ResponseEntity<List<ClientChecklistTemplateDTO>> findTemplates(
-            @RequestParam(required = false) UUID clientId) {
+            @RequestParam(name = "clientId", required = false) UUID clientId) {
         if (clientId == null) {
             return ResponseEntity.ok(List.of());
         }
@@ -35,7 +35,7 @@ public class ClientChecklistController {
     }
 
     @GetMapping("/templates/{id}")
-    public ResponseEntity<ClientChecklistTemplateDTO> findTemplateById(@PathVariable UUID id) {
+    public ResponseEntity<ClientChecklistTemplateDTO> findTemplateById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(service.findTemplateById(id));
     }
 
@@ -47,13 +47,13 @@ public class ClientChecklistController {
 
     @PutMapping("/templates/{id}")
     public ResponseEntity<ClientChecklistTemplateDTO> updateTemplate(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody ClientChecklistTemplateDTO dto) {
         return ResponseEntity.ok(service.updateTemplate(id, dto));
     }
 
     @DeleteMapping("/templates/{id}")
-    public ResponseEntity<Void> deleteTemplate(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteTemplate(@PathVariable("id") UUID id) {
         service.deleteTemplate(id);
         return ResponseEntity.noContent().build();
     }
@@ -62,15 +62,15 @@ public class ClientChecklistController {
 
     @GetMapping("/records")
     public ResponseEntity<List<ClientChecklistRecordDTO>> findRecords(
-            @RequestParam(required = false) UUID clientId,
-            @RequestParam(required = false) UUID templateId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
+            @RequestParam(name = "clientId", required = false) UUID clientId,
+            @RequestParam(name = "templateId", required = false) UUID templateId,
+            @RequestParam(name = "dateFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(name = "dateTo", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
         return ResponseEntity.ok(service.findRecordsByFilters(clientId, templateId, dateFrom, dateTo));
     }
 
     @GetMapping("/records/{id}")
-    public ResponseEntity<ClientChecklistRecordDTO> findRecordById(@PathVariable UUID id) {
+    public ResponseEntity<ClientChecklistRecordDTO> findRecordById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(service.findRecordById(id));
     }
 
@@ -82,20 +82,20 @@ public class ClientChecklistController {
 
     @PutMapping("/records/{id}")
     public ResponseEntity<ClientChecklistRecordDTO> updateRecord(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody ClientChecklistRecordDTO dto) {
         return ResponseEntity.ok(service.updateRecord(id, dto));
     }
 
     @DeleteMapping("/records/{id}")
-    public ResponseEntity<Void> deleteRecord(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteRecord(@PathVariable("id") UUID id) {
         service.deleteRecord(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/records/{id}/odometer-photo")
     public ResponseEntity<ClientChecklistRecordDTO> uploadOdometerPhoto(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestParam("photo") MultipartFile file,
             @RequestParam(value = "description", required = false) String description) {
         return ResponseEntity.ok(service.uploadOdometerPhoto(id, file, description));
@@ -103,7 +103,7 @@ public class ClientChecklistController {
 
     @PostMapping("/records/{id}/vehicle-photos")
     public ResponseEntity<ClientChecklistRecordDTO> uploadVehiclePhotos(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestParam(value = "photos", required = false) MultipartFile[] files) {
         MultipartFile[] safeFiles = (files != null) ? files : new MultipartFile[0];
         return ResponseEntity.ok(service.uploadVehiclePhotos(id, safeFiles));

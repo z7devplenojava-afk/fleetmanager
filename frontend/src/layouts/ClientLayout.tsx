@@ -6,6 +6,7 @@ import {
     MapPin,
     Bus,
     Camera,
+    FileText,
     LogOut,
     Menu,
     X,
@@ -22,6 +23,7 @@ const bottomNavItems = [
     { icon: Bus, label: 'Veículos', path: '/client/vehicles' },
     { icon: Camera, label: 'Câmeras', path: '/client/cameras' },
     { icon: MapPin, label: 'Mapa', path: '/client/map' },
+    { icon: FileText, label: 'Documentação', path: '/client/documentacao' },
 ];
 
 export const ClientLayout: React.FC<ClientLayoutProps> = ({ children }) => {

@@ -11,6 +11,7 @@ public class DriverDTO {
     private UUID id;
     private String name;
     private String licenseNumber;
+    private String phone;
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -26,6 +27,7 @@ public class DriverDTO {
             dto.setId(driver.getId());
             dto.setName(driver.getName());
             dto.setLicenseNumber(driver.getLicenseNumber());
+            dto.setPhone(driver.getPhone());
             dto.setStatus(driver.getStatus());
             dto.setCreatedAt(driver.getCreatedAt());
             dto.setUpdatedAt(driver.getUpdatedAt());

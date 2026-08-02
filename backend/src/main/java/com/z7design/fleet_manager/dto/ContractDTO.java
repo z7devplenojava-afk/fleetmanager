@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.dto;
 
 import com.z7design.fleet_manager.model.enums.ContractStatus;
+import com.z7design.fleet_manager.model.enums.ContractType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -46,6 +47,9 @@ public class ContractDTO {
     
     @Schema(description = "Status do contrato", example = "ACTIVE")
     private ContractStatus status;
+    
+    @Schema(description = "Tipo do contrato", example = "LOCACAO_VEICULOS")
+    private ContractType contractType;
     
     @Schema(description = "ObservaÃ§Ãµes sobre o contrato")
     @Size(max = 1000, message = "ObservaÃ§Ãµes deve ter no mÃ¡ximo 1000 caracteres")

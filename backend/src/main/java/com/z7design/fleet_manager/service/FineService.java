@@ -22,6 +22,7 @@ import com.z7design.fleet_manager.repository.DriverRepository;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.UUID;
@@ -40,6 +42,9 @@ import java.util.UUID;
 @Slf4j
 @Transactional
 public class FineService {
+
+    /** Janela em dias para alertar multas próximas do vencimento. */
+    private static final int ALERTA_VENCIMENTO_DIAS = 3;
     
     private final FineRepository fineRepository;
     private final VehicleRepository vehicleRepository;
@@ -47,6 +52,8 @@ public class FineService {
     private final JasperReportService jasperReportService;
     private final StandardReportLayoutService standardReportLayoutService;
     private final CompanyRepository companyRepository;
+    private final EvolutionApiService evolutionApiService;
+    private final BaileysRestService baileysRestService;
     
     public List<FineDTO> getAllFines() {
         log.info("Buscando todas as multas");
@@ -87,6 +94,14 @@ public class FineService {
                 .collect(Collectors.toList());
     }
     
+    /** Multas registradas no nome de um motorista (área do motorista). */
+    public List<FineDTO> getFinesByDriver(UUID driverId) {
+        log.info("Buscando multas do motorista: {}", driverId);
+        return fineRepository.findByDriverId(driverId).stream()
+                .map(FineDTO::fromEntity)
+                .collect(Collectors.toList());
+    }
+    
     public FineDTO createFine(FineDTO fineDTO) {
         log.info("Criando nova multa para veÃ­culo: {}", fineDTO.getVehicleId());
         
@@ -97,10 +112,18 @@ public class FineService {
         fine.setVehicle(vehicle);
         
         // Definir motorista se fornecido
+        Driver driver = null;
         if (fineDTO.getDriverId() != null) {
-            Driver driver = driverRepository.findById(fineDTO.getDriverId())
+            driver = driverRepository.findById(fineDTO.getDriverId())
                     .orElseThrow(() -> new ResourceNotFoundException("Motorista nÃ£o encontrado"));
             fine.setDriver(driver);
+        }
+        
+        // WhatsApp do motorista: se nÃ£o informado na multa, usa o telefone cadastrado no motorista
+        String phone = fineDTO.getDriverPhone();
+        if ((phone == null || phone.isBlank()) && driver != null
+                && driver.getPhone() != null && !driver.getPhone().isBlank()) {
+            phone = driver.getPhone();
         }
         
         fine.setDate(fineDTO.getDate());
@@ -110,10 +133,173 @@ public class FineService {
         fine.setStatus(fineDTO.getStatus());
         fine.setDueDate(fineDTO.getDueDate());
         fine.setPaymentDate(fineDTO.getPaymentDate());
+        fine.setDriverPhone(phone);
         
         Fine savedFine = fineRepository.save(fine);
         log.info("Multa criada com sucesso: {}", savedFine.getId());
+        
+        // Notifica o motorista via WhatsApp quando a multa é registrada no nome dele
+        notifyDriverOfFine(savedFine, driver);
+        
         return FineDTO.fromEntity(savedFine);
+    }
+    
+    /** Notifica o motorista via WhatsApp quando uma multa é registrada no nome dele. */
+    private void notifyDriverOfFine(Fine fine, Driver driver) {
+        String phone = fine.getDriverPhone();
+        if (driver == null || phone == null || phone.isBlank()) {
+            return;
+        }
+        String normalized = normalizeBrazilianPhone(phone);
+        if (normalized == null) {
+            log.warn("Número de WhatsApp inválido/sem DDD para multa {}", fine.getId());
+            return;
+        }
+        
+        String vehiclePlate = fine.getVehicle() != null ? fine.getVehicle().getPlate() : "";
+        String statusLabel = getStatusLabel(fine.getStatus());
+        String message = String.format(
+                "Uma multa foi registrada no seu nome.%n%n"
+                + "\uD83D\uDE97 Veículo: %s%n"
+                + "\uD83D\uDCCB Infração: %s%n"
+                + "\uD83D\uDCB0 Valor: R$ %s%n"
+                + "\uD83D\uDCC5 Data: %s%n"
+                + "\uD83D\uDCCC Local: %s%n"
+                + "\uD83D\uDD04 Status: %s",
+                vehiclePlate,
+                fine.getDescription(),
+                fine.getAmount() != null ? fine.getAmount().toPlainString() : "-",
+                fine.getDate() != null ? fine.getDate().toString() : "-",
+                fine.getLocation() != null ? fine.getLocation() : "-",
+                statusLabel);
+        
+        String whatsappMessage = "\uD83D\uDEA8 *Nova Multa Registrada*\n\n" + message;
+        boolean sent = false;
+        try {
+            sent = evolutionApiService.sendTextMessage(normalized, whatsappMessage);
+        } catch (Exception e) {
+            log.warn("Evolution API falhou ao notificar multa {}: {}", fine.getId(), e.getMessage());
+        }
+        if (!sent) {
+            try {
+                sent = baileysRestService.sendTextMessage(normalized, whatsappMessage);
+            } catch (Exception e) {
+                log.warn("Baileys falhou ao notificar multa {}: {}", fine.getId(), e.getMessage());
+            }
+        }
+        log.info("Notificação WhatsApp de multa {} para {}: {}", fine.getId(), normalized, sent ? "enviada" : "falhou");
+    }
+    
+    /** Job diário às 08:00: alerta multas PENDING próximas do vencimento ou vencidas via WhatsApp. */
+    @Scheduled(cron = "0 0 8 * * ?")
+    public int enviarAlertasVencimentoMultas() {
+        log.info("Iniciando verificação de multas próximas do vencimento ou vencidas");
+        int enviadas = 0;
+        try {
+            LocalDate hoje = LocalDate.now();
+            LocalDate limite = hoje.plusDays(ALERTA_VENCIMENTO_DIAS);
+            List<Fine> pendentes = fineRepository.findPendingFinesNeedingDueReminder(Fine.FineStatus.PENDING, limite);
+            for (Fine fine : pendentes) {
+                try {
+                    if (enviarAlertaVencimento(fine)) {
+                        enviadas++;
+                    }
+                } catch (Exception e) {
+                    log.warn("Falha ao enviar alerta de vencimento da multa {}: {}", fine.getId(), e.getMessage());
+                }
+            }
+            log.info("Verificação de multas concluída. {} alerta(s) de vencimento enviado(s)", enviadas);
+        } catch (Exception e) {
+            log.error("Erro ao enviar alertas de vencimento de multas", e);
+        }
+        return enviadas;
+    }
+
+    /** Envia o alerta de vencimento de uma multa e marca o flag correspondente para não reenviar. */
+    private boolean enviarAlertaVencimento(Fine fine) {
+        String phone = fine.getDriverPhone();
+        if (fine.getDriver() == null || phone == null || phone.isBlank()) {
+            fine.setDueReminderSent(true); // sem motorista/telefone não há o que enviar
+            fine.setOverdueReminderSent(true);
+            fineRepository.save(fine);
+            return false;
+        }
+        String normalized = normalizeBrazilianPhone(phone);
+        if (normalized == null) {
+            fine.setDueReminderSent(true);
+            fine.setOverdueReminderSent(true);
+            fineRepository.save(fine);
+            return false;
+        }
+
+        LocalDate hoje = LocalDate.now();
+        boolean vencida = fine.getDueDate() != null && fine.getDueDate().isBefore(hoje);
+        // Não reenviar o alerta já enviado para a categoria atual (próxima do vencimento ou vencida)
+        if (vencida && Boolean.TRUE.equals(fine.getOverdueReminderSent())) {
+            return false;
+        }
+        if (!vencida && Boolean.TRUE.equals(fine.getDueReminderSent())) {
+            return false;
+        }
+        long diasRestantes = fine.getDueDate() != null ? ChronoUnit.DAYS.between(hoje, fine.getDueDate()) : 0;
+        String vehiclePlate = fine.getVehicle() != null ? fine.getVehicle().getPlate() : "";
+
+        String title = vencida ? "Multa Vencida" : "Multa Próxima do Vencimento";
+        StringBuilder message = new StringBuilder();
+        if (vencida) {
+            message.append(String.format("Sua multa do veículo %s venceu e segue pendente!%n%n", vehiclePlate));
+        } else if (diasRestantes == 0) {
+            message.append(String.format("Sua multa do veículo %s vence hoje!%n%n", vehiclePlate));
+        } else {
+            message.append(String.format("Sua multa do veículo %s vence em %d dia(s).%n%n", vehiclePlate, diasRestantes));
+        }
+        message.append(String.format(
+                "\uD83D\uDCCB Infração: %s%n"
+                + "\uD83D\uDCB0 Valor: R$ %s%n"
+                + "\uD83D\uDCC5 Vencimento: %s%n"
+                + "\uD83D\uDCCC Local: %s%n"
+                + "\u26A0\uFE0F Regularize o quanto antes para evitar novas penalidades.",
+                fine.getDescription(),
+                fine.getAmount() != null ? fine.getAmount().toPlainString() : "-",
+                fine.getDueDate() != null ? fine.getDueDate().toString() : "-",
+                fine.getLocation() != null ? fine.getLocation() : "-"));
+
+        String whatsappMessage = (vencida ? "\uD83D\uDD34 " : "\uD83D\uDFE1 ") + "*" + title + "*\n\n" + message;
+        boolean sent = false;
+        try {
+            sent = evolutionApiService.sendTextMessage(normalized, whatsappMessage);
+        } catch (Exception e) {
+            log.warn("Evolution API falhou ao alertar vencimento da multa {}: {}", fine.getId(), e.getMessage());
+        }
+        if (!sent) {
+            try {
+                sent = baileysRestService.sendTextMessage(normalized, whatsappMessage);
+            } catch (Exception e) {
+                log.warn("Baileys falhou ao alertar vencimento da multa {}: {}", fine.getId(), e.getMessage());
+            }
+        }
+        if (sent) {
+            if (vencida) {
+                fine.setOverdueReminderSent(true);
+            } else {
+                fine.setDueReminderSent(true);
+            }
+            fineRepository.save(fine);
+        }
+        log.info("Alerta de vencimento da multa {} para {}: {}", fine.getId(), normalized, sent ? "enviada" : "falhou");
+        return sent;
+    }
+
+    /** Normaliza número brasileiro para E.164 com DDI +55 (evita falha documentada de envio). */
+    private String normalizeBrazilianPhone(String raw) {
+        String digits = raw.replaceAll("[^0-9]", "");
+        if (digits.length() < 10) {
+            return null;
+        }
+        if (digits.startsWith("55") && digits.length() >= 12) {
+            return "+" + digits;
+        }
+        return "+55" + digits;
     }
     
     public FineDTO updateFine(UUID id, FineDTO fineDTO) {
@@ -138,6 +324,13 @@ public class FineService {
             fine.setDriver(null);
         }
         
+        // WhatsApp do motorista: se nÃ£o informado na multa, usa o telefone cadastrado no motorista
+        String phone = fineDTO.getDriverPhone();
+        if ((phone == null || phone.isBlank()) && fine.getDriver() != null
+                && fine.getDriver().getPhone() != null && !fine.getDriver().getPhone().isBlank()) {
+            phone = fine.getDriver().getPhone();
+        }
+        
         fine.setDate(fineDTO.getDate());
         fine.setDescription(fineDTO.getDescription());
         fine.setAmount(fineDTO.getAmount());
@@ -145,9 +338,13 @@ public class FineService {
         fine.setStatus(fineDTO.getStatus());
         fine.setDueDate(fineDTO.getDueDate());
         fine.setPaymentDate(fineDTO.getPaymentDate());
+        fine.setDriverPhone(phone);
         if (fineDTO.getPoints() != null) {
             fine.setPoints(fineDTO.getPoints());
         }
+        // Re-armar os alertas de vencimento ao editar a multa
+        fine.setDueReminderSent(false);
+        fine.setOverdueReminderSent(false);
         
         Fine savedFine = fineRepository.save(fine);
         log.info("Multa atualizada com sucesso: {}", savedFine.getId());

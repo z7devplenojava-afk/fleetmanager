@@ -11,6 +11,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +31,10 @@ public class FleetWorkOrder implements TenantAware {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    /** Número sequencial legível da OS, ex: OS-001042 */
+    @Column(name = "os_number", length = 50)
+    private String osNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id", nullable = false)
@@ -52,6 +57,10 @@ public class FleetWorkOrder implements TenantAware {
     @Column(name = "mechanic_id")
     private UUID mechanicId;
 
+    /** Nome livre do mecânico/prestador (complementa mechanicId) */
+    @Column(name = "mechanic_name", length = 255)
+    private String mechanicName;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "labor_type")
     private LaborType laborType;
@@ -59,14 +68,42 @@ public class FleetWorkOrder implements TenantAware {
     @Column(name = "planned_date")
     private LocalDate plannedDate;
 
+    /** Data real de entrada na oficina */
+    @Column(name = "actual_date")
+    private LocalDate actualDate;
+
     @Column(name = "start_date")
     private LocalDateTime startDate;
 
     @Column(name = "completion_date")
     private LocalDateTime completionDate;
 
+    // ── Odômetro ──────────────────────────────────────────────
+    /** Quilometragem do veículo na entrada da OS */
+    @Column(name = "odometer_in")
+    private Integer odometerIn;
+
+    /** Quilometragem do veículo na saída (após manutenção) */
+    @Column(name = "odometer_out")
+    private Integer odometerOut;
+
+    // ── Motivo da parada ─────────────────────────────────────
+    /** Descrição do motivo pelo qual o veículo foi parado */
+    @Column(name = "stop_reason", columnDefinition = "TEXT")
+    private String stopReason;
+
+    // ── Custos ───────────────────────────────────────────────
+    @Column(name = "labor_cost", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal laborCost = BigDecimal.ZERO;
+
+    @Column(name = "parts_cost", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal partsCost = BigDecimal.ZERO;
+
     @Column(name = "total_cost", precision = 15, scale = 2)
-    private BigDecimal totalCost;
+    @Builder.Default
+    private BigDecimal totalCost = BigDecimal.ZERO;
 
     @Column(columnDefinition = "TEXT")
     private String notes;
@@ -91,6 +128,29 @@ public class FleetWorkOrder implements TenantAware {
 
     @Column(name = "company_id")
     private UUID companyId;
+
+    // ── Helpers ───────────────────────────────────────────────
+
+    /**
+     * Calcula o tempo total de parada em HORAS entre startDate e completionDate.
+     * Se ainda estiver em andamento, usa o momento atual.
+     */
+    public Long getDowntimeHours() {
+        if (startDate == null) return null;
+        LocalDateTime end = (completionDate != null) ? completionDate : LocalDateTime.now();
+        return ChronoUnit.HOURS.between(startDate, end);
+    }
+
+    /**
+     * Tempo de parada em dias (arredondado para cima).
+     */
+    public Long getDowntimeDays() {
+        Long hours = getDowntimeHours();
+        if (hours == null) return null;
+        return (long) Math.ceil(hours / 24.0);
+    }
+
+    // ── Enums ─────────────────────────────────────────────────
 
     public enum WorkOrderStatus {
         DRAFT, PENDING_APPROVAL, APPROVED, IN_PROGRESS, COMPLETED, CANCELLED

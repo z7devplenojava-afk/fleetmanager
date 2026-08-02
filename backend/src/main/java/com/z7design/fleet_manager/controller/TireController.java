@@ -23,9 +23,12 @@ public class TireController {
     public ResponseEntity<List<Tire>> findAll() {
         log.info("GET /api/tires - Listando todos os pneus");
         try {
-            return ResponseEntity.ok(tireService.findAll());
+            List<Tire> tires = tireService.findAll();
+            // Evita serialização de proxies LAZY (open-in-view=false)
+            tires.forEach(t -> t.setVehicle(null));
+            return ResponseEntity.ok(tires);
         } catch (Exception e) {
-            log.error("Erro ao listar pneus: {}", e.getMessage());
+            log.error("Erro ao listar pneus: {}", e.getMessage(), e);
             return ResponseEntity.ok(java.util.List.of());
         }
     }

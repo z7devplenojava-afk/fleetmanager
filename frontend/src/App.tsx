@@ -32,48 +32,52 @@ import Contato from '@/pages/Contato';
 import CookieConsent from '@/components/CookieConsent';
 import UnificadosPorSetor from '@/pages/UnificadosPorSetor';
 
-// Helper function para lazy loading com retry
+// Helper function para lazy loading com retry (Vite HMR / ERR_EMPTY_RESPONSE)
 const lazyWithRetry = (componentImport: () => Promise<any>, componentName: string, maxRetries = 3) => {
   return lazy(async () => {
     let lastError: any = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`🔄 Tentativa ${attempt}/${maxRetries} de carregar ${componentName}...`);
         const module = await Promise.race([
           componentImport(),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Timeout após 30 segundos')), 30000)
           )
         ]);
-        console.log(`✅ ${componentName} carregado com sucesso na tentativa ${attempt}`);
+        sessionStorage.removeItem(`lazy-reload:${componentName}`);
         return module;
       } catch (error: any) {
         lastError = error;
-        console.error(`❌ Erro na tentativa ${attempt}/${maxRetries} ao carregar ${componentName}:`, error);
+        const message = String(error?.message || error || '');
+        const isNetworkChunkError =
+          (error instanceof TypeError && message.includes('Failed to fetch')) ||
+          message.includes('Failed to fetch dynamically imported module') ||
+          message.includes('Importing a module script failed') ||
+          message.includes('Timeout') ||
+          message.includes('522') ||
+          message.includes('NetworkError') ||
+          message.includes('ERR_EMPTY_RESPONSE') ||
+          message.includes('ERR_CONNECTION_RESET');
 
-        // Se for erro de rede/timeout, aguarda antes de tentar novamente
-        if (
-          (error instanceof TypeError && error.message.includes('Failed to fetch')) ||
-          error.message.includes('Timeout') ||
-          error.message.includes('522') ||
-          error.message.includes('NetworkError')
-        ) {
-          if (attempt < maxRetries) {
-            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Backoff exponencial, max 5s
-            console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue;
-          }
-        } else {
-          // Para outros erros, não tenta novamente
+        if (isNetworkChunkError && attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, Math.min(400 * attempt, 2000)));
+          continue;
+        }
+        if (!isNetworkChunkError) {
           break;
         }
       }
     }
 
-    // Se todas as tentativas falharam
-    console.error(`❌ Falha ao carregar ${componentName} após ${maxRetries} tentativas`);
+    // Último recurso após rebuild do Vite: um reload único da página
+    const reloadKey = `lazy-reload:${componentName}`;
+    if (!sessionStorage.getItem(reloadKey)) {
+      sessionStorage.setItem(reloadKey, '1');
+      window.location.reload();
+      return new Promise(() => {});
+    }
+    sessionStorage.removeItem(reloadKey);
 
     return {
       default: () => (
@@ -82,39 +86,19 @@ const lazyWithRetry = (componentImport: () => Promise<any>, componentName: strin
             <h2 className="text-xl font-bold text-red-500 mb-4">Erro ao carregar {componentName}</h2>
             <p className="text-seguranca-lightgray mb-4">
               Não foi possível carregar o módulo após {maxRetries} tentativas.
+              {lastError?.message && (
+                <span className="block mt-2 text-sm text-gray-400">{lastError.message}</span>
+              )}
             </p>
-            {lastError && (
-              <p className="text-sm text-gray-400 mb-4">
-                {lastError.message || 'Erro desconhecido'}
-              </p>
-            )}
-            <div className="flex gap-4 justify-center">
-              <button
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-              >
-                Recarregar Página
-              </button>
-              <button
-                onClick={() => {
-                  // Limpa cache e recarrega
-                  if ('caches' in window) {
-                    caches.keys().then(names => {
-                      names.forEach(name => caches.delete(name));
-                      window.location.reload();
-                    });
-                  } else {
-                    window.location.reload();
-                  }
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-              >
-                Limpar Cache e Recarregar
-              </button>
-            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-seguranca-red text-white rounded hover:bg-seguranca-darkred"
+            >
+              Recarregar página
+            </button>
           </div>
         </div>
-      )
+      ),
     };
   });
 };
@@ -130,6 +114,7 @@ const Index = lazy(() => import('@/pages/Index').catch(() => ({ default: () => <
 const Dashboard = lazy(() => import('@/pages/Dashboard').catch(() => ({ default: () => <div>Erro ao carregar Dashboard</div> })));
 const DashboardColaborador = lazy(() => import('@/pages/DashboardColaborador'));
 const DriverDashboard = lazy(() => import('@/pages/DriverDashboard'));
+const DriverChecklist = lazy(() => import('@/pages/driver/DriverChecklist'));
 const DashboardVigilante = lazy(() => import('@/pages/DashboardVigilante'));
 const EmployeePortal = lazy(() => import('@/pages/employee/EmployeePortal'));
 const Funcionarios = lazyWithRetry(() => import('@/pages/Funcionarios'), 'Funcionarios');
@@ -152,12 +137,14 @@ const Agencias = lazy(() => import('@/pages/Agencias'));
 const Frota = lazy(() => import('@/pages/Frota'));
 const ManutencaoDashboard = lazy(() => import('@/pages/manutencao/ManutencaoDashboard'));
 const MechanicDashboard = lazy(() => import('@/pages/manutencao/MechanicDashboard'));
-const MaintenanceDashboardV2 = lazy(() => import('@/pages/manutencao/MaintenanceDashboardV2'));
+const MaintenanceDashboardV2 = lazyWithRetry(() => import('@/pages/manutencao/MaintenanceDashboardV2'), 'MaintenanceDashboardV2');
 const FleetWorkOrdersPage = lazy(() => import('@/pages/manutencao/FleetWorkOrdersPage'));
 const AbastecimentoDashboard = lazy(() => import('@/pages/abastecimento/AbastecimentoDashboard'));
 const GestaoPneus = lazy(() => import('@/pages/pneus/GestaoPneus'));
-const GestaoPortaria = lazy(() => import('@/pages/manutencao/GestaoPortaria'));
-const GestaoChecklistCliente = lazy(() => import('@/pages/manutencao/GestaoChecklistCliente'));
+const GestaoPortaria = lazyWithRetry(() => import('@/pages/manutencao/GestaoPortaria'), 'GestaoPortaria');
+const GestaoChecklistVeiculo = lazyWithRetry(() => import('@/pages/manutencao/GestaoChecklistVeiculo'), 'GestaoChecklistVeiculo');
+const GestaoChecklistCliente = lazyWithRetry(() => import('@/pages/manutencao/GestaoChecklistCliente'), 'GestaoChecklistCliente');
+const GestaoLimpezaVeiculos = lazy(() => import('@/pages/manutencao/GestaoLimpezaVeiculos'));
 const TrafficManagementDashboard = lazy(() => import('@/pages/fretamento/TrafficManagementDashboard'));
 const RoutesAndPoints = lazy(() => import('@/pages/fretamento/RoutesAndPoints'));
 const DriverTripList = lazy(() => import('@/pages/fretamento/DriverTripList'));
@@ -298,6 +285,7 @@ const ClientDashboardPage = lazy(() => import('@/pages/client/ClientDashboardPag
 const ClientCamerasPage = lazy(() => import('@/pages/client/ClientCamerasPage').then(m => ({ default: m.ClientCamerasPage })));
 const ClientVehiclesPage = lazy(() => import('@/pages/client/ClientVehiclesPage').then(m => ({ default: m.ClientVehiclesPage })));
 const ClientMapPage = lazy(() => import('@/pages/client/ClientMapPage').then(m => ({ default: m.ClientMapPage })));
+const ClientDocumentacaoPage = lazy(() => import('@/pages/client/ClientDocumentacaoPage').then(m => ({ default: m.ClientDocumentacaoPage })));
 
 const queryClient = new QueryClient();
 
@@ -420,6 +408,14 @@ function App() {
                         </ProtectedRoute>
                       } />
 
+                      <Route path="/client/documentacao" element={
+                        <ProtectedRoute requiredRoles={['CLIENT_MANAGER', 'SUPER_ADMIN', 'ADMIN', 'COMPANY_ADMIN', 'FLEX_ADMIN']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <ClientDocumentacaoPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+
                       <Route path="/sistema" element={
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -528,6 +524,13 @@ function App() {
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <DriverDashboard />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/driver/checklist" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <DriverChecklist />
                           </Suspense>
                         </ProtectedRoute>
                       } />
@@ -871,6 +874,20 @@ function App() {
                         <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
                           <Suspense fallback={<LoadingSpinner />}>
                             <GestaoChecklistCliente />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/manutencao/checklist-veiculo" element={
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <GestaoChecklistVeiculo />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/manutencao/limpeza" element={
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <GestaoLimpezaVeiculos />
                           </Suspense>
                         </ProtectedRoute>
                       } />

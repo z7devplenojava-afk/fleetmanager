@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -80,6 +81,21 @@ public class FineController {
     public ResponseEntity<List<Driver>> getDrivers() {
         List<Driver> drivers = driverRepository.findAll();
         return ResponseEntity.ok(drivers);
+    }
+    
+    @GetMapping("/driver/{driverId}")
+    public ResponseEntity<List<FineDTO>> getFinesByDriver(@PathVariable UUID driverId) {
+        return ResponseEntity.ok(fineService.getFinesByDriver(driverId));
+    }
+    
+    @PostMapping("/send-due-alerts")
+    public ResponseEntity<Map<String, Object>> sendDueAlerts() {
+        try {
+            int sent = fineService.enviarAlertasVencimentoMultas();
+            return ResponseEntity.ok(Map.of("sent", sent));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
     
     // ===== RELATÃ“RIOS =====

@@ -46,6 +46,18 @@ public class ClientDocumentationService {
                 .collect(Collectors.toList());
     }
 
+    /** Lista as documentações de todos os clientes da empresa (área do cliente). */
+    public List<ClientDocumentationDTO> listByCompany(UUID companyId) {
+        return documentationRepository.findByCompanyIdOrderByYearDescMonthDesc(companyId)
+                .stream()
+                .map(doc -> {
+                    ClientDocumentationDTO dto = ClientDocumentationDTO.fromEntity(doc);
+                    dto.setStageCount(stageRepository.findByDocumentationIdOrderBySortOrderAsc(doc.getId()).size());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
     public ClientDocumentationDTO getDocumentation(UUID id) {
         ClientDocumentation doc = documentationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Documentação não encontrada"));
@@ -232,6 +244,26 @@ public class ClientDocumentationService {
             log.error("Erro ao baixar arquivo: {}", e.getMessage());
             throw new RuntimeException("Erro ao baixar arquivo: " + e.getMessage());
         }
+    }
+
+    /** Download com verificação de empresa (área do cliente). */
+    public Resource downloadFileForCompany(UUID fileId, UUID companyId) {
+        ClientDocFile docFile = fileRepository.findById(fileId)
+                .orElseThrow(() -> new RuntimeException("Arquivo não encontrado"));
+        UUID docCompanyId = docFile.getStage().getDocumentation().getCompanyId();
+        if (companyId == null || !companyId.equals(docCompanyId)) {
+            throw new RuntimeException("Acesso negado ao arquivo");
+        }
+        return downloadFile(fileId);
+    }
+
+    /** Estrutura completa com verificação de empresa (área do cliente). */
+    public Map<String, Object> getFullStructureForCompany(UUID documentationId, UUID companyId) {
+        ClientDocumentationDTO doc = getDocumentation(documentationId);
+        if (companyId == null || !companyId.equals(doc.getCompanyId())) {
+            throw new RuntimeException("Acesso negado à documentação");
+        }
+        return getFullStructure(documentationId);
     }
 
     public void deleteFile(UUID fileId) {

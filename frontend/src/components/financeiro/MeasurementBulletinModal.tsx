@@ -54,6 +54,10 @@ interface MeasurementItemForm {
   finalKm?: number;
   franchiseKm?: number;
   disregardedKm?: number;
+  diaria: number;
+  tripDate: string;
+  route: string;
+  vehicleType: string;
 }
 
 interface CalculationMemoryForm {
@@ -149,7 +153,11 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
     initialKm: 0,
     finalKm: 0,
     franchiseKm: 0,
-    disregardedKm: 0
+    disregardedKm: 0,
+    diaria: 0,
+    tripDate: '',
+    route: '',
+    vehicleType: ''
   });
 
   // Carregar dados iniciais
@@ -278,7 +286,11 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
           initialKm: item.initialKm || 0,
           finalKm: item.finalKm || 0,
           franchiseKm: item.franchiseKm || 0,
-          disregardedKm: item.disregardedKm || 0
+          disregardedKm: item.disregardedKm || 0,
+          diaria: item.diaria || 0,
+          tripDate: item.tripDate || '',
+          route: item.route || '',
+          vehicleType: item.vehicleType || ''
         }));
         setItems(itemsData);
       }
@@ -411,7 +423,11 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
         tripCount: item.tripCount || 0,
         isExtraTrip: item.isExtraTrip || false,
         baseValue: item.baseValue || 0,
-        workingDays: item.workingDays || 0
+        workingDays: item.workingDays || 0,
+        diaria: item.diaria || 0,
+        tripDate: item.tripDate || '',
+        route: item.route || '',
+        vehicleType: item.vehicleType || ''
       }));
       setItems(itemsData);
     }
@@ -529,6 +545,14 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
     return items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0);
   };
 
+  const computeKmConsiderado = (initialKm?: number, finalKm?: number) => {
+    return Math.max(0, (finalKm || 0) - (initialKm || 0));
+  };
+
+  const computeKmExcedido = (initialKm?: number, finalKm?: number, franchiseKm?: number, disregardedKm?: number) => {
+    return Math.max(0, (finalKm || 0) - (initialKm || 0) - (franchiseKm || 0) - (disregardedKm || 0));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -576,7 +600,11 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
           initialKm: item.initialKm,
           finalKm: item.finalKm,
           franchiseKm: item.franchiseKm,
-          disregardedKm: item.disregardedKm
+          disregardedKm: item.disregardedKm,
+          diaria: item.diaria,
+          tripDate: item.tripDate,
+          route: item.route,
+          vehicleType: item.vehicleType
         })),
         calculationMemory: {
           details: calculationMemory.details,
@@ -894,54 +922,58 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
                 </div>
               </div>
 
-              {/* Campos ocultos para Cliente, Contrato e Unidade (usados internamente) */}
+              {/* Cliente e Unidade */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="clientId" className="text-seguranca-lightgray font-medium">
+                    Cliente
+                  </Label>
+                  <Select value={formData.clientId} onValueChange={handleClientSelectChange}>
+                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
+                      <SelectValue placeholder="Selecione o cliente" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[200px]">
+                      {clients.map(client => (
+                        <SelectItem key={client.id} value={client.id.toString()} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unitId" className="text-seguranca-lightgray font-medium">Unidade</Label>
+                  <Select value={formData.unitId} onValueChange={(value) => setFormData(prev => ({ ...prev, unitId: value }))}>
+                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
+                      <SelectValue placeholder="Selecione a unidade" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[200px]">
+                      {units.map(unit => (
+                        <SelectItem key={unit.id} value={unit.id} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
+                          {unit.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Campo oculto para Contrato (preenchido automaticamente ao selecionar cliente) */}
               <div className="hidden">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="clientId" className="text-seguranca-lightgray font-medium">Cliente</Label>
-                    <Select value={formData.clientId} onValueChange={handleClientSelectChange}>
-                      <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
-                        <SelectValue placeholder="Selecione o cliente" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[200px]">
-                        {clients.map(client => (
-                          <SelectItem key={client.id} value={client.id.toString()} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contractId" className="text-seguranca-lightgray font-medium">Contrato</Label>
-                    <Select value={formData.contractId} onValueChange={handleContractChange}>
-                      <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
-                        <SelectValue placeholder="Selecione o contrato" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[200px]">
-                        {filteredContracts.map(contract => (
-                          <SelectItem key={contract.id} value={contract.id} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
-                            {contract.contractNumber}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="unitId" className="text-seguranca-lightgray font-medium">Unidade</Label>
-                    <Select value={formData.unitId} onValueChange={(value) => setFormData(prev => ({ ...prev, unitId: value }))}>
-                      <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
-                        <SelectValue placeholder="Selecione a unidade" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[200px]">
-                        {units.map(unit => (
-                          <SelectItem key={unit.id} value={unit.id} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
-                            {unit.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contractId" className="text-seguranca-lightgray font-medium">Contrato</Label>
+                  <Select value={formData.contractId} onValueChange={handleContractChange}>
+                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
+                      <SelectValue placeholder="Selecione o contrato" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[200px]">
+                      {filteredContracts.map(contract => (
+                        <SelectItem key={contract.id} value={contract.id} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
+                          {contract.contractNumber}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -1110,6 +1142,33 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
                         className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-400 font-medium">KM Considerado (automático)</Label>
+                      <Input
+                        readOnly
+                        value={computeKmConsiderado(newItem.initialKm, newItem.finalKm).toFixed(2)}
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-400 font-medium">KM Excedido (automático)</Label>
+                      <Input
+                        readOnly
+                        value={computeKmExcedido(newItem.initialKm, newItem.finalKm, newItem.franchiseKm, newItem.disregardedKm).toFixed(2)}
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-400 font-medium">Valor KM Exc (automático)</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
+                        <Input
+                          readOnly
+                          value={(computeKmExcedido(newItem.initialKm, newItem.finalKm, newItem.franchiseKm, newItem.disregardedKm) * (newItem.unitPrice || 0)).toFixed(2)}
+                          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10 pl-9"
+                        />
+                      </div>
+                    </div>
                   </>
                 )}
 
@@ -1140,6 +1199,21 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
                 </div>
 
                 <div className="space-y-2">
+                  <Label className="text-xs text-gray-400 font-medium">Diária (R$)</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={newItem.diaria}
+                      onChange={(e) => setNewItem(prev => ({ ...prev, diaria: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0,00"
+                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10 pl-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                   <Label className="text-xs text-gray-400 font-medium">Dias Trabalhados</Label>
                   <Input
                     type="number"
@@ -1162,6 +1236,38 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
                     <Label htmlFor="isExtraTrip" className="text-xs text-gray-400 cursor-pointer">Viagem Extra?</Label>
                   </div>
                 </div>
+
+                {newItem.isExtraTrip && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-400 font-medium">Data da Viagem</Label>
+                      <Input
+                        type="date"
+                        value={newItem.tripDate}
+                        onChange={(e) => setNewItem(prev => ({ ...prev, tripDate: e.target.value }))}
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-400 font-medium">Trajeto</Label>
+                      <Input
+                        value={newItem.route}
+                        onChange={(e) => setNewItem(prev => ({ ...prev, route: e.target.value }))}
+                        placeholder="Ex: Origem → Destino"
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-400 font-medium">Tipo de Veículo</Label>
+                      <Input
+                        value={newItem.vehicleType}
+                        onChange={(e) => setNewItem(prev => ({ ...prev, vehicleType: e.target.value }))}
+                        placeholder="Ex: Ônibus / Van / Micro-ônibus"
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="flex items-end justify-end pt-2">
                   <Button
@@ -1200,12 +1306,24 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
                           {MEASUREMENT_CATEGORIES.find(c => c.value === item.category)?.label || item.category}
                         </div>
                         {item.vehiclePlate && <div className="text-seguranca-yellow font-mono">{item.vehiclePlate}</div>}
+                        {item.diaria > 0 && (
+                          <div className="text-[10px] text-gray-400">Diária: R$ {item.diaria.toFixed(2)}</div>
+                        )}
                         {item.category === MeasurementCategory.EXCESS_KM && (
                           <div className="text-[10px] text-blue-400">
-                            KM: {item.initialKm} → {item.finalKm} (Franq: {item.franchiseKm})
+                            KM Consid: {computeKmConsiderado(item.initialKm, item.finalKm).toFixed(2)} | KM Exced: {computeKmExcedido(item.initialKm, item.finalKm, item.franchiseKm, item.disregardedKm).toFixed(2)} | Val: R$ {(computeKmExcedido(item.initialKm, item.finalKm, item.franchiseKm, item.disregardedKm) * (item.unitPrice || 0)).toFixed(2)}
                           </div>
                         )}
-                        {item.isExtraTrip && <Badge variant="outline" className="text-[10px] text-orange-400 border-orange-400/30">Viagem Extra</Badge>}
+                        {item.isExtraTrip && (
+                          <>
+                            <Badge variant="outline" className="text-[10px] text-orange-400 border-orange-400/30">Viagem Extra</Badge>
+                            <div className="text-[10px] text-orange-400">
+                              {item.tripDate && <span>Data: {item.tripDate} | </span>}
+                              {item.route && <span>Trajeto: {item.route} | </span>}
+                              {item.vehicleType && <span>Tipo: {item.vehicleType}</span>}
+                            </div>
+                          </>
+                        )}
                       </div>
                       <div className="text-seguranca-lightgray text-xs">{item.unit}</div>
                       <div className="text-seguranca-lightgray text-xs">{item.quantity.toFixed(3)}</div>

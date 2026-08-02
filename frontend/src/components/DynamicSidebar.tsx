@@ -52,7 +52,8 @@ import {
   Wrench,
   DoorOpen,
   Ticket,
-  Armchair
+  Armchair,
+  Droplets
 } from 'lucide-react';
 import {
   Sidebar,
@@ -142,6 +143,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'pneus',
     'gestao-portaria',
     'gestao-checklist-cliente',
+    'gestao-limpeza',
     'mobilizacao-transportes',
     'filiais',
     'relatorios',
@@ -175,6 +177,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'pneus',
     'gestao-portaria',
     'gestao-checklist-cliente',
+    'gestao-limpeza',
     'mobilizacao-transportes',
     'relatorios',
     'mensagens',
@@ -198,6 +201,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'frota-os',
     'pneus',
     'gestao-portaria',
+    'gestao-limpeza',
     'mobilizacao-transportes',
     'relatorios',
     'supervisao',
@@ -214,6 +218,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'manutencao-v2',
     'frota-os',
     'gestao-portaria',
+    'gestao-limpeza',
     'mobilizacao-transportes',
     'supervisao',
   ]),
@@ -614,6 +619,13 @@ export function DynamicSidebar() {
       requiredPermission: 'EQUIPMENTS_READ'
     },
     {
+      icon: Droplets,
+      text: 'Gestão de Limpeza',
+      to: '/manutencao/limpeza',
+      id: 'gestao-limpeza',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
+    {
       icon: Truck,
       text: 'Mobilização de Transportes',
       to: '/frota/mobilizacao',
@@ -913,7 +925,7 @@ export function DynamicSidebar() {
         ['mechanic-dashboard'].includes(item.id)
       ),
       frota: filteredItems.filter(item =>
-        ['frota', 'manutencao', 'manutencao-v2', 'frota-os', 'abastecimento', 'pneus', 'gestao-portaria', 'gestao-checklist-cliente'].includes(item.id)
+        ['frota', 'manutencao', 'manutencao-v2', 'frota-os', 'abastecimento', 'pneus', 'gestao-portaria', 'gestao-checklist-cliente', 'gestao-limpeza'].includes(item.id)
       ),
       mobilizacao: filteredItems.filter(item =>
         ['mobilizacao-transportes'].includes(item.id)
