@@ -18,47 +18,44 @@ export interface EnvironmentConfig {
   };
 }
 
+type AppEnvironment = 'local' | 'ci' | 'dev' | 'test' | 'prod';
+
+let cachedEnvironment: AppEnvironment | null = null;
+let cachedConfig: EnvironmentConfig | null = null;
+let environmentLogged = false;
+
 /**
  * Detecta o ambiente atual baseado na URL
  */
-export function detectEnvironment(): 'local' | 'ci' | 'dev' | 'test' | 'prod' {
+export function detectEnvironment(): AppEnvironment {
+  if (cachedEnvironment) {
+    return cachedEnvironment;
+  }
+
   if (typeof window === 'undefined') {
-    return 'local'; // SSR fallback
+    cachedEnvironment = 'local';
+    return cachedEnvironment;
   }
 
   const hostname = window.location.hostname;
-  const protocol = window.location.protocol;
-
-  console.log('🔍 Detectando ambiente:', { hostname, protocol });
 
   // Ambiente CI
   if (hostname.includes('ci.z7botsolutions.com.br')) {
-    return 'ci';
+    cachedEnvironment = 'ci';
+  } else if (hostname.includes('dev.z7botsolutions.com.br')) {
+    cachedEnvironment = 'dev';
+  } else if (hostname.includes('test.z7botsolutions.com.br') || hostname.includes('testing.z7botsolutions.com.br')) {
+    cachedEnvironment = 'test';
+  } else if (hostname.includes('z7botsolutions.com.br') && !hostname.includes('ci.') && !hostname.includes('dev.') && !hostname.includes('test.')) {
+    cachedEnvironment = 'prod';
+  } else if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
+    cachedEnvironment = 'local';
+  } else {
+    console.warn('⚠️ Não foi possível detectar o ambiente, usando LOCAL como fallback');
+    cachedEnvironment = 'local';
   }
 
-  // Ambiente DEV
-  if (hostname.includes('dev.z7botsolutions.com.br')) {
-    return 'dev';
-  }
-
-  // Ambiente TEST
-  if (hostname.includes('test.z7botsolutions.com.br') || hostname.includes('testing.z7botsolutions.com.br')) {
-    return 'test';
-  }
-
-  // Ambiente PROD
-  if (hostname.includes('z7botsolutions.com.br') && !hostname.includes('ci.') && !hostname.includes('dev.') && !hostname.includes('test.')) {
-    return 'prod';
-  }
-
-  // Ambiente local (desenvolvimento)
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
-    return 'local';
-  }
-
-  // Fallback para local se não conseguir detectar
-  console.warn('⚠️ Não foi possível detectar o ambiente, usando LOCAL como fallback');
-  return 'local';
+  return cachedEnvironment;
 }
 
 /**
@@ -74,8 +71,6 @@ function getBackendHost(): string {
 
   // Se for IP local (192.168.x.x, 10.x.x.x, etc), usa o mesmo IP
   if (hostname.match(/^(\d{1,3}\.){3}\d{1,3}$/)) {
-    console.log('🔧 Detectado acesso via IP:', hostname);
-    console.log('🔧 Usando mesmo IP para backend:', hostname);
     return hostname;
   }
 
@@ -148,13 +143,19 @@ const environments: Record<string, EnvironmentConfig> = {
  * Obtém a configuração do ambiente atual
  */
 export function getCurrentEnvironmentConfig(): EnvironmentConfig {
+  if (cachedConfig) {
+    return cachedConfig;
+  }
+
   const env = detectEnvironment();
-  const config = environments[env];
+  cachedConfig = environments[env];
 
-  console.log('🌍 Ambiente detectado:', env);
-  console.log('⚙️ Configuração:', config);
+  if (!environmentLogged && cachedConfig.debug) {
+    environmentLogged = true;
+    console.info(`🌍 Ambiente: ${env} | API: ${import.meta.env.VITE_API_URL || cachedConfig.apiUrl}`);
+  }
 
-  return config;
+  return cachedConfig;
 }
 
 /**
@@ -163,14 +164,11 @@ export function getCurrentEnvironmentConfig(): EnvironmentConfig {
 export function getApiUrl(): string {
   // Primeiro tenta usar variável de ambiente (para builds específicos)
   if (import.meta.env.VITE_API_URL) {
-    console.log('🔧 Usando VITE_API_URL:', import.meta.env.VITE_API_URL);
     return import.meta.env.VITE_API_URL;
   }
 
   // Senão, usa detecção automática
-  const config = getCurrentEnvironmentConfig();
-  console.log('🔄 Usando detecção automática:', config.apiUrl);
-  return config.apiUrl;
+  return getCurrentEnvironmentConfig().apiUrl;
 }
 
 /**
@@ -205,6 +203,11 @@ export function isDebugMode(): boolean {
 
   const config = getCurrentEnvironmentConfig();
   return config.debug;
+}
+
+/** Logs HTTP detalhados (request/response). Ative com VITE_DEBUG_HTTP=true */
+export function isHttpDebugMode(): boolean {
+  return import.meta.env.VITE_DEBUG_HTTP === 'true';
 }
 
 /**
@@ -275,11 +278,4 @@ export function getDefaultMapView(): { latitude: number; longitude: number; zoom
     longitude: DEFAULT_MAP_LNG_MG,
     zoom: DEFAULT_MAP_ZOOM_MG,
   };
-}
-
-// Log inicial do ambiente (apenas em desenvolvimento)
-if (typeof window !== 'undefined' && isDebugMode()) {
-  console.group('🌍 Environment Detection');
-  console.log(getEnvironmentInfo());
-  console.groupEnd();
 }
