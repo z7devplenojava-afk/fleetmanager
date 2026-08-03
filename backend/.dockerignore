@@ -1,0 +1,19 @@
+# Build artifacts / IDE
+.gradle
+build
+bin
+out
+*.log
+*.gz
+.idea
+.vscode
+*.class
+*.jar
+!build/libs/*.jar
+
+# Docs / scripts locais
+*.md
+*.ps1
+*.bat
+*.sql
+!src/main/resources/db/migration/*.sql
