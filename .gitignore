@@ -89,4 +89,4 @@ payslips_output/
 *.crt
 
 # Docker
-.dockerignore
+# (não ignore .dockerignore — ele precisa ir no repositório)

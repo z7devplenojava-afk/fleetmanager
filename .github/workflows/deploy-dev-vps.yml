@@ -15,7 +15,6 @@ permissions:
   packages: write
 
 env:
-  NODE_VERSION: '20'
   JAVA_VERSION: '17'
   DOCKER_REGISTRY: docker.io
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -24,6 +23,7 @@ jobs:
   build:
     name: 🔨 Build das Imagens Docker
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - name: 📥 Checkout do Código
         uses: actions/checkout@v4
@@ -34,11 +34,6 @@ jobs:
           distribution: 'corretto'
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'gradle'
-
-      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
 
       - name: 🔐 Login no Docker Hub
         uses: docker/login-action@v3
@@ -67,19 +62,6 @@ jobs:
           file: ./backend/Dockerfile.prod
           push: true
           tags: z7design/fluxbus-backend:dev
-
-      - name: 🎨 Build Frontend
-        run: |
-          cd frontend
-          rm -rf node_modules
-          rm -f package-lock.json
-          npm install --legacy-peer-deps --force --no-audit --no-fund
-          npm install --no-save --legacy-peer-deps @rollup/rollup-linux-x64-gnu
-          npm run build
-        env:
-          VITE_API_URL: https://dev.fluxbus.com.br/api
-          VITE_WS_URL: wss://dev.fluxbus.com.br/ws
-          VITE_ENVIRONMENT: dev
 
       - name: 🖥️ Build e Push do Frontend
         uses: docker/build-push-action@v5

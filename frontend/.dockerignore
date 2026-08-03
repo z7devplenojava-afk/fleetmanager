@@ -1,0 +1,35 @@
+# Dependências e builds locais (não devem ir no contexto Docker)
+node_modules
+dist
+build
+.vite
+coverage
+cypress/videos
+cypress/screenshots
+
+# Lock Windows / caches
+package-lock.json
+npm-debug.log*
+yarn-error.log*
+.pnpm-store
+
+# IDE / OS / docs / testes pesados
+.git
+.github
+.vscode
+.idea
+*.md
+*.ps1
+*.bat
+.env
+.env.*
+!.env.example
+**/*.test.ts
+**/*.test.tsx
+**/__tests__
+**/__mocks__
+
+# Artefatos grandes
+*.zip
+*.tgz
+*.log
