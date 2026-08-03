@@ -1,4 +1,4 @@
-name: 🚀 Deploy Automático para Prod (www.fluxbus.com.br)
+name: 🚀 Deploy Automático para Prod (fluxbus.com.br)
 
 on:
   push:
@@ -81,8 +81,8 @@ jobs:
           npm install --omit=optional --legacy-peer-deps
           npm run build
         env:
-          VITE_API_URL: https://www.fluxbus.com.br/api
-          VITE_WS_URL: wss://www.fluxbus.com.br/ws
+          VITE_API_URL: https://fluxbus.com.br/api
+          VITE_WS_URL: wss://fluxbus.com.br/ws
           VITE_ENVIRONMENT: prod
 
       - name: 🖥️ Build e Push do Frontend
@@ -92,8 +92,8 @@ jobs:
           file: ./frontend/Dockerfile.prod
           push: true
           build-args: |
-            VITE_API_URL=https://www.fluxbus.com.br/api
-            VITE_WS_URL=wss://www.fluxbus.com.br/ws
+            VITE_API_URL=https://fluxbus.com.br/api
+            VITE_WS_URL=wss://fluxbus.com.br/ws
             VITE_ENVIRONMENT=prod
           tags: |
             z7design/fluxbus-frontend:latest
@@ -143,7 +143,7 @@ jobs:
             # Criar arquivo .env com as variáveis USANDO AS SECRETS
             cat > .env << 'EOF'
             # ========================================
-            # VARIÁVEIS DE AMBIENTE PARA WWW.FLUXBUS.COM.BR
+            # VARIÁVEIS DE AMBIENTE PARA FLUXBUS.COM.BR
             # ========================================
             POSTGRES_DB_PROD=fluxbus_db_prod
             POSTGRES_USER_PROD=fluxbus_user_prod
@@ -198,14 +198,13 @@ jobs:
         id: health-check
         uses: fjogeleit/http-request-action@v1
         with:
-          url: 'https://www.fluxbus.com.br/api/health'
+          url: 'https://fluxbus.com.br/api/health'
           method: 'GET'
           timeout: 30000
         continue-on-error: true
 
       - name: ✅ Resultado Final
-        if: steps.health-check.outcome == 'success'
-        run: |
-          echo "🎉 Deploy para Produção concluído com sucesso!"
-          echo "🌐 Acesse: https://www.fluxbus.com.br"
         if: always()
+        run: |
+          echo "Health check outcome: ${{ steps.health-check.outcome }}"
+          echo "🌐 Acesse: https://fluxbus.com.br"
