@@ -1,4 +1,4 @@
--- V4535__create_trips_table.sql
+-- V453.1__create_trips_table.sql
 -- Criar tabela trips (Viagens Operacionais)
 -- Esta tabela é referenciada por boardings em V454
 
