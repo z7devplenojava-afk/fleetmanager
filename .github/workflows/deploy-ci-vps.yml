@@ -39,8 +39,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package.json
 
       - name: 🔐 Login no Docker Hub
         uses: docker/login-action@v3
@@ -73,10 +71,10 @@ jobs:
       - name: 🎨 Build Frontend
         run: |
           cd frontend
-          # --omit=optional remove @rollup/rollup-linux-* e quebra o vite build
           rm -rf node_modules
           rm -f package-lock.json
-          npm install --legacy-peer-deps
+          npm install --legacy-peer-deps --force --no-audit --no-fund
+          npm install --no-save --legacy-peer-deps @rollup/rollup-linux-x64-gnu
           npm run build
         env:
           VITE_API_URL: https://ci.fluxbus.com.br/api
