@@ -1,0 +1,153 @@
+version: '3.8'
+
+# ========================================
+# DOCKER COMPOSE PARA WWW.FLUXBUS.COM.BR
+# ========================================
+
+services:
+  # ========================================
+  # DATABASE PROD
+  # ========================================
+  postgres-prod:
+    image: postgres:15-alpine
+    container_name: fluxbus-db-prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_PROD:-fluxbus_db_prod}
+      POSTGRES_USER: ${POSTGRES_USER_PROD:-fluxbus_user_prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_PROD:-prodpass123}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    networks:
+      - fluxbus-prod-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_PROD:-fluxbus_user_prod} -d ${POSTGRES_DB_PROD:-fluxbus_db_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # REDIS CACHE PROD
+  # ========================================
+  redis-prod:
+    image: redis:7-alpine
+    container_name: fluxbus-redis-prod
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - fluxbus-prod-network
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD_PROD:-prodredispass}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD_PROD:-prodredispass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # BACKEND API PROD
+  # ========================================
+  backend-prod:
+    image: z7design/fluxbus-backend:prod
+    container_name: fluxbus-backend-prod
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres-prod:5432/${POSTGRES_DB_PROD:-fluxbus_db_prod}
+      DB_USERNAME: ${POSTGRES_USER_PROD:-fluxbus_user_prod}
+      DB_PASSWORD: ${POSTGRES_PASSWORD_PROD:-prodpass123}
+      REDIS_HOST: redis-prod
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD_PROD:-prodredispass}
+      JWT_SECRET: ${JWT_SECRET_PROD:-prodjwtsecret1234567890123456789012}
+      # Email Configuration
+      MAIL_HOST: ${MAIL_HOST:-186.209.113.105}
+      MAIL_PORT: ${MAIL_PORT:-465}
+      MAIL_USERNAME: ${MAIL_USERNAME:-securedguard@z7design.com.br}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-D8rKeqSFZfaS$(y7}
+      MAIL_SSL_ENABLE: true
+    ports:
+      - "8085:8083"
+    depends_on:
+      postgres-prod:
+        condition: service_healthy
+      redis-prod:
+        condition: service_healthy
+      whatsapp-service-prod:
+        condition: service_started
+    networks:
+      - fluxbus-prod-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8083/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 240s
+    restart: unless-stopped
+
+  # ========================================
+  # WHATSAPP SERVICE (Baileys) PROD
+  # ========================================
+  whatsapp-service-prod:
+    image: z7design/fluxbus-whatsapp:prod
+    container_name: fluxbus-whatsapp-prod
+    environment:
+      PORT: 3335
+      INSTANCE_KEY: fluxbus_prod
+      SESSION_DIR: /app/sessions
+      WEBHOOK_URL: http://backend-prod:8083/api/whatsapp/webhook
+      NODE_ENV: production
+    ports:
+      - "3335:3333"
+    volumes:
+      - whatsapp_sessions_prod:/app/sessions
+    depends_on:
+      redis-prod:
+        condition: service_healthy
+    networks:
+      - fluxbus-prod-network
+    restart: unless-stopped
+    shm_size: 256mb
+
+  # ========================================
+  # FRONTEND PROD
+  # ========================================
+  frontend-prod:
+    image: z7design/fluxbus-frontend:prod
+    container_name: fluxbus-frontend-prod
+    ports:
+      - "82:80"
+    depends_on:
+      backend-prod:
+        condition: service_started
+    networks:
+      - fluxbus-prod-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+# ========================================
+# VOLUMES PROD
+# ========================================
+volumes:
+  postgres_data_prod:
+    driver: local
+  redis_data_prod:
+    driver: local
+  whatsapp_sessions_prod:
+    driver: local
+
+# ========================================
+# NETWORKS PROD
+# ========================================
+networks:
+  fluxbus-prod-network:
+    driver: bridge
+    name: fluxbus-prod

@@ -1,0 +1,153 @@
+version: '3.8'
+
+# ========================================
+# DOCKER COMPOSE PARA DEV.FLUXBUS.COM.BR
+# ========================================
+
+services:
+  # ========================================
+  # DATABASE DEV
+  # ========================================
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: fluxbus-db-dev
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_DEV:-fluxbus_db_dev}
+      POSTGRES_USER: ${POSTGRES_USER_DEV:-fluxbus_user_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV:-devpass123}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - fluxbus-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_DEV:-fluxbus_user_dev} -d ${POSTGRES_DB_DEV:-fluxbus_db_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # REDIS CACHE DEV
+  # ========================================
+  redis-dev:
+    image: redis:7-alpine
+    container_name: fluxbus-redis-dev
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - fluxbus-dev-network
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD_DEV:-devredispass}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD_DEV:-devredispass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # BACKEND API DEV
+  # ========================================
+  backend-dev:
+    image: z7design/fluxbus-backend:dev
+    container_name: fluxbus-backend-dev
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-fluxbus_db_dev}
+      DB_USERNAME: ${POSTGRES_USER_DEV:-fluxbus_user_dev}
+      DB_PASSWORD: ${POSTGRES_PASSWORD_DEV:-devpass123}
+      REDIS_HOST: redis-dev
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD_DEV:-devredispass}
+      JWT_SECRET: ${JWT_SECRET_DEV:-devjwtsecret1234567890123456789012}
+      # Email Configuration
+      MAIL_HOST: ${MAIL_HOST:-186.209.113.105}
+      MAIL_PORT: ${MAIL_PORT:-465}
+      MAIL_USERNAME: ${MAIL_USERNAME:-securedguard@z7design.com.br}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-D8rKeqSFZfaS$(y7}
+      MAIL_SSL_ENABLE: true
+    ports:
+      - "8084:8083"
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+      whatsapp-service-dev:
+        condition: service_started
+    networks:
+      - fluxbus-dev-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8083/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 240s
+    restart: unless-stopped
+
+  # ========================================
+  # WHATSAPP SERVICE (Baileys) DEV
+  # ========================================
+  whatsapp-service-dev:
+    image: z7design/fluxbus-whatsapp:dev
+    container_name: fluxbus-whatsapp-dev
+    environment:
+      PORT: 3334
+      INSTANCE_KEY: fluxbus_dev
+      SESSION_DIR: /app/sessions
+      WEBHOOK_URL: http://backend-dev:8083/api/whatsapp/webhook
+      NODE_ENV: development
+    ports:
+      - "3334:3333"
+    volumes:
+      - whatsapp_sessions_dev:/app/sessions
+    depends_on:
+      redis-dev:
+        condition: service_healthy
+    networks:
+      - fluxbus-dev-network
+    restart: unless-stopped
+    shm_size: 256mb
+
+  # ========================================
+  # FRONTEND DEV
+  # ========================================
+  frontend-dev:
+    image: z7design/fluxbus-frontend:dev
+    container_name: fluxbus-frontend-dev
+    ports:
+      - "81:80"
+    depends_on:
+      backend-dev:
+        condition: service_started
+    networks:
+      - fluxbus-dev-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+# ========================================
+# VOLUMES DEV
+# ========================================
+volumes:
+  postgres_data_dev:
+    driver: local
+  redis_data_dev:
+    driver: local
+  whatsapp_sessions_dev:
+    driver: local
+
+# ========================================
+# NETWORKS DEV
+# ========================================
+networks:
+  fluxbus-dev-network:
+    driver: bridge
+    name: fluxbus-dev
