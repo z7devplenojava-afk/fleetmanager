@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: deploy-dev
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -79,9 +79,25 @@ jobs:
     name: 🚀 Deploy na VPS Dev
     needs: build
     runs-on: ubuntu-latest
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST || secrets.VPS_HOST_DEV }}
+      VPS_USER: ${{ secrets.VPS_USER || secrets.VPS_USER_DEV }}
+      VPS_PASSWORD: ${{ secrets.VPS_PASSWORD || secrets.VPS_PASSWORD_DEV }}
     steps:
       - name: 📥 Checkout do Código
         uses: actions/checkout@v4
+
+      - name: 🔎 Validar secrets SSH
+        run: |
+          missing=0
+          [ -n "$VPS_HOST" ] || { echo "::error::Falta VPS_HOST (ou VPS_HOST_DEV)"; missing=1; }
+          [ -n "$VPS_USER" ] || { echo "::error::Falta VPS_USER (ou VPS_USER_DEV)"; missing=1; }
+          [ -n "$VPS_PASSWORD" ] || { echo "::error::Falta VPS_PASSWORD (ou VPS_PASSWORD_DEV)"; missing=1; }
+          if [ "$missing" -ne 0 ]; then
+            echo "Configure em GitHub → Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          echo "Secrets SSH presentes (host/user/password)."
 
       - name: 🔑 Instalar sshpass
         run: |
@@ -91,9 +107,9 @@ jobs:
       - name: 📋 Copiar docker-compose.fluxbus.dev.yml para a VPS
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.VPS_HOST_DEV }}
-          username: ${{ secrets.VPS_USER_DEV }}
-          password: ${{ secrets.VPS_PASSWORD_DEV }}
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          password: ${{ env.VPS_PASSWORD }}
           port: 22
           source: "docker-compose.fluxbus.dev.yml"
           target: "/var/www/fluxbus/dev/"
@@ -102,9 +118,9 @@ jobs:
       - name: 🔧 Renomear arquivo e criar .env na VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST_DEV }}
-          username: ${{ secrets.VPS_USER_DEV }}
-          password: ${{ secrets.VPS_PASSWORD_DEV }}
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          password: ${{ env.VPS_PASSWORD }}
           port: 22
           script: |
             # Criar diretório principal e subpastas se não existirem
@@ -139,9 +155,9 @@ jobs:
       - name: 🚀 Pull das novas imagens e restart dos containers
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST_DEV }}
-          username: ${{ secrets.VPS_USER_DEV }}
-          password: ${{ secrets.VPS_PASSWORD_DEV }}
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          password: ${{ env.VPS_PASSWORD }}
           port: 22
           script: |
             cd /var/www/fluxbus/dev
