@@ -175,17 +175,17 @@ jobs:
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
             echo "📥 Pull das últimas imagens..."
-            docker-compose pull
+            docker compose pull
 
             echo "🔄 Parando containers antigos..."
-            docker-compose down
+            docker compose down
 
             echo "🚀 Subindo novos containers..."
-            docker-compose up -d
+            docker compose up -d
 
             echo "✅ Deploy concluído!"
             echo "📊 Status dos containers:"
-            docker-compose ps
+            docker compose ps
 
   health-check:
     name: 🏥 Health Check do Prod
