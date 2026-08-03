@@ -62,7 +62,9 @@ jobs:
       - name: 🎨 Build Frontend
         run: |
           cd frontend
-          npm install --omit=optional --legacy-peer-deps
+          rm -rf node_modules
+          rm -f package-lock.json
+          npm install --legacy-peer-deps
           npm run build
           echo "✅ Frontend compilado com sucesso!"
           ls -lh dist/
