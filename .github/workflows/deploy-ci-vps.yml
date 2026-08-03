@@ -82,10 +82,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     env:
-      # Aceita secrets *_CI ou genéricas (VPS_HOST / VPS_USER / VPS_PASSWORD)
-      VPS_HOST: ${{ secrets.VPS_HOST_CI || secrets.VPS_HOST }}
-      VPS_USER: ${{ secrets.VPS_USER_CI || secrets.VPS_USER }}
-      VPS_PASSWORD: ${{ secrets.VPS_PASSWORD_CI || secrets.VPS_PASSWORD }}
+      # Prefere secrets genéricas; fallback para *_CI
+      VPS_HOST: ${{ secrets.VPS_HOST || secrets.VPS_HOST_CI }}
+      VPS_USER: ${{ secrets.VPS_USER || secrets.VPS_USER_CI }}
+      VPS_PASSWORD: ${{ secrets.VPS_PASSWORD || secrets.VPS_PASSWORD_CI }}
     steps:
       - name: 📥 Checkout do Código
         uses: actions/checkout@v4
@@ -93,9 +93,9 @@ jobs:
       - name: 🔎 Validar secrets SSH
         run: |
           missing=0
-          [ -n "$VPS_HOST" ] || { echo "::error::Falta VPS_HOST_CI (ou VPS_HOST)"; missing=1; }
-          [ -n "$VPS_USER" ] || { echo "::error::Falta VPS_USER_CI (ou VPS_USER)"; missing=1; }
-          [ -n "$VPS_PASSWORD" ] || { echo "::error::Falta VPS_PASSWORD_CI (ou VPS_PASSWORD) — host/user existem mas a senha está vazia"; missing=1; }
+          [ -n "$VPS_HOST" ] || { echo "::error::Falta VPS_HOST (ou VPS_HOST_CI)"; missing=1; }
+          [ -n "$VPS_USER" ] || { echo "::error::Falta VPS_USER (ou VPS_USER_CI)"; missing=1; }
+          [ -n "$VPS_PASSWORD" ] || { echo "::error::Falta VPS_PASSWORD (ou VPS_PASSWORD_CI)"; missing=1; }
           if [ "$missing" -ne 0 ]; then
             echo "Configure em GitHub → Settings → Secrets and variables → Actions"
             exit 1
