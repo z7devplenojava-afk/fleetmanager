@@ -90,9 +90,8 @@ jobs:
           VITE_API_URL: https://ci.z7botsolutions.com.br/api
           VITE_ENVIRONMENT: ci
         run: |
-          # npm install resolve optional deps corretamente por plataforma
-          # ao contrário do npm ci que falha com lockfile do Windows
-          npm install
+          # Evita EBADPLATFORM de optional deps de outra OS no lockfile
+          npm install --omit=optional --legacy-peer-deps
           npm run build
 
       # ============================================
