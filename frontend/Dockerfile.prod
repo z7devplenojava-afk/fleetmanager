@@ -20,15 +20,11 @@ ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_WS_URL=${VITE_WS_URL}
 ENV VITE_ENVIRONMENT=${VITE_ENVIRONMENT}
 
-# Copiar package.json apenas (remover package-lock.json para evitar travamento de dependências opcionais)
+# Copiar package.json apenas (sem lock do Windows — resolve optional deps da OS da imagem)
 COPY package.json ./
 
-# Configurar npm para ignorar dependências opcionais e ignorar erros de plataforma
-ENV npm_config_ignore_optional=true
-ENV npm_config_platform=linux
-ENV npm_config_arch=x64
-ENV npm_config_force=true
-RUN npm install --force --legacy-peer-deps
+# Instalar deps incluindo optional (necessário para @rollup/rollup-linux-*-musl no Alpine)
+RUN npm install --legacy-peer-deps
 
 # Copiar código fonte
 COPY . .

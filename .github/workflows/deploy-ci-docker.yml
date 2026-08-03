@@ -90,8 +90,10 @@ jobs:
           VITE_API_URL: https://ci.z7botsolutions.com.br/api
           VITE_ENVIRONMENT: ci
         run: |
-          # Evita EBADPLATFORM de optional deps de outra OS no lockfile
-          npm install --omit=optional --legacy-peer-deps
+          # Sem --omit=optional: Rollup precisa do binário nativo da plataforma do runner
+          rm -rf node_modules
+          rm -f package-lock.json
+          npm install --legacy-peer-deps
           npm run build
 
       # ============================================

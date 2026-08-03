@@ -78,7 +78,10 @@ jobs:
       - name: 🎨 Build Frontend
         run: |
           cd frontend
-          npm install --omit=optional --legacy-peer-deps
+          # --omit=optional remove @rollup/rollup-linux-* e quebra o vite build
+          rm -rf node_modules
+          rm -f package-lock.json
+          npm install --legacy-peer-deps
           npm run build
         env:
           VITE_API_URL: https://fluxbus.com.br/api
