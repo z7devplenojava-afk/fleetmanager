@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getApiUrl, isDebugMode } from '../config/environment';
+import { getApiUrl, isHttpDebugMode } from '../config/environment';
 import { isConnectionError, createConnectionError } from '../utils/connectionError';
 
 const api = axios.create({
@@ -26,7 +26,7 @@ api.interceptors.request.use(
       }
     } catch (_) { }
 
-    if (isDebugMode()) {
+    if (isHttpDebugMode()) {
       console.log('🔗 Axios Request:', config.method?.toUpperCase(), config.url);
       console.log('🔗 Base URL:', config.baseURL);
       console.log('🔗 Full URL:', config.baseURL + config.url);
@@ -71,29 +71,26 @@ api.interceptors.request.use(
         const targetCompanyId = sessionStorage.getItem('admin_target_company_id');
         if (targetCompanyId) {
           config.headers['X-Target-Company-ID'] = targetCompanyId;
-          if (isDebugMode()) {
+          if (isHttpDebugMode()) {
             console.log('👑 Admin Impersonating Company:', targetCompanyId);
           }
         }
       } catch (_e) { /* ignore */ }
-      if (isDebugMode()) {
+      if (isHttpDebugMode()) {
         console.log('🔗 Token adicionado ao header:', token.substring(0, 50) + '...');
         console.log('🔗 Token encontrado em:', tokenSource);
       }
-    } else {
-      if (isDebugMode()) {
-        console.log('🔗 Nenhum token válido encontrado no localStorage');
-        console.log('🔗 Chaves disponíveis:', Object.keys(localStorage));
-        console.log('🔗 Tentando buscar token em:', tokenKey);
-        // Debug: mostrar valores de todas as chaves possíveis
-        const allKeys = ['token', 'authToken', tokenKey];
-        allKeys.forEach(key => {
-          const value = localStorage.getItem(key);
-          if (value) {
-            console.log(`🔍 Chave "${key}":`, value.substring(0, 30) + '...', '(válido:', value !== 'fake-token' && value.trim() !== '', ')');
-          }
-        });
-      }
+    } else if (isHttpDebugMode()) {
+      console.log('🔗 Nenhum token válido encontrado no localStorage');
+      console.log('🔗 Chaves disponíveis:', Object.keys(localStorage));
+      console.log('🔗 Tentando buscar token em:', tokenKey);
+      const allKeys = ['token', 'authToken', tokenKey];
+      allKeys.forEach(key => {
+        const value = localStorage.getItem(key);
+        if (value) {
+          console.log(`🔍 Chave "${key}":`, value.substring(0, 30) + '...', '(válido:', value !== 'fake-token' && value.trim() !== '', ')');
+        }
+      });
     }
 
     return config;
@@ -107,7 +104,7 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    if (isDebugMode()) {
+    if (isHttpDebugMode()) {
       console.log('✅ Axios Response:', response.status, response.config.url);
     }
     return response;
@@ -153,8 +150,8 @@ api.interceptors.response.use(
       }
     }
 
-    if (isDebugMode()) {
-      console.error('❌ Axios Response Error:', error.response?.status, error.config?.url);
+    console.error('❌ Axios Response Error:', error.response?.status, error.config?.url);
+    if (isHttpDebugMode()) {
       console.error('❌ Error details:', error.response?.data);
     }
     const originalRequest = error.config;
@@ -163,6 +160,16 @@ api.interceptors.response.use(
     // 403 (Forbidden) é diferente - significa que o usuário está autenticado mas não tem permissão
     // Não devemos redirecionar para login em caso de 403, apenas em 401
     if (error.response?.status === 401 && !originalRequest._retry) {
+      const requestUrl = String(originalRequest?.url || '');
+      // Falha de login/senha NÃO deve disparar redirect hard — deixa a tela mostrar o erro
+      const isAuthCredentialRequest =
+        requestUrl.includes('/auth/login') ||
+        requestUrl.includes('/auth/authenticate') ||
+        requestUrl.includes('/auth/refresh-token');
+      if (isAuthCredentialRequest) {
+        return Promise.reject(error);
+      }
+
       // Verificar se o problema é falta de token
       const tokenKey = import.meta.env.VITE_TOKEN_KEY || 'token';
       const token = localStorage.getItem(tokenKey) || localStorage.getItem('token') || localStorage.getItem('authToken');
@@ -172,7 +179,9 @@ api.interceptors.response.use(
         localStorage.removeItem(import.meta.env.VITE_TOKEN_KEY || 'token');
         localStorage.removeItem(import.meta.env.VITE_REFRESH_TOKEN_KEY || 'refreshToken');
         localStorage.removeItem(import.meta.env.VITE_USER_KEY || 'user');
-        window.location.href = '/login';
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
       originalRequest._retry = true;
@@ -186,7 +195,9 @@ api.interceptors.response.use(
           localStorage.removeItem(import.meta.env.VITE_TOKEN_KEY || 'token');
           localStorage.removeItem(import.meta.env.VITE_REFRESH_TOKEN_KEY || 'refreshToken');
           localStorage.removeItem(import.meta.env.VITE_USER_KEY || 'user');
-          window.location.href = '/login';
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+          }
           return Promise.reject(error);
         }
 
