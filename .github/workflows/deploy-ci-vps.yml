@@ -116,7 +116,7 @@ jobs:
           target: "/var/www/fluxbus/ci/"
           strip_components: 0
 
-      - name: 🔧 Criar pastas (ci/dev/prod), renomear arquivo e criar .env na VPS
+      - name: 🔧 Renomear arquivo e criar .env na VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST_CI }}
@@ -124,10 +124,8 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD_CI }}
           port: 22
           script: |
-            # Criar diretório principal e subpastas se não existirem
+            # Criar diretório se não existir
             mkdir -p /var/www/fluxbus/ci
-            mkdir -p /var/www/fluxbus/dev
-            mkdir -p /var/www/fluxbus/prod
             cd /var/www/fluxbus/ci
 
             # Renomear arquivo para docker-compose.yml
@@ -149,10 +147,8 @@ jobs:
             MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
             EOF
 
-            echo "Pastas ci/dev/prod criadas!"
-            echo ".env e docker-compose.yml criados com sucesso em /var/www/fluxbus/ci!"
-            ls -la /var/www/fluxbus/
-            ls -la /var/www/fluxbus/ci/
+            echo ".env e docker-compose.yml criados com sucesso!"
+            ls -la
 
       - name: 🚀 Pull das novas imagens e restart dos containers
         uses: appleboy/ssh-action@v1.0.3
@@ -198,8 +194,7 @@ jobs:
         continue-on-error: true
 
       - name: ✅ Resultado Final
-        if: steps.health-check.outcome == 'success'
-        run: |
-          echo "🎉 Deploy para CI concluído com sucesso!"
-          echo "🌐 Acesse: https://ci.fluxbus.com.br"
         if: always()
+        run: |
+          echo "Health check outcome: ${{ steps.health-check.outcome }}"
+          echo "🌐 Acesse: https://ci.fluxbus.com.br"

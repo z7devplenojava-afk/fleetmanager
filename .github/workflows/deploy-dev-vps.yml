@@ -197,8 +197,7 @@ jobs:
         continue-on-error: true
 
       - name: ✅ Resultado Final
-        if: steps.health-check.outcome == 'success'
-        run: |
-          echo "🎉 Deploy para Dev concluído com sucesso!"
-          echo "🌐 Acesse: https://dev.fluxbus.com.br"
         if: always()
+        run: |
+          echo "Health check outcome: ${{ steps.health-check.outcome }}"
+          echo "🌐 Acesse: https://dev.fluxbus.com.br"
