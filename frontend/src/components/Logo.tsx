@@ -25,7 +25,7 @@ const Logo: React.FC<LogoProps> = ({ size = 'md', className = '', showText = tru
       {showText && (
         <div className="flex flex-col leading-none">
           <span className={`${currentSize.text} font-black tracking-tighter italic flex items-baseline text-white`}>
-            Flex<span className="text-opacity-90 ml-0.5" style={{ color: 'hsl(var(--primary))' }}>Bus</span>
+            Flux<span className="text-opacity-90 ml-0.5" style={{ color: 'hsl(var(--primary))' }}>Bus</span>
           </span>
           <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-gray-400 mt-0.5 leading-none">
             Fleet Management
