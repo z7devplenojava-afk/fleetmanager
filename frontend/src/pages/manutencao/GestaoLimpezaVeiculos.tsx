@@ -16,7 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { fleetService } from '@/services/fleetService';
+import fleetService from '@/services/fleetService';
 import driverService, { Driver } from '@/services/driverService';
 import {
   vehicleCleaningService, VehicleCleaningOrder, ChecklistItem,
