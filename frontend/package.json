@@ -1,5 +1,5 @@
 {
-  "name": "fleet-manager",
+  "name": "fluxbus",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -110,7 +110,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
-    "@rollup/rollup-win32-x64-msvc": "^4.55.3",
     "@tailwindcss/typography": "^0.5.15",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.2.1",
@@ -137,7 +136,6 @@
     "jest-environment-jsdom": "^29.7.0",
     "msw": "^2.2.3",
     "postcss": "^8.4.47",
-    "rollup": "^4.55.3",
     "tailwindcss": "^3.4.11",
     "ts-jest": "^29.1.2",
     "typescript": "^5.5.3",
