@@ -113,6 +113,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y sshpass
 
+      - name: 🔎 Garantir docker-compose.fluxbus.prod.yml no checkout
+        run: |
+          if [ ! -f docker-compose.fluxbus.prod.yml ]; then
+            echo "::error::Arquivo docker-compose.fluxbus.prod.yml ausente neste branch"
+            ls -la docker-compose*.yml || true
+            exit 1
+          fi
+          ls -la docker-compose.fluxbus.prod.yml
+
       - name: 📋 Copiar docker-compose.fluxbus.prod.yml para a VPS
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -123,6 +132,7 @@ jobs:
           source: "docker-compose.fluxbus.prod.yml"
           target: "/var/www/fluxbus/prod/"
           strip_components: 0
+          overwrite: true
 
       - name: 🔧 Renomear arquivo e criar .env na VPS
         uses: appleboy/ssh-action@v1.0.3
