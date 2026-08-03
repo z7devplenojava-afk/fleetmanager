@@ -1,13 +1,13 @@
-name: 🚀 Deploy Automático para CI (ci.fluxbus.com.br)
+name: 🚀 Deploy Automático para Dev (dev.fluxbus.com.br)
 
 on:
   push:
     branches:
-      - ci
+      - dev
   workflow_dispatch:
 
 concurrency:
-  group: deploy-ci
+  group: deploy-dev
   cancel-in-progress: true
 
 permissions:
@@ -54,7 +54,7 @@ jobs:
           context: ./whatsapp-service
           file: ./whatsapp-service/Dockerfile
           push: true
-          tags: z7design/fluxbus-whatsapp:ci
+          tags: z7design/fluxbus-whatsapp:dev
 
       - name: 🔧 Build Backend (Gradle)
         run: |
@@ -68,7 +68,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile.prod
           push: true
-          tags: z7design/fluxbus-backend:ci
+          tags: z7design/fluxbus-backend:dev
 
       - name: 🎨 Build Frontend
         run: |
@@ -79,9 +79,9 @@ jobs:
           npm install --legacy-peer-deps
           npm run build
         env:
-          VITE_API_URL: https://ci.fluxbus.com.br/api
-          VITE_WS_URL: wss://ci.fluxbus.com.br/ws
-          VITE_ENVIRONMENT: ci
+          VITE_API_URL: https://dev.fluxbus.com.br/api
+          VITE_WS_URL: wss://dev.fluxbus.com.br/ws
+          VITE_ENVIRONMENT: dev
 
       - name: 🖥️ Build e Push do Frontend
         uses: docker/build-push-action@v5
@@ -90,13 +90,13 @@ jobs:
           file: ./frontend/Dockerfile.prod
           push: true
           build-args: |
-            VITE_API_URL=https://ci.fluxbus.com.br/api
-            VITE_WS_URL=wss://ci.fluxbus.com.br/ws
-            VITE_ENVIRONMENT=ci
-          tags: z7design/fluxbus-frontend:ci
+            VITE_API_URL=https://dev.fluxbus.com.br/api
+            VITE_WS_URL=wss://dev.fluxbus.com.br/ws
+            VITE_ENVIRONMENT=dev
+          tags: z7design/fluxbus-frontend:dev
 
   deploy:
-    name: 🚀 Deploy na VPS CI
+    name: 🚀 Deploy na VPS Dev
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -108,60 +108,63 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-      - name: 📋 Copiar docker-compose.fluxbus.ci.yml para a VPS
+      - name: 📋 Copiar docker-compose.fluxbus.dev.yml para a VPS
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.VPS_HOST_CI }}
-          username: ${{ secrets.VPS_USER_CI }}
-          password: ${{ secrets.VPS_PASSWORD_CI }}
+          host: ${{ secrets.VPS_HOST_DEV }}
+          username: ${{ secrets.VPS_USER_DEV }}
+          password: ${{ secrets.VPS_PASSWORD_DEV }}
           port: 22
-          source: "docker-compose.fluxbus.ci.yml"
-          target: "/var/www/fluxbus/ci/"
+          source: "docker-compose.fluxbus.dev.yml"
+          target: "/var/www/fluxbus/dev/"
           strip_components: 0
 
       - name: 🔧 Renomear arquivo e criar .env na VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST_CI }}
-          username: ${{ secrets.VPS_USER_CI }}
-          password: ${{ secrets.VPS_PASSWORD_CI }}
+          host: ${{ secrets.VPS_HOST_DEV }}
+          username: ${{ secrets.VPS_USER_DEV }}
+          password: ${{ secrets.VPS_PASSWORD_DEV }}
           port: 22
           script: |
-            # Criar diretório se não existir
+            # Criar diretório principal e subpastas se não existirem
             mkdir -p /var/www/fluxbus/ci
-            cd /var/www/fluxbus/ci
+            mkdir -p /var/www/fluxbus/dev
+            mkdir -p /var/www/fluxbus/prod
+            cd /var/www/fluxbus/dev
 
             # Renomear arquivo para docker-compose.yml
-            mv -f docker-compose.fluxbus.ci.yml docker-compose.yml
+            mv -f docker-compose.fluxbus.dev.yml docker-compose.yml
 
             # Criar arquivo .env com as variáveis USANDO AS SECRETS
             cat > .env << 'EOF'
             # ========================================
-            # VARIÁVEIS DE AMBIENTE PARA CI.FLUXBUS.COM.BR
+            # VARIÁVEIS DE AMBIENTE PARA DEV.FLUXBUS.COM.BR
             # ========================================
-            POSTGRES_DB_CI=fluxbus_db_ci
-            POSTGRES_USER_CI=fluxbus_user_ci
-            POSTGRES_PASSWORD_CI=${{ secrets.POSTGRES_PASSWORD_CI }}
-            REDIS_PASSWORD_CI=${{ secrets.REDIS_PASSWORD_CI }}
-            JWT_SECRET_CI=${{ secrets.JWT_SECRET_CI }}
+            POSTGRES_DB_DEV=fluxbus_db_dev
+            POSTGRES_USER_DEV=fluxbus_user_dev
+            POSTGRES_PASSWORD_DEV=${{ secrets.POSTGRES_PASSWORD_DEV }}
+            REDIS_PASSWORD_DEV=${{ secrets.REDIS_PASSWORD_DEV }}
+            JWT_SECRET_DEV=${{ secrets.JWT_SECRET_DEV }}
             MAIL_HOST=186.209.113.105
             MAIL_PORT=465
             MAIL_USERNAME=securedguard@z7design.com.br
             MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
             EOF
 
-            echo ".env e docker-compose.yml criados com sucesso!"
-            ls -la
+            echo ".env e docker-compose.yml criados com sucesso em /var/www/fluxbus/dev!"
+            ls -la /var/www/fluxbus/
+            ls -la /var/www/fluxbus/dev/
 
       - name: 🚀 Pull das novas imagens e restart dos containers
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST_CI }}
-          username: ${{ secrets.VPS_USER_CI }}
-          password: ${{ secrets.VPS_PASSWORD_CI }}
+          host: ${{ secrets.VPS_HOST_DEV }}
+          username: ${{ secrets.VPS_USER_DEV }}
+          password: ${{ secrets.VPS_PASSWORD_DEV }}
           port: 22
           script: |
-            cd /var/www/fluxbus/ci
+            cd /var/www/fluxbus/dev
 
             echo "🔐 Logando no Docker Hub..."
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
@@ -180,7 +183,7 @@ jobs:
             docker-compose ps
 
   health-check:
-    name: 🏥 Health Check do CI
+    name: 🏥 Health Check do Dev
     needs: deploy
     runs-on: ubuntu-latest
     steps:
@@ -191,7 +194,7 @@ jobs:
         id: health-check
         uses: fjogeleit/http-request-action@v1
         with:
-          url: 'https://ci.fluxbus.com.br/api/health'
+          url: 'https://dev.fluxbus.com.br/api/health'
           method: 'GET'
           timeout: 30000
         continue-on-error: true
@@ -200,4 +203,4 @@ jobs:
         if: always()
         run: |
           echo "Health check outcome: ${{ steps.health-check.outcome }}"
-          echo "🌐 Acesse: https://ci.fluxbus.com.br"
+          echo "🌐 Acesse: https://dev.fluxbus.com.br"

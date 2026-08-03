@@ -30,8 +30,8 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: '17'
-          cache: 'maven'
-          cache-dependency-path: backend/pom.xml
+          cache: 'gradle'
+          cache-dependency-path: backend/build.gradle
 
       # ============================================
       # 1️⃣ SETUP NODE.JS 20
@@ -44,67 +44,25 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       # ============================================
-      # 2️⃣ BUILD BACKEND (Maven)
+      # 2️⃣ BUILD BACKEND (Gradle)
       # ============================================
-      - name: 🔨 Build Backend (Maven)
+      - name: 🔨 Build Backend (Gradle)
         working-directory: ./backend
         timeout-minutes: 30
         run: |
-          echo "🔨 Iniciando build do backend..."
+          echo "🔨 Iniciando build do backend com Gradle..."
           echo "📋 Informações do ambiente:"
           echo "  - Java: $(java -version 2>&1 | head -1)"
-          echo "  - Maven do sistema: $(mvn -version 2>&1 | head -1 || echo 'Maven não disponível')"
           echo "  - Memória disponível: $(free -h | grep Mem || echo 'N/A')"
           
-          chmod +x mvnw || true
-          echo "📋 Verificando Maven Wrapper..."
-          ls -la mvnw || echo "⚠️ mvnw não encontrado"
-          echo "📋 Verificando pom.xml..."
-          ls -la pom.xml || echo "❌ pom.xml não encontrado"
-          echo "📋 Verificando estrutura do projeto..."
-          ls -la src/main/java/com/z7design/secured_guard/ || echo "⚠️ Diretório src não encontrado"
-          
-          # Configurar Maven para usar retry
-          echo "📋 Configurando Maven com retry..."
-          mkdir -p ~/.m2
-          printf '%s\n' \
-            '<settings>' \
-            '  <profiles>' \
-            '    <profile>' \
-            '      <id>retry</id>' \
-            '      <properties>' \
-            '        <maven.wagon.http.retryHandler.count>5</maven.wagon.http.retryHandler.count>' \
-            '        <maven.wagon.httpconnectionManager.ttlSeconds>120</maven.wagon.httpconnectionManager.ttlSeconds>' \
-            '        <maven.wagon.http.readTimeout>60000</maven.wagon.http.readTimeout>' \
-            '      </properties>' \
-            '    </profile>' \
-            '  </profiles>' \
-            '  <activeProfiles>' \
-            '    <activeProfile>retry</activeProfile>' \
-            '  </activeProfiles>' \
-            '</settings>' > ~/.m2/settings.xml
-          
-          echo "🔨 Executando Maven clean package..."
-          echo "📋 Configurando variáveis de ambiente do Maven..."
-          export MAVEN_OPTS="-Xmx2048m"
-          
-          # Tentar usar Maven Wrapper com retry, ou usar Maven do sistema
-          MAVEN_CMD="./mvnw"
-          if ! ./mvnw -v >/dev/null 2>&1; then
-            echo "⚠️ Maven Wrapper não disponível, tentando usar Maven do sistema..."
-            if command -v mvn >/dev/null 2>&1; then
-              MAVEN_CMD="mvn"
-              echo "✅ Usando Maven do sistema: $(mvn -version | head -1)"
-            else
-              echo "❌ Nenhum Maven disponível!"
-              exit 1
-            fi
-          fi
+          chmod +x gradlew
+          echo "📋 Verificando build.gradle..."
+          ls -la build.gradle || echo "❌ build.gradle não encontrado"
           
           # Tentar build com retry
           for attempt in 1 2 3; do
             echo "🔨 Tentativa $attempt de build..."
-            timeout 1800 $MAVEN_CMD clean package -Dmaven.test.skip=true -Dspring.profiles.active=ci -DskipTests=true && {
+            ./gradlew clean bootJar -x test --no-daemon && {
               echo "✅ Build concluído com sucesso!"
               break
             } || {
@@ -112,20 +70,16 @@ jobs:
                 echo "⚠️ Tentativa $attempt falhou, aguardando 10 segundos antes de tentar novamente..."
                 sleep 10
               else
-                echo "❌ Build falhou após 3 tentativas! Verificando logs..."
-                echo "📋 Listando arquivos em target/..."
-                ls -la target/ 2>/dev/null || echo "⚠️ Diretório target não existe"
-                echo "📋 Verificando logs do Maven..."
-                find . -name "*.log" -type f -exec tail -50 {} \; 2>/dev/null || echo "⚠️ Nenhum log encontrado"
+                echo "❌ Build falhou após 3 tentativas!"
                 exit 1
               fi
             }
           done
           
           echo "✅ Build concluído! Verificando JAR gerado..."
-          ls -lh target/*.jar || echo "⚠️ Nenhum JAR encontrado em target/"
-          echo "📋 Listando todos os arquivos em target/:"
-          ls -lah target/ || echo "⚠️ Diretório target não existe"
+          ls -lh build/libs/*.jar || echo "⚠️ Nenhum JAR encontrado em build/libs/"
+          echo "📋 Listando todos os arquivos em build/libs/:"
+          ls -lah build/libs/ || echo "⚠️ Diretório build/libs não existe"
 
       # ============================================
       # 3️⃣ BUILD FRONTEND (Vite)
@@ -136,7 +90,10 @@ jobs:
           VITE_API_URL: https://ci.z7botsolutions.com.br/api
           VITE_ENVIRONMENT: ci
         run: |
-          npm ci
+          # Sem --omit=optional: Rollup precisa do binário nativo da plataforma do runner
+          rm -rf node_modules
+          rm -f package-lock.json
+          npm install --legacy-peer-deps
           npm run build
 
       # ============================================
@@ -154,7 +111,7 @@ jobs:
           
           # Verificar se o JAR foi gerado
           echo "📋 Verificando JAR do backend..."
-          ls -lh backend/target/*.jar || echo "⚠️ Nenhum JAR encontrado em backend/target/"
+          ls -lh backend/build/libs/*.jar || echo "⚠️ Nenhum JAR encontrado em backend/build/libs/"
           
           # Verificar se o dist do frontend foi gerado
           echo "📋 Verificando build do frontend..."
