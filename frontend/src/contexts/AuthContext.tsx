@@ -314,6 +314,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('❌ Token não encontrado na resposta do login!');
         throw new Error('Token não encontrado na resposta do login');
       }
+      if (response.data.refreshToken) {
+        localStorage.setItem('refreshToken', response.data.refreshToken);
+      } else if (response.data.token) {
+        localStorage.setItem('refreshToken', response.data.token);
+      }
       localStorage.setItem('user', JSON.stringify(userData));
       if (response.data.empresa) {
         const emp = response.data.empresa;
@@ -425,6 +430,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     localStorage.removeItem('empresa');
     setUser(null);

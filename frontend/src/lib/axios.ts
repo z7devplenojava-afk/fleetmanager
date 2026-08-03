@@ -160,6 +160,16 @@ api.interceptors.response.use(
     // 403 (Forbidden) é diferente - significa que o usuário está autenticado mas não tem permissão
     // Não devemos redirecionar para login em caso de 403, apenas em 401
     if (error.response?.status === 401 && !originalRequest._retry) {
+      const requestUrl = String(originalRequest?.url || '');
+      // Falha de login/senha NÃO deve disparar redirect hard — deixa a tela mostrar o erro
+      const isAuthCredentialRequest =
+        requestUrl.includes('/auth/login') ||
+        requestUrl.includes('/auth/authenticate') ||
+        requestUrl.includes('/auth/refresh-token');
+      if (isAuthCredentialRequest) {
+        return Promise.reject(error);
+      }
+
       // Verificar se o problema é falta de token
       const tokenKey = import.meta.env.VITE_TOKEN_KEY || 'token';
       const token = localStorage.getItem(tokenKey) || localStorage.getItem('token') || localStorage.getItem('authToken');
@@ -169,7 +179,9 @@ api.interceptors.response.use(
         localStorage.removeItem(import.meta.env.VITE_TOKEN_KEY || 'token');
         localStorage.removeItem(import.meta.env.VITE_REFRESH_TOKEN_KEY || 'refreshToken');
         localStorage.removeItem(import.meta.env.VITE_USER_KEY || 'user');
-        window.location.href = '/login';
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
       originalRequest._retry = true;
@@ -183,7 +195,9 @@ api.interceptors.response.use(
           localStorage.removeItem(import.meta.env.VITE_TOKEN_KEY || 'token');
           localStorage.removeItem(import.meta.env.VITE_REFRESH_TOKEN_KEY || 'refreshToken');
           localStorage.removeItem(import.meta.env.VITE_USER_KEY || 'user');
-          window.location.href = '/login';
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+          }
           return Promise.reject(error);
         }
 
