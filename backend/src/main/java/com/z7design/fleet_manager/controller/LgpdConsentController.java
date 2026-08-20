@@ -73,7 +73,7 @@ public class LgpdConsentController {
 
     @GetMapping("/status/{userId}")
     @Operation(summary = "Verificar status dos consentimentos", description = "Retorna se usuÃ¡rio aceitou todos os termos")
-    public ResponseEntity<?> getConsentStatus(@PathVariable UUID userId) {
+    public ResponseEntity<?> getConsentStatus(@PathVariable("userId") UUID userId) {
         boolean hasAccepted = consentService.hasAcceptedAllRequiredConsents(userId);
         boolean firstAccessCompleted = consentService.hasCompletedFirstAccess(userId);
 
@@ -86,7 +86,7 @@ public class LgpdConsentController {
 
     @GetMapping("/consents/{userId}")
     @Operation(summary = "Listar consentimentos", description = "Lista todos os consentimentos de um usuÃ¡rio")
-    public ResponseEntity<List<UserConsent>> getUserConsents(@PathVariable UUID userId) {
+    public ResponseEntity<List<UserConsent>> getUserConsents(@PathVariable("userId") UUID userId) {
         List<UserConsent> consents = consentService.getUserConsents(userId);
         return ResponseEntity.ok(consents);
     }
@@ -120,8 +120,8 @@ public class LgpdConsentController {
     @PostMapping("/revoke/{consentId}")
     @Operation(summary = "Revogar consentimento", description = "Revoga um consentimento LGPD")
     public ResponseEntity<?> revokeConsent(
-            @PathVariable UUID consentId,
-            @RequestParam String reason
+            @PathVariable("consentId") UUID consentId,
+            @RequestParam(value = "reason") String reason
     ) {
         consentService.revokeConsent(consentId, reason);
         return ResponseEntity.ok(Map.of(

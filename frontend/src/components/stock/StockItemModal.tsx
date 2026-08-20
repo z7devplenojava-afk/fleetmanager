@@ -69,6 +69,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [supplierComboboxOpen, setSupplierComboboxOpen] = useState(false);
   const [unitCostDisplay, setUnitCostDisplay] = useState('');
+  const [averageCostDisplay, setAverageCostDisplay] = useState('');
   const [formData, setFormData] = useState<CreateStockItemDTO>({
     code: '',
     name: '',
@@ -78,6 +79,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
     currentQuantity: 0,
     minimumQuantity: 0,
     unitCost: 0,
+    averageCost: 0,
     supplier: '',
     barcode: '',
     notes: ''
@@ -135,6 +137,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         currentQuantity: item.currentQuantity,
         minimumQuantity: item.minimumQuantity,
         unitCost: item.unitCost || 0,
+        averageCost: item.averageCost || 0,
         supplier: item.supplier || '',
         barcode: item.barcode || '',
         notes: item.notes || ''
@@ -144,6 +147,11 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         setUnitCostDisplay(formatCurrencyFromNumber(item.unitCost));
       } else {
         setUnitCostDisplay('');
+      }
+      if (item.averageCost) {
+        setAverageCostDisplay(formatCurrencyFromNumber(item.averageCost));
+      } else {
+        setAverageCostDisplay('');
       }
     } else {
       setFormData({
@@ -155,11 +163,13 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         currentQuantity: 0,
         minimumQuantity: 0,
         unitCost: 0,
+        averageCost: 0,
         supplier: '',
         barcode: '',
         notes: ''
       });
       setUnitCostDisplay('');
+      setAverageCostDisplay('');
     }
   }, [item, open]);
 
@@ -268,6 +278,13 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
     handleInputChange('unitCost', numericValue);
   };
 
+  const handleAverageCostChange = (value: string) => {
+    const formatted = formatCurrency(value);
+    setAverageCostDisplay(formatted);
+    const numericValue = formatted ? parseCurrency(formatted) : 0;
+    handleInputChange('averageCost', numericValue);
+  };
+
   const handleSupplierSave = async (payload: any) => {
     try {
       const newSupplier = await contasAPagarService.createFornecedor(payload);
@@ -317,6 +334,9 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         unitCost: (formData.unitCost && formData.unitCost > 0) ? 
                   (typeof formData.unitCost === 'number' ? formData.unitCost : parseFloat(String(formData.unitCost))) : 
                   undefined,
+        averageCost: (formData.averageCost && formData.averageCost > 0) ? 
+                  (typeof formData.averageCost === 'number' ? formData.averageCost : parseFloat(String(formData.averageCost))) : 
+                  undefined,
         supplier: formData.supplier?.trim() || undefined,
         barcode: formData.barcode?.trim() || undefined,
         notes: formData.notes?.trim() || undefined
@@ -325,6 +345,9 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
       // Validar que unitCost não seja NaN
       if (dataToSend.unitCost !== undefined && isNaN(dataToSend.unitCost)) {
         dataToSend.unitCost = undefined;
+      }
+      if (dataToSend.averageCost !== undefined && isNaN(dataToSend.averageCost)) {
+        dataToSend.averageCost = undefined;
       }
 
       console.log('📦 Dados sendo enviados:', JSON.stringify(dataToSend, null, 2));
@@ -533,13 +556,27 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="unitCost" className="text-gray-300 text-sm sm:text-base">
-                    Custo Unitário (R$)
+                    Vr. Compra (R$)
                   </Label>
                   <Input
                     id="unitCost"
                     type="text"
                     value={unitCostDisplay}
                     onChange={(e) => handleCurrencyChange(e.target.value)}
+                    placeholder="0,00"
+                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="averageCost" className="text-gray-300 text-sm sm:text-base">
+                    Custo Médio (R$)
+                  </Label>
+                  <Input
+                    id="averageCost"
+                    type="text"
+                    value={averageCostDisplay}
+                    onChange={(e) => handleAverageCostChange(e.target.value)}
                     placeholder="0,00"
                     className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
                   />

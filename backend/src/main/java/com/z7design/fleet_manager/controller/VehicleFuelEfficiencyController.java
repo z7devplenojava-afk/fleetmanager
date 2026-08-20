@@ -70,7 +70,7 @@ public class VehicleFuelEfficiencyController {
      * Buscar eficiÃªncia de um veÃ­culo especÃ­fico
      */
     @GetMapping("/vehicle/{vehicleId}")
-    public ResponseEntity<VehicleFuelEfficiencyDTO> getVehicleEfficiency(@PathVariable String vehicleId) {
+    public ResponseEntity<VehicleFuelEfficiencyDTO> getVehicleEfficiency(@PathVariable("vehicleId") String vehicleId) {
         try {
             log.info("ðŸ” Endpoint /vehicle/{} chamado - buscando eficiÃªncia do veÃ­culo", vehicleId);
             

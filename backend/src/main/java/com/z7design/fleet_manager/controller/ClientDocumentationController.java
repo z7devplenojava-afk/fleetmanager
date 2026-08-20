@@ -35,14 +35,14 @@ public class ClientDocumentationController {
     @GetMapping("/client/{clientId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Listar documentações de um cliente")
-    public ResponseEntity<List<ClientDocumentationDTO>> listByClient(@PathVariable UUID clientId) {
+    public ResponseEntity<List<ClientDocumentationDTO>> listByClient(@PathVariable("clientId") UUID clientId) {
         return ResponseEntity.ok(service.listByClient(clientId));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Obter documentação por ID")
-    public ResponseEntity<ClientDocumentationDTO> getDocumentation(@PathVariable UUID id) {
+    public ResponseEntity<ClientDocumentationDTO> getDocumentation(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(service.getDocumentation(id));
     }
 
@@ -58,7 +58,7 @@ public class ClientDocumentationController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Excluir documentação")
-    public ResponseEntity<Void> deleteDocumentation(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteDocumentation(@PathVariable("id") UUID id) {
         service.deleteDocumentation(id);
         return ResponseEntity.noContent().build();
     }
@@ -68,7 +68,7 @@ public class ClientDocumentationController {
     @GetMapping("/{documentationId}/stages")
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Listar etapas de uma documentação")
-    public ResponseEntity<List<ClientDocStageDTO>> listStages(@PathVariable UUID documentationId) {
+    public ResponseEntity<List<ClientDocStageDTO>> listStages(@PathVariable("documentationId") UUID documentationId) {
         return ResponseEntity.ok(service.listStages(documentationId));
     }
 
@@ -83,7 +83,7 @@ public class ClientDocumentationController {
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Renomear etapa")
     public ResponseEntity<ClientDocStageDTO> renameStage(
-            @PathVariable UUID stageId,
+            @PathVariable("stageId") UUID stageId,
             @RequestBody Map<String, String> body) {
         String newName = body.get("name");
         if (newName == null || newName.trim().isEmpty()) {
@@ -95,7 +95,7 @@ public class ClientDocumentationController {
     @DeleteMapping("/stages/{stageId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Excluir etapa")
-    public ResponseEntity<Void> deleteStage(@PathVariable UUID stageId) {
+    public ResponseEntity<Void> deleteStage(@PathVariable("stageId") UUID stageId) {
         service.deleteStage(stageId);
         return ResponseEntity.noContent().build();
     }
@@ -121,7 +121,7 @@ public class ClientDocumentationController {
     @DeleteMapping("/categories/{categoryId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Excluir categoria")
-    public ResponseEntity<Void> deleteCategory(@PathVariable UUID categoryId) {
+    public ResponseEntity<Void> deleteCategory(@PathVariable("categoryId") UUID categoryId) {
         service.deleteCategory(categoryId);
         return ResponseEntity.noContent().build();
     }
@@ -132,8 +132,8 @@ public class ClientDocumentationController {
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Listar arquivos de uma etapa + categoria")
     public ResponseEntity<List<ClientDocFileDTO>> listFiles(
-            @PathVariable UUID stageId,
-            @PathVariable UUID categoryId) {
+            @PathVariable("stageId") UUID stageId,
+            @PathVariable("categoryId") UUID categoryId) {
         return ResponseEntity.ok(service.listFiles(stageId, categoryId));
     }
 
@@ -141,8 +141,8 @@ public class ClientDocumentationController {
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Fazer upload de arquivo para uma etapa + categoria")
     public ResponseEntity<ClientDocFileDTO> uploadFile(
-            @PathVariable UUID stageId,
-            @PathVariable UUID categoryId,
+            @PathVariable("stageId") UUID stageId,
+            @PathVariable("categoryId") UUID categoryId,
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(service.uploadFile(stageId, categoryId, file, user.getCompanyId(), user.getId()));
@@ -151,7 +151,7 @@ public class ClientDocumentationController {
     @GetMapping("/files/{fileId}/download")
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Baixar arquivo")
-    public ResponseEntity<Resource> downloadFile(@PathVariable UUID fileId) {
+    public ResponseEntity<Resource> downloadFile(@PathVariable("fileId") UUID fileId) {
         Resource resource = service.downloadFile(fileId);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
@@ -161,7 +161,7 @@ public class ClientDocumentationController {
     @DeleteMapping("/files/{fileId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Excluir arquivo")
-    public ResponseEntity<Void> deleteFile(@PathVariable UUID fileId) {
+    public ResponseEntity<Void> deleteFile(@PathVariable("fileId") UUID fileId) {
         service.deleteFile(fileId);
         return ResponseEntity.noContent().build();
     }
@@ -171,7 +171,7 @@ public class ClientDocumentationController {
     @GetMapping("/{documentationId}/structure")
     @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'SUPER_ADMIN')")
     @Operation(summary = "Obter estrutura completa (documentação + etapas + categorias + arquivos)")
-    public ResponseEntity<Map<String, Object>> getFullStructure(@PathVariable UUID documentationId) {
+    public ResponseEntity<Map<String, Object>> getFullStructure(@PathVariable("documentationId") UUID documentationId) {
         return ResponseEntity.ok(service.getFullStructure(documentationId));
     }
 }

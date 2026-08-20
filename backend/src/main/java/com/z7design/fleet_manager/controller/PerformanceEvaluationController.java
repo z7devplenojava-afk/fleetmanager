@@ -70,7 +70,7 @@ public class PerformanceEvaluationController {
                     schema = @Schema(implementation = PerformanceEvaluation.class),
                     examples = @ExampleObject(value = "{\"id\":\"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"score\":8.5, \"feedback\":\"Feedback atualizado com melhorias.\"}")))
     @PutMapping("/{id}")
-    public ResponseEntity<PerformanceEvaluation> update(@PathVariable UUID id, @RequestBody PerformanceEvaluation evaluation) {
+    public ResponseEntity<PerformanceEvaluation> update(@PathVariable("id") UUID id, @RequestBody PerformanceEvaluation evaluation) {
         return ResponseEntity.ok(evaluationService.update(id, evaluation));
     }
     
@@ -87,7 +87,7 @@ public class PerformanceEvaluationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/{id}/start")
-    public ResponseEntity<PerformanceEvaluation> startEvaluation(@PathVariable UUID id) {
+    public ResponseEntity<PerformanceEvaluation> startEvaluation(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(evaluationService.startEvaluation(id));
     }
     
@@ -104,7 +104,7 @@ public class PerformanceEvaluationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/{id}/complete")
-    public ResponseEntity<PerformanceEvaluation> completeEvaluation(@PathVariable UUID id) {
+    public ResponseEntity<PerformanceEvaluation> completeEvaluation(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(evaluationService.completeEvaluation(id));
     }
     
@@ -121,7 +121,7 @@ public class PerformanceEvaluationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/{id}/review")
-    public ResponseEntity<PerformanceEvaluation> reviewEvaluation(@PathVariable UUID id) {
+    public ResponseEntity<PerformanceEvaluation> reviewEvaluation(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(evaluationService.reviewEvaluation(id));
     }
     
@@ -138,7 +138,7 @@ public class PerformanceEvaluationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/{id}/approve")
-    public ResponseEntity<PerformanceEvaluation> approveEvaluation(@PathVariable UUID id) {
+    public ResponseEntity<PerformanceEvaluation> approveEvaluation(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(evaluationService.approveEvaluation(id));
     }
     
@@ -153,7 +153,7 @@ public class PerformanceEvaluationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<PerformanceEvaluation> findById(@PathVariable UUID id) {
+    public ResponseEntity<PerformanceEvaluation> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(evaluationService.findById(id));
     }
     
@@ -166,7 +166,7 @@ public class PerformanceEvaluationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<PerformanceEvaluation>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<PerformanceEvaluation>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         return ResponseEntity.ok(evaluationService.findByEmployeeId(employeeId));
     }
     
@@ -179,7 +179,7 @@ public class PerformanceEvaluationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/evaluator/{evaluatorId}")
-    public ResponseEntity<List<PerformanceEvaluation>> findByEvaluatorId(@PathVariable UUID evaluatorId) {
+    public ResponseEntity<List<PerformanceEvaluation>> findByEvaluatorId(@PathVariable("evaluatorId") UUID evaluatorId) {
         return ResponseEntity.ok(evaluationService.findByEvaluatorId(evaluatorId));
     }
     
@@ -196,8 +196,8 @@ public class PerformanceEvaluationController {
     @Parameter(description = "Status da avaliaÃ§Ã£o (PENDING, IN_PROGRESS, COMPLETED, UNDER_REVIEW, APPROVED)", required = true)
     @GetMapping("/employee/{employeeId}/status/{status}")
     public ResponseEntity<List<PerformanceEvaluation>> findByEmployeeIdAndStatus(
-            @PathVariable UUID employeeId,
-            @PathVariable EvaluationStatus status) {
+            @PathVariable("employeeId") UUID employeeId,
+            @PathVariable("status") EvaluationStatus status) {
         return ResponseEntity.ok(evaluationService.findByEmployeeIdAndStatus(employeeId, status));
     }
     
@@ -215,8 +215,8 @@ public class PerformanceEvaluationController {
     @Parameter(description = "Data de fim do perÃ­odo (formato YYYY-MM-DD)", example = "2023-12-31", required = true)
     @GetMapping("/date-range")
     public ResponseEntity<List<PerformanceEvaluation>> findByEvaluationDateBetween(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(evaluationService.findByEvaluationDateBetween(startDate, endDate));
     }
 } 

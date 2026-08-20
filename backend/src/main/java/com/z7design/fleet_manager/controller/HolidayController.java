@@ -42,7 +42,7 @@ public class HolidayController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('HOLIDAY_READ', 'SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getHolidayById(@PathVariable UUID id) {
+    public ResponseEntity<?> getHolidayById(@PathVariable("id") UUID id) {
         try {
             Holiday holiday = holidayService.findById(id);
             return ResponseEntity.ok(Map.of(
@@ -79,7 +79,7 @@ public class HolidayController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('HOLIDAY_UPDATE', 'SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> updateHoliday(@PathVariable UUID id, @RequestBody Holiday holiday) {
+    public ResponseEntity<?> updateHoliday(@PathVariable("id") UUID id, @RequestBody Holiday holiday) {
         try {
             Holiday updated = holidayService.update(id, holiday);
             return ResponseEntity.ok(Map.of(
@@ -98,7 +98,7 @@ public class HolidayController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('HOLIDAY_DELETE', 'SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> deleteHoliday(@PathVariable UUID id) {
+    public ResponseEntity<?> deleteHoliday(@PathVariable("id") UUID id) {
         try {
             holidayService.delete(id);
             return ResponseEntity.ok(Map.of(
@@ -117,7 +117,7 @@ public class HolidayController {
     @GetMapping("/date/{date}")
     @PreAuthorize("hasAnyAuthority('HOLIDAY_READ', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getHolidaysByDate(
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         try {
             List<Holiday> holidays = holidayService.findByDate(date);
             return ResponseEntity.ok(Map.of(
@@ -136,8 +136,8 @@ public class HolidayController {
     @GetMapping("/period")
     @PreAuthorize("hasAnyAuthority('HOLIDAY_READ', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getHolidaysByPeriod(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             List<Holiday> holidays = holidayService.findByDateBetween(startDate, endDate);
             return ResponseEntity.ok(Map.of(
@@ -155,7 +155,7 @@ public class HolidayController {
 
     @GetMapping("/year/{year}")
     @PreAuthorize("hasAnyAuthority('HOLIDAY_READ', 'SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getHolidaysByYear(@PathVariable int year) {
+    public ResponseEntity<?> getHolidaysByYear(@PathVariable("year") int year) {
         try {
             List<Holiday> holidays = holidayService.findByYear(year);
             return ResponseEntity.ok(Map.of(
@@ -174,9 +174,9 @@ public class HolidayController {
     @GetMapping("/check/{date}")
     @PreAuthorize("hasAnyAuthority('HOLIDAY_READ', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> checkIsHoliday(
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam(required = false) String stateCode,
-            @RequestParam(required = false) String cityName) {
+            @PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(value = "stateCode", required = false) String stateCode,
+            @RequestParam(value = "cityName", required = false) String cityName) {
         try {
             boolean isHoliday;
             if (stateCode != null || cityName != null) {

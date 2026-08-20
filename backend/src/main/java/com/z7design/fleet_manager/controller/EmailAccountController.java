@@ -4,7 +4,6 @@ import com.z7design.fleet_manager.dto.EmailAccountDTO;
 import com.z7design.fleet_manager.dto.EmailAccountRequest;
 import com.z7design.fleet_manager.dto.EmailSendRequest;
 import com.z7design.fleet_manager.model.User;
-import com.z7design.fleet_manager.service.AuthenticationService;
 import com.z7design.fleet_manager.service.email.EmailAccountService;
 import com.z7design.fleet_manager.service.email.ImapSyncService;
 import com.z7design.fleet_manager.tenant.TenantContext;
@@ -14,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -28,7 +28,6 @@ public class EmailAccountController {
 
     private final EmailAccountService emailAccountService;
     private final ImapSyncService imapSyncService;
-    private final AuthenticationService authenticationService;
 
     private UUID companyIdOrThrow() {
         UUID companyId = TenantContext.get();
@@ -50,7 +49,7 @@ public class EmailAccountController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getById(@PathVariable UUID id) {
+    public ResponseEntity<?> getById(@PathVariable("id") UUID id) {
         try {
             return ResponseEntity.ok(Map.of("success", true, "data", emailAccountService.getDTO(id)));
         } catch (Exception e) {
@@ -62,7 +61,9 @@ public class EmailAccountController {
     public ResponseEntity<?> create(@RequestBody EmailAccountRequest request,
             Authentication authentication) {
         try {
-            User currentUser = authenticationService.getCurrentUser(authentication);
+            User currentUser = authentication != null && authentication.getPrincipal() instanceof User
+                    ? (User) authentication.getPrincipal()
+                    : null;
             EmailAccountDTO created = emailAccountService.create(request, currentUser);
             return ResponseEntity.ok(Map.of("success", true, "message", "Conta de e-mail adicionada", "data", created));
         } catch (Exception e) {
@@ -72,7 +73,7 @@ public class EmailAccountController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable UUID id, @RequestBody EmailAccountRequest request) {
+    public ResponseEntity<?> update(@PathVariable("id") UUID id, @RequestBody EmailAccountRequest request) {
         try {
             EmailAccountDTO updated = emailAccountService.update(id, request);
             return ResponseEntity.ok(Map.of("success", true, "message", "Conta de e-mail atualizada", "data", updated));
@@ -83,7 +84,7 @@ public class EmailAccountController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable UUID id) {
+    public ResponseEntity<?> delete(@PathVariable("id") UUID id) {
         try {
             emailAccountService.delete(id);
             return ResponseEntity.ok(Map.of("success", true, "message", "Conta de e-mail excluída"));
@@ -103,7 +104,7 @@ public class EmailAccountController {
     }
 
     @PostMapping("/{id}/test")
-    public ResponseEntity<?> testConnection(@PathVariable UUID id) {
+    public ResponseEntity<?> testConnection(@PathVariable("id") UUID id) {
         try {
             return ResponseEntity.ok(Map.of("success", true, "data", emailAccountService.testConnection(id)));
         } catch (Exception e) {
@@ -113,8 +114,8 @@ public class EmailAccountController {
     }
 
     @PostMapping("/{id}/sync")
-    public ResponseEntity<?> sync(@PathVariable UUID id,
-            @RequestParam(defaultValue = "false") boolean fullSync) {
+    public ResponseEntity<?> sync(@PathVariable("id") UUID id,
+            @RequestParam(value = "fullSync", defaultValue = "false") boolean fullSync) {
         try {
             Map<String, Object> result = imapSyncService.syncAccount(id, fullSync);
             return ResponseEntity.ok(result);
@@ -125,7 +126,7 @@ public class EmailAccountController {
     }
 
     @PostMapping("/{id}/sync-folders")
-    public ResponseEntity<?> syncFolders(@PathVariable UUID id) {
+    public ResponseEntity<?> syncFolders(@PathVariable("id") UUID id) {
         try {
             List<Map<String, Object>> folders = imapSyncService.syncFolders(id);
             return ResponseEntity.ok(Map.of("success", true, "data", folders));
@@ -135,7 +136,7 @@ public class EmailAccountController {
     }
 
     @GetMapping("/{id}/folders")
-    public ResponseEntity<?> listFolders(@PathVariable UUID id) {
+    public ResponseEntity<?> listFolders(@PathVariable("id") UUID id) {
         try {
             List<Map<String, Object>> folders = imapSyncService.listLocalFolders(id);
             return ResponseEntity.ok(Map.of("success", true, "data", folders));
@@ -146,11 +147,23 @@ public class EmailAccountController {
     }
 
     @PostMapping("/{id}/send")
-    public ResponseEntity<?> send(@PathVariable UUID id, @RequestBody EmailSendRequest request) {
+    public ResponseEntity<?> send(@PathVariable("id") UUID id, @RequestBody EmailSendRequest request) {
         try {
             return ResponseEntity.ok(emailAccountService.sendEmail(id, request));
         } catch (Exception e) {
             log.error("Erro ao enviar e-mail via conta {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/attachments/upload")
+    public ResponseEntity<?> uploadAttachment(@PathVariable("id") UUID id,
+            @RequestParam(value = "file") MultipartFile file) {
+        try {
+            Map<String, Object> uploaded = emailAccountService.uploadComposeAttachment(id, file);
+            return ResponseEntity.ok(Map.of("success", true, "data", uploaded));
+        } catch (Exception e) {
+            log.error("Erro ao enviar anexo para a conta {}: {}", id, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
         }
     }

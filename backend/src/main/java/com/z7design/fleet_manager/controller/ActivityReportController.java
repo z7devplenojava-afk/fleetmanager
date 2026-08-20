@@ -42,13 +42,13 @@ public class ActivityReportController {
     @GetMapping
     @Operation(summary = "Buscar relatÃ³rios de atividade", description = "Retorna uma lista de relatÃ³rios de atividade com base em filtros opcionais.")
     public ResponseEntity<List<ActivityReportDTO>> getActivityReports(
-            @Parameter(description = "ID do funcionÃ¡rio") @RequestParam(required = false) UUID employeeId,
-            @Parameter(description = "ID do cliente") @RequestParam(required = false) UUID clientId,
-            @Parameter(description = "ID do posto de trabalho") @RequestParam(required = false) UUID workPostId,
-            @Parameter(description = "Data de inÃ­cio do perÃ­odo (ISO: YYYY-MM-DD)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @Parameter(description = "Data de fim do perÃ­odo (ISO: YYYY-MM-DD)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @Parameter(description = "Status do relatÃ³rio (DRAFT, SUBMITTED, APPROVED, REJECTED, FINALIZED)") @RequestParam(required = false) ActivityReportStatus status,
-            @Parameter(description = "ID do supervisor") @RequestParam(required = false) UUID supervisorId) {
+            @Parameter(description = "ID do funcionÃ¡rio") @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @Parameter(description = "ID do cliente") @RequestParam(value = "clientId", required = false) UUID clientId,
+            @Parameter(description = "ID do posto de trabalho") @RequestParam(value = "workPostId", required = false) UUID workPostId,
+            @Parameter(description = "Data de inÃ­cio do perÃ­odo (ISO: YYYY-MM-DD)") @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "Data de fim do perÃ­odo (ISO: YYYY-MM-DD)") @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @Parameter(description = "Status do relatÃ³rio (DRAFT, SUBMITTED, APPROVED, REJECTED, FINALIZED)") @RequestParam(value = "status", required = false) ActivityReportStatus status,
+            @Parameter(description = "ID do supervisor") @RequestParam(value = "supervisorId", required = false) UUID supervisorId) {
         
         log.info("GET /api/activity-reports - Buscando relatÃ³rios de atividade com filtros");
         try {
@@ -82,7 +82,7 @@ public class ActivityReportController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar relatÃ³rio de atividade por ID", description = "Retorna um relatÃ³rio de atividade especÃ­fico pelo seu ID.")
     public ResponseEntity<ActivityReportDTO> getActivityReportById(
-            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable UUID id) {
+            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable("id") UUID id) {
         
         log.info("GET /api/activity-reports/{} - Buscando relatÃ³rio de atividade por ID", id);
         ActivityReportDTO report = activityReportService.getActivityReportById(id);
@@ -111,18 +111,18 @@ public class ActivityReportController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Criar novo relatÃ³rio de atividade (Multipart)", description = "Cria um novo relatÃ³rio de atividade usando multipart/form-data.")
     public ResponseEntity<ActivityReportDTO> createActivityReportMultipart(
-            @Parameter(description = "ID do funcionÃ¡rio") @RequestParam String employeeId,
-            @Parameter(description = "ID do cliente") @RequestParam String clientId,
-            @Parameter(description = "ID do posto de trabalho") @RequestParam String workPostId,
-            @Parameter(description = "Data do relatÃ³rio (YYYY-MM-DD)") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @Parameter(description = "Hora de inÃ­cio (HH:mm)") @RequestParam String startTime,
-            @Parameter(description = "Hora de fim (HH:mm)") @RequestParam String endTime,
-            @Parameter(description = "DescriÃ§Ã£o") @RequestParam(required = false) String description,
-            @Parameter(description = "Status de ausÃªncia") @RequestParam(required = false) String absenceStatus,
-            @Parameter(description = "Placa balÃ­stica (JSON string)") @RequestParam(required = false) String ballisticPlate,
-            @Parameter(description = "Registro de arma (JSON string)") @RequestParam(required = false) String weaponRegistry,
-            @Parameter(description = "DivergÃªncias") @RequestParam(required = false) String divergences,
-            @Parameter(description = "Consulta mÃ©dica (JSON string)") @RequestParam(required = false) String medicalConsultation) {
+            @Parameter(description = "ID do funcionÃ¡rio") @RequestParam(value = "employeeId") String employeeId,
+            @Parameter(description = "ID do cliente") @RequestParam(value = "clientId") String clientId,
+            @Parameter(description = "ID do posto de trabalho") @RequestParam(value = "workPostId") String workPostId,
+            @Parameter(description = "Data do relatÃ³rio (YYYY-MM-DD)") @RequestParam(value = "date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @Parameter(description = "Hora de inÃ­cio (HH:mm)") @RequestParam(value = "startTime") String startTime,
+            @Parameter(description = "Hora de fim (HH:mm)") @RequestParam(value = "endTime") String endTime,
+            @Parameter(description = "DescriÃ§Ã£o") @RequestParam(value = "description", required = false) String description,
+            @Parameter(description = "Status de ausÃªncia") @RequestParam(value = "absenceStatus", required = false) String absenceStatus,
+            @Parameter(description = "Placa balÃ­stica (JSON string)") @RequestParam(value = "ballisticPlate", required = false) String ballisticPlate,
+            @Parameter(description = "Registro de arma (JSON string)") @RequestParam(value = "weaponRegistry", required = false) String weaponRegistry,
+            @Parameter(description = "DivergÃªncias") @RequestParam(value = "divergences", required = false) String divergences,
+            @Parameter(description = "Consulta mÃ©dica (JSON string)") @RequestParam(value = "medicalConsultation", required = false) String medicalConsultation) {
         
         log.info("POST /api/activity-reports (Multipart) - Criando novo relatÃ³rio de atividade");
         log.info("ðŸ“‹ Dados recebidos - employeeId: {}, clientId: {}, workPostId: {}, date: {}", 
@@ -200,7 +200,7 @@ public class ActivityReportController {
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar relatÃ³rio de atividade", description = "Atualiza um relatÃ³rio de atividade existente.")
     public ResponseEntity<ActivityReportDTO> updateActivityReport(
-            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable UUID id,
+            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable("id") UUID id,
             @Parameter(description = "Dados do relatÃ³rio de atividade para atualizaÃ§Ã£o") @Valid @RequestBody UpdateActivityReportDTO updateDTO) {
         
         log.info("PUT /api/activity-reports/{} - Atualizando relatÃ³rio de atividade", id);
@@ -211,7 +211,7 @@ public class ActivityReportController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir relatÃ³rio de atividade", description = "Exclui um relatÃ³rio de atividade pelo seu ID.")
     public ResponseEntity<Void> deleteActivityReport(
-            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable UUID id) {
+            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable("id") UUID id) {
         
         log.info("DELETE /api/activity-reports/{} - Deletando relatÃ³rio de atividade", id);
         activityReportService.deleteActivityReport(id);
@@ -221,7 +221,7 @@ public class ActivityReportController {
     @PostMapping("/{reportId}/photos")
     @Operation(summary = "Upload de foto para relatÃ³rio", description = "Faz upload de uma foto para um relatÃ³rio de atividade especÃ­fico.")
     public ResponseEntity<ActivityReportDTO> uploadPhoto(
-            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable UUID reportId,
+            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable("reportId") UUID reportId,
             @Parameter(description = "Arquivo de foto") @RequestParam("photo") MultipartFile file,
             @Parameter(description = "DescriÃ§Ã£o da foto") @RequestParam("description") String description) throws IOException {
         
@@ -233,7 +233,7 @@ public class ActivityReportController {
     @PostMapping("/{reportId}/documents")
     @Operation(summary = "Upload de documento para relatÃ³rio", description = "Faz upload de um documento para um relatÃ³rio de atividade especÃ­fico.")
     public ResponseEntity<ActivityReportDTO> uploadDocument(
-            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable UUID reportId,
+            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable("reportId") UUID reportId,
             @Parameter(description = "Arquivo de documento") @RequestParam("document") MultipartFile file) throws IOException {
         
         log.info("POST /api/activity-reports/{}/documents - Upload de documento para relatÃ³rio", reportId);
@@ -244,8 +244,8 @@ public class ActivityReportController {
     @PatchMapping("/{id}/approve")
     @Operation(summary = "Aprovar relatÃ³rio de atividade", description = "Aprova um relatÃ³rio de atividade pelo ID.")
     public ResponseEntity<ActivityReportDTO> approveReport(
-            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable UUID id,
-            @Parameter(description = "ID do supervisor que aprova") @RequestParam UUID supervisorId) {
+            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable("id") UUID id,
+            @Parameter(description = "ID do supervisor que aprova") @RequestParam(value = "supervisorId") UUID supervisorId) {
         
         log.info("PATCH /api/activity-reports/{}/approve - Aprovando relatÃ³rio", id);
         ActivityReportDTO approvedReport = activityReportService.approveReport(id, supervisorId);
@@ -255,9 +255,9 @@ public class ActivityReportController {
     @PatchMapping("/{id}/reject")
     @Operation(summary = "Rejeitar relatÃ³rio de atividade", description = "Rejeita um relatÃ³rio de atividade pelo ID, com um motivo.")
     public ResponseEntity<ActivityReportDTO> rejectReport(
-            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable UUID id,
-            @Parameter(description = "ID do supervisor que rejeita") @RequestParam UUID supervisorId,
-            @Parameter(description = "Motivo da rejeiÃ§Ã£o") @RequestParam String reason) {
+            @Parameter(description = "ID do relatÃ³rio de atividade") @PathVariable("id") UUID id,
+            @Parameter(description = "ID do supervisor que rejeita") @RequestParam(value = "supervisorId") UUID supervisorId,
+            @Parameter(description = "Motivo da rejeiÃ§Ã£o") @RequestParam(value = "reason") String reason) {
         
         log.info("PATCH /api/activity-reports/{}/reject - Rejeitando relatÃ³rio", id);
         ActivityReportDTO rejectedReport = activityReportService.rejectReport(id, supervisorId, reason);
@@ -267,10 +267,10 @@ public class ActivityReportController {
     @GetMapping("/pdf")
     @Operation(summary = "Gerar relatÃ³rio de atividade em PDF", description = "Gera um relatÃ³rio de atividade em formato PDF com base em filtros.")
     public ResponseEntity<?> generatePDFReport(
-            @Parameter(description = "ID do funcionÃ¡rio") @RequestParam(required = false) UUID employeeId,
-            @Parameter(description = "ID do cliente") @RequestParam(required = false) UUID clientId,
-            @Parameter(description = "Data de inÃ­cio do perÃ­odo (ISO: YYYY-MM-DD)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @Parameter(description = "Data de fim do perÃ­odo (ISO: YYYY-MM-DD)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @Parameter(description = "ID do funcionÃ¡rio") @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @Parameter(description = "ID do cliente") @RequestParam(value = "clientId", required = false) UUID clientId,
+            @Parameter(description = "Data de inÃ­cio do perÃ­odo (ISO: YYYY-MM-DD)") @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "Data de fim do perÃ­odo (ISO: YYYY-MM-DD)") @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         
         try {
             log.info("GET /api/activity-reports/pdf - Gerando relatÃ³rio PDF - EmployeeId: {}, ClientId: {}, StartDate: {}, EndDate: {}", 

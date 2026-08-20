@@ -74,19 +74,19 @@ public class TrainingController {
 
     @Operation(summary = "Atualiza treinamento")
     @PutMapping("/{id}")
-    public ResponseEntity<Training> update(@PathVariable UUID id, @RequestBody Training training) {
+    public ResponseEntity<Training> update(@PathVariable("id") UUID id, @RequestBody Training training) {
         return ResponseEntity.ok(trainingService.update(id, training));
     }
 
     @Operation(summary = "Busca por id")
     @GetMapping("/{id}")
-    public ResponseEntity<Training> findById(@PathVariable UUID id) {
+    public ResponseEntity<Training> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(trainingService.findById(id));
     }
 
     @Operation(summary = "Exclui treinamento")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         trainingService.delete(id);
         return ResponseEntity.noContent().build();
     }

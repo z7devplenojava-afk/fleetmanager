@@ -36,13 +36,13 @@ public class ServiceController {
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
     public ResponseEntity<List<ServiceDTO>> list(
             @Parameter(description = "Status do serviÃ§o") 
-            @RequestParam(required = false) Service.ServiceStatus status,
+            @RequestParam(value = "status", required = false) Service.ServiceStatus status,
             @Parameter(description = "Categoria do serviÃ§o") 
-            @RequestParam(required = false) String category,
+            @RequestParam(value = "category", required = false) String category,
             @Parameter(description = "Se Ã© faturÃ¡vel") 
-            @RequestParam(required = false) Boolean isBillable,
+            @RequestParam(value = "isBillable", required = false) Boolean isBillable,
             @Parameter(description = "Termo de busca") 
-            @RequestParam(required = false) String searchTerm) {
+            @RequestParam(value = "searchTerm", required = false) String searchTerm) {
         
         log.info("Listando serviÃ§os - status: {}, category: {}, isBillable: {}, searchTerm: {}", 
                 status, category, isBillable, searchTerm);
@@ -56,13 +56,13 @@ public class ServiceController {
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
     public ResponseEntity<Page<ServiceDTO>> listPaginated(
             @Parameter(description = "Status do serviÃ§o") 
-            @RequestParam(required = false) Service.ServiceStatus status,
+            @RequestParam(value = "status", required = false) Service.ServiceStatus status,
             @Parameter(description = "Categoria do serviÃ§o") 
-            @RequestParam(required = false) String category,
+            @RequestParam(value = "category", required = false) String category,
             @Parameter(description = "Se Ã© faturÃ¡vel") 
-            @RequestParam(required = false) Boolean isBillable,
+            @RequestParam(value = "isBillable", required = false) Boolean isBillable,
             @Parameter(description = "Termo de busca") 
-            @RequestParam(required = false) String searchTerm,
+            @RequestParam(value = "searchTerm", required = false) String searchTerm,
             Pageable pageable) {
         
         log.info("Listando serviÃ§os paginados - status: {}, category: {}, isBillable: {}, searchTerm: {}", 
@@ -102,7 +102,7 @@ public class ServiceController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar serviÃ§o por ID", description = "Retorna um serviÃ§o especÃ­fico")
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
-    public ResponseEntity<ServiceDTO> findById(@PathVariable UUID id) {
+    public ResponseEntity<ServiceDTO> findById(@PathVariable("id") UUID id) {
         log.info("Buscando serviÃ§o por ID: {}", id);
         ServiceDTO service = serviceService.findById(id);
         return ResponseEntity.ok(service);
@@ -111,7 +111,7 @@ public class ServiceController {
     @GetMapping("/code/{code}")
     @Operation(summary = "Buscar serviÃ§o por cÃ³digo", description = "Retorna um serviÃ§o especÃ­fico pelo cÃ³digo")
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
-    public ResponseEntity<ServiceDTO> findByCode(@PathVariable String code) {
+    public ResponseEntity<ServiceDTO> findByCode(@PathVariable("code") String code) {
         log.info("Buscando serviÃ§o por cÃ³digo: {}", code);
         ServiceDTO service = serviceService.findByCode(code);
         return ResponseEntity.ok(service);
@@ -135,7 +135,7 @@ public class ServiceController {
     @Operation(summary = "Atualizar serviÃ§o", description = "Atualiza um serviÃ§o existente")
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
     public ResponseEntity<ServiceDTO> update(
-            @PathVariable UUID id, 
+            @PathVariable("id") UUID id, 
             @Valid @RequestBody UpdateServiceDTO dto) {
         log.info("Atualizando serviÃ§o: {}", id);
         
@@ -150,7 +150,7 @@ public class ServiceController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir serviÃ§o", description = "Exclui um serviÃ§o")
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         log.info("Excluindo serviÃ§o: {}", id);
         serviceService.delete(id);
         return ResponseEntity.noContent().build();
@@ -161,7 +161,7 @@ public class ServiceController {
     @GetMapping("/category/{category}")
     @Operation(summary = "Listar serviÃ§os por categoria", description = "Lista serviÃ§os de uma categoria especÃ­fica")
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
-    public ResponseEntity<List<ServiceDTO>> findByCategory(@PathVariable String category) {
+    public ResponseEntity<List<ServiceDTO>> findByCategory(@PathVariable("category") String category) {
         log.info("Buscando serviÃ§os por categoria: {}", category);
         List<ServiceDTO> services = serviceService.findByCategory(category);
         return ResponseEntity.ok(services);
@@ -213,7 +213,7 @@ public class ServiceController {
     @GetMapping("/exists/code/{code}")
     @Operation(summary = "Verificar se cÃ³digo existe", description = "Verifica se um cÃ³digo de serviÃ§o jÃ¡ existe")
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
-    public ResponseEntity<Object> existsByCode(@PathVariable String code) {
+    public ResponseEntity<Object> existsByCode(@PathVariable("code") String code) {
         log.info("Verificando se cÃ³digo existe: {}", code);
         boolean exists = serviceService.existsByCode(code);
         

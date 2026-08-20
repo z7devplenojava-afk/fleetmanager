@@ -109,4 +109,20 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
         // SECURITY: Buscar todos os employee records de um usuário (para validação de
         // acesso a empresas)
         List<Employee> findByUser(User user);
+
+        // ====================================================================
+        // Importação multi-tenant (CNPJ-aware)
+        // ====================================================================
+
+        /** Busca por CPF normalizado (somente dígitos) dentro de uma empresa */
+        @Query(value = "SELECT * FROM employees WHERE company_id = :companyId " +
+                        "AND REGEXP_REPLACE(COALESCE(document, ''), '[^0-9]', '', 'g') = :cpf LIMIT 1",
+                        nativeQuery = true)
+        Optional<Employee> findByCpfAndCompanyId(@Param("cpf") String cpf, @Param("companyId") UUID companyId);
+
+        /** Busca por nome exato (case-insensitive) dentro de uma empresa */
+        @Query(value = "SELECT * FROM employees WHERE company_id = :companyId " +
+                        "AND UPPER(TRIM(name)) = UPPER(TRIM(:name)) LIMIT 1",
+                        nativeQuery = true)
+        Optional<Employee> findByNameExactAndCompanyId(@Param("name") String name, @Param("companyId") UUID companyId);
 }

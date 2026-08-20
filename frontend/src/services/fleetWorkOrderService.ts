@@ -141,6 +141,14 @@ class FleetWorkOrderService {
         return data;
     }
 
+    // ── Solicitar compra ao almoxarifado ─────────────────────────────────────
+
+    /** Cria uma solicitação de compra no módulo Compras com as peças (PART) da O.S. */
+    async requestPurchase(id: string): Promise<any> {
+        const { data } = await api.post(`/fleet-work-orders/${id}/request-purchase`);
+        return data;
+    }
+
     // ── Ranking ───────────────────────────────────────────────────────────────
 
     async getVehicleRanking(): Promise<VehicleMaintenanceRanking[]> {

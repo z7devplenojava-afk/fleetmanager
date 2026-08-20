@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.mail.*;
 import jakarta.mail.internet.InternetAddress;
@@ -100,6 +101,7 @@ public class EmailAccountService {
                 .username(StringUtils.hasText(request.getUsername()) ? request.getUsername().trim() : null)
                 .password(request.getPassword())
                 .authType(StringUtils.hasText(request.getAuthType()) ? request.getAuthType() : "PASSWORD")
+                .signature(request.getSignature())
                 .status("ACTIVE")
                 .lastSyncStatus("NEVER")
                 .build();
@@ -145,6 +147,9 @@ public class EmailAccountService {
         }
         if (StringUtils.hasText(request.getAuthType())) {
             account.setAuthType(request.getAuthType());
+        }
+        if (request.getSignature() != null) {
+            account.setSignature(request.getSignature());
         }
 
         EmailAccount saved = accountRepository.save(account);
@@ -380,6 +385,7 @@ public class EmailAccountService {
                 .smtpSsl(account.getSmtpSsl())
                 .username(account.getUsername())
                 .authType(account.getAuthType())
+                .signature(account.getSignature())
                 .status(account.getStatus())
                 .lastSyncAt(account.getLastSyncAt())
                 .lastSyncStatus(account.getLastSyncStatus())
@@ -417,6 +423,59 @@ public class EmailAccountService {
             }
         }
         return msg.length() > 300 ? msg.substring(0, 300) : msg;
+    }
+
+    /**
+     * Recebe um arquivo enviado pelo usuário e o registra como anexo de composição
+     * (sem mensagem vinculada ainda). O id retornado é usado no envio via
+     * {@code attachmentIds} do EmailSendRequest.
+     */
+    @Transactional
+    public Map<String, Object> uploadComposeAttachment(UUID accountId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Nenhum arquivo enviado");
+        }
+        EmailAccount account = getByIdOrThrow(accountId);
+
+        String safeName = sanitizeFileName(file.getOriginalFilename() != null
+                ? file.getOriginalFilename() : "anexo.bin");
+        String relPath = "email-attachments/" + account.getId() + "/compose/" + UUID.randomUUID() + "/" + safeName;
+        Path abs = Paths.get(storagePath).toAbsolutePath().normalize().resolve(relPath).normalize();
+        if (!abs.startsWith(Paths.get(storagePath).toAbsolutePath().normalize())) {
+            throw new IllegalArgumentException("Nome de arquivo inválido");
+        }
+        try {
+            Files.createDirectories(abs.getParent());
+            file.transferTo(abs.toFile());
+        } catch (Exception e) {
+            log.error("Erro ao salvar anexo de composição: {}", e.getMessage());
+            throw new IllegalArgumentException("Erro ao salvar anexo: " + e.getMessage());
+        }
+
+        EmailMessageAttachment att = EmailMessageAttachment.builder()
+                .message(null)
+                .account(account)
+                .companyId(account.getCompanyId())
+                .fileName(safeName)
+                .contentType(file.getContentType())
+                .sizeBytes(file.getSize())
+                .storagePath(relPath)
+                .inline(false)
+                .build();
+        EmailMessageAttachment saved = attachmentRepository.save(att);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", saved.getId());
+        result.put("fileName", saved.getFileName());
+        result.put("contentType", saved.getContentType());
+        result.put("sizeBytes", saved.getSizeBytes());
+        return result;
+    }
+
+    private String sanitizeFileName(String name) {
+        String cleaned = name.replaceAll("[\\\\/:*?\"<>|]", "_").replaceAll("\\s+", " ").trim();
+        if (cleaned.isBlank()) cleaned = "anexo.bin";
+        return cleaned.length() > 200 ? cleaned.substring(0, 200) : cleaned;
     }
 
     public String addressesToJson(List<jakarta.mail.Address> addresses) {

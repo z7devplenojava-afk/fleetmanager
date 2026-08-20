@@ -75,7 +75,7 @@ public class LeadController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar lead por ID", description = "Retorna um lead especÃ­fico pelo ID")
     @Transactional(readOnly = true)
-    public ResponseEntity<Lead> getLeadById(@PathVariable String id) {
+    public ResponseEntity<Lead> getLeadById(@PathVariable("id") String id) {
         Lead lead = leadService.findById(UUID.fromString(id));
         
         // ForÃ§ar inicializaÃ§Ã£o completa do assignedTo antes da serializaÃ§Ã£o JSON
@@ -129,7 +129,7 @@ public class LeadController {
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar lead", description = "Atualiza um lead existente")
     @Transactional
-    public ResponseEntity<Lead> updateLead(@PathVariable String id, @RequestBody LeadDTO leadDTO) {
+    public ResponseEntity<Lead> updateLead(@PathVariable("id") String id, @RequestBody LeadDTO leadDTO) {
         log.info("ðŸ“¡ RECEBIDO UPDATE LEAD ID: {}", id);
         log.info("ðŸ“¦ Payload: {}", leadDTO);
         Lead updatedLead = leadService.update(UUID.fromString(id), leadDTO);
@@ -162,7 +162,7 @@ public class LeadController {
 
     @PatchMapping("/{id}/status")
     @Operation(summary = "Atualizar status do lead", description = "Atualiza apenas o status de um lead")
-    public ResponseEntity<Lead> updateLeadStatus(@PathVariable String id, @RequestBody Map<String, String> statusUpdate) {
+    public ResponseEntity<Lead> updateLeadStatus(@PathVariable("id") String id, @RequestBody Map<String, String> statusUpdate) {
         String status = statusUpdate.get("status");
         Lead updatedLead = leadService.updateStatus(UUID.fromString(id), status);
         return ResponseEntity.ok(updatedLead);
@@ -170,14 +170,14 @@ public class LeadController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir lead", description = "Exclui um lead do sistema")
-    public ResponseEntity<Void> deleteLead(@PathVariable String id) {
+    public ResponseEntity<Void> deleteLead(@PathVariable("id") String id) {
         leadService.delete(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/status/{status}")
     @Operation(summary = "Buscar leads por status", description = "Retorna leads filtrados por status")
-    public ResponseEntity<List<Lead>> getLeadsByStatus(@PathVariable String status) {
+    public ResponseEntity<List<Lead>> getLeadsByStatus(@PathVariable("status") String status) {
         LeadStatus leadStatus = LeadStatus.valueOf(status.toUpperCase());
         List<Lead> leads = leadService.findByStatus(leadStatus);
         return ResponseEntity.ok(leads);
@@ -185,7 +185,7 @@ public class LeadController {
 
     @GetMapping("/source/{source}")
     @Operation(summary = "Buscar leads por fonte", description = "Retorna leads filtrados por fonte")
-    public ResponseEntity<List<Lead>> getLeadsBySource(@PathVariable String source) {
+    public ResponseEntity<List<Lead>> getLeadsBySource(@PathVariable("source") String source) {
         LeadSource leadSource = LeadSource.valueOf(source.toUpperCase());
         List<Lead> leads = leadService.findBySource(leadSource);
         return ResponseEntity.ok(leads);
@@ -193,35 +193,35 @@ public class LeadController {
 
     @GetMapping("/assigned/{userId}")
     @Operation(summary = "Buscar leads por responsÃ¡vel", description = "Retorna leads atribuÃ­dos a um usuÃ¡rio especÃ­fico")
-    public ResponseEntity<List<Lead>> getLeadsByAssignedTo(@PathVariable String userId) {
+    public ResponseEntity<List<Lead>> getLeadsByAssignedTo(@PathVariable("userId") String userId) {
         List<Lead> leads = leadService.findByAssignedTo(UUID.fromString(userId));
         return ResponseEntity.ok(leads);
     }
 
     @GetMapping("/created/{userId}")
     @Operation(summary = "Buscar leads por criador", description = "Retorna leads criados por um usuÃ¡rio especÃ­fico")
-    public ResponseEntity<List<Lead>> getLeadsByCreatedBy(@PathVariable String userId) {
+    public ResponseEntity<List<Lead>> getLeadsByCreatedBy(@PathVariable("userId") String userId) {
         List<Lead> leads = leadService.findByCreatedBy(UUID.fromString(userId));
         return ResponseEntity.ok(leads);
     }
 
     @GetMapping("/company/{company}")
     @Operation(summary = "Buscar leads por empresa", description = "Retorna leads filtrados por empresa")
-    public ResponseEntity<List<Lead>> getLeadsByCompany(@PathVariable String company) {
+    public ResponseEntity<List<Lead>> getLeadsByCompany(@PathVariable("company") String company) {
         List<Lead> leads = leadService.findByCompany(company);
         return ResponseEntity.ok(leads);
     }
 
     @GetMapping("/recent/{days}")
     @Operation(summary = "Buscar leads recentes", description = "Retorna leads criados nos Ãºltimos X dias")
-    public ResponseEntity<List<Lead>> getRecentLeads(@PathVariable int days) {
+    public ResponseEntity<List<Lead>> getRecentLeads(@PathVariable("days") int days) {
         List<Lead> leads = leadService.findRecentLeads(days);
         return ResponseEntity.ok(leads);
     }
 
     @GetMapping("/search")
     @Operation(summary = "Buscar leads", description = "Busca leads por termo de pesquisa")
-    public ResponseEntity<List<Lead>> searchLeads(@RequestParam String term) {
+    public ResponseEntity<List<Lead>> searchLeads(@RequestParam(value = "term") String term) {
         List<Lead> leads = leadService.searchLeads(term);
         return ResponseEntity.ok(leads);
     }

@@ -67,7 +67,7 @@ public class RemanejamentoController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     @PutMapping("/{id}")
-    public ResponseEntity<RemanejamentoDTO> update(@PathVariable UUID id, 
+    public ResponseEntity<RemanejamentoDTO> update(@PathVariable("id") UUID id, 
                                               @RequestBody RemanejamentoDTO dto,
                                               HttpServletRequest request) {
         User usuarioAtual = getUsuarioAtual();
@@ -86,7 +86,7 @@ public class RemanejamentoController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id, HttpServletRequest request) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id, HttpServletRequest request) {
         User usuarioAtual = getUsuarioAtual();
         String ipUsuario = getClientIpAddress(request);
         
@@ -115,7 +115,7 @@ public class RemanejamentoController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<RemanejamentoDTO> findById(@PathVariable UUID id) {
+    public ResponseEntity<RemanejamentoDTO> findById(@PathVariable("id") UUID id) {
         Optional<RemanejamentoDTO> remanejamento = remanejamentoService.findByIdAsDTO(id);
         return remanejamento.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -128,7 +128,7 @@ public class RemanejamentoController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<RemanejamentoDTO>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<RemanejamentoDTO>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         return ResponseEntity.ok(remanejamentoService.findByEmployeeIdAsDTO(employeeId));
     }
     
@@ -136,12 +136,12 @@ public class RemanejamentoController {
                description = "Gera relatÃ³rio PDF filtrado por funcionÃ¡rio, tipo, origem, destino e perÃ­odo")
     @GetMapping("/report/pdf")
     public ResponseEntity<byte[]> generatePDFReport(
-            @RequestParam(required = false) UUID employeeId,
-            @RequestParam(required = false) String tipo,
-            @RequestParam(required = false) String origem,
-            @RequestParam(required = false) String destino,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate) {
+            @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @RequestParam(value = "tipo", required = false) String tipo,
+            @RequestParam(value = "origem", required = false) String origem,
+            @RequestParam(value = "destino", required = false) String destino,
+            @RequestParam(value = "DATE", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(value = "DATE", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate) {
         try {
             com.z7design.fleet_manager.model.RemanejamentoTipo tipoEnum = null;
             if (tipo != null && !tipo.isEmpty() && !"all".equals(tipo)) {

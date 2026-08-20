@@ -58,7 +58,7 @@ public class TransportMobilizationController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TransportMobilizationDTO> findById(@PathVariable UUID id) {
+    public ResponseEntity<TransportMobilizationDTO> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(service.findById(id));
     }
 
@@ -69,27 +69,27 @@ public class TransportMobilizationController {
 
     @PutMapping("/{id}")
     public ResponseEntity<TransportMobilizationDTO> update(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody TransportMobilizationDTO dto) {
         return ResponseEntity.ok(service.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/odometer-photo")
     public ResponseEntity<TransportMobilizationDTO> uploadOdometerPhoto(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestParam("photo") MultipartFile file) {
         return ResponseEntity.ok(service.uploadOdometerPhoto(id, file));
     }
 
     @PostMapping("/{id}/photos")
     public ResponseEntity<TransportMobilizationDTO> uploadPhotos(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestParam("photos") MultipartFile[] files) {
         return ResponseEntity.ok(service.uploadPhotos(id, files));
     }

@@ -29,28 +29,28 @@ public class DisembarkingController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar desembarque", description = "Atualiza um registro de desembarque existente")
-    public ResponseEntity<DisembarkingDTO> update(@PathVariable UUID id, @RequestBody DisembarkingDTO dto) {
+    public ResponseEntity<DisembarkingDTO> update(@PathVariable("id") UUID id, @RequestBody DisembarkingDTO dto) {
         DisembarkingDTO updated = disembarkingService.update(id, dto);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir desembarque", description = "Exclui um registro de desembarque")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         disembarkingService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar desembarque por ID", description = "Retorna um registro de desembarque pelo ID")
-    public ResponseEntity<DisembarkingDTO> getById(@PathVariable UUID id) {
+    public ResponseEntity<DisembarkingDTO> getById(@PathVariable("id") UUID id) {
         DisembarkingDTO disembarking = disembarkingService.getById(id);
         return ResponseEntity.ok(disembarking);
     }
 
     @GetMapping("/boarding/{boardingId}")
     @Operation(summary = "Buscar desembarque por embarque", description = "Retorna o desembarque associado a um embarque")
-    public ResponseEntity<DisembarkingDTO> getByBoardingId(@PathVariable UUID boardingId) {
+    public ResponseEntity<DisembarkingDTO> getByBoardingId(@PathVariable("boardingId") UUID boardingId) {
         Optional<DisembarkingDTO> disembarking = disembarkingService.getByBoardingId(boardingId);
         return disembarking.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }

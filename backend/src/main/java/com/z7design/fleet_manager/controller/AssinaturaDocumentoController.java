@@ -38,7 +38,7 @@ public class AssinaturaDocumentoController {
     @PostMapping("/eletronica")
     @PreAuthorize("hasAuthority('EMPLOYEES_WRITE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
     public ResponseEntity<AssinaturaDocumento> criarAssinaturaEletronica(
-            @RequestParam UUID documentoId,
+            @RequestParam(value = "documentoId") UUID documentoId,
             @RequestParam(value = "observacoes", required = false) String observacoes,
             HttpServletRequest request) {
         
@@ -59,9 +59,9 @@ public class AssinaturaDocumentoController {
      */
     @PostMapping("/digital")
     public ResponseEntity<AssinaturaDocumento> criarAssinaturaDigital(
-            @RequestParam UUID documentoId,
-            @RequestParam String certificadoDigital,
-            @RequestParam String hashDocumento,
+            @RequestParam(value = "documentoId") UUID documentoId,
+            @RequestParam(value = "certificadoDigital") String certificadoDigital,
+            @RequestParam(value = "hashDocumento") String hashDocumento,
             HttpServletRequest request) {
         
         try {
@@ -80,7 +80,7 @@ public class AssinaturaDocumentoController {
      * Lista assinaturas de um documento
      */
     @GetMapping("/documento/{documentoId}")
-    public ResponseEntity<List<AssinaturaDocumento>> listarPorDocumento(@PathVariable UUID documentoId) {
+    public ResponseEntity<List<AssinaturaDocumento>> listarPorDocumento(@PathVariable("documentoId") UUID documentoId) {
         try {
             List<AssinaturaDocumento> assinaturas = assinaturaDocumentoService.listarPorDocumento(documentoId);
             return ResponseEntity.ok(assinaturas);
@@ -93,7 +93,7 @@ public class AssinaturaDocumentoController {
      * Lista assinaturas de um usuÃ¡rio
      */
     @GetMapping("/usuario/{usuarioId}")
-    public ResponseEntity<List<AssinaturaDocumento>> listarPorUsuario(@PathVariable UUID usuarioId) {
+    public ResponseEntity<List<AssinaturaDocumento>> listarPorUsuario(@PathVariable("usuarioId") UUID usuarioId) {
         List<AssinaturaDocumento> assinaturas = assinaturaDocumentoService.listarPorUsuario(usuarioId);
         return ResponseEntity.ok(assinaturas);
     }
@@ -117,7 +117,7 @@ public class AssinaturaDocumentoController {
      * Lista assinaturas por tipo
      */
     @GetMapping("/tipo/{tipo}")
-    public ResponseEntity<List<AssinaturaDocumento>> listarPorTipo(@PathVariable AssinaturaDocumento.TipoAssinatura tipo) {
+    public ResponseEntity<List<AssinaturaDocumento>> listarPorTipo(@PathVariable("tipo") AssinaturaDocumento.TipoAssinatura tipo) {
         List<AssinaturaDocumento> assinaturas = assinaturaDocumentoService.listarPorTipo(tipo);
         return ResponseEntity.ok(assinaturas);
     }
@@ -127,8 +127,8 @@ public class AssinaturaDocumentoController {
      */
     @GetMapping("/periodo")
     public ResponseEntity<List<AssinaturaDocumento>> listarPorPeriodo(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
+            @RequestParam(value = "dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
+            @RequestParam(value = "dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
         
         List<AssinaturaDocumento> assinaturas = assinaturaDocumentoService.listarPorPeriodo(dataInicio, dataFim);
         return ResponseEntity.ok(assinaturas);
@@ -139,8 +139,8 @@ public class AssinaturaDocumentoController {
      */
     @GetMapping("/minhas-assinaturas/periodo")
     public ResponseEntity<List<AssinaturaDocumento>> listarMinhasAssinaturasPorPeriodo(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
+            @RequestParam(value = "dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
+            @RequestParam(value = "dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
         
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -157,7 +157,7 @@ public class AssinaturaDocumentoController {
      * Busca assinatura por hash
      */
     @GetMapping("/hash/{hashAssinatura}")
-    public ResponseEntity<AssinaturaDocumento> buscarPorHash(@PathVariable String hashAssinatura) {
+    public ResponseEntity<AssinaturaDocumento> buscarPorHash(@PathVariable("hashAssinatura") String hashAssinatura) {
         try {
             AssinaturaDocumento assinatura = assinaturaDocumentoService.buscarPorHash(hashAssinatura);
             return ResponseEntity.ok(assinatura);
@@ -170,7 +170,7 @@ public class AssinaturaDocumentoController {
      * Verifica se hash de assinatura jÃ¡ existe
      */
     @GetMapping("/hash/{hashAssinatura}/existe")
-    public ResponseEntity<Map<String, Boolean>> verificarHashExiste(@PathVariable String hashAssinatura) {
+    public ResponseEntity<Map<String, Boolean>> verificarHashExiste(@PathVariable("hashAssinatura") String hashAssinatura) {
         boolean existe = assinaturaDocumentoService.existeHashAssinatura(hashAssinatura);
         return ResponseEntity.ok(Map.of("existe", existe));
     }
@@ -188,7 +188,7 @@ public class AssinaturaDocumentoController {
      * Busca Ãºltima assinatura de um documento
      */
     @GetMapping("/documento/{documentoId}/ultima")
-    public ResponseEntity<AssinaturaDocumento> buscarUltimaAssinatura(@PathVariable UUID documentoId) {
+    public ResponseEntity<AssinaturaDocumento> buscarUltimaAssinatura(@PathVariable("documentoId") UUID documentoId) {
         AssinaturaDocumento assinatura = assinaturaDocumentoService.buscarUltimaAssinatura(documentoId);
         if (assinatura != null) {
             return ResponseEntity.ok(assinatura);
@@ -210,7 +210,7 @@ public class AssinaturaDocumentoController {
      * Valida integridade de uma assinatura
      */
     @PostMapping("/{id}/validar-integridade")
-    public ResponseEntity<Map<String, Object>> validarIntegridade(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, Object>> validarIntegridade(@PathVariable("id") UUID id) {
         try {
             boolean valida = assinaturaDocumentoService.validarIntegridadeAssinatura(id);
             return ResponseEntity.ok(Map.of("valida", valida));
@@ -223,7 +223,7 @@ public class AssinaturaDocumentoController {
      * Lista assinaturas por IP
      */
     @GetMapping("/ip/{ipAddress}")
-    public ResponseEntity<List<AssinaturaDocumento>> listarPorIp(@PathVariable String ipAddress) {
+    public ResponseEntity<List<AssinaturaDocumento>> listarPorIp(@PathVariable("ipAddress") String ipAddress) {
         // TODO: Implementar mÃ©todo no service
         List<AssinaturaDocumento> assinaturas = List.of();
         return ResponseEntity.ok(assinaturas);
@@ -233,7 +233,7 @@ public class AssinaturaDocumentoController {
      * Lista assinaturas por user agent
      */
     @GetMapping("/user-agent")
-    public ResponseEntity<List<AssinaturaDocumento>> listarPorUserAgent(@RequestParam String userAgent) {
+    public ResponseEntity<List<AssinaturaDocumento>> listarPorUserAgent(@RequestParam(value = "userAgent") String userAgent) {
         // TODO: Implementar mÃ©todo no service
         List<AssinaturaDocumento> assinaturas = List.of();
         return ResponseEntity.ok(assinaturas);
@@ -244,7 +244,7 @@ public class AssinaturaDocumentoController {
      */
     @PostMapping("/assinar-rapido")
     public ResponseEntity<Map<String, Object>> assinaturaRapida(
-            @RequestParam UUID documentoId,
+            @RequestParam(value = "documentoId") UUID documentoId,
             @RequestParam(value = "observacoes", required = false) String observacoes,
             HttpServletRequest request) {
         
@@ -272,7 +272,7 @@ public class AssinaturaDocumentoController {
      */
     @GetMapping("/documento/{documentoId}/usuario/{usuarioId}/verificar")
     public ResponseEntity<Map<String, Boolean>> verificarAssinaturaUsuario(
-            @PathVariable UUID documentoId, @PathVariable UUID usuarioId) {
+            @PathVariable("documentoId") UUID documentoId, @PathVariable("usuarioId") UUID usuarioId) {
         
         try {
             // TODO: Implementar verificaÃ§Ã£o especÃ­fica

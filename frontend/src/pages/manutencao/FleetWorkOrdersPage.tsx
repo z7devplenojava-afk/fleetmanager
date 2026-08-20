@@ -22,7 +22,8 @@ import {
     CircleDashed,
     TrendingUp,
     DollarSign,
-    Car
+    Car,
+    ShoppingCart
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -32,11 +33,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import fleetWorkOrderService, {
     WorkOrderStatus,
+    WorkOrderItemType,
     FleetWorkOrder
 } from '@/services/fleetWorkOrderService';
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
 import { useToast } from '@/hooks/use-toast';
-import { generateFleetWorkOrderPDFBlob } from '@/utils/fleetWorkOrderPDFGenerator';
+import {
+    generateFleetWorkOrderPDFBlob,
+    generateFleetWorkOrderPDFDownload
+} from '@/utils/fleetWorkOrderPDFGenerator';
 
 const STATUS_CONFIG: Record<WorkOrderStatus, { label: string, color: string, icon: any }> = {
     [WorkOrderStatus.DRAFT]: { label: 'Rascunho', color: 'bg-gray-500', icon: CircleDashed },
@@ -69,6 +74,8 @@ const FleetWorkOrdersPage: React.FC = () => {
         }
     };
 
+    const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+
     const handleGeneratePDF = async (order: FleetWorkOrder) => {
         try {
             const blob = await generateFleetWorkOrderPDFBlob(order);
@@ -79,6 +86,50 @@ const FleetWorkOrdersPage: React.FC = () => {
             window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
         } catch (error) {
             toast({ title: 'Erro', description: 'Falha ao gerar PDF da O.S.', variant: 'destructive' });
+        }
+    };
+
+    const handleDownloadPDF = async (order: FleetWorkOrder) => {
+        setGeneratingPdfId(order.id);
+        try {
+            await generateFleetWorkOrderPDFDownload(order);
+            toast({ title: 'Sucesso', description: 'PDF da O.S. baixado.' });
+        } catch (error) {
+            toast({ title: 'Erro', description: 'Falha ao baixar PDF da O.S.', variant: 'destructive' });
+        } finally {
+            setGeneratingPdfId(null);
+        }
+    };
+
+    const [requestingPurchaseId, setRequestingPurchaseId] = useState<string | null>(null);
+
+    const handleRequestPurchase = async (order: FleetWorkOrder) => {
+        const parts = (order.items || []).filter(i => (i.type ?? WorkOrderItemType.PART) === WorkOrderItemType.PART);
+        const total = parts.reduce((s, i) => s + (i.totalPrice || 0), 0);
+        const ok = window.confirm(
+            `Enviar solicitação de compra ao almoxarifado?\n\n` +
+            `Peças da O.S. ${order.osNumber || '#' + order.id.slice(0, 8)}: ${parts.length}\n` +
+            `Valor estimado: ${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}\n\n` +
+            `O almoxarifado receberá a solicitação e fará as cotações.`
+        );
+        if (!ok) return;
+        setRequestingPurchaseId(order.id);
+        try {
+            const created = await fleetWorkOrderService.requestPurchase(order.id);
+            toast({
+                title: 'Solicitação enviada',
+                description: `Compra solicitada ao almoxarifado: ${created.requestNumber || ''} — aguardando cotações.`
+            });
+            queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+        } catch (error: any) {
+            const msg = error?.response?.data?.error;
+            toast({
+                title: 'Erro',
+                description: msg || 'Falha ao solicitar compra ao almoxarifado.',
+                variant: 'destructive'
+            });
+        } finally {
+            setRequestingPurchaseId(null);
         }
     };
 
@@ -214,24 +265,55 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                         {STATUS_CONFIG[order.status].label}
                                                     </Badge>
                                                 </td>
-                                                <td className="p-4 text-center">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="sm" className="hover:bg-gray-700 h-8 w-8 p-0">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="bg-seguranca-graphite border-gray-600">
-                                                            <DropdownMenuItem onClick={() => { setSelectedOrder(order); setIsFormOpen(true); }} className="text-gray-200">
-                                                                <Eye className="mr-2 h-4 w-4" /> Detalhes / Editar
-                                                            </DropdownMenuItem>
+                                                <td className="p-4">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleGeneratePDF(order)}
+                                                            disabled={generatingPdfId === order.id}
+                                                            title="Visualizar / Imprimir PDF da O.S. (entregar ao mecânico)"
+                                                            className="border-red-500/60 text-red-400 hover:bg-red-500/10 hover:text-red-300 h-8 px-2 text-xs"
+                                                        >
+                                                            <FileText className="mr-1 h-3.5 w-3.5" />
+                                                            PDF
+                                                        </Button>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="sm" className="hover:bg-gray-700 h-8 w-8 p-0">
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end" className="bg-seguranca-graphite border-gray-600">
+                                                                <DropdownMenuItem onClick={() => { setSelectedOrder(order); setIsFormOpen(true); }} className="text-gray-200">
+                                                                    <Eye className="mr-2 h-4 w-4" /> Detalhes / Editar
+                                                                </DropdownMenuItem>
 
-                                                            <DropdownMenuItem
-                                                                onClick={() => handleGeneratePDF(order)}
-                                                                className="text-gray-200"
-                                                            >
-                                                                <FileText className="mr-2 h-4 w-4" /> Gerar PDF / Imprimir
-                                                            </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleGeneratePDF(order)}
+                                                                    className="text-gray-200"
+                                                                >
+                                                                    <FileText className="mr-2 h-4 w-4" /> Visualizar / Imprimir PDF
+                                                                </DropdownMenuItem>
+
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleDownloadPDF(order)}
+                                                                    disabled={generatingPdfId === order.id}
+                                                                    className="text-gray-200"
+                                                                >
+                                                                    <FileText className="mr-2 h-4 w-4" /> Baixar PDF
+                                                                </DropdownMenuItem>
+
+                                                                {(order.items || []).some(i => (i.type ?? WorkOrderItemType.PART) === WorkOrderItemType.PART) && (
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => handleRequestPurchase(order)}
+                                                                        disabled={requestingPurchaseId === order.id}
+                                                                        className="text-yellow-400"
+                                                                    >
+                                                                        <ShoppingCart className="mr-2 h-4 w-4" />
+                                                                        {requestingPurchaseId === order.id ? 'Solicitando...' : 'Solicitar Compra ao Almoxarifado'}
+                                                                    </DropdownMenuItem>
+                                                                )}
 
                                                             {order.status === WorkOrderStatus.PENDING_APPROVAL && (
                                                                 <DropdownMenuItem
@@ -263,10 +345,10 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                                 onClick={() => handleUpdateStatus(order.id, WorkOrderStatus.CANCELLED)}
                                                                 className="text-red-500"
                                                             >
-                                                                <AlertTriangle className="mr-2 h-4 w-4" /> Cancelar OS
-                                                            </DropdownMenuItem>
+                                                                <AlertTriangle className="mr-2 h-4 w-4" /> Cancelar OS                                                                </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}

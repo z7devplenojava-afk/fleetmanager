@@ -43,7 +43,7 @@ public class ClientAreaDocumentationController {
     @PreAuthorize("hasAnyAuthority('ROLE_CLIENT_MANAGER', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     @Operation(summary = "Estrutura completa (etapas + categorias + arquivos) com verificação de empresa")
     public ResponseEntity<Map<String, Object>> getStructure(
-            @PathVariable UUID documentationId,
+            @PathVariable("documentationId") UUID documentationId,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(service.getFullStructureForCompany(documentationId, user.getCompanyId()));
     }
@@ -52,7 +52,7 @@ public class ClientAreaDocumentationController {
     @PreAuthorize("hasAnyAuthority('ROLE_CLIENT_MANAGER', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     @Operation(summary = "Baixar arquivo com verificação de empresa")
     public ResponseEntity<Resource> downloadFile(
-            @PathVariable UUID fileId,
+            @PathVariable("fileId") UUID fileId,
             @AuthenticationPrincipal User user) {
         Resource resource = service.downloadFileForCompany(fileId, user.getCompanyId());
         return ResponseEntity.ok()

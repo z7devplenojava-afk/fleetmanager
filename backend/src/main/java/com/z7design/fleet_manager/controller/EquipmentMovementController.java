@@ -51,9 +51,9 @@ public class EquipmentMovementController {
             @ApiResponse(responseCode = "404", description = "MovimentaÃ§Ã£o nÃ£o encontrada")
     })
     public ResponseEntity<EquipmentMovementDTO> returnEquipment(
-            @PathVariable UUID movementId,
-            @RequestParam(required = false) String conditionOnReturn,
-            @RequestParam(required = false) String notes) {
+            @PathVariable("movementId") UUID movementId,
+            @RequestParam(value = "conditionOnReturn", required = false) String conditionOnReturn,
+            @RequestParam(value = "notes", required = false) String notes) {
         log.info("Recebida solicitaÃ§Ã£o para processar devoluÃ§Ã£o - Movement ID: {}", movementId);
         EquipmentMovementDTO movement = movementService.returnEquipment(movementId, conditionOnReturn, notes);
         return ResponseEntity.ok(movement);
@@ -62,7 +62,7 @@ public class EquipmentMovementController {
     @GetMapping("/equipment/{equipmentId}/history")
     @Operation(summary = "HistÃ³rico de um equipamento", description = "Retorna todo o histÃ³rico de movimentaÃ§Ãµes de um equipamento")
     @ApiResponse(responseCode = "200", description = "HistÃ³rico retornado com sucesso")
-    public ResponseEntity<List<EquipmentMovementDTO>> getEquipmentHistory(@PathVariable UUID equipmentId) {
+    public ResponseEntity<List<EquipmentMovementDTO>> getEquipmentHistory(@PathVariable("equipmentId") UUID equipmentId) {
         log.info("Recebida solicitaÃ§Ã£o para histÃ³rico do equipamento: {}", equipmentId);
         List<EquipmentMovementDTO> history = movementService.getEquipmentHistory(equipmentId);
         return ResponseEntity.ok(history);
@@ -71,7 +71,7 @@ public class EquipmentMovementController {
     @GetMapping("/employee/{employeeId}")
     @Operation(summary = "MovimentaÃ§Ãµes de um funcionÃ¡rio", description = "Retorna todas as movimentaÃ§Ãµes de equipamentos de um funcionÃ¡rio")
     @ApiResponse(responseCode = "200", description = "MovimentaÃ§Ãµes do funcionÃ¡rio retornadas com sucesso")
-    public ResponseEntity<List<EquipmentMovementDTO>> getEmployeeMovements(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<EquipmentMovementDTO>> getEmployeeMovements(@PathVariable("employeeId") UUID employeeId) {
         log.info("Recebida solicitaÃ§Ã£o para movimentaÃ§Ãµes do funcionÃ¡rio: {}", employeeId);
         List<EquipmentMovementDTO> movements = movementService.getEmployeeMovements(employeeId);
         return ResponseEntity.ok(movements);
@@ -80,7 +80,7 @@ public class EquipmentMovementController {
     @GetMapping("/work-post/{workPostId}")
     @Operation(summary = "MovimentaÃ§Ãµes de um posto", description = "Retorna todas as movimentaÃ§Ãµes de equipamentos de um posto de trabalho")
     @ApiResponse(responseCode = "200", description = "MovimentaÃ§Ãµes do posto retornadas com sucesso")
-    public ResponseEntity<List<EquipmentMovementDTO>> getWorkPostMovements(@PathVariable UUID workPostId) {
+    public ResponseEntity<List<EquipmentMovementDTO>> getWorkPostMovements(@PathVariable("workPostId") UUID workPostId) {
         log.info("Recebida solicitaÃ§Ã£o para movimentaÃ§Ãµes do posto: {}", workPostId);
         List<EquipmentMovementDTO> movements = movementService.getWorkPostMovements(workPostId);
         return ResponseEntity.ok(movements);
@@ -107,7 +107,7 @@ public class EquipmentMovementController {
     @GetMapping("/due-soon")
     @Operation(summary = "MovimentaÃ§Ãµes vencendo", description = "Retorna equipamentos que devem ser devolvidos em breve")
     @ApiResponse(responseCode = "200", description = "MovimentaÃ§Ãµes vencendo retornadas com sucesso")
-    public ResponseEntity<List<EquipmentMovementDTO>> getMovementsDueSoon(@RequestParam(defaultValue = "7") int days) {
+    public ResponseEntity<List<EquipmentMovementDTO>> getMovementsDueSoon(@RequestParam(value = "days", defaultValue = "7") int days) {
         log.info("Recebida solicitaÃ§Ã£o para movimentaÃ§Ãµes vencendo em {} dias", days);
         List<EquipmentMovementDTO> movements = movementService.getMovementsDueSoon(days);
         return ResponseEntity.ok(movements);

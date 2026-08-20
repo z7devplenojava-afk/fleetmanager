@@ -55,11 +55,11 @@ public class EPIControlController {
     })
     @GetMapping
     public ResponseEntity<List<Map<String, Object>>> getEPIControlRecords(
-            @RequestParam(required = false) String employeeName,
-            @RequestParam(required = false) String employeeFunction,
-            @RequestParam(required = false) String deliveryDateFrom,
-            @RequestParam(required = false) String deliveryDateTo,
-            @RequestParam(required = false) String equipmentName) {
+            @RequestParam(value = "employeeName", required = false) String employeeName,
+            @RequestParam(value = "employeeFunction", required = false) String employeeFunction,
+            @RequestParam(value = "deliveryDateFrom", required = false) String deliveryDateFrom,
+            @RequestParam(value = "deliveryDateTo", required = false) String deliveryDateTo,
+            @RequestParam(value = "equipmentName", required = false) String equipmentName) {
         
         try {
             log.info("Buscando registros de controle de EPI com filtros: employeeName={}, employeeFunction={}, deliveryDateFrom={}, deliveryDateTo={}, equipmentName={}", 
@@ -209,7 +209,7 @@ public class EPIControlController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Object> getEPIControlRecord(@PathVariable String id) {
+    public ResponseEntity<Object> getEPIControlRecord(@PathVariable("id") String id) {
         // TODO: Implementar lÃ³gica real quando necessÃ¡rio
         return ResponseEntity.notFound().build();
     }
@@ -373,7 +373,7 @@ public class EPIControlController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Object> updateEPIControlRecord(@PathVariable String id, @RequestBody Object data) {
+    public ResponseEntity<Object> updateEPIControlRecord(@PathVariable("id") String id, @RequestBody Object data) {
         // TODO: Implementar lÃ³gica real quando necessÃ¡rio
         return ResponseEntity.ok().build();
     }
@@ -386,7 +386,7 @@ public class EPIControlController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteEPIControlRecord(@PathVariable String id) {
+    public ResponseEntity<Void> deleteEPIControlRecord(@PathVariable("id") String id) {
         try {
             log.info("Deletando registro de controle de EPI: {}", id);
             
@@ -487,7 +487,7 @@ public class EPIControlController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}/report")
-    public ResponseEntity<Object> generateEPIControlReport(@PathVariable String id) {
+    public ResponseEntity<Object> generateEPIControlReport(@PathVariable("id") String id) {
         // TODO: Implementar geraÃ§Ã£o de PDF quando necessÃ¡rio
         return ResponseEntity.notFound().build();
     }
@@ -500,11 +500,11 @@ public class EPIControlController {
     })
     @GetMapping("/report/bulk")
     public ResponseEntity<Object> generateEPIControlBulkReport(
-            @RequestParam(required = false) String employeeName,
-            @RequestParam(required = false) String employeeFunction,
-            @RequestParam(required = false) String deliveryDateFrom,
-            @RequestParam(required = false) String deliveryDateTo,
-            @RequestParam(required = false) String equipmentName) {
+            @RequestParam(value = "employeeName", required = false) String employeeName,
+            @RequestParam(value = "employeeFunction", required = false) String employeeFunction,
+            @RequestParam(value = "deliveryDateFrom", required = false) String deliveryDateFrom,
+            @RequestParam(value = "deliveryDateTo", required = false) String deliveryDateTo,
+            @RequestParam(value = "equipmentName", required = false) String equipmentName) {
         
         // TODO: Implementar geraÃ§Ã£o de PDF em lote quando necessÃ¡rio
         return ResponseEntity.notFound().build();

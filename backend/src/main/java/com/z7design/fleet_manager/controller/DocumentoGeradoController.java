@@ -51,7 +51,7 @@ public class DocumentoGeradoController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('EMPLOYEES_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
-    public ResponseEntity<DocumentoGerado> buscarPorId(@PathVariable UUID id) {
+    public ResponseEntity<DocumentoGerado> buscarPorId(@PathVariable("id") UUID id) {
         try {
             DocumentoGerado documento = documentoGeradoService.buscarPorId(id);
             return ResponseEntity.ok(documento);
@@ -64,7 +64,7 @@ public class DocumentoGeradoController {
      * Lista documentos por funcionÃ¡rio
      */
     @GetMapping("/funcionario/{funcionarioId}")
-    public ResponseEntity<List<DocumentoGerado>> listarPorFuncionario(@PathVariable UUID funcionarioId) {
+    public ResponseEntity<List<DocumentoGerado>> listarPorFuncionario(@PathVariable("funcionarioId") UUID funcionarioId) {
         try {
             List<DocumentoGerado> documentos = documentoGeradoService.listarPorFuncionario(funcionarioId);
             return ResponseEntity.ok(documentos);
@@ -77,7 +77,7 @@ public class DocumentoGeradoController {
      * Lista documentos por modelo
      */
     @GetMapping("/modelo/{modeloId}")
-    public ResponseEntity<List<DocumentoGerado>> listarPorModelo(@PathVariable UUID modeloId) {
+    public ResponseEntity<List<DocumentoGerado>> listarPorModelo(@PathVariable("modeloId") UUID modeloId) {
         try {
             List<DocumentoGerado> documentos = documentoGeradoService.listarPorModelo(modeloId);
             return ResponseEntity.ok(documentos);
@@ -90,7 +90,7 @@ public class DocumentoGeradoController {
      * Lista documentos por status
      */
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<DocumentoGerado>> listarPorStatus(@PathVariable DocumentoGerado.StatusDocumento status) {
+    public ResponseEntity<List<DocumentoGerado>> listarPorStatus(@PathVariable("status") DocumentoGerado.StatusDocumento status) {
         List<DocumentoGerado> documentos = documentoGeradoService.listarPorStatus(status);
         return ResponseEntity.ok(documentos);
     }
@@ -117,7 +117,7 @@ public class DocumentoGeradoController {
      * Lista documentos que vencem em breve
      */
     @GetMapping("/vencendo-em-breve")
-    public ResponseEntity<List<DocumentoGerado>> listarVencendoEmBreve(@RequestParam(defaultValue = "7") int dias) {
+    public ResponseEntity<List<DocumentoGerado>> listarVencendoEmBreve(@RequestParam(value = "dias", defaultValue = "7") int dias) {
         List<DocumentoGerado> documentos = documentoGeradoService.listarVencendoEmBreve(dias);
         return ResponseEntity.ok(documentos);
     }
@@ -151,7 +151,7 @@ public class DocumentoGeradoController {
      * Assina um documento
      */
     @PostMapping("/{id}/assinar")
-    public ResponseEntity<DocumentoGerado> assinarDocumento(@PathVariable UUID id, 
+    public ResponseEntity<DocumentoGerado> assinarDocumento(@PathVariable("id") UUID id, 
                                                            HttpServletRequest request) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -188,7 +188,7 @@ public class DocumentoGeradoController {
      * Cancela um documento
      */
     @PostMapping("/{id}/cancelar")
-    public ResponseEntity<DocumentoGerado> cancelarDocumento(@PathVariable UUID id) {
+    public ResponseEntity<DocumentoGerado> cancelarDocumento(@PathVariable("id") UUID id) {
         try {
             DocumentoGerado documento = documentoGeradoService.cancelarDocumento(id);
             return ResponseEntity.ok(documento);
@@ -201,8 +201,8 @@ public class DocumentoGeradoController {
      * Define data de vencimento para um documento
      */
     @PutMapping("/{id}/vencimento")
-    public ResponseEntity<DocumentoGerado> definirVencimento(@PathVariable UUID id, 
-                                                           @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataVencimento) {
+    public ResponseEntity<DocumentoGerado> definirVencimento(@PathVariable("id") UUID id, 
+                                                           @RequestParam(value = "dataVencimento") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataVencimento) {
         try {
             DocumentoGerado documento = documentoGeradoService.definirVencimento(id, dataVencimento);
             return ResponseEntity.ok(documento);
@@ -234,8 +234,8 @@ public class DocumentoGeradoController {
      */
     @GetMapping("/periodo")
     public ResponseEntity<List<DocumentoGerado>> listarPorPeriodo(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
+            @RequestParam(value = "dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
+            @RequestParam(value = "dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
         
         List<DocumentoGerado> documentos = documentoGeradoService.listarPorStatus(DocumentoGerado.StatusDocumento.PENDENTE);
         // Filtrar por perÃ­odo se necessÃ¡rio
@@ -247,7 +247,7 @@ public class DocumentoGeradoController {
      */
     @GetMapping("/funcionario/{funcionarioId}/paginated")
     public ResponseEntity<Page<DocumentoGerado>> listarPorFuncionarioComPaginacao(
-            @PathVariable UUID funcionarioId, Pageable pageable) {
+            @PathVariable("funcionarioId") UUID funcionarioId, Pageable pageable) {
         try {
             List<DocumentoGerado> documentos = documentoGeradoService.listarPorFuncionario(funcionarioId);
             // Implementar paginaÃ§Ã£o manual se necessÃ¡rio
@@ -262,7 +262,7 @@ public class DocumentoGeradoController {
      */
     @GetMapping("/modelo/{modeloId}/paginated")
     public ResponseEntity<Page<DocumentoGerado>> listarPorModeloComPaginacao(
-            @PathVariable UUID modeloId, Pageable pageable) {
+            @PathVariable("modeloId") UUID modeloId, Pageable pageable) {
         try {
             List<DocumentoGerado> documentos = documentoGeradoService.listarPorModelo(modeloId);
             // Implementar paginaÃ§Ã£o manual se necessÃ¡rio
@@ -277,7 +277,7 @@ public class DocumentoGeradoController {
      */
     @GetMapping("/funcionario/{funcionarioId}/modelo/{modeloId}")
     public ResponseEntity<List<DocumentoGerado>> buscarPorFuncionarioEModelo(
-            @PathVariable UUID funcionarioId, @PathVariable UUID modeloId) {
+            @PathVariable("funcionarioId") UUID funcionarioId, @PathVariable("modeloId") UUID modeloId) {
         try {
             List<DocumentoGerado> documentos = documentoGeradoService.listarPorFuncionario(funcionarioId);
             // Filtrar por modelo se necessÃ¡rio
@@ -291,7 +291,7 @@ public class DocumentoGeradoController {
      * Download do arquivo gerado
      */
     @GetMapping("/{id}/download")
-    public ResponseEntity<byte[]> downloadArquivo(@PathVariable UUID id) {
+    public ResponseEntity<byte[]> downloadArquivo(@PathVariable("id") UUID id) {
         try {
             DocumentoGerado documento = documentoGeradoService.buscarPorId(id);
             
@@ -316,7 +316,7 @@ public class DocumentoGeradoController {
      * Visualizar documento inline no navegador
      */
     @GetMapping("/{id}/view")
-    public ResponseEntity<byte[]> visualizarDocumento(@PathVariable UUID id) {
+    public ResponseEntity<byte[]> visualizarDocumento(@PathVariable("id") UUID id) {
         try {
             DocumentoGerado documento = documentoGeradoService.buscarPorId(id);
             
@@ -341,7 +341,7 @@ public class DocumentoGeradoController {
      * Visualizar conteÃºdo do documento
      */
     @GetMapping("/{id}/conteudo")
-    public ResponseEntity<Map<String, String>> visualizarConteudo(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, String>> visualizarConteudo(@PathVariable("id") UUID id) {
         try {
             DocumentoGerado documento = documentoGeradoService.buscarPorId(id);
             return ResponseEntity.ok(Map.of("conteudo", documento.getConteudoFinal()));

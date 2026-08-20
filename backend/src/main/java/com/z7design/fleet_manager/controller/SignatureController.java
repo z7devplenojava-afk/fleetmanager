@@ -83,7 +83,7 @@ public class SignatureController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/document/{documentId}")
-    public ResponseEntity<List<DocumentSignature>> getSignaturesByDocument(@PathVariable UUID documentId) {
+    public ResponseEntity<List<DocumentSignature>> getSignaturesByDocument(@PathVariable("documentId") UUID documentId) {
         List<DocumentSignature> signatures = signatureService.findByDocumentId(documentId);
         return ResponseEntity.ok(signatures);
     }
@@ -99,7 +99,7 @@ public class SignatureController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<DocumentSignature> getSignature(@PathVariable UUID id) {
+    public ResponseEntity<DocumentSignature> getSignature(@PathVariable("id") UUID id) {
         DocumentSignature signature = signatureService.findById(id);
         return ResponseEntity.ok(signature);
     }
@@ -130,7 +130,7 @@ public class SignatureController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/{id}/validate")
-    public ResponseEntity<Boolean> validateSignature(@PathVariable UUID id) {
+    public ResponseEntity<Boolean> validateSignature(@PathVariable("id") UUID id) {
         boolean isValid = signatureService.validateSignature(id);
         return ResponseEntity.ok(isValid);
     }

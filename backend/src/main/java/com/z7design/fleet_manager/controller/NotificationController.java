@@ -75,7 +75,7 @@ public class NotificationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PutMapping("/{id}/read")
-    public ResponseEntity<com.z7design.fleet_manager.model.Notification> markAsRead(@PathVariable UUID id) {
+    public ResponseEntity<com.z7design.fleet_manager.model.Notification> markAsRead(@PathVariable("id") UUID id) {
         notificationService.markAsRead(id);
         return ResponseEntity.ok().build();
     }
@@ -91,7 +91,7 @@ public class NotificationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PutMapping("/{id}/unread")
-    public ResponseEntity<com.z7design.fleet_manager.model.Notification> markAsUnread(@PathVariable UUID id) {
+    public ResponseEntity<com.z7design.fleet_manager.model.Notification> markAsUnread(@PathVariable("id") UUID id) {
         notificationService.markAsUnread(id);
         return ResponseEntity.ok().build();
     }
@@ -106,7 +106,7 @@ public class NotificationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         notificationService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -122,7 +122,7 @@ public class NotificationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<com.z7design.fleet_manager.model.Notification> findById(@PathVariable UUID id) {
+    public ResponseEntity<com.z7design.fleet_manager.model.Notification> findById(@PathVariable("id") UUID id) {
         com.z7design.fleet_manager.model.Notification notification = notificationService.findById(id);
         if (notification != null) {
             return ResponseEntity.ok(notification);
@@ -140,7 +140,7 @@ public class NotificationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<com.z7design.fleet_manager.model.Notification>> findByUserId(@PathVariable UUID userId) {
+    public ResponseEntity<List<com.z7design.fleet_manager.model.Notification>> findByUserId(@PathVariable("userId") UUID userId) {
         return ResponseEntity.ok(notificationService.findByUserId(userId));
     }
     
@@ -154,8 +154,8 @@ public class NotificationController {
     })
     @GetMapping("/user/{userId}/status/{status}")
     public ResponseEntity<List<com.z7design.fleet_manager.model.Notification>> findByUserIdAndStatus(
-            @PathVariable UUID userId,
-            @PathVariable com.z7design.fleet_manager.model.enums.NotificationStatus status) {
+            @PathVariable("userId") UUID userId,
+            @PathVariable("status") com.z7design.fleet_manager.model.enums.NotificationStatus status) {
         return ResponseEntity.ok(notificationService.findByUserIdAndStatus(userId, status));
     }
     
@@ -169,8 +169,8 @@ public class NotificationController {
     })
     @GetMapping("/user/{userId}/type/{type}")
     public ResponseEntity<List<com.z7design.fleet_manager.model.Notification>> findByUserIdAndType(
-            @PathVariable UUID userId,
-            @PathVariable com.z7design.fleet_manager.model.enums.NotificationType type) {
+            @PathVariable("userId") UUID userId,
+            @PathVariable("type") com.z7design.fleet_manager.model.enums.NotificationType type) {
         return ResponseEntity.ok(notificationService.findByUserIdAndType(userId, type));
     }
     
@@ -188,8 +188,8 @@ public class NotificationController {
     @Parameter(description = "Data/hora de fim do perÃ­odo (ISO 8601)", example = "2023-12-31T23:59:59", required = true)
     @GetMapping("/date-range")
     public ResponseEntity<List<com.z7design.fleet_manager.model.Notification>> findByCreatedAtBetween(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         return ResponseEntity.ok(notificationService.findByCreatedAtBetween(startDate, endDate));
     }
     
@@ -207,8 +207,8 @@ public class NotificationController {
     })
     @GetMapping
     public ResponseEntity<List<com.z7design.fleet_manager.model.Notification>> list(
-            @RequestParam(required = false) String type,
-            @RequestParam(required = false) UUID recipientId) {
+            @RequestParam(value = "type", required = false) String type,
+            @RequestParam(value = "recipientId", required = false) UUID recipientId) {
         try {
             if (recipientId != null) {
                 final String typeTrimmed = type != null ? type.trim() : "";

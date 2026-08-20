@@ -62,4 +62,28 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
            "ELSE cm2.group.id END) " +
            "ORDER BY cm.createdAt DESC")
     List<ChatMessage> findRecentConversationsForUser(@Param("userId") UUID userId);
+
+    /**
+     * Conta o total de conversas (individuais + grupos) de um usuÃ¡rio
+     */
+    @Query("SELECT COUNT(DISTINCT CASE " +
+           "WHEN cm.recipient.id = :userId THEN cm.sender.id " +
+           "WHEN cm.sender.id = :userId THEN cm.recipient.id " +
+           "ELSE cm.group.id END) " +
+           "FROM ChatMessage cm WHERE " +
+           "(cm.sender.id = :userId OR cm.recipient.id = :userId OR " +
+           "cm.group.id IN (SELECT ug.id FROM User u JOIN u.groups ug WHERE u.id = :userId))")
+    Long countConversationsForUser(@Param("userId") UUID userId);
+
+    /**
+     * Conta conversas abertas (com mensagens nÃ£o lidas) de um usuÃ¡rio
+     */
+    @Query("SELECT COUNT(DISTINCT CASE " +
+           "WHEN cm.recipient.id = :userId THEN cm.sender.id " +
+           "WHEN cm.sender.id = :userId THEN cm.recipient.id " +
+           "ELSE cm.group.id END) " +
+           "FROM ChatMessage cm WHERE " +
+           "(cm.recipient.id = :userId AND cm.isRead = false) OR " +
+           "(cm.group.id IN (SELECT ug.id FROM User u JOIN u.groups ug WHERE u.id = :userId) AND cm.isRead = false)")
+    Long countOpenConversationsForUser(@Param("userId") UUID userId);
 } 

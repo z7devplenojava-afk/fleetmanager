@@ -154,7 +154,7 @@ public class KmControlController {
      * Buscar registro por ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<KmControlDTO> getKmControlById(@PathVariable String id) {
+    public ResponseEntity<KmControlDTO> getKmControlById(@PathVariable("id") String id) {
         try {
             log.info("GET /api/frota/km-controls/{} - Buscando registro por ID", id);
             KmControlDTO kmControl = kmControlService.getKmControlById(id);
@@ -185,10 +185,10 @@ public class KmControlController {
      */
     @GetMapping("/filter")
     public ResponseEntity<List<KmControlDTO>> getKmControlsWithFilters(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String supervisor,
-            @RequestParam(required = false) String vehiclePlate) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "supervisor", required = false) String supervisor,
+            @RequestParam(value = "vehiclePlate", required = false) String vehiclePlate) {
         
         try {
             log.info("GET /api/frota/km-controls/filter - Filtros: Data: {} a {}, Supervisor: {}, VeÃ­culo: {}", 
@@ -231,7 +231,7 @@ public class KmControlController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<KmControlDTO> updateKmControl(
-            @PathVariable String id, 
+            @PathVariable("id") String id, 
             @Valid @RequestBody KmControlDTO kmControlDTO) {
         try {
             log.info("PUT /api/frota/km-controls/{} - Atualizando registro", id);
@@ -256,7 +256,7 @@ public class KmControlController {
      * Deletar registro
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteKmControl(@PathVariable String id) {
+    public ResponseEntity<Void> deleteKmControl(@PathVariable("id") String id) {
         try {
             log.info("DELETE /api/frota/km-controls/{} - Deletando registro", id);
             
@@ -278,8 +278,8 @@ public class KmControlController {
      */
     @GetMapping("/statistics")
     public ResponseEntity<Map<String, Object>> getStatistics(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             log.info("GET /api/frota/km-controls/statistics - EstatÃ­sticas para perÃ­odo: {} a {}", startDate, endDate);
             
@@ -334,7 +334,7 @@ public class KmControlController {
      */
     @PostMapping("/{id}/dashboard-photo")
     public ResponseEntity<KmControlDTO> uploadDashboardPhoto(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             @RequestParam("photo") MultipartFile file,
             @RequestParam(value = "description", required = false) String description) {
         try {
@@ -378,11 +378,11 @@ public class KmControlController {
      */
     @GetMapping("/report")
     public ResponseEntity<byte[]> generateKmControlReport(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String supervisor,
-            @RequestParam(required = false) String vehiclePlate,
-            @RequestParam String format) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "supervisor", required = false) String supervisor,
+            @RequestParam(value = "vehiclePlate", required = false) String vehiclePlate,
+            @RequestParam(value = "format") String format) {
 
         try {
             log.info("GET /api/frota/km-controls/report - Gerando relatÃ³rio de KM. Formato: {}", format);

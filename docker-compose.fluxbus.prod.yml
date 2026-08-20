@@ -56,6 +56,8 @@ services:
     container_name: fluxbus-backend-prod
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Porta interna fixa em 8083 (mesma do perfil prod — explícito para consistência com dev/ci)
+      SERVER_PORT: 8083
       DB_URL: jdbc:postgresql://postgres-prod:5432/${POSTGRES_DB_PROD:-fluxbus_db_prod}
       DB_USERNAME: ${POSTGRES_USER_PROD:-fluxbus_user_prod}
       DB_PASSWORD: ${POSTGRES_PASSWORD_PROD:-prodpass123}
@@ -126,7 +128,8 @@ services:
     networks:
       - fluxbus-prod-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost || exit 1"]
+      # 127.0.0.1: localhost resolve ::1 (IPv6) e o nginx escuta so IPv4 -> wget busybox nao faz fallback
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

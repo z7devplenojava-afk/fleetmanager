@@ -89,7 +89,7 @@ public class FrotaController {
     }
 
     @GetMapping("/vehicles/{id}")
-    public ResponseEntity<VehicleDTO> getVehicleById(@PathVariable UUID id) {
+    public ResponseEntity<VehicleDTO> getVehicleById(@PathVariable("id") UUID id) {
         try {
             Vehicle vehicle = vehicleRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException("VeÃ­culo nÃ£o encontrado com ID: " + id));
@@ -102,7 +102,7 @@ public class FrotaController {
     }
 
     @GetMapping("/vehicles/plate/{plate}")
-    public ResponseEntity<VehicleDTO> getVehicleByPlate(@PathVariable String plate) {
+    public ResponseEntity<VehicleDTO> getVehicleByPlate(@PathVariable("plate") String plate) {
         try {
             Vehicle vehicle = vehicleRepository.findByPlate(plate)
                     .orElseThrow(() -> new ResourceNotFoundException("VeÃ­culo nÃ£o encontrado com placa: " + plate));
@@ -115,7 +115,7 @@ public class FrotaController {
     }
 
     @GetMapping("/vehicles/status/{status}")
-    public ResponseEntity<List<VehicleDTO>> getVehiclesByStatus(@PathVariable Vehicle.VehicleStatus status) {
+    public ResponseEntity<List<VehicleDTO>> getVehiclesByStatus(@PathVariable("status") Vehicle.VehicleStatus status) {
         try {
             List<Vehicle> vehicles = vehicleRepository.findByStatus(status);
             List<VehicleDTO> vehicleDTOs = vehicles.stream()
@@ -506,7 +506,7 @@ public class FrotaController {
 
     @PutMapping(value = "/vehicles/{id}", consumes = { MediaType.APPLICATION_JSON_VALUE,
             "application/json;charset=UTF-8" })
-    public ResponseEntity<?> updateVehicle(@PathVariable UUID id,
+    public ResponseEntity<?> updateVehicle(@PathVariable("id") UUID id,
             @RequestBody(required = false) Map<String, Object> vehicleData) {
         try {
             System.out.println("[DEBUG] FrotaController.updateVehicle() - ID recebido: " + id);
@@ -853,7 +853,7 @@ public class FrotaController {
     }
 
     @DeleteMapping("/vehicles/{id}")
-    public ResponseEntity<Void> deleteVehicle(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteVehicle(@PathVariable("id") UUID id) {
         try {
             if (!vehicleRepository.existsById(id)) {
                 throw new ResourceNotFoundException("VeÃ­culo nÃ£o encontrado com ID: " + id);

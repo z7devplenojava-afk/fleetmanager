@@ -108,7 +108,7 @@ public class HoleriteController {
     }
 
     @GetMapping("/download/{fileName}")
-    public ResponseEntity<Resource> downloadFile(@PathVariable String fileName) throws IOException {
+    public ResponseEntity<Resource> downloadFile(@PathVariable("fileName") String fileName) throws IOException {
         String userHome = System.getProperty("user.home");
         Path filePath = Paths.get(userHome, "temp_holerites").resolve(fileName);
         Resource resource = new UrlResource(filePath.toUri());

@@ -68,19 +68,19 @@ public class MeasurementController {
             @ApiResponse(responseCode = "404", description = "Boletim nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<MeasurementBulletinDTO> getById(@PathVariable String id) {
+    public ResponseEntity<MeasurementBulletinDTO> getById(@PathVariable("id") String id) {
         return ResponseEntity.ok(measurementService.getBulletinById(UUID.fromString(id)));
     }
     
     @GetMapping("/contract/{contractId}")
     @Operation(summary = "Buscar boletins por contrato", description = "Retorna boletins de um contrato especÃ­fico")
-    public ResponseEntity<List<MeasurementBulletinDTO>> getByContract(@PathVariable String contractId) {
+    public ResponseEntity<List<MeasurementBulletinDTO>> getByContract(@PathVariable("contractId") String contractId) {
         return ResponseEntity.ok(measurementService.getBulletinsByContract(contractId));
     }
     
     @GetMapping("/date/{date}")
     @Operation(summary = "Buscar boletins por data", description = "Retorna boletins de uma data especÃ­fica")
-    public ResponseEntity<List<MeasurementBulletinDTO>> getByDate(@PathVariable String date) {
+    public ResponseEntity<List<MeasurementBulletinDTO>> getByDate(@PathVariable("date") String date) {
         LocalDate localDate = LocalDate.parse(date);
         // Usar mÃ©todo de filtros com perÃ­odo especÃ­fico
         return ResponseEntity.ok(measurementService.getBulletinsWithFilters(null, null, null, null, localDate, localDate, Pageable.unpaged()).getContent());
@@ -89,8 +89,8 @@ public class MeasurementController {
     @GetMapping("/period")
     @Operation(summary = "Buscar boletins por perÃ­odo", description = "Retorna boletins em um perÃ­odo especÃ­fico")
     public ResponseEntity<List<MeasurementBulletinDTO>> getByPeriod(
-            @RequestParam @Parameter(description = "Data inicial") LocalDate startDate,
-            @RequestParam @Parameter(description = "Data final") LocalDate endDate) {
+            @RequestParam(value = "startDate") @Parameter(description = "Data inicial") LocalDate startDate,
+            @RequestParam(value = "endDate") @Parameter(description = "Data final") LocalDate endDate) {
         return ResponseEntity.ok(measurementService.getBulletinsWithFilters(null, null, null, null, startDate, endDate, Pageable.unpaged()).getContent());
     }
     
@@ -134,7 +134,7 @@ public class MeasurementController {
             @ApiResponse(responseCode = "403", description = "Acesso negado"),
             @ApiResponse(responseCode = "500", description = "Erro interno do servidor")
     })
-    public ResponseEntity<MeasurementBulletinDTO> update(@PathVariable String id, @Valid @RequestBody MeasurementBulletinDTO measurementDTO) {
+    public ResponseEntity<MeasurementBulletinDTO> update(@PathVariable("id") String id, @Valid @RequestBody MeasurementBulletinDTO measurementDTO) {
         try {
             log.info("Recebendo requisiÃ§Ã£o para atualizar boletim {} com dados: {}", id, measurementDTO);
             MeasurementBulletinDTO updated = measurementService.updateBulletin(UUID.fromString(id), measurementDTO);
@@ -153,12 +153,12 @@ public class MeasurementController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<MeasurementBulletinDTO>> searchWithFilters(
-            @RequestParam(required = false) @Parameter(description = "Status do boletim") MeasurementStatus status,
-            @RequestParam(required = false) @Parameter(description = "NÃºmero do contrato") String contractNumber,
-            @RequestParam(required = false) @Parameter(description = "ID do cliente") String clientId,
-            @RequestParam(required = false) @Parameter(description = "ID da unidade") String unitId,
-            @RequestParam(required = false) @Parameter(description = "Data inicial do perÃ­odo") LocalDate periodStart,
-            @RequestParam(required = false) @Parameter(description = "Data final do perÃ­odo") LocalDate periodEnd,
+            @RequestParam(value = "status", required = false) @Parameter(description = "Status do boletim") MeasurementStatus status,
+            @RequestParam(value = "contractNumber", required = false) @Parameter(description = "NÃºmero do contrato") String contractNumber,
+            @RequestParam(value = "clientId", required = false) @Parameter(description = "ID do cliente") String clientId,
+            @RequestParam(value = "unitId", required = false) @Parameter(description = "ID da unidade") String unitId,
+            @RequestParam(value = "periodStart", required = false) @Parameter(description = "Data inicial do perÃ­odo") LocalDate periodStart,
+            @RequestParam(value = "periodEnd", required = false) @Parameter(description = "Data final do perÃ­odo") LocalDate periodEnd,
             @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
         
         UUID clientUuid = clientId != null ? UUID.fromString(clientId) : null;
@@ -176,7 +176,7 @@ public class MeasurementController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<List<MeasurementBulletinDTO>> searchByText(
-            @RequestParam @Parameter(description = "Termo de pesquisa") String searchTerm) {
+            @RequestParam(value = "searchTerm") @Parameter(description = "Termo de pesquisa") String searchTerm) {
         List<MeasurementBulletinDTO> result = measurementService.searchBulletins(searchTerm);
         return ResponseEntity.ok(result);
     }
@@ -189,9 +189,9 @@ public class MeasurementController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<MeasurementBulletinDTO> validate(
-            @PathVariable String id,
-            @RequestParam @Parameter(description = "UsuÃ¡rio que validou") String validatedBy,
-            @RequestParam @Parameter(description = "UsuÃ¡rio que verificou") String checkedBy) {
+            @PathVariable("id") String id,
+            @RequestParam(value = "validatedBy") @Parameter(description = "UsuÃ¡rio que validou") String validatedBy,
+            @RequestParam(value = "checkedBy") @Parameter(description = "UsuÃ¡rio que verificou") String checkedBy) {
         MeasurementBulletinDTO result = measurementService.validateBulletin(UUID.fromString(id), validatedBy, checkedBy);
         return ResponseEntity.ok(result);
     }
@@ -215,7 +215,7 @@ public class MeasurementController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<CalculationMemoryDTO> saveCalculationMemory(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             @Valid @RequestBody CalculationMemoryDTO calculationMemoryDTO) {
         CalculationMemoryDTO result = measurementService.saveCalculationMemory(UUID.fromString(id), calculationMemoryDTO);
         return ResponseEntity.ok(result);
@@ -246,7 +246,7 @@ public class MeasurementController {
             @ApiResponse(responseCode = "500", description = "Erro ao gerar PDF"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<byte[]> generatePDF(@PathVariable String id) {
+    public ResponseEntity<byte[]> generatePDF(@PathVariable("id") String id) {
         try {
             byte[] pdfBytes = measurementReportService.generateBulletinPDF(UUID.fromString(id));
             String fileName = "boletim_medicao_" + id + ".pdf";
@@ -269,7 +269,7 @@ public class MeasurementController {
             @ApiResponse(responseCode = "500", description = "Erro ao gerar Excel"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<byte[]> generateExcel(@PathVariable String id) {
+    public ResponseEntity<byte[]> generateExcel(@PathVariable("id") String id) {
         try {
             byte[] excelBytes = measurementReportService.generateBulletinExcel(UUID.fromString(id));
             String fileName = "boletim_medicao_" + id + ".xlsx";
@@ -334,7 +334,7 @@ public class MeasurementController {
             @ApiResponse(responseCode = "404", description = "Boletim nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         measurementService.deleteBulletin(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }

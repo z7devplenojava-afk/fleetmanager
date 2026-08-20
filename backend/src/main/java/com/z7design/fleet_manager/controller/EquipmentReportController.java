@@ -27,10 +27,10 @@ public class EquipmentReportController {
     @GetMapping("/equipment-by-employee")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
     public ResponseEntity<List<Map<String, Object>>> getEquipmentByEmployeeReport(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String equipmentType) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "equipmentType", required = false) String equipmentType) {
         try {
             log.info("Gerando relatÃ³rio de equipamentos por funcionÃ¡rio");
             List<Map<String, Object>> report = equipmentReportService.generateEquipmentByEmployeeReport(
@@ -45,8 +45,8 @@ public class EquipmentReportController {
     @GetMapping("/weapon-validity")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
     public ResponseEntity<List<Map<String, Object>>> getWeaponValidityReport(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             log.info("Gerando relatÃ³rio de validade de armas");
             List<Map<String, Object>> report = equipmentReportService.generateWeaponValidityReport(startDate, endDate);
@@ -60,8 +60,8 @@ public class EquipmentReportController {
     @GetMapping("/usage-report")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
     public ResponseEntity<List<Map<String, Object>>> getUsageReport(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             log.info("Gerando relatÃ³rio de uso de equipamentos");
             List<Map<String, Object>> report = equipmentReportService.generateUsageReport(startDate, endDate);
@@ -75,8 +75,8 @@ public class EquipmentReportController {
     @GetMapping("/expiration-report")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
     public ResponseEntity<List<Map<String, Object>>> getExpirationReport(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             log.info("Gerando relatÃ³rio de vencimento de equipamentos");
             List<Map<String, Object>> report = equipmentReportService.generateExpirationReport(startDate, endDate);
@@ -90,10 +90,10 @@ public class EquipmentReportController {
     @GetMapping("/general-report")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
     public ResponseEntity<List<Map<String, Object>>> getGeneralReport(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String equipmentType) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "equipmentType", required = false) String equipmentType) {
         try {
             log.info("Gerando relatÃ³rio geral de equipamentos");
             List<Map<String, Object>> report = equipmentReportService.generateGeneralReport(

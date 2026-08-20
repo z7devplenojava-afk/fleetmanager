@@ -19,6 +19,8 @@ public class StockItemDTO {
     private Integer currentQuantity;
     private Integer minimumQuantity;
     private BigDecimal unitCost;
+    private BigDecimal averageCost;
+    private Integer movementCount;
     private String supplier;
     private String barcode;
     private String qrCode;
@@ -42,6 +44,7 @@ public class StockItemDTO {
         dto.setCurrentQuantity(entity.getCurrentQuantity());
         dto.setMinimumQuantity(entity.getMinimumQuantity());
         dto.setUnitCost(entity.getUnitCost());
+        dto.setAverageCost(entity.getAverageCost());
         dto.setSupplier(entity.getSupplier());
         dto.setBarcode(entity.getBarcode());
         dto.setQrCode(entity.getQrCode());
@@ -51,6 +54,7 @@ public class StockItemDTO {
         dto.setNotes(entity.getNotes());
         dto.setIsLowStock(entity.isLowStock());
         dto.setFullName(entity.getFullName());
+        dto.setMovementCount(0);
 
         if (entity.getUnit() != null) {
             dto.setUnitId(entity.getUnit().getId());
@@ -73,6 +77,7 @@ public class StockItemDTO {
         entity.setCurrentQuantity(dto.getCurrentQuantity() != null ? dto.getCurrentQuantity() : 0);
         entity.setMinimumQuantity(dto.getMinimumQuantity() != null ? dto.getMinimumQuantity() : 0);
         entity.setUnitCost(dto.getUnitCost());
+        entity.setAverageCost(dto.getAverageCost());
         entity.setSupplier(dto.getSupplier());
         entity.setBarcode(dto.getBarcode());
         entity.setQrCode(dto.getQrCode());

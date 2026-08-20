@@ -33,9 +33,9 @@ public class CostCenterController {
     @Operation(summary = "Listar centros de custo", description = "Lista todos os centros de custo com filtros opcionais")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<CostCenterDTO>> list(
-            @Parameter(description = "Status do centro de custo") @RequestParam(required = false) CostCenter.CostCenterStatus status,
-            @Parameter(description = "Departamento do centro de custo") @RequestParam(required = false) String department,
-            @Parameter(description = "Termo de busca") @RequestParam(required = false) String searchTerm) {
+            @Parameter(description = "Status do centro de custo") @RequestParam(value = "status", required = false) CostCenter.CostCenterStatus status,
+            @Parameter(description = "Departamento do centro de custo") @RequestParam(value = "department", required = false) String department,
+            @Parameter(description = "Termo de busca") @RequestParam(value = "searchTerm", required = false) String searchTerm) {
 
         log.info("Listando centros de custo - status: {}, department: {}, searchTerm: {}",
                 status, department, searchTerm);
@@ -48,9 +48,9 @@ public class CostCenterController {
     @Operation(summary = "Listar centros de custo paginados", description = "Lista centros de custo com paginaÃ§Ã£o")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
     public ResponseEntity<Page<CostCenterDTO>> listPaginated(
-            @Parameter(description = "Status do centro de custo") @RequestParam(required = false) CostCenter.CostCenterStatus status,
-            @Parameter(description = "Departamento do centro de custo") @RequestParam(required = false) String department,
-            @Parameter(description = "Termo de busca") @RequestParam(required = false) String searchTerm,
+            @Parameter(description = "Status do centro de custo") @RequestParam(value = "status", required = false) CostCenter.CostCenterStatus status,
+            @Parameter(description = "Departamento do centro de custo") @RequestParam(value = "department", required = false) String department,
+            @Parameter(description = "Termo de busca") @RequestParam(value = "searchTerm", required = false) String searchTerm,
             Pageable pageable) {
 
         log.info("Listando centros de custo paginados - status: {}, department: {}, searchTerm: {}",
@@ -81,7 +81,7 @@ public class CostCenterController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar centro de custo por ID", description = "Retorna um centro de custo especÃ­fico")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
-    public ResponseEntity<CostCenterDTO> findById(@PathVariable UUID id) {
+    public ResponseEntity<CostCenterDTO> findById(@PathVariable("id") UUID id) {
         log.info("Buscando centro de custo por ID: {}", id);
         CostCenterDTO costCenter = costCenterService.findById(id);
         return ResponseEntity.ok(costCenter);
@@ -90,7 +90,7 @@ public class CostCenterController {
     @GetMapping("/code/{code}")
     @Operation(summary = "Buscar centro de custo por cÃ³digo", description = "Retorna um centro de custo especÃ­fico pelo cÃ³digo")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
-    public ResponseEntity<CostCenterDTO> findByCode(@PathVariable String code) {
+    public ResponseEntity<CostCenterDTO> findByCode(@PathVariable("code") String code) {
         log.info("Buscando centro de custo por cÃ³digo: {}", code);
         CostCenterDTO costCenter = costCenterService.findByCode(code);
         return ResponseEntity.ok(costCenter);
@@ -114,7 +114,7 @@ public class CostCenterController {
     @Operation(summary = "Atualizar centro de custo", description = "Atualiza um centro de custo existente")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
     public ResponseEntity<CostCenterDTO> update(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody UpdateCostCenterDTO dto) {
         log.info("Atualizando centro de custo: {}", id);
 
@@ -130,8 +130,8 @@ public class CostCenterController {
     @Operation(summary = "Atualizar valor gasto", description = "Atualiza o valor gasto de um centro de custo")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
     public ResponseEntity<CostCenterDTO> updateSpentAmount(
-            @PathVariable UUID id,
-            @Parameter(description = "Novo valor gasto") @RequestParam BigDecimal amount) {
+            @PathVariable("id") UUID id,
+            @Parameter(description = "Novo valor gasto") @RequestParam(value = "amount") BigDecimal amount) {
         log.info("Atualizando valor gasto do centro de custo: {} para {}", id, amount);
 
         CostCenterDTO updatedCostCenter = costCenterService.updateSpentAmount(id, amount);
@@ -141,7 +141,7 @@ public class CostCenterController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir centro de custo", description = "Exclui um centro de custo")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         log.info("Excluindo centro de custo: {}", id);
         costCenterService.delete(id);
         return ResponseEntity.noContent().build();

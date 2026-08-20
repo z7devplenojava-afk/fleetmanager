@@ -31,9 +31,9 @@ public class TransportGuideController {
     @Operation(summary = "Listar todas as guias de transporte")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'OPERACIONAL', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_OPERACIONAL')")
     public ResponseEntity<List<TransportGuideDTO>> getAllTransportGuides(
-            @RequestParam(required = false) TransportGuideStatus status,
-            @RequestParam(required = false) String empresa,
-            @RequestParam(required = false) String cnpj
+            @RequestParam(value = "status", required = false) TransportGuideStatus status,
+            @RequestParam(value = "empresa", required = false) String empresa,
+            @RequestParam(value = "cnpj", required = false) String cnpj
     ) {
         log.info("GET /api/transport-guides - Buscando guias de transporte");
         List<TransportGuideDTO> guides = transportGuideService.getTransportGuidesByFilters(status, empresa, cnpj);
@@ -44,7 +44,7 @@ public class TransportGuideController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar guia de transporte por ID")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'OPERACIONAL', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_OPERACIONAL')")
-    public ResponseEntity<TransportGuideDTO> getTransportGuideById(@PathVariable Long id) {
+    public ResponseEntity<TransportGuideDTO> getTransportGuideById(@PathVariable("id") Long id) {
         log.info("GET /api/transport-guides/{} - Buscando guia de transporte", id);
         TransportGuideDTO guide = transportGuideService.getTransportGuideById(id);
         return ResponseEntity.ok(guide);
@@ -54,17 +54,17 @@ public class TransportGuideController {
     @Operation(summary = "Criar nova guia de transporte")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'OPERACIONAL', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_OPERACIONAL')")
     public ResponseEntity<TransportGuideDTO> createTransportGuide(
-            @RequestParam String cnpj,
-            @RequestParam String empresa,
-            @RequestParam(required = false) String numeroColete,
-            @RequestParam String numeroArma,
-            @RequestParam String calibre,
-            @RequestParam Integer qtdMunicoes,
-            @RequestParam String origem,
-            @RequestParam String destino,
-            @RequestParam String trajeto,
-            @RequestParam String motivo,
-            @RequestParam(required = false) MultipartFile arquivoGuia
+            @RequestParam(value = "cnpj") String cnpj,
+            @RequestParam(value = "empresa") String empresa,
+            @RequestParam(value = "numeroColete", required = false) String numeroColete,
+            @RequestParam(value = "numeroArma") String numeroArma,
+            @RequestParam(value = "calibre") String calibre,
+            @RequestParam(value = "qtdMunicoes") Integer qtdMunicoes,
+            @RequestParam(value = "origem") String origem,
+            @RequestParam(value = "destino") String destino,
+            @RequestParam(value = "trajeto") String trajeto,
+            @RequestParam(value = "motivo") String motivo,
+            @RequestParam(value = "arquivoGuia", required = false) MultipartFile arquivoGuia
     ) {
         log.info("POST /api/transport-guides - Criando nova guia de transporte");
         
@@ -92,18 +92,18 @@ public class TransportGuideController {
     @Operation(summary = "Atualizar guia de transporte")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'OPERACIONAL', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_OPERACIONAL')")
     public ResponseEntity<TransportGuideDTO> updateTransportGuide(
-            @PathVariable Long id,
-            @RequestParam String cnpj,
-            @RequestParam String empresa,
-            @RequestParam(required = false) String numeroColete,
-            @RequestParam String numeroArma,
-            @RequestParam String calibre,
-            @RequestParam Integer qtdMunicoes,
-            @RequestParam String origem,
-            @RequestParam String destino,
-            @RequestParam String trajeto,
-            @RequestParam String motivo,
-            @RequestParam(required = false) MultipartFile arquivoGuia
+            @PathVariable("id") Long id,
+            @RequestParam(value = "cnpj") String cnpj,
+            @RequestParam(value = "empresa") String empresa,
+            @RequestParam(value = "numeroColete", required = false) String numeroColete,
+            @RequestParam(value = "numeroArma") String numeroArma,
+            @RequestParam(value = "calibre") String calibre,
+            @RequestParam(value = "qtdMunicoes") Integer qtdMunicoes,
+            @RequestParam(value = "origem") String origem,
+            @RequestParam(value = "destino") String destino,
+            @RequestParam(value = "trajeto") String trajeto,
+            @RequestParam(value = "motivo") String motivo,
+            @RequestParam(value = "arquivoGuia", required = false) MultipartFile arquivoGuia
     ) {
         log.info("PUT /api/transport-guides/{} - Atualizando guia de transporte", id);
         
@@ -127,7 +127,7 @@ public class TransportGuideController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir guia de transporte")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'OPERACIONAL', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_OPERACIONAL')")
-    public ResponseEntity<Void> deleteTransportGuide(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteTransportGuide(@PathVariable("id") Long id) {
         log.info("DELETE /api/transport-guides/{} - Excluindo guia de transporte", id);
         transportGuideService.deleteTransportGuide(id);
         return ResponseEntity.noContent().build();
@@ -137,8 +137,8 @@ public class TransportGuideController {
     @Operation(summary = "Aprovar guia de transporte")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<TransportGuideDTO> approveTransportGuide(
-            @PathVariable Long id,
-            @RequestParam String supervisorId
+            @PathVariable("id") Long id,
+            @RequestParam(value = "supervisorId") String supervisorId
     ) {
         log.info("PATCH /api/transport-guides/{}/approve - Aprovando guia de transporte", id);
         TransportGuideDTO approved = transportGuideService.approveTransportGuide(id, supervisorId);
@@ -149,9 +149,9 @@ public class TransportGuideController {
     @Operation(summary = "Rejeitar guia de transporte")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<TransportGuideDTO> rejectTransportGuide(
-            @PathVariable Long id,
-            @RequestParam String supervisorId,
-            @RequestParam String reason
+            @PathVariable("id") Long id,
+            @RequestParam(value = "supervisorId") String supervisorId,
+            @RequestParam(value = "reason") String reason
     ) {
         log.info("PATCH /api/transport-guides/{}/reject - Rejeitando guia de transporte", id);
         TransportGuideDTO rejected = transportGuideService.rejectTransportGuide(id, supervisorId, reason);
@@ -162,9 +162,9 @@ public class TransportGuideController {
     @Operation(summary = "Gerar relatÃ³rio PDF de guias de transporte")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'OPERACIONAL', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_OPERACIONAL')")
     public ResponseEntity<byte[]> generatePDFReport(
-            @RequestParam(required = false) TransportGuideStatus status,
-            @RequestParam(required = false) String empresa,
-            @RequestParam(required = false) String startDate
+            @RequestParam(value = "status", required = false) TransportGuideStatus status,
+            @RequestParam(value = "empresa", required = false) String empresa,
+            @RequestParam(value = "startDate", required = false) String startDate
     ) {
         log.info("GET /api/transport-guides/pdf - Gerando relatÃ³rio PDF");
         try {

@@ -30,7 +30,7 @@ public class CharterController {
     }
 
     @GetMapping("/contracts/{id}")
-    public ResponseEntity<CharterContract> findContractById(@PathVariable UUID id) {
+    public ResponseEntity<CharterContract> findContractById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(charterService.findContractById(id));
     }
 
@@ -40,14 +40,14 @@ public class CharterController {
     }
 
     @PutMapping("/contracts/{id}")
-    public ResponseEntity<CharterContract> updateContract(@PathVariable UUID id,
+    public ResponseEntity<CharterContract> updateContract(@PathVariable("id") UUID id,
             @RequestBody CharterContract contract) {
         contract.setId(id);
         return ResponseEntity.ok(charterService.saveContract(contract));
     }
 
     @DeleteMapping("/contracts/{id}")
-    public ResponseEntity<Void> deleteContract(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteContract(@PathVariable("id") UUID id) {
         charterService.deleteContract(id);
         return ResponseEntity.noContent().build();
     }

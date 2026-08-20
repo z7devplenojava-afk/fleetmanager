@@ -74,6 +74,9 @@ public class EmailAccount {
     @Column(name = "auth_type", length = 20)
     private String authType = "PASSWORD"; // 'password' | 'oauth2'
 
+    @Column(name = "signature", columnDefinition = "TEXT")
+    private String signature;
+
     @Column(name = "status", length = 20)
     private String status = "ACTIVE";
 

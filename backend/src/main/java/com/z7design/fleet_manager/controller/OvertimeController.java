@@ -70,7 +70,7 @@ public class OvertimeController {
                     schema = @Schema(implementation = Overtime.class),
                     examples = @ExampleObject(value = "{\"id\":\"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"overtimeHours\":3.0, \"justification\":\"ConclusÃ£o de projeto urgente - atualizado\"}")))
     @PutMapping("/{id}")
-    public ResponseEntity<Overtime> update(@PathVariable UUID id, @RequestBody Overtime overtime) {
+    public ResponseEntity<Overtime> update(@PathVariable("id") UUID id, @RequestBody Overtime overtime) {
         return ResponseEntity.ok(overtimeService.update(id, overtime));
     }
 
@@ -88,7 +88,7 @@ public class OvertimeController {
     })
     @Parameter(description = "ID do usuÃ¡rio que aprovou a solicitaÃ§Ã£o", required = true)
     @PostMapping("/{id}/approve")
-    public ResponseEntity<Overtime> approve(@PathVariable UUID id, @RequestParam UUID approvedBy) {
+    public ResponseEntity<Overtime> approve(@PathVariable("id") UUID id, @RequestParam(value = "approvedBy") UUID approvedBy) {
         return ResponseEntity.ok(overtimeService.approve(id, approvedBy));
     }
 
@@ -106,7 +106,7 @@ public class OvertimeController {
     })
     @Parameter(description = "Justificativa para a rejeiÃ§Ã£o da solicitaÃ§Ã£o", required = true)
     @PostMapping("/{id}/reject")
-    public ResponseEntity<Overtime> reject(@PathVariable UUID id, @RequestParam String justification) {
+    public ResponseEntity<Overtime> reject(@PathVariable("id") UUID id, @RequestParam(value = "justification") String justification) {
         return ResponseEntity.ok(overtimeService.reject(id, justification));
     }
 
@@ -123,7 +123,7 @@ public class OvertimeController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/{id}/compensate")
-    public ResponseEntity<Overtime> compensate(@PathVariable UUID id) {
+    public ResponseEntity<Overtime> compensate(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(overtimeService.compensate(id));
     }
 
@@ -138,7 +138,7 @@ public class OvertimeController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Overtime> findById(@PathVariable UUID id) {
+    public ResponseEntity<Overtime> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(overtimeService.findById(id));
     }
 
@@ -151,7 +151,7 @@ public class OvertimeController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<Overtime>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<Overtime>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         return ResponseEntity.ok(overtimeService.findByEmployeeId(employeeId));
     }
 
@@ -168,8 +168,8 @@ public class OvertimeController {
     @Parameter(description = "Status das horas extras (PENDING, APPROVED, REJECTED, COMPENSATED)", required = true)
     @GetMapping("/employee/{employeeId}/status")
     public ResponseEntity<List<Overtime>> findByEmployeeIdAndStatus(
-            @PathVariable UUID employeeId,
-            @RequestParam String status) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "status") String status) {
         return ResponseEntity.ok(overtimeService.findByEmployeeIdAndStatus(employeeId, OvertimeStatus.valueOf(status)));
     }
 
@@ -186,8 +186,8 @@ public class OvertimeController {
     @Parameter(description = "Tipo de horas extras (EXTRA_HOURS, BANK_HOURS)", required = true)
     @GetMapping("/employee/{employeeId}/type")
     public ResponseEntity<List<Overtime>> findByEmployeeIdAndType(
-            @PathVariable UUID employeeId,
-            @RequestParam String type) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "type") String type) {
         return ResponseEntity.ok(overtimeService.findByEmployeeIdAndType(employeeId, OvertimeType.valueOf(type)));
     }
 
@@ -205,9 +205,9 @@ public class OvertimeController {
     @Parameter(description = "Data de fim do perÃ­odo (formato YYYY-MM-DD)", example = "2023-12-31", required = true)
     @GetMapping("/employee/{employeeId}/period")
     public ResponseEntity<List<Overtime>> findByEmployeeIdAndPeriod(
-            @PathVariable UUID employeeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(overtimeService.findByEmployeeIdAndOvertimeDateBetween(employeeId, startDate, endDate));
     }
 } 

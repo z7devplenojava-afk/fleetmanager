@@ -39,7 +39,7 @@ public class RoleController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Role> getRoleById(@PathVariable UUID id) {
+    public ResponseEntity<Role> getRoleById(@PathVariable("id") UUID id) {
         Optional<Role> role = roleRepository.findById(id);
         return role.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -60,7 +60,7 @@ public class RoleController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Role> updateRole(@PathVariable UUID id, @RequestBody Role role) {
+    public ResponseEntity<Role> updateRole(@PathVariable("id") UUID id, @RequestBody Role role) {
         Optional<Role> existing = roleRepository.findById(id);
         if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -79,7 +79,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteRole(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteRole(@PathVariable("id") UUID id) {
         if (!roleRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
@@ -89,7 +89,7 @@ public class RoleController {
 
     @GetMapping("/name/{name}")
     @Operation(summary = "Buscar role por nome", description = "Retorna um role especÃ­fico pelo nome")
-    public ResponseEntity<RoleDTO> getRoleByName(@PathVariable String name) {
+    public ResponseEntity<RoleDTO> getRoleByName(@PathVariable("name") String name) {
         Role role = roleRepository.findByName(name)
                 .orElseThrow(() -> new ResourceNotFoundException("Role nÃ£o encontrado com nome: " + name));
         return ResponseEntity.ok(RoleDTO.fromEntity(role));
@@ -97,7 +97,7 @@ public class RoleController {
 
     @GetMapping("/{id}/permissions")
     @Operation(summary = "Listar permissÃµes do role", description = "Retorna todas as permissÃµes associadas a um role")
-    public ResponseEntity<Set<Permission>> getRolePermissions(@PathVariable UUID id) {
+    public ResponseEntity<Set<Permission>> getRolePermissions(@PathVariable("id") UUID id) {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role nÃ£o encontrado com ID: " + id));
         return ResponseEntity.ok(role.getPermissions());
@@ -105,7 +105,7 @@ public class RoleController {
 
     @PostMapping("/{id}/permissions")
     @Operation(summary = "Adicionar permissÃµes ao role", description = "Adiciona permissÃµes a um role existente")
-    public ResponseEntity<RoleDTO> addPermissionsToRole(@PathVariable UUID id, @RequestBody List<String> permissionNames) {
+    public ResponseEntity<RoleDTO> addPermissionsToRole(@PathVariable("id") UUID id, @RequestBody List<String> permissionNames) {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role nÃ£o encontrado com ID: " + id));
 
@@ -120,7 +120,7 @@ public class RoleController {
 
     @DeleteMapping("/{id}/permissions")
     @Operation(summary = "Remover permissÃµes do role", description = "Remove permissÃµes de um role existente")
-    public ResponseEntity<RoleDTO> removePermissionsFromRole(@PathVariable UUID id, @RequestBody List<String> permissionNames) {
+    public ResponseEntity<RoleDTO> removePermissionsFromRole(@PathVariable("id") UUID id, @RequestBody List<String> permissionNames) {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role nÃ£o encontrado com ID: " + id));
 

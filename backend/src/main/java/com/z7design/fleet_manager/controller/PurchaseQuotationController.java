@@ -40,7 +40,7 @@ public class PurchaseQuotationController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar cotaÃ§Ã£o por ID", description = "Retorna uma cotaÃ§Ã£o especÃ­fica pelo ID")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO')")
-    public ResponseEntity<PurchaseQuotationDTO> getQuotationById(@PathVariable UUID id) {
+    public ResponseEntity<PurchaseQuotationDTO> getQuotationById(@PathVariable("id") UUID id) {
         log.info("Buscando cotaÃ§Ã£o com ID: {}", id);
         return purchaseQuotationService.getQuotationById(id)
                 .map(ResponseEntity::ok)
@@ -74,7 +74,7 @@ public class PurchaseQuotationController {
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar cotaÃ§Ã£o", description = "Atualiza uma cotaÃ§Ã£o existente")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPRAS')")
-    public ResponseEntity<PurchaseQuotationDTO> updateQuotation(@PathVariable UUID id, 
+    public ResponseEntity<PurchaseQuotationDTO> updateQuotation(@PathVariable("id") UUID id, 
                                                                  @RequestBody PurchaseQuotationDTO quotationDTO) {
         log.info("Atualizando cotaÃ§Ã£o com ID: {}", id);
         try {
@@ -89,7 +89,7 @@ public class PurchaseQuotationController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir cotaÃ§Ã£o", description = "Exclui uma cotaÃ§Ã£o do sistema")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteQuotation(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteQuotation(@PathVariable("id") UUID id) {
         log.info("Deletando cotaÃ§Ã£o com ID: {}", id);
         try {
             purchaseQuotationService.deleteQuotation(id);
@@ -103,7 +103,7 @@ public class PurchaseQuotationController {
     @PatchMapping("/{id}/status")
     @Operation(summary = "Atualizar status da cotaÃ§Ã£o", description = "Atualiza apenas o status de uma cotaÃ§Ã£o")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO')")
-    public ResponseEntity<PurchaseQuotationDTO> updateQuotationStatus(@PathVariable UUID id, 
+    public ResponseEntity<PurchaseQuotationDTO> updateQuotationStatus(@PathVariable("id") UUID id, 
                                                                        @RequestBody Map<String, String> statusUpdate) {
         log.info("Atualizando status da cotaÃ§Ã£o com ID: {}", id);
         String status = statusUpdate.get("status");
@@ -119,7 +119,7 @@ public class PurchaseQuotationController {
     @GetMapping("/status/{status}")
     @Operation(summary = "Buscar cotaÃ§Ãµes por status", description = "Retorna cotaÃ§Ãµes filtradas por status")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO')")
-    public ResponseEntity<List<PurchaseQuotationDTO>> getQuotationsByStatus(@PathVariable String status) {
+    public ResponseEntity<List<PurchaseQuotationDTO>> getQuotationsByStatus(@PathVariable("status") String status) {
         log.info("Buscando cotaÃ§Ãµes com status: {}", status);
         try {
             List<PurchaseQuotationDTO> quotations = purchaseQuotationService.findByStatus(status);
@@ -133,7 +133,7 @@ public class PurchaseQuotationController {
     @GetMapping("/supplier/{supplierId}")
     @Operation(summary = "Buscar cotaÃ§Ãµes por fornecedor", description = "Retorna cotaÃ§Ãµes de um fornecedor especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO')")
-    public ResponseEntity<List<PurchaseQuotationDTO>> getQuotationsBySupplier(@PathVariable UUID supplierId) {
+    public ResponseEntity<List<PurchaseQuotationDTO>> getQuotationsBySupplier(@PathVariable("supplierId") UUID supplierId) {
         log.info("Buscando cotaÃ§Ãµes do fornecedor: {}", supplierId);
         List<PurchaseQuotationDTO> quotations = purchaseQuotationService.findBySupplier(supplierId);
         return ResponseEntity.ok(quotations);
@@ -142,7 +142,7 @@ public class PurchaseQuotationController {
     @GetMapping("/unit/{unitId}")
     @Operation(summary = "Buscar cotaÃ§Ãµes por unidade", description = "Retorna cotaÃ§Ãµes de uma unidade especÃ­fica")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO')")
-    public ResponseEntity<List<PurchaseQuotationDTO>> getQuotationsByUnit(@PathVariable UUID unitId) {
+    public ResponseEntity<List<PurchaseQuotationDTO>> getQuotationsByUnit(@PathVariable("unitId") UUID unitId) {
         log.info("Buscando cotaÃ§Ãµes da unidade: {}", unitId);
         List<PurchaseQuotationDTO> quotations = purchaseQuotationService.findByUnit(unitId);
         return ResponseEntity.ok(quotations);
@@ -151,7 +151,7 @@ public class PurchaseQuotationController {
     @GetMapping("/assigned/{userId}")
     @Operation(summary = "Buscar cotaÃ§Ãµes por responsÃ¡vel", description = "Retorna cotaÃ§Ãµes atribuÃ­das a um usuÃ¡rio especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO')")
-    public ResponseEntity<List<PurchaseQuotationDTO>> getQuotationsByAssignedTo(@PathVariable UUID userId) {
+    public ResponseEntity<List<PurchaseQuotationDTO>> getQuotationsByAssignedTo(@PathVariable("userId") UUID userId) {
         log.info("Buscando cotaÃ§Ãµes atribuÃ­das ao usuÃ¡rio: {}", userId);
         List<PurchaseQuotationDTO> quotations = purchaseQuotationService.findByAssignedTo(userId);
         return ResponseEntity.ok(quotations);
@@ -169,7 +169,7 @@ public class PurchaseQuotationController {
     @GetMapping("/expiring-soon/{days}")
     @Operation(summary = "Buscar cotaÃ§Ãµes expirando em breve", description = "Retorna cotaÃ§Ãµes que expiram nos prÃ³ximos X dias")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO')")
-    public ResponseEntity<List<PurchaseQuotationDTO>> getQuotationsExpiringSoon(@PathVariable int days) {
+    public ResponseEntity<List<PurchaseQuotationDTO>> getQuotationsExpiringSoon(@PathVariable("days") int days) {
         log.info("Buscando cotaÃ§Ãµes expirando nos prÃ³ximos {} dias", days);
         List<PurchaseQuotationDTO> quotations = purchaseQuotationService.findQuotationsExpiringSoon(days);
         return ResponseEntity.ok(quotations);
@@ -178,7 +178,7 @@ public class PurchaseQuotationController {
     @GetMapping("/search")
     @Operation(summary = "Buscar cotaÃ§Ãµes", description = "Busca cotaÃ§Ãµes por termo de pesquisa")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO')")
-    public ResponseEntity<List<PurchaseQuotationDTO>> searchQuotations(@RequestParam String term) {
+    public ResponseEntity<List<PurchaseQuotationDTO>> searchQuotations(@RequestParam(value = "term") String term) {
         log.info("Buscando cotaÃ§Ãµes com termo: {}", term);
         List<PurchaseQuotationDTO> quotations = purchaseQuotationService.searchQuotations(term);
         return ResponseEntity.ok(quotations);

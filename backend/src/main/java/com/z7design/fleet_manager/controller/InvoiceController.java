@@ -81,7 +81,7 @@ public class InvoiceController {
             @ApiResponse(responseCode = "404", description = "Fatura nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<InvoiceDTO> getById(@PathVariable String id) {
+    public ResponseEntity<InvoiceDTO> getById(@PathVariable("id") String id) {
         try {
             log.info("GET /api/invoices/{} - Buscando fatura por ID", id);
             UUID invoiceId = UUID.fromString(id);
@@ -112,7 +112,7 @@ public class InvoiceController {
     
     @GetMapping("/status/{status}")
     @Operation(summary = "Buscar faturas por status", description = "Retorna faturas com um status especÃ­fico")
-    public ResponseEntity<List<InvoiceDTO>> getByStatus(@PathVariable ExpenseStatus status) {
+    public ResponseEntity<List<InvoiceDTO>> getByStatus(@PathVariable("status") ExpenseStatus status) {
         List<Invoice> invoices = invoiceService.findByStatus(status);
         List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -120,7 +120,7 @@ public class InvoiceController {
     
     @GetMapping("/type/{type}")
     @Operation(summary = "Buscar faturas por tipo", description = "Retorna faturas de um tipo especÃ­fico (Fixa/VariÃ¡vel)")
-    public ResponseEntity<List<InvoiceDTO>> getByType(@PathVariable ExpenseType type) {
+    public ResponseEntity<List<InvoiceDTO>> getByType(@PathVariable("type") ExpenseType type) {
         List<Invoice> invoices = invoiceService.findByType(type);
         List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -128,19 +128,19 @@ public class InvoiceController {
     
     @GetMapping("/supplier/{supplierId}")
     @Operation(summary = "Buscar faturas por fornecedor", description = "Retorna faturas de um fornecedor especÃ­fico")
-    public ResponseEntity<List<InvoiceDTO>> getBySupplier(@PathVariable String supplierId) {
+    public ResponseEntity<List<InvoiceDTO>> getBySupplier(@PathVariable("supplierId") String supplierId) {
         return ResponseEntity.ok(invoiceService.findBySupplier(UUID.fromString(supplierId)).stream().map(InvoiceDTO::fromEntity).toList());
     }
     
     @GetMapping("/client/{clientId}")
     @Operation(summary = "Buscar faturas por cliente", description = "Retorna faturas de um cliente especÃ­fico")
-    public ResponseEntity<List<InvoiceDTO>> getByClient(@PathVariable String clientId) {
+    public ResponseEntity<List<InvoiceDTO>> getByClient(@PathVariable("clientId") String clientId) {
         return ResponseEntity.ok(invoiceService.findByClient(UUID.fromString(clientId)).stream().map(InvoiceDTO::fromEntity).toList());
     }
     
     @GetMapping("/category/{category}")
     @Operation(summary = "Buscar faturas por categoria", description = "Retorna faturas de uma categoria especÃ­fica")
-    public ResponseEntity<List<InvoiceDTO>> getByCategory(@PathVariable String category) {
+    public ResponseEntity<List<InvoiceDTO>> getByCategory(@PathVariable("category") String category) {
         List<Invoice> invoices = invoiceService.findByCategory(category);
         List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -148,7 +148,7 @@ public class InvoiceController {
     
     @GetMapping("/search/invoice-number")
     @Operation(summary = "Buscar nÃºmeros de fatura", description = "Retorna nÃºmeros de fatura que contenham o termo pesquisado")
-    public ResponseEntity<List<String>> searchInvoiceNumbers(@RequestParam String term) {
+    public ResponseEntity<List<String>> searchInvoiceNumbers(@RequestParam(value = "term") String term) {
         List<Invoice> invoices = invoiceService.findByInvoiceNumber(term);
         List<String> invoiceNumbers = invoices.stream()
             .map(Invoice::getInvoiceNumber)
@@ -172,7 +172,7 @@ public class InvoiceController {
     
     @GetMapping("/due-soon/{days}")
     @Operation(summary = "Buscar faturas vencendo em breve", description = "Retorna faturas que vencem nos prÃ³ximos X dias")
-    public ResponseEntity<List<InvoiceDTO>> getInvoicesDueSoon(@PathVariable int days) {
+    public ResponseEntity<List<InvoiceDTO>> getInvoicesDueSoon(@PathVariable("days") int days) {
         try {
             List<Invoice> invoices = invoiceService.findInvoicesDueSoon(days);
             List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
@@ -186,8 +186,8 @@ public class InvoiceController {
     @GetMapping("/paid-in-period")
     @Operation(summary = "Buscar faturas pagas em perÃ­odo", description = "Retorna faturas pagas em um perÃ­odo especÃ­fico")
     public ResponseEntity<List<InvoiceDTO>> getPaidInPeriod(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<Invoice> invoices = invoiceService.findPaidInvoicesInPeriod(startDate, endDate);
         List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -196,15 +196,15 @@ public class InvoiceController {
     @GetMapping("/filters")
     @Operation(summary = "Buscar faturas com filtros avanÃ§ados", description = "Busca faturas aplicando mÃºltiplos filtros")
     public ResponseEntity<Page<InvoiceDTO>> getByAdvancedFilters(
-            @RequestParam(required = false) ExpenseStatus status,
-            @RequestParam(required = false) ExpenseType type,
-            @RequestParam(required = false) java.util.UUID supplierId,
-            @RequestParam(required = false) java.util.UUID clientId,
-            @RequestParam(required = false) UUID unitId,
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "status", required = false) ExpenseStatus status,
+            @RequestParam(value = "type", required = false) ExpenseType type,
+            @RequestParam(value = "supplierId", required = false) java.util.UUID supplierId,
+            @RequestParam(value = "clientId", required = false) java.util.UUID clientId,
+            @RequestParam(value = "unitId", required = false) UUID unitId,
+            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             Pageable pageable) {
         Page<Invoice> invoices = invoiceService.findByAdvancedFilters(status, type, supplierId, clientId, unitId, category, description, startDate, endDate, pageable);
         Page<InvoiceDTO> dtos = invoices.map(InvoiceDTO::fromEntity);
@@ -247,7 +247,7 @@ public class InvoiceController {
             @ApiResponse(responseCode = "404", description = "Fatura nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<InvoiceDTO> update(@PathVariable String id, @Valid @RequestBody InvoiceDTO invoiceDTO) {
+    public ResponseEntity<InvoiceDTO> update(@PathVariable("id") String id, @Valid @RequestBody InvoiceDTO invoiceDTO) {
         try {
             log.info("PUT /api/invoices/{} - Atualizando fatura", id);
             log.info("Dados recebidos: {}", invoiceDTO);
@@ -296,28 +296,28 @@ public class InvoiceController {
             @ApiResponse(responseCode = "404", description = "Fatura nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         invoiceService.deleteById(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }
     
     @PatchMapping("/{id}/status")
     @Operation(summary = "Atualizar status da fatura", description = "Atualiza apenas o status de uma fatura")
-    public ResponseEntity<InvoiceDTO> updateStatus(@PathVariable String id, @RequestParam ExpenseStatus status) {
+    public ResponseEntity<InvoiceDTO> updateStatus(@PathVariable("id") String id, @RequestParam(value = "status") ExpenseStatus status) {
         Invoice updated = invoiceService.updateStatus(UUID.fromString(id), status);
         return ResponseEntity.ok(InvoiceDTO.fromEntity(updated));
     }
     
     @PatchMapping("/{id}/mark-as-paid")
     @Operation(summary = "Marcar fatura como paga", description = "Marca uma fatura como paga")
-    public ResponseEntity<InvoiceDTO> markAsPaid(@PathVariable String id, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paymentDate) {
+    public ResponseEntity<InvoiceDTO> markAsPaid(@PathVariable("id") String id, @RequestParam(value = "paymentDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paymentDate) {
         Invoice updated = invoiceService.markAsPaid(UUID.fromString(id), paymentDate);
         return ResponseEntity.ok(InvoiceDTO.fromEntity(updated));
     }
     
     @PatchMapping("/{id}/cancel")
     @Operation(summary = "Cancelar fatura", description = "Cancela uma fatura")
-    public ResponseEntity<InvoiceDTO> cancel(@PathVariable String id) {
+    public ResponseEntity<InvoiceDTO> cancel(@PathVariable("id") String id) {
         Invoice updated = invoiceService.cancel(UUID.fromString(id));
         return ResponseEntity.ok(InvoiceDTO.fromEntity(updated));
     }
@@ -362,8 +362,8 @@ public class InvoiceController {
     @GetMapping("/reports/total-paid-in-period")
     @Operation(summary = "Total pago em perÃ­odo", description = "Retorna o valor total pago em um perÃ­odo especÃ­fico")
     public ResponseEntity<BigDecimal> getTotalPaidInPeriod(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(invoiceService.getTotalPaidInPeriod(startDate, endDate));
     }
     
@@ -406,9 +406,9 @@ public class InvoiceController {
     @GetMapping("/reports/by-cost-center")
     @Operation(summary = "RelatÃ³rio por centro de custo", description = "Retorna total e lista de faturas por centro de custo e perÃ­odo")
     public ResponseEntity<CostCenterReport> reportByCostCenter(
-            @RequestParam(required = false) String centro,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+            @RequestParam(value = "centro", required = false) String centro,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
         CostCenterReport r = new CostCenterReport();
         r.total = invoiceService.getTotalByCostCenterAndPeriod(centro, startDate, endDate);
@@ -425,7 +425,7 @@ public class InvoiceController {
     // Novos endpoints para busca por unidade
     @GetMapping("/unit/{unitId}")
     @Operation(summary = "Buscar faturas por unidade", description = "Retorna faturas de uma unidade especÃ­fica")
-    public ResponseEntity<List<InvoiceDTO>> getByUnit(@PathVariable UUID unitId) {
+    public ResponseEntity<List<InvoiceDTO>> getByUnit(@PathVariable("unitId") UUID unitId) {
         List<Invoice> invoices = invoiceService.findByUnit(unitId);
         List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -433,7 +433,7 @@ public class InvoiceController {
     
     @GetMapping("/unit/{unitId}/status/{status}")
     @Operation(summary = "Buscar faturas por unidade e status", description = "Retorna faturas de uma unidade com status especÃ­fico")
-    public ResponseEntity<List<InvoiceDTO>> getByUnitAndStatus(@PathVariable UUID unitId, @PathVariable ExpenseStatus status) {
+    public ResponseEntity<List<InvoiceDTO>> getByUnitAndStatus(@PathVariable("unitId") UUID unitId, @PathVariable("status") ExpenseStatus status) {
         List<Invoice> invoices = invoiceService.findByUnitAndStatus(unitId, status);
         List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -441,7 +441,7 @@ public class InvoiceController {
     
     @GetMapping("/unit/{unitId}/type/{type}")
     @Operation(summary = "Buscar faturas por unidade e tipo", description = "Retorna faturas de uma unidade com tipo especÃ­fico")
-    public ResponseEntity<List<InvoiceDTO>> getByUnitAndType(@PathVariable UUID unitId, @PathVariable ExpenseType type) {
+    public ResponseEntity<List<InvoiceDTO>> getByUnitAndType(@PathVariable("unitId") UUID unitId, @PathVariable("type") ExpenseType type) {
         List<Invoice> invoices = invoiceService.findByUnitAndType(unitId, type);
         List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -449,7 +449,7 @@ public class InvoiceController {
     
     @GetMapping("/unit/{unitId}/category/{category}")
     @Operation(summary = "Buscar faturas por unidade e categoria", description = "Retorna faturas de uma unidade com categoria especÃ­fica")
-    public ResponseEntity<List<InvoiceDTO>> getByUnitAndCategory(@PathVariable UUID unitId, @PathVariable String category) {
+    public ResponseEntity<List<InvoiceDTO>> getByUnitAndCategory(@PathVariable("unitId") UUID unitId, @PathVariable("category") String category) {
         List<Invoice> invoices = invoiceService.findByUnitAndCategory(unitId, category);
         List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -457,7 +457,7 @@ public class InvoiceController {
     
     @GetMapping("/unit/{unitId}/overdue")
     @Operation(summary = "Buscar faturas vencidas por unidade", description = "Retorna faturas vencidas de uma unidade especÃ­fica")
-    public ResponseEntity<List<InvoiceDTO>> getOverdueByUnit(@PathVariable UUID unitId) {
+    public ResponseEntity<List<InvoiceDTO>> getOverdueByUnit(@PathVariable("unitId") UUID unitId) {
         List<Invoice> invoices = invoiceService.findOverdueInvoicesByUnit(unitId);
         List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -465,7 +465,7 @@ public class InvoiceController {
     
     @GetMapping("/unit/{unitId}/due-soon/{days}")
     @Operation(summary = "Buscar faturas vencendo em breve por unidade", description = "Retorna faturas vencendo em breve de uma unidade especÃ­fica")
-    public ResponseEntity<List<InvoiceDTO>> getDueSoonByUnit(@PathVariable UUID unitId, @PathVariable int days) {
+    public ResponseEntity<List<InvoiceDTO>> getDueSoonByUnit(@PathVariable("unitId") UUID unitId, @PathVariable("days") int days) {
         List<Invoice> invoices = invoiceService.findInvoicesDueSoonByUnit(unitId, days);
         List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -474,9 +474,9 @@ public class InvoiceController {
     @GetMapping("/unit/{unitId}/paid-in-period")
     @Operation(summary = "Buscar faturas pagas em perÃ­odo por unidade", description = "Retorna faturas pagas em um perÃ­odo especÃ­fico de uma unidade")
     public ResponseEntity<List<InvoiceDTO>> getPaidInPeriodByUnit(
-            @PathVariable UUID unitId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @PathVariable("unitId") UUID unitId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<Invoice> invoices = invoiceService.findPaidInvoicesInPeriodByUnit(unitId, startDate, endDate);
         List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -485,10 +485,10 @@ public class InvoiceController {
     @GetMapping("/units")
     @Operation(summary = "Buscar faturas por mÃºltiplas unidades", description = "Retorna faturas de mÃºltiplas unidades")
     public ResponseEntity<List<InvoiceDTO>> getByUnits(
-            @RequestParam List<UUID> unitIds,
-            @RequestParam(required = false) ExpenseStatus status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "unitIds") List<UUID> unitIds,
+            @RequestParam(value = "status", required = false) ExpenseStatus status,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         if (status != null) {
             List<Invoice> invoices = invoiceService.findByUnitsAndStatus(unitIds, status);
             List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
@@ -507,40 +507,40 @@ public class InvoiceController {
     // RelatÃ³rios por unidade
     @GetMapping("/unit/{unitId}/reports/amount-by-status")
     @Operation(summary = "RelatÃ³rio de valores por status por unidade", description = "Retorna o valor total das faturas agrupado por status para uma unidade")
-    public ResponseEntity<List<Object[]>> getAmountByStatusAndUnit(@PathVariable UUID unitId) {
+    public ResponseEntity<List<Object[]>> getAmountByStatusAndUnit(@PathVariable("unitId") UUID unitId) {
         return ResponseEntity.ok(invoiceService.getAmountByStatusAndUnit(unitId));
     }
     
     @GetMapping("/unit/{unitId}/reports/amount-by-type")
     @Operation(summary = "RelatÃ³rio de valores por tipo por unidade", description = "Retorna o valor total das faturas agrupado por tipo para uma unidade")
-    public ResponseEntity<List<Object[]>> getAmountByTypeAndUnit(@PathVariable UUID unitId) {
+    public ResponseEntity<List<Object[]>> getAmountByTypeAndUnit(@PathVariable("unitId") UUID unitId) {
         return ResponseEntity.ok(invoiceService.getAmountByTypeAndUnit(unitId));
     }
     
     @GetMapping("/unit/{unitId}/reports/amount-by-category")
     @Operation(summary = "RelatÃ³rio de valores por categoria por unidade", description = "Retorna o valor total das faturas agrupado por categoria para uma unidade")
-    public ResponseEntity<List<Object[]>> getAmountByCategoryAndUnit(@PathVariable UUID unitId) {
+    public ResponseEntity<List<Object[]>> getAmountByCategoryAndUnit(@PathVariable("unitId") UUID unitId) {
         return ResponseEntity.ok(invoiceService.getAmountByCategoryAndUnit(unitId));
     }
     
     @GetMapping("/unit/{unitId}/reports/total-pending")
     @Operation(summary = "Total pendente por unidade", description = "Retorna o valor total das faturas pendentes de uma unidade")
-    public ResponseEntity<BigDecimal> getTotalPendingByUnit(@PathVariable UUID unitId) {
+    public ResponseEntity<BigDecimal> getTotalPendingByUnit(@PathVariable("unitId") UUID unitId) {
         return ResponseEntity.ok(invoiceService.getTotalPendingByUnit(unitId));
     }
     
     @GetMapping("/unit/{unitId}/reports/total-overdue")
     @Operation(summary = "Total vencido por unidade", description = "Retorna o valor total das faturas vencidas de uma unidade")
-    public ResponseEntity<BigDecimal> getTotalOverdueByUnit(@PathVariable UUID unitId) {
+    public ResponseEntity<BigDecimal> getTotalOverdueByUnit(@PathVariable("unitId") UUID unitId) {
         return ResponseEntity.ok(invoiceService.getTotalOverdueByUnit(unitId));
     }
     
     @GetMapping("/unit/{unitId}/reports/total-paid-in-period")
     @Operation(summary = "Total pago em perÃ­odo por unidade", description = "Retorna o valor total pago em um perÃ­odo especÃ­fico de uma unidade")
     public ResponseEntity<BigDecimal> getTotalPaidInPeriodByUnit(
-            @PathVariable UUID unitId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @PathVariable("unitId") UUID unitId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(invoiceService.getTotalPaidInPeriodByUnit(unitId, startDate, endDate));
     }
     

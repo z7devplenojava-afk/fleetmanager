@@ -34,14 +34,14 @@ public class JobVacancyController {
     
     // Buscar vaga pÃºblica por ID
     @GetMapping("/public/vacancies/{id}")
-    public ResponseEntity<JobVacancyDTO> getPublicVacancyById(@PathVariable UUID id) {
+    public ResponseEntity<JobVacancyDTO> getPublicVacancyById(@PathVariable("id") UUID id) {
         JobVacancyDTO vacancy = jobVacancyService.getJobVacancyById(id);
         return ResponseEntity.ok(vacancy);
     }
     
     // Incrementar candidatura (para candidatos)
     @PostMapping("/public/vacancies/{id}/apply")
-    public ResponseEntity<Map<String, String>> applyToVacancy(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, String>> applyToVacancy(@PathVariable("id") UUID id) {
         jobVacancyService.incrementApplications(id);
         return ResponseEntity.ok(Map.of("message", "Candidatura registrada com sucesso"));
     }
@@ -51,9 +51,9 @@ public class JobVacancyController {
     // Buscar todas as vagas (admin)
     @GetMapping("/hr/vacancies")
     public ResponseEntity<List<JobVacancyDTO>> getAllVacancies(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String position,
-            @RequestParam(required = false) String location) {
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "position", required = false) String position,
+            @RequestParam(value = "location", required = false) String location) {
         try {
             log.info("GET /api/hr/vacancies - Buscando vagas com filtros: status={}, position={}, location={}", 
                     status, position, location);
@@ -73,7 +73,7 @@ public class JobVacancyController {
     
     // Buscar vaga por ID (admin)
     @GetMapping("/hr/vacancies/{id}")
-    public ResponseEntity<JobVacancyDTO> getVacancyById(@PathVariable UUID id) {
+    public ResponseEntity<JobVacancyDTO> getVacancyById(@PathVariable("id") UUID id) {
         JobVacancyDTO vacancy = jobVacancyService.getJobVacancyById(id);
         return ResponseEntity.ok(vacancy);
     }
@@ -87,14 +87,14 @@ public class JobVacancyController {
     
     // Atualizar vaga (admin)
     @PutMapping("/hr/vacancies/{id}")
-    public ResponseEntity<JobVacancyDTO> updateVacancy(@PathVariable UUID id, @Valid @RequestBody JobVacancyDTO vacancyDTO) {
+    public ResponseEntity<JobVacancyDTO> updateVacancy(@PathVariable("id") UUID id, @Valid @RequestBody JobVacancyDTO vacancyDTO) {
         JobVacancyDTO updatedVacancy = jobVacancyService.updateJobVacancy(id, vacancyDTO);
         return ResponseEntity.ok(updatedVacancy);
     }
     
     // Excluir vaga (admin)
     @DeleteMapping("/hr/vacancies/{id}")
-    public ResponseEntity<Map<String, String>> deleteVacancy(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, String>> deleteVacancy(@PathVariable("id") UUID id) {
         System.out.println("ðŸ” [DEBUG] Endpoint DELETE chamado para vaga ID: " + id);
         try {
             jobVacancyService.deleteJobVacancy(id);
@@ -109,8 +109,8 @@ public class JobVacancyController {
     // Atualizar status da vaga (admin)
     @PatchMapping("/hr/vacancies/{id}/status")
     public ResponseEntity<JobVacancyDTO> updateVacancyStatus(
-            @PathVariable UUID id, 
-            @RequestParam VacancyStatus status) {
+            @PathVariable("id") UUID id, 
+            @RequestParam(value = "status") VacancyStatus status) {
         JobVacancyDTO updatedVacancy = jobVacancyService.updateVacancyStatus(id, status);
         return ResponseEntity.ok(updatedVacancy);
     }
@@ -118,7 +118,7 @@ public class JobVacancyController {
     // Buscar vagas vencendo em breve (admin)
     @GetMapping("/hr/vacancies/expiring")
     public ResponseEntity<List<JobVacancyDTO>> getExpiringVacancies(
-            @RequestParam(defaultValue = "7") int days) {
+            @RequestParam(value = "days", defaultValue = "7") int days) {
         List<JobVacancyDTO> vacancies = jobVacancyService.getVacanciesExpiringSoon(days);
         return ResponseEntity.ok(vacancies);
     }

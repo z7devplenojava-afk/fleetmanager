@@ -8,6 +8,8 @@ import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.hibernate.annotations.Filter;
@@ -120,6 +122,10 @@ public class PurchaseRequest implements TenantAware {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approver_id")
     private User approver;
+
+    @OneToMany(mappedBy = "purchaseRequest", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<PurchaseRequestItem> items = new ArrayList<>();
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

@@ -44,7 +44,7 @@ public class ChatbotConfigController {
     @PutMapping("/config/{id}")
     @PreAuthorize("hasAnyAuthority('SUPPORT_MANAGE', 'ATTENDANCE_MANAGE', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<ChatbotConfigDTO> updateConfig(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody UpdateChatbotConfigRequest request,
             Authentication authentication) {
         String username = authentication.getName();
@@ -66,7 +66,7 @@ public class ChatbotConfigController {
     
     @GetMapping("/config/{id}")
     @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ATTENDANCE_MANAGE', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<ChatbotConfigDTO> getConfig(@PathVariable UUID id) {
+    public ResponseEntity<ChatbotConfigDTO> getConfig(@PathVariable("id") UUID id) {
         ChatbotConfigDTO config = chatbotConfigService.getConfig(id);
         return ResponseEntity.ok(config);
     }
@@ -84,7 +84,7 @@ public class ChatbotConfigController {
     
     @DeleteMapping("/config/{id}")
     @PreAuthorize("hasAnyAuthority('SUPPORT_MANAGE', 'ATTENDANCE_MANAGE', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteConfig(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteConfig(@PathVariable("id") UUID id) {
         chatbotConfigService.deleteConfig(id);
         return ResponseEntity.noContent().build();
     }

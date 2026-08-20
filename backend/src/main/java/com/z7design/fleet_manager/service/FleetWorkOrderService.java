@@ -2,11 +2,14 @@ package com.z7design.fleet_manager.service;
 
 import com.z7design.fleet_manager.dto.FleetWorkOrderDTO;
 import com.z7design.fleet_manager.dto.FleetWorkOrderHistoryDTO;
+import com.z7design.fleet_manager.dto.PurchaseRequestDTO;
+import com.z7design.fleet_manager.dto.PurchaseRequestItemDTO;
 import com.z7design.fleet_manager.dto.VehicleMaintenanceRankingDTO;
 import com.z7design.fleet_manager.dto.WorkOrderItemDTO;
 import com.z7design.fleet_manager.model.FleetWorkOrder;
 import com.z7design.fleet_manager.model.FleetWorkOrderHistory;
 import com.z7design.fleet_manager.model.MaintenancePlan;
+import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.Vehicle;
 import com.z7design.fleet_manager.model.WorkOrderItem;
 import com.z7design.fleet_manager.repository.FleetWorkOrderHistoryRepository;
@@ -37,6 +40,7 @@ public class FleetWorkOrderService {
     private final MaintenancePlanRepository planRepository;
     private final MaintenancePlanService planService;
     private final ProductService productService;
+    private final PurchaseRequestService purchaseRequestService;
 
     // ── Consultas ─────────────────────────────────────────────────────────────
 
@@ -216,6 +220,77 @@ public class FleetWorkOrderService {
         }
         FleetWorkOrderHistory h = addHistory(workOrderId, "NOTE", note, performedBy, null, null);
         return FleetWorkOrderHistoryDTO.fromEntity(h);
+    }
+
+    // ── Solicitar compra ao almoxarifado ─────────────────────────────────────
+
+    @Transactional
+    public PurchaseRequestDTO requestPurchase(UUID workOrderId, User requester) {
+        FleetWorkOrder entity = repository.findById(workOrderId)
+                .orElseThrow(() -> new ResourceNotFoundException("FleetWorkOrder not found: " + workOrderId));
+
+        // Apenas itens do tipo PEÇA (PART) são enviados para compra
+        List<WorkOrderItem> partItems = entity.getItems().stream()
+                .filter(i -> i.getType() == WorkOrderItem.ItemType.PART)
+                .collect(Collectors.toList());
+
+        if (partItems.isEmpty()) {
+            throw new IllegalArgumentException("A O.S. não possui itens de peça (PART) para solicitar compra.");
+        }
+
+        String vehicleLabel = entity.getVehicle() != null
+                ? entity.getVehicle().getPlate() + (entity.getVehicle().getModel() != null
+                        ? " - " + entity.getVehicle().getModel() : "")
+                : "Não informado";
+
+        String osLabel = entity.getOsNumber() != null ? entity.getOsNumber() : workOrderId.toString().substring(0, 8);
+
+        List<PurchaseRequestItemDTO> requestItems = partItems.stream().map(item -> {
+            PurchaseRequestItemDTO.PurchaseRequestItemDTOBuilder b = PurchaseRequestItemDTO.builder()
+                    .itemName(item.getDescription() != null && !item.getDescription().isBlank()
+                            ? item.getDescription() : "Peça")
+                    .description("Peça da O.S. " + osLabel + " - Veículo: " + vehicleLabel)
+                    .specification("O.S. " + osLabel)
+                    .quantity(item.getQuantity())
+                    .unitPrice(item.getUnitPrice())
+                    .totalPrice(item.getTotalPrice())
+                    .priority(entity.getPriority() != null ? entity.getPriority().name() : "MEDIUM")
+                    .status("PENDING")
+                    .urgency(entity.getPriority() == FleetWorkOrder.WorkOrderPriority.URGENT ? "URGENT" : "NORMAL")
+                    .productId(item.getProductId());
+            return b.build();
+        }).collect(Collectors.toList());
+
+        BigDecimal estimatedTotal = partItems.stream()
+                .map(WorkOrderItem::getTotalPrice)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        PurchaseRequestDTO dto = PurchaseRequestDTO.builder()
+                .title("Compra de peças - O.S. " + osLabel)
+                .description("Solicitação de compra gerada pela O.S. " + osLabel
+                        + " (Veículo: " + vehicleLabel + "). Itens necessários para execução da manutenção.")
+                .priority(entity.getPriority() != null ? entity.getPriority().name() : "MEDIUM")
+                .status("PENDING")
+                .requesterName(requester != null ? requester.getName() : "Operacional")
+                .department("Operacional")
+                .justification("Falta de peça para executar a Ordem de Serviço " + osLabel)
+                .estimatedTotal(estimatedTotal)
+                .urgency(entity.getPriority() == FleetWorkOrder.WorkOrderPriority.URGENT ? "URGENT" : "NORMAL")
+                .requiredDate(LocalDateTime.now().plusDays(3))
+                .requestDate(LocalDateTime.now())
+                .requesterId(requester != null ? requester.getId() : null)
+                .items(requestItems)
+                .build();
+
+        PurchaseRequestDTO created = purchaseRequestService.createPurchaseRequest(dto);
+
+        // Registra no histórico da O.S.
+        addHistory(workOrderId, "NOTE",
+                "Solicitação de compra enviada ao almoxarifado (" + created.getRequestNumber() + ").",
+                requester != null ? requester.getName() : "Operacional", null, null);
+
+        return created;
     }
 
     // ── Ranking de veículos ───────────────────────────────────────────────────

@@ -56,6 +56,8 @@ services:
     container_name: fluxbus-backend-ci
     environment:
       SPRING_PROFILES_ACTIVE: ci
+      # Porta interna fixa em 8083 (perfil ci usaria 8080) — mapping, healthcheck e webhook assumem 8083
+      SERVER_PORT: 8083
       DB_URL: jdbc:postgresql://postgres-ci:5432/${POSTGRES_DB_CI:-fluxbus_db_ci}
       DB_USERNAME: ${POSTGRES_USER_CI:-fluxbus_user_ci}
       DB_PASSWORD: ${POSTGRES_PASSWORD_CI:-4KaCiJc6an@7sgbdcid2026}
@@ -126,7 +128,8 @@ services:
     networks:
       - fluxbus-ci-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost || exit 1"]
+      # 127.0.0.1: localhost resolve ::1 (IPv6) e o nginx escuta so IPv4 -> wget busybox nao faz fallback
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

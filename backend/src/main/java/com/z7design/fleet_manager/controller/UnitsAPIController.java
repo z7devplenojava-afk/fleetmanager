@@ -67,7 +67,7 @@ public class UnitsAPIController {
     }
     
     @PutMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> update(@PathVariable String id, @RequestBody Map<String, Object> unitData) {
+    public ResponseEntity<Map<String, Object>> update(@PathVariable("id") String id, @RequestBody Map<String, Object> unitData) {
         Map<String, Object> response = new HashMap<>();
         response.put("id", id);
         response.put("name", unitData.get("name"));
@@ -81,7 +81,7 @@ public class UnitsAPIController {
     }
     
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> delete(@PathVariable String id) {
+    public ResponseEntity<Map<String, Object>> delete(@PathVariable("id") String id) {
         Map<String, Object> response = new HashMap<>();
         response.put("message", "Unidade excluÃ­da com sucesso");
         response.put("id", id);
@@ -89,7 +89,7 @@ public class UnitsAPIController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getById(@PathVariable String id) {
+    public ResponseEntity<Map<String, Object>> getById(@PathVariable("id") String id) {
         Map<String, Object> unit = new HashMap<>();
         unit.put("id", id);
         unit.put("name", "Unidade Exemplo");

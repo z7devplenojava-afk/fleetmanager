@@ -53,14 +53,14 @@ public class AbsenceController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<AbsenceResponse> getAbsenceById(@PathVariable UUID id) {
+    public ResponseEntity<AbsenceResponse> getAbsenceById(@PathVariable("id") UUID id) {
         return absenceService.getAbsenceById(id)
                 .map(absence -> ResponseEntity.ok(AbsenceResponse.fromEntity(absence)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<AbsenceResponse>> getAbsencesByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<AbsenceResponse>> getAbsencesByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<Absence> absences = absenceService.getAbsencesByEmployee(employeeId);
         List<AbsenceResponse> absenceResponses = absences.stream()
                 .map(AbsenceResponse::fromEntity)
@@ -69,7 +69,7 @@ public class AbsenceController {
     }
 
     @GetMapping("/date/{date}")
-    public ResponseEntity<List<AbsenceResponse>> getAbsencesByDate(@PathVariable LocalDate date) {
+    public ResponseEntity<List<AbsenceResponse>> getAbsencesByDate(@PathVariable("date") LocalDate date) {
         List<Absence> absences = absenceService.getAbsencesByDate(date);
         List<AbsenceResponse> absenceResponses = absences.stream()
                 .map(AbsenceResponse::fromEntity)
@@ -78,7 +78,7 @@ public class AbsenceController {
     }
 
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<AbsenceResponse>> getAbsencesByStatus(@PathVariable Absence.AbsenceStatus status) {
+    public ResponseEntity<List<AbsenceResponse>> getAbsencesByStatus(@PathVariable("status") Absence.AbsenceStatus status) {
         List<Absence> absences = absenceService.getAbsencesByStatus(status);
         List<AbsenceResponse> absenceResponses = absences.stream()
                 .map(AbsenceResponse::fromEntity)
@@ -87,7 +87,7 @@ public class AbsenceController {
     }
 
     @GetMapping("/absence-type/{absenceType}")
-    public ResponseEntity<List<AbsenceResponse>> getAbsencesByType(@PathVariable Absence.AbsenceType absenceType) {
+    public ResponseEntity<List<AbsenceResponse>> getAbsencesByType(@PathVariable("absenceType") Absence.AbsenceType absenceType) {
         List<Absence> absences = absenceService.getAbsencesByType(absenceType);
         List<AbsenceResponse> absenceResponses = absences.stream()
                 .map(AbsenceResponse::fromEntity)
@@ -97,8 +97,8 @@ public class AbsenceController {
 
     @GetMapping("/date-range")
     public ResponseEntity<List<AbsenceResponse>> getAbsencesByDateRange(
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate) {
+            @RequestParam(value = "startDate") LocalDate startDate,
+            @RequestParam(value = "endDate") LocalDate endDate) {
         List<Absence> absences = absenceService.getAbsencesByDateRange(startDate, endDate);
         List<AbsenceResponse> absenceResponses = absences.stream()
                 .map(AbsenceResponse::fromEntity)
@@ -108,9 +108,9 @@ public class AbsenceController {
 
     @GetMapping("/employee/{employeeId}/date-range")
     public ResponseEntity<List<AbsenceResponse>> getAbsencesByEmployeeAndDateRange(
-            @PathVariable UUID employeeId,
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "startDate") LocalDate startDate,
+            @RequestParam(value = "endDate") LocalDate endDate) {
         List<Absence> absences = absenceService.getAbsencesByEmployeeAndDateRange(employeeId, startDate, endDate);
         List<AbsenceResponse> absenceResponses = absences.stream()
                 .map(AbsenceResponse::fromEntity)
@@ -138,9 +138,9 @@ public class AbsenceController {
 
     @GetMapping("/employee/{employeeId}/count")
     public ResponseEntity<Long> getEmployeeAbsenceCount(
-            @PathVariable UUID employeeId,
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "startDate") LocalDate startDate,
+            @RequestParam(value = "endDate") LocalDate endDate) {
         Long count = absenceService.getEmployeeAbsenceCount(employeeId, startDate, endDate);
         return ResponseEntity.ok(count);
     }
@@ -194,7 +194,7 @@ public class AbsenceController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<AbsenceResponse> updateAbsence(@PathVariable UUID id, @RequestBody AbsenceDTO absenceDTO) {
+    public ResponseEntity<AbsenceResponse> updateAbsence(@PathVariable("id") UUID id, @RequestBody AbsenceDTO absenceDTO) {
         try {
             log.info("ðŸ”„ Atualizando afastamento {} com dados: absenceType={}, status={}, reason={}",
                     id, absenceDTO.getAbsenceType(), absenceDTO.getStatus(), absenceDTO.getReason());
@@ -224,7 +224,7 @@ public class AbsenceController {
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Absence> updateStatus(@PathVariable UUID id, @RequestParam Absence.AbsenceStatus status) {
+    public ResponseEntity<Absence> updateStatus(@PathVariable("id") UUID id, @RequestParam(value = "status") Absence.AbsenceStatus status) {
         try {
             Absence updatedAbsence = absenceService.updateStatus(id, status);
             return ResponseEntity.ok(updatedAbsence);
@@ -234,7 +234,7 @@ public class AbsenceController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAbsence(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteAbsence(@PathVariable("id") UUID id) {
         try {
             absenceService.deleteAbsence(id);
             return ResponseEntity.ok().build();
@@ -246,7 +246,7 @@ public class AbsenceController {
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasAnyAuthority('HR_APPROVE', 'HR_READ', 'HR_WRITE', 'HR_DELETE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'RECURSOS_HUMANOS', 'RH', 'DEPARTAMENTO_PESSOAL')")
     public ResponseEntity<AbsenceResponse> approveAbsence(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) ApprovalRequest request) {
         try {
             Absence absence = absenceService.approveAbsence(id, request != null ? request.getObservacoes() : null);
@@ -259,7 +259,7 @@ public class AbsenceController {
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasAnyAuthority('HR_APPROVE', 'HR_READ', 'HR_WRITE', 'HR_DELETE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'RECURSOS_HUMANOS', 'RH', 'DEPARTAMENTO_PESSOAL')")
     public ResponseEntity<AbsenceResponse> rejectAbsence(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) ApprovalRequest request) {
         try {
             String observacoes = (request != null && request.getObservacoes() != null)

@@ -67,7 +67,7 @@ public class EPIController {
                     schema = @Schema(implementation = EPI.class),
                     examples = @ExampleObject(value = "{\"id\": \"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"name\": \"Capacete de SeguranÃ§a Atualizado\", \"description\": \"Capacete de proteÃ§Ã£o com ajuste\", \"issueDate\": \"2023-01-01\", \"dueDate\": \"2025-12-31\", \"status\": \"EXPIRED\"}")))
     @PutMapping("/{id}")
-    public ResponseEntity<EPI> update(@PathVariable UUID id, @RequestBody EPI epi) {
+    public ResponseEntity<EPI> update(@PathVariable("id") UUID id, @RequestBody EPI epi) {
         return ResponseEntity.ok(epiService.update(id, epi));
     }
     
@@ -81,7 +81,7 @@ public class EPIController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         epiService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -97,7 +97,7 @@ public class EPIController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<EPI> findById(@PathVariable UUID id) {
+    public ResponseEntity<EPI> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(epiService.findById(id));
     }
     
@@ -110,7 +110,7 @@ public class EPIController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<EPI>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<EPI>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         return ResponseEntity.ok(epiService.findByEmployeeId(employeeId));
     }
     
@@ -123,7 +123,7 @@ public class EPIController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/position/{positionId}")
-    public ResponseEntity<List<EPI>> findByPositionId(@PathVariable UUID positionId) {
+    public ResponseEntity<List<EPI>> findByPositionId(@PathVariable("positionId") UUID positionId) {
         return ResponseEntity.ok(epiService.findByPositionId(positionId));
     }
     
@@ -136,7 +136,7 @@ public class EPIController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<EPI>> findByStatus(@PathVariable EPIStatus status) {
+    public ResponseEntity<List<EPI>> findByStatus(@PathVariable("status") EPIStatus status) {
         return ResponseEntity.ok(epiService.findByStatus(status));
     }
     

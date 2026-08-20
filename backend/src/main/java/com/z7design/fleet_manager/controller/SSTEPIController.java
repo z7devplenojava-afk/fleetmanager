@@ -51,7 +51,7 @@ public class SSTEPIController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar EPI por ID", description = "Retorna um EPI especÃ­fico pelo ID")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<PersonalProtectiveEquipment> getEPIById(@PathVariable UUID id) {
+    public ResponseEntity<PersonalProtectiveEquipment> getEPIById(@PathVariable("id") UUID id) {
         PersonalProtectiveEquipment epi = epiService.getEPIById(id);
         if (epi == null) {
             return ResponseEntity.notFound().build();
@@ -70,7 +70,7 @@ public class SSTEPIController {
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar EPI", description = "Atualiza um EPI existente")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<PersonalProtectiveEquipment> updateEPI(@PathVariable UUID id, @RequestBody PersonalProtectiveEquipment epi) {
+    public ResponseEntity<PersonalProtectiveEquipment> updateEPI(@PathVariable("id") UUID id, @RequestBody PersonalProtectiveEquipment epi) {
         PersonalProtectiveEquipment updatedEPI = epiService.updateEPI(id, epi);
         if (updatedEPI == null) {
             return ResponseEntity.notFound().build();
@@ -81,7 +81,7 @@ public class SSTEPIController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Desativar EPI", description = "Desativa um EPI (nÃ£o remove do banco)")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> deactivateEPI(@PathVariable UUID id) {
+    public ResponseEntity<Void> deactivateEPI(@PathVariable("id") UUID id) {
         epiService.deactivateEPI(id);
         return ResponseEntity.ok().build();
     }
@@ -89,7 +89,7 @@ public class SSTEPIController {
     @PutMapping("/{id}/stock")
     @Operation(summary = "Atualizar estoque", description = "Atualiza o estoque de um EPI")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> updateStock(@PathVariable UUID id, @RequestParam Integer newStock) {
+    public ResponseEntity<Void> updateStock(@PathVariable("id") UUID id, @RequestParam(value = "newStock") Integer newStock) {
         epiService.updateEPIStock(id, newStock);
         return ResponseEntity.ok().build();
     }

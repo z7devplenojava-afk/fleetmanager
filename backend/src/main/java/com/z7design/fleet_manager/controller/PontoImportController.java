@@ -99,7 +99,7 @@ public class PontoImportController {
 
     @GetMapping("/jobs/{id}")
     @PreAuthorize("hasAnyAuthority('PONTO_RAW_READ', 'PONTO_RAW_IMPORT', 'PAYROLL_MANAGE', 'PAYROLL_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getImportJobById(@PathVariable UUID id) {
+    public ResponseEntity<?> getImportJobById(@PathVariable("id") UUID id) {
         try {
             ImportJobLog importJob = pontoImportService.findImportJobById(id);
             return ResponseEntity.ok(Map.of(
@@ -117,7 +117,7 @@ public class PontoImportController {
 
     @GetMapping("/unprocessed")
     @PreAuthorize("hasAnyAuthority('PONTO_RAW_READ', 'PONTO_RAW_IMPORT', 'PAYROLL_MANAGE', 'PAYROLL_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getUnprocessedBatidas(@RequestParam(required = false) UUID employeeId) {
+    public ResponseEntity<?> getUnprocessedBatidas(@RequestParam(value = "employeeId", required = false) UUID employeeId) {
         try {
             List<PontoRaw> unprocessed = pontoImportService.findUnprocessedBatidas(employeeId);
             return ResponseEntity.ok(Map.of(

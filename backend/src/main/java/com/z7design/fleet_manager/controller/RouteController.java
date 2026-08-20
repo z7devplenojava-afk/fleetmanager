@@ -22,7 +22,7 @@ public class RouteController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Route> getRouteById(@PathVariable UUID id) {
+    public ResponseEntity<Route> getRouteById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(routeService.findRouteById(id));
     }
 
@@ -32,12 +32,12 @@ public class RouteController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Route> updateRoute(@PathVariable UUID id, @RequestBody Route route) {
+    public ResponseEntity<Route> updateRoute(@PathVariable("id") UUID id, @RequestBody Route route) {
         return ResponseEntity.ok(routeService.updateRoute(id, route));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteRoute(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteRoute(@PathVariable("id") UUID id) {
         routeService.deleteRoute(id);
         return ResponseEntity.noContent().build();
     }

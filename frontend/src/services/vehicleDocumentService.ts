@@ -1,6 +1,6 @@
 import api from '@/lib/axios';
 
-export type VehicleDocumentType = 'CRLV' | 'DUT' | 'SEGURO' | 'OUTRO';
+export type VehicleDocumentType = 'CRLV' | 'DUT' | 'SEGURO' | 'IPVA' | 'OUTRO';
 
 export interface VehicleDocument {
   id: string;

@@ -53,7 +53,7 @@ public class VehicleController {
             @ApiResponse(responseCode = "404", description = "VeÃ­culo nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<VehicleDTO> getVehicleById(@PathVariable UUID id) {
+    public ResponseEntity<VehicleDTO> getVehicleById(@PathVariable("id") UUID id) {
         log.debug("Buscando veÃ­culo por ID: {}", id);
         VehicleDTO vehicle = vehicleService.getVehicleById(id);
         return ResponseEntity.ok(vehicle);
@@ -66,7 +66,7 @@ public class VehicleController {
             @ApiResponse(responseCode = "404", description = "VeÃ­culo nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<VehicleDTO> getVehicleByPlate(@PathVariable String plate) {
+    public ResponseEntity<VehicleDTO> getVehicleByPlate(@PathVariable("plate") String plate) {
         log.debug("Buscando veÃ­culo por placa: {}", plate);
         Optional<VehicleDTO> vehicle = vehicleService.getVehicleByPlate(plate);
         if (vehicle.isPresent()) {
@@ -82,7 +82,7 @@ public class VehicleController {
             @ApiResponse(responseCode = "200", description = "VeÃ­culos encontrados"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<List<VehicleDTO>> getVehiclesByStatus(@PathVariable Vehicle.VehicleStatus status) {
+    public ResponseEntity<List<VehicleDTO>> getVehiclesByStatus(@PathVariable("status") Vehicle.VehicleStatus status) {
         log.debug("Buscando veÃ­culos por status: {}", status);
         List<VehicleDTO> vehicles = vehicleService.getVehiclesByStatus(status);
         return ResponseEntity.ok(vehicles);
@@ -123,7 +123,7 @@ public class VehicleController {
             @ApiResponse(responseCode = "404", description = "VeÃ­culo nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<VehicleDTO> updateVehicle(@PathVariable UUID id, @Valid @RequestBody VehicleDTO vehicleDTO) {
+    public ResponseEntity<VehicleDTO> updateVehicle(@PathVariable("id") UUID id, @Valid @RequestBody VehicleDTO vehicleDTO) {
         log.debug("Atualizando veÃ­culo ID: {}", id);
         VehicleDTO updatedVehicle = vehicleService.updateVehicle(id, vehicleDTO);
         return ResponseEntity.ok(updatedVehicle);
@@ -137,7 +137,7 @@ public class VehicleController {
             @ApiResponse(responseCode = "404", description = "VeÃ­culo nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> deleteVehicle(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteVehicle(@PathVariable("id") UUID id) {
         log.debug("Excluindo veÃ­culo ID: {}", id);
         vehicleService.deleteVehicle(id);
         return ResponseEntity.noContent().build();

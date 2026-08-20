@@ -56,71 +56,71 @@ const PortalHome = () => {
   const services = useMemo(() => [
     {
       icon: Bus,
-      title: "Fretamentos",
-      description: "Serviços de fretamento para eventos, empresas e grupos. Conforto e segurança para sua viagem.",
-      features: ["Fretamento executivo", "Van e micro-ônibus", "Motoristas experientes"]
-    },
-    {
-      icon: Luggage,
-      title: "Turismo",
-      description: "Passeios turísticos e viagens guiadas. Conheça novos lugares com conforto e segurança.",
-      features: ["Passeios personalizados", "Guia turístico", "Roteiros flexíveis"]
+      title: "Gestão de Frota",
+      description: "Controle completo de veículos: documentação, multas, abastecimentos, manutenções preventivas e corretivas.",
+      features: ["Cadastro de veículos", "Controle de multas", "Manutenção programada", "Relatórios de uso"]
     },
     {
       icon: Users,
-      title: "Transporte de Funcionários",
-      description: "Solução completa para transporte de colaboradores. Pontualidade e eficiência garantidas.",
-      features: ["Rotas otimizadas", "Pontualidade", "Contratos mensais"]
+      title: "Gestão de Motoristas",
+      description: "Cadastro, documentação, escala de trabalho, CNH, controle de jornada e avaliação de desempenho.",
+      features: ["Cadastro completo", "Controle de CNH", "Escalas de trabalho", "Avaliação por viagem"]
     },
     {
       icon: Route,
-      title: "Serviços de Roteirização",
-      description: "Planejamento de rotas personalizadas para sua necessidade. Otimização de tempo e custo.",
-      features: ["Rotas customizadas", "GPS tracking", "Suporte 24h"]
+      title: "Gestão de Rotas e Viagens",
+      description: "Planejamento de rotas, criação de viagens, controle de passageiros e rastreamento em tempo real.",
+      features: ["Criação de rotas", "Gestão de viagens", "Controle de passageiros", "GPS integrado"]
+    },
+    {
+      icon: ShoppingBag,
+      title: "Gestão de Fretamento",
+      description: "Contratos, orçamentos, propostas comerciais e acompanhamento de fretamentos personalizados.",
+      features: ["Orçamentos online", "Contratos digitais", "Propostas comerciais", "Acompanhamento"]
     },
     {
       icon: Calendar,
-      title: "Eventos Especiais",
-      description: "Transporte para casamentos, formaturas e eventos corporativos. Serviço premium.",
-      features: ["Veículos elegantes", "Motoristas capacitados", "Decoração opcional"]
+      title: "Escalas e Escalação",
+      description: "Gestão de escalas de motoristas e veículos, otimização de recursos e controle de disponibilidade.",
+      features: ["Criação de escalas", "Visualização em calendário", "Conflitos automáticos", "Substituições"]
     },
     {
       icon: Shield,
-      title: "Transporte Seguro",
-      description: "Segurança em primeiro lugar com frota moderna e manutenção preventiva rigorosa.",
-      features: ["Frota moderna", "Seguro completo", "Manutenção rigorosa"]
+      title: "RH e Segurança do Trabalho",
+      description: "Módulo completo de RH: holerites, férias, SST, EPIs, exames médicos e conformidade com NRs.",
+      features: ["Holerites digitais", "Gestão de férias", "SST/NRs", "Controle de EPIs"]
     }
   ], []);
 
   const sectors = useMemo(() => [
+    { icon: Bus, name: "Fretamento" },
+    { icon: Luggage, name: "Turismo" },
+    { icon: Users, name: "Transporte de Funcionários" },
     { icon: Factory, name: "Indústrias" },
     { icon: Building, name: "Empresas" },
-    { icon: Heart, name: "Hospitais" },
-    { icon: Home, name: "Residências" },
-    { icon: Calendar, name: "Eventos" },
-    { icon: Luggage, name: "Turismo" }
+    { icon: Calendar, name: "Eventos" }
   ], []);
 
   const benefits = useMemo(() => [
-    "Conforto e segurança em todas as viagens",
-    "Motoristas experientes e capacitados",
-    "Frota moderna e bem mantida",
-    "Atendimento 24 horas por dia"
+    "Redução de custos operacionais em até 30%",
+    "Controle total da frota e da equipe",
+    "Relatórios gerenciais em tempo real",
+    "Suporte técnico dedicado"
   ], []);
 
   const differentials = useMemo(() => [
-    "Frota moderna com veículos confortáveis e seguros",
-    "Motoristas experientes e treinados",
-    "Atendimento personalizado e flexível",
-    "Seguro completo para todos os passageiros"
+    "Sistema 100% web e mobile friendly",
+    "Gestão integrada: frota, RH, financeiro e operacional",
+    "Atualizações constantes e novos recursos",
+    "Implementação rápida e suporte humanizado"
   ], []);
 
   return (
     <>
       <SEO 
-        title="Fluxbus - Transporte de Qualidade"
-        description="Empresa especializada em transporte de passageiros. Fretamentos, turismo, transporte de funcionários e mais. Solicite seu orçamento."
-        keywords="transporte de passageiros, fretamento, turismo, transporte de funcionários, eventos especiais"
+        title="Fluxbus - Sistema de Gestão para Transporte de Passageiros"
+        description="O Fluxbus é o sistema completo de gestão para empresas de transporte de passageiros, fretamento, turismo e transporte de funcionários. Gestão de frota, motoristas, rotas, escalas e muito mais."
+        keywords="sistema de gestão de transporte, gestão de frota, fretamento, software de transporte, gestão de motoristas, rotas, escalas, turismo, transporte de funcionários"
         type="website"
         url="https://fluxbus.com.br"
       />
@@ -130,12 +130,13 @@ const PortalHome = () => {
         <section id="inicio" className="py-12 sm:py-20 px-4 bg-gradient-to-r from-black via-red-950 to-black">
           <div className="container mx-auto text-center">
             <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-white mb-6" data-animate="fadeUp">
-              Sua jornada começa com
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-600 block">conforto e segurança</span>
+              Gestão inteligente para sua
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-600 block">empresa de transporte</span>
             </h1>
             <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-8 max-w-4xl mx-auto" data-animate="fadeUp" data-delay="200">
-              Viaje com qualidade e conforto. Fretamentos, turismo e transporte de funcionários 
-              com a excelência que você merece.
+              O Fluxbus é o sistema completo de gestão para empresas de transporte de passageiros, 
+              fretamento, turismo e transporte de funcionários. Controle total da frota, motoristas, 
+              rotas e muito mais.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center" data-animate="fadeUp" data-delay="400">
               <Button 
@@ -143,7 +144,7 @@ const PortalHome = () => {
                 className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-lg px-8 py-4 flex items-center shadow-lg"
                 onClick={() => setIsQuoteModalOpen(true)}
               >
-                Solicitar Orçamento
+                Solicitar Demonstração
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button 
@@ -162,26 +163,27 @@ const PortalHome = () => {
         <section id="quem-somos" className="py-12 sm:py-20 px-4 bg-gradient-to-br from-gray-900 to-black">
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Quem Somos</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Sobre o Fluxbus</h2>
               <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-4xl mx-auto" data-animate="fadeUp" data-delay="200">
-                A <strong className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-600">Fluxbus</strong> é uma empresa especializada em transporte de passageiros, 
-                oferecendo <strong className="text-red-500">FRETAMENTOS, TURISMO & TRANSPORTE DE FUNCIONÁRIOS</strong>
+                O <strong className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-600">Fluxbus</strong> é um sistema SaaS completo desenvolvido 
+                para empresas de <strong className="text-red-500">FRETAMENTO, TURISMO & TRANSPORTE DE FUNCIONÁRIOS</strong>
               </p>
             </div>
             
             <div className="grid md:grid-cols-2 gap-8 sm:gap-12 items-center">
               <div data-animate="fadeRight">
                 <p className="text-base sm:text-lg leading-relaxed text-gray-300 mb-6">
-                  Nascemos da paixão por proporcionar viagens memoráveis e seguras. 
-                  Com frota moderna e motoristas experientes, garantimos o melhor serviço 
-                  de transporte para você, sua família ou sua empresa.
+                  Criado por quem entende do ramo de transporte, o Fluxbus centraliza toda a operação 
+                  da sua empresa em um só lugar. Da gestão de frota e motoristas ao planejamento de 
+                  rotas e escalas, com automação de processos e geração de relatórios inteligentes.
                 </p>
                 <p className="text-base sm:text-lg leading-relaxed text-gray-300">
-                  Nosso compromisso é com seu conforto, pontualidade e segurança em cada viagem.
+                  Nosso compromisso é ajudar sua empresa a reduzir custos, aumentar a produtividade 
+                  e manter tudo sob controle com tecnologia de ponta e suporte humanizado.
                 </p>
               </div>
               <div className="bg-gradient-to-br from-red-950 to-gray-900 p-6 sm:p-8 rounded-lg border border-red-800" data-animate="fadeLeft">
-                <h3 className="text-xl sm:text-2xl font-bold text-white mb-6">Nossos Diferenciais</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-6">Por que Fluxbus?</h3>
                 <div className="space-y-3 sm:space-y-4">
                   {differentials.map((differential, index) => (
                     <div key={index} className="flex items-start space-x-3" data-animate="fadeLeft" data-delay={index * 100}>
@@ -199,10 +201,10 @@ const PortalHome = () => {
         <section id="servicos" className="py-12 sm:py-20 px-4 bg-gradient-to-br from-black via-gray-900 to-red-950">
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Nossos Serviços</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Módulos Principais</h2>
               <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-2xl mx-auto" data-animate="fadeUp" data-delay="200">
-                Oferecemos soluções completas de transporte para atender 
-                às necessidades específicas de cada cliente.
+                Módulos integrados para atender todas as áreas da sua empresa de transporte, 
+                da operação ao administrativo e financeiro.
               </p>
             </div>
             
@@ -237,9 +239,9 @@ const PortalHome = () => {
         <section className="py-12 sm:py-20 px-4 bg-gradient-to-br from-gray-900 to-black">
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Setores de Atuação</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Para Quem é o Fluxbus?</h2>
               <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
-                Atendemos diversos setores com nossos serviços de transporte:
+                Ideal para empresas de transporte de passageiros que atuam em diversos segmentos:
               </p>
             </div>
             
@@ -261,9 +263,9 @@ const PortalHome = () => {
         <section className="py-12 sm:py-20 px-4 bg-gradient-to-r from-red-600 to-red-700">
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Benefícios</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Benefícios do Sistema</h2>
               <p className="text-base sm:text-lg md:text-xl text-red-100" data-animate="fadeUp" data-delay="200">
-                Vantagens de ter a Fluxbus como parceira:
+                Resultados reais para sua empresa de transporte:
               </p>
             </div>
             
@@ -285,11 +287,11 @@ const PortalHome = () => {
         <section className="py-12 sm:py-20 px-4 bg-gradient-to-r from-red-700 to-red-800">
           <div className="container mx-auto text-center">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">
-              Pronto para sua Próxima Viagem?
+              Pronto para Transformar sua Operação?
             </h2>
             <p className="text-base sm:text-lg md:text-xl text-red-100 mb-8 max-w-2xl mx-auto" data-animate="fadeUp" data-delay="200">
-              Entre em contato conosco e descubra como podemos proporcionar 
-              a melhor experiência de transporte para você.
+              Entre em contato conosco e descubra como o Fluxbus pode transformar 
+              a gestão da sua empresa de transporte com tecnologia e simplicidade.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center" data-animate="fadeUp" data-delay="400">
               <Button 
@@ -297,7 +299,7 @@ const PortalHome = () => {
                 className="bg-white hover:bg-gray-100 text-red-700 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 font-semibold"
                 onClick={() => setIsQuoteModalOpen(true)}
               >
-                Solicitar Orçamento
+                Solicitar Demonstração
               </Button>
               <Button 
                 size="lg" 
@@ -323,7 +325,7 @@ const PortalHome = () => {
                   </div>
                 </div>
                 <p className="text-sm sm:text-base lg:text-lg text-gray-300 mb-4 sm:mb-6 leading-relaxed">
-                  Transporte de qualidade para sua tranquilidade.
+                  Sistema completo de gestão para empresas de transporte de passageiros.
                 </p>
                 <div className="flex flex-wrap gap-2 sm:gap-3 lg:gap-4">
                   <a href="tel:+553125591245" className="text-gray-400 hover:text-red-500 transition-colors p-2 sm:p-3 rounded-lg hover:bg-gray-800" title="Telefone">
@@ -342,12 +344,12 @@ const PortalHome = () => {
               </div>
               
               <div data-animate="fadeUp" data-delay="100">
-                <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Serviços</h3>
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Módulos</h3>
                 <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
-                  <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">Fretamentos</a></li>
-                  <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">Turismo</a></li>
-                  <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">Transporte de Funcionários</a></li>
-                  <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">Eventos Especiais</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">Gestão de Frota</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">Gestão de Motoristas</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">Rotas e Viagens</a></li>
+                  <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">RH e SST</a></li>
                 </ul>
               </div>
               
@@ -376,70 +378,8 @@ const PortalHome = () => {
               </div>
             </div>
 
-            {/* Segunda linha - Contatos centralizados em 2 colunas */}
-            <div className="flex justify-center">
-              <div className="w-full max-w-5xl" data-animate="fadeUp" data-delay="400">
-                <h3 className="text-center text-xl sm:text-2xl lg:text-3xl font-semibold text-white mb-6 sm:mb-8">Contatos</h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
-                  {/* Sede São Paulo */}
-                  <div className="bg-gradient-to-br from-red-950 to-gray-900 rounded-xl p-6 sm:p-8 border border-red-800 hover:border-red-700 transition-colors">
-                    <h4 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center">
-                      <Building className="h-6 w-6 mr-3 text-red-500" />
-                      Sede – São Paulo/SP
-                    </h4>
-                    <div className="space-y-4 text-sm sm:text-base text-gray-300">
-                      <p className="flex items-start">
-                        <MapPin className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0 text-red-500" />
-                        <span className="leading-relaxed">Av. Paulista, 1000<br />Bela Vista – São Paulo – SP</span>
-                      </p>
-                      <p className="flex items-center">
-                        <Phone className="h-5 w-5 mr-3 flex-shrink-0 text-red-500" />
-                        <a href="tel:+551125551234" className="hover:text-red-500 transition-colors font-medium">(11) 2555-1234</a>
-                      </p>
-                  <p className="flex items-center">
-                        <Phone className="h-5 w-5 mr-3 flex-shrink-0 text-red-500" />
-                        <a href="tel:+5511987654321" className="hover:text-red-500 transition-colors font-medium">(11) 98765-4321</a>
-                  </p>
-                  <p className="flex items-center">
-                        <Mail className="h-5 w-5 mr-3 flex-shrink-0 text-red-500" />
-                        <a href="mailto:contato@fluxbus.com.br" className="hover:text-red-500 transition-colors text-xs sm:text-sm break-all">contato@fluxbus.com.br</a>
-                  </p>
-                  <p className="flex items-center">
-                        <Clock className="h-5 w-5 mr-3 flex-shrink-0 text-red-500" />
-                        <span className="font-medium">Atendimento 24h por dia</span>
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Filial Rio de Janeiro */}
-                  <div className="bg-gradient-to-br from-red-950 to-gray-900 rounded-xl p-6 sm:p-8 border border-red-800 hover:border-red-700 transition-colors">
-                    <h4 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center">
-                      <Building className="h-6 w-6 mr-3 text-red-500" />
-                      Filial – Rio de Janeiro/RJ
-                    </h4>
-                    <div className="space-y-4 text-sm sm:text-base text-gray-300">
-                      <p className="flex items-start">
-                        <MapPin className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0 text-red-500" />
-                        <span className="leading-relaxed">Rua do Catete, 150<br />Catete – Rio de Janeiro – RJ</span>
-                  </p>
-                  <p className="flex items-center">
-                        <Phone className="h-5 w-5 mr-3 flex-shrink-0 text-red-500" />
-                        <a href="tel:+552125551234" className="hover:text-red-500 transition-colors font-medium">(21) 2555-1234</a>
-                  </p>
-                  <p className="flex items-center">
-                        <MessageCircle className="h-5 w-5 mr-3 flex-shrink-0 text-red-500" />
-                        <a href="https://wa.me/5521987654321" target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors font-medium">
-                          (21) 98765-4321 (WhatsApp)
-                        </a>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
             <div className="border-t border-red-800 mt-6 pt-6 text-center text-gray-400" data-animate="fadeUp">
-              <p className="text-xs sm:text-sm">&copy; 2025 Fluxbus - Transporte de Qualidade. Todos os direitos reservados.</p>
+              <p className="text-xs sm:text-sm">&copy; 2026 Fluxbus - Sistema de Gestão para Transporte de Passageiros. Todos os direitos reservados.</p>
             </div>
           </div>
         </footer>

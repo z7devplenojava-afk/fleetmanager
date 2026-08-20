@@ -53,7 +53,7 @@ public class UserController {
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Buscar usuÃ¡rio por ID", description = "Retorna um usuÃ¡rio especÃ­fico pelo ID. Permite acesso para usuÃ¡rios autenticados (necessÃ¡rio para chat)")
-    public ResponseEntity<?> getUserById(@PathVariable String id) {
+    public ResponseEntity<?> getUserById(@PathVariable("id") String id) {
         try {
             // Validar ID
             if (id == null || id.trim().isEmpty()) {
@@ -112,7 +112,7 @@ public class UserController {
     @GetMapping("/username/{username}")
     @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
     @Operation(summary = "Buscar usuÃ¡rio por username", description = "Retorna um usuÃ¡rio especÃ­fico pelo username")
-    public ResponseEntity<UserListResponseDTO> getUserByUsername(@PathVariable String username) {
+    public ResponseEntity<UserListResponseDTO> getUserByUsername(@PathVariable("username") String username) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isColaborador = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_COLABORADOR"));
@@ -131,7 +131,7 @@ public class UserController {
     @GetMapping("/email/{email}")
     @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
     @Operation(summary = "Buscar usuÃ¡rio por email", description = "Retorna um usuÃ¡rio especÃ­fico pelo email")
-    public ResponseEntity<UserListResponseDTO> getUserByEmail(@PathVariable String email) {
+    public ResponseEntity<UserListResponseDTO> getUserByEmail(@PathVariable("email") String email) {
         User user = userService.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado"));
 
@@ -167,7 +167,7 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "UsuÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<UserListResponseDTO> getUserByCpf(@PathVariable String cpf) {
+    public ResponseEntity<UserListResponseDTO> getUserByCpf(@PathVariable("cpf") String cpf) {
         User user = userService.findByEmployeeCpf(cpf)
                 .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado para o CPF informado"));
 
@@ -210,7 +210,7 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "UsuÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<?> update(@PathVariable String id, @Valid @RequestBody UpdateUserRequest request) {
+    public ResponseEntity<?> update(@PathVariable("id") String id, @Valid @RequestBody UpdateUserRequest request) {
         try {
             // Validar ID
             if (id == null || id.trim().isEmpty()) {
@@ -379,7 +379,7 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "UsuÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         userService.delete(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }

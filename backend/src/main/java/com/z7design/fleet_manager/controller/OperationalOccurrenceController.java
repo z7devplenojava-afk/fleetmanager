@@ -47,7 +47,7 @@ public class OperationalOccurrenceController {
      * Buscar ocorrÃªncia por ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<OperationalOccurrence> getOccurrenceById(@PathVariable UUID id) {
+    public ResponseEntity<OperationalOccurrence> getOccurrenceById(@PathVariable("id") UUID id) {
         log.info("GET /api/operational/occurrences/{} - Buscando ocorrÃªncia por ID", id);
         
         try {
@@ -79,7 +79,7 @@ public class OperationalOccurrenceController {
      * Buscar ocorrÃªncias por funcionÃ¡rio
      */
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByEmployee(@PathVariable("employeeId") UUID employeeId) {
         log.info("GET /api/operational/occurrences/employee/{} - Buscando ocorrÃªncias por funcionÃ¡rio", employeeId);
         
         try {
@@ -95,7 +95,7 @@ public class OperationalOccurrenceController {
      * Buscar ocorrÃªncias por tipo
      */
     @GetMapping("/type/{type}")
-    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByType(@PathVariable String type) {
+    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByType(@PathVariable("type") String type) {
         log.info("GET /api/operational/occurrences/type/{} - Buscando ocorrÃªncias por tipo", type);
         
         try {
@@ -115,7 +115,7 @@ public class OperationalOccurrenceController {
      * Buscar ocorrÃªncias por status
      */
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByStatus(@PathVariable String status) {
+    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByStatus(@PathVariable("status") String status) {
         log.info("GET /api/operational/occurrences/status/{} - Buscando ocorrÃªncias por status", status);
         
         try {
@@ -135,7 +135,7 @@ public class OperationalOccurrenceController {
      * Buscar ocorrÃªncias por prioridade
      */
     @GetMapping("/priority/{priority}")
-    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByPriority(@PathVariable String priority) {
+    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByPriority(@PathVariable("priority") String priority) {
         log.info("GET /api/operational/occurrences/priority/{} - Buscando ocorrÃªncias por prioridade", priority);
         
         try {
@@ -156,8 +156,8 @@ public class OperationalOccurrenceController {
      */
     @GetMapping("/period")
     public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByPeriod(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         log.info("GET /api/operational/occurrences/period - Buscando ocorrÃªncias por perÃ­odo: {} a {}", startDate, endDate);
         
         try {
@@ -189,7 +189,7 @@ public class OperationalOccurrenceController {
      * Buscar ocorrÃªncias nÃ£o resolvidas por funcionÃ¡rio
      */
     @GetMapping("/unresolved/employee/{employeeId}")
-    public ResponseEntity<List<OperationalOccurrence>> getUnresolvedOccurrencesByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<OperationalOccurrence>> getUnresolvedOccurrencesByEmployee(@PathVariable("employeeId") UUID employeeId) {
         log.info("GET /api/operational/occurrences/unresolved/employee/{} - Buscando ocorrÃªncias nÃ£o resolvidas", employeeId);
         
         try {
@@ -205,7 +205,7 @@ public class OperationalOccurrenceController {
      * Buscar ocorrÃªncias por responsÃ¡vel
      */
     @GetMapping("/responsible")
-    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByResponsible(@RequestParam String responsible) {
+    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByResponsible(@RequestParam(value = "responsible") String responsible) {
         log.info("GET /api/operational/occurrences/responsible - Buscando ocorrÃªncias por responsÃ¡vel: {}", responsible);
         
         try {
@@ -221,7 +221,7 @@ public class OperationalOccurrenceController {
      * Buscar ocorrÃªncias por local
      */
     @GetMapping("/location")
-    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByLocation(@RequestParam String location) {
+    public ResponseEntity<List<OperationalOccurrence>> getOccurrencesByLocation(@RequestParam(value = "location") String location) {
         log.info("GET /api/operational/occurrences/location - Buscando ocorrÃªncias por local: {}", location);
         
         try {
@@ -237,7 +237,7 @@ public class OperationalOccurrenceController {
      * Buscar ocorrÃªncia por nÃºmero de advertÃªncia
      */
     @GetMapping("/warning/{warningNumber}")
-    public ResponseEntity<OperationalOccurrence> getOccurrenceByWarningNumber(@PathVariable Integer warningNumber) {
+    public ResponseEntity<OperationalOccurrence> getOccurrenceByWarningNumber(@PathVariable("warningNumber") Integer warningNumber) {
         log.info("GET /api/operational/occurrences/warning/{} - Buscando ocorrÃªncia por nÃºmero de advertÃªncia", warningNumber);
         
         try {
@@ -253,7 +253,7 @@ public class OperationalOccurrenceController {
      * Atualizar ocorrÃªncia existente
      */
     @PutMapping("/{id}")
-    public ResponseEntity<OperationalOccurrence> updateOccurrence(@PathVariable UUID id, 
+    public ResponseEntity<OperationalOccurrence> updateOccurrence(@PathVariable("id") UUID id, 
                                                                 @RequestBody OperationalOccurrence occurrenceDetails) {
         log.info("PUT /api/operational/occurrences/{} - Atualizando ocorrÃªncia", id);
         
@@ -270,8 +270,8 @@ public class OperationalOccurrenceController {
      * Atualizar status da ocorrÃªncia
      */
     @PatchMapping("/{id}/status")
-    public ResponseEntity<OperationalOccurrence> updateOccurrenceStatus(@PathVariable UUID id, 
-                                                                      @RequestParam String newStatus) {
+    public ResponseEntity<OperationalOccurrence> updateOccurrenceStatus(@PathVariable("id") UUID id, 
+                                                                      @RequestParam(value = "newStatus") String newStatus) {
         log.info("PATCH /api/operational/occurrences/{}/status - Atualizando status da ocorrÃªncia para {}", id, newStatus);
         
         try {
@@ -291,8 +291,8 @@ public class OperationalOccurrenceController {
      * Atualizar prioridade da ocorrÃªncia
      */
     @PatchMapping("/{id}/priority")
-    public ResponseEntity<OperationalOccurrence> updateOccurrencePriority(@PathVariable UUID id, 
-                                                                        @RequestParam String newPriority) {
+    public ResponseEntity<OperationalOccurrence> updateOccurrencePriority(@PathVariable("id") UUID id, 
+                                                                        @RequestParam(value = "newPriority") String newPriority) {
         log.info("PATCH /api/operational/occurrences/{}/priority - Atualizando prioridade da ocorrÃªncia para {}", id, newPriority);
         
         try {
@@ -312,7 +312,7 @@ public class OperationalOccurrenceController {
      * Deletar ocorrÃªncia
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteOccurrence(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteOccurrence(@PathVariable("id") UUID id) {
         log.info("DELETE /api/operational/occurrences/{} - Deletando ocorrÃªncia", id);
         
         try {
@@ -329,9 +329,9 @@ public class OperationalOccurrenceController {
      */
     @GetMapping("/count/employee/{employeeId}")
     public ResponseEntity<Long> countOccurrencesByEmployeeAndPeriod(
-            @PathVariable UUID employeeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         log.info("GET /api/operational/occurrences/count/employee/{} - Contando ocorrÃªncias por funcionÃ¡rio e perÃ­odo", employeeId);
         
         try {
@@ -348,9 +348,9 @@ public class OperationalOccurrenceController {
      */
     @GetMapping("/count/type/{type}")
     public ResponseEntity<Long> countOccurrencesByTypeAndPeriod(
-            @PathVariable String type,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @PathVariable("type") String type,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         log.info("GET /api/operational/occurrences/count/type/{} - Contando ocorrÃªncias por tipo e perÃ­odo", type);
         
         try {
@@ -388,14 +388,14 @@ public class OperationalOccurrenceController {
     @GetMapping(value = "/report/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     @Operation(summary = "Gerar relatÃ³rio PDF de ocorrÃªncias", description = "Gera relatÃ³rio PDF filtrado por funcionÃ¡rio, tipo, status, prioridade, data, responsÃ¡vel e local")
     public ResponseEntity<byte[]> generatePDFReport(
-            @RequestParam(required = false) UUID employeeId,
-            @RequestParam(required = false) String type,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String priority,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String responsible,
-            @RequestParam(required = false) String location) {
+            @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @RequestParam(value = "type", required = false) String type,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "priority", required = false) String priority,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "responsible", required = false) String responsible,
+            @RequestParam(value = "location", required = false) String location) {
         try {
             OperationalOccurrence.OccurrenceType typeEnum = null;
             if (type != null && !type.isEmpty() && !"all".equals(type)) {

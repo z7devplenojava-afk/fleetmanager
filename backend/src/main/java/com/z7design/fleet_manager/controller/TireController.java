@@ -34,7 +34,7 @@ public class TireController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Tire> findById(@PathVariable UUID id) {
+    public ResponseEntity<Tire> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(tireService.findById(id));
     }
 
@@ -44,13 +44,13 @@ public class TireController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Tire> update(@PathVariable UUID id, @RequestBody Tire tire) {
+    public ResponseEntity<Tire> update(@PathVariable("id") UUID id, @RequestBody Tire tire) {
         tire.setId(id);
         return ResponseEntity.ok(tireService.save(tire));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         tireService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -61,7 +61,7 @@ public class TireController {
     }
 
     @GetMapping("/{id}/history")
-    public List<TireMovement> getHistory(@PathVariable UUID id) {
+    public List<TireMovement> getHistory(@PathVariable("id") UUID id) {
         return tireService.getHistory(id);
     }
 }

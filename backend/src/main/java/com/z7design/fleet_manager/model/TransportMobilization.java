@@ -31,6 +31,20 @@ public class TransportMobilization {
     @JoinColumn(name = "driver_id")
     private Driver driver;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "client_id")
+    private Client client;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_post_id")
+    private WorkPost workPost;
+
+    @Column(name = "client_name")
+    private String clientName;
+
+    @Column(name = "work_post_name")
+    private String workPostName;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 30)
     private MobilizationType type;

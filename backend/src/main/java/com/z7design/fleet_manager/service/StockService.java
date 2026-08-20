@@ -8,21 +8,25 @@ import com.z7design.fleet_manager.dto.MovementSummaryDTO;
 import com.z7design.fleet_manager.dto.MovementsReportDTO;
 import com.z7design.fleet_manager.dto.LowStockReportDTO;
 import com.z7design.fleet_manager.dto.DateRangeReportDTO;
+import com.z7design.fleet_manager.dto.ImportResultDto;
 import com.z7design.fleet_manager.model.StockItem;
 import com.z7design.fleet_manager.model.StockMovement;
 import com.z7design.fleet_manager.model.StockAlert;
+import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.Unit;
 import com.z7design.fleet_manager.model.enums.StockCategory;
 import com.z7design.fleet_manager.model.enums.MovementType;
 import com.z7design.fleet_manager.model.enums.MovementReason;
+import com.z7design.fleet_manager.repository.CompanyRepository;
 import com.z7design.fleet_manager.repository.StockItemRepository;
 import com.z7design.fleet_manager.repository.StockMovementRepository;
 import com.z7design.fleet_manager.repository.StockAlertRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.repository.UnitRepository;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,9 +35,18 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.persistence.criteria.Predicate;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -52,14 +65,17 @@ public class StockService {
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final UnitRepository unitRepository;
+    private final CompanyRepository companyRepository;
 
     // ===== GESTÃƒO DE ITENS =====
 
     public List<StockItemDTO> getAllItems() {
         log.info("Buscando todos os itens de estoque");
-        return stockItemRepository.findByActiveTrue().stream()
+        List<StockItemDTO> dtos = stockItemRepository.findByActiveTrue().stream()
                 .map(StockItemDTO::fromEntity)
                 .collect(Collectors.toList());
+        populateMovementCounts(dtos);
+        return dtos;
     }
 
     public Page<StockItemDTO> getItemsWithFilters(
@@ -73,8 +89,29 @@ public class StockService {
         log.info("Buscando itens com filtros - Categoria: {}, Ativo: {}, Baixo estoque: {}", 
                 category, active, lowStock);
         
-        return stockItemRepository.findByFilters(category, active, unitId, lowStock, searchTerm, pageable)
+        Page<StockItemDTO> page = stockItemRepository.findByFilters(category, active, unitId, lowStock, searchTerm, pageable)
                 .map(StockItemDTO::fromEntity);
+        populateMovementCounts(page.getContent());
+        return page;
+    }
+
+    /**
+     * Popula o movementCount dos DTOs com uma única query agrupada (evita N+1).
+     */
+    private void populateMovementCounts(List<StockItemDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) {
+            return;
+        }
+        java.util.Map<UUID, Long> counts = new HashMap<>();
+        for (Object[] row : stockMovementRepository.countMovementsByItem()) {
+            if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                counts.put((UUID) row[0], (Long) row[1]);
+            }
+        }
+        for (StockItemDTO dto : dtos) {
+            Long c = counts.get(dto.getId());
+            dto.setMovementCount(c != null ? c.intValue() : 0);
+        }
     }
 
     public StockItemDTO getItemById(UUID id) {
@@ -242,6 +279,72 @@ public class StockService {
         log.info("MovimentaÃ§Ã£o criada com sucesso - ID: {}, Nova quantidade: {}", movement.getId(), newQuantity);
         return StockMovementDTO.fromEntity(movement);
     }
+
+    /**
+     * Exclui uma movimentacao revertendo o efeito no saldo de estoque.
+     * ENTRADA: o item perdeu a quantidade (o saldo volta ao anterior).
+     * SAIDA: o item ganha a quantidade de volta.
+     */
+    @Transactional
+    public void deleteMovement(UUID id) {
+        log.info("Excluindo movimentacao: {}", id);
+
+        StockMovement movement = stockMovementRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Movimentacao nao encontrada: " + id));
+
+        StockItem item = movement.getStockItem();
+        int quantity = movement.getQuantity();
+        int current = item.getCurrentQuantity() != null ? item.getCurrentQuantity() : 0;
+
+        int revertedQuantity;
+        if (movement.getMovementType() == MovementType.ENTRADA) {
+            // A entrada havia adicionado ao saldo; ao excluir, subtraimos de volta.
+            revertedQuantity = current - quantity;
+            if (revertedQuantity < 0) {
+                throw new IllegalArgumentException(
+                        "Nao e possivel excluir: o item ja consumiu a quantidade desta entrada. Estoque atual: " + current);
+            }
+        } else {
+            // A saida havia removido do saldo; ao excluir, devolvemos ao estoque.
+            revertedQuantity = current + quantity;
+        }
+
+        item.setCurrentQuantity(revertedQuantity);
+        stockItemRepository.save(item);
+        stockMovementRepository.delete(movement);
+
+        // Atualizar alertas depois de concluir a exclusao (evita estado inconsistente em lote)
+        checkAndCreateLowStockAlert(item);
+
+        log.info("Movimentacao {} excluida. Estoque do item {} ajustado para: {}", id, item.getCode(), revertedQuantity);
+    }
+
+    /**
+     * Exclui varias movimentacoes em lote, revertendo o saldo de cada uma.
+     * Retorna o numero de movimentacoes excluidas com sucesso.
+     */
+    @Transactional
+    public int deleteMovements(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        int deleted = 0;
+        java.util.List<UUID> failedIds = new java.util.ArrayList<>();
+        for (UUID id : ids) {
+            try {
+                deleteMovement(id);
+                deleted++;
+            } catch (Exception e) {
+                log.warn("Nao foi possivel excluir movimentacao {}: {}", id, e.getMessage());
+                failedIds.add(id);
+            }
+        }
+        if (!failedIds.isEmpty()) {
+            log.warn("Movimentacoes nao excluidas ({}): {}", failedIds.size(), failedIds);
+        }
+        return deleted;
+    }
+
 
     public Page<StockMovementDTO> getMovementsWithFilters(
             UUID stockItemId,
@@ -1092,4 +1195,380 @@ public class StockService {
             return new ArrayList<>();
         }
     }
+
+    /**
+    /**
+     * Importa itens de estoque a partir de planilha Excel (.xlsx/.xls).
+     * Colunas esperadas: CNPJ, Produto/Nome, Código do item, Estoque (Quantidade), Vr. Compra, Custo Médio.
+     * Realiza validação de multiempresa por CNPJ e upsert por (companyId, code).
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public ImportResultDto importExcel(MultipartFile file) {
+        ImportResultDto result = ImportResultDto.empty();
+        UUID tenantCompanyId = TenantContext.get();
+
+        log.info("📥 [IMPORT-STOCK] Iniciando importação - arquivo: {}, tenantCompanyId: {}",
+                file != null ? file.getOriginalFilename() : "null", tenantCompanyId);
+
+        if (file == null || file.isEmpty()) {
+            result.getErrors().add("Arquivo vazio ou não enviado.");
+            log.warn("📥 [IMPORT-STOCK] Falhou: arquivo vazio.");
+            return result;
+        }
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        if (!filename.endsWith(".xlsx") && !filename.endsWith(".xls")) {
+            result.getErrors().add("Formato não suportado. Use .xlsx ou .xls");
+            log.warn("📥 [IMPORT-STOCK] Falhou: formato inválido ({})", filename);
+            return result;
+        }
+
+        try (InputStream is = file.getInputStream();
+             Workbook workbook = WorkbookFactory.create(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            if (sheet == null) {
+                result.getErrors().add("Planilha sem abas (Sheets).");
+                return result;
+            }
+
+            DataFormatter formatter = new DataFormatter();
+            int colCode = -1, colQty = -1, colUnitCost = -1, colAvgCost = -1;
+            int colName = -1, colCnpj = -1, colCategory = -1;
+            int headerRowIndex = -1;
+            String headerGlobalCnpj = null;
+
+            // Escanear as primeiras 15 linhas para encontrar a linha de cabeçalho correta
+            int maxHeaderScan = Math.min(15, sheet.getLastRowNum());
+            for (int r = 0; r <= maxHeaderScan; r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+
+                Map<String, Integer> currentHeaderMap = new HashMap<>();
+                for (int i = 0; i < row.getLastCellNum(); i++) {
+                    String cellRaw = formatter.formatCellValue(row.getCell(i));
+                    String cellText = normalizeHeader(cellRaw);
+                    if (!cellText.isEmpty()) {
+                        currentHeaderMap.put(cellText, i);
+                    }
+
+                    // Se encontrar menção a CNPJ no texto do cabeçalho prévio (ex: "CNPJ: 33.123.456/0001-00")
+                    if (headerGlobalCnpj == null && cellRaw != null && cellRaw.toLowerCase().contains("cnpj")) {
+                        String digits = cellRaw.replaceAll("[^0-9]", "");
+                        if (digits.length() == 14) {
+                            headerGlobalCnpj = digits;
+                            log.info("📥 [IMPORT-STOCK] CNPJ global detectado no título (linha {}): {}", r, headerGlobalCnpj);
+                        }
+                    }
+                }
+
+                // Verifica se esta linha contém colunas típicas de cabeçalho
+                boolean hasCode = currentHeaderMap.containsKey("codigo") || currentHeaderMap.containsKey("codigodoitem") ||
+                        currentHeaderMap.containsKey("cod") || currentHeaderMap.containsKey("referencia") || currentHeaderMap.containsKey("itemcode");
+                boolean hasName = currentHeaderMap.containsKey("produto") || currentHeaderMap.containsKey("item") ||
+                        currentHeaderMap.containsKey("nome") || currentHeaderMap.containsKey("descricao");
+                boolean hasQty = currentHeaderMap.containsKey("estoque") || currentHeaderMap.containsKey("quantidade") ||
+                        currentHeaderMap.containsKey("qtd") || currentHeaderMap.containsKey("saldo");
+
+                if (hasCode || (hasName && hasQty)) {
+                    headerRowIndex = r;
+                    log.info("📥 [IMPORT-STOCK] Linha de cabeçalho detectada no índice {}: {}", r, currentHeaderMap.keySet());
+
+                    // CNPJ
+                    for (String key : Arrays.asList("cnpj", "cnpjdaempresa", "cgc", "empresa", "cnpjempresa")) {
+                        if (currentHeaderMap.containsKey(key)) {
+                            colCnpj = currentHeaderMap.get(key);
+                            break;
+                        }
+                    }
+
+                    // Código
+                    for (String key : Arrays.asList("codigo", "codigodoitem", "cod", "referencia", "itemcode", "coditem")) {
+                        if (currentHeaderMap.containsKey(key)) {
+                            colCode = currentHeaderMap.get(key);
+                            break;
+                        }
+                    }
+
+                    // Produto / Nome
+                    for (String key : Arrays.asList("produto", "nomedoproduto", "descricaodoproduto", "item", "nome", "descricao", "name", "desc")) {
+                        if (currentHeaderMap.containsKey(key)) {
+                            colName = currentHeaderMap.get(key);
+                            break;
+                        }
+                    }
+
+                    // Estoque / Quantidade
+                    for (String key : Arrays.asList("estoque", "quantidade", "qtd", "saldo", "estoqueatual", "quantity")) {
+                        if (currentHeaderMap.containsKey(key)) {
+                            colQty = currentHeaderMap.get(key);
+                            break;
+                        }
+                    }
+
+                    // Valor Compra
+                    for (String key : Arrays.asList("vrcompra", "valorcompra", "vlcompra", "precocompra", "custo", "unitcost", "vrcompranf", "valordecompra")) {
+                        if (currentHeaderMap.containsKey(key)) {
+                            colUnitCost = currentHeaderMap.get(key);
+                            break;
+                        }
+                    }
+
+                    // Custo Médio
+                    for (String key : Arrays.asList("totalmedio", "toralmedio", "customedio", "customediounitario", "totalmed", "avgcost", "customedioatual")) {
+                        if (currentHeaderMap.containsKey(key)) {
+                            colAvgCost = currentHeaderMap.get(key);
+                            break;
+                        }
+                    }
+
+                    // Categoria
+                    for (String key : Arrays.asList("categoria", "category", "grupodeestoque", "tipo", "grupo")) {
+                        if (currentHeaderMap.containsKey(key)) {
+                            colCategory = currentHeaderMap.get(key);
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+            }
+
+            // Fallback se não detectou linha de cabeçalho explicitamente
+            if (headerRowIndex == -1) {
+                headerRowIndex = 0;
+                colCode = 0;
+                colQty = 1;
+                colUnitCost = 2;
+                colAvgCost = 3;
+                log.warn("📥 [IMPORT-STOCK] Nenhum cabeçalho identificado com precisão. Usando colunas padrão (0=Código, 1=Estoque, 2=Vr.Compra, 3=Custo Médio).");
+            } else {
+                if (colCode == -1) colCode = 0;
+                if (colQty == -1) colQty = 1;
+            }
+
+            Map<String, Optional<Company>> companyCache = new HashMap<>();
+            int total = 0;
+
+            for (int r = headerRowIndex + 1; r <= sheet.getLastRowNum(); r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+
+                String code = formatter.formatCellValue(row.getCell(colCode)).trim();
+                if (code.isEmpty()) continue;
+                total++;
+
+                try {
+                    UUID rowCompanyId = tenantCompanyId;
+
+                    // 1. Tenta extrair CNPJ da coluna correspondente
+                    String cnpjToValidate = null;
+                    if (colCnpj >= 0) {
+                        String rawCnpj = formatter.formatCellValue(row.getCell(colCnpj)).trim();
+                        if (!rawCnpj.isEmpty()) {
+                            cnpjToValidate = rawCnpj;
+                        }
+                    }
+
+                    // 2. Se não tem coluna de CNPJ na linha, mas detectamos CNPJ global no cabeçalho
+                    if (cnpjToValidate == null && headerGlobalCnpj != null) {
+                        cnpjToValidate = headerGlobalCnpj;
+                    }
+
+                    // 3. Validação do CNPJ e garantia multiempresa
+                    if (cnpjToValidate != null) {
+                        String cleanCnpj = cnpjToValidate.replaceAll("[^0-9]", "");
+                        if (!cleanCnpj.isEmpty()) {
+                            final String cnpjForLookup = cnpjToValidate;
+                            Optional<Company> optCompany = companyCache.computeIfAbsent(cleanCnpj, key -> {
+                                List<Company> found = companyRepository.findByNormalizedCnpj(key);
+                                if (!found.isEmpty()) {
+                                    return Optional.of(found.get(0));
+                                }
+                                return companyRepository.findByCnpj(cnpjForLookup);
+                            });
+
+                            if (optCompany.isEmpty()) {
+                                result.setSkipped(result.getSkipped() + 1);
+                                String err = "Linha " + (r + 1) + " (código " + code + "): Empresa com CNPJ '" + cnpjToValidate + "' não encontrada no sistema.";
+                                result.getErrors().add(err);
+                                log.warn("📥 [IMPORT-STOCK] {}", err);
+                                continue;
+                            }
+
+                            Company targetCompany = optCompany.get();
+                            // Trava de segurança multiempresa: usuário de uma empresa não pode importar para outra
+                            if (tenantCompanyId != null && !targetCompany.getId().equals(tenantCompanyId)) {
+                                result.setSkipped(result.getSkipped() + 1);
+                                String err = "Linha " + (r + 1) + " (código " + code + "): Violação multiempresa! O CNPJ '" + cnpjToValidate + "' (" + targetCompany.getName() + ") não pertence à sua empresa.";
+                                result.getErrors().add(err);
+                                log.warn("📥 [IMPORT-STOCK] {}", err);
+                                continue;
+                            }
+
+                            rowCompanyId = targetCompany.getId();
+                        }
+                    }
+
+                    String name = null;
+                    if (colName >= 0) {
+                        name = formatter.formatCellValue(row.getCell(colName)).trim();
+                    }
+
+                    Integer quantity = readIntCell(row.getCell(colQty));
+                    BigDecimal unitCost = colUnitCost >= 0 ? readDecimalCell(row.getCell(colUnitCost)) : null;
+                    BigDecimal avgCost = colAvgCost >= 0 ? readDecimalCell(row.getCell(colAvgCost)) : null;
+
+                    StockCategory category = null;
+                    if (colCategory >= 0) {
+                        category = parseCategory(formatter.formatCellValue(row.getCell(colCategory)));
+                    }
+
+                    log.trace("📥 [IMPORT-STOCK] Linha {}: code={}, name={}, qty={}, unitCost={}, avgCost={}, companyId={}",
+                            (r + 1), code, name, quantity, unitCost, avgCost, rowCompanyId);
+
+                    // Busca item existente considerando o isolamento da empresa
+                    Optional<StockItem> existing;
+                    if (rowCompanyId != null) {
+                        existing = stockItemRepository.findByCompanyIdAndCode(rowCompanyId, code);
+                    } else {
+                        existing = stockItemRepository.findByCodeAndCompanyIdIsNull(code);
+                        if (existing.isEmpty()) {
+                            existing = stockItemRepository.findByCode(code);
+                        }
+                    }
+
+                    if (existing.isPresent()) {
+                        StockItem item = existing.get();
+                        log.debug("📥 [IMPORT-STOCK] Atualizando item existente (id={}, code={})", item.getId(), code);
+                        if (name != null && !name.isEmpty()) item.setName(name);
+                        if (quantity != null) item.setCurrentQuantity(quantity);
+                        if (unitCost != null) item.setUnitCost(unitCost);
+                        if (avgCost != null) item.setAverageCost(avgCost);
+                        if (category != null) item.setCategory(category);
+                        stockItemRepository.save(item);
+                        result.setUpdated(result.getUpdated() + 1);
+                    } else {
+                        StockItem item = new StockItem();
+                        item.setCode(code);
+                        item.setName((name != null && !name.isEmpty()) ? name : code);
+                        item.setCategory(category != null ? category : StockCategory.ACESSORIOS);
+                        item.setCurrentQuantity(quantity != null ? quantity : 0);
+                        item.setMinimumQuantity(0);
+                        item.setUnitCost(unitCost);
+                        item.setAverageCost(avgCost);
+                        item.setActive(true);
+
+                        if (rowCompanyId != null) {
+                            item.setCompanyId(rowCompanyId);
+                            log.debug("📥 [IMPORT-STOCK] Criando novo item (code={}) com companyId={}", code, rowCompanyId);
+                        } else {
+                            log.debug("📥 [IMPORT-STOCK] Criando novo item (code={}) SEM companyId (SUPER_ADMIN)", code);
+                        }
+
+                        stockItemRepository.save(item);
+                        result.setInserted(result.getInserted() + 1);
+                    }
+                } catch (Exception e) {
+                    String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                    String rootMsg = msg;
+                    Throwable cause = e;
+                    while (cause.getCause() != null && cause.getCause() != cause) {
+                        cause = cause.getCause();
+                        if (cause.getMessage() != null) rootMsg = cause.getMessage();
+                    }
+                    String lower = rootMsg.toLowerCase();
+                    if (lower.contains("duplicate") || lower.contains("unique") || lower.contains("constraint")) {
+                        if (tenantCompanyId != null) {
+                            rootMsg = "Código '" + code + "' já existe na sua empresa (conflito de código).";
+                        } else {
+                            rootMsg = "Código '" + code + "' já existe no sistema.";
+                        }
+                    }
+                    result.setSkipped(result.getSkipped() + 1);
+                    result.getErrors().add("Linha " + (r + 1) + " (código " + code + "): " + rootMsg);
+                    log.warn("📥 [IMPORT-STOCK] SKIP linha {} (code={}): {}", (r + 1), code, rootMsg);
+                }
+            }
+
+            result.setTotalRows(total);
+            log.info("📥 [IMPORT-STOCK] Concluído. Total linhas={}, inserted={}, updated={}, skipped={}, errors={}",
+                    total, result.getInserted(), result.getUpdated(), result.getSkipped(), result.getErrors().size());
+
+            if (result.getTotalRows() == 0) {
+                result.getErrors().add("Nenhuma linha com código encontrada na planilha. Verifique se o cabeçalho contém 'Código' ou se há dados preenchidos.");
+            }
+        } catch (Exception e) {
+            log.error("📥 [IMPORT-STOCK] Erro FATAL ao importar planilha: {}", e.getMessage(), e);
+            result.getErrors().add("Erro ao ler o arquivo: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+        }
+        return result;
+    }
+
+    private StockCategory parseCategory(String text) {
+        if (text == null || text.trim().isEmpty()) return null;
+        String normalized = normalizeHeader(text);
+        if (normalized.contains("vigilancia")) return StockCategory.UNIFORME_VIGILANCIA;
+        if (normalized.contains("servico")) return StockCategory.UNIFORME_SERVICOS;
+        if (normalized.contains("admin")) return StockCategory.UNIFORME_ADMINISTRATIVO;
+        if (normalized.contains("cozinha")) return StockCategory.UNIFORME_COZINHA;
+        if (normalized.contains("epi") || normalized.contains("protecao")) return StockCategory.EPI;
+        if (normalized.contains("calcado") || normalized.contains("bota") || normalized.contains("sapato")) return StockCategory.CALCADOS;
+        if (normalized.contains("acessorio") || normalized.contains("cracha") || normalized.contains("cinto")) return StockCategory.ACESSORIOS;
+        return null;
+    }
+
+    private String normalizeHeader(String text) {
+        if (text == null) return "";
+        String t = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase().trim();
+        return t.replaceAll("[^a-z0-9]", "");
+    }
+
+    private Integer readIntCell(Cell cell) {
+        if (cell == null) return null;
+        String raw;
+        switch (cell.getCellType()) {
+            case NUMERIC:
+                return (int) Math.round(cell.getNumericCellValue());
+            case STRING:
+                raw = cell.getStringCellValue().trim();
+                break;
+            default:
+                raw = new DataFormatter().formatCellValue(cell).trim();
+                break;
+        }
+        if (raw.isEmpty()) return null;
+        try {
+            return (int) Math.round(Double.parseDouble(raw.replace(".", "").replace(",", ".")));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private BigDecimal readDecimalCell(Cell cell) {
+        if (cell == null) return null;
+        String raw;
+        switch (cell.getCellType()) {
+            case NUMERIC:
+                return BigDecimal.valueOf(cell.getNumericCellValue());
+            case STRING:
+                raw = cell.getStringCellValue().trim();
+                break;
+            default:
+                raw = new DataFormatter().formatCellValue(cell).trim();
+                break;
+        }
+        if (raw.isEmpty()) return null;
+        try {
+            if (raw.contains(",") && raw.contains(".")) {
+                raw = raw.replace(".", "").replace(",", "."); // pt-BR: ponto = milhar
+            } else if (raw.contains(",")) {
+                raw = raw.replace(",", ".");
+            }
+            return new BigDecimal(raw);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Reply,
+  ReplyAll,
+  Forward,
+  Archive,
+  FolderInput,
+  Printer,
+  FileUp,
+  X,
+  CheckSquare,
   Settings2,
   Eye,
   EyeOff,
@@ -54,7 +62,6 @@ import { ptBR } from 'date-fns/locale';
 
 // ==================== UTILS ====================
 
-/** Sanitiza HTML vindo do servidor para impedir XSS/rastreadores. */
 /** Sanitiza HTML vindo do servidor para impedir XSS/rastreadores. */
 function sanitizeHtml(html: string): string {
   if (!html) return '';
@@ -78,6 +85,14 @@ function sanitizeHtml(html: string): string {
       // remove rastreadores de pixel (imagens 1x1) e fontes remotas suspeitas
       (src && src.toLowerCase().includes('pixel')) ? '' : match
     );
+}
+
+function escapeHtml(value: string): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function formatDate(date?: string): string {
@@ -156,6 +171,7 @@ function AccountFormModal({ open, onClose, onSaved, existing }: AccountFormProps
     username: '',
     password: '',
     authType: 'PASSWORD',
+    signature: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -180,6 +196,7 @@ function AccountFormModal({ open, onClose, onSaved, existing }: AccountFormProps
           username: existing.username || '',
           password: '',
           authType: existing.authType || 'PASSWORD',
+          signature: existing.signature || '',
         });
       } else {
         setForm({
@@ -194,6 +211,7 @@ function AccountFormModal({ open, onClose, onSaved, existing }: AccountFormProps
           username: '',
           password: '',
           authType: 'PASSWORD',
+          signature: '',
         });
       }
     }
@@ -238,7 +256,6 @@ function AccountFormModal({ open, onClose, onSaved, existing }: AccountFormProps
     setTestResult(null);
     try {
       const result = existing && !form.password
-        // Conta já salva: testa com as credenciais armazenadas (senha em branco = manter)
         ? await emailAccountService.testConnection(existing.id)
         : await emailAccountService.testCredentials(form);
       setTestResult({
@@ -406,6 +423,24 @@ function AccountFormModal({ open, onClose, onSaved, existing }: AccountFormProps
             </div>
           </div>
 
+          <div className="border-t border-border pt-4">
+            <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-white">
+              <Settings2 className="h-4 w-4 text-primary" /> Assinatura (opcional)
+            </div>
+            <div className="space-y-2">
+              <Label>Texto da assinatura</Label>
+              <Textarea
+                className={`${inputClass} min-h-[90px]`}
+                value={form.signature || ''}
+                onChange={e => set('signature', e.target.value)}
+                placeholder={'--\nNome\nCargo | Empresa\nTelefone'}
+              />
+              <p className="text-xs text-muted-foreground">
+                Inserida automaticamente no final das mensagens enviadas por esta conta.
+              </p>
+            </div>
+          </div>
+
           {error && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-red-950/50 border border-red-800 text-red-300 text-sm">
               <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -461,39 +496,103 @@ function AccountFormModal({ open, onClose, onSaved, existing }: AccountFormProps
   );
 }
 
-// ==================== MODAL DE COMPOSIÇÃO ====================
+// ==================== MODAL DE COMPOSIÇÃO (Outlook-like) ====================
+
+export type ComposeMode = 'new' | 'reply' | 'replyAll' | 'forward';
 
 interface ComposeProps {
   open: boolean;
   onClose: () => void;
   account: EmailAccount;
   onSent?: () => void;
-  replyTo?: EmailMessage | null;
+  mode?: ComposeMode;
+  source?: EmailMessage | null;
 }
 
-function ComposeModal({ open, onClose, account, onSent, replyTo }: ComposeProps) {
+function buildQuotedBody(source: EmailMessage, mode: ComposeMode): string {
+  const fromLabel = `${senderLabel(source)} <${senderEmail(source)}>`;
+  const dateLabel = formatDate(source.date) || 'data desconhecida';
+  const header = mode === 'forward'
+    ? `--- Mensagem original encaminhada ---\nDe: ${fromLabel}\nData: ${dateLabel}\nAssunto: ${source.subject || ''}\n`
+    : `Em ${dateLabel}, ${fromLabel} escreveu:`;
+  const quoted = (source.bodyText || '')
+    .split('\n')
+    .map(l => `> ${l}`)
+    .join('\n')
+    .slice(0, 4000);
+  return `\n\n\n${header}\n${quoted}`;
+}
+
+function ComposeModal({ open, onClose, account, onSent, mode = 'new', source }: ComposeProps) {
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [attachments, setAttachments] = useState<{ id: string; fileName: string; sizeBytes?: number }[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open && replyTo) {
-      const from = replyTo.from && replyTo.from.length > 0 ? replyTo.from[0].address : '';
-      setTo(from);
-      setCc('');
-      setSubject(replyTo.subject?.startsWith('Re:') ? replyTo.subject : `Re: ${replyTo.subject || ''}`);
-      setBody(`\n\n\n---\nEm ${formatDate(replyTo.date)}, ${senderLabel(replyTo)} escreveu:\n> ${(replyTo.bodyText || '').replace(/\n/g, '\n> ').slice(0, 2000)}`);
-    } else if (open) {
+    if (!open) return;
+    setError('');
+    setAttachments([]);
+
+    if (mode !== 'new' && source) {
+      const fromAddr = senderEmail(source);
+      if (mode === 'reply') {
+        setTo(fromAddr);
+        setCc('');
+      } else if (mode === 'replyAll') {
+        setTo(fromAddr);
+        const self = account.emailAddress.toLowerCase();
+        const ccList = [
+          ...(source.to || []).map(t => t.address),
+          ...(source.cc || []).map(c => c.address),
+        ].filter((addr, i, arr) =>
+          addr && addr.toLowerCase() !== self && arr.indexOf(addr) === i
+        );
+        setCc(ccList.join(', '));
+      } else {
+        setTo('');
+        setCc('');
+      }
+      setBcc('');
+      setSubject(
+        source.subject
+          ? (mode === 'forward'
+              ? (source.subject.startsWith('Enc:') ? source.subject : `Enc: ${source.subject}`)
+              : (source.subject.startsWith('Re:') ? source.subject : `Re: ${source.subject}`))
+          : ''
+      );
+      setBody(buildQuotedBody(source, mode));
+    } else {
       setTo('');
       setCc('');
+      setBcc('');
       setSubject('');
       setBody('');
-      setError('');
     }
-  }, [open, replyTo]);
+  }, [open, mode, source, account.emailAddress]);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    setError('');
+    try {
+      for (const file of Array.from(files)) {
+        const uploaded = await emailAccountService.uploadAttachment(account.id, file);
+        setAttachments(prev => [...prev, uploaded]);
+      }
+    } catch (e: any) {
+      setError(e.response?.data?.error || e.message || 'Erro ao anexar arquivo');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
 
   const handleSend = async () => {
     if (!to.trim()) {
@@ -502,12 +601,26 @@ function ComposeModal({ open, onClose, account, onSent, replyTo }: ComposeProps)
     }
     setSending(true);
     setError('');
+
+    // Assinatura automática (como no Outlook): não duplica se já estiver no corpo
+    let finalBody = body;
+    const signature = account.signature?.trim();
+    if (signature) {
+      const cleanSig = signature.replace(/\r/g, '');
+      const cleanBody = finalBody.replace(/\r/g, '');
+      if (!cleanBody.includes(cleanSig)) {
+        finalBody = finalBody ? `${finalBody}\n\n${signature}` : signature;
+      }
+    }
+
     try {
       await emailAccountService.sendEmail(account.id, {
         to: to,
         cc: cc || undefined,
+        bcc: bcc || undefined,
         subject: subject || '(sem assunto)',
-        bodyHtml: body.replace(/\n/g, '<br/>'),
+        bodyHtml: finalBody.replace(/\n/g, '<br/>'),
+        attachmentIds: attachments.map(a => a.id),
       });
       onSent?.();
       onClose();
@@ -526,7 +639,8 @@ function ComposeModal({ open, onClose, account, onSent, replyTo }: ComposeProps)
         <DialogHeader>
           <DialogTitle className="text-white flex items-center gap-2">
             <Send className="h-5 w-5 text-primary" />
-            {replyTo ? 'Responder' : 'Nova Mensagem'} · {account.emailAddress}
+            {mode === 'reply' ? 'Responder' : mode === 'replyAll' ? 'Responder a Todos' : mode === 'forward' ? 'Encaminhar' : 'Nova Mensagem'}
+            {' · '}{account.emailAddress}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
@@ -539,18 +653,77 @@ function ComposeModal({ open, onClose, account, onSent, replyTo }: ComposeProps)
             <Input className={inputClass} value={cc} onChange={e => setCc(e.target.value)} placeholder="opcional" />
           </div>
           <div>
+            <Label>Cópia oculta (CCO)</Label>
+            <Input className={inputClass} value={bcc} onChange={e => setBcc(e.target.value)} placeholder="opcional" />
+          </div>
+          <div>
             <Label>Assunto</Label>
             <Input className={inputClass} value={subject} onChange={e => setSubject(e.target.value)} placeholder="Assunto da mensagem" />
           </div>
           <div>
             <Label>Mensagem</Label>
             <Textarea
-              className={`${inputClass} min-h-[200px]`}
+              className={`${inputClass} min-h-[180px]`}
               value={body}
               onChange={e => setBody(e.target.value)}
               placeholder="Escreva sua mensagem..."
             />
           </div>
+
+          {/* Anexos */}
+          <div>
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={e => handleFiles(e.target.files)}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-border text-primary"
+                disabled={uploading}
+                onClick={() => fileRef.current?.click()}
+              >
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileUp className="h-4 w-4 mr-2" />}
+                {uploading ? 'Enviando...' : 'Anexar arquivo'}
+              </Button>
+              {attachments.length > 0 && (
+                <span className="text-xs text-muted-foreground">{attachments.length} anexo(s)</span>
+              )}
+            </div>
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {attachments.map(att => (
+                  <span
+                    key={att.id}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 border border-primary/30 text-primary text-xs"
+                  >
+                    <Paperclip className="h-3 w-3" />
+                    <span className="max-w-[160px] truncate">{att.fileName}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachments(prev => prev.filter(a => a.id !== att.id))}
+                      className="hover:text-white transition-colors"
+                      title="Remover anexo"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {account.signature && (
+            <p className="text-[11px] text-muted-foreground">
+              ✍️ A assinatura da conta será adicionada ao enviar.
+            </p>
+          )}
+
           {error && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-red-950/50 border border-red-800 text-red-300 text-sm">
               <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -572,6 +745,60 @@ function ComposeModal({ open, onClose, account, onSent, replyTo }: ComposeProps)
   );
 }
 
+// ==================== DIÁLOGO MOVER PARA PASTA ====================
+
+interface MoveDialogProps {
+  open: boolean;
+  onClose: () => void;
+  folders: EmailFolder[];
+  currentFolderId?: string;
+  count: number;
+  onMove: (folder: EmailFolder) => void;
+}
+
+function MoveDialog({ open, onClose, folders, currentFolderId, count, onMove }: MoveDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md max-h-[80vh] overflow-hidden bg-card border-border flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-white flex items-center gap-2">
+            <FolderInput className="h-5 w-5 text-primary" />
+            Mover {count > 1 ? `${count} mensagens` : 'mensagem'} para
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Escolha a pasta de destino no servidor.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto space-y-1 py-2">
+          {folders
+            .filter(f => f.id !== currentFolderId)
+            .map(folder => (
+              <button
+                key={folder.id}
+                onClick={() => onMove(folder)}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm transition-colors hover:bg-white/5 hover:text-white text-muted-foreground"
+              >
+                <Inbox className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate flex-1">{folder.displayName || folder.remoteName}</span>
+                {folder.unread ? <Badge className="bg-primary text-white text-xs">{folder.unread}</Badge> : null}
+              </button>
+            ))}
+          {folders.length <= 1 && (
+            <p className="text-xs text-muted-foreground px-3 py-4">
+              Nenhuma outra pasta disponível. Sincronize as pastas da conta para listar mais.
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="border-border text-muted-foreground">
+            Cancelar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ==================== PÁGINA PRINCIPAL ====================
 
 export default function EmailModule() {
@@ -582,6 +809,7 @@ export default function EmailModule() {
   const [selectedFolder, setSelectedFolder] = useState<EmailFolder | null>(null);
   const [messages, setMessages] = useState<EmailMessage[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -592,13 +820,15 @@ export default function EmailModule() {
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<EmailAccount | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
-  const [replyTo, setReplyTo] = useState<EmailMessage | null>(null);
+  const [composeMode, setComposeMode] = useState<ComposeMode>('new');
+  const [composeSource, setComposeSource] = useState<EmailMessage | null>(null);
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const [folderError, setFolderError] = useState('');
 
   const showNotice = (msg: string) => {
     setNotice(msg);
-    setTimeout(() => setNotice(''), 4000);
+    setTimeout(() => setNotice(''), 5000);
   };
 
   const loadAccounts = useCallback(async () => {
@@ -606,7 +836,6 @@ export default function EmailModule() {
     try {
       const data = await emailAccountService.listAccounts();
       setAccounts(data);
-      // Preserva a seleção atual sempre que possível (evita reset inesperado)
       setSelectedAccount(prev => {
         if (prev && data.some(a => a.id === prev.id)) return prev;
         return data.length > 0 ? data[0] : null;
@@ -626,6 +855,7 @@ export default function EmailModule() {
       const inbox = data.find(f => f.remoteName.toUpperCase() === 'INBOX') || data[0];
       setSelectedFolder(inbox || null);
       setSelectedMessage(null);
+      setSelectedIds(new Set());
       setPage(0);
     } catch (e: any) {
       setFolderError(e.response?.data?.error || 'Erro ao listar pastas');
@@ -649,6 +879,7 @@ export default function EmailModule() {
     if (!account) return;
     setLoadingMessages(true);
     setSelectedMessage(null);
+    setSelectedIds(new Set());
     try {
       let data: PageResponse<EmailMessage>;
       if (search.trim()) {
@@ -710,7 +941,7 @@ export default function EmailModule() {
       const updated = await emailAccountService.toggleFlag(msg.id);
       setMessages(prev => prev.map(m => (m.id === updated.id ? updated : m)));
       if (selectedMessage?.id === updated.id) setSelectedMessage(updated);
-    } catch (err) {
+    } catch {
       showNotice('Erro ao alterar flag');
     }
   };
@@ -720,7 +951,8 @@ export default function EmailModule() {
     try {
       const updated = await emailAccountService.markRead(msg.id, !msg.read);
       setMessages(prev => prev.map(m => (m.id === updated.id ? updated : m)));
-    } catch (err) {
+      if (selectedMessage?.id === updated.id) setSelectedMessage(updated);
+    } catch {
       showNotice('Erro ao alterar leitura');
     }
   };
@@ -738,13 +970,31 @@ export default function EmailModule() {
   };
 
   const openCompose = () => {
-    setReplyTo(null);
+    setComposeMode('new');
+    setComposeSource(null);
     setComposeOpen(true);
   };
 
   const openReply = () => {
     if (selectedMessage) {
-      setReplyTo(selectedMessage);
+      setComposeMode('reply');
+      setComposeSource(selectedMessage);
+      setComposeOpen(true);
+    }
+  };
+
+  const openReplyAll = () => {
+    if (selectedMessage) {
+      setComposeMode('replyAll');
+      setComposeSource(selectedMessage);
+      setComposeOpen(true);
+    }
+  };
+
+  const openForward = () => {
+    if (selectedMessage) {
+      setComposeMode('forward');
+      setComposeSource(selectedMessage);
       setComposeOpen(true);
     }
   };
@@ -759,6 +1009,117 @@ export default function EmailModule() {
     } catch (e: any) {
       showNotice(e.response?.data?.error || 'Erro ao remover conta');
     }
+  };
+
+  // ==================== SELEÇÃO MÚLTIPLA ====================
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      if (prev.size === messages.length && messages.length > 0) {
+        return new Set();
+      }
+      return new Set(messages.map(m => m.id));
+    });
+  };
+
+  const selectedCount = selectedIds.size;
+
+  const runBulkAction = async (type: 'delete' | 'read' | 'unread' | 'flag') => {
+    if (selectedCount === 0) return;
+    const ids = Array.from(selectedIds);
+    try {
+      if (type === 'delete') {
+        await Promise.all(ids.map(id => emailAccountService.deleteMessage(id)));
+        showNotice(`${ids.length} mensagens excluídas`);
+      } else if (type === 'read' || type === 'unread') {
+        await Promise.all(ids.map(id => emailAccountService.markRead(id, type === 'read')));
+        showNotice(`${ids.length} mensagens marcadas como ${type === 'read' ? 'lidas' : 'não lidas'}`);
+      } else {
+        await Promise.all(ids.map(id => emailAccountService.toggleFlag(id)));
+        showNotice(`${ids.length} mensagens marcadas como importante`);
+      }
+      setSelectedIds(new Set());
+      await loadMessages(selectedFolder, selectedAccount, page);
+    } catch (e: any) {
+      showNotice(e.response?.data?.error || 'Erro na ação em lote');
+    }
+  };
+
+  // ==================== MOVER / ARQUIVAR ====================
+
+  const moveMessages = async (target: EmailFolder) => {
+    const ids = selectedCount > 0 ? Array.from(selectedIds) : (selectedMessage ? [selectedMessage.id] : []);
+    if (ids.length === 0) return;
+    try {
+      await Promise.all(ids.map(id => emailAccountService.moveMessage(id, target.id)));
+      setMoveDialogOpen(false);
+      setSelectedIds(new Set());
+      setSelectedMessage(null);
+      await loadMessages(selectedFolder, selectedAccount, page);
+      showNotice(`${ids.length} mensagem(ns) movida(s) para ${target.displayName || target.remoteName}. Aparecerá na pasta após a sincronização.`);
+    } catch (e: any) {
+      showNotice(e.response?.data?.error || 'Erro ao mover mensagem');
+    }
+  };
+
+  const openMoveDialog = () => {
+    if (selectedCount > 0 || selectedMessage) {
+      setMoveDialogOpen(true);
+    }
+  };
+
+  const handleArchive = () => {
+    if (selectedCount === 0 && !selectedMessage) return;
+    const target = folders.find(f => /archive|arquivo/i.test(`${f.remoteName} ${f.displayName || ''}`));
+    if (target) {
+      moveMessages(target);
+    } else {
+      setMoveDialogOpen(true);
+    }
+  };
+
+  // ==================== IMPRIMIR ====================
+
+  const handlePrint = () => {
+    if (!selectedMessage) return;
+    const m = selectedMessage;
+    const atts = (m.attachments || [])
+      .filter(a => !a.inline)
+      .map(a =>
+        `<a href="${window.location.origin}${emailAccountService.downloadAttachmentUrl(a.id)}">📎 ${escapeHtml(a.fileName)}</a>`
+      )
+      .join('<br/>');
+    const w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) return;
+    w.document.write(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(m.subject || 'E-mail')}</title>` +
+      `<style>body{font-family:Arial,sans-serif;margin:40px;color:#222;line-height:1.5}h1{font-size:20px;margin-bottom:4px}` +
+      `.meta{font-size:12px;color:#555;margin-bottom:16px}.body{margin-top:16px}img{max-width:100%}` +
+      `@media print{body{margin:20mm}}</style></head><body>` +
+      `<h1>${escapeHtml(m.subject || '(sem assunto)')}</h1>` +
+      `<div class="meta"><b>De:</b> ${escapeHtml(senderLabel(m))} &lt;${escapeHtml(senderEmail(m))}&gt;<br/>` +
+      `<b>Para:</b> ${escapeHtml((m.to || []).map(t => t.address).join(', ') || '-')}` +
+      (m.cc && m.cc.length ? `<br/><b>CC:</b> ${escapeHtml(m.cc.map(c => c.address).join(', '))}` : '') +
+      `<br/><b>Data:</b> ${escapeHtml(formatDate(m.date))}</div><hr/>` +
+      `<div class="body">${m.bodyHtml ? sanitizeHtml(m.bodyHtml) : `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(m.bodyText || '')}</pre>`}</div>` +
+      (atts ? `<hr/><div>${atts}</div>` : '') +
+      `</body></html>`
+    );
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 300);
   };
 
   const unreadTotal = useMemo(
@@ -847,7 +1208,7 @@ export default function EmailModule() {
             disabled={!selectedAccount}
           >
             <Send className="h-4 w-4 mr-2" />
-            Escrever
+            Novo E-mail
           </Button>
         </div>
       </div>
@@ -916,16 +1277,51 @@ export default function EmailModule() {
 
               {/* COLUNA 2 - Lista de mensagens */}
               <div className="flex-1 flex flex-col min-w-0 border-r border-border">
-                <div className="p-3 border-b border-border flex items-center justify-between bg-background/40">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">
-                      {search ? 'Resultados da busca' : (selectedFolder?.displayName || selectedFolder?.remoteName || 'Mensagens')}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {messages.length} exibidas
-                    </p>
-                  </div>
+                <div className="p-3 border-b border-border flex items-center justify-between gap-2 bg-background/40 flex-wrap">
+                  {selectedCount > 0 ? (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-semibold text-white mr-1">
+                        {selectedCount} selecionada{selectedCount > 1 ? 's' : ''}
+                      </span>
+                      <Button variant="ghost" size="sm" className="h-8 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => runBulkAction('delete')}>
+                        <Trash2 className="h-4 w-4 mr-1.5" />Excluir
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-white" onClick={() => runBulkAction('read')}>
+                        <Eye className="h-4 w-4 mr-1.5" />Lida
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-white" onClick={() => runBulkAction('unread')}>
+                        <EyeOff className="h-4 w-4 mr-1.5" />Não lida
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-yellow-400" onClick={() => runBulkAction('flag')}>
+                        <Star className="h-4 w-4 mr-1.5" />Importante
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-white" onClick={openMoveDialog}>
+                        <FolderInput className="h-4 w-4 mr-1.5" />Mover
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-white" onClick={() => setSelectedIds(new Set())}>
+                        <X className="h-4 w-4 mr-1.5" />Limpar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">
+                        {search ? 'Resultados da busca' : (selectedFolder?.displayName || selectedFolder?.remoteName || 'Mensagens')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {messages.length} exibidas
+                      </p>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground"
+                      onClick={toggleSelectAll}
+                      title={selectedIds.size === messages.length ? 'Desmarcar todas' : 'Selecionar todas'}
+                    >
+                      <CheckSquare className="h-4 w-4" fill={selectedIds.size === messages.length ? 'currentColor' : 'none'} />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -967,12 +1363,20 @@ export default function EmailModule() {
                       <div
                         key={msg.id}
                         onClick={() => handleOpenMessage(msg)}
-                        className={`flex items-center gap-3 px-4 py-3 border-b border-border cursor-pointer transition-colors group ${
+                        className={`flex items-center gap-2.5 px-3 py-3 border-b border-border cursor-pointer transition-colors group ${
                           selectedMessage?.id === msg.id
                             ? 'bg-primary/10 border-l-2 border-l-primary'
                             : 'hover:bg-white/5 border-l-2 border-l-transparent'
-                        } ${msg.read ? 'opacity-70' : ''}`}
+                        } ${selectedIds.has(msg.id) ? 'bg-primary/5' : ''} ${msg.read ? 'opacity-70' : ''}`}
                       >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(msg.id)}
+                          onChange={() => toggleSelect(msg.id)}
+                          onClick={e => e.stopPropagation()}
+                          className="flex-shrink-0 accent-primary"
+                          title="Selecionar para ação em lote"
+                        />
                         <button
                           onClick={e => handleToggleFlag(msg, e)}
                           className={`flex-shrink-0 transition-colors ${msg.flagged ? 'text-yellow-400' : 'text-muted-foreground/40 hover:text-yellow-400'}`}
@@ -1019,6 +1423,40 @@ export default function EmailModule() {
                   </div>
                 ) : selectedMessage ? (
                   <>
+                    {/* TOOLBAR VISÍVEL (estilo Outlook) */}
+                    <div className="flex items-center gap-1.5 flex-wrap px-3 py-2 border-b border-border bg-background/40">
+                      <Button size="sm" className="h-8 text-white" onClick={openReply} title="Responder ao remetente">
+                        <Reply className="h-4 w-4 mr-1.5" />Responder
+                      </Button>
+                      <Button size="sm" className="h-8 text-white" onClick={openReplyAll} title="Responder ao remetente e a todos">
+                        <ReplyAll className="h-4 w-4 mr-1.5" />Responder Todos
+                      </Button>
+                      <Button size="sm" className="h-8 text-white" onClick={openForward} title="Encaminhar esta mensagem">
+                        <Forward className="h-4 w-4 mr-1.5" />Encaminhar
+                      </Button>
+                      <div className="w-px h-5 bg-border mx-1" />
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-red-400" onClick={handleDeleteMessage} title="Excluir mensagem">
+                        <Trash2 className="h-4 w-4 mr-1.5" />Excluir
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-white" onClick={handleArchive} title="Arquivar (mover para a pasta Arquivo)">
+                        <Archive className="h-4 w-4 mr-1.5" />Arquivar
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-white" onClick={openMoveDialog} title="Mover para outra pasta">
+                        <FolderInput className="h-4 w-4 mr-1.5" />Mover
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-white" onClick={() => handleToggleRead(selectedMessage)} title={selectedMessage.read ? 'Marcar como não lida' : 'Marcar como lida'}>
+                        {selectedMessage.read ? <EyeOff className="h-4 w-4 mr-1.5" /> : <Eye className="h-4 w-4 mr-1.5" />}
+                        {selectedMessage.read ? 'Não lida' : 'Lida'}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-yellow-400" onClick={() => handleToggleFlag(selectedMessage)} title={selectedMessage.flagged ? 'Desmarcar importante' : 'Marcar como importante'}>
+                        <Star className="h-4 w-4 mr-1.5" fill={selectedMessage.flagged ? 'currentColor' : 'none'} />
+                        {selectedMessage.flagged ? 'Desmarcar' : 'Importante'}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-white" onClick={handlePrint} title="Imprimir mensagem">
+                        <Printer className="h-4 w-4 mr-1.5" />Imprimir
+                      </Button>
+                    </div>
+
                     <div className="p-4 border-b border-border flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h3 className="text-lg font-semibold text-white leading-tight mb-1">
@@ -1036,17 +1474,6 @@ export default function EmailModule() {
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={openReply} title="Responder">
-                            <Reply className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleToggleFlag(selectedMessage)} title="Importante">
-                            <Star className="h-4 w-4" fill={selectedMessage.flagged ? 'currentColor' : 'none'} />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={handleDeleteMessage} title="Excluir">
-                            <Trash2 className="h-4 w-4 text-red-400" />
-                          </Button>
-                        </div>
                         {selectedMessage.hasAttachments && (
                           <div className="flex flex-wrap justify-end gap-1 max-w-[240px]">
                             {(selectedMessage.attachments || []).filter(a => !a.inline).map(att => (
@@ -1166,10 +1593,19 @@ export default function EmailModule() {
           open={composeOpen}
           onClose={() => setComposeOpen(false)}
           account={selectedAccount}
-          replyTo={replyTo}
+          mode={composeMode}
+          source={composeSource}
           onSent={() => showNotice('E-mail enviado!')}
         />
       )}
+      <MoveDialog
+        open={moveDialogOpen}
+        onClose={() => setMoveDialogOpen(false)}
+        folders={folders}
+        currentFolderId={selectedFolder?.id}
+        count={Math.max(selectedCount, selectedMessage ? 1 : 0)}
+        onMove={moveMessages}
+      />
     </StandardLayout>
   );
 }

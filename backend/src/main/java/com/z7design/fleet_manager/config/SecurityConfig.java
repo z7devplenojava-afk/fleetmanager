@@ -497,11 +497,13 @@ public class SecurityConfig {
                                                                 "/api/measurements/**")
                                                 .hasAnyAuthority("FINANCIAL_WRITE", "FINANCIAL_CREATE",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
-                                                                "ROLE_FINANCEIRO")
+                                                                "ROLE_FINANCEIRO", "ROLE_OPERACIONAL",
+                                                                "ROLE_GESTOR", "ROLE_SUPERVISOR")
                                                 .requestMatchers(org.springframework.http.HttpMethod.PUT,
                                                                 "/api/measurements/**")
                                                 .hasAnyAuthority("FINANCIAL_WRITE", "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
-                                                                "ROLE_FINANCEIRO")
+                                                                "ROLE_FINANCEIRO", "ROLE_OPERACIONAL",
+                                                                "ROLE_GESTOR", "ROLE_SUPERVISOR")
                                                 .requestMatchers(org.springframework.http.HttpMethod.PATCH,
                                                                 "/api/measurements/**")
                                                 .hasAnyAuthority("FINANCIAL_WRITE", "ROLE_SUPER_ADMIN", "ROLE_ADMIN",

@@ -96,7 +96,7 @@ public class ContactValidationController {
     @PatchMapping("/users/{userId}/whatsapp")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'HR')")
     public ResponseEntity<Map<String, Object>> updateUserWhatsApp(
-            @PathVariable UUID userId,
+            @PathVariable("userId") UUID userId,
             @Valid @RequestBody UpdateWhatsAppRequest request) {
         
         log.info("ðŸ“± Recebida solicitaÃ§Ã£o de atualizaÃ§Ã£o de WhatsApp para usuÃ¡rio: {}", userId);
@@ -134,7 +134,7 @@ public class ContactValidationController {
     @PatchMapping("/users/{userId}/email")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'HR')")
     public ResponseEntity<Map<String, Object>> updateUserEmail(
-            @PathVariable UUID userId,
+            @PathVariable("userId") UUID userId,
             @Valid @RequestBody UpdateEmailRequest request) {
 
         log.info("ðŸ“§ Recebida solicitaÃ§Ã£o de atualizaÃ§Ã£o de email para usuÃ¡rio: {}", userId);

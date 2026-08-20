@@ -33,7 +33,7 @@ public class EmailTestController {
     @RequestMapping(value = "/test", method = {RequestMethod.GET, RequestMethod.POST})
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
     @Operation(summary = "Testar envio de email", description = "Envia um email de teste para verificar configuraÃ§Ã£o SMTP")
-    public ResponseEntity<?> testEmail(@RequestParam(required = false) String toEmail) {
+    public ResponseEntity<?> testEmail(@RequestParam(value = "toEmail", required = false) String toEmail) {
         try {
             if (toEmail == null || toEmail.trim().isEmpty()) {
                 log.warn("âš ï¸ Email de destino nÃ£o fornecido");

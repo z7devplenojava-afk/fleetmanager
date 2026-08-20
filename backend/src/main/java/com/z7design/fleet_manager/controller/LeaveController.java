@@ -78,7 +78,7 @@ public class LeaveController {
                     schema = @Schema(implementation = Leave.class),
                     examples = @ExampleObject(value = "{\"id\":\"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"leaveType\":\"VACATION\", \"startDate\":\"2024-08-01\", \"endDate\":\"2024-08-15\", \"reason\":\"FÃ©rias anuais - alterado\", \"status\":\"PENDING\"}")))
     @PutMapping("/{id}")
-    public ResponseEntity<Leave> update(@PathVariable UUID id, @RequestBody Leave leave) {
+    public ResponseEntity<Leave> update(@PathVariable("id") UUID id, @RequestBody Leave leave) {
         return ResponseEntity.ok(leaveService.update(id, leave));
     }
     
@@ -97,8 +97,8 @@ public class LeaveController {
     @Parameter(description = "ID do usuÃ¡rio que aprovou a solicitaÃ§Ã£o", required = true)
     @PutMapping("/{id}/approve")
     public ResponseEntity<Leave> approve(
-            @PathVariable UUID id,
-            @RequestParam UUID approvedBy) {
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "approvedBy") UUID approvedBy) {
         return ResponseEntity.ok(leaveService.approve(id, approvedBy));
     }
     
@@ -116,7 +116,7 @@ public class LeaveController {
     })
     @Parameter(description = "Justificativa para a rejeiÃ§Ã£o da solicitaÃ§Ã£o", required = true)
     @PutMapping("/{id}/reject")
-    public ResponseEntity<Leave> reject(@PathVariable UUID id, @RequestParam String justification) {
+    public ResponseEntity<Leave> reject(@PathVariable("id") UUID id, @RequestParam(value = "justification") String justification) {
         return ResponseEntity.ok(leaveService.reject(id, justification));
     }
     
@@ -133,7 +133,7 @@ public class LeaveController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PutMapping("/{id}/cancel")
-    public ResponseEntity<Leave> cancel(@PathVariable UUID id) {
+    public ResponseEntity<Leave> cancel(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(leaveService.cancel(id));
     }
     
@@ -148,7 +148,7 @@ public class LeaveController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Leave> findById(@PathVariable UUID id) {
+    public ResponseEntity<Leave> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(leaveService.findById(id));
     }
     
@@ -161,7 +161,7 @@ public class LeaveController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<Leave>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<Leave>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         return ResponseEntity.ok(leaveService.findByEmployeeId(employeeId));
     }
     
@@ -175,8 +175,8 @@ public class LeaveController {
     })
     @GetMapping("/employee/{employeeId}/status/{status}")
     public ResponseEntity<List<Leave>> findByEmployeeIdAndStatus(
-            @PathVariable UUID employeeId,
-            @PathVariable LeaveStatus status) {
+            @PathVariable("employeeId") UUID employeeId,
+            @PathVariable("status") LeaveStatus status) {
         return ResponseEntity.ok(leaveService.findByEmployeeIdAndStatus(employeeId, status));
     }
     
@@ -190,8 +190,8 @@ public class LeaveController {
     })
     @GetMapping("/employee/{employeeId}/type/{leaveType}")
     public ResponseEntity<List<Leave>> findByEmployeeIdAndLeaveType(
-            @PathVariable UUID employeeId,
-            @PathVariable LeaveType leaveType) {
+            @PathVariable("employeeId") UUID employeeId,
+            @PathVariable("leaveType") LeaveType leaveType) {
         return ResponseEntity.ok(leaveService.findByEmployeeIdAndLeaveType(employeeId, leaveType));
     }
     
@@ -209,8 +209,8 @@ public class LeaveController {
     @Parameter(description = "Data de fim do intervalo (formato YYYY-MM-DD)", example = "2023-12-31", required = true)
     @GetMapping("/date-range")
     public ResponseEntity<List<Leave>> findByStartDateBetween(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(leaveService.findByStartDateBetween(startDate, endDate));
     }
 } 

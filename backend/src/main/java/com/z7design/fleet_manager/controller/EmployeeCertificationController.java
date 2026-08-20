@@ -108,7 +108,7 @@ public class EmployeeCertificationController {
     @Operation(summary = "Atualiza certificaÃ§Ã£o")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('HR_WRITE') or hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL')")
-    public ResponseEntity<EmployeeCertificationResponse> update(@PathVariable UUID id, @Valid @RequestBody UpdateEmployeeCertificationRequest request) {
+    public ResponseEntity<EmployeeCertificationResponse> update(@PathVariable("id") UUID id, @Valid @RequestBody UpdateEmployeeCertificationRequest request) {
         EmployeeCertification updated = certificationService.update(id, request);
         EmployeeCertification loaded = certificationService.findById(updated.getId());
         return ResponseEntity.ok(EmployeeCertificationResponse.fromEntity(loaded));
@@ -117,7 +117,7 @@ public class EmployeeCertificationController {
     @Operation(summary = "Renova certificaÃ§Ã£o")
     @PutMapping("/{id}/renew")
     @PreAuthorize("hasAuthority('HR_WRITE') or hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL')")
-    public ResponseEntity<EmployeeCertificationResponse> renew(@PathVariable UUID id,
+    public ResponseEntity<EmployeeCertificationResponse> renew(@PathVariable("id") UUID id,
             @RequestParam("expirationDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate newExpirationDate) {
         EmployeeCertification renewed = certificationService.renew(id, newExpirationDate);
         EmployeeCertification loaded = certificationService.findById(renewed.getId());
@@ -127,7 +127,7 @@ public class EmployeeCertificationController {
     @Operation(summary = "Cancela certificaÃ§Ã£o")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('HR_DELETE') or hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL')")
-    public ResponseEntity<Void> cancel(@PathVariable UUID id) {
+    public ResponseEntity<Void> cancel(@PathVariable("id") UUID id) {
         certificationService.cancel(id);
         return ResponseEntity.noContent().build();
     }

@@ -21,7 +21,7 @@ public class ContractPayrollConfigController {
 
     @GetMapping("/contract/{contractId}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getConfigByContractId(@PathVariable UUID contractId) {
+    public ResponseEntity<?> getConfigByContractId(@PathVariable("contractId") UUID contractId) {
         try {
             ContractPayrollConfig config = configService.getConfigByContractId(contractId);
             return ResponseEntity.ok(Map.of(
@@ -39,7 +39,7 @@ public class ContractPayrollConfigController {
 
     @GetMapping("/employee/{employeeId}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getConfigForEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<?> getConfigForEmployee(@PathVariable("employeeId") UUID employeeId) {
         try {
             ContractPayrollConfig config = configService.getConfigForEmployee(employeeId);
             return ResponseEntity.ok(Map.of(
@@ -76,7 +76,7 @@ public class ContractPayrollConfigController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> updateConfig(@PathVariable UUID id, @RequestBody ContractPayrollConfig config) {
+    public ResponseEntity<?> updateConfig(@PathVariable("id") UUID id, @RequestBody ContractPayrollConfig config) {
         try {
             ContractPayrollConfig updated = configService.update(id, config);
             return ResponseEntity.ok(Map.of(
@@ -95,7 +95,7 @@ public class ContractPayrollConfigController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> deleteConfig(@PathVariable UUID id) {
+    public ResponseEntity<?> deleteConfig(@PathVariable("id") UUID id) {
         try {
             configService.delete(id);
             return ResponseEntity.ok(Map.of(

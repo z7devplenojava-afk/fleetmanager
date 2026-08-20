@@ -108,9 +108,9 @@ public class PayrollClosureController {
     @GetMapping("/employee/{employeeId}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_READ', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getClosuresByEmployee(
-            @PathVariable UUID employeeId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "12") int size) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "12") int size) {
         try {
             Pageable pageable = PageRequest.of(page, size);
             Page<PayrollClosure> closures = payrollClosureService.getClosuresByEmployee(
@@ -135,9 +135,9 @@ public class PayrollClosureController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('PAYROLL_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getClosures(
-            @RequestParam(required = false) Integer month,
-            @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) UUID employeeId) {
+            @RequestParam(value = "month", required = false) Integer month,
+            @RequestParam(value = "year", required = false) Integer year,
+            @RequestParam(value = "employeeId", required = false) UUID employeeId) {
         try {
             List<PayrollClosure> closures;
             
@@ -171,8 +171,8 @@ public class PayrollClosureController {
     @GetMapping("/period")
     @PreAuthorize("hasAnyAuthority('PAYROLL_READ', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getClosuresByPeriod(
-            @RequestParam int month,
-            @RequestParam int year) {
+            @RequestParam(value = "month") int month,
+            @RequestParam(value = "year") int year) {
         try {
             List<PayrollClosure> closures = payrollClosureService.getClosuresByPeriod(month, year);
             return ResponseEntity.ok(Map.of(
@@ -192,7 +192,7 @@ public class PayrollClosureController {
     @PostMapping("/{closureId}/close")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> closeClosure(
-            @PathVariable UUID closureId,
+            @PathVariable("closureId") UUID closureId,
             @RequestBody(required = false) Map<String, String> request) {
         try {
             UUID closedById = (request != null && request.get("closedById") != null) ? 
@@ -215,7 +215,7 @@ public class PayrollClosureController {
 
     @GetMapping("/{closureId}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getClosureById(@PathVariable UUID closureId) {
+    public ResponseEntity<?> getClosureById(@PathVariable("closureId") UUID closureId) {
         try {
             PayrollClosure closure = payrollClosureService.getClosureById(closureId);
             return ResponseEntity.ok(Map.of(

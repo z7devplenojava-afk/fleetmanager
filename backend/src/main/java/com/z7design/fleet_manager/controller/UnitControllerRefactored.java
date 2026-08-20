@@ -40,10 +40,10 @@ public class UnitControllerRefactored {
     })
     public ResponseEntity<Page<UnitDTO>> getAllUnits(
             @PageableDefault(size = 20) Pageable pageable,
-            @Parameter(description = "Filtro por nome") @RequestParam(required = false) String name,
-            @Parameter(description = "Filtro por status ativo") @RequestParam(required = false) Boolean active,
-            @Parameter(description = "Filtro por cliente") @RequestParam(required = false) UUID clientId,
-            @Parameter(description = "Filtro por unidade pai") @RequestParam(required = false) UUID parentId) {
+            @Parameter(description = "Filtro por nome") @RequestParam(value = "name", required = false) String name,
+            @Parameter(description = "Filtro por status ativo") @RequestParam(value = "active", required = false) Boolean active,
+            @Parameter(description = "Filtro por cliente") @RequestParam(value = "clientId", required = false) UUID clientId,
+            @Parameter(description = "Filtro por unidade pai") @RequestParam(value = "parentId", required = false) UUID parentId) {
         
         log.debug("Buscando unidades com filtros - page: {}, name: {}, active: {}", 
                  pageable.getPageNumber(), name, active);
@@ -72,7 +72,7 @@ public class UnitControllerRefactored {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<UnitDTO> getUnitById(
-            @Parameter(description = "ID da unidade") @PathVariable UUID id) {
+            @Parameter(description = "ID da unidade") @PathVariable("id") UUID id) {
         log.debug("Buscando unidade por ID: {}", id);
         UnitDTO unit = unitService.findByIdAsDTO(id);
         return ResponseEntity.ok(unit);
@@ -103,7 +103,7 @@ public class UnitControllerRefactored {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<UnitDTO> updateUnit(
-            @Parameter(description = "ID da unidade") @PathVariable UUID id,
+            @Parameter(description = "ID da unidade") @PathVariable("id") UUID id,
             @Parameter(description = "Dados atualizados da unidade") @Valid @RequestBody UpdateUnitRequest request) {
         log.info("Atualizando unidade ID: {}", id);
         UnitDTO updatedUnit = unitService.updateUnitFromRequest(id, request);
@@ -118,7 +118,7 @@ public class UnitControllerRefactored {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<UnitDTO> toggleUnitStatus(
-            @Parameter(description = "ID da unidade") @PathVariable UUID id) {
+            @Parameter(description = "ID da unidade") @PathVariable("id") UUID id) {
         log.info("Alternando status da unidade ID: {}", id);
         
         UnitDTO updatedUnit = unitService.toggleActiveAsDTO(id);
@@ -134,7 +134,7 @@ public class UnitControllerRefactored {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Void> deleteUnit(
-            @Parameter(description = "ID da unidade") @PathVariable UUID id) {
+            @Parameter(description = "ID da unidade") @PathVariable("id") UUID id) {
         log.info("Excluindo unidade ID: {}", id);
         unitService.deleteUnit(id);
         return ResponseEntity.noContent().build();
@@ -159,8 +159,8 @@ public class UnitControllerRefactored {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<UnitDTO>> searchUnits(
-            @Parameter(description = "Termo de busca") @RequestParam String searchTerm,
-            @Parameter(description = "Buscar apenas unidades ativas") @RequestParam(defaultValue = "false") boolean activeOnly,
+            @Parameter(description = "Termo de busca") @RequestParam(value = "searchTerm") String searchTerm,
+            @Parameter(description = "Buscar apenas unidades ativas") @RequestParam(value = "activeOnly", defaultValue = "false") boolean activeOnly,
             @PageableDefault(size = 20) Pageable pageable) {
         
         log.debug("Buscando unidades com termo: {} (apenas ativas: {})", searchTerm, activeOnly);
@@ -183,7 +183,7 @@ public class UnitControllerRefactored {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<List<UnitDTO>> getRootUnits(
-            @Parameter(description = "Buscar apenas unidades ativas") @RequestParam(defaultValue = "true") boolean activeOnly) {
+            @Parameter(description = "Buscar apenas unidades ativas") @RequestParam(value = "activeOnly", defaultValue = "true") boolean activeOnly) {
         
         log.debug("Buscando unidades raiz (apenas ativas: {})", activeOnly);
         
@@ -206,8 +206,8 @@ public class UnitControllerRefactored {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<List<UnitDTO>> getChildrenUnits(
-            @Parameter(description = "ID da unidade pai") @PathVariable UUID id,
-            @Parameter(description = "Buscar apenas unidades ativas") @RequestParam(defaultValue = "true") boolean activeOnly) {
+            @Parameter(description = "ID da unidade pai") @PathVariable("id") UUID id,
+            @Parameter(description = "Buscar apenas unidades ativas") @RequestParam(value = "activeOnly", defaultValue = "true") boolean activeOnly) {
         
         log.debug("Buscando unidades filhas da unidade ID: {} (apenas ativas: {})", id, activeOnly);
         
@@ -227,8 +227,8 @@ public class UnitControllerRefactored {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<UnitDTO>> getUnitsByClient(
-            @Parameter(description = "ID do cliente") @PathVariable UUID clientId,
-            @Parameter(description = "Buscar apenas unidades ativas") @RequestParam(defaultValue = "true") boolean activeOnly,
+            @Parameter(description = "ID do cliente") @PathVariable("clientId") UUID clientId,
+            @Parameter(description = "Buscar apenas unidades ativas") @RequestParam(value = "activeOnly", defaultValue = "true") boolean activeOnly,
             @PageableDefault(size = 20) Pageable pageable) {
         
         log.debug("Buscando unidades do cliente ID: {} (apenas ativas: {})", clientId, activeOnly);

@@ -42,7 +42,7 @@ public class FuelStationController {
      * Buscar posto por ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<FuelStationDTO> getFuelStationById(@PathVariable UUID id) {
+    public ResponseEntity<FuelStationDTO> getFuelStationById(@PathVariable("id") UUID id) {
         log.info("ðŸ” GET /api/fuel-stations/{} - Buscando posto por ID", id);
         FuelStationDTO station = fuelStationService.getFuelStationById(id);
         log.info("âœ… Posto encontrado: {}", station.getName());
@@ -53,7 +53,7 @@ public class FuelStationController {
      * Buscar posto por nome
      */
     @GetMapping("/name/{name}")
-    public ResponseEntity<FuelStationDTO> getFuelStationByName(@PathVariable String name) {
+    public ResponseEntity<FuelStationDTO> getFuelStationByName(@PathVariable("name") String name) {
         log.info("ðŸ” GET /api/fuel-stations/name/{} - Buscando posto por nome", name);
         FuelStationDTO station = fuelStationService.getFuelStationByName(name);
         log.info("âœ… Posto encontrado: {}", station.getName());
@@ -64,7 +64,7 @@ public class FuelStationController {
      * Buscar postos por cidade
      */
     @GetMapping("/city/{city}")
-    public ResponseEntity<List<FuelStationDTO>> getFuelStationsByCity(@PathVariable String city) {
+    public ResponseEntity<List<FuelStationDTO>> getFuelStationsByCity(@PathVariable("city") String city) {
         log.info("ðŸ” GET /api/fuel-stations/city/{} - Buscando postos por cidade", city);
         List<FuelStationDTO> stations = fuelStationService.getFuelStationsByCity(city);
         log.info("âœ… Encontrados {} postos na cidade {}", stations.size(), city);
@@ -75,7 +75,7 @@ public class FuelStationController {
      * Buscar postos por marca/bandeira
      */
     @GetMapping("/brand/{brand}")
-    public ResponseEntity<List<FuelStationDTO>> getFuelStationsByBrand(@PathVariable String brand) {
+    public ResponseEntity<List<FuelStationDTO>> getFuelStationsByBrand(@PathVariable("brand") String brand) {
         log.info("ðŸ” GET /api/fuel-stations/brand/{} - Buscando postos por marca", brand);
         List<FuelStationDTO> stations = fuelStationService.getFuelStationsByBrand(brand);
         log.info("âœ… Encontrados {} postos da marca {}", stations.size(), brand);
@@ -98,9 +98,9 @@ public class FuelStationController {
      */
     @GetMapping("/nearby")
     public ResponseEntity<List<FuelStationDTO>> getNearbyFuelStations(
-            @RequestParam Double latitude,
-            @RequestParam Double longitude,
-            @RequestParam(defaultValue = "10.0") Double radius) {
+            @RequestParam(value = "latitude") Double latitude,
+            @RequestParam(value = "longitude") Double longitude,
+            @RequestParam(value = "radius", defaultValue = "10.0") Double radius) {
         log.info("ðŸ” GET /api/fuel-stations/nearby - Buscando postos prÃ³ximos Ã s coordenadas ({}, {}) com raio {} km", 
                 latitude, longitude, radius);
         List<FuelStationDTO> stations = fuelStationService.getNearbyFuelStations(latitude, longitude, radius);
@@ -135,7 +135,7 @@ public class FuelStationController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<FuelStationDTO> updateFuelStation(
-            @PathVariable UUID id, 
+            @PathVariable("id") UUID id, 
             @Valid @RequestBody CreateFuelStationDTO dto) {
         log.info("ðŸ” PUT /api/fuel-stations/{} - Atualizando posto", id);
         FuelStationDTO updatedStation = fuelStationService.updateFuelStation(id, dto);
@@ -148,8 +148,8 @@ public class FuelStationController {
      */
     @PatchMapping("/{id}/status")
     public ResponseEntity<FuelStationDTO> updateFuelStationStatus(
-            @PathVariable UUID id, 
-            @RequestParam FuelStation.FuelStationStatus status) {
+            @PathVariable("id") UUID id, 
+            @RequestParam(value = "status") FuelStation.FuelStationStatus status) {
         log.info("ðŸ” PATCH /api/fuel-stations/{}/status - Alterando status para: {}", id, status);
         FuelStationDTO updatedStation = fuelStationService.updateFuelStationStatus(id, status);
         log.info("âœ… Status do posto {} alterado para: {}", updatedStation.getName(), status);
@@ -160,7 +160,7 @@ public class FuelStationController {
      * Excluir posto de combustÃ­vel
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFuelStation(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteFuelStation(@PathVariable("id") UUID id) {
         log.info("ðŸ” DELETE /api/fuel-stations/{} - Excluindo posto", id);
         fuelStationService.deleteFuelStation(id);
         log.info("âœ… Posto excluÃ­do com sucesso (ID: {})", id);

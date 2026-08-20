@@ -18,7 +18,7 @@ public class AccessRecordController {
     private final AccessRecordRepository repository;
 
     @GetMapping
-    public ResponseEntity<List<AccessRecord>> findAll(@RequestParam(required = false) UUID companyId) {
+    public ResponseEntity<List<AccessRecord>> findAll(@RequestParam(value = "companyId", required = false) UUID companyId) {
         if (companyId != null) {
             return ResponseEntity.ok(repository.findByCompanyId(companyId));
         }
@@ -33,7 +33,7 @@ public class AccessRecordController {
     }
 
     @PostMapping("/{id}/exit")
-    public ResponseEntity<AccessRecord> registerExit(@PathVariable UUID id) {
+    public ResponseEntity<AccessRecord> registerExit(@PathVariable("id") UUID id) {
         return repository.findById(id).map(record -> {
             record.setExitTime(LocalDateTime.now());
             record.setStatus("OUT");

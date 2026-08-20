@@ -30,7 +30,7 @@ public class HRController {
     @Operation(summary = "Buscar funcionÃ¡rios com experiÃªncia vencendo", 
                description = "Retorna funcionÃ¡rios cujo perÃ­odo de experiÃªncia vence nos prÃ³ximos X dias")
     public ResponseEntity<List<EmployeeDTO>> getEmployeesWithExpiringProbation(
-            @RequestParam(defaultValue = "7") int days) {
+            @RequestParam(value = "days", defaultValue = "7") int days) {
         List<EmployeeDTO> employees = hrService.getEmployeesWithExpiringProbation(days);
         return ResponseEntity.ok(employees);
     }
@@ -70,7 +70,7 @@ public class HRController {
     @GetMapping("/employees/by-unit/{unitId}")
     @Operation(summary = "Buscar funcionÃ¡rios por unidade", 
                description = "Retorna funcionÃ¡rios de uma unidade especÃ­fica")
-    public ResponseEntity<List<EmployeeDTO>> getEmployeesByUnit(@PathVariable String unitId) {
+    public ResponseEntity<List<EmployeeDTO>> getEmployeesByUnit(@PathVariable("unitId") String unitId) {
         List<EmployeeDTO> employees = hrService.getEmployeesByUnit(unitId);
         return ResponseEntity.ok(employees);
     }
@@ -78,7 +78,7 @@ public class HRController {
     @GetMapping("/employees/by-position/{positionId}")
     @Operation(summary = "Buscar funcionÃ¡rios por posiÃ§Ã£o", 
                description = "Retorna funcionÃ¡rios de uma posiÃ§Ã£o especÃ­fica")
-    public ResponseEntity<List<EmployeeDTO>> getEmployeesByPosition(@PathVariable String positionId) {
+    public ResponseEntity<List<EmployeeDTO>> getEmployeesByPosition(@PathVariable("positionId") String positionId) {
         List<EmployeeDTO> employees = hrService.getEmployeesByPosition(positionId);
         return ResponseEntity.ok(employees);
     }
@@ -87,10 +87,10 @@ public class HRController {
     @Operation(summary = "Buscar fÃ©rias", 
                description = "Retorna lista de fÃ©rias com filtros opcionais (status, employeeId, dateFrom, dateTo)")
     public ResponseEntity<List<VacationDTO>> getVacations(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String employeeId,
-            @RequestParam(required = false) String dateFrom,
-            @RequestParam(required = false) String dateTo) {
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "employeeId", required = false) String employeeId,
+            @RequestParam(value = "dateFrom", required = false) String dateFrom,
+            @RequestParam(value = "dateTo", required = false) String dateTo) {
         
         List<VacationDTO> vacations;
         

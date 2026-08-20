@@ -58,7 +58,7 @@ public class VisitControlReportController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar relatÃ³rio por ID", description = "Retorna detalhes de um relatÃ³rio especÃ­fico")
-    public ResponseEntity<VisitControlReportDTO> getReportById(@PathVariable UUID id) {
+    public ResponseEntity<VisitControlReportDTO> getReportById(@PathVariable("id") UUID id) {
         Optional<VisitControlReportDTO> report = reportService.getReportById(id);
         return report.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -67,7 +67,7 @@ public class VisitControlReportController {
 
     @GetMapping("/{id}/download")
     @Operation(summary = "Download do relatÃ³rio", description = "Faz download do arquivo PDF do relatÃ³rio")
-    public ResponseEntity<Resource> downloadReport(@PathVariable UUID id) {
+    public ResponseEntity<Resource> downloadReport(@PathVariable("id") UUID id) {
         try {
             log.info("Tentando fazer download do relatÃ³rio: {}", id);
             Resource resource = reportService.getReportFile(id);
@@ -95,7 +95,7 @@ public class VisitControlReportController {
     
     @GetMapping("/{id}/view")
     @Operation(summary = "Visualizar relatÃ³rio", description = "Visualiza o arquivo PDF do relatÃ³rio no navegador")
-    public ResponseEntity<Resource> viewReport(@PathVariable UUID id) {
+    public ResponseEntity<Resource> viewReport(@PathVariable("id") UUID id) {
         try {
             log.info("Tentando visualizar relatÃ³rio: {}", id);
             Resource resource = reportService.getReportFile(id);
@@ -124,10 +124,10 @@ public class VisitControlReportController {
     @PostMapping("/generate")
     @Operation(summary = "Gerar e salvar relatÃ³rio", description = "Gera um novo relatÃ³rio PDF e salva no sistema")
     public ResponseEntity<VisitControlReportDTO> generateAndSaveReport(
-            @RequestParam(required = false) UUID workPostId,
-            @RequestParam(required = false) VisitControlStatus status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+            @RequestParam(value = "workPostId", required = false) UUID workPostId,
+            @RequestParam(value = "status", required = false) VisitControlStatus status,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -158,7 +158,7 @@ public class VisitControlReportController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir relatÃ³rio", description = "Exclui um relatÃ³rio e seu arquivo PDF")
-    public ResponseEntity<Void> deleteReport(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteReport(@PathVariable("id") UUID id) {
         try {
             reportService.deleteReport(id);
             return ResponseEntity.noContent().build();

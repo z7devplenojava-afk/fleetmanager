@@ -66,7 +66,7 @@ public class TimeControlController {
      */
     @GetMapping("/records/{employeeId}/today")
     public ResponseEntity<List<TimeRecordResponse>> getTodayRecords(
-            @PathVariable UUID employeeId) {
+            @PathVariable("employeeId") UUID employeeId) {
 
         log.info("Fetching today records for employee: {}", employeeId);
 
@@ -84,8 +84,8 @@ public class TimeControlController {
      */
     @GetMapping("/records/{employeeId}/date/{date}")
     public ResponseEntity<List<TimeRecordResponse>> getRecordsByDate(
-            @PathVariable UUID employeeId,
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @PathVariable("employeeId") UUID employeeId,
+            @PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
         log.info("Fetching records for employee: {} on date: {}", employeeId, date);
 
@@ -102,7 +102,7 @@ public class TimeControlController {
      * Retorna o próximo tipo de registro esperado
      */
     @GetMapping("/records/{employeeId}/next-type")
-    public ResponseEntity<String> getNextRecordType(@PathVariable UUID employeeId) {
+    public ResponseEntity<String> getNextRecordType(@PathVariable("employeeId") UUID employeeId) {
         TimeRecord.RecordType nextType = timeRecordService.getNextRecordType(employeeId);
         return ResponseEntity.ok(nextType.name());
     }

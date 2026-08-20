@@ -32,6 +32,9 @@ import DamageMap, { DamagePoint } from '@/components/mobilizacao/DamagePointsMap
 import transportMobilizationService from '@/services/transportMobilizationService';
 import fleetService from '@/services/fleetService';
 import driverService from '@/services/driverService';
+import clientService from '@/services/clientService';
+import workPostService from '@/services/workPostService';
+import type { WorkPost } from '@/services/workPostService';
 import { useToast } from '@/hooks/use-toast';
 import type { MobilizationType, CreateTransportMobilizationDTO, ChecklistItemDetail } from '@/types/mobilization';
 
@@ -89,6 +92,8 @@ const MobilizationFormPage: React.FC = () => {
     const [formData, setFormData] = useState({
         vehicleId: '',
         driverId: '',
+        clientId: '',
+        workPostId: '',
         kmReading: '',
         observations: '',
         descricaoAvaria: '',
@@ -114,6 +119,8 @@ const MobilizationFormPage: React.FC = () => {
             setFormData({
                 vehicleId: existingMobilization.vehicleId,
                 driverId: existingMobilization.driverId || '',
+                clientId: existingMobilization.clientId || '',
+                workPostId: existingMobilization.workPostId || '',
                 kmReading: existingMobilization.kmReading?.toString() || '',
                 observations: existingMobilization.observations || '',
                 descricaoAvaria: '',
@@ -149,6 +156,21 @@ const MobilizationFormPage: React.FC = () => {
         queryKey: ['drivers'],
         queryFn: driverService.getDrivers,
     });
+
+    const { data: clients = [] } = useQuery({
+        queryKey: ['clients-for-select'],
+        queryFn: clientService.getAllClients,
+    });
+
+    const { data: allWorkPosts = [] } = useQuery<WorkPost[]>({
+        queryKey: ['work-posts-all'],
+        queryFn: workPostService.getAllWorkPosts,
+    });
+
+    // Filtra postos pelo cliente selecionado
+    const filteredWorkPosts = formData.clientId
+        ? allWorkPosts.filter(wp => wp.clientId === formData.clientId)
+        : allWorkPosts;
 
     const mutation = useMutation({
         mutationFn: async (payload: { data: CreateTransportMobilizationDTO; odometer?: File; photos: File[] }) => {
@@ -186,6 +208,8 @@ const MobilizationFormPage: React.FC = () => {
         const payload: CreateTransportMobilizationDTO = {
             vehicleId: formData.vehicleId,
             driverId: formData.driverId || undefined,
+            clientId: formData.clientId || undefined,
+            workPostId: formData.workPostId || undefined,
             type,
             kmReading: parseInt(formData.kmReading),
             checklistData: JSON.stringify(checklist),
@@ -232,7 +256,7 @@ const MobilizationFormPage: React.FC = () => {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <Label>Veículo *</Label>
                                     <Select
@@ -261,6 +285,38 @@ const MobilizationFormPage: React.FC = () => {
                                         <SelectContent>
                                             {drivers.map(d => (
                                                 <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Cliente</Label>
+                                    <Select
+                                        value={formData.clientId}
+                                        onValueChange={(v) => setFormData(f => ({ ...f, clientId: v, workPostId: '' }))}
+                                    >
+                                        <SelectTrigger className="bg-seguranca-black border-gray-600">
+                                            <SelectValue placeholder="Selecione o cliente" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {clients.map((c: any) => (
+                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Obra / Posto de Trabalho</Label>
+                                    <Select
+                                        value={formData.workPostId}
+                                        onValueChange={(v) => setFormData(f => ({ ...f, workPostId: v }))}
+                                    >
+                                        <SelectTrigger className="bg-seguranca-black border-gray-600">
+                                            <SelectValue placeholder="Selecione a obra" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {filteredWorkPosts.map((wp) => (
+                                                <SelectItem key={wp.id} value={wp.id}>{wp.postCode} - {wp.name}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>

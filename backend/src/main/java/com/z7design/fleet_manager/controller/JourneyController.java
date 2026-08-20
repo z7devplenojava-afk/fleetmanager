@@ -25,8 +25,8 @@ public class JourneyController {
 
     @GetMapping
     public ResponseEntity<List<DriverJourneyDTO>> list(
-            @RequestParam(required = false) UUID driverId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam(value = "driverId", required = false) UUID driverId,
+            @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
         List<DriverJourney> journeys;
         if (driverId != null && date != null) {

@@ -31,7 +31,7 @@ public class ReportLayoutController {
      * Retorna informaÃ§Ãµes formatadas que serÃ£o usadas no cabeÃ§alho e rodapÃ©
      */
     @GetMapping("/preview/{companyId}")
-    public ResponseEntity<ReportLayoutPreviewDTO> previewLayout(@PathVariable UUID companyId) {
+    public ResponseEntity<ReportLayoutPreviewDTO> previewLayout(@PathVariable("companyId") UUID companyId) {
         log.info("Gerando preview de layout para empresa: {}", companyId);
         
         Company company = companyRepository.findById(companyId)

@@ -90,3 +90,6 @@ payslips_output/
 
 # Docker
 # (não ignore .dockerignore — ele precisa ir no repositório)
+
+# Certificados self-signed da stack fluxbus (gerar localmente)
+fluxbus-nginx/certs/

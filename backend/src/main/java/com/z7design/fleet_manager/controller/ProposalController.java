@@ -98,7 +98,7 @@ public class ProposalController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar proposta por ID", description = "Retorna uma proposta especÃ­fica pelo ID")
-    public ResponseEntity<Proposal> getProposalById(@PathVariable String id) {
+    public ResponseEntity<Proposal> getProposalById(@PathVariable("id") String id) {
         Proposal proposal = proposalService.findById(UUID.fromString(id));
         return ResponseEntity.ok(proposal);
     }
@@ -120,14 +120,14 @@ public class ProposalController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar proposta", description = "Atualiza uma proposta existente")
-    public ResponseEntity<Proposal> updateProposal(@PathVariable String id, @RequestBody ProposalDTO proposalDTO) {
+    public ResponseEntity<Proposal> updateProposal(@PathVariable("id") String id, @RequestBody ProposalDTO proposalDTO) {
         Proposal updated = proposalService.update(UUID.fromString(id), proposalDTO);
         return ResponseEntity.ok(updated);
     }
 
     @PatchMapping("/{id}/status")
     @Operation(summary = "Atualizar status da proposta", description = "Atualiza apenas o status de uma proposta")
-    public ResponseEntity<Proposal> updateProposalStatus(@PathVariable String id, @RequestBody Map<String, String> statusUpdate) {
+    public ResponseEntity<Proposal> updateProposalStatus(@PathVariable("id") String id, @RequestBody Map<String, String> statusUpdate) {
         String status = statusUpdate.get("status");
         Proposal updated = proposalService.updateStatus(UUID.fromString(id), status);
         return ResponseEntity.ok(updated);
@@ -135,14 +135,14 @@ public class ProposalController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir proposta", description = "Exclui uma proposta do sistema")
-    public ResponseEntity<Void> deleteProposal(@PathVariable String id) {
+    public ResponseEntity<Void> deleteProposal(@PathVariable("id") String id) {
         proposalService.delete(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/status/{status}")
     @Operation(summary = "Buscar propostas por status", description = "Retorna propostas filtradas por status")
-    public ResponseEntity<List<Proposal>> getProposalsByStatus(@PathVariable String status) {
+    public ResponseEntity<List<Proposal>> getProposalsByStatus(@PathVariable("status") String status) {
         ProposalStatus proposalStatus = ProposalStatus.valueOf(status.toUpperCase());
         List<Proposal> proposals = proposalService.findByStatus(proposalStatus);
         return ResponseEntity.ok(proposals);
@@ -150,25 +150,25 @@ public class ProposalController {
 
     @GetMapping("/client/{clientId}")
     @Operation(summary = "Buscar propostas por cliente", description = "Retorna propostas de um cliente especÃ­fico")
-    public ResponseEntity<List<Proposal>> getProposalsByClient(@PathVariable String clientId) {
+    public ResponseEntity<List<Proposal>> getProposalsByClient(@PathVariable("clientId") String clientId) {
         return ResponseEntity.ok(proposalService.findByClient(UUID.fromString(clientId)));
     }
 
     @GetMapping("/lead/{leadId}")
     @Operation(summary = "Buscar propostas por lead", description = "Retorna propostas de um lead especÃ­fico")
-    public ResponseEntity<List<Proposal>> getProposalsByLead(@PathVariable String leadId) {
+    public ResponseEntity<List<Proposal>> getProposalsByLead(@PathVariable("leadId") String leadId) {
         return ResponseEntity.ok(proposalService.findByLead(UUID.fromString(leadId)));
     }
 
     @GetMapping("/assigned/{userId}")
     @Operation(summary = "Buscar propostas por responsÃ¡vel", description = "Retorna propostas atribuÃ­das a um usuÃ¡rio especÃ­fico")
-    public ResponseEntity<List<Proposal>> getProposalsByAssignedTo(@PathVariable String userId) {
+    public ResponseEntity<List<Proposal>> getProposalsByAssignedTo(@PathVariable("userId") String userId) {
         return ResponseEntity.ok(proposalService.findByAssignedTo(UUID.fromString(userId)));
     }
 
     @GetMapping("/created/{userId}")
     @Operation(summary = "Buscar propostas por criador", description = "Retorna propostas criadas por um usuÃ¡rio especÃ­fico")
-    public ResponseEntity<List<Proposal>> getProposalsByCreatedBy(@PathVariable String userId) {
+    public ResponseEntity<List<Proposal>> getProposalsByCreatedBy(@PathVariable("userId") String userId) {
         return ResponseEntity.ok(proposalService.findByCreatedBy(UUID.fromString(userId)));
     }
 
@@ -181,14 +181,14 @@ public class ProposalController {
 
     @GetMapping("/expiring-soon/{days}")
     @Operation(summary = "Buscar propostas expirando em breve", description = "Retorna propostas que expiram nos prÃ³ximos X dias")
-    public ResponseEntity<List<Proposal>> getProposalsExpiringSoon(@PathVariable int days) {
+    public ResponseEntity<List<Proposal>> getProposalsExpiringSoon(@PathVariable("days") int days) {
         List<Proposal> proposals = proposalService.findProposalsExpiringSoon(days);
         return ResponseEntity.ok(proposals);
     }
 
     @GetMapping("/search")
     @Operation(summary = "Buscar propostas", description = "Busca propostas por termo de pesquisa")
-    public ResponseEntity<List<Proposal>> searchProposals(@RequestParam String term) {
+    public ResponseEntity<List<Proposal>> searchProposals(@RequestParam(value = "term") String term) {
         List<Proposal> proposals = proposalService.searchProposals(term);
         return ResponseEntity.ok(proposals);
     }

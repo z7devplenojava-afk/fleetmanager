@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Edit, Trash2, Eye, Download, Trash2Icon, Edit3 } from 'lucide-react';
 import VeiculoDeleteDialog from './VeiculoDeleteDialog';
+import VehicleDetailPanel from './VehicleDetailPanel';
 import { useNavigate } from 'react-router-dom';
-import { getApiUrl } from '@/config/environment';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/axios';
 import * as XLSX from 'xlsx';
@@ -440,7 +440,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleBulkDelete}
+                onClick={() => handleBulkDelete()}
                 className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
               >
                 <Trash2Icon size={16} className="mr-2" />
@@ -580,220 +580,12 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
 
       {/* Modal de Visualização */}
       {isViewModalOpen && viewingVeiculo && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-seguranca-black border border-gray-600 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
-            {/* Header do Modal */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-600">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-seguranca-yellow/20 rounded-full flex items-center justify-center">
-                  <span className="text-seguranca-yellow font-bold text-xl">
-                    {viewingVeiculo.placa.charAt(0)}
-                  </span>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-seguranca-lightgray">
-                    {viewingVeiculo.placa}
-                  </h2>
-                  <p className="text-gray-400">
-                    {viewingVeiculo.marca} {viewingVeiculo.modelo} - {viewingVeiculo.ano}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleViewClose}
-                className="border-gray-600 text-gray-400 hover:bg-gray-700"
-              >
-                ✕
-              </Button>
-            </div>
-
-            {/* Conteúdo do Modal */}
-            <div className="p-6 space-y-6">
-              {/* Seção de Fotos */}
-              {viewingVeiculo.photos && viewingVeiculo.photos.trim() !== '' ? (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-seguranca-lightgray border-b border-gray-600 pb-2">
-                    📸 Fotos do Veículo ({viewingVeiculo.photos.split(',').filter(photo => photo.trim() !== '').length})
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {viewingVeiculo.photos.split(',').filter(photo => photo.trim() !== '').map((photoUrl, index) => {
-                      const fullPhotoUrl = photoUrl.startsWith('http') ? photoUrl : `${getApiUrl().replace('/api', '')}${photoUrl}`;
-                      return (
-                        <div key={index} className="relative group">
-                          <div className="w-full h-48 bg-seguranca-graphite border border-gray-600 rounded-lg overflow-hidden group-hover:border-seguranca-yellow transition-colors">
-                            <img
-                              src={fullPhotoUrl}
-                              alt={`Foto do veículo ${index + 1}`}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                console.error('Erro ao carregar foto:', photoUrl);
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                                // Mostrar placeholder apenas se a imagem falhar
-                                const placeholder = target.nextElementSibling as HTMLElement;
-                                if (placeholder) placeholder.style.display = 'flex';
-                              }}
-                              onLoad={() => {
-                                console.log('✅ Foto carregada com sucesso:', photoUrl);
-                              }}
-                            />
-                            <div className="w-full h-full bg-seguranca-graphite border border-gray-600 rounded-lg flex items-center justify-center" style={{ display: 'none' }}>
-                              <div className="text-center">
-                                <div className="text-4xl mb-2">📷</div>
-                                <p className="text-seguranca-lightgray text-sm font-medium">Foto não encontrada</p>
-                                <p className="text-gray-400 text-xs">Arquivo: {photoUrl.split('/').pop()}</p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity bg-seguranca-black/80 border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black"
-                              onClick={() => {
-                                window.open(fullPhotoUrl, '_blank');
-                              }}
-                            >
-                              <Download size={16} className="mr-2" />
-                              Visualizar
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 border-2 border-dashed border-gray-600 rounded-lg">
-                  <div className="text-4xl mb-2">📷</div>
-                  <p className="text-gray-400 text-lg">Nenhuma foto disponível</p>
-                  <p className="text-gray-500 text-sm">Este veículo ainda não possui fotos cadastradas</p>
-                </div>
-              )}
-
-              {/* Informações Detalhadas */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Informações Básicas */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-seguranca-lightgray border-b border-gray-600 pb-2">
-                    🚗 Informações Básicas
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Placa:</span>
-                      <span className="text-seguranca-lightgray font-mono font-semibold text-seguranca-yellow">
-                        {viewingVeiculo.placa}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Marca:</span>
-                      <span className="text-seguranca-lightgray font-semibold">{viewingVeiculo.marca}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Modelo:</span>
-                      <span className="text-seguranca-lightgray font-semibold">{viewingVeiculo.modelo}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Ano:</span>
-                      <span className="text-seguranca-lightgray font-semibold text-blue-400">{viewingVeiculo.ano}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Cor:</span>
-                      <span className="text-seguranca-lightgray font-semibold">{viewingVeiculo.cor || 'Não informada'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Informações Técnicas */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-seguranca-lightgray border-b border-gray-600 pb-2">
-                    ⚙️ Informações Técnicas
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Combustível:</span>
-                      <span className="text-seguranca-lightgray font-semibold">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-900/20 text-blue-400 border border-blue-700/30">
-                          {viewingVeiculo.combustivel.charAt(0).toUpperCase() + viewingVeiculo.combustivel.slice(1)}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Quilometragem:</span>
-                      <span className="text-seguranca-lightgray font-mono font-semibold text-green-400">
-                        {viewingVeiculo.quilometragem ? `${(Number(viewingVeiculo.quilometragem) / 1000).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} km` : 'Não informada'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Capacidade:</span>
-                      <span className="text-seguranca-lightgray font-semibold">{viewingVeiculo.capacidade || 'Não informada'} pessoas</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Status:</span>
-                      <span className="text-seguranca-lightgray font-semibold">
-                        {getStatusBadge(viewingVeiculo.status, viewingVeiculo.id)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Informações Adicionais */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-seguranca-lightgray border-b border-gray-600 pb-2">
-                  📋 Informações Adicionais
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Data de Aquisição:</span>
-                      <span className="text-seguranca-lightgray font-semibold">
-                        {viewingVeiculo.data_aquisicao ? new Date(viewingVeiculo.data_aquisicao).toLocaleDateString('pt-BR') : 'Não informada'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Valor de Aquisição:</span>
-                      <span className="text-seguranca-lightgray font-semibold">
-                        {viewingVeiculo.valor_aquisicao ? `R$ ${viewingVeiculo.valor_aquisicao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'Não informado'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Observações:</span>
-                      <span className="text-seguranca-lightgray font-semibold max-w-xs text-right">
-                        {viewingVeiculo.observacoes || 'Nenhuma observação cadastrada'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer do Modal */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-600">
-              <Button
-                variant="outline"
-                onClick={handleViewClose}
-                className="border-gray-600 text-gray-400 hover:bg-gray-700"
-              >
-                Fechar
-              </Button>
-              <Button
-                onClick={() => {
-                  handleViewClose();
-                  onEdit(viewingVeiculo);
-                }}
-                className="bg-seguranca-yellow hover:bg-seguranca-yellow/80 text-black"
-              >
-                <Edit size={16} className="mr-2" />
-                Editar Veículo
-              </Button>
-            </div>
-          </div>
-        </div>
+        <VehicleDetailPanel
+          veiculo={viewingVeiculo}
+          isOpen={isViewModalOpen}
+          onClose={handleViewClose}
+          onEdit={onEdit}
+        />
       )}
     </>
   );

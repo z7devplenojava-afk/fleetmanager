@@ -26,7 +26,7 @@ public class CAEPIController {
      * @return InformaÃ§Ãµes do CA
      */
     @GetMapping("/{numero}")
-    public ResponseEntity<CAEPIResponseDTO> buscarCA(@PathVariable String numero) {
+    public ResponseEntity<CAEPIResponseDTO> buscarCA(@PathVariable("numero") String numero) {
         try {
             CAEPIResponseDTO ca = caepiService.buscarCA(numero);
             
@@ -47,7 +47,7 @@ public class CAEPIController {
      * @return Lista de CAs encontrados
      */
     @GetMapping("/search")
-    public ResponseEntity<List<CAEPIResponseDTO>> buscarCAs(@RequestParam String searchTerm) {
+    public ResponseEntity<List<CAEPIResponseDTO>> buscarCAs(@RequestParam(value = "searchTerm") String searchTerm) {
         try {
             List<CAEPIResponseDTO> resultados = caepiService.buscarCAs(searchTerm);
             return ResponseEntity.ok(resultados);

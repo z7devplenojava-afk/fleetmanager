@@ -71,7 +71,7 @@ const Navbar: React.FC = () => {
                     className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 w-full py-3"
                     onClick={() => setIsQuoteModalOpen(true)}
                   >
-                    Solicitar Orçamento
+                    Solicitar Demonstração
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </div>

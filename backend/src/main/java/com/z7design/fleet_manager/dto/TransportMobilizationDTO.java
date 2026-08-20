@@ -20,6 +20,10 @@ public class TransportMobilizationDTO {
     private String vehiclePlate;
     private UUID driverId;
     private String driverName;
+    private UUID clientId;
+    private String clientName;
+    private UUID workPostId;
+    private String workPostName;
     private TransportMobilization.MobilizationType type;
     private LocalDateTime occurredAt;
     private Integer kmReading;

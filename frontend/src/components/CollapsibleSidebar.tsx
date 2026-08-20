@@ -39,6 +39,7 @@ import {
   Handshake,
   ArrowUpDown,
   Kanban,
+  Sparkles,
   Mail,
   Route,
   MessageCircle,
@@ -160,6 +161,7 @@ const operacionalMenuItems = [
   { icon: FileText, text: 'Guia de Transporte', to: '/operacional?tab=guia-transporte', id: 'operacional-guia-transporte' },
   { icon: Calculator, text: 'Rateio de Serviços', to: '/operacional?tab=rateio-servicos', id: 'operacional-rateio-servicos' },
   { icon: ClipboardCheck, text: 'Gestão Operacional', to: '/operacional?tab=gestao-operacional', id: 'operacional-gestao' },
+  { icon: Ruler, text: 'Medição', to: '/operacional/medicao', id: 'operacional-medicao' },
 ];
 
 // Módulo RH - Menu principal
@@ -232,6 +234,7 @@ const comercialMenuItems = [
   { icon: Calculator, text: 'Orçamentos', to: '/orcamentos', id: 'orcamentos' },
   { icon: FileText, text: 'Contratos', to: '/contratos', id: 'contratos' },
   { icon: Kanban, text: 'CRM Comercial', to: '/crm', id: 'crm' },
+  { icon: Sparkles, text: 'Prospecção', to: '/prospeccao', id: 'prospeccao' },
 ];
 
 // Módulo Estoque Simplificado
@@ -512,6 +515,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-guia-transporte',
     'operacional-rateio-servicos',
     'operacional-gestao',
+    'operacional-medicao',
     
     // RH
     'rh',

@@ -29,14 +29,14 @@ public class UserActivityLogController {
 
     @GetMapping
     public ResponseEntity<?> getActivityLogs(
-            @RequestParam(required = false) String username,
-            @RequestParam(required = false) String action,
-            @RequestParam(required = false) String module,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false, defaultValue = "0") int page,
-            @RequestParam(required = false, defaultValue = "50") int size) {
+            @RequestParam(value = "username", required = false) String username,
+            @RequestParam(value = "action", required = false) String action,
+            @RequestParam(value = "module", required = false) String module,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "50") int size) {
         
         // Se page e size forem fornecidos, retornar paginado
         if (page >= 0 && size > 0) {
@@ -52,12 +52,12 @@ public class UserActivityLogController {
 
     @GetMapping("/export")
     public ResponseEntity<byte[]> exportActivityLogs(
-            @RequestParam(required = false) String username,
-            @RequestParam(required = false) String action,
-            @RequestParam(required = false) String module,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "username", required = false) String username,
+            @RequestParam(value = "action", required = false) String action,
+            @RequestParam(value = "module", required = false) String module,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         
         byte[] csvData = activityLogService.exportActivityLogs(username, action, module, status, startDate, endDate);
         
@@ -70,8 +70,8 @@ public class UserActivityLogController {
 
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getActivityStats(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         
         Map<String, Object> stats = activityLogService.getActivityStats(startDate, endDate);
         return ResponseEntity.ok(stats);
@@ -79,8 +79,8 @@ public class UserActivityLogController {
 
     @GetMapping("/users")
     public ResponseEntity<List<String>> getActiveUsers(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         
         List<String> users = activityLogService.getActiveUsers(startDate, endDate);
         return ResponseEntity.ok(users);
@@ -88,8 +88,8 @@ public class UserActivityLogController {
 
     @GetMapping("/modules")
     public ResponseEntity<List<String>> getActiveModules(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         
         List<String> modules = activityLogService.getActiveModules(startDate, endDate);
         return ResponseEntity.ok(modules);
@@ -97,8 +97,8 @@ public class UserActivityLogController {
 
     @GetMapping("/actions")
     public ResponseEntity<List<String>> getActiveActions(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         
         List<String> actions = activityLogService.getActiveActions(startDate, endDate);
         return ResponseEntity.ok(actions);
@@ -106,7 +106,7 @@ public class UserActivityLogController {
 
     @DeleteMapping("/cleanup")
     public ResponseEntity<String> cleanupOldLogs(
-            @RequestParam(defaultValue = "30") int daysToKeep) {
+            @RequestParam(value = "daysToKeep", defaultValue = "30") int daysToKeep) {
         
         int deletedCount = activityLogService.cleanupOldLogs(daysToKeep);
         return ResponseEntity.ok("Removidos " + deletedCount + " logs antigos");

@@ -52,7 +52,7 @@ public class ContractController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<ContractDTO> getContractById(
-            @Parameter(description = "ID do contrato") @PathVariable String id) {
+            @Parameter(description = "ID do contrato") @PathVariable("id") String id) {
         Contract contract = contractService.getById(UUID.fromString(id));
         ContractDTO contractDTO = contractService.convertToDTO(contract);
         return ResponseEntity.ok(contractDTO);
@@ -81,7 +81,7 @@ public class ContractController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<ContractDTO> updateContract(
-            @Parameter(description = "ID do contrato") @PathVariable String id,
+            @Parameter(description = "ID do contrato") @PathVariable("id") String id,
             @Parameter(description = "Dados atualizados do contrato") @Valid @RequestBody ContractDTO contractDTO) {
         ContractDTO updatedContractDTO = contractService.updateContract(UUID.fromString(id), contractDTO);
         return ResponseEntity.ok(updatedContractDTO);
@@ -95,7 +95,7 @@ public class ContractController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Void> deleteContract(
-            @Parameter(description = "ID do contrato") @PathVariable String id) {
+            @Parameter(description = "ID do contrato") @PathVariable("id") String id) {
         contractService.deleteContract(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }
@@ -107,7 +107,7 @@ public class ContractController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<ContractDTO>> getContractsByStatus(
-            @Parameter(description = "Status do contrato") @PathVariable ContractStatus status,
+            @Parameter(description = "Status do contrato") @PathVariable("status") ContractStatus status,
             @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
         Page<Contract> contracts = contractService.findByStatus(status, pageable);
         Page<ContractDTO> contractDTOs = contractService.convertToDTOPage(contracts);
@@ -121,7 +121,7 @@ public class ContractController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<ContractDTO>> getContractsByClient(
-            @Parameter(description = "ID do cliente") @PathVariable java.util.UUID clientId,
+            @Parameter(description = "ID do cliente") @PathVariable("clientId") java.util.UUID clientId,
             @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
         Page<Contract> contracts = contractService.findByClient(clientId, pageable);
         Page<ContractDTO> contractDTOs = contractService.convertToDTOPage(contracts);
@@ -135,9 +135,9 @@ public class ContractController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<ContractDTO>> searchContracts(
-            @Parameter(description = "ID do cliente") @RequestParam(required = false) java.util.UUID clientId,
-            @Parameter(description = "Status do contrato") @RequestParam(required = false) ContractStatus status,
-            @Parameter(description = "Termo de busca") @RequestParam(required = false) String searchTerm,
+            @Parameter(description = "ID do cliente") @RequestParam(value = "clientId", required = false) java.util.UUID clientId,
+            @Parameter(description = "Status do contrato") @RequestParam(value = "status", required = false) ContractStatus status,
+            @Parameter(description = "Termo de busca") @RequestParam(value = "searchTerm", required = false) String searchTerm,
             @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
         Page<Contract> contracts = contractService.findByFilters(clientId, status, searchTerm, pageable);
         Page<ContractDTO> contractDTOs = contractService.convertToDTOPage(contracts);
@@ -151,8 +151,8 @@ public class ContractController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<List<ContractDTO>> getExpiringContracts(
-            @Parameter(description = "Data inicial") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @Parameter(description = "Data final") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @Parameter(description = "Data inicial") @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "Data final") @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<Contract> contracts = contractService.findContractsExpiringBetween(startDate, endDate);
         List<ContractDTO> contractDTOs = contractService.convertToDTOList(contracts);
         return ResponseEntity.ok(contractDTOs);
@@ -166,8 +166,8 @@ public class ContractController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<ContractDTO> updateContractStatus(
-            @Parameter(description = "ID do contrato") @PathVariable String id,
-            @Parameter(description = "Novo status") @RequestParam ContractStatus status) {
+            @Parameter(description = "ID do contrato") @PathVariable("id") String id,
+            @Parameter(description = "Novo status") @RequestParam(value = "status") ContractStatus status) {
         Contract contract = contractService.updateStatus(UUID.fromString(id), status);
         ContractDTO contractDTO = contractService.convertToDTO(contract);
         return ResponseEntity.ok(contractDTO);
