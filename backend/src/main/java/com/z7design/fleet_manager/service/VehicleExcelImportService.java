@@ -248,8 +248,13 @@ public class VehicleExcelImportService {
                 updated = true;
             }
 
+            UUID currentCompanyId = com.z7design.fleet_manager.tenant.TenantContext.get();
+            if (currentCompanyId != null) {
+                vehicle.setCompanyId(currentCompanyId);
+            }
+
             if (updated) {
-                vehicleRepository.save(vehicle);
+                vehicleRepository.saveAndFlush(vehicle);
                 result.setUpdated(result.getUpdated() + 1);
             } else {
                 result.setSkipped(result.getSkipped() + 1);
@@ -257,26 +262,40 @@ public class VehicleExcelImportService {
         } else {
             Vehicle vehicle = new Vehicle();
             vehicle.setPlate(finalPlate);
-            vehicle.setChassisNumber(chassisValue);
-            vehicle.setRenavan(renavamValue);
-            vehicle.setModel(finalModel);
-            vehicle.setBrand(finalBrand);
+            vehicle.setChassisNumber(truncateString(chassisValue, 50));
+            vehicle.setRenavan(truncateString(renavamValue, 50));
+            vehicle.setModel(truncateString(finalModel, 50));
+            vehicle.setBrand(truncateString(finalBrand, 50));
             vehicle.setYear(parsedYear);
-            vehicle.setColor(colorValue != null ? colorValue : "Branco");
+            vehicle.setColor(truncateString(colorValue != null ? colorValue : "Branco", 30));
             vehicle.setStatus(VehicleStatus.ACTIVE);
             vehicle.setFuelType(FuelType.DIESEL);
             vehicle.setVehicleType(VehicleType.BUS_ROAD);
             vehicle.setCapacity(parseInteger(capacityValue, 44));
             vehicle.setCurrentMileage(0);
 
-            vehicleRepository.save(vehicle);
+            UUID currentCompanyId = com.z7design.fleet_manager.tenant.TenantContext.get();
+            if (currentCompanyId != null) {
+                vehicle.setCompanyId(currentCompanyId);
+            }
+
+            vehicleRepository.saveAndFlush(vehicle);
             result.setInserted(result.getInserted() + 1);
         }
     }
 
+    private String truncateString(String str, int maxLen) {
+        if (str == null) return null;
+        return str.length() > maxLen ? str.substring(0, maxLen) : str;
+    }
+
     private String cleanPlate(String rawPlate) {
         if (rawPlate == null) return "";
-        return rawPlate.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        String cleaned = rawPlate.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        if (cleaned.length() > 10) {
+            cleaned = cleaned.substring(0, 10);
+        }
+        return cleaned;
     }
 
     private Integer parseYear(String yearStr) {
