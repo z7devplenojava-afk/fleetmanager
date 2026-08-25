@@ -270,8 +270,13 @@ public class User implements UserDetails, TenantAware {
         // Adicionar todos os roles do usuÃ¡rio
         if (roles != null) {
             for (Role role : roles) {
-                authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
-                // Adicionar permissÃµes do role
+                authorities.add(new SimpleGrantedAuthority(role.getName()));
+                if (!role.getName().startsWith("ROLE_")) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
+                } else {
+                    authorities.add(new SimpleGrantedAuthority(role.getName().substring(5)));
+                }
+                // Adicionar permissões do role
                 if (role.getPermissions() != null) {
                     for (Permission permission : role.getPermissions()) {
                         authorities.add(new SimpleGrantedAuthority(permission.getName()));
