@@ -301,8 +301,19 @@ public class VehicleExcelImportService {
 
         // REGRA PRINCIPAL: PATRIMÔNIO ou PLACA é o identificador inserido no campo PLACA
         String finalPlate = plateValue;
+        if (finalPlate != null && (isHeaderWord(finalPlate) || isPureRenavamNumber(finalPlate))) {
+            if (isPureRenavamNumber(finalPlate) && (renavamValue == null || renavamValue.isBlank())) {
+                renavamValue = finalPlate;
+            }
+            finalPlate = null;
+        }
+
         if ((finalPlate == null || finalPlate.isBlank()) && patrimonioValue != null && !patrimonioValue.isBlank()) {
-            finalPlate = patrimonioValue;
+            if (!isHeaderWord(patrimonioValue) && !isPureRenavamNumber(patrimonioValue)) {
+                finalPlate = patrimonioValue;
+            } else if (isPureRenavamNumber(patrimonioValue) && (renavamValue == null || renavamValue.isBlank())) {
+                renavamValue = patrimonioValue;
+            }
         }
 
         if (finalPlate == null || finalPlate.isBlank()) {
@@ -311,7 +322,7 @@ public class VehicleExcelImportService {
         }
 
         finalPlate = cleanPlate(finalPlate);
-        if (finalPlate.isBlank()) {
+        if (finalPlate.isBlank() || isHeaderWord(finalPlate) || isPureRenavamNumber(finalPlate)) {
             result.setSkipped(result.getSkipped() + 1);
             return;
         }
@@ -528,5 +539,22 @@ public class VehicleExcelImportService {
             }
         }
         return true;
+    }
+
+    private boolean isHeaderWord(String text) {
+        if (text == null) return true;
+        String norm = normalizeText(text);
+        return norm.equals("renavam") || norm.equals("renavan") || norm.equals("placa") || norm.equals("plate")
+                || norm.contains("patrimonio") || norm.contains("chassi") || norm.equals("modelo")
+                || norm.equals("marca") || norm.equals("ano") || norm.equals("cor") || norm.equals("status")
+                || norm.equals("frota") || norm.equals("prefixo") || norm.equals("subsidio")
+                || norm.equals("patrimon") || norm.equals("patrim");
+    }
+
+    private boolean isPureRenavamNumber(String text) {
+        if (text == null) return false;
+        String digitsOnly = text.replaceAll("\\D", "");
+        // RENAVAM no Brasil possui de 9 a 11 dígitos numéricos puros
+        return digitsOnly.length() >= 9 && digitsOnly.length() <= 11 && text.replaceAll("[0-9]", "").isEmpty();
     }
 }
