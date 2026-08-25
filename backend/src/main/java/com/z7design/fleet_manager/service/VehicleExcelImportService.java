@@ -16,6 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.*;
@@ -115,15 +116,31 @@ public class VehicleExcelImportService {
         int headerRowIndex = -1;
         Map<Integer, String> columnMap = new HashMap<>();
 
+        // Procurar linha de cabeçalho válida (deve possuir ao menos 2 colunas reconhecidas)
         for (int r = firstRowNum; r <= Math.min(firstRowNum + 15, lastRowNum); r++) {
             Row row = sheet.getRow(r);
             if (row == null) continue;
 
             Map<Integer, String> tempMap = mapHeaders(row);
-            if (tempMap.containsValue("PLATE") || tempMap.containsValue("PATRIMONIO") || tempMap.containsValue("MODEL")) {
+            if (tempMap.size() >= 2 && (tempMap.containsValue("PLATE") || tempMap.containsValue("PATRIMONIO") || tempMap.containsValue("MODEL"))) {
                 headerRowIndex = r;
                 columnMap = tempMap;
                 break;
+            }
+        }
+
+        // Fallback: se não encontrou com 2+, tentar com 1 coluna reconhecida
+        if (headerRowIndex == -1) {
+            for (int r = firstRowNum; r <= Math.min(firstRowNum + 15, lastRowNum); r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+
+                Map<Integer, String> tempMap = mapHeaders(row);
+                if (tempMap.containsValue("PLATE") || tempMap.containsValue("PATRIMONIO")) {
+                    headerRowIndex = r;
+                    columnMap = tempMap;
+                    break;
+                }
             }
         }
 
@@ -162,22 +179,38 @@ public class VehicleExcelImportService {
 
             if (normalized.equals("placa") || normalized.equals("plate") || normalized.startsWith("placa")) {
                 map.put(cell.getColumnIndex(), "PLATE");
-            } else if (normalized.contains("patrimonio") || normalized.contains("patrimon")) {
+            } else if (normalized.contains("patrimonio") || normalized.contains("patrimon") || normalized.contains("patrim")) {
                 map.put(cell.getColumnIndex(), "PATRIMONIO");
-            } else if (normalized.contains("chassi") || normalized.contains("chassis")) {
+            } else if (normalized.contains("frota") || normalized.contains("prefixo") || normalized.contains("subsidio") || normalized.contains("num veiculo")) {
+                map.put(cell.getColumnIndex(), "FLEET_NUMBER");
+            } else if (normalized.contains("chassi") || normalized.contains("chassis") || normalized.contains("vin")) {
                 map.put(cell.getColumnIndex(), "CHASSIS");
             } else if (normalized.contains("renavam") || normalized.contains("renavan")) {
                 map.put(cell.getColumnIndex(), "RENAVAM");
-            } else if (normalized.contains("modelo") || normalized.contains("model") || normalized.contains("marca/modelo")) {
+            } else if (normalized.contains("modelo") || normalized.contains("model") || normalized.contains("marca/modelo") || normalized.contains("descricao")) {
                 map.put(cell.getColumnIndex(), "MODEL");
             } else if (normalized.contains("ano") || normalized.contains("mod") || normalized.contains("ano/mod")) {
                 map.put(cell.getColumnIndex(), "YEAR");
-            } else if (normalized.contains("marca") || normalized.contains("brand") || normalized.contains("fabricante")) {
+            } else if (normalized.contains("marca") || normalized.contains("brand") || normalized.contains("fabricante") || normalized.contains("montadora")) {
                 map.put(cell.getColumnIndex(), "BRAND");
             } else if (normalized.contains("cor") || normalized.contains("color")) {
                 map.put(cell.getColumnIndex(), "COLOR");
-            } else if (normalized.contains("capacidade") || normalized.contains("lotacao")) {
+            } else if (normalized.contains("capacidade") || normalized.contains("lotacao") || normalized.contains("passageiros") || normalized.contains("assentos")) {
                 map.put(cell.getColumnIndex(), "CAPACITY");
+            } else if (normalized.contains("carroceria") || normalized.contains("encatavel")) {
+                map.put(cell.getColumnIndex(), "BODY_BUILDER");
+            } else if (normalized.contains("chassi marca") || normalized.contains("marca chassi") || normalized.contains("mod chassi")) {
+                map.put(cell.getColumnIndex(), "CHASSIS_BRAND");
+            } else if (normalized.contains("proprietario") || normalized.contains("proprietário") || normalized.contains("proprix") || normalized.contains("dono")) {
+                map.put(cell.getColumnIndex(), "OWNER");
+            } else if (normalized.contains("cliente") || normalized.contains("empresa") || normalized.contains("contrato")) {
+                map.put(cell.getColumnIndex(), "CLIENT");
+            } else if (normalized.contains("valor") || normalized.contains("avaliacao")) {
+                map.put(cell.getColumnIndex(), "MARKET_VALUE");
+            } else if (normalized.contains("km") || normalized.contains("odometro")) {
+                map.put(cell.getColumnIndex(), "MILEAGE");
+            } else if (normalized.contains("combustivel") || normalized.contains("combustível")) {
+                map.put(cell.getColumnIndex(), "FUEL_TYPE");
             }
         }
         return map;
@@ -188,6 +221,7 @@ public class VehicleExcelImportService {
                             Set<String> processedPlatesInFile, List<Vehicle> toInsert, List<Vehicle> toUpdate) {
         String plateValue = null;
         String patrimonioValue = null;
+        String fleetNumberValue = null;
         String chassisValue = null;
         String renavamValue = null;
         String modelValue = null;
@@ -195,6 +229,12 @@ public class VehicleExcelImportService {
         String brandValue = null;
         String colorValue = null;
         String capacityValue = null;
+        String bodyBuilderValue = null;
+        String chassisBrandValue = null;
+        String ownerValue = null;
+        String clientValue = null;
+        String mileageValue = null;
+        BigDecimal marketValue = null;
 
         for (Map.Entry<Integer, String> entry : columnMap.entrySet()) {
             int colIdx = entry.getKey();
@@ -210,6 +250,9 @@ public class VehicleExcelImportService {
                     break;
                 case "PATRIMONIO":
                     patrimonioValue = val.trim().toUpperCase();
+                    break;
+                case "FLEET_NUMBER":
+                    fleetNumberValue = val.trim();
                     break;
                 case "CHASSIS":
                     chassisValue = val.trim().toUpperCase();
@@ -233,10 +276,30 @@ public class VehicleExcelImportService {
                 case "CAPACITY":
                     capacityValue = val.trim();
                     break;
+                case "BODY_BUILDER":
+                    bodyBuilderValue = val.trim();
+                    break;
+                case "CHASSIS_BRAND":
+                    chassisBrandValue = val.trim();
+                    break;
+                case "OWNER":
+                    ownerValue = val.trim();
+                    break;
+                case "CLIENT":
+                    clientValue = val.trim();
+                    break;
+                case "MILEAGE":
+                    mileageValue = val.trim();
+                    break;
+                case "MARKET_VALUE":
+                    try {
+                        marketValue = new BigDecimal(val.trim().replaceAll("[^0-9,.]", "").replace(",", "."));
+                    } catch (Exception ignored) {}
+                    break;
             }
         }
 
-        // Usar PATRIMÔNIO como PLACA se Placa estiver em branco
+        // REGRA PRINCIPAL: PATRIMÔNIO ou PLACA é o identificador inserido no campo PLACA
         String finalPlate = plateValue;
         if ((finalPlate == null || finalPlate.isBlank()) && patrimonioValue != null && !patrimonioValue.isBlank()) {
             finalPlate = patrimonioValue;
@@ -259,6 +322,11 @@ public class VehicleExcelImportService {
             return;
         }
         processedPlatesInFile.add(finalPlate);
+
+        String fleetNum = fleetNumberValue;
+        if ((fleetNum == null || fleetNum.isBlank()) && patrimonioValue != null && !patrimonioValue.isBlank()) {
+            fleetNum = patrimonioValue.trim();
+        }
 
         Integer parsedYear = parseYear(yearValue);
         if (parsedYear == null) {
@@ -294,6 +362,31 @@ public class VehicleExcelImportService {
                 vehicle.setColor(truncateString(colorValue, 30));
                 updated = true;
             }
+            if (fleetNum != null && !fleetNum.isBlank() && !fleetNum.equalsIgnoreCase(vehicle.getFleetNumber())) {
+                vehicle.setFleetNumber(truncateString(fleetNum, 50));
+                updated = true;
+            }
+            if (bodyBuilderValue != null && !bodyBuilderValue.isBlank()) {
+                vehicle.setBodyBuilder(truncateString(bodyBuilderValue, 100));
+                updated = true;
+            }
+            if (chassisBrandValue != null && !chassisBrandValue.isBlank()) {
+                vehicle.setChassisBrand(truncateString(chassisBrandValue, 50));
+                updated = true;
+            }
+            if (ownerValue != null && !ownerValue.isBlank()) {
+                vehicle.setAggregatedOwnerName(truncateString(ownerValue, 200));
+                vehicle.setIsAggregated(true);
+                updated = true;
+            }
+            if (clientValue != null && !clientValue.isBlank()) {
+                vehicle.setClientName(truncateString(clientValue, 200));
+                updated = true;
+            }
+            if (marketValue != null) {
+                vehicle.setMarketValue(marketValue);
+                updated = true;
+            }
             if (currentCompanyId != null && vehicle.getCompanyId() == null) {
                 vehicle.setCompanyId(currentCompanyId);
                 updated = true;
@@ -307,6 +400,7 @@ public class VehicleExcelImportService {
         } else {
             Vehicle newVehicle = new Vehicle();
             newVehicle.setPlate(finalPlate);
+            newVehicle.setFleetNumber(truncateString(fleetNum, 50));
             newVehicle.setChassisNumber(truncateString(chassisValue, 50));
             newVehicle.setRenavan(truncateString(renavamValue, 50));
             newVehicle.setModel(truncateString(finalModel, 50));
@@ -317,8 +411,20 @@ public class VehicleExcelImportService {
             newVehicle.setFuelType(FuelType.DIESEL);
             newVehicle.setVehicleType(VehicleType.BUS_ROAD);
             newVehicle.setCapacity(parseInteger(capacityValue, 44));
-            newVehicle.setCurrentMileage(0);
+            newVehicle.setCurrentMileage(parseInteger(mileageValue, 0));
+            newVehicle.setBodyBuilder(truncateString(bodyBuilderValue, 100));
+            newVehicle.setChassisBrand(truncateString(chassisBrandValue, 50));
 
+            if (ownerValue != null && !ownerValue.isBlank()) {
+                newVehicle.setAggregatedOwnerName(truncateString(ownerValue, 200));
+                newVehicle.setIsAggregated(true);
+            }
+            if (clientValue != null && !clientValue.isBlank()) {
+                newVehicle.setClientName(truncateString(clientValue, 200));
+            }
+            if (marketValue != null) {
+                newVehicle.setMarketValue(marketValue);
+            }
             if (currentCompanyId != null) {
                 newVehicle.setCompanyId(currentCompanyId);
             }
