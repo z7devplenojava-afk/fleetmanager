@@ -810,12 +810,6 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
       }
     }
     
-    // Validações
-    if (!form.address) {
-      setError('Endereço é obrigatório para editar um funcionário.');
-      return;
-    }
-
     setLoading(true);
     setError(null);
     try {
@@ -825,6 +819,7 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
         description: "Funcionário atualizado com sucesso!",
       });
       onSuccess();
+      onOpenChange(false);
     } catch (err: any) {
       console.error('Erro ao atualizar funcionário:', err);
       
