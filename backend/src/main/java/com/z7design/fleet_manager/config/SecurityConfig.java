@@ -437,7 +437,12 @@ public class SecurityConfig {
                                                 // para
                                                 // desenvolvimento)
                                                 .requestMatchers("/api/fines/**").authenticated()
-                                                // Pneus / gestão de pneus
+                                                .requestMatchers("/api/vehicles/**").authenticated()
+                                                .requestMatchers("/api/frota/**").authenticated()
+                                                .requestMatchers("/api/fuel-records/**").authenticated()
+                                                .requestMatchers("/api/maintenances/**").authenticated()
+                                                .requestMatchers("/api/drivers/**").authenticated()
+                                                .requestMatchers("/api/groups/**").authenticated()
                                                 .requestMatchers("/api/tires/**").authenticated()
                                                 // Endpoints de dashboard - requerem apenas autenticaÃ§Ã£o para
                                                 // usuÃ¡rios

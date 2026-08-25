@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, DollarSign, Settings, FileText, Filter, RefreshCw, TrendingUp, Users, UserCheck } from 'lucide-react';
+import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, DollarSign, Settings, FileText, Filter, RefreshCw, TrendingUp, Users, UserCheck, FileSpreadsheet } from 'lucide-react';
 import { VehicleImportModal } from '@/components/frota/VehicleImportModal';
 import VeiculosTable from '@/components/frota/VeiculosTable';
 import AgregadosTable from '@/components/frota/AgregadosTable';
