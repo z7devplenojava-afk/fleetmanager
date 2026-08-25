@@ -298,12 +298,17 @@ public class UserService {
             existingUser.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
-        // Atualizar status se fornecido
-        if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
+        // Atualizar status e active se fornecidos
+        if (request.getActive() != null) {
+            existingUser.setActive(request.getActive());
+            existingUser.setStatus(request.getActive() ? UserStatus.ACTIVE : UserStatus.INACTIVE);
+        } else if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
             try {
-                existingUser.setStatus(UserStatus.valueOf(request.getStatus().toUpperCase()));
+                UserStatus statusEnum = UserStatus.valueOf(request.getStatus().toUpperCase());
+                existingUser.setStatus(statusEnum);
+                existingUser.setActive(statusEnum == UserStatus.ACTIVE);
             } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Status de usuÃ¡rio invÃ¡lido: " + request.getStatus());
+                throw new IllegalArgumentException("Status de usuário inválido: " + request.getStatus());
             }
         }
 
