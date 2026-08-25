@@ -35,8 +35,11 @@ public interface AccountsReceivableRepository extends JpaRepository<AccountsRece
     // Buscar por nÃºmero da fatura
     List<AccountsReceivable> findByInvoiceNumberContainingIgnoreCase(String invoiceNumber);
     
-    // Buscar por nÃºmero da mediÃ§Ã£o
+    // Buscar por número da medição
     List<AccountsReceivable> findByMeasurementNumberContainingIgnoreCase(String measurementNumber);
+    
+    // Buscar por ID da medição
+    List<AccountsReceivable> findByMeasurementId(UUID measurementId);
     
     // Buscar por cliente e status
     List<AccountsReceivable> findByClientIdAndStatus(UUID clientId, ReceivableStatus status);

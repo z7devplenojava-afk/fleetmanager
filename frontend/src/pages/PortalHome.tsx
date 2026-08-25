@@ -320,9 +320,11 @@ const PortalHome = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12 mb-8">
               <div data-animate="fadeRight" className="sm:col-span-2 lg:col-span-1">
                 <div className="flex items-center space-x-3 mb-4 sm:mb-6">
-                  <div className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-600">
-                    Fluxbus
-                  </div>
+                  <img
+                    src="/fluxbus-logo.png"
+                    alt="FluxBus - Gestão de Fretamento e Turismo"
+                    className="h-24 sm:h-28 md:h-32 w-auto object-contain drop-shadow-xl hover:scale-105 transition-transform"
+                  />
                 </div>
                 <p className="text-sm sm:text-base lg:text-lg text-gray-300 mb-4 sm:mb-6 leading-relaxed">
                   Sistema completo de gestão para empresas de transporte de passageiros.

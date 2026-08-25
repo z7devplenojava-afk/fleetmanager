@@ -137,6 +137,30 @@ public class VehicleService {
             existingVehicle.setDocumentationExpiryDate(vehicleDTO.getDocumentationExpiryDate());
             existingVehicle.setNotes(vehicleDTO.getNotes());
             existingVehicle.setPhotos(vehicleDTO.getPhotos());
+
+            // Campos de Ônibus
+            existingVehicle.setVehicleType(vehicleDTO.getVehicleType());
+            existingVehicle.setBusType(vehicleDTO.getBusType());
+            existingVehicle.setPassengerCapacity(vehicleDTO.getPassengerCapacity());
+            existingVehicle.setStandingCapacity(vehicleDTO.getStandingCapacity());
+            existingVehicle.setTotalDoors(vehicleDTO.getTotalDoors());
+            existingVehicle.setHasAccessibility(vehicleDTO.getHasAccessibility());
+            existingVehicle.setHasAirConditioning(vehicleDTO.getHasAirConditioning());
+            existingVehicle.setHasWiFi(vehicleDTO.getHasWiFi());
+            existingVehicle.setHasCamera(vehicleDTO.getHasCamera());
+            existingVehicle.setHasCctv(vehicleDTO.getHasCctv());
+            existingVehicle.setBusBodyType(vehicleDTO.getBusBodyType());
+            existingVehicle.setChassisBrand(vehicleDTO.getChassisBrand());
+            existingVehicle.setBodyBuilder(vehicleDTO.getBodyBuilder());
+            existingVehicle.setEngineModel(vehicleDTO.getEngineModel());
+            existingVehicle.setEnginePowerHp(vehicleDTO.getEnginePowerHp());
+            existingVehicle.setTransmissionType(vehicleDTO.getTransmissionType());
+            existingVehicle.setAxleCount(vehicleDTO.getAxleCount());
+            existingVehicle.setTotalWeightKg(vehicleDTO.getTotalWeightKg());
+            existingVehicle.setPayloadKg(vehicleDTO.getPayloadKg());
+            existingVehicle.setFuelTankCapacityLiters(vehicleDTO.getFuelTankCapacityLiters());
+            existingVehicle.setRouteNumber(vehicleDTO.getRouteNumber());
+            existingVehicle.setRouteName(vehicleDTO.getRouteName());
             
             Vehicle savedVehicle = vehicleRepository.save(existingVehicle);
             log.debug("VeÃ­culo atualizado com sucesso: {}", savedVehicle.getId());

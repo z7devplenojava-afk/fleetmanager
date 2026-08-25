@@ -3,12 +3,18 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Car, Building, DollarSign, Wrench, Save, Loader2, FileText, ImageIcon, X, Trash2, RefreshCw } from 'lucide-react';
+import { Car, Building, DollarSign, Wrench, Save, Loader2, FileText, ImageIcon, X, Trash2, RefreshCw, Shield, Users, UserCheck, AlertTriangle } from 'lucide-react';
 import { VehicleFormData } from './types';
 import { VehicleGeneralInfo } from './sections/VehicleGeneralInfo';
 import { VehicleAllocationInfo } from './sections/VehicleAllocationInfo';
 import { VehicleFinancialInfo } from './sections/VehicleFinancialInfo';
 import { VehicleMaintenanceInfo } from './sections/VehicleMaintenanceInfo';
+import { VehicleBusInfo } from './sections/VehicleBusInfo';
+import { VehicleFinancingSection } from './sections/VehicleFinancingSection';
+import { VehicleInsuranceSection } from './sections/VehicleInsuranceSection';
+import { VehicleClientSection } from './sections/VehicleClientSection';
+import { VehicleAgregadoSection } from './sections/VehicleAgregadoSection';
+import { useVehicleValidation, ValidationError } from './hooks/useVehicleValidation';
 import { Textarea } from '@/components/ui/textarea';
 
 interface VehicleFormProps {
@@ -21,6 +27,8 @@ interface VehicleFormProps {
 
 const DEFAULT_FORM_DATA: VehicleFormData = {
     placa: '',
+    chassi: '',
+    renavan: '',
     marca: '',
     modelo: '',
     ano: new Date().getFullYear(),
@@ -29,18 +37,86 @@ const DEFAULT_FORM_DATA: VehicleFormData = {
     quilometragem: 0,
     status: 'ACTIVE',
     capacidade: 5,
+    vehicleType: '',
+    // Campos de Ônibus
+    busType: '',
+    passengerCapacity: 0,
+    standingCapacity: 0,
+    totalDoors: 2,
+    hasAccessibility: false,
+    hasAirConditioning: false,
+    hasWiFi: false,
+    hasCamera: false,
+    hasCctv: false,
+    busBodyType: '',
+    chassisBrand: '',
+    bodyBuilder: '',
+    engineModel: '',
+    enginePowerHp: 0,
+    transmissionType: '',
+    axleCount: 2,
+    totalWeightKg: 0,
+    payloadKg: 0,
+    fuelTankCapacityLiters: 0,
+    routeNumber: '',
+    routeName: '',
+    // Alocação
     postoDeTrabalho: '',
     departamento: '',
     departmentId: '',
     empresa: '',
     empresaId: '',
     responsavel: '',
+    // Manutenção
     dataManutencao: null,
     proximaManutencao: null,
     vencimentoSeguro: null,
     vencimentoDocumentacao: null,
+    // Financeiro
     data_aquisicao: null,
     valor_aquisicao: 0,
+    // Financiamento
+    financingStatus: '',
+    financingInstallmentValue: 0,
+    financingRemainingInstallments: 0,
+    financingPayoffBalance: 0,
+    financingBankOrInstitution: '',
+    financingContractNumber: '',
+    financingStartDate: '',
+    financingEndDate: '',
+    // Valor de mercado
+    marketValue: 0,
+    // Seguros - Apólice Principal
+    insurancePolicyNumber: '',
+    insuranceCompany: '',
+    insurancePremiumValue: 0,
+    insuranceCoverageType: '',
+    // Seguros - Segunda Apólice
+    insuranceSecondPolicyNumber: '',
+    insuranceSecondCompany: '',
+    insuranceSecondPremiumValue: 0,
+    insuranceSecondExpiryDate: '',
+    // Cliente / Alocação
+    clientName: '',
+    clientId: '',
+    allocationContractNumber: '',
+    allocationStartDate: '',
+    allocationEndDate: '',
+    // Agregado
+    isAggregated: false,
+    aggregatedOwnerName: '',
+    aggregatedOwnerCpfCnpj: '',
+    aggregatedOwnerPhone: '',
+    aggregatedOwnerEmail: '',
+    aggregatedDailyRate: 0,
+    aggregatedMonthlyRate: 0,
+    aggregatedPaymentType: '',
+    aggregatedContractStartDate: '',
+    aggregatedContractEndDate: '',
+    aggregatedNotes: '',
+    // Diferença financeira
+    financialDifference: 0,
+    // Outros
     observacoes: '',
     fotos: null,
     existingPhotos: [],
@@ -56,6 +132,8 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
 }) => {
     const [formData, setFormData] = useState<VehicleFormData>(DEFAULT_FORM_DATA);
     const [currentTab, setCurrentTab] = useState('general');
+    const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+    const { validate, getFieldStatus } = useVehicleValidation();
 
     // Load initial data
     useEffect(() => {
@@ -75,6 +153,23 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        const errors = validate(formData);
+        if (errors.length > 0) {
+            setValidationErrors(errors);
+            // Navegar para a aba que contém o primeiro erro
+            const firstErrorField = errors[0].field;
+            if (['placa', 'chassi', 'renavan', 'marca', 'modelo', 'ano', 'cor', 'combustivel', 'quilometragem', 'capacidade', 'status', 'vehicleType'].includes(firstErrorField)) {
+                setCurrentTab('general');
+            } else if (['busType', 'passengerCapacity', 'standingCapacity', 'totalDoors', 'chassisBrand', 'bodyBuilder', 'engineModel', 'routeNumber'].includes(firstErrorField)) {
+                setCurrentTab('general');
+            } else if (['financingStatus', 'financingInstallmentValue', 'financingBankOrInstitution', 'marketValue'].includes(firstErrorField)) {
+                setCurrentTab('financial');
+            } else if (['aggregatedOwnerName', 'aggregatedPaymentType'].includes(firstErrorField)) {
+                setCurrentTab('agregado');
+            }
+            return;
+        }
+        setValidationErrors([]);
         onSubmit(formData);
     };
 
@@ -101,22 +196,34 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto px-6 py-4">
                 <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 mb-4 bg-gray-800/50 p-1 flex-none">
-                        <TabsTrigger value="general" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white flex gap-2 items-center">
-                            <Car className="h-4 w-4" />
-                            <span className="hidden sm:inline">Geral</span>
+                    <TabsList className="grid w-full grid-cols-7 mb-4 bg-gray-800/50 p-1 flex-none">
+                        <TabsTrigger value="general" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
+                            <Car className="h-3 w-3" />
+                            <span className="hidden lg:inline">Geral</span>
                         </TabsTrigger>
-                        <TabsTrigger value="allocation" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white flex gap-2 items-center">
-                            <Building className="h-4 w-4" />
-                            <span className="hidden sm:inline">Alocação</span>
+                        <TabsTrigger value="allocation" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
+                            <Building className="h-3 w-3" />
+                            <span className="hidden lg:inline">Alocação</span>
                         </TabsTrigger>
-                        <TabsTrigger value="financial" className="data-[state=active]:bg-yellow-600 data-[state=active]:text-white flex gap-2 items-center">
-                            <DollarSign className="h-4 w-4" />
-                            <span className="hidden sm:inline">Financeiro</span>
+                        <TabsTrigger value="financial" className="data-[state=active]:bg-yellow-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
+                            <DollarSign className="h-3 w-3" />
+                            <span className="hidden lg:inline">Financeiro</span>
                         </TabsTrigger>
-                        <TabsTrigger value="maintenance" className="data-[state=active]:bg-orange-600 data-[state=active]:text-white flex gap-2 items-center">
-                            <Wrench className="h-4 w-4" />
-                            <span className="hidden sm:inline">Manutenção</span>
+                        <TabsTrigger value="insurance" className="data-[state=active]:bg-green-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
+                            <Shield className="h-3 w-3" />
+                            <span className="hidden lg:inline">Seguros</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="client" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
+                            <Users className="h-3 w-3" />
+                            <span className="hidden lg:inline">Cliente</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="agregado" className="data-[state=active]:bg-orange-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
+                            <UserCheck className="h-3 w-3" />
+                            <span className="hidden lg:inline">Agregado</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="maintenance" className="data-[state=active]:bg-red-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
+                            <Wrench className="h-3 w-3" />
+                            <span className="hidden lg:inline">Manutenção</span>
                         </TabsTrigger>
                     </TabsList>
 
@@ -129,6 +236,9 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                                 <h3 className="text-lg font-semibold text-white">Informações do Veículo</h3>
                             </div>
                             <VehicleGeneralInfo formData={formData} handleInputChange={handleInputChange} />
+
+                            {/* Campos de Ônibus (condicional) */}
+                            <VehicleBusInfo formData={formData} handleInputChange={handleInputChange} />
 
                             {/* Observações e Fotos na aba Geral */}
                             <div className="mt-6 grid grid-cols-1 gap-6">
@@ -266,13 +376,25 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
 
                     <TabsContent value="financial" className="mt-0 focus-visible:ring-0 space-y-6">
                         <div>
-                            <div className="flex items-center gap-2 mb-6">
-                                <div className="p-2 bg-yellow-500/20 rounded-lg">
-                                    <DollarSign className="h-5 w-5 text-yellow-400" />
-                                </div>
-                                <h3 className="text-lg font-semibold text-white">Dados Financeiros</h3>
-                            </div>
-                            <VehicleFinancialInfo formData={formData} handleInputChange={handleInputChange} />
+                            <VehicleFinancingSection formData={formData} handleInputChange={handleInputChange} />
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="insurance" className="mt-0 focus-visible:ring-0 space-y-6">
+                        <div>
+                            <VehicleInsuranceSection formData={formData} handleInputChange={handleInputChange} />
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="client" className="mt-0 focus-visible:ring-0 space-y-6">
+                        <div>
+                            <VehicleClientSection formData={formData} handleInputChange={handleInputChange} />
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="agregado" className="mt-0 focus-visible:ring-0 space-y-6">
+                        <div>
+                            <VehicleAgregadoSection formData={formData} handleInputChange={handleInputChange} />
                         </div>
                     </TabsContent>
 
@@ -290,7 +412,28 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                 </Tabs>
             </div>
 
-            <div className="flex-none p-6 pt-4 border-t border-gray-700 flex justify-end gap-3 bg-seguranca-darkgray">
+            <div className="flex-none p-6 pt-4 border-t border-gray-700 bg-seguranca-darkgray">
+                {/* Validation Errors */}
+                {validationErrors.length > 0 && (
+                    <div className="mb-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                            <AlertTriangle className="h-4 w-4 text-red-400" />
+                            <span className="text-sm font-medium text-red-400">
+                                {validationErrors.length} campo(s) obrigatório(s) não preenchido(s)
+                            </span>
+                        </div>
+                        <ul className="text-xs text-red-300 space-y-1 ml-6">
+                            {validationErrors.slice(0, 5).map((error, index) => (
+                                <li key={index}>• {error.message}</li>
+                            ))}
+                            {validationErrors.length > 5 && (
+                                <li className="text-red-400">• ...e mais {validationErrors.length - 5} campo(s)</li>
+                            )}
+                        </ul>
+                    </div>
+                )}
+
+                <div className="flex justify-end gap-3">
                 <Button
                     type="submit"
                     disabled={isLoading}
@@ -308,6 +451,7 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                         </>
                     )}
                 </Button>
+                </div>
             </div>
         </form>
     );

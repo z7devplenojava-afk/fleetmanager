@@ -18,14 +18,19 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.z7design.fleet_manager.dto.ImportResultDto;
+import com.z7design.fleet_manager.service.VehicleExcelImportService;
+import org.springframework.web.multipart.MultipartFile;
+
 @RestController
 @RequestMapping("/api/vehicles")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "VeÃ­culos", description = "API para gerenciamento de veÃ­culos da frota")
+@Tag(name = "Veículos", description = "API para gerenciamento de veículos da frota")
 public class VehicleController {
 
     private final VehicleService vehicleService;
+    private final VehicleExcelImportService vehicleExcelImportService;
 
     @GetMapping
     @Operation(summary = "Listar todos os veÃ­culos", description = "Retorna uma lista de todos os veÃ­culos")
@@ -144,16 +149,25 @@ public class VehicleController {
     }
 
     @GetMapping("/count")
-    @Operation(summary = "Contar veÃ­culos", description = "Retorna o nÃºmero total de veÃ­culos")
+    @Operation(summary = "Contar veículos", description = "Retorna o número total de veículos")
     public ResponseEntity<Object> getCount() {
         try {
-            log.debug("Contando veÃ­culos");
+            log.debug("Contando veículos");
             long count = vehicleService.count();
-            log.debug("Total de veÃ­culos: {}", count);
+            log.debug("Total de veículos: {}", count);
             return ResponseEntity.ok(java.util.Map.of("count", count, "message", "Contagem realizada com sucesso"));
         } catch (Exception e) {
-            log.error("Erro ao contar veÃ­culos: ", e);
+            log.error("Erro ao contar veículos: ", e);
             return ResponseEntity.status(500).body(java.util.Map.of("error", e.getMessage()));
         }
+    }
+
+    @PostMapping(value = "/import/excel", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN')")
+    @Operation(summary = "Importar veículos via Excel", description = "Importa uma planilha Excel analisando todas as abas e mapeando colunas Placa/Patrimônio, Chassi, Renavam, Modelo, Ano/Mod")
+    public ResponseEntity<ImportResultDto> importVehiclesExcel(@RequestParam("file") MultipartFile file) {
+        log.info("Recebida requisição de importação de veículos Excel: {}", file.getOriginalFilename());
+        ImportResultDto result = vehicleExcelImportService.importVehiclesFromExcel(file);
+        return ResponseEntity.ok(result);
     }
 }

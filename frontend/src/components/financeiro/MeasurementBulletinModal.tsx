@@ -9,11 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Calculator, FileText, Save, X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { fleetService } from '@/services/fleetService';
+import { Vehicle } from '@/types/fleet';
 import { measurementService } from '@/services/measurementService';
 import { clientService } from '@/services/clientService';
 import { contractService, Contract } from '@/services/contractService';
 import { unitService } from '@/services/unitService';
 import { employeeService } from '@/services/employeeService';
+import { workPostService, WorkPost } from '@/services/workPostService';
 import { MeasurementBulletin, MeasurementItem, CalculationMemory, MeasurementStatus, MeasurementType, MeasurementCategory } from '@/types/measurement';
 import { Client } from '@/types/client';
 import { Unit } from '@/services/trainingService';
@@ -114,6 +118,7 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
     clientId: '',
     contractId: '',
     unitId: '',
+    workPostId: '',
     notes: '',
     measurementType: MeasurementType.GLOBAL
   });
@@ -127,12 +132,24 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
     calculationItems: []
   });
 
+  // Autenticação e Usuário logado
+  const { user } = useAuth();
+
+  // Estados de busca/filtro
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [workPostSearchTerm, setWorkPostSearchTerm] = useState('');
+  const [elaboratedSearchTerm, setElaboratedSearchTerm] = useState('');
+  const [measuredSearchTerm, setMeasuredSearchTerm] = useState('');
+
   // Estados para dados externos
   const [clients, setClients] = useState<Client[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [workPosts, setWorkPosts] = useState<WorkPost[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filteredContracts, setFilteredContracts] = useState<Contract[]>([]);
+  const [filteredWorkPosts, setFilteredWorkPosts] = useState<WorkPost[]>([]);
 
   // Estados para novo item
   const [newItem, setNewItem] = useState<MeasurementItemForm>({
@@ -213,6 +230,10 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
         ? (fullBulletin as any).unitId.toString()
         : (fullBulletin.unit?.id?.toString() || '');
 
+      const workPostId = (fullBulletin as any).workPostId
+        ? (fullBulletin as any).workPostId.toString()
+        : (fullBulletin.workPost?.id?.toString() || '');
+
       // Função auxiliar para formatar data para input type="date" (YYYY-MM-DD)
       const formatDateForInput = (dateStr: string | undefined | null): string => {
         if (!dateStr) return '';
@@ -251,6 +272,7 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
         clientId: clientId || ((bulletin as any)?.clientId?.toString()) || (bulletin?.client?.id?.toString()) || '',
         contractId: contractId || ((bulletin as any)?.contractId?.toString()) || (bulletin?.contract?.id?.toString()) || '',
         unitId: unitId || ((bulletin as any)?.unitId?.toString()) || (bulletin?.unit?.id?.toString()) || '',
+        workPostId: workPostId || ((bulletin as any)?.workPostId?.toString()) || (bulletin?.workPost?.id?.toString()) || '',
         notes: fullBulletin.notes || (bulletin?.notes) || '',
         measurementType: (fullBulletin as any).measurementType || (bulletin as any).measurementType || MeasurementType.GLOBAL
       };
@@ -322,19 +344,23 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
 
   const loadInitialData = async () => {
     try {
-      const [clientsData, contractsData, unitsData, employeesData] = await Promise.all([
+      const [clientsData, contractsData, unitsData, workPostsData, employeesData, vehiclesData] = await Promise.all([
         clientService.getAllClients(),
         contractService.getContracts(),
         unitService.getAllUnits(),
-        employeeService.getAllEmployees()
+        workPostService.getAllWorkPosts(),
+        employeeService.getAllEmployees(),
+        fleetService.getVehicles().catch(() => [])
       ]);
 
-      // clientService.getAllClients() retorna Client[] diretamente
       setClients(clientsData);
       setContracts(contractsData);
       setUnits(unitsData);
+      setWorkPosts(workPostsData);
       setEmployees(Array.isArray(employeesData) ? employeesData : []);
+      setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
       setFilteredContracts(contractsData);
+      setFilteredWorkPosts(workPostsData);
     } catch (error) {
       console.error('Erro ao carregar dados iniciais:', error);
       toast({
@@ -343,6 +369,17 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
         variant: "destructive"
       });
     }
+  };
+
+  // Gerador automático de código de item baseado no cliente
+  const generateItemCode = (clientId?: string, currentItemsCount?: number) => {
+    const seq = (currentItemsCount !== undefined ? currentItemsCount : items.length) + 1;
+    if (!clientId) return `MED-${String(seq).padStart(3, '0')}`;
+    const client = clients.find(c => c.id.toString() === clientId.toString());
+    if (!client || !client.name) return `MED-${String(seq).padStart(3, '0')}`;
+    const cleanName = client.name.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const prefix = cleanName.substring(0, 4) || 'CLI';
+    return `${prefix}-${String(seq).padStart(3, '0')}`;
   };
 
   const loadBulletinData = () => {
@@ -362,6 +399,10 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
     const unitId = (bulletin as any).unitId
       ? (bulletin as any).unitId.toString()
       : (bulletin.unit?.id?.toString() || '');
+
+    const workPostId = (bulletin as any).workPostId
+      ? (bulletin as any).workPostId.toString()
+      : (bulletin.workPost?.id?.toString() || '');
 
     // Função auxiliar para formatar data para input type="date" (YYYY-MM-DD)
     const formatDateForInput = (dateStr: string | undefined | null): string => {
@@ -393,14 +434,15 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
       contractStart: formatDateForInput(bulletin.contractStart),
       contractEnd: formatDateForInput(bulletin.contractEnd),
       nfNumber: bulletin.nfNumber || '',
-      elaboratedBy: bulletin.elaboratedBy || '',
-      measuredBy: bulletin.measuredBy || '',
+      elaboratedBy: bulletin.elaboratedBy || user?.name || '',
+      measuredBy: bulletin.measuredBy || user?.name || '',
       validatedBy: bulletin.validatedBy || '',
       checkedBy: bulletin.checkedBy || '',
       status: bulletin.status || MeasurementStatus.DRAFT,
       clientId: clientId,
       contractId: contractId,
       unitId: unitId,
+      workPostId: workPostId,
       notes: bulletin.notes || '',
       measurementType: (bulletin as any).measurementType || MeasurementType.GLOBAL
     };
@@ -452,8 +494,8 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
       contractStart: '',
       contractEnd: '',
       nfNumber: '',
-      elaboratedBy: '',
-      measuredBy: '',
+      elaboratedBy: user?.name || '',
+      measuredBy: user?.name || '',
       validatedBy: '',
       checkedBy: '',
       status: MeasurementStatus.DRAFT,
@@ -499,13 +541,15 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
 
     const itemToAdd = {
       ...newItem,
-      itemNumber: items.length + 1
+      itemNumber: items.length + 1,
+      code: newItem.code || generateItemCode(formData.clientId, items.length)
     };
 
     setItems([...items, itemToAdd]);
+    const nextSeq = items.length + 2;
     setNewItem({
-      itemNumber: items.length + 1,
-      code: '',
+      itemNumber: nextSeq,
+      code: generateItemCode(formData.clientId, items.length + 1),
       description: '',
       unit: 'VB/MÊS',
       quantity: 1,
@@ -521,7 +565,11 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
       initialKm: 0,
       finalKm: 0,
       franchiseKm: 0,
-      disregardedKm: 0
+      disregardedKm: 0,
+      diaria: 0,
+      tripDate: '',
+      route: '',
+      vehicleType: ''
     });
   };
 
@@ -667,11 +715,15 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
   };
 
   const handleClientSelectChange = async (clientId: string) => {
-    console.log('handleClientSelectChange chamado com clientId:', clientId);
-    // Não limpar o contrato automaticamente - deixar o usuário decidir
+    console.log('👤 Cliente selecionado no modal:', clientId);
+    const autoCode = generateItemCode(clientId);
     setFormData(prev => ({
       ...prev,
       clientId
+    }));
+    setNewItem(prev => ({
+      ...prev,
+      code: prev.code ? prev.code : autoCode
     }));
 
     if (clientId) {
@@ -723,7 +775,7 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-seguranca-graphite border-gray-600">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-seguranca-graphite border-gray-600">
         <DialogHeader className="bg-gradient-to-r from-seguranca-red to-red-600 p-6 -m-6 mb-4 rounded-t-lg">
           <DialogTitle className="text-white text-2xl font-bold flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-lg">
@@ -860,23 +912,34 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
                   <Label htmlFor="elaboratedBy" className="text-seguranca-lightgray font-medium">
                     Elaborado por <span className="text-seguranca-red">*</span>
                   </Label>
+
                   <Select
-                    value={formData.elaboratedBy}
+                    value={formData.elaboratedBy || ''}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, elaboratedBy: value }))}
                     disabled={loading}
                   >
                     <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
-                      <SelectValue placeholder={loading ? "Carregando..." : "Selecione o funcionário"} />
+                      <SelectValue placeholder={loading ? "Carregando..." : (formData.elaboratedBy || "Selecione o funcionário")} />
                     </SelectTrigger>
-                    <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[200px]">
+                    <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[260px]">
+                      <div className="p-2 border-b border-gray-700 sticky top-0 bg-seguranca-graphite z-10">
+                        <Input
+                          placeholder="Pesquisar funcionário..."
+                          value={elaboratedSearchTerm}
+                          onChange={(e) => setElaboratedSearchTerm(e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-xs h-8 text-seguranca-lightgray"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      {user?.name && (
+                        <SelectItem value={user.name} className="text-seguranca-yellow font-bold hover:bg-seguranca-red/20">
+                          {user.name} (Usuário Logado)
+                        </SelectItem>
+                      )}
                       {employees
-                        .filter((employee, index, self) => {
-                          // Filtrar duplicados por ID, mantendo apenas o primeiro
-                          if (!employee.id) return true; // Manter funcionários sem ID
-                          return index === self.findIndex(e => e.id === employee.id);
-                        })
+                        .filter(e => !elaboratedSearchTerm || (e.name && e.name.toLowerCase().includes(elaboratedSearchTerm.toLowerCase())))
                         .map((employee, index) => {
-                          // Usar ID único ou índice como fallback
                           const employeeId = employee.id || `employee-${index}`;
                           const employeeName = employee.name || `Funcionário ${index + 1}`;
                           return (
@@ -888,27 +951,38 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="measuredBy" className="text-seguranca-lightgray font-medium">
                     Medido por <span className="text-seguranca-red">*</span>
                   </Label>
                   <Select
-                    value={formData.measuredBy}
+                    value={formData.measuredBy || ''}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, measuredBy: value }))}
                     disabled={loading}
                   >
                     <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
-                      <SelectValue placeholder={loading ? "Carregando..." : "Selecione o funcionário"} />
+                      <SelectValue placeholder={loading ? "Carregando..." : (formData.measuredBy || "Selecione o funcionário")} />
                     </SelectTrigger>
-                    <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[200px]">
+                    <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[260px]">
+                      <div className="p-2 border-b border-gray-700 sticky top-0 bg-seguranca-graphite z-10">
+                        <Input
+                          placeholder="Pesquisar funcionário..."
+                          value={measuredSearchTerm}
+                          onChange={(e) => setMeasuredSearchTerm(e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-xs h-8 text-seguranca-lightgray"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      {user?.name && (
+                        <SelectItem value={user.name} className="text-seguranca-yellow font-bold hover:bg-seguranca-red/20">
+                          {user.name} (Usuário Logado)
+                        </SelectItem>
+                      )}
                       {employees
-                        .filter((employee, index, self) => {
-                          // Filtrar duplicados por ID, mantendo apenas o primeiro
-                          if (!employee.id) return true; // Manter funcionários sem ID
-                          return index === self.findIndex(e => e.id === employee.id);
-                        })
+                        .filter(e => !measuredSearchTerm || (e.name && e.name.toLowerCase().includes(measuredSearchTerm.toLowerCase())))
                         .map((employee, index) => {
-                          // Usar ID único ou índice como fallback
                           const employeeId = employee.id || `employee-${index}`;
                           const employeeName = employee.name || `Funcionário ${index + 1}`;
                           return (
@@ -922,22 +996,74 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
                 </div>
               </div>
 
-              {/* Cliente e Unidade */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Cliente, Obra / Setor de Trabalho e Unidade com Pesquisa ao Digitar */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="clientId" className="text-seguranca-lightgray font-medium">
-                    Cliente
+                    Cliente <span className="text-seguranca-red">*</span>
                   </Label>
-                  <Select value={formData.clientId} onValueChange={handleClientSelectChange}>
+                  <Select value={formData.clientId || ''} onValueChange={handleClientSelectChange}>
                     <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
                       <SelectValue placeholder="Selecione o cliente" />
                     </SelectTrigger>
-                    <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[200px]">
-                      {clients.map(client => (
-                        <SelectItem key={client.id} value={client.id.toString()} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
-                          {client.name}
-                        </SelectItem>
-                      ))}
+                    <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[260px]">
+                      <div className="p-2 border-b border-gray-700 sticky top-0 bg-seguranca-graphite z-10">
+                        <Input
+                          placeholder="Digite ao menos 3 caracteres..."
+                          value={clientSearchTerm}
+                          onChange={(e) => setClientSearchTerm(e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-xs h-8 text-seguranca-lightgray"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      {clients
+                        .filter(c => {
+                          if (!clientSearchTerm || clientSearchTerm.trim().length < 3) return true;
+                          const term = clientSearchTerm.toLowerCase();
+                          return (c.name && c.name.toLowerCase().includes(term)) || (c.document && c.document.toLowerCase().includes(term));
+                        })
+                        .map(client => (
+                          <SelectItem key={client.id} value={client.id.toString()} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="workPostId" className="text-seguranca-lightgray font-medium">
+                    Obra / Setor de Trabalho
+                  </Label>
+                  <Select value={formData.workPostId || ''} onValueChange={(value) => setFormData(prev => ({ ...prev, workPostId: value }))}>
+                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
+                      <SelectValue placeholder="Selecione a obra/setor" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[260px]">
+                      <div className="p-2 border-b border-gray-700 sticky top-0 bg-seguranca-graphite z-10">
+                        <Input
+                          placeholder="Digite ao menos 3 caracteres..."
+                          value={workPostSearchTerm}
+                          onChange={(e) => setWorkPostSearchTerm(e.target.value)}
+                          className="bg-seguranca-black border-gray-600 text-xs h-8 text-seguranca-lightgray"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      {workPosts
+                        .filter(wp => {
+                          // Filtrar por cliente se houver selecionado
+                          if (formData.clientId && wp.clientId && wp.clientId !== formData.clientId) return false;
+                          if (!workPostSearchTerm || workPostSearchTerm.trim().length < 3) return true;
+                          const term = workPostSearchTerm.toLowerCase();
+                          return (wp.name && wp.name.toLowerCase().includes(term)) || (wp.code && wp.code.toLowerCase().includes(term));
+                        })
+                        .map(wp => (
+                          <SelectItem key={wp.id} value={wp.id} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
+                            {wp.name} {wp.code ? `(${wp.code})` : ''}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1035,245 +1161,245 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Formulário para novo item */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 p-4 bg-seguranca-graphite rounded border border-gray-600 shadow-inner">
-                <div className="lg:col-span-2 space-y-2">
-                  <Label className="text-xs text-gray-400 font-medium">Código do Item</Label>
-                  <Input
-                    value={newItem.code}
-                    onChange={(e) => setNewItem(prev => ({ ...prev, code: e.target.value }))}
-                    placeholder="Código do serviço"
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
-                  />
-                </div>
-                <div className="lg:col-span-3 space-y-2">
-                  <Label className="text-xs text-gray-400 font-medium">Descrição Detalhada</Label>
-                  <Input
-                    value={newItem.description}
-                    onChange={(e) => setNewItem(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Ex: Aluguel de Van - Rota X"
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-400 font-medium">Placa do Veículo</Label>
-                  <Input
-                    value={newItem.vehiclePlate}
-                    onChange={(e) => setNewItem(prev => ({ ...prev, vehiclePlate: e.target.value.toUpperCase() }))}
-                    placeholder="ABC-1234"
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
-                  />
+              <div className="p-5 bg-seguranca-graphite/90 rounded-lg border border-gray-600 shadow-lg space-y-4">
+                <div className="flex items-center justify-between border-b border-gray-700 pb-2">
+                  <span className="text-sm font-semibold text-seguranca-yellow flex items-center gap-2">
+                    <Plus className="h-4 w-4 text-seguranca-red" /> Adicionar Novo Item à Medição
+                  </span>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-400 font-medium">Unidade</Label>
-                  <Select value={newItem.unit} onValueChange={(value) => setNewItem(prev => ({ ...prev, unit: value }))}>
-                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-seguranca-black border-gray-600">
-                      {UNITS.map(unit => (
-                        <SelectItem key={unit.value} value={unit.value}>
-                          {unit.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Linha 1: Código, Descrição e Placa */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                  <div className="md:col-span-3 space-y-1.5">
+                    <Label className="text-xs text-gray-300 font-medium">Código do Item <span className="text-seguranca-red">*</span></Label>
+                    <Input
+                      value={newItem.code}
+                      onChange={(e) => setNewItem(prev => ({ ...prev, code: e.target.value }))}
+                      placeholder="Ex: CTC-001"
+                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                    />
+                  </div>
+                  <div className="md:col-span-6 space-y-1.5">
+                    <Label className="text-xs text-gray-300 font-medium">Descrição Detalhada <span className="text-seguranca-red">*</span></Label>
+                    <Input
+                      value={newItem.description}
+                      onChange={(e) => setNewItem(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Ex: Aluguel de Van com Motorista - Rota X"
+                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                    />
+                  </div>
+                  <div className="md:col-span-3 space-y-1.5">
+                    <Label className="text-xs text-gray-300 font-medium">Placa do Veículo (Frota)</Label>
+                    <Select
+                      value={newItem.vehiclePlate || ''}
+                      onValueChange={(value) => setNewItem(prev => ({ ...prev, vehiclePlate: value }))}
+                    >
+                      <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10">
+                        <SelectValue placeholder="Selecione o veículo..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-seguranca-black border-gray-600 max-h-[220px]">
+                        {vehicles.length === 0 ? (
+                          <div className="p-2 text-xs text-gray-400">Nenhum veículo cadastrado</div>
+                        ) : (
+                          vehicles.map((v) => (
+                            <SelectItem key={v.id || v.plate} value={v.plate} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
+                              <span className="font-mono text-seguranca-yellow font-bold mr-2">{v.plate}</span>
+                              {v.brand ? `- ${v.brand} ${v.model || ''}` : ''}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-400 font-medium">Categoria do Item</Label>
-                  <Select
-                    value={newItem.category}
-                    onValueChange={(value) => setNewItem(prev => ({
-                      ...prev,
-                      category: value as MeasurementCategory,
-                      // Fallback automatico de unit para categorias especificas
-                      unit: value === MeasurementCategory.EXCESS_KM ? 'KM' : prev.unit
-                    }))}
-                  >
-                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-seguranca-black border-gray-600">
-                      {MEASUREMENT_CATEGORIES.map(cat => (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Linha 2: Categoria, Unidade, Quantidade, Preço, Diária, Dias Trabalhados */}
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                  <div className="col-span-2 space-y-1.5">
+                    <Label className="text-xs text-gray-300 font-medium">Categoria do Item</Label>
+                    <Select
+                      value={newItem.category}
+                      onValueChange={(value) => setNewItem(prev => ({
+                        ...prev,
+                        category: value as MeasurementCategory,
+                        unit: value === MeasurementCategory.EXCESS_KM ? 'KM' : prev.unit
+                      }))}
+                    >
+                      <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-seguranca-black border-gray-600">
+                        {MEASUREMENT_CATEGORIES.map(cat => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-gray-300 font-medium">Unidade</Label>
+                    <Select value={newItem.unit} onValueChange={(value) => setNewItem(prev => ({ ...prev, unit: value }))}>
+                      <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-seguranca-black border-gray-600">
+                        {UNITS.map(unit => (
+                          <SelectItem key={unit.value} value={unit.value}>
+                            {unit.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-gray-300 font-medium">Qtde/Viagens</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={newItem.quantity}
+                      onChange={(e) => setNewItem(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
+                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-gray-300 font-medium">Preço Unitário</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-400 text-xs">R$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={newItem.unitPrice}
+                        onChange={(e) => setNewItem(prev => ({ ...prev, unitPrice: parseFloat(e.target.value) || 0 }))}
+                        placeholder="0,00"
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10 pl-8"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-gray-300 font-medium">Diária (R$)</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-400 text-xs">R$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={newItem.diaria}
+                        onChange={(e) => setNewItem(prev => ({ ...prev, diaria: parseFloat(e.target.value) || 0 }))}
+                        placeholder="0,00"
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10 pl-8"
+                      />
+                    </div>
+                  </div>
                 </div>
 
+                {/* Linha 3 (Condicional para KM Excedente) */}
                 {newItem.category === MeasurementCategory.EXCESS_KM && (
-                  <>
-                    <div className="space-y-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-seguranca-black/50 rounded border border-gray-700">
+                    <div className="space-y-1">
                       <Label className="text-xs text-gray-400 font-medium">KM Inicial</Label>
                       <Input
                         type="number"
                         value={newItem.initialKm}
                         onChange={(e) => setNewItem(prev => ({ ...prev, initialKm: parseFloat(e.target.value) || 0 }))}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-9"
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Label className="text-xs text-gray-400 font-medium">KM Final</Label>
                       <Input
                         type="number"
                         value={newItem.finalKm}
                         onChange={(e) => setNewItem(prev => ({ ...prev, finalKm: parseFloat(e.target.value) || 0 }))}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-9"
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Label className="text-xs text-gray-400 font-medium">Franquia KM</Label>
                       <Input
                         type="number"
                         value={newItem.franchiseKm}
                         onChange={(e) => setNewItem(prev => ({ ...prev, franchiseKm: parseFloat(e.target.value) || 0 }))}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-9"
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Label className="text-xs text-gray-400 font-medium">KM Desconsiderado</Label>
                       <Input
                         type="number"
                         value={newItem.disregardedKm}
                         onChange={(e) => setNewItem(prev => ({ ...prev, disregardedKm: parseFloat(e.target.value) || 0 }))}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-9"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-gray-400 font-medium">KM Considerado (automático)</Label>
-                      <Input
-                        readOnly
-                        value={computeKmConsiderado(newItem.initialKm, newItem.finalKm).toFixed(2)}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-gray-400 font-medium">KM Excedido (automático)</Label>
-                      <Input
-                        readOnly
-                        value={computeKmExcedido(newItem.initialKm, newItem.finalKm, newItem.franchiseKm, newItem.disregardedKm).toFixed(2)}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-gray-400 font-medium">Valor KM Exc (automático)</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
-                        <Input
-                          readOnly
-                          value={(computeKmExcedido(newItem.initialKm, newItem.finalKm, newItem.franchiseKm, newItem.disregardedKm) * (newItem.unitPrice || 0)).toFixed(2)}
-                          className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10 pl-9"
-                        />
-                      </div>
-                    </div>
-                  </>
+                  </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-400 font-medium">Qtde/Viagens</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={newItem.quantity}
-                    onChange={(e) => setNewItem(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-400 font-medium">Preço Unitário</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={newItem.unitPrice}
-                      onChange={(e) => setNewItem(prev => ({ ...prev, unitPrice: parseFloat(e.target.value) || 0 }))}
-                      placeholder="0,00"
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10 pl-9"
-                    />
+                {/* Linha 4 (Condicional para Viagem Extra) */}
+                {newItem.isExtraTrip && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-seguranca-black/50 rounded border border-gray-700">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-400 font-medium">Data da Viagem</Label>
+                      <Input
+                        type="date"
+                        value={newItem.tripDate}
+                        onChange={(e) => setNewItem(prev => ({ ...prev, tripDate: e.target.value }))}
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-400 font-medium">Trajeto</Label>
+                      <Input
+                        value={newItem.route}
+                        onChange={(e) => setNewItem(prev => ({ ...prev, route: e.target.value }))}
+                        placeholder="Ex: Origem → Destino"
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-400 font-medium">Tipo de Veículo</Label>
+                      <Input
+                        value={newItem.vehicleType}
+                        onChange={(e) => setNewItem(prev => ({ ...prev, vehicleType: e.target.value }))}
+                        placeholder="Ex: Ônibus / Van"
+                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-9"
+                      />
+                    </div>
                   </div>
+                )}
+
+                {/* Exibição em tempo real do Valor Total Calculado do Item */}
+                <div className="bg-seguranca-black/80 border border-seguranca-yellow/30 p-2.5 rounded-md flex items-center justify-between">
+                  <span className="text-xs text-seguranca-yellow font-medium">Valor Total Calculado do Item:</span>
+                  <span className="text-lg font-extrabold text-emerald-400">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                      ((newItem.quantity || 0) * (newItem.unitPrice || 0)) + ((newItem.workingDays || 0) * (newItem.diaria || 0))
+                    )}
+                  </span>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-400 font-medium">Diária (R$)</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={newItem.diaria}
-                      onChange={(e) => setNewItem(prev => ({ ...prev, diaria: parseFloat(e.target.value) || 0 }))}
-                      placeholder="0,00"
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10 pl-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-400 font-medium">Dias Trabalhados</Label>
-                  <Input
-                    type="number"
-                    value={newItem.workingDays}
-                    onChange={(e) => setNewItem(prev => ({ ...prev, workingDays: parseInt(e.target.value) || 0 }))}
-                    placeholder="Ex: 15"
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
-                  />
-                </div>
-
-                <div className="flex items-center space-x-2 pt-6">
+                {/* Rodapé do Formulário: Checkbox + Botão Destacado com largura completa/descomprimida */}
+                <div className="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-gray-700 gap-4">
                   <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
                       id="isExtraTrip"
                       checked={newItem.isExtraTrip}
                       onChange={(e) => setNewItem(prev => ({ ...prev, isExtraTrip: e.target.checked }))}
-                      className="h-4 w-4 bg-seguranca-black border-gray-600 rounded text-seguranca-red"
+                      className="h-4 w-4 bg-seguranca-black border-gray-600 rounded text-seguranca-red accent-seguranca-red cursor-pointer"
                     />
-                    <Label htmlFor="isExtraTrip" className="text-xs text-gray-400 cursor-pointer">Viagem Extra?</Label>
+                    <Label htmlFor="isExtraTrip" className="text-sm text-seguranca-lightgray font-medium cursor-pointer">
+                      Este item é uma Viagem Extra?
+                    </Label>
                   </div>
-                </div>
 
-                {newItem.isExtraTrip && (
-                  <>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-gray-400 font-medium">Data da Viagem</Label>
-                      <Input
-                        type="date"
-                        value={newItem.tripDate}
-                        onChange={(e) => setNewItem(prev => ({ ...prev, tripDate: e.target.value }))}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-gray-400 font-medium">Trajeto</Label>
-                      <Input
-                        value={newItem.route}
-                        onChange={(e) => setNewItem(prev => ({ ...prev, route: e.target.value }))}
-                        placeholder="Ex: Origem → Destino"
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-gray-400 font-medium">Tipo de Veículo</Label>
-                      <Input
-                        value={newItem.vehicleType}
-                        onChange={(e) => setNewItem(prev => ({ ...prev, vehicleType: e.target.value }))}
-                        placeholder="Ex: Ônibus / Van / Micro-ônibus"
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div className="flex items-end justify-end pt-2">
                   <Button
                     type="button"
                     onClick={handleAddItem}
-                    className="bg-seguranca-red hover:bg-seguranca-darkred w-full h-10"
+                    className="bg-seguranca-red hover:bg-seguranca-darkred text-white font-bold h-11 px-6 shadow-md transition-all whitespace-nowrap w-full sm:w-auto"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Adicionar Item
@@ -1403,34 +1529,48 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
             </CardContent>
           </Card>
 
-          {/* Botões de ação */}
-          <DialogFooter className="gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={saving}
-              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite hover:text-white"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={saving || items.length === 0}
-              className="bg-gradient-to-r from-seguranca-red to-red-600 hover:from-seguranca-red/90 hover:to-red-600/90 text-white font-semibold shadow-lg"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  {bulletin ? 'Atualizar Boletim' : 'Criar Boletim'}
-                </>
-              )}
-            </Button>
+          {/* Botões de ação e Valor Total da Medição em Tempo Real */}
+          <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-700">
+            <div className="flex items-center gap-3 bg-seguranca-black/90 px-4 py-2 rounded-lg border border-seguranca-yellow/40 w-full sm:w-auto">
+              <Calculator className="h-6 w-6 text-seguranca-yellow" />
+              <div>
+                <span className="text-xs text-gray-400 block font-medium">VALOR TOTAL DA MEDIÇÃO</span>
+                <span className="text-xl font-extrabold text-seguranca-yellow">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    items.reduce((sum, item) => sum + ((item.quantity * item.unitPrice) + ((item.workingDays || 0) * (item.diaria || 0))), 0)
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={saving}
+                className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite hover:text-white"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving || items.length === 0}
+                className="bg-gradient-to-r from-seguranca-red to-red-600 hover:from-seguranca-red/90 hover:to-red-600/90 text-white font-semibold shadow-lg"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    {bulletin ? 'Atualizar Medição' : 'Criar Medição'}
+                  </>
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

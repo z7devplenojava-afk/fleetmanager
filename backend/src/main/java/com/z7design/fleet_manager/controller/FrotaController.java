@@ -407,6 +407,118 @@ public class FrotaController {
                 }
             }
 
+            // ===== Campos de Tipo de VeÃ­culo e Ã”nibus =====
+            if (vehicleData.get("vehicleType") != null) {
+                try {
+                    String vtStr = vehicleData.get("vehicleType").toString().toUpperCase();
+                    vehicle.setVehicleType(Vehicle.VehicleType.valueOf(vtStr));
+                } catch (IllegalArgumentException e) {
+                    System.err.println("[DEBUG] Tipo de veÃ­culo invÃ¡lido: " + vehicleData.get("vehicleType"));
+                }
+            }
+
+            if (vehicleData.get("busType") != null) {
+                try {
+                    String btStr = vehicleData.get("busType").toString().toUpperCase();
+                    vehicle.setBusType(Vehicle.BusType.valueOf(btStr));
+                } catch (IllegalArgumentException e) {
+                    System.err.println("[DEBUG] Tipo de Ã”nibus invÃ¡lido: " + vehicleData.get("busType"));
+                }
+            }
+
+            // Capacidade de passageiros
+            vehicle.setPassengerCapacity(getIntValue(vehicleData.get("passengerCapacity")));
+            vehicle.setStandingCapacity(getIntValue(vehicleData.get("standingCapacity")));
+            vehicle.setTotalDoors(getIntValue(vehicleData.get("totalDoors")));
+            vehicle.setAxleCount(getIntValue(vehicleData.get("axleCount")));
+            vehicle.setEnginePowerHp(getIntValue(vehicleData.get("enginePowerHp")));
+            vehicle.setTotalWeightKg(getIntValue(vehicleData.get("totalWeightKg")));
+            vehicle.setPayloadKg(getIntValue(vehicleData.get("payloadKg")));
+            vehicle.setFuelTankCapacityLiters(getIntValue(vehicleData.get("fuelTankCapacityLiters")));
+
+            // Booleanos
+            vehicle.setHasAccessibility(getBooleanValue(vehicleData.get("hasAccessibility")));
+            vehicle.setHasAirConditioning(getBooleanValue(vehicleData.get("hasAirConditioning")));
+            vehicle.setHasWiFi(getBooleanValue(vehicleData.get("hasWiFi")));
+            vehicle.setHasCamera(getBooleanValue(vehicleData.get("hasCamera")));
+            vehicle.setHasCctv(getBooleanValue(vehicleData.get("hasCctv")));
+
+            // Strings de Ã”nibus
+            if (vehicleData.get("busBodyType") != null) vehicle.setBusBodyType(vehicleData.get("busBodyType").toString());
+            if (vehicleData.get("chassisBrand") != null) vehicle.setChassisBrand(vehicleData.get("chassisBrand").toString());
+            if (vehicleData.get("bodyBuilder") != null) vehicle.setBodyBuilder(vehicleData.get("bodyBuilder").toString());
+            if (vehicleData.get("engineModel") != null) vehicle.setEngineModel(vehicleData.get("engineModel").toString());
+            if (vehicleData.get("transmissionType") != null) vehicle.setTransmissionType(vehicleData.get("transmissionType").toString());
+            if (vehicleData.get("routeNumber") != null) vehicle.setRouteNumber(vehicleData.get("routeNumber").toString());
+            if (vehicleData.get("routeName") != null) vehicle.setRouteName(vehicleData.get("routeName").toString());
+
+            // ===== Documentais =====
+            if (vehicleData.get("chassisNumber") != null) vehicle.setChassisNumber(vehicleData.get("chassisNumber").toString());
+            if (vehicleData.get("renavan") != null) vehicle.setRenavan(vehicleData.get("renavan").toString());
+
+            // ===== Financiamento =====
+            if (vehicleData.get("financingStatus") != null) {
+                try {
+                    vehicle.setFinancingStatus(Vehicle.FinancingStatus.valueOf(vehicleData.get("financingStatus").toString().toUpperCase()));
+                } catch (IllegalArgumentException e) {
+                    System.err.println("[DEBUG] FinancingStatus inválido: " + vehicleData.get("financingStatus"));
+                }
+            }
+            if (vehicleData.get("financingInstallmentValue") != null) vehicle.setFinancingInstallmentValue(getDecimalValue(vehicleData.get("financingInstallmentValue")));
+            if (vehicleData.get("financingRemainingInstallments") != null) vehicle.setFinancingRemainingInstallments(getIntValue(vehicleData.get("financingRemainingInstallments")));
+            if (vehicleData.get("financingPayoffBalance") != null) vehicle.setFinancingPayoffBalance(getDecimalValue(vehicleData.get("financingPayoffBalance")));
+            if (vehicleData.get("financingBankOrInstitution") != null) vehicle.setFinancingBankOrInstitution(vehicleData.get("financingBankOrInstitution").toString());
+            if (vehicleData.get("financingContractNumber") != null) vehicle.setFinancingContractNumber(vehicleData.get("financingContractNumber").toString());
+            if (vehicleData.get("financingStartDate") != null) vehicle.setFinancingStartDate(getDateValue(vehicleData.get("financingStartDate")));
+            if (vehicleData.get("financingEndDate") != null) vehicle.setFinancingEndDate(getDateValue(vehicleData.get("financingEndDate")));
+
+            // ===== Valor de mercado =====
+            if (vehicleData.get("marketValue") != null) vehicle.setMarketValue(getDecimalValue(vehicleData.get("marketValue")));
+
+            // ===== Seguros =====
+            if (vehicleData.get("insurancePolicyNumber") != null) vehicle.setInsurancePolicyNumber(vehicleData.get("insurancePolicyNumber").toString());
+            if (vehicleData.get("insuranceCompany") != null) vehicle.setInsuranceCompany(vehicleData.get("insuranceCompany").toString());
+            if (vehicleData.get("insurancePremiumValue") != null) vehicle.setInsurancePremiumValue(getDecimalValue(vehicleData.get("insurancePremiumValue")));
+            if (vehicleData.get("insuranceCoverageType") != null) vehicle.setInsuranceCoverageType(vehicleData.get("insuranceCoverageType").toString());
+            if (vehicleData.get("insuranceSecondPolicyNumber") != null) vehicle.setInsuranceSecondPolicyNumber(vehicleData.get("insuranceSecondPolicyNumber").toString());
+            if (vehicleData.get("insuranceSecondCompany") != null) vehicle.setInsuranceSecondCompany(vehicleData.get("insuranceSecondCompany").toString());
+            if (vehicleData.get("insuranceSecondPremiumValue") != null) vehicle.setInsuranceSecondPremiumValue(getDecimalValue(vehicleData.get("insuranceSecondPremiumValue")));
+            if (vehicleData.get("insuranceSecondExpiryDate") != null) vehicle.setInsuranceSecondExpiryDate(getDateValue(vehicleData.get("insuranceSecondExpiryDate")));
+
+            // ===== Cliente / Alocação =====
+            if (vehicleData.get("clientName") != null) vehicle.setClientName(vehicleData.get("clientName").toString());
+            if (vehicleData.get("clientId") != null) {
+                try {
+                    String clientIdStr = vehicleData.get("clientId").toString();
+                    if (!clientIdStr.isEmpty()) vehicle.setClientId(UUID.fromString(clientIdStr));
+                } catch (IllegalArgumentException e) { /* ignore */ }
+            }
+            if (vehicleData.get("allocationContractNumber") != null) vehicle.setAllocationContractNumber(vehicleData.get("allocationContractNumber").toString());
+            if (vehicleData.get("allocationStartDate") != null) vehicle.setAllocationStartDate(getDateValue(vehicleData.get("allocationStartDate")));
+            if (vehicleData.get("allocationEndDate") != null) vehicle.setAllocationEndDate(getDateValue(vehicleData.get("allocationEndDate")));
+
+            // ===== Agregado =====
+            if (vehicleData.get("isAggregated") != null) vehicle.setIsAggregated(getBooleanValue(vehicleData.get("isAggregated")));
+            if (vehicleData.get("aggregatedOwnerName") != null) vehicle.setAggregatedOwnerName(vehicleData.get("aggregatedOwnerName").toString());
+            if (vehicleData.get("aggregatedOwnerCpfCnpj") != null) vehicle.setAggregatedOwnerCpfCnpj(vehicleData.get("aggregatedOwnerCpfCnpj").toString());
+            if (vehicleData.get("aggregatedOwnerPhone") != null) vehicle.setAggregatedOwnerPhone(vehicleData.get("aggregatedOwnerPhone").toString());
+            if (vehicleData.get("aggregatedOwnerEmail") != null) vehicle.setAggregatedOwnerEmail(vehicleData.get("aggregatedOwnerEmail").toString());
+            if (vehicleData.get("aggregatedDailyRate") != null) vehicle.setAggregatedDailyRate(getDecimalValue(vehicleData.get("aggregatedDailyRate")));
+            if (vehicleData.get("aggregatedMonthlyRate") != null) vehicle.setAggregatedMonthlyRate(getDecimalValue(vehicleData.get("aggregatedMonthlyRate")));
+            if (vehicleData.get("aggregatedPaymentType") != null) {
+                try {
+                    vehicle.setAggregatedPaymentType(Vehicle.AggregatedPaymentType.valueOf(vehicleData.get("aggregatedPaymentType").toString().toUpperCase()));
+                } catch (IllegalArgumentException e) {
+                    System.err.println("[DEBUG] AggregatedPaymentType inválido: " + vehicleData.get("aggregatedPaymentType"));
+                }
+            }
+            if (vehicleData.get("aggregatedContractStartDate") != null) vehicle.setAggregatedContractStartDate(getDateValue(vehicleData.get("aggregatedContractStartDate")));
+            if (vehicleData.get("aggregatedContractEndDate") != null) vehicle.setAggregatedContractEndDate(getDateValue(vehicleData.get("aggregatedContractEndDate")));
+            if (vehicleData.get("aggregatedNotes") != null) vehicle.setAggregatedNotes(vehicleData.get("aggregatedNotes").toString());
+
+            // ===== Diferença financeira =====
+            if (vehicleData.get("financialDifference") != null) vehicle.setFinancialDifference(getDecimalValue(vehicleData.get("financialDifference")));
+
             System.out.println("[DEBUG] FrotaController.createVehicle() - Dados processados:");
             System.out.println("  - Placa: " + vehicle.getPlate());
             System.out.println("  - Modelo: " + vehicle.getModel());
@@ -433,6 +545,31 @@ public class FrotaController {
             if (vehicle.getCurrentMileage() == null) {
                 System.err.println("[DEBUG] CurrentMileage Ã© null, retornando erro");
                 return ResponseEntity.badRequest().body(Map.of("error", "Quilometragem atual Ã© obrigatÃ³ria"));
+            }
+
+            // ===== ValidaÃ§Ã£o por tipo de veÃ­culo =====
+            if (vehicle.getVehicleType() != null) {
+                java.util.List<String> typeErrors = validateVehicleByType(vehicle);
+                if (!typeErrors.isEmpty()) {
+                    return ResponseEntity.badRequest().body(Map.of("error", String.join("; ", typeErrors)));
+                }
+            }
+
+            // ===== ValidaÃ§Ã£o de agregado =====
+            if (Boolean.TRUE.equals(vehicle.getIsAggregated())) {
+                if (vehicle.getAggregatedOwnerName() == null || vehicle.getAggregatedOwnerName().trim().isEmpty()) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Nome do proprietÃ¡rio Ã© obrigatÃ³rio para veÃ­culos de agregado"));
+                }
+                if (vehicle.getAggregatedPaymentType() == null) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Tipo de pagamento Ã© obrigatÃ³rio para veÃ­culos de agregado"));
+                }
+            }
+
+            // ===== ValidaÃ§Ã£o de financiamento =====
+            if (vehicle.getFinancingStatus() == Vehicle.FinancingStatus.FINANCED) {
+                if (vehicle.getFinancingBankOrInstitution() == null || vehicle.getFinancingBankOrInstitution().trim().isEmpty()) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Banco/InstituiÃ§Ã£o Ã© obrigatÃ³rio para veÃ­culos financiados"));
+                }
             }
 
             try {
@@ -793,6 +930,113 @@ public class FrotaController {
                 }
             }
 
+            // ===== Campos de Tipo de VeÃ­culo e Ã"nibus =====
+            if (vehicleData.get("vehicleType") != null) {
+                try {
+                    String vtStr = vehicleData.get("vehicleType").toString().toUpperCase();
+                    vehicle.setVehicleType(Vehicle.VehicleType.valueOf(vtStr));
+                } catch (IllegalArgumentException e) {
+                    System.err.println("[DEBUG] Tipo de veÃ­culo invÃ¡lido: " + vehicleData.get("vehicleType"));
+                }
+            }
+
+            if (vehicleData.get("busType") != null) {
+                try {
+                    String btStr = vehicleData.get("busType").toString().toUpperCase();
+                    vehicle.setBusType(Vehicle.BusType.valueOf(btStr));
+                } catch (IllegalArgumentException e) {
+                    System.err.println("[DEBUG] Tipo de onibus invalido: " + vehicleData.get("busType"));
+                }
+            }
+
+            // Capacidade de passageiros
+            if (vehicleData.get("passengerCapacity") != null) vehicle.setPassengerCapacity(getIntValue(vehicleData.get("passengerCapacity")));
+            if (vehicleData.get("standingCapacity") != null) vehicle.setStandingCapacity(getIntValue(vehicleData.get("standingCapacity")));
+            if (vehicleData.get("totalDoors") != null) vehicle.setTotalDoors(getIntValue(vehicleData.get("totalDoors")));
+            if (vehicleData.get("axleCount") != null) vehicle.setAxleCount(getIntValue(vehicleData.get("axleCount")));
+            if (vehicleData.get("enginePowerHp") != null) vehicle.setEnginePowerHp(getIntValue(vehicleData.get("enginePowerHp")));
+            if (vehicleData.get("totalWeightKg") != null) vehicle.setTotalWeightKg(getIntValue(vehicleData.get("totalWeightKg")));
+            if (vehicleData.get("payloadKg") != null) vehicle.setPayloadKg(getIntValue(vehicleData.get("payloadKg")));
+            if (vehicleData.get("fuelTankCapacityLiters") != null) vehicle.setFuelTankCapacityLiters(getIntValue(vehicleData.get("fuelTankCapacityLiters")));
+
+            // Booleanos
+            if (vehicleData.containsKey("hasAccessibility")) vehicle.setHasAccessibility(getBooleanValue(vehicleData.get("hasAccessibility")));
+            if (vehicleData.containsKey("hasAirConditioning")) vehicle.setHasAirConditioning(getBooleanValue(vehicleData.get("hasAirConditioning")));
+            if (vehicleData.containsKey("hasWiFi")) vehicle.setHasWiFi(getBooleanValue(vehicleData.get("hasWiFi")));
+            if (vehicleData.containsKey("hasCamera")) vehicle.setHasCamera(getBooleanValue(vehicleData.get("hasCamera")));
+            if (vehicleData.containsKey("hasCctv")) vehicle.setHasCctv(getBooleanValue(vehicleData.get("hasCctv")));
+
+            // Strings de Ã"nibus
+            if (vehicleData.containsKey("busBodyType")) vehicle.setBusBodyType(vehicleData.get("busBodyType") != null ? vehicleData.get("busBodyType").toString() : null);
+            if (vehicleData.containsKey("chassisBrand")) vehicle.setChassisBrand(vehicleData.get("chassisBrand") != null ? vehicleData.get("chassisBrand").toString() : null);
+            if (vehicleData.containsKey("bodyBuilder")) vehicle.setBodyBuilder(vehicleData.get("bodyBuilder") != null ? vehicleData.get("bodyBuilder").toString() : null);
+            if (vehicleData.containsKey("engineModel")) vehicle.setEngineModel(vehicleData.get("engineModel") != null ? vehicleData.get("engineModel").toString() : null);
+            if (vehicleData.containsKey("transmissionType")) vehicle.setTransmissionType(vehicleData.get("transmissionType") != null ? vehicleData.get("transmissionType").toString() : null);
+            if (vehicleData.containsKey("routeNumber")) vehicle.setRouteNumber(vehicleData.get("routeNumber") != null ? vehicleData.get("routeNumber").toString() : null);
+            if (vehicleData.containsKey("routeName")) vehicle.setRouteName(vehicleData.get("routeName") != null ? vehicleData.get("routeName").toString() : null);
+
+            // ===== Documentais =====
+            if (vehicleData.containsKey("chassisNumber")) vehicle.setChassisNumber(vehicleData.get("chassisNumber") != null ? vehicleData.get("chassisNumber").toString() : null);
+            if (vehicleData.containsKey("renavan")) vehicle.setRenavan(vehicleData.get("renavan") != null ? vehicleData.get("renavan").toString() : null);
+
+            // ===== Financiamento =====
+            if (vehicleData.containsKey("financingStatus")) {
+                try {
+                    vehicle.setFinancingStatus(vehicleData.get("financingStatus") != null ? Vehicle.FinancingStatus.valueOf(vehicleData.get("financingStatus").toString().toUpperCase()) : null);
+                } catch (IllegalArgumentException e) { /* ignore */ }
+            }
+            if (vehicleData.containsKey("financingInstallmentValue")) vehicle.setFinancingInstallmentValue(getDecimalValue(vehicleData.get("financingInstallmentValue")));
+            if (vehicleData.containsKey("financingRemainingInstallments")) vehicle.setFinancingRemainingInstallments(getIntValue(vehicleData.get("financingRemainingInstallments")));
+            if (vehicleData.containsKey("financingPayoffBalance")) vehicle.setFinancingPayoffBalance(getDecimalValue(vehicleData.get("financingPayoffBalance")));
+            if (vehicleData.containsKey("financingBankOrInstitution")) vehicle.setFinancingBankOrInstitution(vehicleData.get("financingBankOrInstitution") != null ? vehicleData.get("financingBankOrInstitution").toString() : null);
+            if (vehicleData.containsKey("financingContractNumber")) vehicle.setFinancingContractNumber(vehicleData.get("financingContractNumber") != null ? vehicleData.get("financingContractNumber").toString() : null);
+            if (vehicleData.containsKey("financingStartDate")) vehicle.setFinancingStartDate(getDateValue(vehicleData.get("financingStartDate")));
+            if (vehicleData.containsKey("financingEndDate")) vehicle.setFinancingEndDate(getDateValue(vehicleData.get("financingEndDate")));
+
+            // ===== Valor de mercado =====
+            if (vehicleData.containsKey("marketValue")) vehicle.setMarketValue(getDecimalValue(vehicleData.get("marketValue")));
+
+            // ===== Seguros =====
+            if (vehicleData.containsKey("insurancePolicyNumber")) vehicle.setInsurancePolicyNumber(vehicleData.get("insurancePolicyNumber") != null ? vehicleData.get("insurancePolicyNumber").toString() : null);
+            if (vehicleData.containsKey("insuranceCompany")) vehicle.setInsuranceCompany(vehicleData.get("insuranceCompany") != null ? vehicleData.get("insuranceCompany").toString() : null);
+            if (vehicleData.containsKey("insurancePremiumValue")) vehicle.setInsurancePremiumValue(getDecimalValue(vehicleData.get("insurancePremiumValue")));
+            if (vehicleData.containsKey("insuranceCoverageType")) vehicle.setInsuranceCoverageType(vehicleData.get("insuranceCoverageType") != null ? vehicleData.get("insuranceCoverageType").toString() : null);
+            if (vehicleData.containsKey("insuranceSecondPolicyNumber")) vehicle.setInsuranceSecondPolicyNumber(vehicleData.get("insuranceSecondPolicyNumber") != null ? vehicleData.get("insuranceSecondPolicyNumber").toString() : null);
+            if (vehicleData.containsKey("insuranceSecondCompany")) vehicle.setInsuranceSecondCompany(vehicleData.get("insuranceSecondCompany") != null ? vehicleData.get("insuranceSecondCompany").toString() : null);
+            if (vehicleData.containsKey("insuranceSecondPremiumValue")) vehicle.setInsuranceSecondPremiumValue(getDecimalValue(vehicleData.get("insuranceSecondPremiumValue")));
+            if (vehicleData.containsKey("insuranceSecondExpiryDate")) vehicle.setInsuranceSecondExpiryDate(getDateValue(vehicleData.get("insuranceSecondExpiryDate")));
+
+            // ===== Cliente / Alocação =====
+            if (vehicleData.containsKey("clientName")) vehicle.setClientName(vehicleData.get("clientName") != null ? vehicleData.get("clientName").toString() : null);
+            if (vehicleData.containsKey("clientId")) {
+                try {
+                    vehicle.setClientId(vehicleData.get("clientId") != null ? UUID.fromString(vehicleData.get("clientId").toString()) : null);
+                } catch (IllegalArgumentException e) { /* ignore */ }
+            }
+            if (vehicleData.containsKey("allocationContractNumber")) vehicle.setAllocationContractNumber(vehicleData.get("allocationContractNumber") != null ? vehicleData.get("allocationContractNumber").toString() : null);
+            if (vehicleData.containsKey("allocationStartDate")) vehicle.setAllocationStartDate(getDateValue(vehicleData.get("allocationStartDate")));
+            if (vehicleData.containsKey("allocationEndDate")) vehicle.setAllocationEndDate(getDateValue(vehicleData.get("allocationEndDate")));
+
+            // ===== Agregado =====
+            if (vehicleData.containsKey("isAggregated")) vehicle.setIsAggregated(getBooleanValue(vehicleData.get("isAggregated")));
+            if (vehicleData.containsKey("aggregatedOwnerName")) vehicle.setAggregatedOwnerName(vehicleData.get("aggregatedOwnerName") != null ? vehicleData.get("aggregatedOwnerName").toString() : null);
+            if (vehicleData.containsKey("aggregatedOwnerCpfCnpj")) vehicle.setAggregatedOwnerCpfCnpj(vehicleData.get("aggregatedOwnerCpfCnpj") != null ? vehicleData.get("aggregatedOwnerCpfCnpj").toString() : null);
+            if (vehicleData.containsKey("aggregatedOwnerPhone")) vehicle.setAggregatedOwnerPhone(vehicleData.get("aggregatedOwnerPhone") != null ? vehicleData.get("aggregatedOwnerPhone").toString() : null);
+            if (vehicleData.containsKey("aggregatedOwnerEmail")) vehicle.setAggregatedOwnerEmail(vehicleData.get("aggregatedOwnerEmail") != null ? vehicleData.get("aggregatedOwnerEmail").toString() : null);
+            if (vehicleData.containsKey("aggregatedDailyRate")) vehicle.setAggregatedDailyRate(getDecimalValue(vehicleData.get("aggregatedDailyRate")));
+            if (vehicleData.containsKey("aggregatedMonthlyRate")) vehicle.setAggregatedMonthlyRate(getDecimalValue(vehicleData.get("aggregatedMonthlyRate")));
+            if (vehicleData.containsKey("aggregatedPaymentType")) {
+                try {
+                    vehicle.setAggregatedPaymentType(vehicleData.get("aggregatedPaymentType") != null ? Vehicle.AggregatedPaymentType.valueOf(vehicleData.get("aggregatedPaymentType").toString().toUpperCase()) : null);
+                } catch (IllegalArgumentException e) { /* ignore */ }
+            }
+            if (vehicleData.containsKey("aggregatedContractStartDate")) vehicle.setAggregatedContractStartDate(getDateValue(vehicleData.get("aggregatedContractStartDate")));
+            if (vehicleData.containsKey("aggregatedContractEndDate")) vehicle.setAggregatedContractEndDate(getDateValue(vehicleData.get("aggregatedContractEndDate")));
+            if (vehicleData.containsKey("aggregatedNotes")) vehicle.setAggregatedNotes(vehicleData.get("aggregatedNotes") != null ? vehicleData.get("aggregatedNotes").toString() : null);
+
+            // ===== Diferença financeira =====
+            if (vehicleData.containsKey("financialDifference")) vehicle.setFinancialDifference(getDecimalValue(vehicleData.get("financialDifference")));
+
             System.out.println("[DEBUG] FrotaController.updateVehicle() - Dados processados, salvando...");
 
             Vehicle updatedVehicle = vehicleRepository.save(vehicle);
@@ -990,5 +1234,104 @@ public class FrotaController {
             e.printStackTrace();
             return ResponseEntity.status(500).body("Erro no debug: " + e.getMessage());
         }
+    }
+
+    // ===== Helpers para conversao segura de tipos =====
+    private Integer getIntValue(Object obj) {
+        if (obj == null) return null;
+        if (obj instanceof Integer) return (Integer) obj;
+        if (obj instanceof Number) return ((Number) obj).intValue();
+        if (obj instanceof String) {
+            try {
+                String str = ((String) obj).trim();
+                if (str.isEmpty()) return null;
+                return Integer.parseInt(str);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private Boolean getBooleanValue(Object obj) {
+        if (obj == null) return false;
+        if (obj instanceof Boolean) return (Boolean) obj;
+        if (obj instanceof String) {
+            String str = ((String) obj).trim().toLowerCase();
+            return "true".equals(str) || "1".equals(str) || "sim".equals(str);
+        }
+        if (obj instanceof Number) return ((Number) obj).intValue() != 0;
+        return false;
+    }
+
+    // ===== Validação por tipo de veículo =====
+    private java.util.List<String> validateVehicleByType(Vehicle vehicle) {
+        java.util.List<String> errors = new java.util.ArrayList<>();
+        Vehicle.VehicleType type = vehicle.getVehicleType();
+        
+        if (type == null) return errors;
+        
+        switch (type) {
+            case BUS_ROAD:
+            case BUS_LUXURY_TOURISM:
+            case BUS_URBAN:
+            case MINIBUS:
+                if (vehicle.getBusType() == null) {
+                    errors.add("Tipo de ônibus é obrigatório para este tipo de veículo");
+                }
+                if (vehicle.getChassisNumber() == null || vehicle.getChassisNumber().trim().isEmpty()) {
+                    errors.add("Chassi é obrigatório para ônibus");
+                }
+                if (vehicle.getRenavan() == null || vehicle.getRenavan().trim().isEmpty()) {
+                    errors.add("RENAVAN é obrigatório para ônibus");
+                }
+                break;
+            case VAN:
+            case TRUCK:
+            case CAR_UTILITY:
+                if (vehicle.getChassisNumber() == null || vehicle.getChassisNumber().trim().isEmpty()) {
+                    errors.add("Chassi é obrigatório para este tipo de veículo");
+                }
+                if (vehicle.getRenavan() == null || vehicle.getRenavan().trim().isEmpty()) {
+                    errors.add("RENAVAN é obrigatório para este tipo de veículo");
+                }
+                break;
+            default:
+                // CAR, MOTORCYCLE, PICKUP, SUV, OTHER - campos opcionais
+                break;
+        }
+        
+        return errors;
+    }
+
+    private java.math.BigDecimal getDecimalValue(Object obj) {
+        if (obj == null) return null;
+        if (obj instanceof java.math.BigDecimal) return (java.math.BigDecimal) obj;
+        if (obj instanceof Number) return java.math.BigDecimal.valueOf(((Number) obj).doubleValue());
+        if (obj instanceof String) {
+            String str = ((String) obj).replace(",", ".").replace("R$", "").trim();
+            if (str.isEmpty()) return null;
+            try {
+                return new java.math.BigDecimal(str);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private java.time.LocalDate getDateValue(Object obj) {
+        if (obj == null) return null;
+        if (obj instanceof java.time.LocalDate) return (java.time.LocalDate) obj;
+        if (obj instanceof String) {
+            String str = ((String) obj).trim();
+            if (str.isEmpty()) return null;
+            try {
+                return java.time.LocalDate.parse(str);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
     }
 }

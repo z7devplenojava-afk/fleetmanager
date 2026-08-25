@@ -284,7 +284,7 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
                   className="bg-seguranca-black border-gray-700 text-white text-sm" />
               </div>
               <div>
-                <label className=\"text-xs text-gray-400 mb-1 block\">Valor (R$) *</label>
+                <label className="text-xs text-gray-400 mb-1 block">Valor (R$) *</label>
                 <Input type="number" min={0} step={0.01} value={formData.value}
                   onChange={e => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
                   className="bg-seguranca-black border-gray-700 text-white text-sm" />

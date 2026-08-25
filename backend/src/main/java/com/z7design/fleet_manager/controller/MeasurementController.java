@@ -182,18 +182,28 @@ public class MeasurementController {
     }
     
     @PatchMapping("/{id}/validate")
-    @Operation(summary = "Validar boletim", description = "Valida um boletim de mediÃ§Ã£o")
+    @Operation(summary = "Validar boletim", description = "Valida um boletim de medição")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Boletim validado com sucesso"),
-            @ApiResponse(responseCode = "404", description = "Boletim nÃ£o encontrado"),
+            @ApiResponse(responseCode = "404", description = "Boletim não encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<MeasurementBulletinDTO> validate(
             @PathVariable("id") String id,
-            @RequestParam(value = "validatedBy") @Parameter(description = "UsuÃ¡rio que validou") String validatedBy,
-            @RequestParam(value = "checkedBy") @Parameter(description = "UsuÃ¡rio que verificou") String checkedBy) {
+            @RequestParam(value = "validatedBy") @Parameter(description = "Usuário que validou") String validatedBy,
+            @RequestParam(value = "checkedBy") @Parameter(description = "Usuário que verificou") String checkedBy) {
         MeasurementBulletinDTO result = measurementService.validateBulletin(UUID.fromString(id), validatedBy, checkedBy);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/{id}/generate-receivable")
+    @Operation(summary = "Gerar Contas a Receber", description = "Gera ou atualiza a conta a receber para o boletim de medição")
+    public ResponseEntity<Map<String, String>> generateReceivable(
+            @PathVariable("id") String id,
+            @RequestParam(value = "dueDate", required = false) String dueDateStr) {
+        java.time.LocalDate dueDate = dueDateStr != null && !dueDateStr.isBlank() ? java.time.LocalDate.parse(dueDateStr) : null;
+        measurementService.generateAccountsReceivableFromMeasurement(UUID.fromString(id), dueDate);
+        return ResponseEntity.ok(Map.of("message", "Conta a receber gerada com sucesso para a medição."));
     }
     
     @GetMapping("/report")

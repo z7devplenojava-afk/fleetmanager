@@ -6,7 +6,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Car, Wrench, FileText, TrendingUp, Shield, Download, Eye,
   AlertTriangle, Loader2, MapPin, Users, Calendar, DollarSign,
-  Gauge, ClipboardList, CircleDot, Hash, Plus
+  Gauge, ClipboardList, CircleDot, Hash, Plus, Bus, DoorOpen,
+  Wifi, Camera, Accessibility, Thermometer, Route, Settings,
+  CreditCard, UserCheck
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -43,6 +45,7 @@ export interface VehicleDetailPanelProps {
     data_aquisicao?: string;
     valor_aquisicao?: number;
     observacoes?: string;
+    vehicleType?: string;
   };
   isOpen: boolean;
   onClose: () => void;
@@ -76,6 +79,71 @@ interface VehicleDetail {
   notes?: string;
   companyId?: string;
   departmentId?: string;
+  // Tipo de veículo e Ônibus
+  vehicleType?: string;
+  busType?: string;
+  passengerCapacity?: number;
+  standingCapacity?: number;
+  totalDoors?: number;
+  hasAccessibility?: boolean;
+  hasAirConditioning?: boolean;
+  hasWiFi?: boolean;
+  hasCamera?: boolean;
+  hasCctv?: boolean;
+  busBodyType?: string;
+  chassisBrand?: string;
+  bodyBuilder?: string;
+  engineModel?: string;
+  enginePowerHp?: number;
+  transmissionType?: string;
+  axleCount?: number;
+  totalWeightKg?: number;
+  payloadKg?: number;
+  fuelTankCapacityLiters?: number;
+  routeNumber?: string;
+  routeName?: string;
+  // Documentais
+  chassisNumber?: string;
+  renavan?: string;
+  // Financiamento
+  financingStatus?: string;
+  financingInstallmentValue?: number;
+  financingRemainingInstallments?: number;
+  financingPayoffBalance?: number;
+  financingBankOrInstitution?: string;
+  financingContractNumber?: string;
+  financingStartDate?: string;
+  financingEndDate?: string;
+  // Valor de mercado
+  marketValue?: number;
+  // Seguros
+  insurancePolicyNumber?: string;
+  insuranceCompany?: string;
+  insurancePremiumValue?: number;
+  insuranceCoverageType?: string;
+  insuranceSecondPolicyNumber?: string;
+  insuranceSecondCompany?: string;
+  insuranceSecondPremiumValue?: number;
+  insuranceSecondExpiryDate?: string;
+  // Cliente
+  clientName?: string;
+  allocationContractNumber?: string;
+  allocationStartDate?: string;
+  allocationEndDate?: string;
+  // Agregado
+  isAggregated?: boolean;
+  aggregatedOwnerName?: string;
+  aggregatedOwnerCpfCnpj?: string;
+  aggregatedOwnerPhone?: string;
+  aggregatedOwnerEmail?: string;
+  aggregatedDailyRate?: number;
+  aggregatedMonthlyRate?: number;
+  aggregatedPaymentType?: string;
+  aggregatedContractStartDate?: string;
+  aggregatedContractEndDate?: string;
+  aggregatedNotes?: string;
+  // Diferença
+  financialDifference?: number;
 }
 
 interface WorkPostInfo {
@@ -469,6 +537,8 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
                         </h4>
                         <div className="space-y-2.5 text-sm">
                           <RowInfo label="Placa" value={merged.placa} mono />
+                          {merged.chassisNumber && <RowInfo label="Chassi" value={merged.chassisNumber} mono />}
+                          {merged.renavan && <RowInfo label="RENAVAN" value={merged.renavan} mono />}
                           <RowInfo label="Marca" value={merged.brand} />
                           <RowInfo label="Modelo" value={merged.model} />
                           <RowInfo label="Ano" value={String(merged.year || '—')} />
@@ -492,6 +562,186 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
                           <RowInfo label="Próxima manutenção" value={fmtDate(merged.nextMaintenanceDate)} />
                         </div>
                       </div>
+
+                      {/* ===== DADOS DO ÔNIBUS ===== */}
+                      {(merged.vehicleType === 'BUS_ROAD' || merged.vehicleType === 'BUS_LUXURY_TOURISM' || merged.vehicleType === 'BUS_URBAN' || merged.vehicleType === 'MINIBUS' || merged.vehicleType === 'VAN') && (
+                        <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
+                          <h4 className="text-sm font-semibold text-seguranca-lightgray flex items-center gap-2 mb-3">
+                            <Bus className="h-4 w-4 text-green-400" /> Dados do Ônibus
+                          </h4>
+                          <div className="space-y-2.5 text-sm">
+                            <RowInfo label="Tipo de Ônibus" value={merged.busType || '—'} />
+                            <RowInfo label="Carroceria" value={merged.busBodyType || '—'} />
+                            <RowInfo label="Chassi" value={merged.chassisBrand || '—'} />
+                            <RowInfo label="Fabricante" value={merged.bodyBuilder || '—'} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 mt-3">
+                            <div className="bg-seguranca-black/60 border border-gray-700 rounded-md px-3 py-2">
+                              <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase tracking-wide">
+                                <Users className="h-3 w-3 text-blue-400" /> Sentados
+                              </div>
+                              <div className="text-sm mt-0.5 text-seguranca-lightgray font-semibold">
+                                {merged.passengerCapacity ?? '—'}
+                              </div>
+                            </div>
+                            <div className="bg-seguranca-black/60 border border-gray-700 rounded-md px-3 py-2">
+                              <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase tracking-wide">
+                                <Users className="h-3 w-3 text-yellow-400" /> Em pé
+                              </div>
+                              <div className="text-sm mt-0.5 text-seguranca-lightgray font-semibold">
+                                {merged.standingCapacity ?? '—'}
+                              </div>
+                            </div>
+                            <div className="bg-seguranca-black/60 border border-gray-700 rounded-md px-3 py-2">
+                              <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase tracking-wide">
+                                <DoorOpen className="h-3 w-3 text-purple-400" /> Portas
+                              </div>
+                              <div className="text-sm mt-0.5 text-seguranca-lightgray font-semibold">
+                                {merged.totalDoors ?? '—'}
+                              </div>
+                            </div>
+                            <div className="bg-seguranca-black/60 border border-gray-700 rounded-md px-3 py-2">
+                              <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase tracking-wide">
+                                <Settings className="h-3 w-3 text-gray-400" /> Eixos
+                              </div>
+                              <div className="text-sm mt-0.5 text-seguranca-lightgray font-semibold">
+                                {merged.axleCount ?? '—'}
+                              </div>
+                            </div>
+                          </div>
+                          {/* Comodidades */}
+                          <div className="mt-3">
+                            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Comodidades</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {merged.hasAccessibility && <Badge className="bg-blue-900/40 text-blue-400 border-blue-700 text-[10px]">♿ Acessível</Badge>}
+                              {merged.hasAirConditioning && <Badge className="bg-cyan-900/40 text-cyan-400 border-cyan-700 text-[10px]">❄️ Ar Cond.</Badge>}
+                              {merged.hasWiFi && <Badge className="bg-green-900/40 text-green-400 border-green-700 text-[10px]">📶 Wi-Fi</Badge>}
+                              {merged.hasCamera && <Badge className="bg-red-900/40 text-red-400 border-red-700 text-[10px]">📷 Câmera</Badge>}
+                              {merged.hasCctv && <Badge className="bg-orange-900/40 text-orange-400 border-orange-700 text-[10px]">🎥 CCTV</Badge>}
+                              {!merged.hasAccessibility && !merged.hasAirConditioning && !merged.hasWiFi && !merged.hasCamera && !merged.hasCctv && (
+                                <span className="text-xs text-gray-500">Nenhuma comodidade informada</span>
+                              )}
+                            </div>
+                          </div>
+                          {/* Motor & Transmissão */}
+                          {(merged.engineModel || merged.enginePowerHp || merged.transmissionType) && (
+                            <div className="mt-3 pt-3 border-t border-gray-700">
+                              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Motor & Transmissão</p>
+                              <div className="space-y-2.5 text-sm">
+                                {merged.engineModel && <RowInfo label="Motor" value={merged.engineModel} />}
+                                {merged.enginePowerHp && <RowInfo label="Potência" value={`${merged.enginePowerHp} HP`} />}
+                                {merged.transmissionType && <RowInfo label="Câmbio" value={merged.transmissionType} />}
+                              </div>
+                            </div>
+                          )}
+                          {/* Peso & Capacidade Tanque */}
+                          {(merged.totalWeightKg || merged.payloadKg || merged.fuelTankCapacityLiters) && (
+                            <div className="mt-3 pt-3 border-t border-gray-700">
+                              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Peso & Tanque</p>
+                              <div className="grid grid-cols-3 gap-2">
+                                {merged.totalWeightKg && <MiniStat label="Peso Total" value={`${merged.totalWeightKg.toLocaleString('pt-BR')} kg`} />}
+                                {merged.payloadKg && <MiniStat label="Carga Útil" value={`${merged.payloadKg.toLocaleString('pt-BR')} kg`} />}
+                                {merged.fuelTankCapacityLiters && <MiniStat label="Tanque" value={`${merged.fuelTankCapacityLiters} L`} />}
+                              </div>
+                            </div>
+                          )}
+                          {/* Rota/Linha */}
+                          {(merged.routeNumber || merged.routeName) && (
+                            <div className="mt-3 pt-3 border-t border-gray-700">
+                              <p className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase tracking-wide mb-2">
+                                <Route className="h-3 w-3" /> Rota/Linha
+                              </p>
+                              <div className="space-y-2.5 text-sm">
+                                <RowInfo label="Número" value={merged.routeNumber || '—'} />
+                                <RowInfo label="Nome" value={merged.routeName || '—'} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* ===== FINANCIAMENTO ===== */}
+                      {merged.financingStatus && (
+                        <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
+                          <h4 className="text-sm font-semibold text-seguranca-lightgray flex items-center gap-2 mb-3">
+                            <CreditCard className="h-4 w-4 text-blue-400" /> Financiamento
+                          </h4>
+                          <div className="space-y-2.5 text-sm">
+                            <RowInfo label="Status" value={merged.financingStatus} />
+                            {merged.financingBankOrInstitution && <RowInfo label="Banco" value={merged.financingBankOrInstitution} />}
+                            {merged.financingContractNumber && <RowInfo label="Nº Contrato" value={merged.financingContractNumber} />}
+                            {merged.financingInstallmentValue && <RowInfo label="Parcela" value={fmtCurrency(merged.financingInstallmentValue)} />}
+                            {merged.financingRemainingInstallments && <RowInfo label="Parcelas Restantes" value={String(merged.financingRemainingInstallments)} />}
+                            {merged.financingPayoffBalance && <RowInfo label="Saldo Quitação" value={fmtCurrency(merged.financingPayoffBalance)} />}
+                            {merged.marketValue && <RowInfo label="Valor Mercado" value={fmtCurrency(merged.marketValue)} />}
+                            {merged.financialDifference && <RowInfo label="Diferença" value={fmtCurrency(merged.financialDifference)} />}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ===== SEGUROS ===== */}
+                      {merged.insurancePolicyNumber && (
+                        <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
+                          <h4 className="text-sm font-semibold text-seguranca-lightgray flex items-center gap-2 mb-3">
+                            <Shield className="h-4 w-4 text-green-400" /> Seguros
+                          </h4>
+                          <div className="space-y-2.5 text-sm">
+                            <RowInfo label="Apólice" value={merged.insurancePolicyNumber} />
+                            {merged.insuranceCompany && <RowInfo label="Seguradora" value={merged.insuranceCompany} />}
+                            {merged.insurancePremiumValue && <RowInfo label="Prêmio" value={fmtCurrency(merged.insurancePremiumValue)} />}
+                            {merged.insuranceCoverageType && <RowInfo label="Cobertura" value={merged.insuranceCoverageType} />}
+                          </div>
+                          {merged.insuranceSecondPolicyNumber && (
+                            <div className="mt-3 pt-3 border-t border-gray-700 space-y-2.5 text-sm">
+                              <p className="text-[10px] text-gray-500 uppercase tracking-wide">Segunda Apólice</p>
+                              <RowInfo label="Apólice 2" value={merged.insuranceSecondPolicyNumber} />
+                              {merged.insuranceSecondCompany && <RowInfo label="Seguradora 2" value={merged.insuranceSecondCompany} />}
+                              {merged.insuranceSecondPremiumValue && <RowInfo label="Prêmio 2" value={fmtCurrency(merged.insuranceSecondPremiumValue)} />}
+                              {merged.insuranceSecondExpiryDate && <RowInfo label="Vencimento 2" value={fmtDate(merged.insuranceSecondExpiryDate)} />}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* ===== CLIENTE / ALOCAÇÃO ===== */}
+                      {merged.clientName && (
+                        <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
+                          <h4 className="text-sm font-semibold text-seguranca-lightgray flex items-center gap-2 mb-3">
+                            <Users className="h-4 w-4 text-indigo-400" /> Cliente / Alocação
+                          </h4>
+                          <div className="space-y-2.5 text-sm">
+                            <RowInfo label="Cliente" value={merged.clientName} />
+                            {merged.allocationContractNumber && <RowInfo label="Nº Contrato" value={merged.allocationContractNumber} />}
+                            {merged.allocationStartDate && <RowInfo label="Início" value={fmtDate(merged.allocationStartDate)} />}
+                            {merged.allocationEndDate && <RowInfo label="Término" value={fmtDate(merged.allocationEndDate)} />}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ===== AGREGADO ===== */}
+                      {merged.isAggregated && (
+                        <div className="bg-seguranca-graphite border border-orange-700/50 rounded-lg p-4">
+                          <h4 className="text-sm font-semibold text-seguranca-lightgray flex items-center gap-2 mb-3">
+                            <UserCheck className="h-4 w-4 text-orange-400" /> Veículo de Agregado
+                          </h4>
+                          <div className="space-y-2.5 text-sm">
+                            {merged.aggregatedOwnerName && <RowInfo label="Proprietário" value={merged.aggregatedOwnerName} />}
+                            {merged.aggregatedOwnerCpfCnpj && <RowInfo label="CPF/CNPJ" value={merged.aggregatedOwnerCpfCnpj} />}
+                            {merged.aggregatedOwnerPhone && <RowInfo label="Telefone" value={merged.aggregatedOwnerPhone} />}
+                            {merged.aggregatedPaymentType && <RowInfo label="Tipo Pagamento" value={merged.aggregatedPaymentType} />}
+                            {merged.aggregatedDailyRate && <RowInfo label="Valor Diário" value={fmtCurrency(merged.aggregatedDailyRate)} />}
+                            {merged.aggregatedMonthlyRate && <RowInfo label="Valor Mensal" value={fmtCurrency(merged.aggregatedMonthlyRate)} />}
+                            {merged.aggregatedContractStartDate && <RowInfo label="Início Contrato" value={fmtDate(merged.aggregatedContractStartDate)} />}
+                            {merged.aggregatedContractEndDate && <RowInfo label="Término Contrato" value={fmtDate(merged.aggregatedContractEndDate)} />}
+                          </div>
+                          {merged.aggregatedNotes && (
+                            <div className="mt-3 pt-3 border-t border-gray-700">
+                              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Observações</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{merged.aggregatedNotes}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {merged.observacoes || merged.notes ? (
                         <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-4">

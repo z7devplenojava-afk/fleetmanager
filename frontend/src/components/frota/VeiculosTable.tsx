@@ -22,6 +22,7 @@ interface Veiculo {
   quilometragem?: number;
   quilometragemInicial?: number; // This field was later removed from display
   status: string;
+  vehicleType?: string;
   data_aquisicao?: string;
   valor_aquisicao?: number;
   photos?: string; // URLs das fotos separadas por vírgula
@@ -49,6 +50,7 @@ interface VehicleMaintenance {
 interface VeiculosTableProps {
   veiculos: Veiculo[];
   searchTerm: string;
+  vehicleTypeFilter?: string;
   maintenances?: VehicleMaintenance[];
   onRefresh: () => void;
   onEdit: (veiculo: Veiculo) => void;
@@ -57,7 +59,7 @@ interface VeiculosTableProps {
   onViewMaintenance?: (maintenance: VehicleMaintenance) => void;
 }
 
-const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, maintenances, onRefresh, onEdit, onDelete, onView, onViewMaintenance }) => {
+const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, vehicleTypeFilter, maintenances, onRefresh, onEdit, onDelete, onView, onViewMaintenance }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedVeiculo, setSelectedVeiculo] = useState<Veiculo | null>(null);
 
@@ -87,11 +89,13 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
     console.log('🔍 Estados do modal - isViewModalOpen:', isViewModalOpen, 'viewingVeiculo:', viewingVeiculo);
   }, [isViewModalOpen, viewingVeiculo]);
 
-  const filteredVeiculos = veiculos.filter(veiculo =>
-    veiculo.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    veiculo.marca.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    veiculo.modelo.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredVeiculos = veiculos.filter(veiculo => {
+    const matchesSearch = veiculo.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      veiculo.marca.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      veiculo.modelo.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = !vehicleTypeFilter || vehicleTypeFilter === 'ALL' || veiculo.vehicleType === vehicleTypeFilter;
+    return matchesSearch && matchesType;
+  });
 
   // Funções de seleção
   const handleSelectAll = (checked: boolean) => {
@@ -466,6 +470,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
               <TableHead className="text-seguranca-lightgray font-semibold">Placa</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold">Marca/Modelo</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold text-center">Ano</TableHead>
+              <TableHead className="text-seguranca-lightgray font-semibold text-center">Tipo</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold text-center">Combustível</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold text-center">Quilometragem</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold text-center">Status</TableHead>
@@ -501,6 +506,24 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
                   <span className="font-mono font-semibold text-blue-400">
                     {veiculo.ano}
                   </span>
+                </TableCell>
+                <TableCell className="text-center text-seguranca-lightgray">
+                  {veiculo.vehicleType && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-900/30 text-purple-400 border border-purple-700/30">
+                      {veiculo.vehicleType === 'BUS_ROAD' ? '🚌 Rodoviário' :
+                       veiculo.vehicleType === 'BUS_LUXURY_TOURISM' ? '🚌✨ Luxo Turismo' :
+                       veiculo.vehicleType === 'BUS_URBAN' ? '🏙️ Urbano' :
+                       veiculo.vehicleType === 'MINIBUS' ? '🚐 Micro-ônibus' :
+                       veiculo.vehicleType === 'VAN' ? '🚐 Van' :
+                       veiculo.vehicleType === 'CAR_UTILITY' ? '🚗 Utilitário' :
+                       veiculo.vehicleType === 'CAR' ? '🚗 Carro' :
+                       veiculo.vehicleType === 'TRUCK' ? '🚛 Caminhão' :
+                       veiculo.vehicleType === 'MOTORCYCLE' ? '🏍️ Moto' :
+                       veiculo.vehicleType === 'PICKUP' ? '🛻 Pickup' :
+                       veiculo.vehicleType === 'SUV' ? '🚙 SUV' :
+                       veiculo.vehicleType || '—'}
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell className="text-center text-seguranca-lightgray">
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-900/20 text-blue-400 border border-blue-700/30">
@@ -550,7 +573,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, mai
             ))}
             {filteredVeiculos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={9} className="text-center py-8">
                   <div className="flex flex-col items-center gap-2 text-gray-400">
                     <div className="w-16 h-16 border-2 border-dashed border-gray-600 rounded-full flex items-center justify-center">
                       <span className="text-2xl">🚗</span>

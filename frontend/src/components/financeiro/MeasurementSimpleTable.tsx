@@ -17,6 +17,7 @@ import {
   Calculator,
   Calendar,
   Building,
+  DollarSign,
   CheckCircle,
   Clock,
   AlertCircle,
@@ -555,6 +556,7 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
                 />
               </TableHead>
               <TableHead className="text-gray-400">Período</TableHead>
+              <TableHead className="text-gray-400">Cliente / Obra</TableHead>
               <TableHead className="text-gray-400">Contrato</TableHead>
               <TableHead className="text-gray-400">Valor</TableHead>
               <TableHead className="text-gray-400">Status</TableHead>
@@ -578,7 +580,19 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
                       {formatDate(bulletin.periodStart)} - {formatDate(bulletin.periodEnd)}
                     </div>
                   </TableCell>
-                  
+
+                  <TableCell>
+                    <div className="text-sm font-medium text-seguranca-lightgray">
+                      {bulletin.clientName || bulletin.client?.name || 'N/A'}
+                    </div>
+                    {bulletin.workPostName && (
+                      <div className="text-xs text-seguranca-yellow flex items-center gap-1 mt-0.5">
+                        <Building className="h-3 w-3" />
+                        {bulletin.workPostName}
+                      </div>
+                    )}
+                  </TableCell>
+
                   <TableCell>
                     <div className="text-sm text-seguranca-lightgray font-mono">
                       {bulletin.contractNumber}
@@ -604,8 +618,33 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
                         variant="ghost"
                         onClick={() => onView(bulletin)}
                         className="text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 h-8 w-8 p-0"
+                        title="Visualizar Medição"
                       >
                         <Eye className="h-4 w-4" />
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={async () => {
+                          try {
+                            await measurementService.generateReceivable(bulletin.id);
+                            toast({
+                              title: "Sucesso",
+                              description: "Conta a receber gerada no financeiro com sucesso!",
+                            });
+                          } catch (err) {
+                            toast({
+                              title: "Erro",
+                              description: "Não foi possível gerar conta a receber",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10 h-8 w-8 p-0"
+                        title="Gerar / Sincronizar Conta a Receber"
+                      >
+                        <DollarSign className="h-4 w-4" />
                       </Button>
                       
                       {bulletin.status === 'DRAFT' && (

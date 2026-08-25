@@ -23,4 +23,6 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
     List<Vehicle> findBySearchTerm(@Param("searchTerm") String searchTerm);
 
     boolean existsByPlate(String plate);
+
+    List<Vehicle> findByVehicleType(Vehicle.VehicleType vehicleType);
 }

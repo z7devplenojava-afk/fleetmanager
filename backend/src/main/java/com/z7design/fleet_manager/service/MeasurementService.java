@@ -15,6 +15,10 @@ import com.z7design.fleet_manager.repository.ClientRepository;
 import com.z7design.fleet_manager.repository.ContractRepository;
 import com.z7design.fleet_manager.repository.UnitRepository;
 import com.z7design.fleet_manager.repository.CostCenterRepository;
+import com.z7design.fleet_manager.repository.WorkPostRepository;
+import com.z7design.fleet_manager.repository.AccountsReceivableRepository;
+import com.z7design.fleet_manager.model.AccountsReceivable;
+import com.z7design.fleet_manager.model.WorkPost;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +50,8 @@ public class MeasurementService {
     private final ContractRepository contractRepository;
     private final UnitRepository unitRepository;
     private final CostCenterRepository costCenterRepository;
+    private final WorkPostRepository workPostRepository;
+    private final AccountsReceivableRepository accountsReceivableRepository;
 
     private void performBusinessCalculations(MeasurementBulletin bulletin) {
         if (bulletin.getItems() == null || bulletin.getItems().isEmpty()) {
@@ -383,6 +389,15 @@ public class MeasurementService {
             }
         }
 
+        if (dto.getWorkPostId() != null) {
+            try {
+                bulletin.setWorkPost(workPostRepository.findById(dto.getWorkPostId())
+                        .orElse(null));
+            } catch (Exception e) {
+                log.warn("Obra/Posto nÃ£o encontrado: {}, continuando sem obra", dto.getWorkPostId());
+            }
+        }
+
         // Salvar boletim primeiro
         bulletin = bulletinRepository.save(bulletin);
 
@@ -414,6 +429,14 @@ public class MeasurementService {
         }
 
         log.info("Boletim criado com sucesso - ID: {}, Subtotal: {}", bulletin.getId(), bulletin.getSubtotal());
+
+        // Gerar automaticamente o Contas a Receber
+        try {
+            generateAccountsReceivableFromMeasurement(bulletin.getId(), null);
+        } catch (Exception e) {
+            log.warn("Não foi possível gerar Contas a Receber automaticamente na criação: {}", e.getMessage());
+        }
+
         return MeasurementBulletinDTO.fromEntity(bulletin);
     }
 
@@ -490,6 +513,11 @@ public class MeasurementService {
                     .orElseThrow(() -> new ResourceNotFoundException("Unidade nÃ£o encontrada: " + dto.getUnitId())));
         }
 
+        if (dto.getWorkPostId() != null) {
+            existingBulletin.setWorkPost(workPostRepository.findById(dto.getWorkPostId())
+                    .orElse(null));
+        }
+
         // Atualizar itens se fornecidos
         if (dto.getItems() != null) {
             // Remover itens existentes
@@ -539,6 +567,14 @@ public class MeasurementService {
 
         log.info("Boletim atualizado com sucesso - ID: {}, Subtotal: {}", existingBulletin.getId(),
                 existingBulletin.getSubtotal());
+
+        // Sincronizar automaticamente com Contas a Receber
+        try {
+            generateAccountsReceivableFromMeasurement(existingBulletin.getId(), null);
+        } catch (Exception e) {
+            log.warn("Não foi possível sincronizar Contas a Receber na atualização: {}", e.getMessage());
+        }
+
         return MeasurementBulletinDTO.fromEntity(existingBulletin);
     }
 
@@ -554,8 +590,65 @@ public class MeasurementService {
 
         bulletin = bulletinRepository.save(bulletin);
 
+        // Gerar automaticamente o título a receber no financeiro
+        try {
+            generateAccountsReceivableFromMeasurement(bulletin.getId(), null);
+        } catch (Exception ex) {
+            log.error("Erro ao gerar Contas a Receber na validação da medição: {}", ex.getMessage(), ex);
+        }
+
         log.info("Boletim validado com sucesso: {}", id);
         return MeasurementBulletinDTO.fromEntity(bulletin);
+    }
+
+    public void generateAccountsReceivableFromMeasurement(UUID measurementId, LocalDate dueDateOverride) {
+        MeasurementBulletin bulletin = bulletinRepository.findById(measurementId)
+                .orElseThrow(() -> new ResourceNotFoundException("Boletim de medição não encontrado: " + measurementId));
+
+        if (bulletin.getClient() == null) {
+            log.warn("Boletim {} sem cliente associado. Não foi possível gerar Contas a Receber.", measurementId);
+            return;
+        }
+
+        List<AccountsReceivable> existingReceivables = accountsReceivableRepository.findByMeasurementId(measurementId);
+        AccountsReceivable ar;
+        if (!existingReceivables.isEmpty()) {
+            ar = existingReceivables.get(0);
+        } else {
+            ar = new AccountsReceivable();
+            ar.setMeasurement(bulletin);
+        }
+
+        ar.setClient(bulletin.getClient());
+        ar.setMeasurementNumber(bulletin.getContractNumber() != null ? bulletin.getContractNumber() : "MED-" + bulletin.getId().toString().substring(0, 8));
+        ar.setInvoiceNumber(bulletin.getNfNumber() != null && !bulletin.getNfNumber().isBlank() 
+                ? bulletin.getNfNumber() 
+                : "MED-" + (bulletin.getContractNumber() != null ? bulletin.getContractNumber() : bulletin.getId().toString().substring(0, 6)));
+
+        String workPostName = bulletin.getWorkPost() != null ? bulletin.getWorkPost().getName() : "";
+        String desc = "Faturamento da Medição - Contrato: " + (bulletin.getContractNumber() != null ? bulletin.getContractNumber() : "N/A");
+        if (!workPostName.isBlank()) {
+            desc += " - Obra/Setor: " + workPostName;
+        }
+        ar.setDescription(desc);
+        ar.setAmount(bulletin.getSubtotal() != null ? bulletin.getSubtotal() : BigDecimal.ZERO);
+        
+        LocalDate issueDate = LocalDate.now();
+        ar.setIssueDate(issueDate);
+        
+        LocalDate dueDate = dueDateOverride != null 
+                ? dueDateOverride 
+                : (bulletin.getPeriodEnd() != null ? bulletin.getPeriodEnd().plusDays(30) : issueDate.plusDays(30));
+        ar.setDueDate(dueDate);
+        ar.setCategory(com.z7design.fleet_manager.model.enums.ReceivableCategory.SERVICE);
+        ar.setPaymentMethod(com.z7design.fleet_manager.model.enums.PaymentMethod.TRANSFER);
+        
+        if (bulletin.getUnit() != null) {
+            ar.setUnit(bulletin.getUnit());
+        }
+
+        accountsReceivableRepository.save(ar);
+        log.info("Conta a Receber gerada/atualizada para medição {}: R$ {}", measurementId, ar.getAmount());
     }
 
     public void deleteBulletin(UUID id) {
