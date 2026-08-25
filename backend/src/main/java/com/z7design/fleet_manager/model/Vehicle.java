@@ -219,7 +219,7 @@ public class Vehicle implements TenantAware {
     @Column(name = "financing_payoff_balance", precision = 14, scale = 2)
     private BigDecimal financingPayoffBalance;
 
-    @Column(name = "financing_bank_or institution")
+    @Column(name = "financing_bank_or_institution")
     private String financingBankOrInstitution;
 
     @Column(name = "financing_contract_number")

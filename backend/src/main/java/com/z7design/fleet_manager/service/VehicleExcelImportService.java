@@ -244,7 +244,6 @@ public class VehicleExcelImportService {
 
         if (finalPlate == null || finalPlate.isBlank()) {
             result.setSkipped(result.getSkipped() + 1);
-            result.getErrors().add(String.format("Aba '%s', Linha %d: Placa/Patrimônio não encontrada.", sheetName, rowNum));
             return;
         }
 
