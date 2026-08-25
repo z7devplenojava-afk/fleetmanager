@@ -26,10 +26,10 @@ import java.util.regex.Pattern;
 public class VehicleExcelImportService {
 
     private final VehicleRepository vehicleRepository;
+    private final org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     private static final Pattern YEAR_PATTERN = Pattern.compile("(19\\d{2}|20\\d{2})");
 
-    @Transactional
     public ImportResultDto importVehiclesFromExcel(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("O arquivo de importação está vazio ou não foi enviado.");
@@ -254,7 +254,12 @@ public class VehicleExcelImportService {
             }
 
             if (updated) {
-                vehicleRepository.saveAndFlush(vehicle);
+                org.springframework.transaction.support.TransactionTemplate tt = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+                tt.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+                tt.execute(status -> {
+                    vehicleRepository.saveAndFlush(vehicle);
+                    return null;
+                });
                 result.setUpdated(result.getUpdated() + 1);
             } else {
                 result.setSkipped(result.getSkipped() + 1);
@@ -279,7 +284,12 @@ public class VehicleExcelImportService {
                 vehicle.setCompanyId(currentCompanyId);
             }
 
-            vehicleRepository.saveAndFlush(vehicle);
+            org.springframework.transaction.support.TransactionTemplate tt = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+            tt.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            tt.execute(status -> {
+                vehicleRepository.saveAndFlush(vehicle);
+                return null;
+            });
             result.setInserted(result.getInserted() + 1);
         }
     }
