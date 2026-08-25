@@ -119,6 +119,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           setRefreshToken(token);
 
+          // Atualizar dados do perfil em segundo plano com o banco de dados
+          void refreshUser();
+
           const roleKey = (userWithPermissions.role ?? '').toUpperCase();
           if (!['COLABORADOR', 'ROLE_COLABORADOR'].includes(roleKey) && userWithPermissions.id) {
             void loadUserGroups(userWithPermissions.id);
@@ -451,15 +454,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Buscar dados atualizados do usuário
       const response = await api.get('/users/profile');
       if (response.data) {
+        const savedUser = localStorage.getItem('user');
+        const userData = savedUser ? JSON.parse(savedUser) : {};
+        const primaryRole = (response.data.roles && response.data.roles.length > 0)
+          ? (typeof response.data.roles[0] === 'string' ? response.data.roles[0] : response.data.roles[0].name)
+          : userData.role;
+
         const updatedUser = {
-          ...user,
-          name: response.data.name,
-          email: response.data.email,
-          whatsapp: response.data.whatsapp
+          ...userData,
+          id: response.data.id || userData.id,
+          name: response.data.name || userData.name,
+          username: response.data.username || userData.username,
+          email: response.data.email || userData.email,
+          whatsapp: response.data.whatsapp || userData.whatsapp,
+          active: response.data.active !== undefined ? response.data.active : userData.active,
+          roles: response.data.roles || userData.roles,
+          role: primaryRole || userData.role,
         };
-        setUser(updatedUser);
+        const rolePermissions = generatePermissions(updatedUser.role);
+        const userWithPermissions = {
+          ...updatedUser,
+          permissions: rolePermissions
+        };
+        setUser(userWithPermissions);
         setProfile(response.data);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
+        localStorage.setItem('user', JSON.stringify(userWithPermissions));
       }
     } catch (error) {
       console.error('Erro ao atualizar dados do usuário:', error);
