@@ -38,6 +38,7 @@ public class MeasurementItemDTO {
     private LocalDate tripDate;
     private String route;
     private String vehicleType;
+    private String observations;
 
     public static MeasurementItemDTO fromEntity(MeasurementItem entity) {
         MeasurementItemDTO dto = new MeasurementItemDTO();
@@ -67,6 +68,7 @@ public class MeasurementItemDTO {
         dto.setTripDate(entity.getTripDate());
         dto.setRoute(entity.getRoute());
         dto.setVehicleType(entity.getVehicleType());
+        dto.setObservations(entity.getObservations());
 
         if (entity.getBulletin() != null) {
             dto.setBulletinId(entity.getBulletin().getId());
@@ -108,6 +110,7 @@ public class MeasurementItemDTO {
         entity.setTripDate(dto.getTripDate());
         entity.setRoute(dto.getRoute());
         entity.setVehicleType(dto.getVehicleType());
+        entity.setObservations(dto.getObservations());
         if (dto.getCostCenterId() != null) {
             entity.setCostCenterId(dto.getCostCenterId());
         }

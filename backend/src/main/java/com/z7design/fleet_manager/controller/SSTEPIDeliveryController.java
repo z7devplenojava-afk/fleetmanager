@@ -39,7 +39,7 @@ public class SSTEPIDeliveryController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar entrega de EPI por ID", description = "Retorna uma entrega especÃ­fica pelo ID")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<EPIDelivery> getEPIDeliveryById(@PathVariable UUID id) {
+    public ResponseEntity<EPIDelivery> getEPIDeliveryById(@PathVariable("id") UUID id) {
         log.info("GET /api/sst/epi-deliveries/{} - Buscando entrega de EPI", id);
         // TODO: Implementar mÃ©todo getEPIDeliveryById no service
         return ResponseEntity.notFound().build();
@@ -80,7 +80,7 @@ public class SSTEPIDeliveryController {
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar entrega de EPI", description = "Atualiza uma entrega de EPI existente")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<EPIDelivery> updateEPIDelivery(@PathVariable UUID id, @RequestBody UpdateEPIDeliveryRequest request) {
+    public ResponseEntity<EPIDelivery> updateEPIDelivery(@PathVariable("id") UUID id, @RequestBody UpdateEPIDeliveryRequest request) {
         log.info("PUT /api/sst/epi-deliveries/{} - Atualizando entrega de EPI", id);
         // TODO: Implementar mÃ©todo updateEPIDelivery no service
         return ResponseEntity.notFound().build();
@@ -89,7 +89,7 @@ public class SSTEPIDeliveryController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Deletar entrega de EPI", description = "Deleta uma entrega de EPI")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteEPIDelivery(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteEPIDelivery(@PathVariable("id") UUID id) {
         log.info("DELETE /api/sst/epi-deliveries/{} - Deletando entrega de EPI", id);
         // TODO: Implementar mÃ©todo deleteEPIDelivery no service
         return ResponseEntity.notFound().build();
@@ -98,7 +98,7 @@ public class SSTEPIDeliveryController {
     @GetMapping("/employee/{employeeId}")
     @Operation(summary = "Listar entregas por funcionÃ¡rio", description = "Retorna todas as entregas de um funcionÃ¡rio especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<EPIDelivery>> getEPIDeliveriesByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<EPIDelivery>> getEPIDeliveriesByEmployee(@PathVariable("employeeId") UUID employeeId) {
         log.info("GET /api/sst/epi-deliveries/employee/{} - Buscando entregas por funcionÃ¡rio", employeeId);
         try {
             List<EPIDelivery> deliveries = epiService.getDeliveriesByEmployee(employeeId);
@@ -112,7 +112,7 @@ public class SSTEPIDeliveryController {
     @GetMapping("/epi/{epiId}")
     @Operation(summary = "Listar entregas por EPI", description = "Retorna todas as entregas de um EPI especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<EPIDelivery>> getEPIDeliveriesByEPI(@PathVariable UUID epiId) {
+    public ResponseEntity<List<EPIDelivery>> getEPIDeliveriesByEPI(@PathVariable("epiId") UUID epiId) {
         log.info("GET /api/sst/epi-deliveries/epi/{} - Buscando entregas por EPI", epiId);
         try {
             List<EPIDelivery> deliveries = epiService.getDeliveriesByEPI(epiId);
@@ -126,7 +126,7 @@ public class SSTEPIDeliveryController {
     @GetMapping("/expiring/{days}")
     @Operation(summary = "Listar entregas expirando", description = "Retorna entregas que estÃ£o expirando nos prÃ³ximos X dias")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<EPIDelivery>> getExpiringEPIDeliveries(@PathVariable int days) {
+    public ResponseEntity<List<EPIDelivery>> getExpiringEPIDeliveries(@PathVariable("days") int days) {
         log.info("GET /api/sst/epi-deliveries/expiring/{} - Buscando entregas expirando em {} dias", days, days);
         // TODO: Implementar mÃ©todo getExpiringEPIDeliveries no service
         return ResponseEntity.ok(List.of());
@@ -135,7 +135,7 @@ public class SSTEPIDeliveryController {
     @PostMapping("/{id}/confirm-receipt")
     @Operation(summary = "Confirmar recebimento", description = "Confirma o recebimento de uma entrega de EPI")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> confirmEPIReceipt(@PathVariable UUID id, @RequestBody ConfirmReceiptRequest request) {
+    public ResponseEntity<Void> confirmEPIReceipt(@PathVariable("id") UUID id, @RequestBody ConfirmReceiptRequest request) {
         log.info("POST /api/sst/epi-deliveries/{}/confirm-receipt - Confirmando recebimento", id);
         try {
             epiService.confirmEPIReceipt(id, request.getSignatureUrl());

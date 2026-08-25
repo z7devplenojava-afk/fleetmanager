@@ -40,24 +40,24 @@ public class FineController {
     }
     
     @GetMapping("/{id}")
-    public ResponseEntity<FineDTO> getFineById(@PathVariable UUID id) {
+    public ResponseEntity<FineDTO> getFineById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(fineService.getFineById(id));
     }
     
     @GetMapping("/vehicle/{vehicleId}")
-    public ResponseEntity<List<FineDTO>> getFinesByVehicle(@PathVariable UUID vehicleId) {
+    public ResponseEntity<List<FineDTO>> getFinesByVehicle(@PathVariable("vehicleId") UUID vehicleId) {
         return ResponseEntity.ok(fineService.getFinesByVehicle(vehicleId));
     }
     
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<FineDTO>> getFinesByStatus(@PathVariable Fine.FineStatus status) {
+    public ResponseEntity<List<FineDTO>> getFinesByStatus(@PathVariable("status") Fine.FineStatus status) {
         return ResponseEntity.ok(fineService.getFinesByStatus(status));
     }
     
     @GetMapping("/vehicle/{vehicleId}/status/{status}")
     public ResponseEntity<List<FineDTO>> getFinesByVehicleAndStatus(
-            @PathVariable UUID vehicleId,
-            @PathVariable Fine.FineStatus status) {
+            @PathVariable("vehicleId") UUID vehicleId,
+            @PathVariable("status") Fine.FineStatus status) {
         return ResponseEntity.ok(fineService.getFinesByVehicleAndStatus(vehicleId, status));
     }
     
@@ -67,12 +67,12 @@ public class FineController {
     }
     
     @PutMapping("/{id}")
-    public ResponseEntity<FineDTO> updateFine(@PathVariable UUID id, @Valid @RequestBody FineDTO fineDTO) {
+    public ResponseEntity<FineDTO> updateFine(@PathVariable("id") UUID id, @Valid @RequestBody FineDTO fineDTO) {
         return ResponseEntity.ok(fineService.updateFine(id, fineDTO));
     }
     
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFine(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteFine(@PathVariable("id") UUID id) {
         fineService.deleteFine(id);
         return ResponseEntity.noContent().build();
     }
@@ -84,7 +84,7 @@ public class FineController {
     }
     
     @GetMapping("/driver/{driverId}")
-    public ResponseEntity<List<FineDTO>> getFinesByDriver(@PathVariable UUID driverId) {
+    public ResponseEntity<List<FineDTO>> getFinesByDriver(@PathVariable("driverId") UUID driverId) {
         return ResponseEntity.ok(fineService.getFinesByDriver(driverId));
     }
     
@@ -102,16 +102,16 @@ public class FineController {
     
     @GetMapping("/report/pdf")
     public ResponseEntity<byte[]> generatePDFReport(
-            @RequestParam(required = false) String vehiclePlate,
-            @RequestParam(required = false) String driverName,
-            @RequestParam(required = false) String infraction,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueDateStart,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueDateEnd,
-            @RequestParam(required = false) BigDecimal minValue,
-            @RequestParam(required = false) BigDecimal maxValue,
-            @RequestParam(required = false) String status) {
+            @RequestParam(value = "vehiclePlate", required = false) String vehiclePlate,
+            @RequestParam(value = "driverName", required = false) String driverName,
+            @RequestParam(value = "infraction", required = false) String infraction,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "dueDateStart", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueDateStart,
+            @RequestParam(value = "dueDateEnd", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueDateEnd,
+            @RequestParam(value = "minValue", required = false) BigDecimal minValue,
+            @RequestParam(value = "maxValue", required = false) BigDecimal maxValue,
+            @RequestParam(value = "status", required = false) String status) {
         try {
             Fine.FineStatus statusEnum = null;
             if (status != null && !status.isEmpty() && !"all".equals(status)) {
@@ -136,14 +136,14 @@ public class FineController {
     
     @GetMapping("/reports/pdf")
     public ResponseEntity<List<Object>> generateFineReportPDF(
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate,
-            @RequestParam(required = false) String vehicleFilter,
-            @RequestParam(required = false) String driverFilter,
-            @RequestParam(required = false) String statusFilter,
-            @RequestParam(required = false) BigDecimal amountMin,
-            @RequestParam(required = false) BigDecimal amountMax,
-            @RequestParam(required = false) List<String> selectedIds) {
+            @RequestParam(value = "startDate", required = false) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) LocalDate endDate,
+            @RequestParam(value = "vehicleFilter", required = false) String vehicleFilter,
+            @RequestParam(value = "driverFilter", required = false) String driverFilter,
+            @RequestParam(value = "statusFilter", required = false) String statusFilter,
+            @RequestParam(value = "amountMin", required = false) BigDecimal amountMin,
+            @RequestParam(value = "amountMax", required = false) BigDecimal amountMax,
+            @RequestParam(value = "selectedIds", required = false) List<String> selectedIds) {
         try {
             List<Object> fines = fineService.getFinesForReportSimple(startDate, endDate, vehicleFilter, driverFilter, statusFilter, amountMin, amountMax, selectedIds);
             return ResponseEntity.ok(fines);
@@ -154,14 +154,14 @@ public class FineController {
     
     @GetMapping("/reports/excel")
     public ResponseEntity<byte[]> generateFineReportExcel(
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate,
-            @RequestParam(required = false) String vehicleFilter,
-            @RequestParam(required = false) String driverFilter,
-            @RequestParam(required = false) String statusFilter,
-            @RequestParam(required = false) BigDecimal amountMin,
-            @RequestParam(required = false) BigDecimal amountMax,
-            @RequestParam(required = false) List<String> selectedIds) {
+            @RequestParam(value = "startDate", required = false) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) LocalDate endDate,
+            @RequestParam(value = "vehicleFilter", required = false) String vehicleFilter,
+            @RequestParam(value = "driverFilter", required = false) String driverFilter,
+            @RequestParam(value = "statusFilter", required = false) String statusFilter,
+            @RequestParam(value = "amountMin", required = false) BigDecimal amountMin,
+            @RequestParam(value = "amountMax", required = false) BigDecimal amountMax,
+            @RequestParam(value = "selectedIds", required = false) List<String> selectedIds) {
         try {
             byte[] reportBytes = fineService.generateFineReportExcel(startDate, endDate, vehicleFilter, driverFilter, statusFilter, amountMin, amountMax, selectedIds);
             

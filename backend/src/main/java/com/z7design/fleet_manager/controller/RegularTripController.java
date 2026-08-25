@@ -35,7 +35,7 @@ public class RegularTripController {
 
     @Operation(summary = "Retorna assentos ocupados de uma viagem")
     @GetMapping("/{id}/occupied-seats")
-    public ResponseEntity<List<String>> getOccupiedSeats(@PathVariable UUID id) {
+    public ResponseEntity<List<String>> getOccupiedSeats(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(regularTripService.getOccupiedSeats(id));
     }
 

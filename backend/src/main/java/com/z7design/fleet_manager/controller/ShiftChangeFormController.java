@@ -37,7 +37,7 @@ public class ShiftChangeFormController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ShiftChangeFormDTO> getShiftChangeById(@PathVariable Long id) {
+    public ResponseEntity<ShiftChangeFormDTO> getShiftChangeById(@PathVariable("id") Long id) {
         log.info("GET /api/operational/shift-changes/{} - Buscando solicitaÃ§Ã£o de troca de plantÃ£o por ID", id);
         ShiftChangeFormDTO dto = shiftChangeFormService.getShiftChangeFormById(id);
         log.info("âœ… SolicitaÃ§Ã£o de troca de plantÃ£o ID {} encontrada.", id);
@@ -45,7 +45,7 @@ public class ShiftChangeFormController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ShiftChangeFormDTO> updateShiftChange(@PathVariable Long id, @Valid @RequestBody ShiftChangeFormDTO dto) {
+    public ResponseEntity<ShiftChangeFormDTO> updateShiftChange(@PathVariable("id") Long id, @Valid @RequestBody ShiftChangeFormDTO dto) {
         log.info("PUT /api/operational/shift-changes/{} - Atualizando solicitaÃ§Ã£o de troca de plantÃ£o", id);
         ShiftChangeFormDTO updatedDto = shiftChangeFormService.updateShiftChangeForm(id, dto);
         log.info("âœ… SolicitaÃ§Ã£o de troca de plantÃ£o ID {} atualizada com sucesso.", id);
@@ -53,7 +53,7 @@ public class ShiftChangeFormController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteShiftChange(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteShiftChange(@PathVariable("id") Long id) {
         log.info("DELETE /api/operational/shift-changes/{} - Excluindo solicitaÃ§Ã£o de troca de plantÃ£o", id);
         shiftChangeFormService.deleteShiftChangeForm(id);
         log.info("âœ… SolicitaÃ§Ã£o de troca de plantÃ£o ID {} excluÃ­da com sucesso.", id);

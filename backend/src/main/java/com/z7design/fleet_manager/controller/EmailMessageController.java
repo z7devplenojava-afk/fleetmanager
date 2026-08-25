@@ -27,9 +27,9 @@ public class EmailMessageController {
     private final EmailMessageService emailMessageService;
 
     @GetMapping("/folders/{folderId}/messages")
-    public ResponseEntity<?> listByFolder(@PathVariable UUID folderId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "25") int size) {
+    public ResponseEntity<?> listByFolder(@PathVariable("folderId") UUID folderId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "25") int size) {
         try {
             Page<EmailMessageDTO> result = emailMessageService.listByFolder(folderId, page, size);
             return ResponseEntity.ok(Map.of("success", true, "data", result));
@@ -40,10 +40,10 @@ public class EmailMessageController {
     }
 
     @GetMapping("/accounts/{accountId}/messages")
-    public ResponseEntity<?> listByAccount(@PathVariable UUID accountId,
-            @RequestParam(required = false) UUID folderId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "25") int size) {
+    public ResponseEntity<?> listByAccount(@PathVariable("accountId") UUID accountId,
+            @RequestParam(value = "folderId", required = false) UUID folderId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "25") int size) {
         try {
             Page<EmailMessageDTO> result = emailMessageService.listByAccount(accountId, folderId, page, size);
             return ResponseEntity.ok(Map.of("success", true, "data", result));
@@ -54,10 +54,10 @@ public class EmailMessageController {
     }
 
     @GetMapping("/accounts/{accountId}/search")
-    public ResponseEntity<?> search(@PathVariable UUID accountId,
-            @RequestParam(required = false) String q,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "25") int size) {
+    public ResponseEntity<?> search(@PathVariable("accountId") UUID accountId,
+            @RequestParam(value = "q", required = false) String q,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "25") int size) {
         try {
             Page<EmailMessageDTO> result = emailMessageService.search(accountId, q, page, size);
             return ResponseEntity.ok(Map.of("success", true, "data", result));
@@ -68,7 +68,7 @@ public class EmailMessageController {
     }
 
     @GetMapping("/messages/{id}")
-    public ResponseEntity<?> getMessage(@PathVariable UUID id) {
+    public ResponseEntity<?> getMessage(@PathVariable("id") UUID id) {
         try {
             EmailMessageDTO message = emailMessageService.getMessageAndMarkRead(id);
             return ResponseEntity.ok(Map.of("success", true, "data", message));
@@ -79,7 +79,7 @@ public class EmailMessageController {
     }
 
     @PostMapping("/messages/{id}/read")
-    public ResponseEntity<?> markRead(@PathVariable UUID id, @RequestBody(required = false) Map<String, Object> body) {
+    public ResponseEntity<?> markRead(@PathVariable("id") UUID id, @RequestBody(required = false) Map<String, Object> body) {
         try {
             boolean read = body != null && body.containsKey("read")
                     ? Boolean.TRUE.equals(body.get("read"))
@@ -92,7 +92,7 @@ public class EmailMessageController {
     }
 
     @PostMapping("/messages/{id}/flag")
-    public ResponseEntity<?> toggleFlag(@PathVariable UUID id) {
+    public ResponseEntity<?> toggleFlag(@PathVariable("id") UUID id) {
         try {
             EmailMessageDTO message = emailMessageService.toggleFlag(id);
             return ResponseEntity.ok(Map.of("success", true, "data", message));
@@ -102,7 +102,7 @@ public class EmailMessageController {
     }
 
     @DeleteMapping("/messages/{id}")
-    public ResponseEntity<?> deleteMessage(@PathVariable UUID id) {
+    public ResponseEntity<?> deleteMessage(@PathVariable("id") UUID id) {
         try {
             emailMessageService.deleteMessage(id);
             return ResponseEntity.ok(Map.of("success", true, "message", "Mensagem excluída"));
@@ -111,8 +111,27 @@ public class EmailMessageController {
         }
     }
 
+    @PostMapping("/messages/{id}/move")
+    public ResponseEntity<?> moveMessage(@PathVariable("id") UUID id,
+            @RequestBody Map<String, Object> body) {
+        try {
+            Object folderIdRaw = body != null ? body.get("folderId") : null;
+            if (folderIdRaw == null) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Pasta de destino é obrigatória"));
+            }
+            UUID targetFolderId = UUID.fromString(String.valueOf(folderIdRaw));
+            EmailMessageDTO moved = emailMessageService.moveMessage(id, targetFolderId);
+            return ResponseEntity.ok(Map.of("success", true, "data", moved));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Erro ao mover mensagem {}: {}", id, e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/attachments/{attachmentId}/download")
-    public ResponseEntity<byte[]> downloadAttachment(@PathVariable UUID attachmentId) {
+    public ResponseEntity<byte[]> downloadAttachment(@PathVariable("attachmentId") UUID attachmentId) {
         try {
             EmailMessageAttachment att = emailMessageService.getAttachment(attachmentId);
             byte[] bytes = emailMessageService.readAttachmentBytes(att);

@@ -72,11 +72,11 @@ public class FeriasReportController {
     @Operation(summary = "RelatÃ³rio de fÃ©rias em Excel", description = "Gera relatÃ³rio detalhado de fÃ©rias em Excel")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
     public ResponseEntity<ByteArrayResource> generateFeriasExcelReport(
-            @RequestParam(required = false) UUID employeeId,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String tipo,
-            @RequestParam(required = false) LocalDate dataInicio,
-            @RequestParam(required = false) LocalDate dataFim) {
+            @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "tipo", required = false) String tipo,
+            @RequestParam(value = "dataInicio", required = false) LocalDate dataInicio,
+            @RequestParam(value = "dataFim", required = false) LocalDate dataFim) {
         
         try {
             log.info("Gerando relatÃ³rio Excel de fÃ©rias");
@@ -107,11 +107,11 @@ public class FeriasReportController {
     @Operation(summary = "RelatÃ³rio de afastamentos em Excel", description = "Gera relatÃ³rio detalhado de afastamentos em Excel")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
     public ResponseEntity<ByteArrayResource> generateAfastamentosExcelReport(
-            @RequestParam(required = false) UUID employeeId,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String tipo,
-            @RequestParam(required = false) LocalDate dataInicio,
-            @RequestParam(required = false) LocalDate dataFim) {
+            @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "tipo", required = false) String tipo,
+            @RequestParam(value = "dataInicio", required = false) LocalDate dataInicio,
+            @RequestParam(value = "dataFim", required = false) LocalDate dataFim) {
         
         try {
             log.info("Gerando relatÃ³rio Excel de afastamentos");
@@ -142,9 +142,9 @@ public class FeriasReportController {
     @Operation(summary = "RelatÃ³rio consolidado em Excel", description = "Gera relatÃ³rio consolidado de fÃ©rias e afastamentos em Excel")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
     public ResponseEntity<ByteArrayResource> generateConsolidadoExcelReport(
-            @RequestParam(required = false) UUID employeeId,
-            @RequestParam(required = false) LocalDate dataInicio,
-            @RequestParam(required = false) LocalDate dataFim) {
+            @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @RequestParam(value = "dataInicio", required = false) LocalDate dataInicio,
+            @RequestParam(value = "dataFim", required = false) LocalDate dataFim) {
         
         try {
             log.info("Gerando relatÃ³rio Excel consolidado");

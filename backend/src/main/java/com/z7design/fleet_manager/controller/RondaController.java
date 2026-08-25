@@ -37,10 +37,10 @@ public class RondaController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('RONDA_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
     public ResponseEntity<Page<RondaDTO>> getAllRondas(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "dataInicio") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDirection) {
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @RequestParam(value = "sortBy", defaultValue = "dataInicio") String sortBy,
+            @RequestParam(value = "sortDirection", defaultValue = "DESC") String sortDirection) {
         try {
             log.info("GET /api/rondas - pÃ¡gina: {}, tamanho: {}", page, size);
             Sort.Direction direction = sortDirection.equalsIgnoreCase("ASC") 
@@ -65,16 +65,16 @@ public class RondaController {
     @GetMapping("/search")
     @PreAuthorize("hasAnyAuthority('RONDA_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
     public ResponseEntity<Page<RondaDTO>> searchRondas(
-            @RequestParam(required = false) RondaStatus status,
-            @RequestParam(required = false) RondaTipo tipo,
-            @RequestParam(required = false) RondaPrioridade prioridade,
-            @RequestParam(required = false) UUID responsavelId,
-            @RequestParam(required = false) UUID localId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim,
-            @RequestParam(required = false) String searchTerm,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(value = "status", required = false) RondaStatus status,
+            @RequestParam(value = "tipo", required = false) RondaTipo tipo,
+            @RequestParam(value = "prioridade", required = false) RondaPrioridade prioridade,
+            @RequestParam(value = "responsavelId", required = false) UUID responsavelId,
+            @RequestParam(value = "localId", required = false) UUID localId,
+            @RequestParam(value = "dataInicio", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
+            @RequestParam(value = "dataFim", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim,
+            @RequestParam(value = "searchTerm", required = false) String searchTerm,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
         try {
             log.info("GET /api/rondas/search com filtros - status: {}, tipo: {}, prioridade: {}, searchTerm: {}", 
                     status, tipo, prioridade, searchTerm);
@@ -97,7 +97,7 @@ public class RondaController {
     
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('RONDA_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
-    public ResponseEntity<RondaDTO> getRondaById(@PathVariable UUID id) {
+    public ResponseEntity<RondaDTO> getRondaById(@PathVariable("id") UUID id) {
         try {
             log.info("GET /api/rondas/{}", id);
             RondaDTO ronda = rondaService.findById(id);
@@ -128,7 +128,7 @@ public class RondaController {
     
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('RONDA_WRITE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR')")
-    public ResponseEntity<RondaDTO> updateRonda(@PathVariable UUID id, @RequestBody CreateRondaDTO dto) {
+    public ResponseEntity<RondaDTO> updateRonda(@PathVariable("id") UUID id, @RequestBody CreateRondaDTO dto) {
         try {
             log.info("PUT /api/rondas/{} - atualizando ronda", id);
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -146,7 +146,7 @@ public class RondaController {
     
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('RONDA_DELETE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR')")
-    public ResponseEntity<Void> deleteRonda(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteRonda(@PathVariable("id") UUID id) {
         try {
             log.info("DELETE /api/rondas/{} - excluindo ronda", id);
             rondaService.delete(id);
@@ -162,7 +162,7 @@ public class RondaController {
     
     @PostMapping("/{id}/iniciar")
     @PreAuthorize("hasAnyAuthority('RONDA_WRITE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
-    public ResponseEntity<RondaDTO> iniciarRonda(@PathVariable UUID id) {
+    public ResponseEntity<RondaDTO> iniciarRonda(@PathVariable("id") UUID id) {
         try {
             log.info("POST /api/rondas/{}/iniciar", id);
             RondaDTO ronda = rondaService.iniciar(id);
@@ -179,7 +179,7 @@ public class RondaController {
     @PostMapping("/{id}/concluir")
     @PreAuthorize("hasAnyAuthority('RONDA_WRITE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
     public ResponseEntity<RondaDTO> concluirRonda(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) ConcluirRondaRequest request) {
         try {
             log.info("POST /api/rondas/{}/concluir", id);
@@ -198,7 +198,7 @@ public class RondaController {
     @PostMapping("/{id}/cancelar")
     @PreAuthorize("hasAnyAuthority('RONDA_WRITE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR')")
     public ResponseEntity<RondaDTO> cancelarRonda(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody CancelarRondaRequest request) {
         try {
             log.info("POST /api/rondas/{}/cancelar", id);
@@ -274,12 +274,12 @@ public class RondaController {
     @GetMapping("/relatorio")
     @PreAuthorize("hasAnyAuthority('RONDA_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
     public ResponseEntity<List<RondaDTO>> getRondasRelatorio(
-            @RequestParam(required = false) RondaStatus status,
-            @RequestParam(required = false) RondaTipo tipo,
-            @RequestParam(required = false) UUID responsavelId,
-            @RequestParam(required = false) UUID localId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
+            @RequestParam(value = "status", required = false) RondaStatus status,
+            @RequestParam(value = "tipo", required = false) RondaTipo tipo,
+            @RequestParam(value = "responsavelId", required = false) UUID responsavelId,
+            @RequestParam(value = "localId", required = false) UUID localId,
+            @RequestParam(value = "dataInicio", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
+            @RequestParam(value = "dataFim", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
         try {
             log.info("GET /api/rondas/relatorio com filtros - status: {}, tipo: {}", status, tipo);
             List<RondaDTO> relatorio = rondaService.getRondasRelatorio(

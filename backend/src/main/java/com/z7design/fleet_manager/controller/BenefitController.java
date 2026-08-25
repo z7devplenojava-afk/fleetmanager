@@ -85,7 +85,7 @@ public class BenefitController {
                     schema = @Schema(implementation = Benefit.class),
                     examples = @ExampleObject(value = "{\"id\": \"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"name\": \"Plano de SaÃºde Atualizado\", \"description\": \"Plano Unimed\", \"value\": 600.00, \"startDate\": \"2023-01-01\", \"endDate\": \"2024-12-31\"}")))
     @PutMapping("/{id}")
-    public ResponseEntity<Benefit> update(@PathVariable UUID id, @RequestBody Benefit benefit) {
+    public ResponseEntity<Benefit> update(@PathVariable("id") UUID id, @RequestBody Benefit benefit) {
         return ResponseEntity.ok(benefitService.update(id, benefit));
     }
     
@@ -99,7 +99,7 @@ public class BenefitController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         benefitService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -115,7 +115,7 @@ public class BenefitController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Benefit> findById(@PathVariable UUID id) {
+    public ResponseEntity<Benefit> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(benefitService.findById(id));
     }
     
@@ -128,7 +128,7 @@ public class BenefitController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<Benefit>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<Benefit>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         return ResponseEntity.ok(benefitService.findByEmployeeId(employeeId));
     }
     
@@ -141,7 +141,7 @@ public class BenefitController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/position/{positionId}")
-    public ResponseEntity<List<Benefit>> findByPositionId(@PathVariable UUID positionId) {
+    public ResponseEntity<List<Benefit>> findByPositionId(@PathVariable("positionId") UUID positionId) {
         return ResponseEntity.ok(benefitService.findByPositionId(positionId));
     }
     

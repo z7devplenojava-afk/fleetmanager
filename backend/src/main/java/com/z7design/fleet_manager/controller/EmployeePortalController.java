@@ -94,7 +94,7 @@ public class EmployeePortalController {
     @GetMapping("/payslips")
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<List<PayslipDTO>> getPayslips(@AuthenticationPrincipal User user,
-                                                       @RequestParam(defaultValue = "12") int months) {
+                                                       @RequestParam(value = "months", defaultValue = "12") int months) {
         Employee employee = employeeService.findByUserId(user.getId());
         LocalDate startDate = LocalDate.now().minusMonths(months);
         
@@ -109,7 +109,7 @@ public class EmployeePortalController {
     @GetMapping("/payslips/{payslipId}/download")
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<byte[]> downloadPayslip(@AuthenticationPrincipal User user,
-                                                 @PathVariable UUID payslipId) {
+                                                 @PathVariable("payslipId") UUID payslipId) {
         Employee employee = employeeService.findByUserId(user.getId());
         
         // Verificar se o holerite pertence ao funcionário
@@ -145,7 +145,7 @@ public class EmployeePortalController {
     @GetMapping("/documents/{documentId}/download")
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<byte[]> downloadDocument(@AuthenticationPrincipal User user,
-                                                   @PathVariable UUID documentId) {
+                                                   @PathVariable("documentId") UUID documentId) {
         Employee employee = employeeService.findByUserId(user.getId());
         
         // Verificar se o documento pertence ao funcionário
@@ -197,7 +197,7 @@ public class EmployeePortalController {
     @GetMapping("/trainings/expiring")
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<List<TrainingDTO>> getExpiringTrainings(@AuthenticationPrincipal User user,
-                                                                  @RequestParam(defaultValue = "90") int days) {
+                                                                  @RequestParam(value = "days", defaultValue = "90") int days) {
         Employee employee = employeeService.findByUserId(user.getId());
         LocalDate cutoffDate = LocalDate.now().plusDays(days);
         
@@ -212,7 +212,7 @@ public class EmployeePortalController {
     @PostMapping("/trainings/{trainingId}/confirm-participation")
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<Void> confirmTrainingParticipation(@AuthenticationPrincipal User user,
-                                                             @PathVariable UUID trainingId,
+                                                             @PathVariable("trainingId") UUID trainingId,
                                                              @RequestBody TrainingConfirmationDTO confirmation) {
         Employee employee = employeeService.findByUserId(user.getId());
         
@@ -269,7 +269,7 @@ public class EmployeePortalController {
     @PutMapping("/vacations/{vacationId}/cancel")
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<Void> cancelVacationRequest(@AuthenticationPrincipal User user,
-                                                      @PathVariable UUID vacationId) {
+                                                      @PathVariable("vacationId") UUID vacationId) {
         Employee employee = employeeService.findByUserId(user.getId());
         
         // Verificar se a solicitação pertence ao funcionário e pode ser cancelada
@@ -288,7 +288,7 @@ public class EmployeePortalController {
     @GetMapping("/notifications")
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<List<NotificationDTO>> getNotifications(@AuthenticationPrincipal User user,
-                                                                @RequestParam(defaultValue = "false") boolean unreadOnly) {
+                                                                @RequestParam(value = "unreadOnly", defaultValue = "false") boolean unreadOnly) {
         Employee employee = employeeService.findByUserId(user.getId());
         
         List<Notification> notifications = notificationService.findByEmployee(employee.getId(), unreadOnly);
@@ -302,7 +302,7 @@ public class EmployeePortalController {
     @PutMapping("/notifications/{notificationId}/read")
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<Void> markNotificationAsRead(@AuthenticationPrincipal User user,
-                                                     @PathVariable UUID notificationId) {
+                                                     @PathVariable("notificationId") UUID notificationId) {
         Employee employee = employeeService.findByUserId(user.getId());
         
         // Verificar se a notificação pertence ao funcionário

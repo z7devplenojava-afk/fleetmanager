@@ -10,7 +10,8 @@ import {
   StockReport,
   StockCategory,
   MovementType,
-  MovementReason
+  MovementReason,
+  ImportStockResult
 } from '@/types/stock';
 
 export const stockService = {
@@ -127,7 +128,46 @@ export const stockService = {
     }
   },
 
+  // ===== IMPORTAÇÃO EXCEL =====
+
+  async importExcel(file: File): Promise<ImportStockResult> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await api.post('/api/stock/import', formData, {
+        timeout: 120000
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Erro ao importar planilha de estoque:', error);
+      const backendErrors = error?.response?.data?.errors;
+      const detail = Array.isArray(backendErrors) && backendErrors.length > 0
+        ? backendErrors.join('; ')
+        : error?.response?.data?.message;
+      throw new Error(detail || 'Falha ao importar planilha');
+    }
+  },
+
   // ===== MOVIMENTAÇÕES =====
+
+  async deleteMovement(id: string): Promise<void> {
+    try {
+      await api.delete(`/api/stock/movements/${id}`);
+    } catch (error) {
+      console.error('Erro ao excluir movimentação:', error);
+      throw new Error('Falha ao excluir movimentação');
+    }
+  },
+
+  async deleteMovements(ids: string[]): Promise<{ deleted: number; requested?: number }> {
+    try {
+      const response = await api.post('/api/stock/movements/bulk-delete', ids);
+      return response.data || { deleted: 0 };
+    } catch (error) {
+      console.error('Erro ao excluir movimentações em lote:', error);
+      throw new Error('Falha ao excluir movimentações');
+    }
+  },
 
   async createMovement(movementData: CreateStockMovementDTO): Promise<StockMovement> {
     try {

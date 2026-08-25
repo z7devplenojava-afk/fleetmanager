@@ -9,22 +9,28 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PurchaseRequest } from '@/services/purchaseRequestService';
-import { FileText, User, Building2, Calendar, DollarSign, CheckCircle, X, Download, Printer, Loader2 } from 'lucide-react';
+import { FileText, User, Building2, Calendar, DollarSign, CheckCircle, X, Download, Printer, Loader2, Package, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+// Lazy import para evitar ciclo de dependência com QuotationFormModal
+const QuotationFormModal = React.lazy(() => import('@/components/QuotationFormModal'));
 
 interface PurchaseRequestViewModalProps {
   isOpen: boolean;
   onClose: () => void;
   request: PurchaseRequest | undefined;
+  onQuotationCreated?: () => void;
 }
 
 export function PurchaseRequestViewModal({
   isOpen,
   onClose,
   request,
+  onQuotationCreated,
 }: PurchaseRequestViewModalProps) {
   const { toast } = useToast();
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
 
   if (!request) return null;
 
@@ -320,6 +326,8 @@ export function PurchaseRequestViewModal({
     window.print();
   };
 
+  const canRequestQuotation = !['CANCELLED', 'REJECTED', 'COMPLETED'].includes(request.status);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-seguranca-graphite border-gray-600">
@@ -412,6 +420,66 @@ export function PurchaseRequestViewModal({
               )}
             </CardContent>
           </Card>
+
+          {/* Itens da Solicitação */}
+          {(request.items && request.items.length > 0) && (
+            <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg text-seguranca-lightgray flex items-center gap-2">
+                  <div className="p-1.5 bg-seguranca-red/20 rounded-lg">
+                    <Package className="h-5 w-5 text-seguranca-red" />
+                  </div>
+                  Itens da Solicitação
+                  <Badge className="ml-2 bg-seguranca-red/20 text-seguranca-red border border-seguranca-red/30">
+                    {request.items.length} {request.items.length === 1 ? 'item' : 'itens'}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs uppercase text-gray-400 border-b border-gray-600">
+                        <th className="py-2 pr-3">Peça / Item</th>
+                        <th className="py-2 pr-3 text-center w-20">Qtd</th>
+                        <th className="py-2 pr-3 text-right w-28">Unitário</th>
+                        <th className="py-2 pr-3 text-right w-28">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700/60">
+                      {request.items.map((item, idx) => (
+                        <tr key={item.id || idx} className="hover:bg-seguranca-black/30 transition-colors">
+                          <td className="py-2 pr-3">
+                            <div className="text-seguranca-lightgray font-medium">{item.itemName}</div>
+                            {item.specification && (
+                              <div className="text-xs text-gray-400 mt-0.5">{item.specification}</div>
+                            )}
+                          </td>
+                          <td className="py-2 pr-3 text-center text-seguranca-lightgray">
+                            {typeof item.quantity === 'number' ? item.quantity : Number(item.quantity || 0)}
+                          </td>
+                          <td className="py-2 pr-3 text-right text-gray-300">
+                            {formatCurrency(item.unitPrice || 0)}
+                          </td>
+                          <td className="py-2 pr-3 text-right font-mono text-seguranca-lightgray font-semibold">
+                            {formatCurrency(item.totalPrice || 0)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-gray-600">
+                        <td colSpan={3} className="py-2 pr-3 text-right text-gray-400 font-medium">Total estimado</td>
+                        <td className="py-2 pr-3 text-right font-mono font-bold text-seguranca-lightgray">
+                          {formatCurrency(request.totalValue || request.estimatedTotal || 0)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Solicitante e Departamento */}
           <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
@@ -536,6 +604,15 @@ export function PurchaseRequestViewModal({
         <div className="flex justify-between items-center pt-4 mt-6 border-t border-gray-600">
           <div className="flex gap-2">
             <Button
+              onClick={() => setIsQuotationModalOpen(true)}
+              disabled={!canRequestQuotation}
+              title={!canRequestQuotation ? "Não é possível cotar uma solicitação cancelada, rejeitada ou concluída" : "Criar cotação para esta solicitação"}
+              className="bg-seguranca-red hover:bg-red-700 text-white"
+            >
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              Nova Cotação
+            </Button>
+            <Button
               variant="outline"
               onClick={handleGeneratePDF}
               disabled={isGeneratingPDF}
@@ -572,6 +649,17 @@ export function PurchaseRequestViewModal({
         </div>
       </DialogContent>
     </Dialog>
+
+      {/* Modal Nova Cotação — abre com a solicitação já selecionada */}
+      {isQuotationModalOpen && request && (
+        <React.Suspense fallback={null}>
+          <QuotationFormModal
+            initialPurchaseRequestId={request.id}
+            onClose={() => setIsQuotationModalOpen(false)}
+            onCreated={() => onQuotationCreated?.()}
+          />
+        </React.Suspense>
+      )}
   );
 }
 

@@ -22,7 +22,7 @@ public class EmailConfigController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<EmailConfig> getConfigById(@PathVariable UUID id) {
+    public ResponseEntity<EmailConfig> getConfigById(@PathVariable("id") UUID id) {
         return emailConfigService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -34,7 +34,7 @@ public class EmailConfigController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<EmailConfig> updateConfig(@PathVariable UUID id, @RequestBody EmailConfig config) {
+    public ResponseEntity<EmailConfig> updateConfig(@PathVariable("id") UUID id, @RequestBody EmailConfig config) {
         if (!emailConfigService.findById(id).isPresent()) {
             return ResponseEntity.notFound().build();
         }
@@ -43,7 +43,7 @@ public class EmailConfigController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteConfig(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteConfig(@PathVariable("id") UUID id) {
         if (!emailConfigService.findById(id).isPresent()) {
             return ResponseEntity.notFound().build();
         }

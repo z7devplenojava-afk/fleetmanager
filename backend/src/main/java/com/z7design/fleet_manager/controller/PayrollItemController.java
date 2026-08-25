@@ -23,7 +23,7 @@ public class PayrollItemController {
 
     @GetMapping("/closure/{payrollClosureId}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE', 'PAYROLL_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getItemsByClosure(@PathVariable UUID payrollClosureId) {
+    public ResponseEntity<?> getItemsByClosure(@PathVariable("payrollClosureId") UUID payrollClosureId) {
         try {
             List<PayrollItem> items = payrollItemService.getItemsByClosure(payrollClosureId);
             return ResponseEntity.ok(Map.of(
@@ -42,7 +42,7 @@ public class PayrollItemController {
 
     @GetMapping("/employee/{employeeId}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE', 'PAYROLL_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getItemsByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<?> getItemsByEmployee(@PathVariable("employeeId") UUID employeeId) {
         try {
             List<PayrollItem> items = payrollItemService.getItemsByEmployee(employeeId);
             return ResponseEntity.ok(Map.of(
@@ -61,7 +61,7 @@ public class PayrollItemController {
 
     @GetMapping("/closure/{payrollClosureId}/summary")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE', 'PAYROLL_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getClosureSummary(@PathVariable UUID payrollClosureId) {
+    public ResponseEntity<?> getClosureSummary(@PathVariable("payrollClosureId") UUID payrollClosureId) {
         try {
             BigDecimal totalEarnings = payrollItemService.calculateTotalEarnings(payrollClosureId);
             BigDecimal totalDeductions = payrollItemService.calculateTotalDeductions(payrollClosureId);
@@ -87,8 +87,8 @@ public class PayrollItemController {
     @PostMapping("/closure/{payrollClosureId}/regenerate")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> regenerateItems(
-            @PathVariable UUID payrollClosureId,
-            @RequestParam(required = false) BigDecimal hourlyRate) {
+            @PathVariable("payrollClosureId") UUID payrollClosureId,
+            @RequestParam(value = "hourlyRate", required = false) BigDecimal hourlyRate) {
         try {
             // Se nÃ£o fornecido, serÃ¡ calculado no service
             List<PayrollItem> items = payrollItemService.generateItemsFromClosure(

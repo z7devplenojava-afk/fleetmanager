@@ -101,6 +101,9 @@ public class MeasurementItem {
     @Column(name = "vehicle_type")
     private String vehicleType;
 
+    @Column(name = "observations", length = 500)
+    private String observations;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bulletin_id", nullable = false)
     private MeasurementBulletin bulletin;

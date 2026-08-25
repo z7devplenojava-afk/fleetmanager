@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -25,12 +26,13 @@ public class EmployeeExcelImportService {
 
     private final EmployeeService employeeService;
     private final CompanyRepository companyRepository;
+    private final com.z7design.fleet_manager.repository.EmployeeRepository employeeRepository;
 
-    // Mapeamento de colunas possÃ­veis da planilha para campos da entidade
+    // Mapeamento de colunas possíveis da planilha para campos da entidade
     private static final Map<String, String> COLUMN_MAPPING = new HashMap<>();
 
     static {
-        // InformaÃ§Ãµes bÃ¡sicas
+        // Informações básicas
         COLUMN_MAPPING.put("nome", "name");
         COLUMN_MAPPING.put("nome completo", "name");
         COLUMN_MAPPING.put("name", "name");
@@ -50,25 +52,25 @@ public class EmployeeExcelImportService {
         COLUMN_MAPPING.put("sexo", "sexo");
         COLUMN_MAPPING.put("genero", "sexo");
         COLUMN_MAPPING.put("municipio nascimento", "municipioNascimento");
-        COLUMN_MAPPING.put("municÃ­pio nascimento", "municipioNascimento");
+        COLUMN_MAPPING.put("município nascimento", "municipioNascimento");
         COLUMN_MAPPING.put("cidade nascimento", "municipioNascimento");
         COLUMN_MAPPING.put("estado nascimento", "estadoNascimento");
         COLUMN_MAPPING.put("uf nascimento", "estadoNascimento");
         COLUMN_MAPPING.put("grau instrucao", "grauInstrucao");
         COLUMN_MAPPING.put("escolaridade", "grauInstrucao");
         COLUMN_MAPPING.put("matricula esocial", "matriculaEsocial");
-        COLUMN_MAPPING.put("matrÃ­cula esocial", "matriculaEsocial");
+        COLUMN_MAPPING.put("matrícula esocial", "matriculaEsocial");
         COLUMN_MAPPING.put("matricula e social", "matriculaEsocial");
-        COLUMN_MAPPING.put("matrÃ­cula e social", "matriculaEsocial");
+        COLUMN_MAPPING.put("matrícula e social", "matriculaEsocial");
         COLUMN_MAPPING.put("matricula", "matriculaEsocial");
 
-        // EndereÃ§o
+        // Endereço
         COLUMN_MAPPING.put("endereco", "enderecoRua");
-        COLUMN_MAPPING.put("endereÃ§o", "enderecoRua");
+        COLUMN_MAPPING.put("endereço", "enderecoRua");
         COLUMN_MAPPING.put("rua", "enderecoRua");
         COLUMN_MAPPING.put("logradouro", "enderecoRua");
         COLUMN_MAPPING.put("numero", "enderecoNumero");
-        COLUMN_MAPPING.put("nÃºmero", "enderecoNumero");
+        COLUMN_MAPPING.put("número", "enderecoNumero");
         COLUMN_MAPPING.put("complemento", "enderecoComplemento");
         COLUMN_MAPPING.put("bairro", "enderecoBairro");
         COLUMN_MAPPING.put("cidade", "enderecoCidade");
@@ -79,10 +81,10 @@ public class EmployeeExcelImportService {
 
         // Dados profissionais
         COLUMN_MAPPING.put("data admissao", "hireDate");
-        COLUMN_MAPPING.put("data de admissÃ£o", "hireDate");
+        COLUMN_MAPPING.put("data de admissão", "hireDate");
         COLUMN_MAPPING.put("admissao", "hireDate");
         COLUMN_MAPPING.put("matricula", "registrationNumber");
-        COLUMN_MAPPING.put("matrÃ­cula", "registrationNumber");
+        COLUMN_MAPPING.put("matrícula", "registrationNumber");
         COLUMN_MAPPING.put("status", "status");
         COLUMN_MAPPING.put("situacao", "status");
 
@@ -91,16 +93,56 @@ public class EmployeeExcelImportService {
         COLUMN_MAPPING.put("pai", "nomePai");
         COLUMN_MAPPING.put("nome mae", "nomeMae");
         COLUMN_MAPPING.put("mae", "nomeMae");
-        COLUMN_MAPPING.put("mÃ£e", "nomeMae");
+        COLUMN_MAPPING.put("mãe", "nomeMae");
 
         // Estado civil
         COLUMN_MAPPING.put("estado civil", "maritalStatus");
         COLUMN_MAPPING.put("nacionalidade", "nationality");
+
+        // Benefícios
+        COLUMN_MAPPING.put("mensalidade do plano de saude", "mensalidadePlanoSaude");
+        COLUMN_MAPPING.put("mensalidade plano saude", "mensalidadePlanoSaude");
+        COLUMN_MAPPING.put("plano de saude", "mensalidadePlanoSaude");
+        COLUMN_MAPPING.put("coparticipacao", "coparticipacaoSaude");
+        COLUMN_MAPPING.put("co-participacao", "coparticipacaoSaude");
+        COLUMN_MAPPING.put("plano odontologico", "planoOdontologico");
+        COLUMN_MAPPING.put("odontologico", "planoOdontologico");
+        COLUMN_MAPPING.put("odonto", "planoOdontologico");
+        COLUMN_MAPPING.put("vale transporte", "valeTransporte");
+        COLUMN_MAPPING.put("vt", "valeTransporte");
+
+        // Descontos
+        COLUMN_MAPPING.put("desconto de multas", "descontoMultas");
+        COLUMN_MAPPING.put("desconto multas", "descontoMultas");
+        COLUMN_MAPPING.put("multas", "descontoMultas");
+        COLUMN_MAPPING.put("desconto de avarias", "descontoAvarias");
+        COLUMN_MAPPING.put("desconto avarias", "descontoAvarias");
+        COLUMN_MAPPING.put("avarias", "descontoAvarias");
+        COLUMN_MAPPING.put("vale", "valeAdiantamento");
+        COLUMN_MAPPING.put("adiantamento", "valeAdiantamento");
+
+        // Horas extras e adicional noturno
+        COLUMN_MAPPING.put("adicional noturno", "adicionalNoturno");
+        COLUMN_MAPPING.put("noturno", "adicionalNoturno");
+        COLUMN_MAPPING.put("horas extras 50", "horasExtras50");
+        COLUMN_MAPPING.put("he 50", "horasExtras50");
+        COLUMN_MAPPING.put("horas extras 60", "horasExtras60");
+        COLUMN_MAPPING.put("he 60", "horasExtras60");
+        COLUMN_MAPPING.put("horas extras 100", "horasExtras100");
+        COLUMN_MAPPING.put("he 100", "horasExtras100");
+
+        // Status / afastamento / demissão
+        COLUMN_MAPPING.put("afastamento", "afastamento");
+        COLUMN_MAPPING.put("demissao", "demissao");
+        COLUMN_MAPPING.put("demissão", "demissao");
+        COLUMN_MAPPING.put("data demissao", "demissao");
+        COLUMN_MAPPING.put("data desligamento", "demissao");
+        COLUMN_MAPPING.put("data rescisao", "demissao");
     }
 
     @Transactional
     public ImportResult importEmployees(MultipartFile file) {
-        log.info("ðŸ“¥ Iniciando importaÃ§Ã£o de funcionÃ¡rios do Excel: {}", file.getOriginalFilename());
+        log.info("📥 Iniciando importação de funcionários do Excel: {}", file.getOriginalFilename());
 
         ImportResult result = new ImportResult();
 
@@ -113,7 +155,7 @@ public class EmployeeExcelImportService {
 
             if (!file.getOriginalFilename().endsWith(".xlsx") &&
                     !file.getOriginalFilename().endsWith(".xls")) {
-                result.addError("Apenas arquivos Excel (.xlsx ou .xls) sÃ£o aceitos");
+                result.addError("Apenas arquivos Excel (.xlsx ou .xls) são aceitos");
                 return result;
             }
 
@@ -127,18 +169,18 @@ public class EmployeeExcelImportService {
                 return result;
             }
 
-            // Encontrar linha do cabeÃ§alho (nem sempre Ã© a primeira linha)
+            // Encontrar linha do cabeçalho (nem sempre é a primeira linha)
             int headerRowIndex = findHeaderRow(sheet);
             if (headerRowIndex < 0) {
                 result.addError(
-                        "CabeÃ§alho nÃ£o encontrado na planilha. Verifique se a linha contÃ©m os nomes das colunas.");
+                        "Cabeçalho não encontrado na planilha. Verifique se a linha contém os nomes das colunas.");
                 workbook.close();
                 return result;
             }
 
             Row headerRow = sheet.getRow(headerRowIndex);
             if (headerRow == null) {
-                result.addError("CabeÃ§alho nÃ£o encontrado na planilha");
+                result.addError("Cabeçalho não encontrado na planilha");
                 workbook.close();
                 return result;
             }
@@ -147,23 +189,23 @@ public class EmployeeExcelImportService {
             int companyCnpjColumnIndex = -1;
             String fixedCompanyCnpj = null;
 
-            // Mapear colunas do cabeÃ§alho
+            // Mapear colunas do cabeçalho
             for (int i = 0; i < headerRow.getLastCellNum(); i++) {
                 Cell cell = headerRow.getCell(i);
                 if (cell != null) {
                     String columnName = getCellValueAsString(cell).toLowerCase().trim();
 
-                    // Verificar se Ã© coluna de empresa (CNPJ)
+                    // Verificar se é coluna de empresa (CNPJ)
                     if (columnName.contains("cnpj") && columnName.contains("empresa")) {
                         companyCnpjColumnIndex = i;
-                        log.info("ðŸ“‹ Coluna CNPJ da empresa encontrada na coluna: {}", i);
+                        log.info("📋 Coluna CNPJ da empresa encontrada na coluna: {}", i);
                     }
 
-                    // Mapear colunas de funcionÃ¡rio
+                    // Mapear colunas de funcionário
                     for (Map.Entry<String, String> entry : COLUMN_MAPPING.entrySet()) {
                         if (columnName.contains(entry.getKey())) {
                             columnIndexMap.put(entry.getValue(), i);
-                            log.debug("ðŸ“‹ Coluna '{}' mapeada para campo '{}' na posiÃ§Ã£o {}",
+                            log.debug("📋 Coluna '{}' mapeada para campo '{}' na posição {}",
                                     columnName, entry.getValue(), i);
                         }
                     }
@@ -175,11 +217,11 @@ public class EmployeeExcelImportService {
                 fixedCompanyCnpj = findCompanyCnpjInSheet(sheet, headerRowIndex);
                 if (fixedCompanyCnpj == null || fixedCompanyCnpj.isEmpty()) {
                     result.addError(
-                            "Coluna 'CNPJ Empresa' nÃ£o encontrada na planilha. Ã‰ necessÃ¡rio uma coluna contendo o CNPJ da empresa.");
+                            "Coluna 'CNPJ Empresa' não encontrada na planilha. É necessário uma coluna contendo o CNPJ da empresa.");
                     workbook.close();
                     return result;
                 }
-                log.info("ðŸ“‹ CNPJ da empresa encontrado no cabeÃ§alho: {}", fixedCompanyCnpj);
+                log.info("📋 CNPJ da empresa encontrado no cabeçalho: {}", fixedCompanyCnpj);
             }
 
             // Buscar empresa do primeiro registro (todos devem ser da mesma empresa)
@@ -199,14 +241,14 @@ public class EmployeeExcelImportService {
             }
 
             if (companyCnpj == null || companyCnpj.trim().isEmpty()) {
-                result.addError("CNPJ da empresa nÃ£o encontrado na primeira linha de dados");
+                result.addError("CNPJ da empresa não encontrado na primeira linha de dados");
                 workbook.close();
                 return result;
             }
 
-            // Normalizar CNPJ (remover caracteres nÃ£o numÃ©ricos)
+            // Normalizar CNPJ (remover caracteres não numéricos)
             String normalizedCnpj = companyCnpj.replaceAll("[^0-9]", "");
-            log.info("ðŸ” Buscando empresa com CNPJ normalizado: {}", normalizedCnpj);
+            log.info("🔎 Buscando empresa com CNPJ normalizado: {}", normalizedCnpj);
 
             // Buscar empresa no banco
             List<Company> companies = companyRepository.findByNormalizedCnpj(normalizedCnpj);
@@ -221,12 +263,12 @@ public class EmployeeExcelImportService {
             }
 
             Company company = companies.get(0);
-            log.info("âœ… Empresa encontrada: {} (ID: {}, Sigla: {})",
+            log.info("✅ Empresa encontrada: {} (ID: {}, Sigla: {})",
                     company.getName(), company.getId(), company.getSigla());
 
             // Processar linhas de dados
             int totalRows = sheet.getPhysicalNumberOfRows();
-            log.info("ðŸ“Š Processando {} linhas de dados", totalRows - (headerRowIndex + 1));
+            log.info("📊 Processando {} linhas de dados", totalRows - (headerRowIndex + 1));
 
             for (int rowIndex = headerRowIndex + 1; rowIndex < totalRows; rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
@@ -238,7 +280,7 @@ public class EmployeeExcelImportService {
                     if (isRowEmpty(row))
                         continue;
 
-                    // Validar se o CNPJ da empresa Ã© o mesmo (quando existe coluna de CNPJ)
+                    // Validar se o CNPJ da empresa é o mesmo (quando existe coluna de CNPJ)
                     if (companyCnpjColumnIndex != -1) {
                         Cell rowCnpjCell = row.getCell(companyCnpjColumnIndex);
                         String rowCnpj = getCellValueAsString(rowCnpjCell);
@@ -251,32 +293,37 @@ public class EmployeeExcelImportService {
                         }
                     }
 
-                    // Criar DTO do funcionÃ¡rio a partir da linha
+                    // Criar DTO do funcionário a partir da linha
                     EmployeeDTO employeeDTO = createEmployeeDTOFromRow(row, columnIndexMap, company);
 
-                    // Validar campos obrigatÃ³rios
+                    // Validar campos obrigatórios
                     if (employeeDTO.getName() == null || employeeDTO.getName().trim().isEmpty()) {
-                        result.addWarning("Linha " + (rowIndex + 1) + ": Nome nÃ£o informado. Ignorando linha.");
+                        result.addWarning("Linha " + (rowIndex + 1) + ": Nome não informado. Ignorando linha.");
                         continue;
                     }
 
-                    if (employeeDTO.getCpf() == null || employeeDTO.getCpf().trim().isEmpty()) {
-                        result.addWarning("Linha " + (rowIndex + 1) + ": CPF nÃ£o informado. Ignorando linha.");
-                        continue;
+                    // Busca multi-tenant: CPF + empresa, ou Nome + empresa
+                    Optional<Employee> existingEmployee = Optional.empty();
+                    if (employeeDTO.getCpf() != null && !employeeDTO.getCpf().isBlank()) {
+                        String normalizedCpf = employeeDTO.getCpf().replaceAll("[^0-9]", "");
+                        existingEmployee = employeeRepository.findByCpfAndCompanyId(normalizedCpf, company.getId());
+                        if (existingEmployee.isEmpty()) {
+                            // fallback global (sem filtro de empresa) para evitar duplicata cross-tenant
+                            existingEmployee = employeeRepository.findByCpf(normalizedCpf);
+                        }
                     }
-
-                    // Verificar se funcionÃ¡rio jÃ¡ existe (por CPF)
-                    String normalizedCpf = employeeDTO.getCpf().replaceAll("[^0-9]", "");
-                    Optional<Employee> existingEmployee = employeeService.findByCpfExact(normalizedCpf);
+                    if (existingEmployee.isEmpty()) {
+                        existingEmployee = employeeRepository.findByNameExactAndCompanyId(
+                                employeeDTO.getName().trim(), company.getId());
+                    }
 
                     if (existingEmployee.isPresent()) {
-                        log.info("âš ï¸ FuncionÃ¡rio jÃ¡ existe (CPF: {}). Atualizando...", normalizedCpf);
-                        // Atualizar funcionÃ¡rio existente
+                        log.info("⚠️ Funcionário já existe (id={}). Atualizando...", existingEmployee.get().getId());
                         employeeDTO.setId(existingEmployee.get().getId());
                         employeeService.update(existingEmployee.get().getId(), employeeDTO);
                         result.incrementUpdated();
                     } else {
-                        // Criar novo funcionÃ¡rio
+                        // Criar novo funcionário
                         employeeService.create(employeeDTO);
                         result.incrementCreated();
                     }
@@ -406,6 +453,68 @@ public class EmployeeExcelImportService {
                     case "nationality":
                         dto.setNationality(cellValue.trim());
                         break;
+
+                    // ---- Benefícios e Descontos ----
+                    case "mensalidadePlanoSaude":
+                        dto.setMensalidadePlanoSaude(parseDecimal(cellValue));
+                        break;
+                    case "coparticipacaoSaude":
+                        dto.setCoparticipacaoSaude(parseDecimal(cellValue));
+                        break;
+                    case "planoOdontologico":
+                        dto.setPlanoOdontologico(parseDecimal(cellValue));
+                        break;
+                    case "valeTransporte":
+                        dto.setValeTransporte(parseDecimal(cellValue));
+                        break;
+                    case "descontoMultas":
+                        dto.setDescontoMultas(parseDecimal(cellValue));
+                        break;
+                    case "descontoAvarias":
+                        dto.setDescontoAvarias(parseDecimal(cellValue));
+                        break;
+                    case "valeAdiantamento":
+                        dto.setValeAdiantamento(parseDecimal(cellValue));
+                        break;
+                    case "adicionalNoturno":
+                        dto.setAdicionalNoturno(parseDecimal(cellValue));
+                        break;
+                    case "horasExtras50":
+                        dto.setHorasExtras50(parseDecimal(cellValue));
+                        break;
+                    case "horasExtras60":
+                        dto.setHorasExtras60(parseDecimal(cellValue));
+                        break;
+                    case "horasExtras100":
+                        dto.setHorasExtras100(parseDecimal(cellValue));
+                        break;
+
+                    // ---- Afastamento ----
+                    case "afastamento": {
+                        LocalDate afastData = parseDate(cellValue);
+                        if (afastData != null) {
+                            dto.setAfastamentoData(afastData);
+                            dto.setStatus("SUSPENDED");
+                            dto.setAfastamentoMotivo("Afastamento importado via planilha");
+                        } else if (!cellValue.trim().isEmpty()) {
+                            dto.setAfastamentoMotivo(cellValue.trim());
+                            dto.setStatus("SUSPENDED");
+                        }
+                        break;
+                    }
+
+                    // ---- Demissão ----
+                    case "demissao": {
+                        LocalDate demissaoData = parseDate(cellValue);
+                        if (demissaoData != null) {
+                            dto.setTerminationDate(demissaoData);
+                            dto.setDataRescisao(demissaoData);
+                            dto.setStatus("TERMINATED");
+                        } else if (!cellValue.trim().isEmpty()) {
+                            dto.setStatus("TERMINATED");
+                        }
+                        break;
+                    }
                 }
             } catch (Exception e) {
                 log.warn("âš ï¸ Erro ao mapear campo '{}' com valor '{}': {}", fieldName, cellValue, e.getMessage());
@@ -491,12 +600,29 @@ public class EmployeeExcelImportService {
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern(format);
                 return LocalDate.parse(dateStr.trim(), formatter);
             } catch (DateTimeParseException e) {
-                // Tentar prÃ³ximo formato
+                // Tentar próximo formato
             }
         }
 
-        log.warn("âš ï¸ NÃ£o foi possÃ­vel fazer parse da data: {}", dateStr);
+        log.warn("⚠️ Não foi possível fazer parse da data: {}", dateStr);
         return null;
+    }
+
+    private BigDecimal parseDecimal(String value) {
+        if (value == null || value.trim().isEmpty()) return null;
+        try {
+            String v = value.trim().replaceAll("[^0-9,.]", "");
+            if (v.contains(",") && v.contains(".")) {
+                // pt-BR: 1.234,56 → remove ponto de milhar, troca vírgula por ponto
+                v = v.replace(".", "").replace(",", ".");
+            } else if (v.contains(",")) {
+                v = v.replace(",", ".");
+            }
+            return new BigDecimal(v);
+        } catch (NumberFormatException e) {
+            log.warn("⚠️ Não foi possível converter para decimal: {}", value);
+            return null;
+        }
     }
 
     private String normalizeSexo(String sexo) {

@@ -50,7 +50,7 @@ public class TaskController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TaskDTO> getById(@PathVariable String id) {
+    public ResponseEntity<TaskDTO> getById(@PathVariable("id") String id) {
         Optional<Task> task = taskService.findById(UUID.fromString(id));
         return task.map(t -> ResponseEntity.ok(toDTO(t))).orElse(ResponseEntity.notFound().build());
     }
@@ -63,7 +63,7 @@ public class TaskController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<TaskDTO> update(@PathVariable String id, @Valid @RequestBody TaskDTO dto) {
+    public ResponseEntity<TaskDTO> update(@PathVariable("id") String id, @Valid @RequestBody TaskDTO dto) {
         if (!taskService.findById(UUID.fromString(id)).isPresent()) {
             return ResponseEntity.notFound().build();
         }
@@ -74,7 +74,7 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         if (!taskService.findById(UUID.fromString(id)).isPresent()) {
             return ResponseEntity.notFound().build();
         }

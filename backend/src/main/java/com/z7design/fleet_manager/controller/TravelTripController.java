@@ -27,17 +27,17 @@ public class TravelTripController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TravelTrip> getById(@PathVariable UUID id) {
+    public ResponseEntity<TravelTrip> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(service.findById(id));
     }
 
     @GetMapping("/type/{type}")
-    public List<TravelTrip> getByType(@PathVariable TravelTrip.TripType type) {
+    public List<TravelTrip> getByType(@PathVariable("type") TravelTrip.TripType type) {
         return service.findByType(type);
     }
 
     @GetMapping("/client/{clientId}")
-    public List<TravelTrip> getByClient(@PathVariable UUID clientId) {
+    public List<TravelTrip> getByClient(@PathVariable("clientId") UUID clientId) {
         return service.findByClient(clientId);
     }
 
@@ -47,12 +47,12 @@ public class TravelTripController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<TravelTrip> update(@PathVariable UUID id, @RequestBody TravelTrip trip) {
+    public ResponseEntity<TravelTrip> update(@PathVariable("id") UUID id, @RequestBody TravelTrip trip) {
         return ResponseEntity.ok(service.update(id, trip));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

@@ -53,7 +53,8 @@ import {
   DoorOpen,
   Ticket,
   Armchair,
-  Droplets
+  Droplets,
+  Ruler
 } from 'lucide-react';
 import {
   Sidebar,
@@ -144,6 +145,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-checklist-cliente',
     'gestao-limpeza',
+    'lavajato',
     'mobilizacao-transportes',
     'filiais',
     'relatorios',
@@ -155,6 +157,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'chat-interno',
     'compras',
     'operacional-servicos',
+    'operacional-medicao',
     'supervisao',
     'ticketing-booking',
     'ticketing-templates',
@@ -163,6 +166,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
   SUPERVISOR: new Set([
     'dashboard',
     'operacional',
+    'operacional-medicao',
     'funcionarios',
     'postos',
     'rh-controle-horas',
@@ -178,6 +182,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-checklist-cliente',
     'gestao-limpeza',
+    'lavajato',
     'mobilizacao-transportes',
     'relatorios',
     'mensagens',
@@ -190,6 +195,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
   GESTOR: new Set([
     'dashboard',
     'operacional',
+    'operacional-medicao',
     'funcionarios',
     'postos',
     'rh-controle-horas',
@@ -202,6 +208,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'pneus',
     'gestao-portaria',
     'gestao-limpeza',
+    'lavajato',
     'mobilizacao-transportes',
     'relatorios',
     'supervisao',
@@ -212,6 +219,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
   OPERACIONAL: new Set([
     'dashboard',
     'operacional',
+    'operacional-medicao',
     'postos',
     'frota',
     'manutencao',
@@ -219,6 +227,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'frota-os',
     'gestao-portaria',
     'gestao-limpeza',
+    'lavajato',
     'mobilizacao-transportes',
     'supervisao',
   ]),
@@ -346,6 +355,14 @@ export function DynamicSidebar() {
       to: '/operacional?tab=servicos',
       id: 'operacional-servicos',
       requiredPermission: 'CONTRACTS_READ'
+    },
+    {
+      icon: Ruler,
+      text: 'Medição',
+      to: '/operacional/medicao',
+      id: 'operacional-medicao',
+      requiredPermission: 'CONTRACTS_READ',
+      color: 'text-seguranca-yellow'
     },
 
     // ===== SUPERVISÃO DENTRO DO OPERACIONAL =====
@@ -623,6 +640,13 @@ export function DynamicSidebar() {
       text: 'Gestão de Limpeza',
       to: '/manutencao/limpeza',
       id: 'gestao-limpeza',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
+    {
+      icon: Droplets,
+      text: 'Lavajato',
+      to: '/manutencao/lavajato',
+      id: 'lavajato',
       requiredPermission: 'EQUIPMENTS_READ'
     },
     {
@@ -907,13 +931,13 @@ export function DynamicSidebar() {
         ['modulo-financeiro', 'gestao-financeira-dashboard', 'gestao-financeira-contas-pagar', 'gestao-financeira-contas-receber', 'gestao-financeira-fluxo-caixa', 'gestao-financeira-movimentacoes', 'gestao-financeira-conciliacao', 'gestao-financeira-relatorios', 'gestao-financeira-orcamento', 'gestao-financeira-centros-custo'].includes(item.id)
       ),
       operacional: filteredItems.filter(item =>
-        ['servicos', 'controle-visitas-avancado', 'rota-semanal-supervisao', 'equipamentos', 'troca-plantao', 'supervisao', 'facial-login', 'supervisao-visitas', 'supervisao-rotas', 'supervisao-relatorios', 'supervisao-biometria'].includes(item.id)
+        ['servicos', 'operacional-medicao', 'controle-visitas-avancado', 'rota-semanal-supervisao', 'equipamentos', 'troca-plantao', 'supervisao', 'facial-login', 'supervisao-visitas', 'supervisao-rotas', 'supervisao-relatorios', 'supervisao-biometria'].includes(item.id)
       ),
       empresas: filteredItems.filter(item =>
         ['empresas', 'filiais', 'clientes', 'fornecedores'].includes(item.id)
       ),
       comercial: filteredItems.filter(item =>
-        ['leads', 'propostas', 'orcamentos', 'contratos', 'crm'].includes(item.id)
+        ['leads', 'propostas', 'orcamentos', 'contratos', 'crm', 'prospeccao'].includes(item.id)
       ),
       compras: filteredItems.filter(item =>
         ['compras', 'compras-solicitacoes', 'compras-aprovacoes', 'compras-cotacoes', 'compras-relatorios'].includes(item.id)
@@ -925,7 +949,7 @@ export function DynamicSidebar() {
         ['mechanic-dashboard'].includes(item.id)
       ),
       frota: filteredItems.filter(item =>
-        ['frota', 'manutencao', 'manutencao-v2', 'frota-os', 'abastecimento', 'pneus', 'gestao-portaria', 'gestao-checklist-cliente', 'gestao-limpeza'].includes(item.id)
+        ['frota', 'manutencao', 'manutencao-v2', 'frota-os', 'abastecimento', 'pneus', 'gestao-portaria', 'gestao-checklist-cliente', 'gestao-limpeza', 'lavajato'].includes(item.id)
       ),
       mobilizacao: filteredItems.filter(item =>
         ['mobilizacao-transportes'].includes(item.id)
@@ -997,6 +1021,7 @@ export function DynamicSidebar() {
       if (['DEPARTAMENTO_PESSOAL', 'RH'].includes(normalizedRole)) {
         const forbiddenOperationalIds = new Set([
           'operacional',
+          'operacional-medicao',
           'controle-visitas',
           'controle-visitas-avancado',
           'guia-transporte',

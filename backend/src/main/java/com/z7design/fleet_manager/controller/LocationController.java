@@ -51,7 +51,7 @@ public class LocationController {
             @ApiResponse(responseCode = "404", description = "LocalizaÃ§Ã£o nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<LocationDTO> getLocationById(@PathVariable UUID id) {
+    public ResponseEntity<LocationDTO> getLocationById(@PathVariable("id") UUID id) {
         log.debug("Buscando localizaÃ§Ã£o por ID: {}", id);
         LocationDTO location = locationService.getLocationById(id);
         return ResponseEntity.ok(location);
@@ -63,7 +63,7 @@ public class LocationController {
             @ApiResponse(responseCode = "200", description = "LocalizaÃ§Ãµes encontradas"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<List<LocationDTO>> getLocationsByUnitId(@PathVariable UUID unitId) {
+    public ResponseEntity<List<LocationDTO>> getLocationsByUnitId(@PathVariable("unitId") UUID unitId) {
         log.debug("Buscando localizaÃ§Ãµes por unidade ID: {}", unitId);
         List<LocationDTO> locations = locationService.getLocationsByUnitId(unitId);
         return ResponseEntity.ok(locations);
@@ -92,7 +92,7 @@ public class LocationController {
             @ApiResponse(responseCode = "404", description = "LocalizaÃ§Ã£o nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<LocationDTO> updateLocation(@PathVariable UUID id, @Valid @RequestBody LocationDTO locationDTO) {
+    public ResponseEntity<LocationDTO> updateLocation(@PathVariable("id") UUID id, @Valid @RequestBody LocationDTO locationDTO) {
         log.debug("Atualizando localizaÃ§Ã£o ID: {}", id);
         LocationDTO updatedLocation = locationService.updateLocation(id, locationDTO);
         return ResponseEntity.ok(updatedLocation);
@@ -106,7 +106,7 @@ public class LocationController {
             @ApiResponse(responseCode = "404", description = "LocalizaÃ§Ã£o nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> deleteLocation(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteLocation(@PathVariable("id") UUID id) {
         log.debug("Excluindo localizaÃ§Ã£o ID: {}", id);
         locationService.deleteLocation(id);
         return ResponseEntity.noContent().build();

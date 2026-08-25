@@ -32,7 +32,7 @@ public class FiscalController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<FiscalDocument> findById(@PathVariable UUID id) {
+    public ResponseEntity<FiscalDocument> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(service.findById(id));
     }
 
@@ -43,7 +43,7 @@ public class FiscalController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

@@ -145,7 +145,7 @@ public class MessageController {
      */
     @PutMapping("/{messageId}/read")
     public ResponseEntity<Void> markAsRead(
-            @PathVariable UUID messageId,
+            @PathVariable("messageId") UUID messageId,
             Authentication authentication) {
         
         try {
@@ -211,7 +211,7 @@ public class MessageController {
      * Busca mensagens por tipo
      */
     @GetMapping("/type/{type}")
-    public ResponseEntity<List<MessageResponseDTO>> getMessagesByType(@PathVariable MessageType type) {
+    public ResponseEntity<List<MessageResponseDTO>> getMessagesByType(@PathVariable("type") MessageType type) {
         List<MessageResponseDTO> messages = messageService.getMessagesByType(type);
         
         return ResponseEntity.ok(messages);
@@ -222,7 +222,7 @@ public class MessageController {
      */
     @GetMapping("/status/{status}")
     public ResponseEntity<Page<MessageResponseDTO>> getMessagesByStatus(
-            @PathVariable MessageStatus status,
+            @PathVariable("status") MessageStatus status,
             Authentication authentication,
             Pageable pageable) {
         
@@ -314,7 +314,7 @@ public class MessageController {
      */
     @PutMapping("/{messageId}/archive")
     public ResponseEntity<Void> archiveMessage(
-            @PathVariable UUID messageId,
+            @PathVariable("messageId") UUID messageId,
             Authentication authentication) {
         
         try {
@@ -339,7 +339,7 @@ public class MessageController {
      */
     @PutMapping("/{messageId}/restore")
     public ResponseEntity<Void> restoreMessage(
-            @PathVariable UUID messageId,
+            @PathVariable("messageId") UUID messageId,
             Authentication authentication) {
         
         try {
@@ -364,8 +364,8 @@ public class MessageController {
      */
     @DeleteMapping("/{messageId}")
     public ResponseEntity<Void> deleteMessage(
-            @PathVariable UUID messageId,
-            @RequestParam String reason,
+            @PathVariable("messageId") UUID messageId,
+            @RequestParam(value = "reason") String reason,
             Authentication authentication,
             @RequestHeader(value = "X-Forwarded-For", required = false) String ipAddress) {
         

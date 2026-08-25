@@ -22,20 +22,20 @@ public class ContractDocumentController {
     private final ContractDocumentService service;
 
     @GetMapping("/{contractId}/documents")
-    public ResponseEntity<List<ContractDocumentDTO>> listByContract(@PathVariable UUID contractId) {
+    public ResponseEntity<List<ContractDocumentDTO>> listByContract(@PathVariable("contractId") UUID contractId) {
         return ResponseEntity.ok(service.listByContract(contractId));
     }
 
     @PostMapping(value = "/{contractId}/documents", consumes = "multipart/form-data")
     public ResponseEntity<ContractDocumentDTO> upload(
-            @PathVariable UUID contractId,
+            @PathVariable("contractId") UUID contractId,
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(service.upload(contractId, file, user));
     }
 
     @GetMapping("/documents/{documentId}/download")
-    public ResponseEntity<Resource> download(@PathVariable UUID documentId) {
+    public ResponseEntity<Resource> download(@PathVariable("documentId") UUID documentId) {
         Resource resource = service.download(documentId);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
@@ -43,7 +43,7 @@ public class ContractDocumentController {
     }
 
     @DeleteMapping("/documents/{documentId}")
-    public ResponseEntity<Void> delete(@PathVariable UUID documentId) {
+    public ResponseEntity<Void> delete(@PathVariable("documentId") UUID documentId) {
         service.delete(documentId);
         return ResponseEntity.noContent().build();
     }

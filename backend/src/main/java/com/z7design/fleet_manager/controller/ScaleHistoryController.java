@@ -70,7 +70,7 @@ public class ScaleHistoryController {
                     schema = @Schema(implementation = ScaleHistory.class),
                     examples = @ExampleObject(value = "{\"id\":\"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"notes\":\"MudanÃ§a de escala ajustada.\", \"status\":\"INACTIVE\"}")))
     @PutMapping("/{id}")
-    public ResponseEntity<ScaleHistory> update(@PathVariable UUID id, @RequestBody ScaleHistory scaleHistory) {
+    public ResponseEntity<ScaleHistory> update(@PathVariable("id") UUID id, @RequestBody ScaleHistory scaleHistory) {
         return ResponseEntity.ok(scaleHistoryService.update(id, scaleHistory));
     }
     
@@ -84,7 +84,7 @@ public class ScaleHistoryController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         scaleHistoryService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -100,7 +100,7 @@ public class ScaleHistoryController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<ScaleHistory> findById(@PathVariable UUID id) {
+    public ResponseEntity<ScaleHistory> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(scaleHistoryService.findById(id));
     }
     
@@ -113,7 +113,7 @@ public class ScaleHistoryController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<ScaleHistory>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<ScaleHistory>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         return ResponseEntity.ok(scaleHistoryService.findByEmployeeId(employeeId));
     }
     
@@ -131,8 +131,8 @@ public class ScaleHistoryController {
     @Parameter(description = "Data de fim do perÃ­odo (formato YYYY-MM-DD)", example = "2023-12-31", required = true)
     @GetMapping("/date-range")
     public ResponseEntity<List<ScaleHistory>> findByDateRange(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(scaleHistoryService.findByDateRange(startDate, endDate));
     }
     
@@ -151,9 +151,9 @@ public class ScaleHistoryController {
     @Parameter(description = "Data de fim do perÃ­odo (formato YYYY-MM-DD)", example = "2023-12-31", required = true)
     @GetMapping("/employee/{employeeId}/date-range")
     public ResponseEntity<List<ScaleHistory>> findByEmployeeIdAndDateRange(
-            @PathVariable UUID employeeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(scaleHistoryService.findByEmployeeIdAndDateRange(employeeId, startDate, endDate));
     }
     

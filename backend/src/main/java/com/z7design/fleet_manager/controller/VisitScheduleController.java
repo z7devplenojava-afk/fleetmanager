@@ -32,13 +32,13 @@ public class VisitScheduleController {
     @Operation(summary = "Criar escala otimizada", 
                description = "Cria uma nova escala de visitas com otimizaÃ§Ã£o automÃ¡tica de rota")
     public ResponseEntity<VisitScheduleDTO> createOptimizedSchedule(
-            @RequestParam UUID supervisorId,
-            @RequestParam UUID clientId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate scheduleDate,
-            @RequestParam List<UUID> unitIds,
-            @RequestParam @DateTimeFormat(pattern = "HH:mm") LocalTime startTime,
-            @RequestParam @DateTimeFormat(pattern = "HH:mm") LocalTime endTime,
-            @RequestParam(required = false) String observations) {
+            @RequestParam(value = "supervisorId") UUID supervisorId,
+            @RequestParam(value = "clientId") UUID clientId,
+            @RequestParam(value = "scheduleDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate scheduleDate,
+            @RequestParam(value = "unitIds") List<UUID> unitIds,
+            @RequestParam(value = "startTime") @DateTimeFormat(pattern = "HH:mm") LocalTime startTime,
+            @RequestParam(value = "endTime") @DateTimeFormat(pattern = "HH:mm") LocalTime endTime,
+            @RequestParam(value = "observations", required = false) String observations) {
         
         try {
             log.info("Criando escala otimizada - Supervisor: {}, Cliente: {}, Data: {}, Unidades: {}", 
@@ -57,7 +57,7 @@ public class VisitScheduleController {
     @PostMapping("/{scheduleId}/reoptimize")
     @Operation(summary = "Re-otimizar escala", 
                description = "Re-otimiza uma escala existente recalculando a melhor rota")
-    public ResponseEntity<VisitSchedule> reoptimizeSchedule(@PathVariable UUID scheduleId) {
+    public ResponseEntity<VisitSchedule> reoptimizeSchedule(@PathVariable("scheduleId") UUID scheduleId) {
         try {
             VisitSchedule schedule = visitScheduleService.reoptimizeSchedule(scheduleId);
             return ResponseEntity.ok(schedule);
@@ -71,9 +71,9 @@ public class VisitScheduleController {
     @Operation(summary = "Listar escalas por supervisor", 
                description = "Lista escalas de um supervisor em um perÃ­odo especÃ­fico")
     public ResponseEntity<List<VisitScheduleDTO>> getSchedulesBySupervisor(
-            @PathVariable UUID supervisorId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @PathVariable("supervisorId") UUID supervisorId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         
         log.info("Buscando escalas do supervisor {} entre {} e {}", supervisorId, startDate, endDate);
         List<VisitScheduleDTO> schedules = visitScheduleService.getSchedulesBySupervisorAndPeriodDTO(
@@ -86,9 +86,9 @@ public class VisitScheduleController {
     @Operation(summary = "Listar escalas por cliente", 
                description = "Lista escalas de um cliente em um perÃ­odo especÃ­fico")
     public ResponseEntity<List<VisitSchedule>> getSchedulesByClient(
-            @PathVariable UUID clientId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @PathVariable("clientId") UUID clientId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         
         List<VisitSchedule> schedules = visitScheduleService.getSchedulesByClientAndPeriod(
             clientId, startDate, endDate);
@@ -99,7 +99,7 @@ public class VisitScheduleController {
     @PostMapping("/{scheduleId}/start")
     @Operation(summary = "Iniciar escala", 
                description = "Marca uma escala como iniciada")
-    public ResponseEntity<VisitSchedule> startSchedule(@PathVariable UUID scheduleId) {
+    public ResponseEntity<VisitSchedule> startSchedule(@PathVariable("scheduleId") UUID scheduleId) {
         try {
             VisitSchedule schedule = visitScheduleService.startSchedule(scheduleId);
             return ResponseEntity.ok(schedule);
@@ -112,7 +112,7 @@ public class VisitScheduleController {
     @PostMapping("/{scheduleId}/complete")
     @Operation(summary = "Completar escala", 
                description = "Marca uma escala como concluÃ­da")
-    public ResponseEntity<VisitSchedule> completeSchedule(@PathVariable UUID scheduleId) {
+    public ResponseEntity<VisitSchedule> completeSchedule(@PathVariable("scheduleId") UUID scheduleId) {
         try {
             VisitSchedule schedule = visitScheduleService.completeSchedule(scheduleId);
             return ResponseEntity.ok(schedule);
@@ -126,8 +126,8 @@ public class VisitScheduleController {
     @Operation(summary = "Cancelar escala", 
                description = "Cancela uma escala com motivo")
     public ResponseEntity<VisitSchedule> cancelSchedule(
-            @PathVariable UUID scheduleId,
-            @RequestParam String reason) {
+            @PathVariable("scheduleId") UUID scheduleId,
+            @RequestParam(value = "reason") String reason) {
         try {
             VisitSchedule schedule = visitScheduleService.cancelSchedule(scheduleId, reason);
             return ResponseEntity.ok(schedule);
@@ -141,9 +141,9 @@ public class VisitScheduleController {
     @Operation(summary = "RelatÃ³rio de eficiÃªncia", 
                description = "Gera relatÃ³rio de eficiÃªncia das escalas de um supervisor")
     public ResponseEntity<Map<String, Object>> getEfficiencyReport(
-            @PathVariable UUID supervisorId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @PathVariable("supervisorId") UUID supervisorId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         
         Map<String, Object> report = visitScheduleService.generateEfficiencyReport(
             supervisorId, startDate, endDate);

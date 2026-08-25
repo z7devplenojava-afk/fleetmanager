@@ -16,7 +16,9 @@ import com.z7design.fleet_manager.tenant.TenantAware;
 import org.hibernate.annotations.Filter;
 
 @Entity
-@Table(name = "stock_items")
+@Table(name = "stock_items", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_stock_items_company_code", columnNames = {"company_id", "code"})
+})
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Filter(name = "tenantFilter", condition = "company_id = :companyId")
@@ -29,7 +31,7 @@ public class StockItem implements TenantAware {
     @Column(name = "company_id")
     private UUID companyId;
 
-    @Column(name = "code", unique = true, nullable = false)
+    @Column(name = "code", nullable = false, length = 50)
     private String code;
 
     @Column(name = "name", nullable = false)
@@ -53,6 +55,9 @@ public class StockItem implements TenantAware {
 
     @Column(name = "unit_cost", precision = 10, scale = 2)
     private java.math.BigDecimal unitCost;
+
+    @Column(name = "average_cost", precision = 10, scale = 2)
+    private java.math.BigDecimal averageCost;
 
     @Column(name = "supplier")
     private String supplier;

@@ -145,6 +145,7 @@ const GestaoPortaria = lazyWithRetry(() => import('@/pages/manutencao/GestaoPort
 const GestaoChecklistVeiculo = lazyWithRetry(() => import('@/pages/manutencao/GestaoChecklistVeiculo'), 'GestaoChecklistVeiculo');
 const GestaoChecklistCliente = lazyWithRetry(() => import('@/pages/manutencao/GestaoChecklistCliente'), 'GestaoChecklistCliente');
 const GestaoLimpezaVeiculos = lazy(() => import('@/pages/manutencao/GestaoLimpezaVeiculos'));
+const Lavajato = lazy(() => import('@/pages/manutencao/Lavajato'));
 const TrafficManagementDashboard = lazy(() => import('@/pages/fretamento/TrafficManagementDashboard'));
 const RoutesAndPoints = lazy(() => import('@/pages/fretamento/RoutesAndPoints'));
 const DriverTripList = lazy(() => import('@/pages/fretamento/DriverTripList'));
@@ -240,6 +241,7 @@ const Leads = lazy(() => import('@/pages/Leads'));
 const Propostas = lazy(() => import('@/pages/Propostas'));
 const Orcamentos = lazy(() => import('@/pages/Orcamentos'));
 const CrmKanban = lazy(() => import('@/pages/CrmKanban'));
+const Prospeccao = lazy(() => import('@/pages/Prospeccao'));
 const GestaoFuncionarios = lazy(() => import('@/pages/GestaoFuncionarios'));
 const AdmissaoFuncionarios = lazy(() => import('@/pages/AdmissaoFuncionarios'));
 
@@ -268,6 +270,7 @@ const EmailConfigForm = lazy(() => import('@/pages/admin/email/EmailConfigForm')
 // Módulo Operacional
 const OperacionalDashboard = lazy(() => import('@/pages/OperacionalDashboard'));
 const GestaoPostos = lazy(() => import('@/pages/GestaoPostos'));
+const WorkPostDetailPage = lazy(() => import('@/pages/operacional/WorkPostDetailPage'));
 const GestaoEscalas = lazy(() => import('@/pages/GestaoEscalas'));
 const GestaoFerias = lazy(() => import('@/pages/GestaoFerias'));
 const GestaoTarefas = lazy(() => import('@/pages/GestaoTarefas'));
@@ -631,6 +634,11 @@ function App() {
                           <Operacional />
                         </ProtectedRoute>
                       } />
+                      <Route path="/operacional/medicao" element={
+                        <ProtectedRoute requiredPermissions={['CONTRACTS_READ']}>
+                          <Medicao />
+                        </ProtectedRoute>
+                      } />
                       <Route path="/controle-rondas" element={
                         <ProtectedRoute>
                           <ControleRondas />
@@ -888,6 +896,13 @@ function App() {
                         <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
                           <Suspense fallback={<LoadingSpinner />}>
                             <GestaoLimpezaVeiculos />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/manutencao/lavajato" element={
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <Lavajato />
                           </Suspense>
                         </ProtectedRoute>
                       } />
@@ -1529,9 +1544,7 @@ function App() {
                         <ProtectedRoute>
                           <Usuarios />
                         </ProtectedRoute>
-                      } />
-
-                      {/* Roles */}
+                      } />                      {/* Roles */}
                       <Route path="/roles" element={
                         <ProtectedRoute>
                           <Roles />
@@ -1545,7 +1558,14 @@ function App() {
                         </ProtectedRoute>
                       } />
 
-
+                      {/* Prospecção de Leads */}
+                      <Route path="/prospeccao" element={
+                        <ProtectedRoute requiredPermissions={['LEADS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <Prospeccao />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
 
                       {/* Controle de Visitas Avançado */}
                       <Route path="/controle-visitas-avancado" element={
@@ -1641,9 +1661,7 @@ function App() {
                         <ProtectedRoute>
                           <Usuarios />
                         </ProtectedRoute>
-                      } />
-
-                      {/* Roles */}
+                      } />                      {/* Roles */}
                       <Route path="/roles" element={
                         <ProtectedRoute>
                           <Roles />
@@ -1657,7 +1675,14 @@ function App() {
                         </ProtectedRoute>
                       } />
 
-
+                      {/* Prospecção de Leads */}
+                      <Route path="/prospeccao" element={
+                        <ProtectedRoute requiredPermissions={['LEADS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <Prospeccao />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
 
                       {/* Controle de Visitas Avançado */}
                       <Route path="/controle-visitas-avancado" element={
@@ -1767,6 +1792,13 @@ function App() {
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <GestaoPostos />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/operacional/postos/:id" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <WorkPostDetailPage />
                           </Suspense>
                         </ProtectedRoute>
                       } />

@@ -163,7 +163,7 @@ public class PdfMergeController {
      * Download de arquivo unificado
      */
     @GetMapping("/download/{fileName}")
-    public ResponseEntity<Resource> downloadFile(@PathVariable String fileName) {
+    public ResponseEntity<Resource> downloadFile(@PathVariable("fileName") String fileName) {
         try {
             Path filePath = Paths.get("uploads/merged-documents/" + fileName);
             
@@ -189,7 +189,7 @@ public class PdfMergeController {
      * Visualizar arquivo unificado
      */
     @GetMapping("/view/{fileName}")
-    public ResponseEntity<Resource> viewFile(@PathVariable String fileName) {
+    public ResponseEntity<Resource> viewFile(@PathVariable("fileName") String fileName) {
         try {
             Path filePath = Paths.get("uploads/merged-documents/" + fileName);
             

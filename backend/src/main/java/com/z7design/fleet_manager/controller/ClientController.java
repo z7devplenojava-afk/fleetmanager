@@ -80,7 +80,7 @@ public class ClientController {
             @ApiResponse(responseCode = "404", description = "Cliente nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<ClientDTO> getById(@PathVariable String id) {
+    public ResponseEntity<ClientDTO> getById(@PathVariable("id") String id) {
         return ResponseEntity.ok(clientService.getClientById(UUID.fromString(id)));
     }
     
@@ -117,7 +117,7 @@ public class ClientController {
             @ApiResponse(responseCode = "404", description = "Cliente nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<ClientDTO> update(@PathVariable String id, @Valid @RequestBody ClientDTO clientDTO) {
+    public ResponseEntity<ClientDTO> update(@PathVariable("id") String id, @Valid @RequestBody ClientDTO clientDTO) {
         ClientDTO updated = clientService.updateClient(UUID.fromString(id), clientDTO);
         return ResponseEntity.ok(updated);
     }
@@ -129,7 +129,7 @@ public class ClientController {
             @ApiResponse(responseCode = "404", description = "Cliente nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         clientService.deleteClient(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApiUrl } from '@/config/environment';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Bus,
-  Building2
+  Building2,
+  MessageCircle,
+  Smartphone
 } from 'lucide-react';
 import { getRoleDisplayName, getRoleColor } from '@/utils/permissions';
 import { CollapsibleSidebar } from './CollapsibleSidebar';
@@ -22,6 +25,7 @@ import { NotificationBell } from './NotificationBell';
 import UserProfileModal from './UserProfileModal';
 import { BottomNav } from './BottomNav';
 import ThemeToggle from './ThemeToggle';
+import chatIntegrationService from '@/services/chatIntegrationService';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -39,10 +43,46 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const { user, logout, empresa } = useAuth();
   const { collapsed, isMobile, toggleSidebar } = useSidebar();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [unreadChats, setUnreadChats] = useState(0);
+  const navigate = useNavigate();
 
   const handleProfileClick = () => {
     setIsProfileModalOpen(true);
   };
+
+  // Buscar conversas não lidas para o badge (poll leve, só quando aba visível)
+  useEffect(() => {
+    let mounted = true;
+    const loadUnread = async () => {
+      try {
+        const stats = await chatIntegrationService.getStats();
+        if (mounted) setUnreadChats(stats.unread);
+      } catch {
+        // silenciar
+      }
+    };
+
+    const tick = () => {
+      if (document.visibilityState === 'visible') {
+        loadUnread();
+      }
+    };
+
+    // Espera 5s antes do primeiro poll para não competir com o carregamento inicial
+    const initialTimeout = setTimeout(tick, 5000);
+    // A cada 60s — bem mais espaçado, o número de não lidas não muda tão rápido
+    const interval = setInterval(tick, 60000);
+
+    // Recarrega quando o usuário volta para a aba
+    document.addEventListener('visibilitychange', tick);
+
+    return () => {
+      mounted = false;
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, []);
 
   if (!user) {
     return (
@@ -154,6 +194,25 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                   <User className="h-4 w-4 text-black" />
                 </div>
               </div>
+
+              {/* Botão de Chat WhatsApp - acesso rápido ao atendimento */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/gestao-atendimento/whatsapp')}
+                className="relative text-muted-foreground hover:text-white hover:bg-white/5 h-8 px-2 rounded transition-all"
+                title="Atendimento WhatsApp e Chatbot"
+              >
+                <Smartphone className="h-4 w-4" />
+                {unreadChats > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 text-[10px] flex items-center justify-center"
+                  >
+                    {unreadChats > 9 ? '9+' : unreadChats}
+                  </Badge>
+                )}
+              </Button>
 
               <NotificationBell />
 

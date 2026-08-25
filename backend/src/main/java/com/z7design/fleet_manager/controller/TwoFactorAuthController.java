@@ -101,7 +101,7 @@ public class TwoFactorAuthController {
 
     @PostMapping("/disable/{userId}")
     @Operation(summary = "Desabilitar 2FA", description = "Desabilita autenticaÃ§Ã£o de dois fatores")
-    public ResponseEntity<?> disable2FA(@PathVariable UUID userId) {
+    public ResponseEntity<?> disable2FA(@PathVariable("userId") UUID userId) {
         try {
             twoFactorAuthService.disable2FA(userId);
             return ResponseEntity.ok(Map.of(
@@ -118,7 +118,7 @@ public class TwoFactorAuthController {
 
     @GetMapping("/status/{userId}")
     @Operation(summary = "Status do 2FA", description = "Verifica se usuÃ¡rio tem 2FA habilitado")
-    public ResponseEntity<?> get2FAStatus(@PathVariable UUID userId) {
+    public ResponseEntity<?> get2FAStatus(@PathVariable("userId") UUID userId) {
         boolean enabled = twoFactorAuthService.is2FAEnabled(userId);
         return ResponseEntity.ok(Map.of(
                 "enabled", enabled

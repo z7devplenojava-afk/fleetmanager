@@ -32,7 +32,7 @@ public class FileExplorerController {
      */
     @GetMapping
     public ResponseEntity<Map<String, Object>> listFiles(
-            @RequestParam(defaultValue = "") String path) {
+            @RequestParam(value = "path", defaultValue = "") String path) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -63,8 +63,8 @@ public class FileExplorerController {
      */
     @PostMapping("/folders")
     public ResponseEntity<Map<String, Object>> createFolder(
-            @RequestParam(defaultValue = "") String parentPath,
-            @RequestParam String folderName,
+            @RequestParam(value = "parentPath", defaultValue = "") String parentPath,
+            @RequestParam(value = "folderName") String folderName,
             Authentication authentication) {
         
         Map<String, Object> response = new HashMap<>();
@@ -95,7 +95,7 @@ public class FileExplorerController {
      */
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> uploadFiles(
-            @RequestParam(defaultValue = "") String parentPath,
+            @RequestParam(value = "parentPath", defaultValue = "") String parentPath,
             @RequestParam("files") MultipartFile[] files,
             Authentication authentication) {
         
@@ -141,7 +141,7 @@ public class FileExplorerController {
      * Download de arquivo
      */
     @GetMapping("/{fileId}/download")
-    public ResponseEntity<Resource> downloadFile(@PathVariable UUID fileId) {
+    public ResponseEntity<Resource> downloadFile(@PathVariable("fileId") UUID fileId) {
         try {
             log.info("ðŸ“¥ Download do arquivo: {}", fileId);
             
@@ -188,8 +188,8 @@ public class FileExplorerController {
      */
     @PutMapping("/{itemId}")
     public ResponseEntity<Map<String, Object>> renameItem(
-            @PathVariable UUID itemId,
-            @RequestParam String newName,
+            @PathVariable("itemId") UUID itemId,
+            @RequestParam(value = "newName") String newName,
             Authentication authentication) {
         
         Map<String, Object> response = new HashMap<>();
@@ -220,7 +220,7 @@ public class FileExplorerController {
      */
     @DeleteMapping("/{itemId}")
     public ResponseEntity<Map<String, Object>> deleteItem(
-            @PathVariable UUID itemId,
+            @PathVariable("itemId") UUID itemId,
             Authentication authentication) {
         
         Map<String, Object> response = new HashMap<>();
@@ -255,7 +255,7 @@ public class FileExplorerController {
      */
     @GetMapping("/search")
     public ResponseEntity<Map<String, Object>> searchFiles(
-            @RequestParam String q) {
+            @RequestParam(value = "q") String q) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -285,7 +285,7 @@ public class FileExplorerController {
      * Preview de arquivo (para imagens, PDFs, etc.)
      */
     @GetMapping("/{fileId}/preview")
-    public ResponseEntity<Resource> previewFile(@PathVariable UUID fileId) {
+    public ResponseEntity<Resource> previewFile(@PathVariable("fileId") UUID fileId) {
         try {
             log.info("ðŸ‘ï¸ Preview do arquivo: {}", fileId);
             

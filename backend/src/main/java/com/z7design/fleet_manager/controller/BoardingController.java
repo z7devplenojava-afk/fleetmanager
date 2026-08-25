@@ -29,35 +29,35 @@ public class BoardingController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar embarque", description = "Atualiza um registro de embarque existente")
-    public ResponseEntity<BoardingDTO> update(@PathVariable UUID id, @RequestBody BoardingDTO dto) {
+    public ResponseEntity<BoardingDTO> update(@PathVariable("id") UUID id, @RequestBody BoardingDTO dto) {
         BoardingDTO updated = boardingService.update(id, dto);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir embarque", description = "Exclui um registro de embarque")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         boardingService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar embarque por ID", description = "Retorna um registro de embarque pelo ID")
-    public ResponseEntity<BoardingDTO> getById(@PathVariable UUID id) {
+    public ResponseEntity<BoardingDTO> getById(@PathVariable("id") UUID id) {
         BoardingDTO boarding = boardingService.getById(id);
         return ResponseEntity.ok(boarding);
     }
 
     @GetMapping("/trip/{tripId}")
     @Operation(summary = "Listar embarques por viagem", description = "Retorna todos os embarques de uma viagem")
-    public ResponseEntity<List<BoardingDTO>> getByTripId(@PathVariable UUID tripId) {
+    public ResponseEntity<List<BoardingDTO>> getByTripId(@PathVariable("tripId") UUID tripId) {
         List<BoardingDTO> boardings = boardingService.getByTripId(tripId);
         return ResponseEntity.ok(boardings);
     }
 
     @GetMapping("/passenger/{passengerId}")
     @Operation(summary = "Listar embarques por passageiro", description = "Retorna todos os embarques de um passageiro")
-    public ResponseEntity<List<BoardingDTO>> getByPassengerId(@PathVariable UUID passengerId) {
+    public ResponseEntity<List<BoardingDTO>> getByPassengerId(@PathVariable("passengerId") UUID passengerId) {
         List<BoardingDTO> boardings = boardingService.getByPassengerId(passengerId);
         return ResponseEntity.ok(boardings);
     }

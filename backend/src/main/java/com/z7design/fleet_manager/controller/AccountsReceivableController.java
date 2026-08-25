@@ -64,7 +64,7 @@ public class AccountsReceivableController {
             @ApiResponse(responseCode = "404", description = "Conta a receber nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<AccountsReceivableDTO> getById(@PathVariable String id) {
+    public ResponseEntity<AccountsReceivableDTO> getById(@PathVariable("id") String id) {
         log.info("GET /api/accounts-receivable/{} - Buscando conta a receber por ID", id);
         return ResponseEntity.ok(accountsReceivableService.getAccountsReceivableById(UUID.fromString(id)));
     }
@@ -90,7 +90,7 @@ public class AccountsReceivableController {
             @ApiResponse(responseCode = "404", description = "Conta a receber nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<AccountsReceivableDTO> update(@PathVariable String id, @Valid @RequestBody AccountsReceivableDTO dto) {
+    public ResponseEntity<AccountsReceivableDTO> update(@PathVariable("id") String id, @Valid @RequestBody AccountsReceivableDTO dto) {
         log.info("PUT /api/accounts-receivable/{} - Atualizando conta a receber", id);
         AccountsReceivableDTO updated = accountsReceivableService.updateAccountsReceivable(UUID.fromString(id), dto);
         return ResponseEntity.ok(updated);
@@ -103,7 +103,7 @@ public class AccountsReceivableController {
             @ApiResponse(responseCode = "404", description = "Conta a receber nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         log.info("DELETE /api/accounts-receivable/{} - Excluindo conta a receber", id);
         accountsReceivableService.deleteAccountsReceivable(UUID.fromString(id));
         return ResponseEntity.noContent().build();
@@ -111,14 +111,14 @@ public class AccountsReceivableController {
     
     @GetMapping("/client/{clientId}")
     @Operation(summary = "Buscar contas a receber por cliente", description = "Retorna todas as contas a receber de um cliente especÃ­fico")
-    public ResponseEntity<List<AccountsReceivableDTO>> getByClient(@PathVariable String clientId) {
+    public ResponseEntity<List<AccountsReceivableDTO>> getByClient(@PathVariable("clientId") String clientId) {
         log.info("GET /api/accounts-receivable/client/{} - Buscando contas a receber por cliente", clientId);
         return ResponseEntity.ok(accountsReceivableService.getAccountsReceivableByClient(UUID.fromString(clientId)));
     }
     
     @GetMapping("/status/{status}")
     @Operation(summary = "Buscar contas a receber por status", description = "Retorna todas as contas a receber com um status especÃ­fico")
-    public ResponseEntity<List<AccountsReceivableDTO>> getByStatus(@PathVariable ReceivableStatus status) {
+    public ResponseEntity<List<AccountsReceivableDTO>> getByStatus(@PathVariable("status") ReceivableStatus status) {
         log.info("GET /api/accounts-receivable/status/{} - Buscando contas a receber por status", status);
         return ResponseEntity.ok(accountsReceivableService.getAccountsReceivableByStatus(status));
     }
@@ -134,9 +134,9 @@ public class AccountsReceivableController {
     @Operation(summary = "Buscar contas a receber por perÃ­odo", description = "Retorna todas as contas a receber emitidas em um perÃ­odo especÃ­fico")
     public ResponseEntity<List<AccountsReceivableDTO>> getByPeriod(
             @Parameter(description = "Data de inÃ­cio do perÃ­odo") 
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "Data de fim do perÃ­odo") 
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         log.info("GET /api/accounts-receivable/period - Buscando contas a receber por perÃ­odo: {} a {}", startDate, endDate);
         return ResponseEntity.ok(accountsReceivableService.getAccountsReceivableByPeriod(startDate, endDate));
     }
@@ -145,7 +145,7 @@ public class AccountsReceivableController {
     @Operation(summary = "Buscar nÃºmeros de fatura", description = "Retorna sugestÃµes de nÃºmeros de fatura para autocomplete")
     public ResponseEntity<List<String>> searchInvoiceNumbers(
             @Parameter(description = "Termo de busca") 
-            @RequestParam String term) {
+            @RequestParam(value = "term") String term) {
         log.info("GET /api/accounts-receivable/search/invoice-number - Buscando nÃºmeros de fatura para termo: {}", term);
         return ResponseEntity.ok(accountsReceivableService.searchInvoiceNumbers(term));
     }
@@ -154,7 +154,7 @@ public class AccountsReceivableController {
     @Operation(summary = "Buscar nÃºmeros de mediÃ§Ã£o", description = "Retorna sugestÃµes de nÃºmeros de mediÃ§Ã£o para autocomplete")
     public ResponseEntity<List<String>> searchMeasurementNumbers(
             @Parameter(description = "Termo de busca") 
-            @RequestParam String term) {
+            @RequestParam(value = "term") String term) {
         log.info("GET /api/accounts-receivable/search/measurement-number - Buscando nÃºmeros de mediÃ§Ã£o para termo: {}", term);
         return ResponseEntity.ok(accountsReceivableService.searchMeasurementNumbers(term));
     }
@@ -163,7 +163,7 @@ public class AccountsReceivableController {
     @Operation(summary = "Buscar categorias", description = "Retorna sugestÃµes de categorias para autocomplete")
     public ResponseEntity<List<String>> searchCategories(
             @Parameter(description = "Termo de busca") 
-            @RequestParam String term) {
+            @RequestParam(value = "term") String term) {
         log.info("GET /api/accounts-receivable/search/categories - Buscando categorias para termo: {}", term);
         return ResponseEntity.ok(accountsReceivableService.searchCategories(term));
     }
@@ -172,7 +172,7 @@ public class AccountsReceivableController {
     @Operation(summary = "Buscar formas de pagamento", description = "Retorna sugestÃµes de formas de pagamento para autocomplete")
     public ResponseEntity<List<String>> searchPaymentMethods(
             @Parameter(description = "Termo de busca") 
-            @RequestParam String term) {
+            @RequestParam(value = "term") String term) {
         log.info("GET /api/accounts-receivable/search/payment-methods - Buscando formas de pagamento para termo: {}", term);
         return ResponseEntity.ok(accountsReceivableService.searchPaymentMethods(term));
     }
@@ -185,9 +185,9 @@ public class AccountsReceivableController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<AccountsReceivableDTO> markAsPaid(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             @Parameter(description = "Data do pagamento") 
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paymentDate) {
+            @RequestParam(value = "paymentDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paymentDate) {
         log.info("PUT /api/accounts-receivable/{}/mark-paid - Marcando conta como paga", id);
         AccountsReceivableDTO updated = accountsReceivableService.markAsPaid(UUID.fromString(id), paymentDate);
         return ResponseEntity.ok(updated);
@@ -210,7 +210,7 @@ public class AccountsReceivableController {
     
     @GetMapping("/due-in-days/{days}")
     @Operation(summary = "Buscar contas a receber vencendo em X dias", description = "Retorna todas as contas a receber que vencem em X dias")
-    public ResponseEntity<List<AccountsReceivableDTO>> getDueInDays(@PathVariable int days) {
+    public ResponseEntity<List<AccountsReceivableDTO>> getDueInDays(@PathVariable("days") int days) {
         log.info("GET /api/accounts-receivable/due-in-days/{} - Buscando contas a receber vencendo em {} dias", days, days);
         return ResponseEntity.ok(accountsReceivableService.getAccountsReceivableDueInDays(days));
     }

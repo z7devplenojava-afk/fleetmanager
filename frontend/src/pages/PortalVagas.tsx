@@ -1,6 +1,7 @@
 import React from 'react';
 import Navbar from '@/components/Navbar';
 import { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { 
-  Shield, 
+  Briefcase,
+  Code2,
   MapPin, 
   Clock, 
   DollarSign, 
@@ -24,7 +26,8 @@ import {
   Star,
   Instagram,
   Facebook,
-  MessageCircle
+  MessageCircle,
+  Lightbulb
 } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -259,30 +262,35 @@ const PortalVagas = () => {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#1a1a1a' }}>
+      <Helmet>
+        <title>Trabalhe Conosco - Fluxbus Sistema de Gestão para Transporte</title>
+        <meta name="description" content="Faça parte do time Fluxbus. Desenvolvemos o melhor sistema de gestão para empresas de transporte de passageiros. Vagas em tecnologia, produto e suporte." />
+        <meta name="keywords" content="vagas fluxbus, trabalhe conosco fluxbus, emprego sistema de transporte, desenvolvedor, produto, suporte" />
+      </Helmet>
       <Navbar />
 
       {/* Hero Section */}
       <section className="py-12 sm:py-20 px-4" style={{ backgroundColor: '#292929' }}>
         <div className="container mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-white mb-6" data-animate="fadeUp">
-            Trabalhe Conosco
+            Trabalhe no Fluxbus
           </h1>
           <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-8 max-w-3xl mx-auto" data-animate="fadeUp" data-delay="200">
-            Faça parte de uma empresa que valoriza seus colaboradores e oferece 
-            oportunidades de crescimento profissional.
+            Faça parte do time que desenvolve o melhor sistema de gestão para empresas de 
+            transporte de passageiros. Transforme a operação de dezenas de empresas com seu trabalho.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4 text-gray-300" data-animate="fadeUp" data-delay="400">
             <div className="flex items-center">
-              <Users className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-              <span className="text-sm sm:text-base">Equipe Qualificada</span>
+              <Code2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+              <span className="text-sm sm:text-base">Tecnologia de Ponta</span>
             </div>
             <div className="flex items-center">
-              <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-              <span className="text-sm sm:text-base">Ambiente Profissional</span>
+              <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+              <span className="text-sm sm:text-base">Inovação Contínua</span>
             </div>
             <div className="flex items-center">
               <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-              <span className="text-sm sm:text-base">Oportunidades de Crescimento</span>
+              <span className="text-sm sm:text-base">Crescimento de Carreira</span>
             </div>
           </div>
         </div>
@@ -305,10 +313,9 @@ const PortalVagas = () => {
             </div>
           ) : jobs.length === 0 ? (
             <div className="text-center py-12 sm:py-20">
-              <Shield className="h-12 w-12 sm:h-16 sm:w-16 text-gray-600 mx-auto mb-4" />
+              <Briefcase className="h-12 w-12 sm:h-16 sm:w-16 text-gray-600 mx-auto mb-4" />
               <h3 className="text-xl sm:text-2xl font-bold text-gray-400 mb-2">Nenhuma vaga disponível</h3>
-              <p className="text-sm sm:text-base text-gray-500">No momento não temos vagas abertas. Volte em breve!</p>
-              <p className="text-xs text-gray-600 mt-2">Debug: jobs.length = {jobs.length}</p>
+              <p className="text-sm sm:text-base text-gray-500">No momento não temos vagas abertas. Cadastre-se no nosso banco de talentos abaixo!</p>
             </div>
           ) : (
             <>
@@ -560,45 +567,45 @@ const PortalVagas = () => {
       <section className="py-12 sm:py-20 px-4" style={{ backgroundColor: '#292929' }}>
         <div className="container mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Por Que Trabalhar na Promover?</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4" data-animate="fadeUp">Por Que Trabalhar no Fluxbus?</h2>
             <p className="text-base sm:text-lg md:text-xl text-gray-300" data-animate="fadeUp" data-delay="200">
-              Descubra os benefícios de fazer parte da nossa equipe
+              Construa sua carreira em uma empresa de tecnologia que transforma o transporte de passageiros no Brasil
             </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-            <Card className="text-center border-0 shadow-md hover:bg-gray-800 transition-all duration-300" 
+            <Card className="text-center border-0 shadow-md hover:bg-gray-800 transition-all duration-300 border border-red-800/30" 
                   style={{ backgroundColor: '#1a1a1a' }}
                   data-animate="fadeUp" data-delay="100">
               <CardContent className="p-4 sm:p-6">
-                <Users className="h-10 w-10 sm:h-12 sm:w-12 text-red-600 mx-auto mb-2 sm:mb-4" />
-                <h3 className="text-base sm:text-xl font-semibold text-white mb-2">Equipe Qualificada</h3>
+                <Code2 className="h-10 w-10 sm:h-12 sm:w-12 text-red-600 mx-auto mb-2 sm:mb-4" />
+                <h3 className="text-base sm:text-xl font-semibold text-white mb-2">Stack Moderna</h3>
                 <p className="text-sm sm:text-base text-gray-300">
-                  Trabalhe com profissionais experientes e receba treinamento contínuo
+                  Trabalhe com React, TypeScript, Node.js e as tecnologias mais atuais do mercado
                 </p>
               </CardContent>
             </Card>
             
-            <Card className="text-center border-0 shadow-md hover:bg-gray-800 transition-all duration-300" 
+            <Card className="text-center border-0 shadow-md hover:bg-gray-800 transition-all duration-300 border border-red-800/30" 
                   style={{ backgroundColor: '#1a1a1a' }}
                   data-animate="fadeUp" data-delay="200">
               <CardContent className="p-4 sm:p-6">
-                <Building className="h-10 w-10 sm:h-12 sm:w-12 text-red-600 mx-auto mb-2 sm:mb-4" />
-                <h3 className="text-base sm:text-xl font-semibold text-white mb-2">Ambiente Profissional</h3>
+                <Users className="h-10 w-10 sm:h-12 sm:w-12 text-red-600 mx-auto mb-2 sm:mb-4" />
+                <h3 className="text-base sm:text-xl font-semibold text-white mb-2">Equipe Colaborativa</h3>
                 <p className="text-sm sm:text-base text-gray-300">
-                  Estrutura organizacional sólida e ambiente de trabalho respeitoso
+                  Ambiente de trabalho colaborativo, com espaço para suas ideias e aprendizado contínuo
                 </p>
               </CardContent>
             </Card>
             
-            <Card className="text-center border-0 shadow-md hover:bg-gray-800 transition-all duration-300" 
+            <Card className="text-center border-0 shadow-md hover:bg-gray-800 transition-all duration-300 border border-red-800/30" 
                   style={{ backgroundColor: '#1a1a1a' }}
                   data-animate="fadeUp" data-delay="300">
               <CardContent className="p-4 sm:p-6">
-                <Calendar className="h-10 w-10 sm:h-12 sm:w-12 text-red-600 mx-auto mb-2 sm:mb-4" />
-                <h3 className="text-base sm:text-xl font-semibold text-white mb-2">Crescimento</h3>
+                <Briefcase className="h-10 w-10 sm:h-12 sm:w-12 text-red-600 mx-auto mb-2 sm:mb-4" />
+                <h3 className="text-base sm:text-xl font-semibold text-white mb-2">Crescimento de Carreira</h3>
                 <p className="text-sm sm:text-base text-gray-300">
-                  Oportunidades de desenvolvimento e progressão na carreira
+                  Planos de desenvolvimento claros e oportunidades reais de progressão profissional
                 </p>
               </CardContent>
             </Card>
@@ -656,7 +663,7 @@ const PortalVagas = () => {
                 <div>
                   <h4 className="font-semibold text-white text-base sm:text-lg">Como enviar meu currículo?</h4>
                   <p className="text-gray-300 text-sm sm:text-base">
-                    Envie seu currículo para recrutamentopromover@gmail.com com o assunto "Candidatura - [Nome da Vaga]"
+                    Envie seu currículo para comercial@fluxbus.com.br com o assunto "Candidatura - [Nome da Vaga]" ou cadastre-se no nosso banco de talentos ao lado.
                   </p>
                 </div>
                 <div>
@@ -678,119 +685,122 @@ const PortalVagas = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 sm:py-12 px-4 border-t border-gray-700" style={{ backgroundColor: '#1a1a1a' }}>
+      <footer className="py-8 sm:py-12 px-4 border-t border-red-800" style={{ backgroundColor: '#1a1a1a' }}>
         <div className="container mx-auto">
           {/* Primeira linha - Logo e Links */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12 mb-8">
-            <div className="sm:col-span-2 lg:col-span-1">
+            <div className="sm:col-span-2 lg:col-span-1" data-animate="fadeRight">
               <div className="flex items-center space-x-3 mb-4 sm:mb-6">
                 <Logo size="lg" type="full" />
               </div>
               <p className="text-sm sm:text-base lg:text-lg text-gray-300 mb-4 sm:mb-6 leading-relaxed">
-                Segurança patrimonial de qualidade para sua tranquilidade.
+                Sistema completo de gestão para empresas de transporte de passageiros.
               </p>
               <div className="flex flex-wrap gap-2 sm:gap-3 lg:gap-4">
-                <a href="tel:+553125591245" className="text-gray-400 hover:text-white transition-colors p-2 sm:p-3 rounded-lg hover:bg-gray-800" title="Telefone">
+                <a href="tel:+551125551234" className="text-gray-400 hover:text-red-500 transition-colors p-2 sm:p-3 rounded-lg hover:bg-gray-800" title="Telefone">
                   <Phone className="h-5 w-5 sm:h-6 sm:w-6" />
                 </a>
-                <a href="https://www.instagram.com/promover.vigilancia" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors p-2 sm:p-3 rounded-lg hover:bg-gray-800" title="Instagram">
+                <a href="https://www.instagram.com/fluxbus" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors p-2 sm:p-3 rounded-lg hover:bg-gray-800" title="Instagram">
                   <Instagram className="h-5 w-5 sm:h-6 sm:w-6" />
                 </a>
-                <a href="https://www.facebook.com/promover.vigilanciapatrimonial" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-500 transition-colors p-2 sm:p-3 rounded-lg hover:bg-gray-800" title="Facebook">
+                <a href="https://www.facebook.com/fluxbus" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-500 transition-colors p-2 sm:p-3 rounded-lg hover:bg-gray-800" title="Facebook">
                   <Facebook className="h-5 w-5 sm:h-6 sm:w-6" />
                 </a>
-                <a href="https://maps.google.com/?q=Rua+Cel.+João+Camargos,+267+Centro+Contagem+MG" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors p-2 sm:p-3 rounded-lg hover:bg-gray-800" title="Localização">
+                <a href="https://maps.google.com/?q=Av.+Paulista,+1000+Bela+Vista+Sao+Paulo+SP" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-red-500 transition-colors p-2 sm:p-3 rounded-lg hover:bg-gray-800" title="Localização">
                   <MapPin className="h-5 w-5 sm:h-6 sm:w-6" />
                 </a>
               </div>
             </div>
             
-            <div>
-              <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Serviços</h3>
+            <div data-animate="fadeUp" data-delay="100">
+              <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Módulos</h3>
               <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
-                <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Vigilância Patrimonial</a></li>
-                <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Portaria</a></li>
-                <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Controlador de Acesso</a></li>
-                <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Facilities</a></li>
+                <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">Gestão de Frota</a></li>
+                <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">Gestão de Motoristas</a></li>
+                <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">Rotas e Viagens</a></li>
+                <li><a href="/servicos-publico" className="hover:text-red-500 transition-colors block py-1">RH e SST</a></li>
               </ul>
             </div>
             
-            <div>
-              <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Empresa</h3>
+            <div data-animate="fadeUp" data-delay="200">
+              <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Sistema</h3>
               <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
-                <li><a href="/quem-somos" className="hover:text-white transition-colors block py-1">Quem Somos</a></li>
-                <li><a href="/trabalhe-conosco" className="hover:text-white transition-colors block py-1">Trabalhe Conosco</a></li>
-                <li><a href="/servicos-publico" className="hover:text-white transition-colors block py-1">Orçamento</a></li>
-                <li><a href="/contato" className="hover:text-white transition-colors block py-1">Contato</a></li>
+                <li><a href="/quem-somos" className="hover:text-red-500 transition-colors block py-1">Sobre o Fluxbus</a></li>
+                <li><a href="/trabalhe-conosco" className="hover:text-red-500 transition-colors block py-1">Carreiras</a></li>
+                <li><a href="/contato" className="hover:text-red-500 transition-colors block py-1">Contato</a></li>
                 <li className="mt-3 sm:mt-4">
-                  <a href="/login" className="inline-block text-black hover:text-gray-800 px-3 py-2 sm:px-4 sm:py-2 rounded text-sm sm:text-base font-medium transition-colors" style={{ backgroundColor: '#FFF600' }}>
+                  <a href="/login" className="inline-block text-black hover:text-gray-800 px-3 py-2 sm:px-4 sm:py-2 rounded text-sm sm:text-base font-medium transition-colors bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700">
                     Área Administrativa
                   </a>
                 </li>
               </ul>
             </div>
             
-            <div>
+            <div data-animate="fadeUp" data-delay="300">
               <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-white mb-4 sm:mb-6">Legal</h3>
               <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base lg:text-lg text-gray-300">
-                <li><a href="/politicas-privacidade" className="hover:text-white transition-colors block py-1">Política de Privacidade</a></li>
-                <li><a href="/termos-condicoes" className="hover:text-white transition-colors block py-1">Termos e Condições</a></li>
-                <li><a href="#" className="hover:text-white transition-colors block py-1">Cookies</a></li>
+                <li><a href="/politicas-privacidade" className="hover:text-red-500 transition-colors block py-1">Política de Privacidade</a></li>
+                <li><a href="/termos-condicoes" className="hover:text-red-500 transition-colors block py-1">Termos e Condições</a></li>
+                <li><a href="#" className="hover:text-red-500 transition-colors block py-1">Cookies</a></li>
               </ul>
             </div>
           </div>
 
           {/* Segunda linha - Contatos centralizados em 2 colunas */}
           <div className="flex justify-center">
-            <div className="w-full max-w-5xl">
+            <div className="w-full max-w-5xl" data-animate="fadeUp" data-delay="400">
               <h3 className="text-center text-xl sm:text-2xl lg:text-3xl font-semibold text-white mb-6 sm:mb-8">Contatos</h3>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
-                {/* Sede Contagem */}
-                <div className="bg-gray-800/50 rounded-xl p-6 sm:p-8 border border-gray-700 hover:border-gray-600 transition-colors">
+                {/* Sede SP */}
+                <div className="bg-gray-800/50 rounded-xl p-6 sm:p-8 border border-red-800 hover:border-red-700 transition-colors">
                   <h4 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center">
-                    <Building className="h-6 w-6 mr-3" />
-                    Sede – Contagem/MG
+                    <Building className="h-6 w-6 mr-3 text-red-600" />
+                    Sede – São Paulo/SP
                   </h4>
                   <div className="space-y-4 text-sm sm:text-base text-gray-300">
                     <p className="flex items-start">
-                      <MapPin className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" />
-                      <span className="leading-relaxed">Rua Cel. João Camargos, 267<br />Centro – Contagem – MG</span>
+                      <MapPin className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0 text-red-600" />
+                      <span className="leading-relaxed">Av. Paulista, 1000<br />Bela Vista – São Paulo – SP</span>
                     </p>
                     <p className="flex items-center">
-                      <Phone className="h-5 w-5 mr-3 flex-shrink-0" />
-                      <a href="tel:+553125591245" className="hover:text-white transition-colors font-medium">(31) 2559-1245</a>
+                      <Phone className="h-5 w-5 mr-3 flex-shrink-0 text-red-600" />
+                      <a href="tel:+551125551234" className="hover:text-red-500 transition-colors font-medium">(11) 2555-1234</a>
                     </p>
                     <p className="flex items-center">
-                      <Phone className="h-5 w-5 mr-3 flex-shrink-0" />
-                      <a href="tel:+5531971303587" className="hover:text-white transition-colors font-medium">(31) 97130-3587</a>
+                      <Phone className="h-5 w-5 mr-3 flex-shrink-0 text-red-600" />
+                      <a href="tel:+5511987654321" className="hover:text-red-500 transition-colors font-medium">(11) 98765-4321</a>
                     </p>
                     <p className="flex items-center">
-                      <Mail className="h-5 w-5 mr-3 flex-shrink-0" />
-                      <a href="mailto:recrutamentopromover@gmail.com" className="hover:text-white transition-colors text-xs sm:text-sm break-all">recrutamentopromover@gmail.com</a>
+                      <Mail className="h-5 w-5 mr-3 flex-shrink-0 text-red-600" />
+                      <a href="mailto:rh@fluxbus.com.br" className="hover:text-red-500 transition-colors text-xs sm:text-sm break-all">rh@fluxbus.com.br</a>
                     </p>
                   </div>
                 </div>
                 
-                {/* Base Operacional Uberlândia */}
-                <div className="bg-gray-800/50 rounded-xl p-6 sm:p-8 border border-gray-700 hover:border-gray-600 transition-colors">
+                {/* Atendimento Comercial */}
+                <div className="bg-gray-800/50 rounded-xl p-6 sm:p-8 border border-red-800 hover:border-red-700 transition-colors">
                   <h4 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center">
-                    <Building className="h-6 w-6 mr-3" />
-                    Base Operacional – Uberlândia/MG
+                    <MessageCircle className="h-6 w-6 mr-3 text-red-600" />
+                    RH e Carreiras
                   </h4>
                   <div className="space-y-4 text-sm sm:text-base text-gray-300">
                     <p className="flex items-start">
-                      <MapPin className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" />
-                      <span className="leading-relaxed">Rua Jerônimo Martins Nascimento, 1.286<br />Bairro Nossa Senhora Aparecida – Uberlândia/MG</span>
+                      <MapPin className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0 text-red-600" />
+                      <span className="leading-relaxed">Rua do Catete, 150<br />Catete – Rio de Janeiro – RJ</span>
                     </p>
                     <p className="flex items-center">
-                      <Phone className="h-5 w-5 mr-3 flex-shrink-0" />
-                      <a href="tel:+553432192604" className="hover:text-white transition-colors font-medium">(34) 3219-2604</a>
+                      <Phone className="h-5 w-5 mr-3 flex-shrink-0 text-red-600" />
+                      <a href="tel:+552125551234" className="hover:text-red-500 transition-colors font-medium">(21) 2555-1234</a>
                     </p>
                     <p className="flex items-center">
-                      <MessageCircle className="h-5 w-5 mr-3 flex-shrink-0" />
-                      <a href="https://wa.me/5531996868810" target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors font-medium">
-                        (31) 9968-68810 (WhatsApp)
+                      <MessageCircle className="h-5 w-5 mr-3 flex-shrink-0 text-green-500" />
+                      <a href="https://wa.me/5521987654321" target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors font-medium">
+                        (21) 98765-4321 (WhatsApp RH)
                       </a>
+                    </p>
+                    <p className="flex items-center">
+                      <Mail className="h-5 w-5 mr-3 flex-shrink-0 text-red-600" />
+                      <span className="font-medium">Seg a Sex, 09h às 18h</span>
                     </p>
                   </div>
                 </div>
@@ -798,8 +808,8 @@ const PortalVagas = () => {
             </div>
           </div>
           
-          <div className="border-t border-gray-800 mt-6 pt-6 text-center text-gray-400">
-            <p className="text-xs sm:text-sm">&copy; 2025 Promover Vigilância Patrimonial. Todos os direitos reservados.</p>
+          <div className="border-t border-red-800 mt-6 pt-6 text-center text-gray-400" data-animate="fadeUp">
+            <p className="text-xs sm:text-sm">&copy; 2026 Fluxbus - Sistema de Gestão para Transporte de Passageiros. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

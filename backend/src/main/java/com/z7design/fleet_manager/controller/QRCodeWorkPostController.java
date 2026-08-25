@@ -87,7 +87,7 @@ public class QRCodeWorkPostController {
     }
 
     @GetMapping("/{id}/image")
-    public ResponseEntity<byte[]> getQRCodeImage(@PathVariable UUID id) {
+    public ResponseEntity<byte[]> getQRCodeImage(@PathVariable("id") UUID id) {
         try {
             QRCodeWorkPost qrCodeWorkPost = qrCodeWorkPostRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("QR Code nÃ£o encontrado"));
@@ -125,7 +125,7 @@ public class QRCodeWorkPostController {
 
     @GetMapping("/work-post/{workPostId}")
     @PreAuthorize("hasAnyAuthority('WORK_POST_READ', 'SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getQRCodesByWorkPost(@PathVariable UUID workPostId) {
+    public ResponseEntity<?> getQRCodesByWorkPost(@PathVariable("workPostId") UUID workPostId) {
         try {
             List<QRCodeWorkPost> qrCodes = qrCodeWorkPostRepository.findByWorkPostId(workPostId);
             return ResponseEntity.ok(Map.of(
@@ -162,7 +162,7 @@ public class QRCodeWorkPostController {
 
     @PutMapping("/{id}/toggle")
     @PreAuthorize("hasAnyAuthority('WORK_POST_MANAGE', 'SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> toggleQRCode(@PathVariable UUID id) {
+    public ResponseEntity<?> toggleQRCode(@PathVariable("id") UUID id) {
         try {
             QRCodeWorkPost qrCodeWorkPost = qrCodeWorkPostRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("QR Code nÃ£o encontrado"));

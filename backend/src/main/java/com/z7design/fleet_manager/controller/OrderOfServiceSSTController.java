@@ -23,18 +23,18 @@ public class OrderOfServiceSSTController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<OrderOfServiceSSTResponseDTO> update(@PathVariable UUID id, @RequestBody OrderOfServiceSSTRequestDTO dto) {
+    public ResponseEntity<OrderOfServiceSSTResponseDTO> update(@PathVariable("id") UUID id, @RequestBody OrderOfServiceSSTRequestDTO dto) {
         return ResponseEntity.ok(service.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<OrderOfServiceSSTResponseDTO> findById(@PathVariable UUID id) {
+    public ResponseEntity<OrderOfServiceSSTResponseDTO> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(service.findById(id));
     }
 

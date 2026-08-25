@@ -63,7 +63,7 @@ public class CorrectiveActionController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar aÃ§Ã£o por ID", description = "Retorna uma aÃ§Ã£o corretiva especÃ­fica")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<CorrectiveActionDTO> getActionById(@PathVariable UUID id) {
+    public ResponseEntity<CorrectiveActionDTO> getActionById(@PathVariable("id") UUID id) {
         CorrectiveAction action = actionService.getActionById(id);
         if (action == null) {
             return ResponseEntity.notFound().build();
@@ -85,7 +85,7 @@ public class CorrectiveActionController {
     @Operation(summary = "Atualizar aÃ§Ã£o corretiva", description = "Atualiza uma aÃ§Ã£o corretiva existente")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<CorrectiveActionDTO> updateAction(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody CreateCorrectiveActionDTO dto) {
         CorrectiveAction updated = actionService.updateAction(id, dto);
         if (updated == null) {
@@ -97,7 +97,7 @@ public class CorrectiveActionController {
     @PostMapping("/{id}/complete")
     @Operation(summary = "Concluir aÃ§Ã£o corretiva", description = "Marca uma aÃ§Ã£o corretiva como concluÃ­da")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<CorrectiveActionDTO> completeAction(@PathVariable UUID id) {
+    public ResponseEntity<CorrectiveActionDTO> completeAction(@PathVariable("id") UUID id) {
         CorrectiveAction completed = actionService.completeAction(id);
         if (completed == null) {
             return ResponseEntity.notFound().build();
@@ -108,7 +108,7 @@ public class CorrectiveActionController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir aÃ§Ã£o corretiva", description = "Exclui uma aÃ§Ã£o corretiva")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteAction(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteAction(@PathVariable("id") UUID id) {
         actionService.deleteAction(id);
         return ResponseEntity.noContent().build();
     }

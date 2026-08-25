@@ -30,14 +30,14 @@ public class DoctorController {
     @GetMapping("/search")
     @Operation(summary = "Buscar mÃ©dicos por nome")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_READ')")
-    public ResponseEntity<List<Doctor>> searchByName(@RequestParam(required = false) String name) {
+    public ResponseEntity<List<Doctor>> searchByName(@RequestParam(value = "name", required = false) String name) {
         return ResponseEntity.ok(doctorService.searchByName(name));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar mÃ©dico por ID")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_READ')")
-    public ResponseEntity<Doctor> getById(@PathVariable UUID id) {
+    public ResponseEntity<Doctor> getById(@PathVariable("id") UUID id) {
         return doctorService.findById(id)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
@@ -53,14 +53,14 @@ public class DoctorController {
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar mÃ©dico")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_WRITE')")
-    public ResponseEntity<Doctor> update(@PathVariable UUID id, @RequestBody Doctor doctor) {
+    public ResponseEntity<Doctor> update(@PathVariable("id") UUID id, @RequestBody Doctor doctor) {
         return ResponseEntity.ok(doctorService.update(id, doctor));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Desativar mÃ©dico")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_WRITE')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         doctorService.delete(id);
         return ResponseEntity.noContent().build();
     }

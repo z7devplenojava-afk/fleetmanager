@@ -56,7 +56,7 @@ public class EPIDeliveryFormController {
 
     @Operation(summary = "Busca uma ficha de entrega de EPI por ID")
     @GetMapping("/{id}")
-    public ResponseEntity<EPIDeliveryFormDTO> findById(@PathVariable UUID id) {
+    public ResponseEntity<EPIDeliveryFormDTO> findById(@PathVariable("id") UUID id) {
         EPIDeliveryFormDTO form = epiDeliveryFormService.findById(id);
         return ResponseEntity.ok(form);
     }
@@ -64,10 +64,10 @@ public class EPIDeliveryFormController {
     @Operation(summary = "Lista todas as fichas de entrega de EPI com paginaÃ§Ã£o")
     @GetMapping
     public ResponseEntity<Page<EPIDeliveryFormDTO>> findAll(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDir) {
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "sortBy", defaultValue = "createdAt") String sortBy,
+            @RequestParam(value = "sortDir", defaultValue = "DESC") String sortDir) {
         
         Sort sort = sortDir.equalsIgnoreCase("ASC") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
@@ -79,14 +79,14 @@ public class EPIDeliveryFormController {
     @Operation(summary = "Busca fichas de entrega de EPI com filtros")
     @GetMapping("/search")
     public ResponseEntity<Page<EPIDeliveryFormDTO>> search(
-            @RequestParam(required = false) UUID employeeId,
-            @RequestParam(required = false) UUID companyId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDir) {
+            @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @RequestParam(value = "companyId", required = false) UUID companyId,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "sortBy", defaultValue = "createdAt") String sortBy,
+            @RequestParam(value = "sortDir", defaultValue = "DESC") String sortDir) {
         
         Sort sort = sortDir.equalsIgnoreCase("ASC") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
@@ -97,21 +97,21 @@ public class EPIDeliveryFormController {
 
     @Operation(summary = "Busca fichas de entrega de EPI por funcionÃ¡rio")
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<EPIDeliveryFormDTO>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<EPIDeliveryFormDTO>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         List<EPIDeliveryFormDTO> forms = epiDeliveryFormService.findByEmployeeId(employeeId);
         return ResponseEntity.ok(forms);
     }
 
     @Operation(summary = "Busca fichas de entrega de EPI por empresa")
     @GetMapping("/company/{companyId}")
-    public ResponseEntity<List<EPIDeliveryFormDTO>> findByCompanyId(@PathVariable UUID companyId) {
+    public ResponseEntity<List<EPIDeliveryFormDTO>> findByCompanyId(@PathVariable("companyId") UUID companyId) {
         List<EPIDeliveryFormDTO> forms = epiDeliveryFormService.findByCompanyId(companyId);
         return ResponseEntity.ok(forms);
     }
 
     @Operation(summary = "Deleta uma ficha de entrega de EPI")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         epiDeliveryFormService.delete(id);
         return ResponseEntity.noContent().build();
     }

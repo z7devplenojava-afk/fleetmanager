@@ -69,7 +69,7 @@ public class TimeRecordController {
 
     @GetMapping("/today/{employeeId}")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getTodayRecords(@PathVariable UUID employeeId) {
+    public ResponseEntity<?> getTodayRecords(@PathVariable("employeeId") UUID employeeId) {
         try {
             List<TimeRecord> records = timeRecordService.getTodayRecords(employeeId);
             return ResponseEntity.ok(Map.of(
@@ -86,9 +86,9 @@ public class TimeRecordController {
     @GetMapping("/employee/{employeeId}")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getEmployeeRecords(
-            @PathVariable UUID employeeId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
         try {
             Pageable pageable = PageRequest.of(page, size);
             Page<TimeRecord> records = timeRecordService.getRecordsByEmployee(employeeId, pageable);
@@ -109,9 +109,9 @@ public class TimeRecordController {
     @GetMapping("/period/{employeeId}")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getRecordsByPeriod(
-            @PathVariable UUID employeeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             List<TimeRecord> records = timeRecordService.getRecordsByPeriod(
                     employeeId, startDate, endDate);
@@ -128,7 +128,7 @@ public class TimeRecordController {
 
     @GetMapping("/next-record-type/{employeeId}")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getNextRecordType(@PathVariable UUID employeeId) {
+    public ResponseEntity<?> getNextRecordType(@PathVariable("employeeId") UUID employeeId) {
         try {
             TimeRecord.RecordType nextType = timeRecordService.getNextRecordType(employeeId);
             return ResponseEntity.ok(Map.of(
@@ -145,8 +145,8 @@ public class TimeRecordController {
     @GetMapping("/pending")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getPendingRecords(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
         try {
             Pageable pageable = PageRequest.of(page, size);
             Page<TimeRecord> records = timeRecordService.getPendingRecords(pageable);
@@ -166,7 +166,7 @@ public class TimeRecordController {
     @PutMapping("/{recordId}/approve")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> approveRecord(
-            @PathVariable UUID recordId,
+            @PathVariable("recordId") UUID recordId,
             @RequestBody Map<String, String> request,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
@@ -187,7 +187,7 @@ public class TimeRecordController {
     @PutMapping("/{recordId}/reject")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> rejectRecord(
-            @PathVariable UUID recordId,
+            @PathVariable("recordId") UUID recordId,
             @RequestBody Map<String, String> request) {
         try {
             UUID approverId = UUID.fromString(request.get("approverId"));
@@ -208,9 +208,9 @@ public class TimeRecordController {
     @GetMapping("/report/{employeeId}")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'ROLE_MOTORISTA', 'ROLE_MECANICO', 'ROLE_PORTARIA', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getWorkedHoursReport(
-            @PathVariable UUID employeeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             return ResponseEntity.ok(Map.of(
                     "success", true,
@@ -228,8 +228,8 @@ public class TimeRecordController {
     @GetMapping("/admin/consolidated/report/pdf")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<byte[]> exportConsolidatedPdf(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             byte[] pdfBytes = timeRecordReportService.generateConsolidatedPdf(startDate, endDate);
 
@@ -250,8 +250,8 @@ public class TimeRecordController {
     @GetMapping("/admin/consolidated/report/excel")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<byte[]> exportConsolidatedExcel(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             byte[] excelBytes = timeRecordReportService.generateConsolidatedExcel(startDate, endDate);
 
@@ -272,8 +272,8 @@ public class TimeRecordController {
     @GetMapping("/admin/consolidated")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<?> getConsolidatedIndicators(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             Map<String, Object> indicators = timeRecordService.getConsolidatedIndicators(startDate, endDate);
             return ResponseEntity.ok(Map.of("success", true, "data", indicators));
@@ -286,9 +286,9 @@ public class TimeRecordController {
     @GetMapping("/admin/indicators")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getIndicators(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String department) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "department", required = false) String department) {
         try {
             Map<String, Object> indicators = timeRecordService.getIndicators(startDate, endDate, department);
             return ResponseEntity.ok(Map.of("success", true, "data", indicators));
@@ -313,11 +313,11 @@ public class TimeRecordController {
     @GetMapping("/admin/records")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getAdminRecords(
-            @RequestParam(required = false) UUID employeeId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String department) {
+            @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "department", required = false) String department) {
         try {
             TimeRecord.RecordStatus recordStatus = status != null ? TimeRecord.RecordStatus.valueOf(status.toUpperCase()) : null;
             List<TimeRecord> records = timeRecordService.getAdminRecords(
@@ -376,7 +376,7 @@ public class TimeRecordController {
     @PostMapping("/{recordId}/justify")
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_CREATE', 'TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> submitJustification(
-            @PathVariable UUID recordId,
+            @PathVariable("recordId") UUID recordId,
             @RequestBody Map<String, String> request,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {

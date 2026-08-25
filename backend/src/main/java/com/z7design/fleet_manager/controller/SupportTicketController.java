@@ -44,10 +44,10 @@ public class SupportTicketController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Page<SupportTicketDTO>> getAllTickets(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") Sort.Direction direction) {
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "sortBy", defaultValue = "createdAt") String sortBy,
+            @RequestParam(value = "direction", defaultValue = "DESC") Sort.Direction direction) {
         
         log.info("GET /api/v1/support/tickets - Listando tickets (pÃ¡gina {}, tamanho {})", page, size);
         
@@ -62,7 +62,7 @@ public class SupportTicketController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<SupportTicketDTO> getTicketById(@PathVariable UUID id) {
+    public ResponseEntity<SupportTicketDTO> getTicketById(@PathVariable("id") UUID id) {
         log.info("GET /api/v1/support/tickets/{} - Buscando ticket por ID", id);
         SupportTicketDTO ticket = ticketService.getTicketById(id);
         return ResponseEntity.ok(ticket);
@@ -74,9 +74,9 @@ public class SupportTicketController {
     @GetMapping("/status/{status}")
     @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Page<SupportTicketDTO>> getTicketsByStatus(
-            @PathVariable TicketStatus status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @PathVariable("status") TicketStatus status,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
         
         log.info("GET /api/v1/support/tickets/status/{} - Buscando tickets por status", status);
         
@@ -92,9 +92,9 @@ public class SupportTicketController {
     @GetMapping("/agent/{agentId}")
     @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Page<SupportTicketDTO>> getTicketsByAgent(
-            @PathVariable UUID agentId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @PathVariable("agentId") UUID agentId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
         
         log.info("GET /api/v1/support/tickets/agent/{} - Buscando tickets por agente", agentId);
         
@@ -110,12 +110,12 @@ public class SupportTicketController {
     @GetMapping("/filter")
     @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Page<SupportTicketDTO>> getTicketsWithFilters(
-            @RequestParam(required = false) TicketStatus status,
-            @RequestParam(required = false) TicketPriority priority,
-            @RequestParam(required = false) TicketCategory category,
-            @RequestParam(required = false) UUID agentId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(value = "status", required = false) TicketStatus status,
+            @RequestParam(value = "priority", required = false) TicketPriority priority,
+            @RequestParam(value = "category", required = false) TicketCategory category,
+            @RequestParam(value = "agentId", required = false) UUID agentId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
         
         log.info("GET /api/v1/support/tickets/filter - Buscando tickets com filtros");
         
@@ -133,9 +133,9 @@ public class SupportTicketController {
     @GetMapping("/search")
     @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Page<SupportTicketDTO>> searchTickets(
-            @RequestParam String q,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(value = "q") String q,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
         
         log.info("GET /api/v1/support/tickets/search?q={} - Buscando tickets", q);
         
@@ -162,7 +162,7 @@ public class SupportTicketController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('SUPPORT_WRITE', 'SUPPORT_MANAGE', 'ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<SupportTicketDTO> updateTicket(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody UpdateTicketRequest request) {
         log.info("PUT /api/v1/support/tickets/{} - Atualizando ticket", id);
         SupportTicketDTO ticket = ticketService.updateTicket(id, request);
@@ -175,8 +175,8 @@ public class SupportTicketController {
     @PutMapping("/{id}/assign/{agentId}")
     @PreAuthorize("hasAnyAuthority('SUPPORT_WRITE', 'SUPPORT_MANAGE', 'ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<SupportTicketDTO> assignTicketToAgent(
-            @PathVariable UUID id,
-            @PathVariable UUID agentId) {
+            @PathVariable("id") UUID id,
+            @PathVariable("agentId") UUID agentId) {
         log.info("PUT /api/v1/support/tickets/{}/assign/{} - Atribuindo ticket ao agente", id, agentId);
         SupportTicketDTO ticket = ticketService.assignTicketToAgent(id, agentId);
         return ResponseEntity.ok(ticket);
@@ -188,7 +188,7 @@ public class SupportTicketController {
     @PostMapping("/{id}/messages")
     @PreAuthorize("hasAnyAuthority('SUPPORT_WRITE', 'SUPPORT_MANAGE', 'ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<TicketMessageDTO> addMessageToTicket(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody AddTicketMessageRequest request,
             Authentication authentication) {
         
@@ -206,7 +206,7 @@ public class SupportTicketController {
      */
     @GetMapping("/{id}/messages")
     @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<TicketMessageDTO>> getTicketMessages(@PathVariable UUID id) {
+    public ResponseEntity<List<TicketMessageDTO>> getTicketMessages(@PathVariable("id") UUID id) {
         log.info("GET /api/v1/support/tickets/{}/messages - Buscando mensagens do ticket", id);
         List<TicketMessageDTO> messages = ticketService.getTicketMessages(id);
         return ResponseEntity.ok(messages);
@@ -217,7 +217,7 @@ public class SupportTicketController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('SUPPORT_DELETE', 'SUPPORT_MANAGE', 'ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteTicket(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteTicket(@PathVariable("id") UUID id) {
         log.info("DELETE /api/v1/support/tickets/{} - Deletando ticket", id);
         ticketService.deleteTicket(id);
         return ResponseEntity.noContent().build();

@@ -73,6 +73,7 @@ public class VehicleDocument {
         CRLV("CRLV"),
         DUT("DUT"),
         SEGURO("Seguro"),
+        IPVA("IPVA"),
         OUTRO("Outro");
 
         private final String description;

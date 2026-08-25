@@ -42,7 +42,7 @@ public class WorkJourneyConfigController {
      */
     @GetMapping("/company/{companyId}")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN', 'ADMIN', 'FLEX_ADMIN')")
-    public ResponseEntity<?> findByCompanyId(@PathVariable UUID companyId) {
+    public ResponseEntity<?> findByCompanyId(@PathVariable("companyId") UUID companyId) {
         try {
             WorkJourneyConfig config = configService.findByCompanyId(companyId);
             return ResponseEntity.ok(Map.of("success", true, "data", config));
@@ -58,7 +58,7 @@ public class WorkJourneyConfigController {
     @PutMapping("/company/{companyId}")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN', 'FLEX_ADMIN')")
     public ResponseEntity<?> saveOrUpdate(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody Map<String, Object> updates) {
         try {
             WorkJourneyConfig config = configService.saveOrUpdate(companyId, updates);
@@ -74,7 +74,7 @@ public class WorkJourneyConfigController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<?> delete(@PathVariable UUID id) {
+    public ResponseEntity<?> delete(@PathVariable("id") UUID id) {
         try {
             configService.deleteById(id);
             return ResponseEntity.ok(Map.of("success", true, "message", "Configuração excluída"));

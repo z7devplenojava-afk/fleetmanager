@@ -21,15 +21,15 @@ public class VehicleBatteryController {
 
     @GetMapping
     public ResponseEntity<List<VehicleBatteryDTO>> list(
-            @RequestParam(required = false) UUID vehicleId,
-            @RequestParam(required = false) VehicleBattery.BatteryStatus status,
+            @RequestParam(value = "vehicleId", required = false) UUID vehicleId,
+            @RequestParam(value = "status", required = false) VehicleBattery.BatteryStatus status,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(service.list(vehicleId, status, user.getCompanyId()));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<VehicleBatteryDTO> getById(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(service.getById(id, user.getCompanyId()));
     }
@@ -43,7 +43,7 @@ public class VehicleBatteryController {
 
     @PutMapping("/{id}")
     public ResponseEntity<VehicleBatteryDTO> update(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody VehicleBatteryDTO dto,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(service.update(id, dto, user.getCompanyId()));
@@ -51,7 +51,7 @@ public class VehicleBatteryController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @AuthenticationPrincipal User user) {
         service.delete(id, user.getCompanyId());
         return ResponseEntity.noContent().build();

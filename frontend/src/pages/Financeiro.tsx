@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import RelatoriosTab from '@/components/financeiro/RelatoriosTab';
 import CentroCustosTab from '@/components/financeiro/CentroCustosTab';
 import FaturasTab from '@/components/financeiro/FaturasTab';
 import MedicoesTab from '@/components/financeiro/MedicoesTab';
+import { ContractRetentionTab } from '@/components/financeiro/ContractRetentionTab';
 
 const FinanceiroSimple: React.FC = () => {
   const { toast } = useToast();
@@ -97,6 +98,9 @@ const FinanceiroSimple: React.FC = () => {
               <TabsTrigger value="medicoes" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-red text-xs sm:text-sm">
                 Medições
               </TabsTrigger>
+              <TabsTrigger value="retencoes" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-red text-xs sm:text-sm">
+                Retenções
+              </TabsTrigger>
             </TabsList>
 
           <TabsContent value="dashboard" className="mt-6">
@@ -142,6 +146,10 @@ const FinanceiroSimple: React.FC = () => {
 
           <TabsContent value="medicoes">
             <MedicoesTab />
+          </TabsContent>
+
+          <TabsContent value="retencoes">
+            <ContractRetentionTab />
           </TabsContent>
           </Tabs>
         </div>

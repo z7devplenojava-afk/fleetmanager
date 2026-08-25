@@ -88,7 +88,7 @@ public class VacationController {
                     schema = @Schema(implementation = Vacation.class),
                     examples = @ExampleObject(value = "{\"id\":\"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"startDate\":\"2024-09-01\", \"endDate\":\"2024-09-20\"}")))
     @PutMapping("/{id}")
-    public ResponseEntity<Vacation> update(@PathVariable UUID id, @RequestBody Vacation vacation) {
+    public ResponseEntity<Vacation> update(@PathVariable("id") UUID id, @RequestBody Vacation vacation) {
         return ResponseEntity.ok(vacationService.update(id, vacation));
     }
     
@@ -107,7 +107,7 @@ public class VacationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PutMapping("/{id}/cancel")
-    public ResponseEntity<Vacation> cancel(@PathVariable UUID id) {
+    public ResponseEntity<Vacation> cancel(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(vacationService.cancel(id));
     }
     
@@ -121,7 +121,7 @@ public class VacationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         vacationService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -137,7 +137,7 @@ public class VacationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<VacationDTO> findById(@PathVariable UUID id) {
+    public ResponseEntity<VacationDTO> findById(@PathVariable("id") UUID id) {
         Vacation vacation = vacationService.findById(id);
         return ResponseEntity.ok(VacationDTO.fromEntity(vacation));
     }
@@ -151,7 +151,7 @@ public class VacationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<VacationDTO>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<VacationDTO>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         List<Vacation> vacations = vacationService.findByEmployeeId(employeeId);
         List<VacationDTO> vacationDTOs = vacations.stream()
             .map(VacationDTO::fromEntity)
@@ -172,8 +172,8 @@ public class VacationController {
     @Parameter(description = "Status da solicitaÃ§Ã£o de fÃ©rias (PENDING, APPROVED, REJECTED, CANCELLED)", required = true)
     @GetMapping("/employee/{employeeId}/status/{status}")
     public ResponseEntity<List<VacationDTO>> findByEmployeeIdAndStatus(
-            @PathVariable UUID employeeId,
-            @PathVariable VacationStatus status) {
+            @PathVariable("employeeId") UUID employeeId,
+            @PathVariable("status") VacationStatus status) {
         List<Vacation> vacations = vacationService.findByEmployeeIdAndStatus(employeeId, status);
         List<VacationDTO> vacationDTOs = vacations.stream()
             .map(VacationDTO::fromEntity)
@@ -195,8 +195,8 @@ public class VacationController {
     @Parameter(description = "Data de fim do perÃ­odo (formato YYYY-MM-DD)", example = "2023-12-31", required = true)
     @GetMapping("/date-range")
     public ResponseEntity<List<VacationDTO>> findByStartDateBetween(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<Vacation> vacations = vacationService.findByStartDateBetween(startDate, endDate);
         List<VacationDTO> vacationDTOs = vacations.stream()
             .map(VacationDTO::fromEntity)
@@ -241,7 +241,7 @@ public class VacationController {
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasAnyAuthority('HR_APPROVE', 'HR_READ', 'HR_WRITE', 'HR_DELETE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'RECURSOS_HUMANOS', 'RH', 'DEPARTAMENTO_PESSOAL')")
     public ResponseEntity<VacationDTO> approveVacation(
-            @Parameter(description = "ID da solicitaÃ§Ã£o de fÃ©rias a ser aprovada") @PathVariable UUID id,
+            @Parameter(description = "ID da solicitaÃ§Ã£o de fÃ©rias a ser aprovada") @PathVariable("id") UUID id,
             @RequestBody(required = false) ApprovalRequest request) {
         try {
             Vacation vacation = vacationService.approveVacation(id, request != null ? request.getObservacoes() : null);
@@ -271,7 +271,7 @@ public class VacationController {
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasAnyAuthority('HR_APPROVE', 'HR_READ', 'HR_WRITE', 'HR_DELETE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'RECURSOS_HUMANOS', 'RH', 'DEPARTAMENTO_PESSOAL')")
     public ResponseEntity<VacationDTO> rejectVacation(
-            @Parameter(description = "ID da solicitaÃ§Ã£o de fÃ©rias a ser rejeitada") @PathVariable UUID id,
+            @Parameter(description = "ID da solicitaÃ§Ã£o de fÃ©rias a ser rejeitada") @PathVariable("id") UUID id,
             @RequestBody(required = false) ApprovalRequest request) {
         try {
             String motivo = (request != null && request.getObservacoes() != null) ? request.getObservacoes() : "Motivo nÃ£o especificado";

@@ -35,10 +35,10 @@ public class EquipmentController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
     public ResponseEntity<Page<EquipmentDTO>> getAllEquipments(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDirection) {
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "sortBy", defaultValue = "createdAt") String sortBy,
+            @RequestParam(value = "sortDirection", defaultValue = "DESC") String sortDirection) {
         try {
             log.info("Buscando equipamentos - pÃ¡gina: {}, tamanho: {}, ordenaÃ§Ã£o: {} {}", 
                     page, size, sortBy, sortDirection);
@@ -80,7 +80,7 @@ public class EquipmentController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
-    public ResponseEntity<EquipmentDTO> getEquipmentById(@PathVariable UUID id) {
+    public ResponseEntity<EquipmentDTO> getEquipmentById(@PathVariable("id") UUID id) {
         try {
             log.info("Buscando equipamento por ID: {}", id);
             EquipmentDTO equipment = equipmentService.findById(id);
@@ -96,7 +96,7 @@ public class EquipmentController {
      */
     @GetMapping("/serial/{serialNumber}")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
-    public ResponseEntity<EquipmentDTO> getEquipmentBySerialNumber(@PathVariable String serialNumber) {
+    public ResponseEntity<EquipmentDTO> getEquipmentBySerialNumber(@PathVariable("serialNumber") String serialNumber) {
         try {
             log.info("Buscando equipamento por nÃºmero de sÃ©rie: {}", serialNumber);
             EquipmentDTO equipment = equipmentService.findBySerialNumber(serialNumber);
@@ -112,7 +112,7 @@ public class EquipmentController {
      */
     @GetMapping("/status/{status}")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
-    public ResponseEntity<List<EquipmentDTO>> getEquipmentsByStatus(@PathVariable EquipmentStatus status) {
+    public ResponseEntity<List<EquipmentDTO>> getEquipmentsByStatus(@PathVariable("status") EquipmentStatus status) {
         try {
             log.info("Buscando equipamentos por status: {}", status);
             List<EquipmentDTO> equipments = equipmentService.findByStatus(status);
@@ -128,7 +128,7 @@ public class EquipmentController {
      */
     @GetMapping("/user/{userId}")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
-    public ResponseEntity<List<EquipmentDTO>> getEquipmentsByUser(@PathVariable UUID userId) {
+    public ResponseEntity<List<EquipmentDTO>> getEquipmentsByUser(@PathVariable("userId") UUID userId) {
         try {
             log.info("Buscando equipamentos do usuÃ¡rio: {}", userId);
             List<EquipmentDTO> equipments = equipmentService.findByCurrentUser(userId);
@@ -144,7 +144,7 @@ public class EquipmentController {
      */
     @GetMapping("/expiring/{days}")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
-    public ResponseEntity<List<EquipmentDTO>> getExpiringEquipments(@PathVariable int days) {
+    public ResponseEntity<List<EquipmentDTO>> getExpiringEquipments(@PathVariable("days") int days) {
         try {
             log.info("Buscando equipamentos expirando em {} dias", days);
             List<EquipmentDTO> equipments = equipmentService.findExpiring(days);
@@ -225,7 +225,7 @@ public class EquipmentController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_WRITE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR')")
     public ResponseEntity<EquipmentDTO> updateEquipment(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody CreateEquipmentRequest request) {
         try {
             log.info("Atualizando equipamento: {}", id);
@@ -243,8 +243,8 @@ public class EquipmentController {
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_WRITE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR')")
     public ResponseEntity<EquipmentDTO> updateEquipmentStatus(
-            @PathVariable UUID id,
-            @RequestParam EquipmentStatus status) {
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "status") EquipmentStatus status) {
         try {
             log.info("Atualizando status do equipamento {} para {}", id, status);
             EquipmentDTO updated = equipmentService.updateStatus(id, status);
@@ -261,8 +261,8 @@ public class EquipmentController {
     @PatchMapping("/{equipmentId}/assign/{userId}")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_ASSIGN', 'EQUIPMENTS_WRITE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR')")
     public ResponseEntity<EquipmentDTO> assignEquipmentToUser(
-            @PathVariable UUID equipmentId,
-            @PathVariable UUID userId) {
+            @PathVariable("equipmentId") UUID equipmentId,
+            @PathVariable("userId") UUID userId) {
         try {
             log.info("Atribuindo equipamento {} ao usuÃ¡rio {}", equipmentId, userId);
             EquipmentDTO updated = equipmentService.assignToUser(equipmentId, userId);
@@ -278,7 +278,7 @@ public class EquipmentController {
      */
     @PatchMapping("/{equipmentId}/unassign")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_ASSIGN', 'EQUIPMENTS_WRITE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR')")
-    public ResponseEntity<EquipmentDTO> unassignEquipment(@PathVariable UUID equipmentId) {
+    public ResponseEntity<EquipmentDTO> unassignEquipment(@PathVariable("equipmentId") UUID equipmentId) {
         try {
             log.info("Removendo atribuiÃ§Ã£o do equipamento {}", equipmentId);
             EquipmentDTO updated = equipmentService.assignToUser(equipmentId, null);
@@ -294,7 +294,7 @@ public class EquipmentController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('EQUIPMENTS_DELETE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
-    public ResponseEntity<Void> deleteEquipment(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteEquipment(@PathVariable("id") UUID id) {
         try {
             log.info("Excluindo equipamento: {}", id);
             equipmentService.delete(id);

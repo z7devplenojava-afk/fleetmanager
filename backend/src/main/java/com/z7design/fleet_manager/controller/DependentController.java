@@ -87,7 +87,7 @@ public class DependentController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
     public ResponseEntity<DependentDTO> findById(
-            @Parameter(description = "ID do dependente") @PathVariable UUID id) {
+            @Parameter(description = "ID do dependente") @PathVariable("id") UUID id) {
         try {
             log.info("Buscando dependente ID: {}", id);
             DependentDTO dependent = dependentService.findById(id);
@@ -109,7 +109,7 @@ public class DependentController {
     })
     // PermissÃµes controladas pelo SecurityConfig
     public ResponseEntity<List<DependentDTO>> findByEmployeeId(
-            @Parameter(description = "ID do funcionÃ¡rio") @PathVariable UUID employeeId) {
+            @Parameter(description = "ID do funcionÃ¡rio") @PathVariable("employeeId") UUID employeeId) {
         try {
             log.info("Buscando dependentes do funcionÃ¡rio ID: {}", employeeId);
             
@@ -139,7 +139,7 @@ public class DependentController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
     public ResponseEntity<List<DependentDTO>> findByCpf(
-            @Parameter(description = "CPF do dependente") @PathVariable String cpf) {
+            @Parameter(description = "CPF do dependente") @PathVariable("cpf") String cpf) {
         try {
             log.info("Buscando dependente por CPF: {}", cpf);
             List<DependentDTO> dependents = dependentService.findByCpf(cpf);
@@ -161,7 +161,7 @@ public class DependentController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
     public ResponseEntity<List<DependentDTO>> findByRelationship(
-            @Parameter(description = "Tipo de relacionamento") @PathVariable String relationship) {
+            @Parameter(description = "Tipo de relacionamento") @PathVariable("relationship") String relationship) {
         try {
             log.info("Buscando dependentes por relacionamento: {}", relationship);
             List<DependentDTO> dependents = dependentService.findByRelationship(relationship);
@@ -186,7 +186,7 @@ public class DependentController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
     public ResponseEntity<DependentDTO> update(
-            @Parameter(description = "ID do dependente") @PathVariable UUID id,
+            @Parameter(description = "ID do dependente") @PathVariable("id") UUID id,
             @Valid @RequestBody DependentDTO.UpdateRequest request) {
         try {
             log.info("Atualizando dependente ID: {}", id);
@@ -210,7 +210,7 @@ public class DependentController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
     public ResponseEntity<Void> delete(
-            @Parameter(description = "ID do dependente") @PathVariable UUID id) {
+            @Parameter(description = "ID do dependente") @PathVariable("id") UUID id) {
         try {
             log.info("Excluindo dependente ID: {}", id);
             dependentService.delete(id);

@@ -28,7 +28,7 @@ public class ProductController {
     }
     
     @GetMapping("/{id}")
-    public ResponseEntity<ProductDTO> getProductById(@PathVariable UUID id) {
+    public ResponseEntity<ProductDTO> getProductById(@PathVariable("id") UUID id) {
         log.info("Buscando produto com ID: {}", id);
         return productService.getProductById(id)
                 .map(ResponseEntity::ok)
@@ -43,7 +43,7 @@ public class ProductController {
     }
     
     @PutMapping("/{id}")
-    public ResponseEntity<ProductDTO> updateProduct(@PathVariable UUID id, @RequestBody ProductDTO productDTO) {
+    public ResponseEntity<ProductDTO> updateProduct(@PathVariable("id") UUID id, @RequestBody ProductDTO productDTO) {
         log.info("Atualizando produto com ID: {}", id);
         try {
             ProductDTO updatedProduct = productService.updateProduct(id, productDTO);
@@ -54,7 +54,7 @@ public class ProductController {
     }
     
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteProduct(@PathVariable("id") UUID id) {
         log.info("Deletando produto com ID: {}", id);
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
@@ -82,35 +82,35 @@ public class ProductController {
     }
     
     @GetMapping("/search")
-    public ResponseEntity<List<ProductDTO>> searchProducts(@RequestParam String searchTerm) {
+    public ResponseEntity<List<ProductDTO>> searchProducts(@RequestParam(value = "searchTerm") String searchTerm) {
         log.info("Buscando produtos com termo: {}", searchTerm);
         List<ProductDTO> products = productService.searchProducts(searchTerm);
         return ResponseEntity.ok(products);
     }
     
     @GetMapping("/category/{category}")
-    public ResponseEntity<List<ProductDTO>> getProductsByCategory(@PathVariable String category) {
+    public ResponseEntity<List<ProductDTO>> getProductsByCategory(@PathVariable("category") String category) {
         log.info("Buscando produtos da categoria: {}", category);
         List<ProductDTO> products = productService.getProductsByCategory(category);
         return ResponseEntity.ok(products);
     }
     
     @GetMapping("/unit/{unitId}")
-    public ResponseEntity<List<ProductDTO>> getProductsByUnit(@PathVariable UUID unitId) {
+    public ResponseEntity<List<ProductDTO>> getProductsByUnit(@PathVariable("unitId") UUID unitId) {
         log.info("Buscando produtos da unidade: {}", unitId);
         List<ProductDTO> products = productService.getProductsByUnit(unitId);
         return ResponseEntity.ok(products);
     }
     
     @GetMapping("/supplier/{supplier}")
-    public ResponseEntity<List<ProductDTO>> getProductsBySupplier(@PathVariable String supplier) {
+    public ResponseEntity<List<ProductDTO>> getProductsBySupplier(@PathVariable("supplier") String supplier) {
         log.info("Buscando produtos do fornecedor: {}", supplier);
         List<ProductDTO> products = productService.getProductsBySupplier(supplier);
         return ResponseEntity.ok(products);
     }
     
     @GetMapping("/abc-classification/{classification}")
-    public ResponseEntity<List<ProductDTO>> getProductsByAbcClassification(@PathVariable String classification) {
+    public ResponseEntity<List<ProductDTO>> getProductsByAbcClassification(@PathVariable("classification") String classification) {
         log.info("Buscando produtos da classificaÃ§Ã£o ABC: {}", classification);
         List<ProductDTO> products = productService.getProductsByAbcClassification(classification);
         return ResponseEntity.ok(products);

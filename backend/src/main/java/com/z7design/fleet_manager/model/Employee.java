@@ -539,7 +539,51 @@ public class Employee implements TenantAware {
     private Boolean exameMedicoPrimeiroEmprego; // true = Sim, false = NÃ£o
 
     @Column(name = "exame_medico_contribuicao_sindical_paga")
-    private Boolean exameMedicoContribuicaoSindicalPaga; // true = Sim, false = NÃ£o
+    private Boolean exameMedicoContribuicaoSindicalPaga; // true = Sim, false = Não
+
+    // =========================================================================
+    // Campos de Benefícios e Descontos (importação da planilha de folha)
+    // =========================================================================
+
+    @Column(name = "mensalidade_plano_saude", precision = 15, scale = 2)
+    private java.math.BigDecimal mensalidadePlanoSaude;
+
+    @Column(name = "coparticipacao_saude", precision = 15, scale = 2)
+    private java.math.BigDecimal coparticipacaoSaude;
+
+    @Column(name = "plano_odontologico", precision = 15, scale = 2)
+    private java.math.BigDecimal planoOdontologico;
+
+    @Column(name = "vale_transporte", precision = 15, scale = 2)
+    private java.math.BigDecimal valeTransporte;
+
+    @Column(name = "desconto_multas", precision = 15, scale = 2)
+    private java.math.BigDecimal descontoMultas;
+
+    @Column(name = "desconto_avarias", precision = 15, scale = 2)
+    private java.math.BigDecimal descontoAvarias;
+
+    @Column(name = "vale_adiantamento", precision = 15, scale = 2)
+    private java.math.BigDecimal valeAdiantamento;
+
+    @Column(name = "adicional_noturno", precision = 15, scale = 2)
+    private java.math.BigDecimal adicionalNoturno;
+
+    @Column(name = "horas_extras_50", precision = 15, scale = 2)
+    private java.math.BigDecimal horasExtras50;
+
+    @Column(name = "horas_extras_60", precision = 15, scale = 2)
+    private java.math.BigDecimal horasExtras60;
+
+    @Column(name = "horas_extras_100", precision = 15, scale = 2)
+    private java.math.BigDecimal horasExtras100;
+
+    @Column(name = "afastamento_motivo", length = 255)
+    private String afastamentoMotivo;
+
+    @Column(name = "afastamento_data")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate afastamentoData;
 
     // MÃ©todo para obter o nome completo do funcionÃ¡rio
     public String getFullName() {

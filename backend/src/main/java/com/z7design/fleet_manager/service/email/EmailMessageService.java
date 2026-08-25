@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.z7design.fleet_manager.dto.EmailAddressDTO;
 import com.z7design.fleet_manager.dto.EmailAttachmentDTO;
 import com.z7design.fleet_manager.dto.EmailMessageDTO;
+import com.z7design.fleet_manager.model.email.EmailAccount;
+import com.z7design.fleet_manager.model.email.EmailFolder;
 import com.z7design.fleet_manager.model.email.EmailMessage;
 import com.z7design.fleet_manager.model.email.EmailMessageAttachment;
 import com.z7design.fleet_manager.repository.email.EmailFolderRepository;
@@ -19,6 +21,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import jakarta.mail.Flags;
+import jakarta.mail.Folder;
+import jakarta.mail.Message;
+import jakarta.mail.Store;
+import jakarta.mail.UIDFolder;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -107,6 +115,79 @@ public class EmailMessageService {
     @Transactional
     public void deleteMessage(UUID id) {
         messageRepository.deleteById(id);
+    }
+
+    // ==================== MOVER / ARQUIVAR ====================
+
+    /**
+     * Move a mensagem para outra pasta: executa o move no servidor IMAP
+     * (append na origem + expurgo) e remove o espelho local — o próximo sync
+     * reimporta a mensagem na pasta de destino (sem depender de UIDPLUS).
+     */
+    @Transactional
+    public EmailMessageDTO moveMessage(UUID messageId, UUID targetFolderId) {
+        EmailMessage msg = messageRepository.findById(messageId)
+                .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada"));
+        EmailFolder target = folderRepository.findById(targetFolderId)
+                .orElseThrow(() -> new IllegalArgumentException("Pasta de destino não encontrada"));
+
+        if (!msg.getAccount().getId().equals(target.getAccount().getId())) {
+            throw new IllegalArgumentException("A pasta de destino pertence a outra conta");
+        }
+        EmailFolder source = msg.getFolder();
+        if (source.getId().equals(target.getId())) {
+            return toFullDTO(msg); // já está na pasta
+        }
+
+        try {
+            EmailAccount account = msg.getAccount();
+            try (Store store = emailAccountService.connectImap(account)) {
+                Folder src = store.getFolder(source.getRemoteName());
+                if (!src.exists()) {
+                    throw new IllegalStateException("Pasta de origem não existe no servidor");
+                }
+                src.open(Folder.READ_WRITE);
+                try {
+                    Folder dst = store.getFolder(target.getRemoteName());
+                    if (!dst.exists()) {
+                        throw new IllegalStateException("Pasta de destino não existe no servidor");
+                    }
+                    dst.open(Folder.READ_WRITE);
+                    try {
+                        Message[] msgs = ((UIDFolder) src).getMessagesByUID(new long[]{ msg.getUid() });
+                        if (msgs == null || msgs.length == 0) {
+                            throw new IllegalStateException("Mensagem não encontrada no servidor");
+                        }
+                        // Copia para a pasta de destino e expurga na origem (move IMAP)
+                        dst.appendMessages(msgs);
+                        msgs[0].setFlag(Flags.Flag.DELETED, true);
+                        src.expunge();
+                    } finally {
+                        if (dst.isOpen()) {
+                            dst.close(false);
+                        }
+                    }
+                } finally {
+                    if (src.isOpen()) {
+                        src.close(false);
+                    }
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Falha ao mover mensagem {} no IMAP: {}", msg.getId(), e.getMessage());
+            throw new IllegalArgumentException("Não foi possível mover a mensagem no servidor: "
+                    + emailAccountService.extractFriendlyError(e));
+        }
+
+        // Move realizado no servidor: remove o espelho local; o próximo sync
+        // reimporta a mensagem na pasta de destino.
+        UUID movedFolderId = target.getId();
+        messageRepository.delete(msg);
+        EmailMessageDTO dto = toFullDTO(msg);
+        dto.setFolderId(movedFolderId);
+        return dto;
     }
 
     // ==================== ANEXOS ====================

@@ -14,6 +14,7 @@ export interface EmailAccount {
   smtpSsl: boolean;
   username?: string;
   authType: string;
+  signature?: string;
   status: string;
   lastSyncAt?: string;
   lastSyncStatus?: string;
@@ -37,6 +38,7 @@ export interface EmailAccountRequest {
   username?: string;
   password?: string;
   authType?: string;
+  signature?: string;
 }
 
 export interface EmailAddress {
@@ -203,6 +205,25 @@ export const emailAccountService = {
 
   deleteMessage: async (id: string): Promise<void> => {
     await api.delete(`/api/email/messages/${id}`);
+  },
+
+  moveMessage: async (id: string, folderId: string): Promise<EmailMessage> => {
+    const response = await api.post(`/api/email/messages/${id}/move`, { folderId });
+    return response.data?.data;
+  },
+
+  uploadAttachment: async (accountId: string, file: File): Promise<{
+    id: string;
+    fileName: string;
+    contentType?: string;
+    sizeBytes?: number;
+  }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/api/email/accounts/${accountId}/attachments/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data?.data;
   },
 
   downloadAttachmentUrl: (attachmentId: string): string =>

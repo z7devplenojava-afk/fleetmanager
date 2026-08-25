@@ -106,7 +106,7 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<WorkPostDTO> getWorkPostById(
-            @Parameter(description = "ID do posto") @PathVariable String id) {
+            @Parameter(description = "ID do posto") @PathVariable("id") String id) {
         // Limpar espaÃ§os da URL (caso venha com espaÃ§o no final, ex: "all ")
         String cleanId = id != null ? id.trim() : "";
         
@@ -139,7 +139,7 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<WorkPostDTO> getWorkPostByCode(
-            @Parameter(description = "CÃ³digo do posto") @PathVariable String postCode) {
+            @Parameter(description = "CÃ³digo do posto") @PathVariable("postCode") String postCode) {
         WorkPost workPost = workPostService.findByPostCode(postCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Posto nÃ£o encontrado com cÃ³digo: " + postCode));
         WorkPostDTO workPostDTO = workPostService.convertToDTO(workPost);
@@ -169,7 +169,7 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<WorkPostDTO> updateWorkPost(
-            @Parameter(description = "ID do posto") @PathVariable String id,
+            @Parameter(description = "ID do posto") @PathVariable("id") String id,
             @Parameter(description = "Dados atualizados do posto") @Valid @RequestBody WorkPostDTO workPostDTO) {
         WorkPostDTO updatedWorkPostDTO = workPostService.updateWorkPost(UUID.fromString(id), workPostDTO);
         return ResponseEntity.ok(updatedWorkPostDTO);
@@ -183,7 +183,7 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Void> deleteWorkPost(
-            @Parameter(description = "ID do posto") @PathVariable String id) {
+            @Parameter(description = "ID do posto") @PathVariable("id") String id) {
         workPostService.deleteWorkPost(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }
@@ -195,7 +195,7 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<WorkPostDTO>> getWorkPostsByStatus(
-            @Parameter(description = "Status do posto") @PathVariable WorkPostStatus status,
+            @Parameter(description = "Status do posto") @PathVariable("status") WorkPostStatus status,
             @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
         Page<WorkPost> workPosts = workPostService.findByStatus(status, pageable);
         Page<WorkPostDTO> workPostDTOs = workPostService.convertToDTOPage(workPosts);
@@ -209,7 +209,7 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<WorkPostDTO>> getWorkPostsByType(
-            @Parameter(description = "Tipo do posto") @PathVariable WorkPostType type,
+            @Parameter(description = "Tipo do posto") @PathVariable("type") WorkPostType type,
             @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
         Page<WorkPost> workPosts = workPostService.findByType(type, pageable);
         Page<WorkPostDTO> workPostDTOs = workPostService.convertToDTOPage(workPosts);
@@ -224,7 +224,7 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<WorkPostDTO>> getWorkPostsByClient(
-            @Parameter(description = "ID do cliente") @PathVariable String clientId,
+            @Parameter(description = "ID do cliente") @PathVariable("clientId") String clientId,
             @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
         Page<WorkPost> workPosts = workPostService.findByClient(UUID.fromString(clientId), pageable);
         Page<WorkPostDTO> workPostDTOs = workPostService.convertToDTOPage(workPosts);
@@ -239,7 +239,7 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<List<WorkPostDTO>> getAllWorkPostsByClient(
-            @Parameter(description = "ID do cliente") @PathVariable String clientId) {
+            @Parameter(description = "ID do cliente") @PathVariable("clientId") String clientId) {
         List<WorkPost> workPosts = workPostService.findByClient(UUID.fromString(clientId));
         List<WorkPostDTO> workPostDTOs = workPostService.convertToDTOList(workPosts);
         return ResponseEntity.ok(workPostDTOs);
@@ -252,7 +252,7 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<WorkPostDTO>> getWorkPostsByContract(
-            @Parameter(description = "ID do contrato") @PathVariable String contractId,
+            @Parameter(description = "ID do contrato") @PathVariable("contractId") String contractId,
             @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
         Page<WorkPost> workPosts = workPostService.findByContract(UUID.fromString(contractId), pageable);
         Page<WorkPostDTO> workPostDTOs = workPostService.convertToDTOPage(workPosts);
@@ -266,10 +266,10 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<WorkPostDTO>> searchWorkPosts(
-            @Parameter(description = "ID do cliente") @RequestParam(required = false) String clientId,
-            @Parameter(description = "Status do posto") @RequestParam(required = false) WorkPostStatus status,
-            @Parameter(description = "Tipo do posto") @RequestParam(required = false) WorkPostType type,
-            @Parameter(description = "Termo de busca") @RequestParam(required = false) String searchTerm,
+            @Parameter(description = "ID do cliente") @RequestParam(value = "clientId", required = false) String clientId,
+            @Parameter(description = "Status do posto") @RequestParam(value = "status", required = false) WorkPostStatus status,
+            @Parameter(description = "Tipo do posto") @RequestParam(value = "type", required = false) WorkPostType type,
+            @Parameter(description = "Termo de busca") @RequestParam(value = "searchTerm", required = false) String searchTerm,
             @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
         Page<WorkPost> workPosts = workPostService.findByFilters(UUID.fromString(clientId), status, type, searchTerm, pageable);
         Page<WorkPostDTO> workPostDTOs = workPostService.convertToDTOPage(workPosts);
@@ -283,8 +283,8 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<List<WorkPostDTO>> getWorkPostsToBeImplemented(
-            @Parameter(description = "Data inicial") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @Parameter(description = "Data final") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @Parameter(description = "Data inicial") @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "Data final") @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<WorkPost> workPosts = workPostService.findPostsToBeImplementedBetween(startDate, endDate);
         List<WorkPostDTO> workPostDTOs = workPostService.convertToDTOList(workPosts);
         return ResponseEntity.ok(workPostDTOs);
@@ -298,8 +298,8 @@ public class WorkPostController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<WorkPostDTO> updateWorkPostStatus(
-            @Parameter(description = "ID do posto") @PathVariable String id,
-            @Parameter(description = "Novo status") @RequestParam WorkPostStatus status) {
+            @Parameter(description = "ID do posto") @PathVariable("id") String id,
+            @Parameter(description = "Novo status") @RequestParam(value = "status") WorkPostStatus status) {
         WorkPost workPost = workPostService.updateStatus(UUID.fromString(id), status);
         WorkPostDTO workPostDTO = workPostService.convertToDTO(workPost);
         return ResponseEntity.ok(workPostDTO);

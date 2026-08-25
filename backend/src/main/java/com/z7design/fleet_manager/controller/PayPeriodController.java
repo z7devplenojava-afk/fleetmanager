@@ -25,8 +25,8 @@ public class PayPeriodController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('PAYROLL_READ', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getAllPeriods(
-            @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) String type) {
+            @RequestParam(value = "year", required = false) Integer year,
+            @RequestParam(value = "type", required = false) String type) {
         try {
             List<PayPeriod> periods;
             
@@ -54,7 +54,7 @@ public class PayPeriodController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_READ', 'SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getPeriodById(@PathVariable UUID id) {
+    public ResponseEntity<?> getPeriodById(@PathVariable("id") UUID id) {
         try {
             PayPeriod period = payPeriodService.findById(id);
             return ResponseEntity.ok(Map.of(
@@ -72,7 +72,7 @@ public class PayPeriodController {
 
     @GetMapping("/monthly/{year}/{month}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_READ', 'SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getOrCreateMonthlyPeriod(@PathVariable int year, @PathVariable int month) {
+    public ResponseEntity<?> getOrCreateMonthlyPeriod(@PathVariable("year") int year, @PathVariable("month") int month) {
         try {
             PayPeriod period = payPeriodService.getOrCreateMonthlyPeriod(year, month);
             return ResponseEntity.ok(Map.of(
@@ -91,10 +91,10 @@ public class PayPeriodController {
     @PostMapping("/custom")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> createCustomPeriod(
-            @RequestParam String name,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String description) {
+            @RequestParam(value = "name") String name,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "description", required = false) String description) {
         try {
             PayPeriod period = payPeriodService.createCustomPeriod(name, startDate, endDate, description);
             return ResponseEntity.ok(Map.of(
@@ -114,9 +114,9 @@ public class PayPeriodController {
     @PostMapping("/biweekly/{year}/{month}/{quinzena}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> createBiweeklyPeriod(
-            @PathVariable int year,
-            @PathVariable int month,
-            @PathVariable int quinzena) {
+            @PathVariable("year") int year,
+            @PathVariable("month") int month,
+            @PathVariable("quinzena") int quinzena) {
         try {
             PayPeriod period = payPeriodService.createBiweeklyPeriod(year, month, quinzena);
             return ResponseEntity.ok(Map.of(
@@ -154,7 +154,7 @@ public class PayPeriodController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> updatePeriod(@PathVariable UUID id, @RequestBody PayPeriod period) {
+    public ResponseEntity<?> updatePeriod(@PathVariable("id") UUID id, @RequestBody PayPeriod period) {
         try {
             PayPeriod updated = payPeriodService.update(id, period);
             return ResponseEntity.ok(Map.of(
@@ -174,8 +174,8 @@ public class PayPeriodController {
     @PostMapping("/{id}/close")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> closePeriod(
-            @PathVariable UUID id,
-            @RequestParam(required = false) UUID closedById) {
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "closedById", required = false) UUID closedById) {
         try {
             // Se closedById nÃ£o for fornecido, usar um UUID padrÃ£o ou null
             // (o service pode lidar com isso ou podemos buscar do contexto de seguranÃ§a)
@@ -197,7 +197,7 @@ public class PayPeriodController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_MANAGE') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> deletePeriod(@PathVariable UUID id) {
+    public ResponseEntity<?> deletePeriod(@PathVariable("id") UUID id) {
         try {
             payPeriodService.delete(id);
             return ResponseEntity.ok(Map.of(
@@ -215,7 +215,7 @@ public class PayPeriodController {
 
     @GetMapping("/year/{year}")
     @PreAuthorize("hasAnyAuthority('PAYROLL_READ', 'SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> getPeriodsByYear(@PathVariable int year) {
+    public ResponseEntity<?> getPeriodsByYear(@PathVariable("year") int year) {
         try {
             List<PayPeriod> periods = payPeriodService.findByYear(year);
             return ResponseEntity.ok(Map.of(

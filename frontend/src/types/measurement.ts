@@ -24,10 +24,13 @@ export interface MeasurementBulletin {
   contractDescription?: string;
   unitId?: string;
   unitName?: string;
+  workPostId?: string;
+  workPostName?: string;
   // Objetos completos (para compatibilidade)
   client?: { id: number | string; name: string };
   contract?: { id: string; contractNumber: string; description: string };
   unit?: { id: string; name: string };
+  workPost?: { id: string; name: string };
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -73,6 +76,7 @@ export interface MeasurementItem {
   tripDate?: string; // Data da viagem extra
   route?: string; // Trajeto da viagem extra
   vehicleType?: string; // Tipo de veículo da viagem extra
+  observations?: string; // Observações (ex: "02 MOTORISTAS")
 }
 
 export interface CalculationMemory {
@@ -115,6 +119,7 @@ export interface CreateMeasurementBulletinDTO {
   clientId?: string;
   contractId?: string;
   unitId?: string;
+  workPostId?: string;
   notes?: string;
   measurementType?: MeasurementType;
   items: CreateMeasurementItemDTO[];
@@ -152,6 +157,7 @@ export interface CreateMeasurementItemDTO {
   tripDate?: string;
   route?: string;
   vehicleType?: string;
+  observations?: string;
 }
 
 export interface UpdateMeasurementBulletinDTO extends Partial<CreateMeasurementBulletinDTO> {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings } from 'lucide-react';
+import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings, BarChart3 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import fleetService from '@/services/fleetService';
 import { FuelConsumptionStats } from '@/components/frota/FuelConsumptionStats';
@@ -15,6 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FuelInfraManagement } from '@/components/abastecimento/FuelInfraManagement';
 import { FuelDeliveryManagement } from '@/components/abastecimento/FuelDeliveryManagement';
 import { FuelReadingManagement } from '@/components/abastecimento/FuelReadingManagement';
+import FuelReportsDashboard from '@/components/frota/FuelReportsDashboard';
+import EfficiencyAlerts from '@/components/frota/EfficiencyAlerts';
 
 const AbastecimentoDashboard: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,7 +53,7 @@ const AbastecimentoDashboard: React.FC = () => {
         <StandardLayout title="Controle de Abastecimento" subtitle="Gestão de consumo, estoque e infraestrutura de combustível">
             <div className="space-y-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2 bg-seguranca-graphite border-gray-600 p-1 mb-6">
+                    <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5 gap-2 bg-seguranca-graphite border-gray-600 p-1 mb-6">
                         <TabsTrigger value="vehicles" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
                             <Fuel size={16} className="mr-2" /> Veículos
                         </TabsTrigger>
@@ -63,6 +65,9 @@ const AbastecimentoDashboard: React.FC = () => {
                         </TabsTrigger>
                         <TabsTrigger value="readings" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
                             <Gauge size={16} className="mr-2" /> Fechamentos
+                        </TabsTrigger>
+                        <TabsTrigger value="reports" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
+                            <BarChart3 size={16} className="mr-2" /> Relatórios
                         </TabsTrigger>
                     </TabsList>
 
@@ -116,6 +121,8 @@ const AbastecimentoDashboard: React.FC = () => {
                             </div>
                         </div>
 
+                        <EfficiencyAlerts compact />
+
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                             <FuelConsumptionOverview vehicles={vehicles} />
                             <FuelConsumptionStats vehicles={vehicles} />
@@ -148,6 +155,10 @@ const AbastecimentoDashboard: React.FC = () => {
 
                     <TabsContent value="readings" className="mt-0">
                         <FuelReadingManagement />
+                    </TabsContent>
+
+                    <TabsContent value="reports" className="mt-0">
+                        <FuelReportsDashboard fuelRecords={fuelRecords} vehicles={vehicles} />
                     </TabsContent>
                 </Tabs>
             </div>

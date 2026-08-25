@@ -611,7 +611,7 @@ export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: 
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleBulkDelete}
+                onClick={() => handleBulkDelete()}
                 className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
               >
                 <Trash2Icon size={16} className="mr-2" />

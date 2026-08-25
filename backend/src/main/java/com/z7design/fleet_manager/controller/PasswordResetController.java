@@ -50,7 +50,7 @@ public class PasswordResetController {
 
     @GetMapping("/validate-reset-token")
     @Operation(summary = "Validar token de reset", description = "Verifica se token de reset Ã© vÃ¡lido")
-    public ResponseEntity<?> validateToken(@RequestParam String token) {
+    public ResponseEntity<?> validateToken(@RequestParam(value = "token") String token) {
         boolean valid = passwordResetService.validateToken(token);
         return ResponseEntity.ok(Map.of(
                 "valid", valid

@@ -81,7 +81,7 @@ public class OccurrenceController {
                     schema = @Schema(implementation = Occurrence.class),
                     examples = @ExampleObject(value = "{\"id\":\"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"description\":\"Incidente de seguranÃ§a resolvido.\", \"status\":\"RESOLVED\"}")))
     @PutMapping("/{id}")
-    public ResponseEntity<OccurrenceResponseDTO> update(@PathVariable UUID id, @RequestBody CreateOccurrenceDTO dto) {
+    public ResponseEntity<OccurrenceResponseDTO> update(@PathVariable("id") UUID id, @RequestBody CreateOccurrenceDTO dto) {
         log.info("PUT /api/occurrences/{} - Atualizando ocorrÃªncia", id);
         try {
             // Buscar ocorrÃªncia existente
@@ -147,7 +147,7 @@ public class OccurrenceController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         log.info("DELETE /api/occurrences/{} - Deletando ocorrÃªncia", id);
         try {
             operationalOccurrenceService.deleteOccurrence(id);
@@ -169,7 +169,7 @@ public class OccurrenceController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<OccurrenceResponseDTO> findById(@PathVariable UUID id) {
+    public ResponseEntity<OccurrenceResponseDTO> findById(@PathVariable("id") UUID id) {
         try {
             // Tentar buscar como OperationalOccurrence primeiro
             var occurrence = operationalOccurrenceService.getOccurrenceById(id);
@@ -197,7 +197,7 @@ public class OccurrenceController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<OccurrenceResponseDTO>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<OccurrenceResponseDTO>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         var occurrences = operationalOccurrenceService.getOccurrencesByEmployee(employeeId);
         var responseDTOs = occurrences.stream()
             .map(operationalOccurrenceService::convertToResponseDTO)
@@ -216,7 +216,7 @@ public class OccurrenceController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/type/{type}")
-    public ResponseEntity<List<OccurrenceResponseDTO>> findByType(@PathVariable String type) {
+    public ResponseEntity<List<OccurrenceResponseDTO>> findByType(@PathVariable("type") String type) {
         try {
             var occurrenceType = OperationalOccurrence.OccurrenceType.valueOf(type.toUpperCase());
             var occurrences = operationalOccurrenceService.getOccurrencesByType(occurrenceType);
@@ -241,7 +241,7 @@ public class OccurrenceController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<OccurrenceResponseDTO>> findByStatus(@PathVariable String status) {
+    public ResponseEntity<List<OccurrenceResponseDTO>> findByStatus(@PathVariable("status") String status) {
         try {
             var occurrenceStatus = OperationalOccurrence.OccurrenceStatus.valueOf(status.toUpperCase());
             var occurrences = operationalOccurrenceService.getOccurrencesByStatus(occurrenceStatus);

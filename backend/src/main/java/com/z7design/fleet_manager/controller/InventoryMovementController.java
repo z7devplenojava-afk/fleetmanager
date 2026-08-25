@@ -43,7 +43,7 @@ public class InventoryMovementController {
     
     @GetMapping("/{id}")
     @Operation(summary = "Buscar movimentaÃ§Ã£o por ID", description = "Retorna uma movimentaÃ§Ã£o especÃ­fica pelo seu ID")
-    public ResponseEntity<InventoryMovement> getById(@PathVariable UUID id) {
+    public ResponseEntity<InventoryMovement> getById(@PathVariable("id") UUID id) {
         Optional<InventoryMovement> movement = inventoryMovementService.findById(id);
         return movement.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -51,42 +51,42 @@ public class InventoryMovementController {
     
     @GetMapping("/item/{itemId}")
     @Operation(summary = "Buscar movimentaÃ§Ãµes por item", description = "Retorna movimentaÃ§Ãµes de um item especÃ­fico")
-    public ResponseEntity<List<InventoryMovement>> getByItem(@PathVariable UUID itemId) {
+    public ResponseEntity<List<InventoryMovement>> getByItem(@PathVariable("itemId") UUID itemId) {
         return ResponseEntity.ok(inventoryMovementService.findByItem(itemId));
     }
     
     @GetMapping("/type/{type}")
     @Operation(summary = "Buscar movimentaÃ§Ãµes por tipo", description = "Retorna movimentaÃ§Ãµes de um tipo especÃ­fico")
-    public ResponseEntity<List<InventoryMovement>> getByType(@PathVariable InventoryMovement.MovementType type) {
+    public ResponseEntity<List<InventoryMovement>> getByType(@PathVariable("type") InventoryMovement.MovementType type) {
         return ResponseEntity.ok(inventoryMovementService.findByType(type));
     }
     
     @GetMapping("/status/{status}")
     @Operation(summary = "Buscar movimentaÃ§Ãµes por status", description = "Retorna movimentaÃ§Ãµes de um status especÃ­fico")
-    public ResponseEntity<List<InventoryMovement>> getByStatus(@PathVariable InventoryMovement.MovementStatus status) {
+    public ResponseEntity<List<InventoryMovement>> getByStatus(@PathVariable("status") InventoryMovement.MovementStatus status) {
         return ResponseEntity.ok(inventoryMovementService.findByStatus(status));
     }
     
     @GetMapping("/period")
     @Operation(summary = "Buscar movimentaÃ§Ãµes por perÃ­odo", description = "Retorna movimentaÃ§Ãµes em um perÃ­odo especÃ­fico")
     public ResponseEntity<List<InventoryMovement>> getByPeriod(
-            @RequestParam LocalDateTime startDate,
-            @RequestParam LocalDateTime endDate) {
+            @RequestParam(value = "startDate") LocalDateTime startDate,
+            @RequestParam(value = "endDate") LocalDateTime endDate) {
         return ResponseEntity.ok(inventoryMovementService.findByMovementDateBetween(startDate, endDate));
     }
     
     @GetMapping("/filters")
     @Operation(summary = "Buscar movimentaÃ§Ãµes com filtros avanÃ§ados", description = "Busca movimentaÃ§Ãµes aplicando mÃºltiplos filtros")
     public ResponseEntity<Page<InventoryMovement>> getByAdvancedFilters(
-            @RequestParam(required = false) UUID itemId,
-            @RequestParam(required = false) InventoryMovement.MovementType type,
-            @RequestParam(required = false) InventoryMovement.MovementStatus status,
-            @RequestParam(required = false) String requester,
-            @RequestParam(required = false) String employeeName,
-            @RequestParam(required = false) String department,
-            @RequestParam(required = false) String location,
-            @RequestParam(required = false) LocalDateTime startDate,
-            @RequestParam(required = false) LocalDateTime endDate,
+            @RequestParam(value = "itemId", required = false) UUID itemId,
+            @RequestParam(value = "type", required = false) InventoryMovement.MovementType type,
+            @RequestParam(value = "status", required = false) InventoryMovement.MovementStatus status,
+            @RequestParam(value = "requester", required = false) String requester,
+            @RequestParam(value = "employeeName", required = false) String employeeName,
+            @RequestParam(value = "department", required = false) String department,
+            @RequestParam(value = "location", required = false) String location,
+            @RequestParam(value = "startDate", required = false) LocalDateTime startDate,
+            @RequestParam(value = "endDate", required = false) LocalDateTime endDate,
             Pageable pageable) {
         return ResponseEntity.ok(inventoryMovementService.findByAdvancedFilters(itemId, type, status, requester, employeeName, department, location, startDate, endDate, pageable));
     }
@@ -99,7 +99,7 @@ public class InventoryMovementController {
     
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir movimentaÃ§Ã£o de estoque", description = "Exclui uma movimentaÃ§Ã£o de estoque do sistema")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         inventoryMovementService.deleteById(id);
         return ResponseEntity.noContent().build();
     }

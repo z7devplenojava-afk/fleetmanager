@@ -59,12 +59,11 @@ const Header: React.FC = () => {
           </div>
         ) : (
           <div className="flex items-center gap-2 group cursor-pointer active:scale-95 transition-all">
-            <div className="bg-primary/5 p-1.5 rounded-xl border border-primary/10 group-hover:scale-110 transition-transform">
-              <Bus className="text-primary" size={20} />
-            </div>
-            <h2 className="text-lg md:text-xl font-black tracking-tight text-foreground italic">
-              Flex<span className="text-primary not-italic">Bus</span>
-            </h2>
+            <img
+              src="/fluxbus-logo.png"
+              alt="FluxBus - Gestão de Fretamento e Turismo"
+              className="h-14 md:h-16 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform"
+            />
           </div>
         )}
       </div>

@@ -174,7 +174,7 @@ public class FileUploadController {
     })
     public ResponseEntity<Resource> downloadComprovante(
             @Parameter(description = "Nome do arquivo")
-            @PathVariable String filename) {
+            @PathVariable("filename") String filename) {
         
         try {
             Path filePath = Paths.get(uploadDir, "comprovantes").resolve(filename);
@@ -211,7 +211,7 @@ public class FileUploadController {
     })
     public ResponseEntity<Map<String, String>> deleteComprovante(
             @Parameter(description = "Nome do arquivo")
-            @PathVariable String filename) {
+            @PathVariable("filename") String filename) {
         
         try {
             Path filePath = Paths.get(uploadDir, "comprovantes").resolve(filename);
@@ -234,8 +234,8 @@ public class FileUploadController {
      */
     @GetMapping("/chat/{subDir}/{filename}")
     public ResponseEntity<Resource> downloadChatFile(
-            @PathVariable String subDir,
-            @PathVariable String filename) {
+            @PathVariable("subDir") String subDir,
+            @PathVariable("filename") String filename) {
         
         try {
             Path filePath = Paths.get(uploadDir, "chat", subDir).resolve(filename);

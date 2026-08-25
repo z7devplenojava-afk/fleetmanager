@@ -25,7 +25,7 @@ public class TicketingController {
 
     @Operation(summary = "Lista todos os tickets de uma viagem (Manifesto)")
     @GetMapping("/trip/{tripId}/tickets")
-    public ResponseEntity<java.util.List<Ticket>> getTickets(@PathVariable UUID tripId) {
+    public ResponseEntity<java.util.List<Ticket>> getTickets(@PathVariable("tripId") UUID tripId) {
         return ResponseEntity.ok(ticketingService.getTicketsByTrip(tripId));
     }
 
@@ -44,7 +44,7 @@ public class TicketingController {
     @Operation(summary = "Confirma a compra da passagem")
     @PostMapping("/confirm/{ticketId}")
     public ResponseEntity<Ticket> confirm(
-            @PathVariable UUID ticketId,
+            @PathVariable("ticketId") UUID ticketId,
             @RequestParam(name = "paymentMethod") String paymentMethod,
             @RequestParam(name = "paymentId") String paymentId) {
         return ResponseEntity.ok(ticketingService.confirmPurchase(ticketId, paymentMethod, paymentId));

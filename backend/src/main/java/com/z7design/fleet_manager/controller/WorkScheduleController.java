@@ -70,7 +70,7 @@ public class WorkScheduleController {
      * Buscar escala por ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<WorkSchedule> getWorkScheduleById(@PathVariable UUID id) {
+    public ResponseEntity<WorkSchedule> getWorkScheduleById(@PathVariable("id") UUID id) {
         log.info("GET /api/operational/schedules/{} - Buscando escala por ID", id);
         
         try {
@@ -102,7 +102,7 @@ public class WorkScheduleController {
      * Buscar escalas por funcionÃ¡rio
      */
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<WorkSchedule>> getWorkSchedulesByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<WorkSchedule>> getWorkSchedulesByEmployee(@PathVariable("employeeId") UUID employeeId) {
         log.info("GET /api/operational/schedules/employee/{} - Buscando escalas por funcionÃ¡rio", employeeId);
         
         try {
@@ -118,7 +118,7 @@ public class WorkScheduleController {
      * Buscar escalas por local de trabalho
      */
     @GetMapping("/location/{locationId}")
-    public ResponseEntity<List<WorkSchedule>> getWorkSchedulesByLocation(@PathVariable UUID locationId) {
+    public ResponseEntity<List<WorkSchedule>> getWorkSchedulesByLocation(@PathVariable("locationId") UUID locationId) {
         log.info("GET /api/operational/schedules/location/{} - Buscando escalas por local", locationId);
         
         try {
@@ -135,7 +135,7 @@ public class WorkScheduleController {
      */
     @GetMapping("/date/{date}")
     public ResponseEntity<List<WorkSchedule>> getWorkSchedulesByDate(
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         log.info("GET /api/operational/schedules/date/{} - Buscando escalas por data", date);
         
         try {
@@ -152,8 +152,8 @@ public class WorkScheduleController {
      */
     @GetMapping("/period")
     public ResponseEntity<List<WorkSchedule>> getWorkSchedulesByPeriod(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         log.info("GET /api/operational/schedules/period - Buscando escalas por perÃ­odo: {} a {}", startDate, endDate);
         
         try {
@@ -169,7 +169,7 @@ public class WorkScheduleController {
      * Buscar escalas por status
      */
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<WorkSchedule>> getWorkSchedulesByStatus(@PathVariable String status) {
+    public ResponseEntity<List<WorkSchedule>> getWorkSchedulesByStatus(@PathVariable("status") String status) {
         log.info("GET /api/operational/schedules/status/{} - Buscando escalas por status", status);
         
         try {
@@ -205,7 +205,7 @@ public class WorkScheduleController {
      * Atualizar escala existente
      */
     @PutMapping("/{id}")
-    public ResponseEntity<WorkSchedule> updateWorkSchedule(@PathVariable UUID id, 
+    public ResponseEntity<WorkSchedule> updateWorkSchedule(@PathVariable("id") UUID id, 
                                                          @RequestBody WorkSchedule workScheduleDetails) {
         log.info("PUT /api/operational/schedules/{} - Atualizando escala", id);
         
@@ -222,7 +222,7 @@ public class WorkScheduleController {
      * Confirmar escala
      */
     @PatchMapping("/{id}/confirm")
-    public ResponseEntity<WorkSchedule> confirmWorkSchedule(@PathVariable UUID id) {
+    public ResponseEntity<WorkSchedule> confirmWorkSchedule(@PathVariable("id") UUID id) {
         log.info("PATCH /api/operational/schedules/{}/confirm - Confirmando escala", id);
         
         try {
@@ -238,8 +238,8 @@ public class WorkScheduleController {
      * Cancelar escala
      */
     @PatchMapping("/{id}/cancel")
-    public ResponseEntity<WorkSchedule> cancelWorkSchedule(@PathVariable UUID id, 
-                                                         @RequestParam String reason) {
+    public ResponseEntity<WorkSchedule> cancelWorkSchedule(@PathVariable("id") UUID id, 
+                                                         @RequestParam(value = "reason") String reason) {
         log.info("PATCH /api/operational/schedules/{}/cancel - Cancelando escala", id);
         
         try {
@@ -255,7 +255,7 @@ public class WorkScheduleController {
      * Marcar escala como concluÃ­da
      */
     @PatchMapping("/{id}/complete")
-    public ResponseEntity<WorkSchedule> completeWorkSchedule(@PathVariable UUID id) {
+    public ResponseEntity<WorkSchedule> completeWorkSchedule(@PathVariable("id") UUID id) {
         log.info("PATCH /api/operational/schedules/{}/complete - Marcando escala como concluÃ­da", id);
         
         try {
@@ -271,7 +271,7 @@ public class WorkScheduleController {
      * Deletar escala
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteWorkSchedule(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteWorkSchedule(@PathVariable("id") UUID id) {
         log.info("DELETE /api/operational/schedules/{} - Deletando escala", id);
         
         try {
@@ -288,9 +288,9 @@ public class WorkScheduleController {
      */
     @GetMapping("/count/employee/{employeeId}")
     public ResponseEntity<Long> countWorkSchedulesByEmployeeAndPeriod(
-            @PathVariable UUID employeeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         log.info("GET /api/operational/schedules/count/employee/{} - Contando escalas por funcionÃ¡rio e perÃ­odo", employeeId);
         
         try {
@@ -307,8 +307,8 @@ public class WorkScheduleController {
      */
     @GetMapping("/availability/{employeeId}")
     public ResponseEntity<Boolean> isEmployeeAvailable(
-            @PathVariable UUID employeeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         log.info("GET /api/operational/schedules/availability/{} - Verificando disponibilidade do funcionÃ¡rio", employeeId);
         
         try {

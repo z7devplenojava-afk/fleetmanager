@@ -33,8 +33,8 @@ public class VehicleCleaningController {
 
     @GetMapping
     public ResponseEntity<List<VehicleCleaningOrderDTO>> list(
-            @RequestParam(required = false) UUID vehicleId,
-            @RequestParam(required = false) VehicleCleaningOrder.CleaningStatus status,
+            @RequestParam(value = "vehicleId", required = false) UUID vehicleId,
+            @RequestParam(value = "status", required = false) VehicleCleaningOrder.CleaningStatus status,
             @AuthenticationPrincipal User user) {
         UUID companyId = user.getCompanyId();
         return ResponseEntity.ok(service.list(vehicleId, status, companyId));
@@ -42,7 +42,7 @@ public class VehicleCleaningController {
 
     @GetMapping("/{id}")
     public ResponseEntity<VehicleCleaningOrderDTO> getById(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(service.getById(id, user.getCompanyId()));
     }
@@ -56,14 +56,14 @@ public class VehicleCleaningController {
 
     @PostMapping("/{id}/start")
     public ResponseEntity<VehicleCleaningOrderDTO> start(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(service.start(id, user.getCompanyId()));
     }
 
     @PutMapping("/{id}/checklist")
     public ResponseEntity<VehicleCleaningOrderDTO> updateChecklist(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal User user) {
         String checklistData = body.get("checklistData");
@@ -75,7 +75,7 @@ public class VehicleCleaningController {
 
     @PostMapping("/{id}/photos")
     public ResponseEntity<VehicleCleaningOrderDTO> uploadItemPhoto(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestParam("itemKey") String itemKey,
             @RequestParam("photo") MultipartFile file,
             @AuthenticationPrincipal User user) {
@@ -84,14 +84,14 @@ public class VehicleCleaningController {
 
     @PostMapping("/{id}/complete")
     public ResponseEntity<VehicleCleaningOrderDTO> complete(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(service.complete(id, user.getCompanyId()));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @AuthenticationPrincipal User user) {
         service.delete(id, user.getCompanyId());
         return ResponseEntity.noContent().build();

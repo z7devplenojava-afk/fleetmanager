@@ -224,6 +224,20 @@ public class ChatService {
     public Long countUnreadMessages(UUID userId) {
         return chatMessageRepository.countUnreadMessagesForUser(userId);
     }
+
+    /**
+     * EstatÃ­sticas rÃ¡pidas do chat para o painel: total de conversas, nÃ£o lidas e abertas
+     */
+    public java.util.Map<String, Long> getChatStats(UUID userId) {
+        Long total = chatMessageRepository.countConversationsForUser(userId);
+        Long unread = chatMessageRepository.countUnreadMessagesForUser(userId);
+        Long open = chatMessageRepository.countOpenConversationsForUser(userId);
+        return java.util.Map.of(
+                "total", total == null ? 0L : total,
+                "unread", unread == null ? 0L : unread,
+                "open", open == null ? 0L : open
+        );
+    }
     
     /**
      * Busca mensagens nÃ£o lidas

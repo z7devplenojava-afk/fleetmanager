@@ -16,7 +16,11 @@ import java.util.UUID;
 @Repository
 public interface StockMovementRepository extends JpaRepository<StockMovement, UUID>, JpaSpecificationExecutor<StockMovement> {
 
-    // Buscar movimentaÃ§Ãµes por item
+        // Contagem de movimentaÃ§Ãµes por item (para ordenaÃ§Ã£o)
+    @Query("SELECT sm.stockItem.id, COUNT(sm) FROM StockMovement sm GROUP BY sm.stockItem.id")
+    List<Object[]> countMovementsByItem();
+
+// Buscar movimentaÃ§Ãµes por item
     List<StockMovement> findByStockItemIdOrderByMovementDateDesc(UUID stockItemId);
 
     // Buscar movimentaÃ§Ãµes por funcionÃ¡rio

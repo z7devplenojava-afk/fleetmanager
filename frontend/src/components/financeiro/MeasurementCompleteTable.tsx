@@ -530,7 +530,7 @@ export default function MeasurementCompleteTable({
             {selectedBulletins.size > 0 && (
               <>
                 <Button
-                  onClick={handleBulkDelete}
+                  onClick={() => handleBulkDelete()}
                   variant="destructive"
                   className="bg-red-600 hover:bg-red-700"
                 >

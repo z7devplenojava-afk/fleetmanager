@@ -88,7 +88,7 @@ public class ScheduleController {
         })
         @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Dados da escala de trabalho para atualizaÃ§Ã£o", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Schedule.class), examples = @ExampleObject(value = "{\"id\":\"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"startTime\":\"09:00:00\", \"endTime\":\"18:00:00\", \"notes\":\"Ajuste de horÃ¡rio.\"}")))
         @PutMapping("/{id}")
-        public ResponseEntity<Schedule> update(@PathVariable UUID id, @RequestBody Schedule schedule) {
+        public ResponseEntity<Schedule> update(@PathVariable("id") UUID id, @RequestBody Schedule schedule) {
                 return ResponseEntity.ok(scheduleService.update(id, schedule));
         }
 
@@ -99,7 +99,7 @@ public class ScheduleController {
                         @ApiResponse(responseCode = "404", description = "Escala de trabalho nÃ£o encontrada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
         })
         @DeleteMapping("/{id}")
-        public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
                 scheduleService.delete(id);
                 return ResponseEntity.noContent().build();
         }
@@ -147,7 +147,7 @@ public class ScheduleController {
                         @ApiResponse(responseCode = "404", description = "Escala de trabalho nÃ£o encontrada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
         })
         @GetMapping("/{id}")
-        public ResponseEntity<Schedule> findById(@PathVariable UUID id) {
+        public ResponseEntity<Schedule> findById(@PathVariable("id") UUID id) {
                 return ResponseEntity.ok(scheduleService.findById(id));
         }
 
@@ -157,7 +157,7 @@ public class ScheduleController {
                         @ApiResponse(responseCode = "403", description = "Acesso negado (papel insuficiente)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
         })
         @GetMapping("/employee/{employeeId}")
-        public ResponseEntity<List<Schedule>> findByEmployeeId(@PathVariable UUID employeeId) {
+        public ResponseEntity<List<Schedule>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
                 return ResponseEntity.ok(scheduleService.findByEmployeeId(employeeId));
         }
 

@@ -8,6 +8,8 @@ export interface StockItem {
   currentQuantity: number;
   minimumQuantity: number;
   unitCost?: number;
+  averageCost?: number;
+  movementCount?: number;
   supplier?: string;
   barcode?: string;
   qrCode?: string;
@@ -104,10 +106,19 @@ export interface CreateStockItemDTO {
   currentQuantity?: number;
   minimumQuantity?: number;
   unitCost?: number;
+  averageCost?: number;
   supplier?: string;
   barcode?: string;
   unitId?: string;
   notes?: string;
+}
+
+export interface ImportStockResult {
+  totalRows: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
 }
 
 export interface CreateStockMovementDTO {

@@ -232,6 +232,25 @@ public class EmployeeDTO {
     private String exameMedicoObservacoes;
     private Boolean exameMedicoPrimeiroEmprego; // true = Sim, false = NÃ£o
     private Boolean exameMedicoContribuicaoSindicalPaga; // true = Sim, false = NÃ£o
+
+    // =========================================================================
+    // Campos de Benefícios e Descontos (importação de planilha de folha)
+    // =========================================================================
+    private BigDecimal mensalidadePlanoSaude;
+    private BigDecimal coparticipacaoSaude;
+    private BigDecimal planoOdontologico;
+    private BigDecimal valeTransporte;
+    private BigDecimal descontoMultas;
+    private BigDecimal descontoAvarias;
+    private BigDecimal valeAdiantamento;
+    private BigDecimal adicionalNoturno;
+    private BigDecimal horasExtras50;
+    private BigDecimal horasExtras60;
+    private BigDecimal horasExtras100;
+    private String afastamentoMotivo;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    @JsonDeserialize(using = BlankStringToNullLocalDateDeserializer.class)
+    private LocalDate afastamentoData;
     
     /**
      * UsuÃ¡rio do sistema vinculado ao funcionÃ¡rio (opcional).

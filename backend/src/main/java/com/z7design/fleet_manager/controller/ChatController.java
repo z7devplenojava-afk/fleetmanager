@@ -84,7 +84,7 @@ public class ChatController {
             @RequestParam(value = "departmentId", required = false) UUID departmentId,
             @RequestParam(value = "type", required = false, defaultValue = "TEXT") String typeStr,
             @RequestParam(value = "replyToId", required = false) UUID replyToId,
-            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "file") MultipartFile file,
             Authentication authentication) {
         
         String username = authentication.getName();
@@ -161,7 +161,7 @@ public class ChatController {
      */
     @GetMapping("/conversation/{userId}")
     public ResponseEntity<List<ChatMessageResponseDTO>> getConversation(
-            @PathVariable UUID userId,
+            @PathVariable("userId") UUID userId,
             Authentication authentication) {
         
         String currentUsername = authentication.getName();
@@ -176,7 +176,7 @@ public class ChatController {
      * Busca mensagens de um grupo
      */
     @GetMapping("/group/{groupId}")
-    public ResponseEntity<List<ChatMessageResponseDTO>> getGroupMessages(@PathVariable UUID groupId) {
+    public ResponseEntity<List<ChatMessageResponseDTO>> getGroupMessages(@PathVariable("groupId") UUID groupId) {
         List<ChatMessageResponseDTO> messages = chatService.getGroupMessages(groupId);
         
         return ResponseEntity.ok(messages);
@@ -186,7 +186,7 @@ public class ChatController {
      * Busca mensagens de um departamento
      */
     @GetMapping("/department/{departmentId}")
-    public ResponseEntity<List<ChatMessageResponseDTO>> getDepartmentMessages(@PathVariable UUID departmentId) {
+    public ResponseEntity<List<ChatMessageResponseDTO>> getDepartmentMessages(@PathVariable("departmentId") UUID departmentId) {
         List<ChatMessageResponseDTO> messages = chatService.getDepartmentMessages(departmentId);
         
         return ResponseEntity.ok(messages);
@@ -233,7 +233,7 @@ public class ChatController {
      */
     @PutMapping("/{messageId}/read")
     public ResponseEntity<Void> markAsRead(
-            @PathVariable UUID messageId,
+            @PathVariable("messageId") UUID messageId,
             Authentication authentication) {
         
         try {
@@ -276,6 +276,27 @@ public class ChatController {
     }
     
     /**
+     * EstatÃ­sticas rÃ¡pidas do chat para badges do painel
+     */
+    @GetMapping("/stats")
+    public ResponseEntity<java.util.Map<String, Long>> getChatStats(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            UUID userId = getUserIdFromUsername(username);
+
+            if (userId == null) {
+                log.error("UsuÃ¡rio nÃ£o encontrado para username: {}", username);
+                return ResponseEntity.badRequest().build();
+            }
+
+            return ResponseEntity.ok(chatService.getChatStats(userId));
+        } catch (Exception e) {
+            log.error("Erro ao buscar estatÃ­sticas do chat: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
      * Busca mensagens nÃ£o lidas
      */
     @GetMapping("/unread")
@@ -302,8 +323,8 @@ public class ChatController {
      */
     @PutMapping("/{messageId}/edit")
     public ResponseEntity<ChatMessageResponseDTO> editMessage(
-            @PathVariable UUID messageId,
-            @RequestParam String content,
+            @PathVariable("messageId") UUID messageId,
+            @RequestParam(value = "content") String content,
             Authentication authentication) {
         
         try {
@@ -328,8 +349,8 @@ public class ChatController {
      */
     @PostMapping("/{messageId}/reaction")
     public ResponseEntity<ReactionSummaryDTO> toggleReaction(
-            @PathVariable UUID messageId,
-            @RequestParam String emoji,
+            @PathVariable("messageId") UUID messageId,
+            @RequestParam(value = "emoji") String emoji,
             Authentication authentication) {
         
         try {
@@ -358,7 +379,7 @@ public class ChatController {
      */
     @GetMapping("/{messageId}/reactions")
     public ResponseEntity<List<ReactionSummaryDTO>> getMessageReactions(
-            @PathVariable UUID messageId,
+            @PathVariable("messageId") UUID messageId,
             Authentication authentication) {
         
         try {
@@ -383,7 +404,7 @@ public class ChatController {
      */
     @PostMapping("/{messageId}/pin")
     public ResponseEntity<Boolean> togglePin(
-            @PathVariable UUID messageId,
+            @PathVariable("messageId") UUID messageId,
             Authentication authentication) {
         
         try {
@@ -419,7 +440,7 @@ public class ChatController {
      */
     @GetMapping("/{messageId}/pin")
     public ResponseEntity<Boolean> isPinned(
-            @PathVariable UUID messageId,
+            @PathVariable("messageId") UUID messageId,
             Authentication authentication) {
         
         try {
@@ -444,7 +465,7 @@ public class ChatController {
      */
     @PostMapping("/{messageId}/favorite")
     public ResponseEntity<Boolean> toggleFavorite(
-            @PathVariable UUID messageId,
+            @PathVariable("messageId") UUID messageId,
             Authentication authentication) {
         
         try {
@@ -480,7 +501,7 @@ public class ChatController {
      */
     @GetMapping("/{messageId}/favorite")
     public ResponseEntity<Boolean> isFavorite(
-            @PathVariable UUID messageId,
+            @PathVariable("messageId") UUID messageId,
             Authentication authentication) {
         
         try {
@@ -505,9 +526,9 @@ public class ChatController {
      */
     @PostMapping("/{messageId}/report")
     public ResponseEntity<Void> reportMessage(
-            @PathVariable UUID messageId,
-            @RequestParam String reason,
-            @RequestParam(required = false) String description,
+            @PathVariable("messageId") UUID messageId,
+            @RequestParam(value = "reason") String reason,
+            @RequestParam(value = "description", required = false) String description,
             Authentication authentication) {
         
         try {
@@ -532,10 +553,10 @@ public class ChatController {
      */
     @PostMapping("/{messageId}/forward")
     public ResponseEntity<Void> forwardMessage(
-            @PathVariable UUID messageId,
-            @RequestParam(required = false) UUID[] recipientIds,
-            @RequestParam(required = false) UUID[] groupIds,
-            @RequestParam(required = false) UUID[] departmentIds,
+            @PathVariable("messageId") UUID messageId,
+            @RequestParam(value = "recipientIds", required = false) UUID[] recipientIds,
+            @RequestParam(value = "groupIds", required = false) UUID[] groupIds,
+            @RequestParam(value = "departmentIds", required = false) UUID[] departmentIds,
             Authentication authentication) {
         
         try {

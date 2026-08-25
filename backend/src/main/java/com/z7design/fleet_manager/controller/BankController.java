@@ -50,14 +50,14 @@ public class BankController {
     
     @GetMapping("/{id}")
     @Operation(summary = "Buscar banco por ID", description = "Retorna um banco especÃ­fico pelo seu ID")
-    public ResponseEntity<BankDTO> getBankById(@PathVariable UUID id) {
+    public ResponseEntity<BankDTO> getBankById(@PathVariable("id") UUID id) {
         log.info("GET /api/banks/{} - Buscando banco por ID", id);
         return ResponseEntity.ok(bankService.getBankById(id));
     }
     
     @GetMapping("/code/{code}")
     @Operation(summary = "Buscar banco por cÃ³digo", description = "Retorna um banco especÃ­fico pelo seu cÃ³digo")
-    public ResponseEntity<BankDTO> getBankByCode(@PathVariable String code) {
+    public ResponseEntity<BankDTO> getBankByCode(@PathVariable("code") String code) {
         log.info("GET /api/banks/code/{} - Buscando banco por cÃ³digo", code);
         return ResponseEntity.ok(bankService.getBankByCode(code));
     }
@@ -71,14 +71,14 @@ public class BankController {
     
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar banco", description = "Atualiza um banco existente")
-    public ResponseEntity<BankDTO> updateBank(@PathVariable UUID id, @RequestBody BankDTO dto) {
+    public ResponseEntity<BankDTO> updateBank(@PathVariable("id") UUID id, @RequestBody BankDTO dto) {
         log.info("PUT /api/banks/{} - Atualizando banco", id);
         return ResponseEntity.ok(bankService.updateBank(id, dto));
     }
     
     @DeleteMapping("/{id}")
     @Operation(summary = "Remover banco", description = "Remove um banco")
-    public ResponseEntity<Void> deleteBank(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteBank(@PathVariable("id") UUID id) {
         log.info("DELETE /api/banks/{} - Removendo banco", id);
         bankService.deleteBank(id);
         return ResponseEntity.noContent().build();
@@ -88,28 +88,28 @@ public class BankController {
     
     @GetMapping("/search/name")
     @Operation(summary = "Buscar bancos por nome", description = "Retorna bancos que contenham o nome especificado")
-    public ResponseEntity<List<BankDTO>> searchBanksByName(@RequestParam String name) {
+    public ResponseEntity<List<BankDTO>> searchBanksByName(@RequestParam(value = "name") String name) {
         log.info("GET /api/banks/search/name?name={} - Buscando bancos por nome", name);
         return ResponseEntity.ok(bankService.searchBanksByName(name));
     }
     
     @GetMapping("/search/code")
     @Operation(summary = "Buscar bancos por cÃ³digo", description = "Retorna bancos que contenham o cÃ³digo especificado")
-    public ResponseEntity<List<BankDTO>> searchBanksByCode(@RequestParam String code) {
+    public ResponseEntity<List<BankDTO>> searchBanksByCode(@RequestParam(value = "code") String code) {
         log.info("GET /api/banks/search/code?code={} - Buscando bancos por cÃ³digo", code);
         return ResponseEntity.ok(bankService.searchBanksByCode(code));
     }
     
     @GetMapping("/status/{status}")
     @Operation(summary = "Buscar bancos por status", description = "Retorna bancos com o status especificado")
-    public ResponseEntity<List<BankDTO>> getBanksByStatus(@PathVariable Bank.BankStatus status) {
+    public ResponseEntity<List<BankDTO>> getBanksByStatus(@PathVariable("status") Bank.BankStatus status) {
         log.info("GET /api/banks/status/{} - Buscando bancos por status", status);
         return ResponseEntity.ok(bankService.getBanksByStatus(status));
     }
     
     @GetMapping("/state/{state}")
     @Operation(summary = "Buscar bancos por estado", description = "Retorna bancos do estado especificado")
-    public ResponseEntity<List<BankDTO>> getBanksByState(@PathVariable String state) {
+    public ResponseEntity<List<BankDTO>> getBanksByState(@PathVariable("state") String state) {
         log.info("GET /api/banks/state/{} - Buscando bancos por estado", state);
         return ResponseEntity.ok(bankService.getBanksByState(state));
     }

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Ordem de Serviço — Frota</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      font-size: 11px; 
+      margin: 20px;
+      color: #333;
+      line-height: 1.5;
+    }
+    
+    .header { 
+      text-align: center; 
+      margin-bottom: 24px;
+      border-bottom: 3px solid #d32f2f;
+      padding-bottom: 10px;
+    }
+    
+    .header h1 { 
+      font-size: 20px; 
+      margin: 0 0 5px 0;
+      text-transform: uppercase;
+      font-weight: bold;
+      color: #d32f2f;
+    }
+    
+    .header p {
+      margin: 2px 0;
+      font-size: 10px;
+      color: #666;
+    }
+    
+    .brand {
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+    }
+    
+    .brand-logo {
+      max-height: 70px;
+      max-width: 240px;
+      margin-bottom: 4px;
+    }
+    
+    .brand-name {
+      font-size: 16px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #333;
+      letter-spacing: 0.5px;
+    }
+    
+    .brand-cnpj {
+      font-size: 10px;
+      color: #666;
+      margin-top: 2px;
+    }
+    
+    .brand-address {
+      font-size: 10px;
+      color: #666;
+      margin-top: 2px;
+    }
+    
+    .numero-os {
+      text-align: center;
+      font-size: 14px;
+      font-weight: bold;
+      margin: 15px 0;
+      padding: 10px;
+      background-color: #f5f5f5;
+      border: 2px solid #d32f2f;
+      color: #d32f2f;
+    }
+    
+    .secao { 
+      margin-bottom: 18px;
+      page-break-inside: avoid;
+    }
+    
+    .secao-titulo {
+      background-color: #f5f5f5;
+      padding: 6px 10px;
+      font-weight: bold;
+      font-size: 12px;
+      border-left: 4px solid #d32f2f;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      color: #d32f2f;
+    }
+    
+    table.info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+    }
+    
+    table.info-table td {
+      padding: 7px 8px;
+      border: 1px solid #ddd;
+      background-color: #fafafa;
+      vertical-align: top;
+    }
+    
+    table.info-table td.label {
+      font-weight: bold;
+      font-size: 9px;
+      text-transform: uppercase;
+      color: #666;
+      width: 32%;
+    }
+    
+    table.info-table td.valor {
+      font-size: 11px;
+      color: #333;
+    }
+    
+    table.itens-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+    }
+    
+    table.itens-table th {
+      background-color: #333;
+      color: #fff;
+      padding: 6px 8px;
+      font-size: 9px;
+      text-transform: uppercase;
+      text-align: left;
+    }
+    
+    table.itens-table th.num { width: 6%; text-align: center; }
+    table.itens-table th.qtd { width: 10%; text-align: center; }
+    table.itens-table th.unit { width: 18%; text-align: right; }
+    table.itens-table th.total { width: 18%; text-align: right; }
+    
+    table.itens-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #ddd;
+      font-size: 10px;
+    }
+    
+    table.itens-table td.num { text-align: center; }
+    table.itens-table td.qtd { text-align: center; }
+    table.itens-table td.unit { text-align: right; }
+    table.itens-table td.total { text-align: right; }
+    
+    table.itens-table tr.alternate td {
+      background-color: #f5f5f5;
+    }
+    
+    .resumo {
+      width: 55%;
+      margin-left: auto;
+      margin-bottom: 15px;
+    }
+    
+    .resumo table { width: 100%; border-collapse: collapse; }
+    .resumo td { padding: 5px 8px; font-size: 11px; }
+    .resumo td.label { text-align: right; color: #666; }
+    .resumo td.valor { text-align: right; font-weight: bold; }
+    .resumo tr.total td {
+      border-top: 2px solid #333;
+      font-size: 13px;
+      font-weight: bold;
+      color: #d32f2f;
+      padding-top: 8px;
+    }
+    
+    .descricao-box {
+      margin: 10px 0;
+      padding: 12px;
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      min-height: 40px;
+    }
+    
+    .observacoes-box {
+      margin: 10px 0;
+      padding: 12px;
+      background-color: #fff9c4;
+      border: 1px solid #f57f17;
+      border-left: 4px solid #f57f17;
+      min-height: 40px;
+    }
+    
+    .assinatura-table {
+      width: 100%;
+      margin-top: 60px;
+      border-collapse: collapse;
+    }
+    
+    .assinatura-table td {
+      text-align: center;
+      padding: 30px 20px 0 20px;
+      vertical-align: top;
+      width: 50%;
+    }
+    
+    .linha-assinatura {
+      border-top: 2px solid #333;
+      margin-bottom: 8px;
+      padding-top: 8px;
+    }
+    
+    .assinatura-nome {
+      font-weight: bold;
+      font-size: 11px;
+    }
+    
+    .assinatura-info {
+      font-size: 9px;
+      color: #666;
+      margin-top: 3px;
+    }
+    
+    .data-local {
+      text-align: right;
+      font-size: 10px;
+      margin-bottom: 15px;
+      color: #666;
+    }
+    
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 9px;
+      color: #999;
+      border-top: 1px solid #ddd;
+      padding-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Cabeçalho -->
+  <div class="header">
+    <div class="brand" th:if="${companyName != null and companyName != ''}">
+      <img class="brand-logo" th:if="${companyLogo != null and companyLogo != ''}" th:src="${companyLogo}" alt="Logo da Empresa" />
+      <div class="brand-name" th:text="${companyName}">NOME DA EMPRESA</div>
+      <div class="brand-cnpj" th:if="${companyCnpj != null and companyCnpj != ''}" th:text="${companyCnpj}">CNPJ: --</div>
+      <div class="brand-address" th:if="${companyAddress != null and companyAddress != ''}" th:text="${companyAddress}">Endereço</div>
+    </div>
+    <h1>Ordem de Serviço — Frota</h1>
+    <p>Documento de Autorização e Acompanhamento de Manutenção</p>
+  </div>
+
+  <!-- Número da OS -->
+  <div class="numero-os" th:if="${osNumber != null and osNumber != ''}">
+    OS Nº <span th:text="${osNumber}">0000</span>
+  </div>
+
+  <!-- Data de Emissão -->
+  <div class="data-local">
+    <b>Data de Emissão:</b> <span th:text="${dataEmissao}">--</span>
+  </div>
+
+  <!-- Veículo e Mecânico -->
+  <div class="secao">
+    <div class="secao-titulo">Identificação</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">Veículo:</td>
+        <td class="valor" th:text="${vehiclePlate} ?: '—'">—</td>
+        <td class="label">Modelo:</td>
+        <td class="valor" th:text="${vehicleModel} ?: '—'">—</td>
+      </tr>
+      <tr>
+        <td class="label">Mecânico / Responsável:</td>
+        <td class="valor" th:text="${mechanicName} ?: 'Não designado'">—</td>
+        <td class="label">Tipo de Mão de Obra:</td>
+        <td class="valor" th:text="${laborType} ?: '—'">—</td>
+      </tr>
+      <tr th:if="${planoManutencao != null and planoManutencao != ''}">
+        <td class="label">Plano de Manutenção:</td>
+        <td class="valor" th:text="${planoManutencao}">—</td>
+        <td class="label"></td>
+        <td class="valor"></td>
+      </tr>
+      <tr>
+        <td class="label">Status:</td>
+        <td class="valor" th:text="${status} ?: '—'">—</td>
+        <td class="label">Prioridade:</td>
+        <td class="valor" th:text="${prioridade} ?: '—'">—</td>
+      </tr>
+      <tr>
+        <td class="label">Data Planejada:</td>
+        <td class="valor" th:text="${dataPlanejada} ?: '—'">—</td>
+        <td class="label">Entrada na Oficina:</td>
+        <td class="valor" th:text="${dataEntrada} ?: '—'">—</td>
+      </tr>
+      <tr>
+        <td class="label">Odômetro — Entrada (km):</td>
+        <td class="valor" th:text="${odometerIn} ?: '—'">—</td>
+        <td class="label">Odômetro — Saída (km):</td>
+        <td class="valor" th:text="${odometerOut} ?: '—'">—</td>
+      </tr>
+      <tr>
+        <td class="label">Tempo Parado:</td>
+        <td class="valor" th:text="${tempoParado} ?: '—'">—</td>
+        <td class="label"></td>
+        <td class="valor"></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Motivo da Parada -->
+  <div class="secao" th:if="${stopReason != null and stopReason != ''}">
+    <div class="secao-titulo">Motivo da Parada / Defeito Relatado</div>
+    <div class="descricao-box" th:text="${stopReason}">—</div>
+  </div>
+
+  <!-- Itens / Peças e Serviços -->
+  <div class="secao">
+    <div class="secao-titulo">Itens / Peças e Serviços</div>
+    <table class="itens-table" th:if="${#lists.isEmpty(itens)}">
+      <tr><td style="padding: 10px; text-align: center; color: #999;">Nenhum item registrado nesta ordem de serviço.</td></tr>
+    </table>
+    <table class="itens-table" th:unless="${#lists.isEmpty(itens)}">
+      <thead>
+        <tr>
+          <th class="num">#</th>
+          <th>Descrição</th>
+          <th>Tipo</th>
+          <th class="qtd">Qtd</th>
+          <th class="unit">Unitário</th>
+          <th class="total">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="item, stat : ${itens}" th:class="${stat.even} ? 'alternate'">
+          <td class="num" th:text="${stat.count}">1</td>
+          <td th:text="${item.descricao}">—</td>
+          <td th:text="${item.tipo}">—</td>
+          <td class="qtd" th:text="${item.quantidade}">1</td>
+          <td class="unit" th:text="${item.unitario}">R$ 0,00</td>
+          <td class="total" th:text="${item.total}">R$ 0,00</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Resumo de Custos -->
+  <div class="secao">
+    <div class="secao-titulo">Resumo de Custos</div>
+    <div class="resumo">
+      <table>
+        <tr>
+          <td class="label">Mão de Obra:</td>
+          <td class="valor" th:text="${laborCost}">R$ 0,00</td>
+        </tr>
+        <tr>
+          <td class="label">Peças / Materiais:</td>
+          <td class="valor" th:text="${partsCost}">R$ 0,00</td>
+        </tr>
+        <tr class="total">
+          <td class="label">TOTAL GERAL:</td>
+          <td class="valor" th:text="${totalCost}">R$ 0,00</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Observações -->
+  <div class="secao" th:if="${observacoes != null and observacoes != ''}">
+    <div class="secao-titulo">Observações Técnicas</div>
+    <div class="observacoes-box" th:text="${observacoes}">—</div>
+  </div>
+
+  <!-- Assinaturas -->
+  <table class="assinatura-table">
+    <tr>
+      <td>
+        <div class="linha-assinatura">
+          <div class="assinatura-nome" th:text="${mecanicoAssinatura} ?: 'Mecânico'">Mecânico</div>
+          <div class="assinatura-info">Recebido pelo Mecânico</div>
+          <div class="assinatura-info">Data: ______ / ______ / ______</div>
+        </div>
+      </td>
+      <td>
+        <div class="linha-assinatura">
+          <div class="assinatura-nome">Entregue por</div>
+          <div class="assinatura-info">Responsável pela Entrega</div>
+          <div class="assinatura-info" th:text="${dataEntregue} ?: ''"></div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Rodapé -->
+  <div class="footer">
+    <p>Documento gerado pelo sistema FluxBus em <span th:text="${dataGeracao}"></span></p>
+    <p>Este documento autoriza a execução da manutenção descrita acima.</p>
+  </div>
+
+</body>
+</html>

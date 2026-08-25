@@ -189,19 +189,21 @@ const MobilizationListPage: React.FC = () => {
                                         <th className="p-4">Tipo</th>
                                         <th className="p-4">Veículo</th>
                                         <th className="p-4">Motorista</th>
+                                        <th className="p-4">Cliente</th>
+                                        <th className="p-4">Obra</th>
                                         <th className="p-4 text-center">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700">
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan={5} className="p-8 text-center">
+                                            <td colSpan={7} className="p-8 text-center">
                                                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-seguranca-yellow" />
                                             </td>
                                         </tr>
                                     ) : mobilizations.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="p-12 text-center text-gray-500">
+                                            <td colSpan={7} className="p-12 text-center text-gray-500">
                                                 Nenhum registro encontrado.
                                             </td>
                                         </tr>
@@ -224,6 +226,12 @@ const MobilizationListPage: React.FC = () => {
                                                 </td>
                                                 <td className="p-4 text-gray-400">
                                                     {m.driverName || '-'}
+                                                </td>
+                                                <td className="p-4 text-gray-300">
+                                                    {m.clientName || '-'}
+                                                </td>
+                                                <td className="p-4 text-gray-300">
+                                                    {m.workPostName || '-'}
                                                 </td>
                                                 <td className="p-4 text-center">
                                                     <div className="flex justify-center gap-2">

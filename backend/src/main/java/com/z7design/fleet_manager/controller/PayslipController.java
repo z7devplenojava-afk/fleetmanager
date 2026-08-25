@@ -127,7 +127,7 @@ public class PayslipController {
 
     @GetMapping("/status/{sessionId}")
     @Operation(summary = "Get processing status by session ID")
-    public ResponseEntity<PayslipProcessingService.ProcessingStatus> getStatus(@PathVariable String sessionId) {
+    public ResponseEntity<PayslipProcessingService.ProcessingStatus> getStatus(@PathVariable("sessionId") String sessionId) {
         log.info("ðŸ“Š Verificando status da sessÃ£o: {}", sessionId);
         
         PayslipProcessingService.ProcessingStatus status = payslipProcessingService.getStatus(sessionId);
@@ -714,7 +714,7 @@ public class PayslipController {
 
     @GetMapping("/download/{fileName}")
     @Operation(summary = "Download individual payslip file by fileName (deprecated - use /download-by-id/{id})")
-    public ResponseEntity<Resource> downloadPayslip(@PathVariable String fileName) {
+    public ResponseEntity<Resource> downloadPayslip(@PathVariable("fileName") String fileName) {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             boolean isColaborador = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_COLABORADOR"));
@@ -765,7 +765,7 @@ public class PayslipController {
     
     @GetMapping("/download-by-id/{id}")
     @Operation(summary = "Download individual payslip file by ID (recommended)")
-    public ResponseEntity<Resource> downloadPayslipById(@PathVariable String id) {
+    public ResponseEntity<Resource> downloadPayslipById(@PathVariable("id") String id) {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             boolean isColaborador = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_COLABORADOR"));
@@ -826,14 +826,14 @@ public class PayslipController {
 
 
     @RequestMapping(value = "/test-download/{fileName}", method = RequestMethod.OPTIONS)
-    public ResponseEntity<Void> testDownloadOptions(@PathVariable String fileName) {
+    public ResponseEntity<Void> testDownloadOptions(@PathVariable("fileName") String fileName) {
         return ResponseEntity.ok().build();
     }
 
     // Endpoint de teste temporÃ¡rio sem autenticaÃ§Ã£o
     @GetMapping("/test-download/{fileName}")
     @Operation(summary = "Test download individual payslip file without authentication")
-    public ResponseEntity<Resource> testDownloadPayslip(@PathVariable String fileName) {
+    public ResponseEntity<Resource> testDownloadPayslip(@PathVariable("fileName") String fileName) {
         try {
             log.info("Teste de download: {}", fileName);
             
@@ -937,7 +937,7 @@ public class PayslipController {
 
     // ExclusÃ£o individual de payslip
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletePayslip(@PathVariable UUID id) {
+    public ResponseEntity<Void> deletePayslip(@PathVariable("id") UUID id) {
         try {
             payslipService.deletePayslip(id);
             return ResponseEntity.noContent().build();

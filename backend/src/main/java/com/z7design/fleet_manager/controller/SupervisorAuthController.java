@@ -43,7 +43,7 @@ public class SupervisorAuthController {
         @ApiResponse(responseCode = "403", description = "Supervisor inativo")
     })
     public ResponseEntity<Map<String, Object>> loginByCpf(
-            @Parameter(description = "CPF do supervisor") @RequestParam String cpf,
+            @Parameter(description = "CPF do supervisor") @RequestParam(value = "cpf") String cpf,
             HttpServletRequest request) {
         
         log.info("Tentativa de login por CPF: {}", cpf);
@@ -176,7 +176,7 @@ public class SupervisorAuthController {
         @ApiResponse(responseCode = "500", description = "Erro interno")
     })
     public ResponseEntity<Map<String, Object>> acceptTerms(
-            @Parameter(description = "CPF do supervisor") @RequestParam String cpf,
+            @Parameter(description = "CPF do supervisor") @RequestParam(value = "cpf") String cpf,
             HttpServletRequest request) {
         
         log.info("AceitaÃ§Ã£o de termos LGPD para supervisor: {}", cpf);
@@ -225,7 +225,7 @@ public class SupervisorAuthController {
         @ApiResponse(responseCode = "404", description = "Supervisor nÃ£o encontrado")
     })
     public ResponseEntity<Map<String, Object>> checkTermsStatus(
-            @Parameter(description = "CPF do supervisor") @PathVariable String cpf) {
+            @Parameter(description = "CPF do supervisor") @PathVariable("cpf") String cpf) {
         
         try {
             SupervisorDTO supervisor = supervisorService.getSupervisorByCpf(cpf);

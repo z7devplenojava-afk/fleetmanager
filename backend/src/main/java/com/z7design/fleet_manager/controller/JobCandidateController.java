@@ -189,7 +189,7 @@ public class JobCandidateController {
     // Buscar candidatos por vaga
     @GetMapping("/hr/vacancies/{vacancyId}/candidates")
     @PreAuthorize("hasAuthority('EMPLOYEES_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('HR')")
-    public ResponseEntity<List<JobCandidateDTO>> getCandidatesByVacancy(@PathVariable UUID vacancyId) {
+    public ResponseEntity<List<JobCandidateDTO>> getCandidatesByVacancy(@PathVariable("vacancyId") UUID vacancyId) {
         List<JobCandidateDTO> candidates = jobCandidateService.getCandidatesByVacancy(vacancyId);
         return ResponseEntity.ok(candidates);
     }
@@ -197,7 +197,7 @@ public class JobCandidateController {
     // Buscar candidatos por status
     @GetMapping("/hr/candidates/status/{status}")
     @PreAuthorize("hasAuthority('EMPLOYEES_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('HR')")
-    public ResponseEntity<List<JobCandidateDTO>> getCandidatesByStatus(@PathVariable CandidateStatus status) {
+    public ResponseEntity<List<JobCandidateDTO>> getCandidatesByStatus(@PathVariable("status") CandidateStatus status) {
         List<JobCandidateDTO> candidates = jobCandidateService.getCandidatesByStatus(status);
         return ResponseEntity.ok(candidates);
     }
@@ -205,7 +205,7 @@ public class JobCandidateController {
     // Buscar candidato por ID
     @GetMapping("/hr/candidates/{id}")
     @PreAuthorize("hasAuthority('EMPLOYEES_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('HR')")
-    public ResponseEntity<JobCandidateDTO> getCandidateById(@PathVariable UUID id) {
+    public ResponseEntity<JobCandidateDTO> getCandidateById(@PathVariable("id") UUID id) {
         JobCandidateDTO candidate = jobCandidateService.getCandidateById(id);
         return ResponseEntity.ok(candidate);
     }
@@ -214,7 +214,7 @@ public class JobCandidateController {
     @PutMapping("/hr/candidates/{id}")
     @PreAuthorize("hasAuthority('EMPLOYEES_WRITE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('HR')")
     public ResponseEntity<JobCandidateDTO> updateCandidate(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody @Valid JobCandidateDTO candidateDTO) {
         
         JobCandidateDTO updatedCandidate = jobCandidateService.updateCandidate(id, candidateDTO);
@@ -225,7 +225,7 @@ public class JobCandidateController {
     @PatchMapping("/hr/candidates/{id}/status")
     @PreAuthorize("hasAuthority('EMPLOYEES_WRITE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('HR')")
     public ResponseEntity<JobCandidateDTO> updateCandidateStatus(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody Map<String, Object> request) {
         
         CandidateStatus status = CandidateStatus.valueOf(request.get("status").toString());
@@ -239,7 +239,7 @@ public class JobCandidateController {
     @PostMapping("/hr/candidates/{id}/approve")
     @PreAuthorize("hasAuthority('EMPLOYEES_WRITE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('HR')")
     public ResponseEntity<JobCandidateDTO> approveCandidate(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) Map<String, String> request) {
         
         String notes = request != null ? request.get("notes") : null;
@@ -251,7 +251,7 @@ public class JobCandidateController {
     @PostMapping("/hr/candidates/{id}/reject")
     @PreAuthorize("hasAuthority('EMPLOYEES_WRITE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('HR')")
     public ResponseEntity<JobCandidateDTO> rejectCandidate(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) Map<String, String> request) {
         
         String notes = request != null ? request.get("notes") : null;
@@ -263,7 +263,7 @@ public class JobCandidateController {
     @PostMapping("/hr/candidates/{id}/interview")
     @PreAuthorize("hasAuthority('EMPLOYEES_WRITE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('HR')")
     public ResponseEntity<JobCandidateDTO> markAsInterviewed(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) Map<String, String> request) {
         
         String notes = request != null ? request.get("notes") : null;
@@ -275,7 +275,7 @@ public class JobCandidateController {
     @PostMapping("/hr/candidates/{id}/hire")
     @PreAuthorize("hasAuthority('EMPLOYEES_WRITE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('HR')")
     public ResponseEntity<JobCandidateDTO> hireCandidate(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) Map<String, String> request) {
         
         String notes = request != null ? request.get("notes") : null;
@@ -286,7 +286,7 @@ public class JobCandidateController {
     // Download do currÃ­culo
     @GetMapping("/hr/candidates/{id}/curriculum")
     @PreAuthorize("hasAuthority('EMPLOYEES_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('HR')")
-    public ResponseEntity<Resource> downloadCurriculum(@PathVariable UUID id, HttpServletResponse response) {
+    public ResponseEntity<Resource> downloadCurriculum(@PathVariable("id") UUID id, HttpServletResponse response) {
         try {
             Resource resource = jobCandidateService.downloadCurriculum(id);
             
@@ -306,7 +306,7 @@ public class JobCandidateController {
     // Excluir candidato
     @DeleteMapping("/hr/candidates/{id}")
     @PreAuthorize("hasAuthority('EMPLOYEES_DELETE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteCandidate(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteCandidate(@PathVariable("id") UUID id) {
         jobCandidateService.deleteCandidate(id);
         return ResponseEntity.noContent().build();
     }
@@ -337,7 +337,7 @@ public class JobCandidateController {
     // EstatÃ­sticas de candidatos por vaga
     @GetMapping("/hr/vacancies/{vacancyId}/candidates/stats")
     @PreAuthorize("hasAuthority('EMPLOYEES_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('HR')")
-    public ResponseEntity<Map<String, Object>> getCandidateStatsByVacancy(@PathVariable UUID vacancyId) {
+    public ResponseEntity<Map<String, Object>> getCandidateStatsByVacancy(@PathVariable("vacancyId") UUID vacancyId) {
         long totalCandidates = jobCandidateService.getCandidatesCountByVacancy(vacancyId);
         long pendingCandidates = jobCandidateService.getCandidatesCountByStatus(CandidateStatus.PENDING);
         long approvedCandidates = jobCandidateService.getCandidatesCountByStatus(CandidateStatus.APPROVED);

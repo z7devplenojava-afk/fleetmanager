@@ -64,13 +64,15 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				// Sistema de segurança - Mapeado para FluxBus
+				// NOTA: red/darkred/yellow são cores FIXAS da marca (não dependem do tema),
+				// senão no tema 'dark' (--primary branco) os botões vermelhos ficam invisíveis.
 				seguranca: {
 					black: 'hsl(var(--background))',
 					graphite: 'hsl(var(--muted))',
 					lightgray: 'hsl(var(--muted-foreground))',
-					darkred: 'hsl(var(--primary))',
-					red: 'hsl(var(--primary))',
-					yellow: 'hsl(var(--accent))',
+					darkred: 'hsl(0 84% 38%)',
+					red: 'hsl(0 84% 44%)',
+					yellow: 'hsl(45 93% 47%)',
 				}
 			},
 			borderRadius: {

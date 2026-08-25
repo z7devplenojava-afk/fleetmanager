@@ -38,7 +38,7 @@ public class SSTRiskController {
     @GetMapping("/types/{id}")
     @Operation(summary = "Buscar tipo de risco por ID", description = "Retorna um tipo de risco especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<OccupationalRiskType> getRiskTypeById(@PathVariable UUID id) {
+    public ResponseEntity<OccupationalRiskType> getRiskTypeById(@PathVariable("id") UUID id) {
         OccupationalRiskType riskType = riskService.getRiskTypeById(id);
         if (riskType == null) {
             return ResponseEntity.notFound().build();
@@ -57,7 +57,7 @@ public class SSTRiskController {
     @PutMapping("/types/{id}")
     @Operation(summary = "Atualizar tipo de risco", description = "Atualiza um tipo de risco existente")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<OccupationalRiskType> updateRiskType(@PathVariable UUID id, @RequestBody OccupationalRiskType riskType) {
+    public ResponseEntity<OccupationalRiskType> updateRiskType(@PathVariable("id") UUID id, @RequestBody OccupationalRiskType riskType) {
         OccupationalRiskType updated = riskService.updateRiskType(id, riskType);
         if (updated == null) {
             return ResponseEntity.notFound().build();
@@ -68,7 +68,7 @@ public class SSTRiskController {
     @DeleteMapping("/types/{id}")
     @Operation(summary = "Excluir tipo de risco", description = "Exclui um tipo de risco")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteRiskType(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteRiskType(@PathVariable("id") UUID id) {
         // TODO: Implementar mÃ©todo deleteRiskType no serviÃ§o
         return ResponseEntity.noContent().build();
     }
@@ -78,7 +78,7 @@ public class SSTRiskController {
     @GetMapping("/positions/{positionId}")
     @Operation(summary = "Listar riscos por cargo", description = "Retorna riscos associados a um cargo")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<PositionRisk>> getRisksByPosition(@PathVariable UUID positionId) {
+    public ResponseEntity<List<PositionRisk>> getRisksByPosition(@PathVariable("positionId") UUID positionId) {
         List<PositionRisk> risks = riskService.getRisksByPosition(positionId);
         return ResponseEntity.ok(risks);
     }
@@ -87,11 +87,11 @@ public class SSTRiskController {
     @Operation(summary = "Associar risco ao cargo", description = "Associa um tipo de risco a um cargo")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<PositionRisk> associateRiskToPosition(
-            @PathVariable UUID positionId, 
-            @PathVariable UUID riskTypeId,
-            @RequestParam String riskLevel,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) String preventiveMeasures) {
+            @PathVariable("positionId") UUID positionId, 
+            @PathVariable("riskTypeId") UUID riskTypeId,
+            @RequestParam(value = "riskLevel") String riskLevel,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "preventiveMeasures", required = false) String preventiveMeasures) {
         PositionRisk positionRisk = riskService.associateRiskToPosition(positionId, riskTypeId, riskLevel, description, preventiveMeasures);
         return ResponseEntity.ok(positionRisk);
     }
@@ -99,7 +99,7 @@ public class SSTRiskController {
     @DeleteMapping("/positions/{positionId}/risks/{riskTypeId}")
     @Operation(summary = "Remover risco do cargo", description = "Remove um tipo de risco de um cargo")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> removeRiskFromPosition(@PathVariable UUID positionId, @PathVariable UUID riskTypeId) {
+    public ResponseEntity<Void> removeRiskFromPosition(@PathVariable("positionId") UUID positionId, @PathVariable("riskTypeId") UUID riskTypeId) {
         riskService.removeRiskFromPosition(positionId, riskTypeId);
         return ResponseEntity.noContent().build();
     }
@@ -109,7 +109,7 @@ public class SSTRiskController {
     @GetMapping("/employees/{employeeId}")
     @Operation(summary = "Listar riscos por funcionÃ¡rio", description = "Retorna riscos associados a um funcionÃ¡rio")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<EmployeeRisk>> getRisksByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<EmployeeRisk>> getRisksByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<EmployeeRisk> risks = riskService.getRisksByEmployee(employeeId);
         return ResponseEntity.ok(risks);
     }
@@ -118,11 +118,11 @@ public class SSTRiskController {
     @Operation(summary = "Associar risco ao funcionÃ¡rio", description = "Associa um tipo de risco a um funcionÃ¡rio")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<EmployeeRisk> associateRiskToEmployee(
-            @PathVariable UUID employeeId, 
-            @PathVariable UUID riskTypeId,
-            @RequestParam String riskLevel,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) String preventiveMeasures) {
+            @PathVariable("employeeId") UUID employeeId, 
+            @PathVariable("riskTypeId") UUID riskTypeId,
+            @RequestParam(value = "riskLevel") String riskLevel,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "preventiveMeasures", required = false) String preventiveMeasures) {
         EmployeeRisk employeeRisk = riskService.associateRiskToEmployee(employeeId, riskTypeId, riskLevel, description, preventiveMeasures);
         return ResponseEntity.ok(employeeRisk);
     }
@@ -130,7 +130,7 @@ public class SSTRiskController {
     @DeleteMapping("/employees/{employeeId}/risks/{riskTypeId}")
     @Operation(summary = "Remover risco do funcionÃ¡rio", description = "Remove um tipo de risco de um funcionÃ¡rio")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> removeRiskFromEmployee(@PathVariable UUID employeeId, @PathVariable UUID riskTypeId) {
+    public ResponseEntity<Void> removeRiskFromEmployee(@PathVariable("employeeId") UUID employeeId, @PathVariable("riskTypeId") UUID riskTypeId) {
         riskService.removeRiskFromEmployee(employeeId, riskTypeId);
         return ResponseEntity.noContent().build();
     }
@@ -139,8 +139,8 @@ public class SSTRiskController {
     @Operation(summary = "Copiar riscos do cargo para funcionÃ¡rio", description = "Copia todos os riscos de um cargo para um funcionÃ¡rio")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<List<EmployeeRisk>> copyRisksFromPositionToEmployee(
-            @PathVariable UUID employeeId, 
-            @PathVariable UUID positionId) {
+            @PathVariable("employeeId") UUID employeeId, 
+            @PathVariable("positionId") UUID positionId) {
         // TODO: Implementar mÃ©todo copyRisksFromPositionToEmployee no serviÃ§o
         return ResponseEntity.ok(List.of());
     }

@@ -41,7 +41,7 @@ public class BoardingPointController {
     @GetMapping("/route/{routeId}")
     @Transactional(readOnly = true)
     @Operation(summary = "Listar pontos de uma rota")
-    public List<BoardingPointDTO> listByRoute(@PathVariable UUID routeId) {
+    public List<BoardingPointDTO> listByRoute(@PathVariable("routeId") UUID routeId) {
         return routePointRepository.findByRouteIdOrderByOrderAsc(routeId).stream()
                 .map(BoardingPointDTO::fromEntity)
                 .collect(Collectors.toList());
@@ -50,7 +50,7 @@ public class BoardingPointController {
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
     @Operation(summary = "Obter ponto por UUID")
-    public ResponseEntity<BoardingPointDTO> getById(@PathVariable String id) {
+    public ResponseEntity<BoardingPointDTO> getById(@PathVariable("id") String id) {
         UUID uuid;
         try {
             uuid = UUID.fromString(id);

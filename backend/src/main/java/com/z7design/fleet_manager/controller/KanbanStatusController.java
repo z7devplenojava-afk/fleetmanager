@@ -45,7 +45,7 @@ public class KanbanStatusController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<KanbanStatusDTO> getById(@PathVariable String id) {
+    public ResponseEntity<KanbanStatusDTO> getById(@PathVariable("id") String id) {
         return kanbanStatusService.findById(UUID.fromString(id)).map(this::toDTO)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
@@ -61,7 +61,7 @@ public class KanbanStatusController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('CRM_READ', 'LEADS_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<KanbanStatusDTO> update(@PathVariable String id, @Valid @RequestBody KanbanStatusDTO dto) {
+    public ResponseEntity<KanbanStatusDTO> update(@PathVariable("id") String id, @Valid @RequestBody KanbanStatusDTO dto) {
         if (!kanbanStatusService.findById(UUID.fromString(id)).isPresent()) {
             return ResponseEntity.notFound().build();
         }
@@ -73,7 +73,7 @@ public class KanbanStatusController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('CRM_READ', 'LEADS_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         if (!kanbanStatusService.findById(UUID.fromString(id)).isPresent()) {
             return ResponseEntity.notFound().build();
         }

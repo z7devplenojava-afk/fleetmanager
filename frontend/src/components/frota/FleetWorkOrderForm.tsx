@@ -28,6 +28,7 @@ interface Props {
     onClose: () => void;
     onSuccess: () => void;
     order?: FleetWorkOrder;
+    initialVehicleId?: string;
 }
 
 const PRIORITY_CONFIG = {
@@ -46,7 +47,7 @@ const ACTION_ICONS: Record<string, string> = {
     COST_UPDATE:   '💰',
 };
 
-const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order }) => {
+const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order, initialVehicleId }) => {
     const { toast }       = useToast();
     const { user }        = useAuth();
     const queryClient     = useQueryClient();
@@ -84,7 +85,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             setFormData({ ...order });
         } else {
             setFormData({
-                vehicleId: '', status: WorkOrderStatus.DRAFT,
+                vehicleId: initialVehicleId || '', status: WorkOrderStatus.DRAFT,
                 priority: WorkOrderPriority.MEDIUM, laborType: LaborType.INTERNAL,
                 plannedDate: new Date().toISOString().split('T')[0],
                 laborCost: 0, partsCost: 0, totalCost: 0,
@@ -93,7 +94,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         }
         setShowHistory(false);
         setNewNote('');
-    }, [order, isOpen]);
+    }, [order, isOpen, initialVehicleId]);
 
     // ── Items helpers ──────────────────────────────────────────────────────────
     const handleAddItem = () => {
@@ -197,7 +198,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             title={isEdit ? `OS ${order?.osNumber || order?.id?.slice(0, 8)} — Editar` : 'Nova Ordem de Serviço'}
             description="Registre peças, mão de obra, odômetro e histórico de manutenção."
             footer={footer}
-            className="sm:max-w-4xl bg-[#0a0a0b] border-gray-800/50">
+            className="sm:max-w-4xl bg-[#0a0a0b] border-gray-800/50 z-[10050]">
             <div className="space-y-6 py-2 pb-10">
 
                 {/* ── Seção 1: Veículo & Identificação ──────────────────────────── */}

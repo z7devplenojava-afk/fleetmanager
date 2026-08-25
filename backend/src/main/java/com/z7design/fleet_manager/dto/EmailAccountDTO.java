@@ -24,6 +24,7 @@ public class EmailAccountDTO {
     private Boolean smtpSsl;
     private String username;
     private String authType;
+    private String signature;
     private String status;
     private LocalDateTime lastSyncAt;
     private String lastSyncStatus;

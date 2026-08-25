@@ -67,7 +67,7 @@ public class CompanyConfigController {
      * Busca configuraÃ§Ã£o por ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<CompanyConfigDTO> getConfigById(@PathVariable UUID id) {
+    public ResponseEntity<CompanyConfigDTO> getConfigById(@PathVariable("id") UUID id) {
         log.info("GET /api/company-config/{} - Buscando configuraÃ§Ã£o por ID", id);
         
         Optional<CompanyConfigDTO> config = companyConfigService.getConfigById(id);
@@ -83,7 +83,7 @@ public class CompanyConfigController {
      * Desativa uma configuraÃ§Ã£o
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deactivateConfig(@PathVariable UUID id) {
+    public ResponseEntity<Void> deactivateConfig(@PathVariable("id") UUID id) {
         log.info("DELETE /api/company-config/{} - Desativando configuraÃ§Ã£o", id);
         
         companyConfigService.deactivateConfig(id);
@@ -96,7 +96,7 @@ public class CompanyConfigController {
      */
     @PostMapping("/{id}/logo")
     public ResponseEntity<String> uploadLogo(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestParam("file") MultipartFile file) {
         
         log.info("POST /api/company-config/{}/logo - Upload de logo", id);

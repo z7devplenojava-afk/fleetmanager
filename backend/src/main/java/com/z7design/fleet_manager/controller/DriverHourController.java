@@ -21,20 +21,20 @@ public class DriverHourController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<DriverWorkHour> getJornada(@PathVariable UUID id) {
+    public ResponseEntity<DriverWorkHour> getJornada(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(driverHourService.getJornada(id));
     }
 
     @GetMapping("/by-period")
     public ResponseEntity<java.util.List<DriverWorkHour>> getJornadaByPeriod(
-            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate start,
-            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate end) {
+            @RequestParam(value = "DATE") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate start,
+            @RequestParam(value = "DATE") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate end) {
         return ResponseEntity.ok(driverHourService.findByPeriod(start, end));
     }
 
     @GetMapping("/{id}/memory")
     public ResponseEntity<com.z7design.fleet_manager.model.DriverHourCalculationMemory> getCalculationMemory(
-            @PathVariable UUID id) {
+            @PathVariable("id") UUID id) {
         return ResponseEntity.ok(driverHourService.getCalculationMemory(id));
     }
 }

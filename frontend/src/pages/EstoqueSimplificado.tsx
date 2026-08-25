@@ -18,7 +18,8 @@ import {
   Users,
   FileText,
   Bell,
-  Loader2
+  Loader2,
+  Upload
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { stockService } from '@/services/stockService';
@@ -35,6 +36,8 @@ const EstoqueSimplificado: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   // Estados para dados
@@ -135,6 +138,61 @@ const EstoqueSimplificado: React.FC = () => {
           variant: "destructive"
         });
       });
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    console.log('📥 [Importação] Arquivo selecionado:', file.name, 'Tamanho:', file.size, 'bytes');
+    setImporting(true);
+    try {
+      const result = await stockService.importExcel(file);
+      console.log('📥 [Importação] Resultado do backend:', result);
+      const errorCount = Array.isArray(result.errors) ? result.errors.length : 0;
+      const totalProcessed = (result.inserted || 0) + (result.updated || 0) + (result.skipped || 0);
+
+      let descriptionParts = [
+        `✅ ${result.inserted || 0} inseridos`,
+        `🔄 ${result.updated || 0} atualizados`,
+        `⏭️ ${result.skipped || 0} ignorados`,
+      ];
+      if (errorCount > 0) {
+        descriptionParts.push(`❌ ${errorCount} erro(s)`);
+        descriptionParts.push('');
+        descriptionParts.push('Primeiros erros:');
+        const firstErrors = (result.errors || []).slice(0, 3);
+        firstErrors.forEach((err: string, i: number) => {
+          descriptionParts.push(`${i + 1}. ${err}`);
+        });
+        if (errorCount > 3) {
+          descriptionParts.push(`... e mais ${errorCount - 3} erro(s). Verifique o console (F12).`);
+        }
+        console.warn('📥 [Importação] Lista completa de erros:', result.errors);
+      }
+
+      const title = errorCount > 0
+        ? (totalProcessed > 0 ? 'Importação parcial (com erros)' : 'Falha na importação')
+        : 'Importação concluída com sucesso';
+
+      toast({
+        title,
+        description: descriptionParts.join('\n'),
+        variant: errorCount > 0 ? 'destructive' : 'default'
+      });
+
+      await loadInitialData();
+    } catch (error: any) {
+      console.error('📥 [Importação] EXCEPTION:', error);
+      toast({
+        title: "Erro na importação",
+        description: error?.message || "Não foi possível importar a planilha. Verifique o console (F12) para detalhes.",
+        variant: "destructive"
+      });
+    } finally {
+      setImporting(false);
+    }
   };
 
   const renderDashboard = () => (
@@ -304,6 +362,27 @@ const EstoqueSimplificado: React.FC = () => {
           </div>
           
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+            >
+              {importing ? (
+                <Loader2 size={16} className="mr-2 animate-spin" />
+              ) : (
+                <Upload size={16} className="mr-2" />
+              )}
+              Importar Excel
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleImportExcel}
+            />
+            
             <Button
               variant="outline"
               onClick={() => setShowQrScanner(true)}

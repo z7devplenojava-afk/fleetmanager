@@ -41,7 +41,7 @@ public class SSTController {
     @GetMapping("/alerts/employee/{employeeId}")
     @Operation(summary = "Listar alertas por funcionÃ¡rio", description = "Retorna alertas de um funcionÃ¡rio especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<SSTAlert>> getAlertsByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<SSTAlert>> getAlertsByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<SSTAlert> alerts = alertService.getAlertsByEmployee(employeeId);
         return ResponseEntity.ok(alerts);
     }
@@ -49,7 +49,7 @@ public class SSTController {
     @GetMapping("/alerts/unread/employee/{employeeId}")
     @Operation(summary = "Listar alertas nÃ£o lidos por funcionÃ¡rio", description = "Retorna alertas nÃ£o lidos de um funcionÃ¡rio")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<SSTAlert>> getUnreadAlertsByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<SSTAlert>> getUnreadAlertsByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<SSTAlert> alerts = alertService.getUnreadAlertsByEmployee(employeeId);
         return ResponseEntity.ok(alerts);
     }
@@ -65,7 +65,7 @@ public class SSTController {
     @GetMapping("/alerts/due-soon")
     @Operation(summary = "Listar alertas prÃ³ximos do vencimento", description = "Retorna alertas que vencem nos prÃ³ximos dias")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<SSTAlert>> getAlertsDueSoon(@RequestParam(defaultValue = "7") int daysAhead) {
+    public ResponseEntity<List<SSTAlert>> getAlertsDueSoon(@RequestParam(value = "daysAhead", defaultValue = "7") int daysAhead) {
         List<SSTAlert> alerts = alertService.getAlertsDueSoon(daysAhead);
         return ResponseEntity.ok(alerts);
     }
@@ -73,7 +73,7 @@ public class SSTController {
     @PostMapping("/alerts/{alertId}/read")
     @Operation(summary = "Marcar alerta como lido", description = "Marca um alerta como lido")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> markAlertAsRead(@PathVariable UUID alertId) {
+    public ResponseEntity<Void> markAlertAsRead(@PathVariable("alertId") UUID alertId) {
         alertService.markAsRead(alertId);
         return ResponseEntity.ok().build();
     }
@@ -81,7 +81,7 @@ public class SSTController {
     @PostMapping("/alerts/{alertId}/resolve")
     @Operation(summary = "Marcar alerta como resolvido", description = "Marca um alerta como resolvido")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> markAlertAsResolved(@PathVariable UUID alertId, Authentication authentication) {
+    public ResponseEntity<Void> markAlertAsResolved(@PathVariable("alertId") UUID alertId, Authentication authentication) {
         // Obter o usuÃ¡rio atual do contexto de autenticaÃ§Ã£o
         UUID resolvedByUserId = authenticationService.getCurrentUser(authentication).getId();
         alertService.markAsResolved(alertId, resolvedByUserId);
@@ -91,7 +91,7 @@ public class SSTController {
     @GetMapping("/alerts/count/unread/employee/{employeeId}")
     @Operation(summary = "Contar alertas nÃ£o lidos por funcionÃ¡rio", description = "Retorna a quantidade de alertas nÃ£o lidos de um funcionÃ¡rio")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Long> countUnreadAlertsByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<Long> countUnreadAlertsByEmployee(@PathVariable("employeeId") UUID employeeId) {
         Long count = alertService.countUnreadAlertsByEmployee(employeeId);
         return ResponseEntity.ok(count);
     }
@@ -99,7 +99,7 @@ public class SSTController {
     @GetMapping("/alerts/type/{alertType}")
     @Operation(summary = "Listar alertas por tipo", description = "Retorna alertas de um tipo especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<SSTAlert>> getAlertsByType(@PathVariable SSTAlertType alertType) {
+    public ResponseEntity<List<SSTAlert>> getAlertsByType(@PathVariable("alertType") SSTAlertType alertType) {
         List<SSTAlert> alerts = alertService.getAlertsByType(alertType);
         return ResponseEntity.ok(alerts);
     }

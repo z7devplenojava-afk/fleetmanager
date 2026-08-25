@@ -226,7 +226,7 @@ public class DocumentProcessingController {
     })
     public ResponseEntity<JobStatusResponse> getJobStatus(
             @Parameter(description = "ID do job", required = true)
-            @PathVariable UUID jobId) {
+            @PathVariable("jobId") UUID jobId) {
         
         try {
             log.debug("Consultando status do job: {}", jobId);
@@ -456,7 +456,7 @@ public class DocumentProcessingController {
 
     @GetMapping("/debug/{jobId}")
     @Operation(summary = "Debug: Verificar status completo do processamento")
-    public ResponseEntity<Map<String, Object>> debugJob(@PathVariable UUID jobId) {
+    public ResponseEntity<Map<String, Object>> debugJob(@PathVariable("jobId") UUID jobId) {
         Map<String, Object> debug = new HashMap<>();
         
         try {
@@ -538,7 +538,7 @@ public class DocumentProcessingController {
     })
     public ResponseEntity<Map<String, String>> downloadUnifiedDocument(
             @Parameter(description = "ID do documento unificado", required = true)
-            @PathVariable UUID unifiedDocumentId) {
+            @PathVariable("unifiedDocumentId") UUID unifiedDocumentId) {
         
         try {
             String downloadUrl = processingService.getDownloadUrl(unifiedDocumentId);

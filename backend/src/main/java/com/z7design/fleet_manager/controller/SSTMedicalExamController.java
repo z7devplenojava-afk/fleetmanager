@@ -37,7 +37,7 @@ public class SSTMedicalExamController {
     @GetMapping("/types/{id}")
     @Operation(summary = "Buscar tipo de exame por ID", description = "Retorna um tipo de exame especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<MedicalExamType> getExamTypeById(@PathVariable UUID id) {
+    public ResponseEntity<MedicalExamType> getExamTypeById(@PathVariable("id") UUID id) {
         MedicalExamType examType = medicalExamService.getExamTypeById(id);
         if (examType == null) {
             return ResponseEntity.notFound().build();
@@ -56,7 +56,7 @@ public class SSTMedicalExamController {
     @PutMapping("/types/{id}")
     @Operation(summary = "Atualizar tipo de exame", description = "Atualiza um tipo de exame existente")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<MedicalExamType> updateExamType(@PathVariable UUID id, @RequestBody MedicalExamType examType) {
+    public ResponseEntity<MedicalExamType> updateExamType(@PathVariable("id") UUID id, @RequestBody MedicalExamType examType) {
         MedicalExamType updated = medicalExamService.updateExamType(id, examType);
         if (updated == null) {
             return ResponseEntity.notFound().build();
@@ -67,7 +67,7 @@ public class SSTMedicalExamController {
     @DeleteMapping("/types/{id}")
     @Operation(summary = "Excluir tipo de exame", description = "Exclui um tipo de exame")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteExamType(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteExamType(@PathVariable("id") UUID id) {
         medicalExamService.deleteExamType(id);
         return ResponseEntity.noContent().build();
     }
@@ -85,7 +85,7 @@ public class SSTMedicalExamController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar exame por ID", description = "Retorna um exame mÃ©dico especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<MedicalExam> getExamById(@PathVariable UUID id) {
+    public ResponseEntity<MedicalExam> getExamById(@PathVariable("id") UUID id) {
         MedicalExam exam = medicalExamService.getExamById(id);
         if (exam == null) {
             return ResponseEntity.notFound().build();
@@ -96,7 +96,7 @@ public class SSTMedicalExamController {
     @GetMapping("/employee/{employeeId}")
     @Operation(summary = "Listar exames por funcionÃ¡rio", description = "Retorna exames de um funcionÃ¡rio especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<MedicalExam>> getExamsByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<MedicalExam>> getExamsByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<MedicalExam> exams = medicalExamService.getExamsByEmployee(employeeId);
         return ResponseEntity.ok(exams);
     }
@@ -105,8 +105,8 @@ public class SSTMedicalExamController {
     @Operation(summary = "Listar exames por funcionÃ¡rio e tipo", description = "Retorna exames de um funcionÃ¡rio de um tipo especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<List<MedicalExam>> getExamsByEmployeeAndType(
-            @PathVariable UUID employeeId, 
-            @PathVariable UUID examTypeId) {
+            @PathVariable("employeeId") UUID employeeId, 
+            @PathVariable("examTypeId") UUID examTypeId) {
         List<MedicalExam> exams = medicalExamService.getExamsByEmployeeAndType(employeeId, examTypeId);
         return ResponseEntity.ok(exams);
     }
@@ -122,7 +122,7 @@ public class SSTMedicalExamController {
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar exame mÃ©dico", description = "Atualiza um exame mÃ©dico existente")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<MedicalExam> updateExam(@PathVariable UUID id, @RequestBody MedicalExam exam) {
+    public ResponseEntity<MedicalExam> updateExam(@PathVariable("id") UUID id, @RequestBody MedicalExam exam) {
         MedicalExam updated = medicalExamService.updateExam(id, exam);
         if (updated == null) {
             return ResponseEntity.notFound().build();
@@ -133,7 +133,7 @@ public class SSTMedicalExamController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir exame mÃ©dico", description = "Exclui um exame mÃ©dico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteExam(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteExam(@PathVariable("id") UUID id) {
         medicalExamService.deleteExam(id);
         return ResponseEntity.noContent().build();
     }
@@ -151,7 +151,7 @@ public class SSTMedicalExamController {
     @GetMapping("/expiring")
     @Operation(summary = "Listar exames prÃ³ximos do vencimento", description = "Retorna exames que estÃ£o prÃ³ximos do vencimento")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<MedicalExam>> getExpiringExams(@RequestParam(defaultValue = "30") int daysAhead) {
+    public ResponseEntity<List<MedicalExam>> getExpiringExams(@RequestParam(value = "daysAhead", defaultValue = "30") int daysAhead) {
         List<MedicalExam> exams = medicalExamService.getExpiringExams(daysAhead);
         return ResponseEntity.ok(exams);
     }
@@ -161,7 +161,7 @@ public class SSTMedicalExamController {
     @PostMapping("/schedule-admission/{employeeId}")
     @Operation(summary = "Agendar exame admissional", description = "Agenda automaticamente um exame admissional para um funcionÃ¡rio")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<MedicalExam> scheduleAdmissionExam(@PathVariable UUID employeeId) {
+    public ResponseEntity<MedicalExam> scheduleAdmissionExam(@PathVariable("employeeId") UUID employeeId) {
         MedicalExam exam = medicalExamService.scheduleAdmissionExam(employeeId);
         return ResponseEntity.ok(exam);
     }
@@ -169,7 +169,7 @@ public class SSTMedicalExamController {
     @PostMapping("/schedule-periodic/{employeeId}")
     @Operation(summary = "Agendar exame periÃ³dico", description = "Agenda automaticamente um exame periÃ³dico para um funcionÃ¡rio")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<MedicalExam> schedulePeriodicExam(@PathVariable UUID employeeId) {
+    public ResponseEntity<MedicalExam> schedulePeriodicExam(@PathVariable("employeeId") UUID employeeId) {
         MedicalExam exam = medicalExamService.schedulePeriodicExam(employeeId);
         return ResponseEntity.ok(exam);
     }
@@ -177,7 +177,7 @@ public class SSTMedicalExamController {
     @PostMapping("/schedule-dismissal/{employeeId}")
     @Operation(summary = "Agendar exame demissional", description = "Agenda automaticamente um exame demissional para um funcionÃ¡rio")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<MedicalExam> scheduleDismissalExam(@PathVariable UUID employeeId) {
+    public ResponseEntity<MedicalExam> scheduleDismissalExam(@PathVariable("employeeId") UUID employeeId) {
         MedicalExam exam = medicalExamService.scheduleDismissalExam(employeeId);
         return ResponseEntity.ok(exam);
     }

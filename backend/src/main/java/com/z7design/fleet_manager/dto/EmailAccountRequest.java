@@ -21,4 +21,5 @@ public class EmailAccountRequest {
     private String username;
     private String password;
     private String authType; // 'password' | 'oauth2'
+    private String signature;
 }

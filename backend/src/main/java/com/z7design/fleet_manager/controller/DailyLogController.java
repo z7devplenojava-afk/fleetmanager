@@ -25,13 +25,13 @@ public class DailyLogController {
 
     @GetMapping("/range")
     public List<DailyLog> getByRange(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+            @RequestParam(value = "start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam(value = "end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
         return service.findByDateRange(start, end);
     }
 
     @GetMapping("/{id}")
-    public DailyLog getById(@PathVariable UUID id) {
+    public DailyLog getById(@PathVariable("id") UUID id) {
         return service.findById(id);
     }
 
@@ -41,12 +41,12 @@ public class DailyLogController {
     }
 
     @PutMapping("/{id}")
-    public DailyLog update(@PathVariable UUID id, @RequestBody DailyLog dailyLog) {
+    public DailyLog update(@PathVariable("id") UUID id, @RequestBody DailyLog dailyLog) {
         return service.update(id, dailyLog);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

@@ -92,7 +92,7 @@ public class FuelRecordController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<FuelRecordDTO> getFuelRecordById(@PathVariable UUID id) {
+    public ResponseEntity<FuelRecordDTO> getFuelRecordById(@PathVariable("id") UUID id) {
         FuelRecord fuelRecord = fuelRecordRepository.findById(id)
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Registro de abastecimento nÃ£o encontrado com ID: " + id));
@@ -100,7 +100,7 @@ public class FuelRecordController {
     }
 
     @GetMapping("/vehicle/{vehicleId}")
-    public ResponseEntity<List<FuelRecordDTO>> getFuelRecordsByVehicle(@PathVariable UUID vehicleId) {
+    public ResponseEntity<List<FuelRecordDTO>> getFuelRecordsByVehicle(@PathVariable("vehicleId") UUID vehicleId) {
         try {
             log.info("ðŸ” Buscando registros de combustÃ­vel para veÃ­culo: {}", vehicleId);
 
@@ -164,7 +164,7 @@ public class FuelRecordController {
 
     @GetMapping("/vehicle/{vehicleId}/period")
     public ResponseEntity<List<FuelRecordDTO>> getFuelRecordsByVehicleAndPeriod(
-            @PathVariable UUID vehicleId,
+            @PathVariable("vehicleId") UUID vehicleId,
             @RequestParam(name = "startDate") LocalDate startDate,
             @RequestParam(name = "endDate") LocalDate endDate) {
         List<FuelRecord> fuelRecords = fuelRecordRepository.findByVehicleIdAndDateBetween(vehicleId, startDate,
@@ -243,7 +243,7 @@ public class FuelRecordController {
     }
 
     @GetMapping("/stats/vehicle/{vehicleId}/by-fuel-type")
-    public ResponseEntity<List<Object[]>> getFuelConsumptionByType(@PathVariable UUID vehicleId) {
+    public ResponseEntity<List<Object[]>> getFuelConsumptionByType(@PathVariable("vehicleId") UUID vehicleId) {
         List<Object[]> consumptionByType = fuelRecordRepository.getFuelConsumptionByType(vehicleId);
         return ResponseEntity.ok(consumptionByType);
     }
@@ -363,7 +363,7 @@ public class FuelRecordController {
 
     @PutMapping("/{id}")
     public ResponseEntity<FuelRecordDTO> updateFuelRecord(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestPart("fuelRecord") @Valid CreateFuelRecordDTO updateFuelRecordDTO,
             @RequestPart(name = "receipt", required = false) MultipartFile receipt) throws IOException {
         try {
@@ -420,14 +420,14 @@ public class FuelRecordController {
     }
 
     @GetMapping("/last/{vehicleId}")
-    public ResponseEntity<FuelRecordDTO> getLastFuelRecord(@PathVariable UUID vehicleId) {
+    public ResponseEntity<FuelRecordDTO> getLastFuelRecord(@PathVariable("vehicleId") UUID vehicleId) {
         return fuelRecordRepository.findTopByVehicleIdOrderByDateDesc(vehicleId)
                 .map(fuelRecord -> ResponseEntity.ok(FuelRecordDTO.fromEntity(fuelRecord)))
                 .orElse(ResponseEntity.noContent().build());
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFuelRecord(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteFuelRecord(@PathVariable("id") UUID id) {
         if (!fuelRecordRepository.existsById(id)) {
             throw new ResourceNotFoundException("Registro de abastecimento nÃ£o encontrado com ID: " + id);
         }
@@ -481,14 +481,14 @@ public class FuelRecordController {
     }
 
     @GetMapping("/stats/driver/{driverId}")
-    public ResponseEntity<DriverFuelConsumptionStatsDTO> getDriverStats(@PathVariable UUID driverId) {
+    public ResponseEntity<DriverFuelConsumptionStatsDTO> getDriverStats(@PathVariable("driverId") UUID driverId) {
         DriverFuelConsumptionStatsDTO stats = driverFuelConsumptionService.getDriverStats(driverId);
         return ResponseEntity.ok(stats);
     }
 
     @GetMapping("/stats/driver/{driverId}/period")
     public ResponseEntity<DriverFuelConsumptionStatsDTO> getDriverStatsByPeriod(
-            @PathVariable UUID driverId,
+            @PathVariable("driverId") UUID driverId,
             @RequestParam(name = "startDate") LocalDate startDate,
             @RequestParam(name = "endDate") LocalDate endDate) {
         DriverFuelConsumptionStatsDTO stats = driverFuelConsumptionService.getDriverStatsByPeriod(driverId, startDate,

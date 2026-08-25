@@ -24,7 +24,7 @@ public class VehicleDocumentController {
 
     @GetMapping
     public ResponseEntity<List<VehicleDocumentDTO>> list(
-            @RequestParam(required = false) UUID vehicleId,
+            @RequestParam(value = "vehicleId", required = false) UUID vehicleId,
             @AuthenticationPrincipal User user) {
         if (vehicleId != null) {
             return ResponseEntity.ok(service.listByVehicle(vehicleId, user.getCompanyId()));
@@ -34,7 +34,7 @@ public class VehicleDocumentController {
 
     @GetMapping("/{id}")
     public ResponseEntity<VehicleDocumentDTO> getById(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(service.getById(id, user.getCompanyId()));
     }
@@ -55,7 +55,7 @@ public class VehicleDocumentController {
 
     @GetMapping("/{id}/download")
     public ResponseEntity<Resource> download(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @AuthenticationPrincipal User user) {
         Resource resource = service.download(id, user.getCompanyId());
         return ResponseEntity.ok()
@@ -65,7 +65,7 @@ public class VehicleDocumentController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @AuthenticationPrincipal User user) {
         service.delete(id, user.getCompanyId());
         return ResponseEntity.noContent().build();
