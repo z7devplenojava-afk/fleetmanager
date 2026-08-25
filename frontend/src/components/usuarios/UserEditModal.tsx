@@ -38,7 +38,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
   onClose,
   onSave,
 }) => {
-  const { user: currentUser, hasRole } = useAuth();
+  const { user: currentUser, hasRole, refreshUser } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -198,6 +198,9 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
       }
 
       await userService.updateUser(user.id, updateData);
+      if (currentUser?.id === user.id || currentUser?.username === user.username) {
+        void refreshUser();
+      }
       toast({
         title: 'Sucesso!',
         description: 'Usuário atualizado com sucesso.',
