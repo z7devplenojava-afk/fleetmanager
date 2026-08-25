@@ -167,7 +167,14 @@ public class VehicleController {
     @Operation(summary = "Importar veículos via Excel", description = "Importa uma planilha Excel analisando todas as abas e mapeando colunas Placa/Patrimônio, Chassi, Renavam, Modelo, Ano/Mod")
     public ResponseEntity<ImportResultDto> importVehiclesExcel(@RequestParam("file") MultipartFile file) {
         log.info("Recebida requisição de importação de veículos Excel: {}", file.getOriginalFilename());
-        ImportResultDto result = vehicleExcelImportService.importVehiclesFromExcel(file);
-        return ResponseEntity.ok(result);
+        try {
+            ImportResultDto result = vehicleExcelImportService.importVehiclesFromExcel(file);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Erro na importação de veículos Excel: ", e);
+            ImportResultDto errorResult = ImportResultDto.empty();
+            errorResult.getErrors().add("Erro ao processar importação: " + e.getMessage());
+            return ResponseEntity.ok(errorResult);
+        }
     }
 }
