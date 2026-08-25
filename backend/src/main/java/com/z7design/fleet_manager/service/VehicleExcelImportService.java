@@ -6,11 +6,13 @@ import com.z7design.fleet_manager.model.Vehicle.FuelType;
 import com.z7design.fleet_manager.model.Vehicle.VehicleStatus;
 import com.z7design.fleet_manager.model.Vehicle.VehicleType;
 import com.z7design.fleet_manager.repository.VehicleRepository;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
@@ -26,7 +28,7 @@ import java.util.regex.Pattern;
 public class VehicleExcelImportService {
 
     private final VehicleRepository vehicleRepository;
-    private final org.springframework.transaction.PlatformTransactionManager transactionManager;
+    private final PlatformTransactionManager transactionManager;
 
     private static final Pattern YEAR_PATTERN = Pattern.compile("(19\\d{2}|20\\d{2})");
 
@@ -36,10 +38,28 @@ public class VehicleExcelImportService {
         }
 
         ImportResultDto result = ImportResultDto.empty();
-        log.info("Iniciando importação de veículos a partir do arquivo Excel: {}", file.getOriginalFilename());
+        log.info("Iniciando importação otimizada de veículos a partir do arquivo Excel: {}", file.getOriginalFilename());
 
         try (InputStream is = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(is)) {
+
+            // 1. Pré-carregar todos os veículos existentes para busca O(1) em memória
+            Map<String, Vehicle> existingMap = new HashMap<>();
+            try {
+                List<Vehicle> allVehicles = vehicleRepository.findAll();
+                for (Vehicle v : allVehicles) {
+                    if (v.getPlate() != null) {
+                        existingMap.put(v.getPlate().toUpperCase(), v);
+                    }
+                }
+                log.info("Pré-carregados {} veículos existentes em memória.", existingMap.size());
+            } catch (Exception e) {
+                log.warn("Não foi possível pré-carregar veículos: {}", e.getMessage());
+            }
+
+            Set<String> processedPlatesInFile = new HashSet<>();
+            List<Vehicle> toInsert = new ArrayList<>();
+            List<Vehicle> toUpdate = new ArrayList<>();
 
             int numberOfSheets = workbook.getNumberOfSheets();
             log.info("Processando arquivo Excel com {} abas", numberOfSheets);
@@ -48,13 +68,29 @@ public class VehicleExcelImportService {
                 Sheet sheet = workbook.getSheetAt(s);
                 String sheetName = sheet.getSheetName();
 
-                // Ignorar abas ocultas ou vazias
                 if (workbook.isSheetHidden(s) || sheet.getPhysicalNumberOfRows() == 0) {
                     continue;
                 }
 
                 log.info("Processando aba '{}' ({}/{})", sheetName, s + 1, numberOfSheets);
-                processSheet(sheet, sheetName, result);
+                processSheet(sheet, sheetName, result, existingMap, processedPlatesInFile, toInsert, toUpdate);
+            }
+
+            // 2. Persistir em lote em uma única transação otimizada
+            if (!toInsert.isEmpty() || !toUpdate.isEmpty()) {
+                log.info("Persistindo lote: {} a inserir, {} a atualizar", toInsert.size(), toUpdate.size());
+                TransactionTemplate tt = new TransactionTemplate(transactionManager);
+                tt.execute(status -> {
+                    if (!toInsert.isEmpty()) {
+                        vehicleRepository.saveAll(toInsert);
+                    }
+                    if (!toUpdate.isEmpty()) {
+                        vehicleRepository.saveAll(toUpdate);
+                    }
+                    return null;
+                });
+                result.setInserted(toInsert.size());
+                result.setUpdated(toUpdate.size());
             }
 
         } catch (Exception e) {
@@ -68,13 +104,14 @@ public class VehicleExcelImportService {
         return result;
     }
 
-    private void processSheet(Sheet sheet, String sheetName, ImportResultDto result) {
+    private void processSheet(Sheet sheet, String sheetName, ImportResultDto result,
+                              Map<String, Vehicle> existingMap, Set<String> processedPlatesInFile,
+                              List<Vehicle> toInsert, List<Vehicle> toUpdate) {
         int firstRowNum = sheet.getFirstRowNum();
         int lastRowNum = sheet.getLastRowNum();
 
         if (lastRowNum < 0) return;
 
-        // Localizar a linha de cabeçalho (procura nas primeiras 15 linhas)
         int headerRowIndex = -1;
         Map<Integer, String> columnMap = new HashMap<>();
 
@@ -83,7 +120,6 @@ public class VehicleExcelImportService {
             if (row == null) continue;
 
             Map<Integer, String> tempMap = mapHeaders(row);
-            // Se encontrar ao menos a coluna de Placa ou Patrimônio, considera como cabeçalho
             if (tempMap.containsValue("PLATE") || tempMap.containsValue("PATRIMONIO") || tempMap.containsValue("MODEL")) {
                 headerRowIndex = r;
                 columnMap = tempMap;
@@ -96,9 +132,8 @@ public class VehicleExcelImportService {
             return;
         }
 
-        log.info("Cabeçalho localizado na aba '{}', linha {}. Colunas identificadas: {}", sheetName, headerRowIndex + 1, columnMap.values());
+        log.info("Cabeçalho localizado na aba '{}', linha {}. Colunas: {}", sheetName, headerRowIndex + 1, columnMap.values());
 
-        // Processar linhas de dados
         for (int r = headerRowIndex + 1; r <= lastRowNum; r++) {
             Row row = sheet.getRow(r);
             if (row == null || isRowEmpty(row)) {
@@ -108,7 +143,7 @@ public class VehicleExcelImportService {
             result.setTotalRows(result.getTotalRows() + 1);
 
             try {
-                processRow(row, r + 1, sheetName, columnMap, result);
+                processRow(row, r + 1, sheetName, columnMap, result, existingMap, processedPlatesInFile, toInsert, toUpdate);
             } catch (Exception e) {
                 log.error("Erro na aba '{}', linha {}: ", sheetName, r + 1, e);
                 result.setSkipped(result.getSkipped() + 1);
@@ -127,7 +162,7 @@ public class VehicleExcelImportService {
 
             if (normalized.equals("placa") || normalized.equals("plate") || normalized.startsWith("placa")) {
                 map.put(cell.getColumnIndex(), "PLATE");
-            } else if (normalized.contains("patrimonio") || normalized.contains("patrimonio") || normalized.contains("patrimon")) {
+            } else if (normalized.contains("patrimonio") || normalized.contains("patrimon")) {
                 map.put(cell.getColumnIndex(), "PATRIMONIO");
             } else if (normalized.contains("chassi") || normalized.contains("chassis")) {
                 map.put(cell.getColumnIndex(), "CHASSIS");
@@ -148,7 +183,9 @@ public class VehicleExcelImportService {
         return map;
     }
 
-    private void processRow(Row row, int rowNum, String sheetName, Map<Integer, String> columnMap, ImportResultDto result) {
+    private void processRow(Row row, int rowNum, String sheetName, Map<Integer, String> columnMap,
+                            ImportResultDto result, Map<String, Vehicle> existingMap,
+                            Set<String> processedPlatesInFile, List<Vehicle> toInsert, List<Vehicle> toUpdate) {
         String plateValue = null;
         String patrimonioValue = null;
         String chassisValue = null;
@@ -199,7 +236,7 @@ public class VehicleExcelImportService {
             }
         }
 
-        // REGRA SOLICITADA: Se Placa estiver em branco e houver PATRIMÔNIO, usar o valor de PATRIMÔNIO como PLACA
+        // Usar PATRIMÔNIO como PLACA se Placa estiver em branco
         String finalPlate = plateValue;
         if ((finalPlate == null || finalPlate.isBlank()) && patrimonioValue != null && !patrimonioValue.isBlank()) {
             finalPlate = patrimonioValue;
@@ -212,6 +249,17 @@ public class VehicleExcelImportService {
         }
 
         finalPlate = cleanPlate(finalPlate);
+        if (finalPlate.isBlank()) {
+            result.setSkipped(result.getSkipped() + 1);
+            return;
+        }
+
+        // Ignorar duplicatas dentro do próprio arquivo Excel
+        if (processedPlatesInFile.contains(finalPlate)) {
+            result.setSkipped(result.getSkipped() + 1);
+            return;
+        }
+        processedPlatesInFile.add(finalPlate);
 
         Integer parsedYear = parseYear(yearValue);
         if (parsedYear == null) {
@@ -221,22 +269,22 @@ public class VehicleExcelImportService {
         String finalModel = (modelValue != null && !modelValue.isBlank()) ? modelValue : "Modelo Não Especificado";
         String finalBrand = (brandValue != null && !brandValue.isBlank()) ? brandValue : extractBrandFromModel(finalModel);
 
-        Optional<Vehicle> existingOpt = vehicleRepository.findByPlate(finalPlate);
+        Vehicle vehicle = existingMap.get(finalPlate);
+        UUID currentCompanyId = TenantContext.get();
 
-        if (existingOpt.isPresent()) {
-            Vehicle vehicle = existingOpt.get();
+        if (vehicle != null) {
             boolean updated = false;
 
             if (chassisValue != null && !chassisValue.isBlank() && !chassisValue.equalsIgnoreCase(vehicle.getChassisNumber())) {
-                vehicle.setChassisNumber(chassisValue);
+                vehicle.setChassisNumber(truncateString(chassisValue, 50));
                 updated = true;
             }
             if (renavamValue != null && !renavamValue.isBlank() && !renavamValue.equalsIgnoreCase(vehicle.getRenavan())) {
-                vehicle.setRenavan(renavamValue);
+                vehicle.setRenavan(truncateString(renavamValue, 50));
                 updated = true;
             }
             if (modelValue != null && !modelValue.isBlank() && !modelValue.equalsIgnoreCase(vehicle.getModel())) {
-                vehicle.setModel(finalModel);
+                vehicle.setModel(truncateString(finalModel, 50));
                 updated = true;
             }
             if (parsedYear != null && !parsedYear.equals(vehicle.getYear())) {
@@ -244,53 +292,39 @@ public class VehicleExcelImportService {
                 updated = true;
             }
             if (colorValue != null && !colorValue.isBlank()) {
-                vehicle.setColor(colorValue);
+                vehicle.setColor(truncateString(colorValue, 30));
+                updated = true;
+            }
+            if (currentCompanyId != null && vehicle.getCompanyId() == null) {
+                vehicle.setCompanyId(currentCompanyId);
                 updated = true;
             }
 
-            UUID currentCompanyId = com.z7design.fleet_manager.tenant.TenantContext.get();
-            if (currentCompanyId != null) {
-                vehicle.setCompanyId(currentCompanyId);
-            }
-
             if (updated) {
-                org.springframework.transaction.support.TransactionTemplate tt = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
-                tt.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-                tt.execute(status -> {
-                    vehicleRepository.saveAndFlush(vehicle);
-                    return null;
-                });
-                result.setUpdated(result.getUpdated() + 1);
+                toUpdate.add(vehicle);
             } else {
                 result.setSkipped(result.getSkipped() + 1);
             }
         } else {
-            Vehicle vehicle = new Vehicle();
-            vehicle.setPlate(finalPlate);
-            vehicle.setChassisNumber(truncateString(chassisValue, 50));
-            vehicle.setRenavan(truncateString(renavamValue, 50));
-            vehicle.setModel(truncateString(finalModel, 50));
-            vehicle.setBrand(truncateString(finalBrand, 50));
-            vehicle.setYear(parsedYear);
-            vehicle.setColor(truncateString(colorValue != null ? colorValue : "Branco", 30));
-            vehicle.setStatus(VehicleStatus.ACTIVE);
-            vehicle.setFuelType(FuelType.DIESEL);
-            vehicle.setVehicleType(VehicleType.BUS_ROAD);
-            vehicle.setCapacity(parseInteger(capacityValue, 44));
-            vehicle.setCurrentMileage(0);
+            Vehicle newVehicle = new Vehicle();
+            newVehicle.setPlate(finalPlate);
+            newVehicle.setChassisNumber(truncateString(chassisValue, 50));
+            newVehicle.setRenavan(truncateString(renavamValue, 50));
+            newVehicle.setModel(truncateString(finalModel, 50));
+            newVehicle.setBrand(truncateString(finalBrand, 50));
+            newVehicle.setYear(parsedYear);
+            newVehicle.setColor(truncateString(colorValue != null ? colorValue : "Branco", 30));
+            newVehicle.setStatus(VehicleStatus.ACTIVE);
+            newVehicle.setFuelType(FuelType.DIESEL);
+            newVehicle.setVehicleType(VehicleType.BUS_ROAD);
+            newVehicle.setCapacity(parseInteger(capacityValue, 44));
+            newVehicle.setCurrentMileage(0);
 
-            UUID currentCompanyId = com.z7design.fleet_manager.tenant.TenantContext.get();
             if (currentCompanyId != null) {
-                vehicle.setCompanyId(currentCompanyId);
+                newVehicle.setCompanyId(currentCompanyId);
             }
 
-            org.springframework.transaction.support.TransactionTemplate tt = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
-            tt.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            tt.execute(status -> {
-                vehicleRepository.saveAndFlush(vehicle);
-                return null;
-            });
-            result.setInserted(result.getInserted() + 1);
+            toInsert.add(newVehicle);
         }
     }
 
