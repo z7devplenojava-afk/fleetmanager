@@ -329,8 +329,7 @@ export function PurchaseRequestViewModal({
   const canRequestQuotation = !['CANCELLED', 'REJECTED', 'COMPLETED'].includes(request.status);
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-seguranca-graphite border-gray-600">
         <DialogHeader className="bg-gradient-to-r from-seguranca-red to-red-600 p-6 -m-6 mb-4 rounded-t-lg">
           <div className="flex items-center justify-between">
@@ -648,20 +647,18 @@ export function PurchaseRequestViewModal({
             Fechar
           </Button>
         </div>
+
+        {isQuotationModalOpen && request && (
+          <React.Suspense fallback={null}>
+            <QuotationFormModal
+              initialPurchaseRequestId={request.id}
+              onClose={() => setIsQuotationModalOpen(false)}
+              onCreated={() => onQuotationCreated?.()}
+            />
+          </React.Suspense>
+        )}
       </DialogContent>
     </Dialog>
-
-      {/* Modal Nova Cotação — abre com a solicitação já selecionada */}
-      {isQuotationModalOpen && request && (
-        <React.Suspense fallback={null}>
-          <QuotationFormModal
-            initialPurchaseRequestId={request.id}
-            onClose={() => setIsQuotationModalOpen(false)}
-            onCreated={() => onQuotationCreated?.()}
-          />
-        </React.Suspense>
-      )}
-    </>
   );
 }
 
