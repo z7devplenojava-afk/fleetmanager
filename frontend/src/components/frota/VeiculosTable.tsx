@@ -3,13 +3,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Trash2, Eye, Download, Trash2Icon, Edit3 } from 'lucide-react';
+import { Edit, Trash2, Eye, Download, Trash2Icon, Edit3, AlertTriangle, Clock, CheckCircle2, CalendarClock, Loader2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import VeiculoDeleteDialog from './VeiculoDeleteDialog';
 import VehicleDetailPanel from './VehicleDetailPanel';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import fleetService from '@/services/fleetService';
 import api from '@/lib/axios';
 import * as XLSX from 'xlsx';
+import vehicleMaintenanceStatusService, { VehicleMaintenanceAlert, MaintenanceAlertLevel } from '@/services/vehicleMaintenanceStatusService';
 
 interface Veiculo {
   id: string; // UUID
@@ -51,6 +63,7 @@ interface VeiculosTableProps {
   veiculos: Veiculo[];
   searchTerm: string;
   vehicleTypeFilter?: string;
+  maintenanceAlertFilter?: string;
   maintenances?: VehicleMaintenance[];
   onRefresh: () => void;
   onEdit: (veiculo: Veiculo) => void;
@@ -59,9 +72,38 @@ interface VeiculosTableProps {
   onViewMaintenance?: (maintenance: VehicleMaintenance) => void;
 }
 
-const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, vehicleTypeFilter, maintenances, onRefresh, onEdit, onDelete, onView, onViewMaintenance }) => {
+// Badge de alerta de manutenção por nível (próxima manutenção)
+const ALERT_BADGE: Record<MaintenanceAlertLevel, { label: string; icon: React.ElementType; className: string }> = {
+  OVERDUE: { label: 'Manutenção Vencida', icon: AlertTriangle, className: 'bg-red-900/40 text-red-300 border border-red-700/50' },
+  UPCOMING: { label: 'Manutenção Próxima', icon: Clock, className: 'bg-yellow-900/40 text-yellow-300 border border-yellow-700/50' },
+  OK: { label: 'Manutenção em Dia', icon: CheckCircle2, className: 'bg-green-900/30 text-green-400 border border-green-700/40' },
+  NO_SCHEDULE: { label: 'Sem Plano de Manutenção', icon: CalendarClock, className: 'bg-gray-800 text-gray-400 border border-gray-600' },
+};
+
+const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, vehicleTypeFilter, maintenanceAlertFilter, maintenances, onRefresh, onEdit, onDelete, onView, onViewMaintenance }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedVeiculo, setSelectedVeiculo] = useState<Veiculo | null>(null);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  // Alertas de próxima manutenção por veículo (1 requisição para a lista toda)
+  const [maintenanceAlerts, setMaintenanceAlerts] = useState<Record<string, VehicleMaintenanceAlert>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    vehicleMaintenanceStatusService.getAllAlerts()
+      .then(alerts => {
+        if (cancelled) return;
+        const map: Record<string, VehicleMaintenanceAlert> = {};
+        for (const a of alerts) map[a.vehicleId] = a;
+        setMaintenanceAlerts(map);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const getMaintenanceAlert = (vehicleId: string): VehicleMaintenanceAlert | null =>
+    maintenanceAlerts[vehicleId] || null;
 
   // Estados para seleção em lote
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -94,7 +136,9 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
       veiculo.marca.toLowerCase().includes(searchTerm.toLowerCase()) ||
       veiculo.modelo.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = !vehicleTypeFilter || vehicleTypeFilter === 'ALL' || veiculo.vehicleType === vehicleTypeFilter;
-    return matchesSearch && matchesType;
+    const matchesAlert = !maintenanceAlertFilter || maintenanceAlertFilter === 'ALL'
+      || getMaintenanceAlert(veiculo.id)?.alertLevel === maintenanceAlertFilter;
+    return matchesSearch && matchesType && matchesAlert;
   });
 
   // Funções de seleção
@@ -130,22 +174,32 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
       return;
     }
 
-    // Confirmação antes de excluir
-    if (!confirm(`Tem certeza que deseja excluir ${selectedItems.size} veículo(s)? Esta ação não pode ser desfeita.`)) {
-      return;
-    }
+    // Abre o diálogo de confirmação estilizado
+    setIsBulkDeleteDialogOpen(true);
+  };
 
+  const executeBulkDelete = async () => {
     try {
       const selectedIds = Array.from(selectedItems);
       console.log('🗑️ Excluindo veículos:', selectedIds);
 
-      // Aqui você implementaria a lógica de exclusão em lote
-      // Por enquanto, vou apenas mostrar um toast de sucesso
-      toast({
-        title: "Sucesso",
-        description: `${selectedItems.size} veículo(s) marcado(s) para exclusão`,
-        variant: "default"
-      });
+      setIsBulkDeleting(true);
+      const result = await fleetService.bulkDeleteVehicles(selectedIds);
+
+      if (result.deleted === result.requested) {
+        toast({
+          title: "Sucesso",
+          description: `${result.deleted} veículo(s) excluído(s) com sucesso.`,
+          variant: "default"
+        });
+      } else {
+        // Alguns não foram encontrados ou já estavam excluídos
+        toast({
+          title: "Concluído com ressalvas",
+          description: `${result.deleted} de ${result.requested} veículo(s) excluído(s). Os demais não foram encontrados ou já estavam excluídos.`,
+          variant: "default"
+        });
+      }
 
       // Limpar seleção e atualizar lista
       setSelectedItems(new Set());
@@ -167,6 +221,9 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
         description: errorMessage,
         variant: "destructive"
       });
+    } finally {
+      setIsBulkDeleting(false);
+      setIsBulkDeleteDialogOpen(false);
     }
   };
 
@@ -495,6 +552,24 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                   <div className="font-mono font-semibold text-seguranca-yellow text-lg">
                     {veiculo.placa}
                   </div>
+                  {(() => {
+                    const alert = getMaintenanceAlert(veiculo.id);
+                    if (!alert) return null;
+                    const cfg = ALERT_BADGE[alert.alertLevel];
+                    if (!cfg) return null;
+                    const AlertIcon = cfg.icon;
+                    return (
+                      <div
+                        className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${cfg.className}`}
+                        title={alert.mostCriticalTaskName
+                          ? `${alert.mostCriticalTaskName}${alert.mostCriticalMessage ? ` — ${alert.mostCriticalMessage}` : ''}`
+                          : cfg.label}
+                      >
+                        <AlertIcon className="h-3 w-3" />
+                        {cfg.label}
+                      </div>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell className="text-seguranca-lightgray">
                   <div className="flex flex-col">
@@ -600,6 +675,52 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
         }}
         onDelete={handleDeleteSuccess}
       />
+
+      {/* Diálogo de confirmação — Exclusão em massa */}
+      <AlertDialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+        <AlertDialogContent className="max-w-md bg-seguranca-graphite border-gray-600">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Confirmar Exclusão em Massa
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-seguranca-lightgray">
+              Esta ação não pode ser desfeita. {selectedItems.size} veículo(s) serão removidos da listagem.
+              O histórico (abastecimentos, manutenções, multas, OSs) será preservado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+            <p className="font-medium flex items-center gap-2">
+              <Trash2 className="h-4 w-4" /> Veículos selecionados: {selectedItems.size}
+            </p>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault(); // impede o AlertDialog de fechar antes da conclusão
+                executeBulkDelete();
+              }}
+              disabled={isBulkDeleting || selectedItems.size === 0}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir {selectedItems.size} veículo(s)
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modal de Visualização */}
       {isViewModalOpen && viewingVeiculo && (

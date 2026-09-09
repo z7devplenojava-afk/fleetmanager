@@ -30,7 +30,8 @@ import {
   Clock,
   UserMinus,
   XCircle,
-  ChevronRight
+  ChevronRight,
+  FileUp
 } from 'lucide-react';
 import { useGSAP } from '@/hooks/use-gsap';
 import { useToast } from '@/hooks/use-toast';
@@ -43,6 +44,7 @@ import EmployeeTrainingTab from '@/components/funcionarios/EmployeeTrainingTab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EmployeeDocumentsPanel from '@/components/funcionarios/EmployeeDocumentsPanel';
 import DocumentosGerarTab from '@/components/funcionarios/DocumentosGerarTab';
+import { EmployeePdfImportModal } from '@/components/funcionarios/EmployeePdfImportModal';
 import DependenteModal from '@/components/dependentes/DependenteModal';
 import { FuncionariosTable } from '@/components/funcionarios/FuncionariosTable';
 import ExcelImportModal from '@/components/funcionarios/ExcelImportModal';
@@ -71,6 +73,7 @@ const Funcionarios: React.FC = () => {
   const [activeTab, setActiveTab] = useState(tabFromUrl);
   const [modalOpen, setModalOpen] = useState(shouldOpenModal);
   const [excelImportModalOpen, setExcelImportModalOpen] = useState(shouldOpenExcelImport);
+  const [pdfImportModalOpen, setPdfImportModalOpen] = useState(false);
   const [dependentSearchTerm, setDependentSearchTerm] = useState('');
   
   // Atualizar aba quando mudar na URL
@@ -532,7 +535,7 @@ Confirma a exclusão?`)) {
                         {employees
                           .filter(emp => 
                             !dependentSearchTerm || 
-                            emp.name.toLowerCase().includes(dependentSearchTerm.toLowerCase()) ||
+                            ((emp.name || '').toLowerCase().includes(dependentSearchTerm.toLowerCase())) ||
                             (emp.document && emp.document.includes(dependentSearchTerm))
                           )
                           .map(emp => (
@@ -543,10 +546,10 @@ Confirma a exclusão?`)) {
                             >
                               <div className="flex items-center gap-3">
                                 <div className="h-8 w-8 rounded-full bg-gray-700 group-hover:bg-gray-600 flex items-center justify-center text-gray-300 text-xs font-bold transition-colors">
-                                  {emp.name.charAt(0)}
+                                  {(emp.name || '?').charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                  <p className="font-medium text-gray-200 text-sm">{emp.name}</p>
+                                  <p className="font-medium text-gray-200 text-sm">{emp.name || 'Funcionário sem nome'}</p>
                                   <p className="text-xs text-gray-400">{emp.position?.name || 'Sem cargo'} • {emp.document || 'S/ CPF'}</p>
                                 </div>
                               </div>
@@ -554,7 +557,7 @@ Confirma a exclusão?`)) {
                             </div>
                           ))}
                           
-                        {employees.filter(emp => !dependentSearchTerm || emp.name.toLowerCase().includes(dependentSearchTerm.toLowerCase())).length === 0 && (
+                        {employees.filter(emp => !dependentSearchTerm || ((emp.name || '').toLowerCase().includes(dependentSearchTerm.toLowerCase()))).length === 0 && (
                           <div className="p-8 text-center text-gray-500">
                             <p>Nenhum funcionário encontrado.</p>
                           </div>
@@ -668,6 +671,14 @@ Confirma a exclusão?`)) {
                 >
                   <FileSpreadsheet size={20} className="mr-2" />
                   Importar Excel
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-red-600/50 text-red-400 hover:bg-red-900/20"
+                  onClick={() => setPdfImportModalOpen(true)}
+                >
+                  <FileUp size={20} className="mr-2" />
+                  Importar Ficha PDF
                 </Button>
                 <Button
                   className="bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red shadow-lg shadow-seguranca-red/20"
@@ -834,6 +845,14 @@ Confirma a exclusão?`)) {
           if (shouldOpenExcelImport) {
             navigate('/rh/funcionarios', { replace: true });
           }
+        }}
+      />
+
+      <EmployeePdfImportModal
+        isOpen={pdfImportModalOpen}
+        onClose={() => setPdfImportModalOpen(false)}
+        onSuccess={() => {
+          loadEmployeesWithFilters();
         }}
       />
 

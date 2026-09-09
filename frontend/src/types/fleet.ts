@@ -16,7 +16,17 @@ export interface Vehicle {
   color: string;
   fuelType: 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'FLEX';
   currentMileage: number;
-  status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'OUT_OF_SERVICE' | 'RESERVED' | 'LEASED';
+  status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'BLOCKED' | 'SOLD' | 'BAIXADO' | 'LEASED' | 'OUT_OF_SERVICE' | 'RESERVED';
+  patrimonyNumber?: string;
+  modelYear?: number;
+  hourmeter?: number;
+  contractId?: string;
+  projectId?: string;
+  projectName?: string;
+  operationId?: string;
+  operationName?: string;
+  garageName?: string;
+  operationEntryDate?: string;
   capacity: number;
   vehicleType?: VehicleType;
 

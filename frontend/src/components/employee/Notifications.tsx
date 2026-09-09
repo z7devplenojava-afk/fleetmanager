@@ -37,6 +37,8 @@ interface Notification {
   relatedEntityType?: string;
 }
 
+import { notificationService } from '@/services/notificationService';
+
 const Notifications: React.FC = () => {
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -47,85 +49,6 @@ const Notifications: React.FC = () => {
   const [readFilter, setReadFilter] = useState<string>('all');
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
 
-  // Dados mockados para funcionar offline
-  const mockNotifications: Notification[] = [
-    {
-      id: '1',
-      title: 'Novo Holerite Disponível',
-      message: 'Seu holerite de Dezembro/2024 já está disponível para consulta.',
-      type: 'INFO',
-      category: 'PAYROLL',
-      isRead: false,
-      createdAt: '2024-12-05T10:00:00Z',
-      actionUrl: '/employee-portal/payslips',
-      actionText: 'Ver Holerite'
-    },
-    {
-      id: '2',
-      title: 'Lembrete: Treinamento a Vencer',
-      message: 'Seu treinamento "Segurança no Trabalho" vencerá em 30 dias. Renove sua certificação.',
-      type: 'WARNING',
-      category: 'TRAINING',
-      isRead: false,
-      createdAt: '2024-12-01T09:00:00Z',
-      actionUrl: '/employee-portal/trainings',
-      actionText: 'Ver Treinamento'
-    },
-    {
-      id: '3',
-      title: 'Solicitação de Férias Aprovada',
-      message: 'Suas férias de 20/12/2024 a 31/12/2024 foram aprovadas pelo seu supervisor.',
-      type: 'SUCCESS',
-      category: 'VACATION',
-      isRead: true,
-      createdAt: '2024-11-20T14:30:00Z',
-      readAt: '2024-11-20T15:00:00Z'
-    },
-    {
-      id: '4',
-      title: 'Documento Expirando',
-      message: 'Seu documento "CTPS" vencerá em 60 dias. Por favor, atualize o documento.',
-      type: 'WARNING',
-      category: 'DOCUMENT',
-      isRead: false,
-      createdAt: '2024-11-15T11:00:00Z',
-      actionUrl: '/employee-portal/documents',
-      actionText: 'Ver Documentos'
-    },
-    {
-      id: '5',
-      title: 'Bater Ponto - Hoje',
-      message: 'Não esqueça de bater o ponto de entrada hoje às 08:00.',
-      type: 'INFO',
-      category: 'TIME_RECORD',
-      isRead: true,
-      createdAt: '2024-11-10T07:00:00Z',
-      readAt: '2024-11-10T08:30:00Z'
-    },
-    {
-      id: '6',
-      title: 'Erro no Registro de Ponto',
-      message: 'Houve uma falha ao registrar seu ponto de saída ontem. Verifique seus registros.',
-      type: 'ERROR',
-      category: 'TIME_RECORD',
-      isRead: true,
-      createdAt: '2024-11-09T18:00:00Z',
-      readAt: '2024-11-09T18:30:00Z',
-      actionUrl: '/employee-portal/time-records',
-      actionText: 'Ver Registros'
-    },
-    {
-      id: '7',
-      title: 'Bem-vindo ao Portal!',
-      message: 'Seja bem-vindo ao novo Portal do Funcionário. Explore todas as funcionalidades disponíveis.',
-      type: 'INFO',
-      category: 'GENERAL',
-      isRead: true,
-      createdAt: '2024-11-01T08:00:00Z',
-      readAt: '2024-11-01T08:15:00Z'
-    }
-  ];
-
   useEffect(() => {
     loadNotifications();
   }, []);
@@ -133,23 +56,37 @@ const Notifications: React.FC = () => {
   const loadNotifications = async () => {
     setLoading(true);
     try {
-      setTimeout(() => {
-        setNotifications(mockNotifications);
-        setLoading(false);
-      }, 500);
+      const data = await notificationService.getNotifications();
+      if (Array.isArray(data)) {
+        const mapped: Notification[] = data.map((n: any) => ({
+          id: n.id || String(Math.random()),
+          title: n.titulo || n.title || 'Notificação',
+          message: n.descricao || n.message || '',
+          type: (n.prioridade === 'alta' ? 'ERROR' : n.prioridade === 'media' ? 'WARNING' : 'INFO') as any,
+          category: 'GENERAL',
+          isRead: Boolean(n.lida),
+          createdAt: n.timestamp || new Date().toISOString()
+        }));
+        setNotifications(mapped);
+      } else {
+        setNotifications([]);
+      }
     } catch (error) {
+      console.error('Erro ao carregar notificações:', error);
       toast({
-        title: 'Informação',
-        description: 'Backend offline - exibindo dados mockados',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
-      setNotifications(mockNotifications);
+      setNotifications([]);
+    } finally {
       setLoading(false);
     }
   };
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
+      await notificationService.marcarComoLida(notificationId);
       setNotifications(notifications.map(n => 
         n.id === notificationId 
           ? { ...n, isRead: true, readAt: new Date().toISOString() }
@@ -158,13 +95,14 @@ const Notifications: React.FC = () => {
       
       toast({
         title: 'Sucesso',
-        description: 'Notificação marcada como lida (Simulado - Backend offline)',
+        description: 'Notificação marcada como lida',
       });
     } catch (error) {
+      console.error('Erro ao marcar notificação como lida:', error);
       toast({
-        title: 'Informação',
-        description: 'Ação simulada - Backend offline',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
     }
   };
@@ -179,36 +117,39 @@ const Notifications: React.FC = () => {
       
       toast({
         title: 'Sucesso',
-        description: 'Notificação marcada como não lida (Simulado - Backend offline)',
+        description: 'Notificação marcada como não lida',
       });
     } catch (error) {
       toast({
-        title: 'Informação',
-        description: 'Ação simulada - Backend offline',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
     }
   };
 
   const handleDeleteNotification = async (notificationId: string) => {
     try {
+      await notificationService.deleteNotification(notificationId);
       setNotifications(notifications.filter(n => n.id !== notificationId));
       
       toast({
         title: 'Sucesso',
-        description: 'Notificação excluída (Simulado - Backend offline)',
+        description: 'Notificação excluída',
       });
     } catch (error) {
+      console.error('Erro ao excluir notificação:', error);
       toast({
-        title: 'Informação',
-        description: 'Ação simulada - Backend offline',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
     }
   };
 
   const handleMarkAllAsRead = async () => {
     try {
+      await notificationService.marcarTodasComoLidas();
       setNotifications(notifications.map(n => ({
         ...n,
         isRead: true,
@@ -217,24 +158,21 @@ const Notifications: React.FC = () => {
       
       toast({
         title: 'Sucesso',
-        description: 'Todas as notificações marcadas como lidas (Simulado - Backend offline)',
+        description: 'Todas as notificações marcadas como lidas',
       });
     } catch (error) {
+      console.error('Erro ao marcar todas como lidas:', error);
       toast({
-        title: 'Informação',
-        description: 'Ação simulada - Backend offline',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
     }
   };
 
   const handleAction = (notification: Notification) => {
     if (notification.actionUrl) {
-      toast({
-        title: 'Informação',
-        description: `Navegação simulada para: ${notification.actionUrl} (Backend offline)`,
-        variant: 'default',
-      });
+      window.location.href = notification.actionUrl;
     }
   };
 
@@ -352,21 +290,6 @@ const Notifications: React.FC = () => {
           </Button>
         </div>
       </div>
-
-      {/* Status do Sistema */}
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="text-red-800 flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2" />
-            Status do Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-red-700">
-            🟡 <strong>Backend Offline:</strong> Funcionalidade simulada com dados mockados. Ações não serão processadas até que o backend esteja online.
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

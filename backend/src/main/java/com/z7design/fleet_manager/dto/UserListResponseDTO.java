@@ -33,5 +33,7 @@ public class UserListResponseDTO {
     private String employeeCode;
     private String phone;
     private String address;
-    private Boolean isOnline; // Status online/offline do usuÃ¡rio
+    private String companyId;
+    private String companyName;
+    private Boolean isOnline; // Status online/offline do usuário
 } 

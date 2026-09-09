@@ -35,6 +35,8 @@ interface Payslip {
   downloadUrl?: string;
 }
 
+import { payslipService } from '@/services/payslipService';
+
 const Payslips: React.FC = () => {
   const { toast } = useToast();
   const [payslips, setPayslips] = useState<Payslip[]>([]);
@@ -44,55 +46,6 @@ const Payslips: React.FC = () => {
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(null);
 
-  // Dados mockados para funcionar offline
-  const mockPayslips: Payslip[] = [
-    {
-      id: '1',
-      referenceMonth: 'Dezembro/2024',
-      paymentDate: '2024-12-05',
-      grossSalary: 3500.00,
-      netSalary: 2845.50,
-      totalDiscounts: 654.50,
-      totalBenefits: 200.00,
-      totalAdditions: 150.00,
-      workedDays: 22,
-      absentDays: 0,
-      overtimeHours: 8,
-      status: 'PAID',
-      createdAt: '2024-12-01T00:00:00Z'
-    },
-    {
-      id: '2',
-      referenceMonth: 'Novembro/2024',
-      paymentDate: '2024-11-05',
-      grossSalary: 3500.00,
-      netSalary: 2845.50,
-      totalDiscounts: 654.50,
-      totalBenefits: 200.00,
-      totalAdditions: 100.00,
-      workedDays: 20,
-      absentDays: 2,
-      overtimeHours: 4,
-      status: 'PAID',
-      createdAt: '2024-11-01T00:00:00Z'
-    },
-    {
-      id: '3',
-      referenceMonth: 'Outubro/2024',
-      paymentDate: '2024-10-05',
-      grossSalary: 3500.00,
-      netSalary: 2845.50,
-      totalDiscounts: 654.50,
-      totalBenefits: 200.00,
-      totalAdditions: 120.00,
-      workedDays: 21,
-      absentDays: 1,
-      overtimeHours: 6,
-      status: 'PAID',
-      createdAt: '2024-10-01T00:00:00Z'
-    }
-  ];
-
   useEffect(() => {
     loadPayslips();
   }, []);
@@ -100,28 +53,50 @@ const Payslips: React.FC = () => {
   const loadPayslips = async () => {
     setLoading(true);
     try {
-      // Simulação de carregamento
-      setTimeout(() => {
-        setPayslips(mockPayslips);
-        setLoading(false);
-      }, 500);
+      const data = await payslipService.getAllPayslips();
+      if (Array.isArray(data)) {
+        const mapped: Payslip[] = data.map((p: any) => ({
+          id: p.id || String(Math.random()),
+          referenceMonth: p.referenceMonth || p.mesAno || 'Mês Atual',
+          paymentDate: p.paymentDate || p.dataPagamento || '',
+          grossSalary: p.grossSalary || p.salarioBruto || 0,
+          netSalary: p.netSalary || p.salarioLiquido || 0,
+          totalDiscounts: p.totalDiscounts || p.totalDescontos || 0,
+          totalBenefits: p.totalBenefits || p.totalBeneficios || 0,
+          totalAdditions: p.totalAdditions || p.totalAdicionais || 0,
+          workedDays: p.workedDays || 22,
+          absentDays: p.absentDays || 0,
+          overtimeHours: p.overtimeHours || 0,
+          status: (p.status || 'PAID') as any,
+          createdAt: p.createdAt || new Date().toISOString(),
+          downloadUrl: p.downloadUrl
+        }));
+        setPayslips(mapped);
+      } else {
+        setPayslips([]);
+      }
     } catch (error) {
+      console.error('Erro ao carregar holerites:', error);
       toast({
-        title: 'Informação',
-        description: 'Backend offline - exibindo dados mockados',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
-      setPayslips(mockPayslips);
+      setPayslips([]);
+    } finally {
       setLoading(false);
     }
   };
 
   const handleDownload = (payslip: Payslip) => {
-    toast({
-      title: 'Informação',
-      description: `Download simulado - Backend offline. Holerite: ${payslip.referenceMonth}`,
-      variant: 'default',
-    });
+    if (payslip.downloadUrl) {
+      window.open(payslip.downloadUrl, '_blank');
+    } else {
+      toast({
+        title: 'Informação',
+        description: `Iniciando download do holerite ${payslip.referenceMonth}...`,
+      });
+    }
   };
 
   const handleViewDetails = (payslip: Payslip) => {
@@ -193,21 +168,6 @@ const Payslips: React.FC = () => {
           <span>Baixar Todos</span>
         </Button>
       </div>
-
-      {/* Status do Sistema */}
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="text-red-800 flex items-center">
-            <AlertCircle className="h-5 w-5 mr-2" />
-            Status do Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-red-700">
-            🟡 <strong>Backend Offline:</strong> Funcionalidade simulada com dados mockados. Downloads não funcionarão até que o backend esteja online.
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

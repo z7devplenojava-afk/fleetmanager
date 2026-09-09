@@ -69,6 +69,11 @@ export const userService = {
     await api.delete(`/api/users/${id}`);
   },
 
+  async deleteUsersBulk(ids: string[]): Promise<{ deletedCount: number; skippedCount: number; message: string }> {
+    const response = await api.post('/api/users/bulk-delete', ids);
+    return response.data;
+  },
+
   async toggleUserStatus(id: string, active: boolean): Promise<User> {
     return this.updateUser(id, { active });
   },

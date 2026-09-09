@@ -24,7 +24,8 @@ import {
   Eye,
   MessageCircle,
   Send,
-  Bell
+  Bell,
+  Building
 } from 'lucide-react';
 import { useGSAP } from '@/hooks/use-gsap';
 import { UserViewModal } from '@/components/usuarios/UserViewModal';
@@ -33,6 +34,16 @@ import { UserDeleteDialog } from '@/components/usuarios/UserDeleteDialog';
 import { UserCreateModal } from '@/components/usuarios/UserCreateModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebSocket } from '@/hooks/useWebSocket';
+
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 const Usuarios: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -52,6 +63,11 @@ const Usuarios: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Estados de seleção em massa
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -198,7 +214,47 @@ const Usuarios: React.FC = () => {
   };
 
   const handleUserDeleted = () => {
+    setSelectedUserIds(prev => prev.filter(id => id !== selectedUser?.id));
     loadUsers();
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedUserIds(filteredUsers.map(u => u.id));
+    } else {
+      setSelectedUserIds([]);
+    }
+  };
+
+  const handleSelectUser = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedUserIds(prev => [...prev, id]);
+    } else {
+      setSelectedUserIds(prev => prev.filter(userId => userId !== id));
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    if (selectedUserIds.length === 0) return;
+    setIsDeletingBulk(true);
+    try {
+      const res = await userService.deleteUsersBulk(selectedUserIds);
+      toast({
+        title: 'Sucesso',
+        description: res.message || `${res.deletedCount} usuário(s) excluído(s) com sucesso.`,
+      });
+      setSelectedUserIds([]);
+      setIsBulkDeleteDialogOpen(false);
+      loadUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.response?.data?.error || error.response?.data?.message || 'Erro ao excluir usuários em massa.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingBulk(false);
+    }
   };
 
   const roles = Array.from(new Set(users.flatMap(user => extractRoleNames(user.roles))));
@@ -278,6 +334,17 @@ const Usuarios: React.FC = () => {
                 <Plus size={20} className="mr-2" />
                 Novo Usuário
               </Button>
+
+              {selectedUserIds.length > 0 && (
+                <Button
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700 text-white animate-pulse"
+                  onClick={() => setIsBulkDeleteDialogOpen(true)}
+                >
+                  <Trash2 size={18} className="mr-2" />
+                  Excluir Selecionados ({selectedUserIds.length})
+                </Button>
+              )}
             </div>
             <div className="flex flex-wrap gap-3 mt-4">
               <Button
@@ -301,6 +368,7 @@ const Usuarios: React.FC = () => {
                   setSearchTerm('');
                   setRoleFilter('all');
                   setActiveTab('all');
+                  setSelectedUserIds([]);
                 }}
               >
                 <RefreshCw size={20} className="mr-2" />
@@ -312,10 +380,15 @@ const Usuarios: React.FC = () => {
 
         {/* Lista de Usuários */}
         <Card className="bg-seguranca-graphite border-gray-600" data-animate="fadeUp">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-seguranca-lightgray">
               {activeTab === 'online' ? 'Usuários Online em Tempo Real' : 'Lista de Usuários'}
             </CardTitle>
+            {selectedUserIds.length > 0 && (
+              <span className="text-sm font-medium text-red-400">
+                {selectedUserIds.length} usuário(s) selecionado(s)
+              </span>
+            )}
           </CardHeader>
           <CardContent>
             {filteredUsers.length === 0 ? (
@@ -411,8 +484,16 @@ const Usuarios: React.FC = () => {
                 <Table className="min-w-[1000px]">
                   <TableHeader>
                     <TableRow className="border-gray-600">
+                      <TableHead className="w-12 text-center">
+                        <Checkbox
+                          checked={filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length}
+                          onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                          aria-label="Selecionar todos os usuários"
+                        />
+                      </TableHead>
                       <TableHead className="text-seguranca-lightgray">Usuário</TableHead>
                       <TableHead className="text-seguranca-lightgray">Email</TableHead>
+                      <TableHead className="text-seguranca-lightgray">Empresa</TableHead>
                       <TableHead className="text-seguranca-lightgray">Cargo</TableHead>
                       <TableHead className="text-seguranca-lightgray">Status</TableHead>
                       <TableHead className="text-seguranca-lightgray">Grupos</TableHead>
@@ -421,7 +502,14 @@ const Usuarios: React.FC = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredUsers.map((user) => (
-                      <TableRow key={user.id} className="border-gray-600">
+                      <TableRow key={user.id} className={`border-gray-600 ${selectedUserIds.includes(user.id) ? 'bg-red-950/20' : ''}`}>
+                        <TableCell className="w-12 text-center">
+                          <Checkbox
+                            checked={selectedUserIds.includes(user.id)}
+                            onCheckedChange={(checked) => handleSelectUser(user.id, !!checked)}
+                            aria-label={`Selecionar ${user.name}`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-seguranca-red rounded-full flex items-center justify-center relative">
@@ -447,6 +535,14 @@ const Usuarios: React.FC = () => {
                           <div className="flex items-center space-x-2">
                             <Mail size={16} className="text-gray-400" />
                             <span className="text-seguranca-lightgray">{user.email}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Building size={16} className="text-gray-400" />
+                            <span className="text-seguranca-lightgray font-medium">
+                              {user.companyName || (user.companyId ? 'Empresa Vinculada' : 'Sem Empresa')}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -553,6 +649,38 @@ const Usuarios: React.FC = () => {
         onClose={() => setIsCreateModalOpen(false)}
         onSave={handleUserCreated}
       />
+
+      {/* Modal de Exclusão em Massa */}
+      <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+        <DialogContent className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray">
+          <DialogHeader>
+            <DialogTitle className="text-red-500 flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Excluir Usuários Selecionados
+            </DialogTitle>
+            <DialogDescription className="text-gray-300">
+              Tem certeza que deseja excluir permanentemente {selectedUserIds.length} usuário(s) selecionado(s)? Esta ação não poderá ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsBulkDeleteDialogOpen(false)}
+              disabled={isDeletingBulk}
+              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmBulkDelete}
+              disabled={isDeletingBulk}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeletingBulk ? 'Excluindo...' : 'Confirmar Exclusão'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </StandardLayout>
   );
 };

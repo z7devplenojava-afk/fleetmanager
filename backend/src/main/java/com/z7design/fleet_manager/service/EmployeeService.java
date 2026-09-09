@@ -503,7 +503,7 @@ public class EmployeeService {
         });
     }
     
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, noRollbackFor = ResourceNotFoundException.class)
     // Removido @Cacheable - entidade Employee tem relacionamentos circulares que causam problemas no Redis
     // O cache serÃ¡ aplicado apenas nos mÃ©todos que retornam DTOs
     public Employee findById(UUID id) {

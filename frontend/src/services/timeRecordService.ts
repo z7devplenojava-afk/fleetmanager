@@ -35,15 +35,29 @@ export const timeRecordService = {
   },
 
   async getTodayRecords(employeeId: string) {
-    const response = await api.get(`/time-records/today/${employeeId}`);
-    return response.data;
+    if (!employeeId || employeeId.startsWith('00000000-0000-0000-0000')) {
+      return [];
+    }
+    try {
+      const response = await api.get(`/time-records/today/${employeeId}`);
+      return response.data?.data || response.data || [];
+    } catch (error) {
+      return [];
+    }
   },
 
   async getEmployeeRecords(employeeId: string, page = 0, size = 20) {
-    const response = await api.get(`/time-records/employee/${employeeId}`, {
-      params: { page, size }
-    });
-    return response.data;
+    if (!employeeId || employeeId.startsWith('00000000-0000-0000-0000')) {
+      return [];
+    }
+    try {
+      const response = await api.get(`/time-records/employee/${employeeId}`, {
+        params: { page, size }
+      });
+      return response.data?.data || response.data || [];
+    } catch (error) {
+      return [];
+    }
   },
 
   async getRecordsByPeriod(employeeId: string, startDate: string, endDate: string) {

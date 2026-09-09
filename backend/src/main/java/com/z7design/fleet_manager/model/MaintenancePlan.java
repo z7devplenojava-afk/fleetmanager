@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,13 +13,19 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.z7design.fleet_manager.tenant.TenantAware;
+import com.z7design.fleet_manager.tenant.TenantEntityListener;
+import org.hibernate.annotations.Filter;
+
 @Entity
 @Table(name = "maintenance_plans")
+@EntityListeners(TenantEntityListener.class)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class MaintenancePlan {
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+public class MaintenancePlan implements TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -60,4 +67,15 @@ public class MaintenancePlan {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    // =====================================================================
+    // COMPANY (Tenant)
+    // =====================================================================
+    @Column(name = "company_id")
+    private UUID companyId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    private com.z7design.fleet_manager.model.Company company;
 }

@@ -10,6 +10,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM companies 
         WHERE REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '-', ''), '/', '') = '71055644000630'
+           OR sigla = 'VSS'
     ) THEN
         INSERT INTO companies (
             id,

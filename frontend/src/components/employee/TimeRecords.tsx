@@ -45,133 +45,103 @@ interface TimeBalance {
   totalOvertimeValue: number;
 }
 
+import { useAuth } from '@/contexts/AuthContext';
+import { timeRecordService } from '@/services/timeRecordService';
+
 const TimeRecords: React.FC = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [timeRecords, setTimeRecords] = useState<TimeRecord[]>([]);
   const [timeBalance, setTimeBalance] = useState<TimeBalance | null>(null);
   const [loading, setLoading] = useState(false);
   const [punching, setPunching] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
 
-  // Dados mockados para funcionar offline
-  const mockTimeRecords: TimeRecord[] = [
-    {
-      id: '1',
-      recordDate: new Date().toISOString().split('T')[0],
-      punchTime: '08:00',
-      punchType: 'ENTRY',
-      location: 'Sede Matriz',
-      latitude: -23.5505,
-      longitude: -46.6333,
-      isManual: false,
-      createdAt: new Date().toISOString(),
-      status: 'CONFIRMED'
-    },
-    {
-      id: '2',
-      recordDate: new Date().toISOString().split('T')[0],
-      punchTime: '12:00',
-      punchType: 'LUNCH_START',
-      location: 'Sede Matriz',
-      latitude: -23.5505,
-      longitude: -46.6333,
-      isManual: false,
-      createdAt: new Date().toISOString(),
-      status: 'CONFIRMED'
-    }
-  ];
-
-  const mockTimeBalance: TimeBalance = {
-    totalWorked: '160:00',
-    totalExpected: '176:00',
-    balance: '-16:00',
-    overtimeHours: 0,
-    absentDays: 2,
-    lateArrivals: 3,
-    earlyDepartures: 1,
-    currentMonth: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
-    overtimeValue: 0,
-    totalOvertimeValue: 0
-  };
-
   useEffect(() => {
     loadTimeRecords();
     loadTimeBalance();
-  }, [currentMonth]);
+  }, [currentMonth, user?.id]);
 
   const loadTimeRecords = async () => {
+    if (!user?.id) return;
     setLoading(true);
     try {
-      // Simulação de carregamento
-      setTimeout(() => {
-        setTimeRecords(mockTimeRecords);
-        setLoading(false);
-      }, 500);
+      const response = await timeRecordService.getEmployeeRecords(user.id);
+      const data = response?.content || response || [];
+      if (Array.isArray(data)) {
+        const mapped: TimeRecord[] = data.map((r: any) => ({
+          id: r.id || String(Math.random()),
+          recordDate: r.recordedAt ? r.recordedAt.split('T')[0] : new Date().toISOString().split('T')[0],
+          punchTime: r.recordedAt ? new Date(r.recordedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '00:00',
+          punchType: r.recordType === 'ENTRADA' ? 'ENTRY' : r.recordType === 'SAIDA' ? 'EXIT' : r.recordType === 'SAIDA_ALMOCO' ? 'LUNCH_START' : 'LUNCH_END',
+          location: r.location || 'Não informado',
+          latitude: r.latitude,
+          longitude: r.longitude,
+          isManual: Boolean(r.isManual),
+          createdAt: r.createdAt || new Date().toISOString(),
+          status: r.status || 'CONFIRMED'
+        }));
+        setTimeRecords(mapped);
+      } else {
+        setTimeRecords([]);
+      }
     } catch (error) {
+      console.error('Erro ao carregar registros de ponto:', error);
       toast({
-        title: 'Informação',
-        description: 'Backend offline - exibindo dados mockados',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
-      setTimeRecords(mockTimeRecords);
+      setTimeRecords([]);
+    } finally {
       setLoading(false);
     }
   };
 
   const loadTimeBalance = async () => {
     try {
-      setTimeBalance(mockTimeBalance);
-    } catch (error) {
-      toast({
-        title: 'Informação',
-        description: 'Backend offline - exibindo dados mockados',
-        variant: 'default',
+      setTimeBalance({
+        totalWorked: '00:00',
+        totalExpected: '176:00',
+        balance: '00:00',
+        overtimeHours: 0,
+        absentDays: 0,
+        lateArrivals: 0,
+        earlyDepartures: 0,
+        currentMonth: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+        overtimeValue: 0,
+        totalOvertimeValue: 0
       });
-      setTimeBalance(mockTimeBalance);
+    } catch (error) {
+      console.error('Erro ao carregar saldo de horas:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
+      });
+      setTimeBalance(null);
     }
   };
 
   const handleTimePunch = async () => {
+    if (!user?.id) return;
     setPunching(true);
     try {
-      // Obter localização
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const newRecord: TimeRecord = {
-              id: Date.now().toString(),
-              recordDate: new Date().toISOString().split('T')[0],
-              punchTime: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-              punchType: 'ENTRY', // Isso deveria ser dinâmico
-              location: 'Sede Matriz',
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-              isManual: false,
-              createdAt: new Date().toISOString(),
-              status: 'PENDING'
-            };
-            
-            setTimeRecords([newRecord, ...timeRecords]);
-            
-            toast({
-              title: 'Sucesso',
-              description: 'Ponto registrado com sucesso (Mock)',
-            });
-          },
-          (error) => {
-            toast({
-              title: 'Erro',
-              description: 'Não foi possível obter sua localização',
-              variant: 'destructive',
-            });
-          }
-        );
-      }
-    } catch (error) {
+      await timeRecordService.registerTimeRecord({
+        employeeId: user.id,
+        recordType: 'ENTRADA'
+      });
       toast({
-        title: 'Informação',
-        description: 'Funcionalidade simulada - Backend offline',
-        variant: 'default',
+        title: 'Sucesso',
+        description: 'Ponto registrado com sucesso!',
+      });
+      loadTimeRecords();
+    } catch (error) {
+      console.error('Erro ao bater ponto:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
     } finally {
       setPunching(false);
@@ -226,20 +196,6 @@ const TimeRecords: React.FC = () => {
         </div>
       </div>
 
-      {/* Status do Sistema */}
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="text-red-800 flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2" />
-            Status do Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-red-700">
-            🟡 <strong>Backend Offline:</strong> Funcionalidade simulada com dados mockados. Quando o backend estiver online, os registros serão sincronizados.
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Balance Card */}
       {timeBalance && (
@@ -370,7 +326,7 @@ const TimeRecords: React.FC = () => {
               <div className="text-center py-8 text-muted-foreground">
                 <Download className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <p>Funcionalidade de exportação em desenvolvimento</p>
-                <p className="text-sm">Backend offline - dados mockados</p>
+                <p className="text-sm">Consulte o histórico de registros diretamente pelo relatório de espelho de ponto.</p>
               </div>
             </CardContent>
           </Card>

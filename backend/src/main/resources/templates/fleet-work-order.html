@@ -14,7 +14,7 @@
     
     .header { 
       text-align: center; 
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       border-bottom: 3px solid #d32f2f;
       padding-bottom: 10px;
     }
@@ -31,6 +31,22 @@
       margin: 2px 0;
       font-size: 10px;
       color: #666;
+    }
+
+    .type-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff;
+      background-color: #d32f2f;
+      border-radius: 4px;
+      margin-top: 5px;
+      text-transform: uppercase;
+    }
+
+    .type-badge.preventiva {
+      background-color: #2e7d32;
     }
     
     .brand {
@@ -109,12 +125,34 @@
       font-size: 9px;
       text-transform: uppercase;
       color: #666;
-      width: 32%;
+      width: 25%;
     }
     
     table.info-table td.valor {
       font-size: 11px;
       color: #333;
+      width: 25%;
+    }
+
+    table.checklist-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+    }
+
+    table.checklist-table th {
+      background-color: #333;
+      color: #fff;
+      padding: 6px 8px;
+      font-size: 9px;
+      text-transform: uppercase;
+      text-align: left;
+    }
+
+    table.checklist-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #ddd;
+      font-size: 10px;
     }
     
     table.itens-table {
@@ -190,13 +228,14 @@
     
     .assinatura-table {
       width: 100%;
-      margin-top: 60px;
+      margin-top: 40px;
       border-collapse: collapse;
+      page-break-inside: avoid;
     }
     
     .assinatura-table td {
       text-align: center;
-      padding: 30px 20px 0 20px;
+      padding: 20px 20px 0 20px;
       vertical-align: top;
       width: 50%;
     }
@@ -246,7 +285,7 @@
       <div class="brand-address" th:if="${companyAddress != null and companyAddress != ''}" th:text="${companyAddress}">Endereço</div>
     </div>
     <h1>Ordem de Serviço — Frota</h1>
-    <p>Documento de Autorização e Acompanhamento de Manutenção</p>
+    <div class="type-badge" th:classappend="${maintenanceType == 'PREVENTIVA' ? 'preventiva' : ''}" th:text="${maintenanceType}">CORRETIVA</div>
   </div>
 
   <!-- Número da OS -->
@@ -259,64 +298,88 @@
     <b>Data de Emissão:</b> <span th:text="${dataEmissao}">--</span>
   </div>
 
-  <!-- Veículo e Mecânico -->
+  <!-- Identificação & Parada -->
   <div class="secao">
-    <div class="secao-titulo">Identificação</div>
+    <div class="secao-titulo">Identificação & Dados de Parada</div>
     <table class="info-table">
       <tr>
-        <td class="label">Veículo:</td>
+        <td class="label">Veículo / Equipamento:</td>
         <td class="valor" th:text="${vehiclePlate} ?: '—'">—</td>
-        <td class="label">Modelo:</td>
+        <td class="label">Marca / Modelo:</td>
         <td class="valor" th:text="${vehicleModel} ?: '—'">—</td>
       </tr>
       <tr>
         <td class="label">Mecânico / Responsável:</td>
         <td class="valor" th:text="${mechanicName} ?: 'Não designado'">—</td>
-        <td class="label">Tipo de Mão de Obra:</td>
+        <td class="label">Mão de Obra:</td>
         <td class="valor" th:text="${laborType} ?: '—'">—</td>
       </tr>
-      <tr th:if="${planoManutencao != null and planoManutencao != ''}">
-        <td class="label">Plano de Manutenção:</td>
-        <td class="valor" th:text="${planoManutencao}">—</td>
-        <td class="label"></td>
-        <td class="valor"></td>
+      <tr>
+        <td class="label">Data / Hora Parada:</td>
+        <td class="valor"><span th:text="${stopDate} ?: '—'"></span> <span th:text="${stopTime} ?: ''"></span></td>
+        <td class="label">Data / Hora Saída:</td>
+        <td class="valor"><span th:text="${exitDate} ?: '—'"></span> <span th:text="${exitTime} ?: ''"></span></td>
       </tr>
       <tr>
-        <td class="label">Status:</td>
-        <td class="valor" th:text="${status} ?: '—'">—</td>
-        <td class="label">Prioridade:</td>
-        <td class="valor" th:text="${prioridade} ?: '—'">—</td>
+        <td class="label">Obra (Cliente):</td>
+        <td class="valor" colspan="3"><span th:text="${workPostName} ?: '—'">—</span><span th:if="${clientName}" th:text="' — ' + ${clientName}"></span></td>
       </tr>
       <tr>
-        <td class="label">Data Planejada:</td>
-        <td class="valor" th:text="${dataPlanejada} ?: '—'">—</td>
-        <td class="label">Entrada na Oficina:</td>
-        <td class="valor" th:text="${dataEntrada} ?: '—'">—</td>
-      </tr>
-      <tr>
-        <td class="label">Odômetro — Entrada (km):</td>
+        <td class="label">Odômetro Parada (KM):</td>
         <td class="valor" th:text="${odometerIn} ?: '—'">—</td>
-        <td class="label">Odômetro — Saída (km):</td>
+        <td class="label">Odômetro Saída (KM):</td>
         <td class="valor" th:text="${odometerOut} ?: '—'">—</td>
       </tr>
       <tr>
-        <td class="label">Tempo Parado:</td>
-        <td class="valor" th:text="${tempoParado} ?: '—'">—</td>
-        <td class="label"></td>
-        <td class="valor"></td>
+        <td class="label">Informação Agregado:</td>
+        <td class="valor" th:text="${aggregateInfo} ?: '—'">—</td>
+        <td class="label">Status OS:</td>
+        <td class="valor" th:text="${status} ?: '—'">—</td>
       </tr>
     </table>
   </div>
 
-  <!-- Motivo da Parada -->
-  <div class="secao" th:if="${stopReason != null and stopReason != ''}">
-    <div class="secao-titulo">Motivo da Parada / Defeito Relatado</div>
-    <div class="descricao-box" th:text="${stopReason}">—</div>
+  <!-- Seção Anomalias (Corretiva) -->
+  <div class="secao" th:if="${anomaliesDescription != null and anomaliesDescription != ''}">
+    <div class="secao-titulo">Descrição de Anomalias Identificadas</div>
+    <div class="descricao-box" th:text="${anomaliesDescription}">—</div>
+  </div>
+
+  <!-- Seção Checklist (Preventiva) -->
+  <div class="secao" th:if="${not #lists.isEmpty(checklistItems)}">
+    <div class="secao-titulo">Checklist de Inspeção Preventiva</div>
+    <table class="checklist-table">
+      <thead>
+        <tr>
+          <th>Categoria</th>
+          <th>Item de Inspeção</th>
+          <th style="width: 15%; text-align: center;">Situação</th>
+          <th>Observação / Reparo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="cItem : ${checklistItems}">
+          <td th:text="${cItem.categoria}">GERAL</td>
+          <td th:text="${cItem.itemDescricao}">Item</td>
+          <td style="text-align: center; font-weight: bold;" th:text="${cItem.situacao}">OK</td>
+          <td>
+            <span th:if="${cItem.observacao != null and cItem.observacao != ''}" th:text="'Obs: ' + ${cItem.observacao}"></span>
+            <span th:if="${cItem.reparoRealizado != null and cItem.reparoRealizado != ''}" th:text="' | Reparo: ' + ${cItem.reparoRealizado}"></span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Manutenção Realizada -->
+  <div class="secao" th:if="${maintenancePerformed != null and maintenancePerformed != ''}">
+    <div class="secao-titulo">Descrição das Manutenções / Reparos Realizados</div>
+    <div class="descricao-box" th:text="${maintenancePerformed}">—</div>
   </div>
 
   <!-- Itens / Peças e Serviços -->
   <div class="secao">
-    <div class="secao-titulo">Itens / Peças e Serviços</div>
+    <div class="secao-titulo">Peças e Serviços Utilizados</div>
     <table class="itens-table" th:if="${#lists.isEmpty(itens)}">
       <tr><td style="padding: 10px; text-align: center; color: #999;">Nenhum item registrado nesta ordem de serviço.</td></tr>
     </table>
@@ -367,7 +430,7 @@
 
   <!-- Observações -->
   <div class="secao" th:if="${observacoes != null and observacoes != ''}">
-    <div class="secao-titulo">Observações Técnicas</div>
+    <div class="secao-titulo">Observações Técnicas Adicionais</div>
     <div class="observacoes-box" th:text="${observacoes}">—</div>
   </div>
 
@@ -376,16 +439,16 @@
     <tr>
       <td>
         <div class="linha-assinatura">
-          <div class="assinatura-nome" th:text="${mecanicoAssinatura} ?: 'Mecânico'">Mecânico</div>
-          <div class="assinatura-info">Recebido pelo Mecânico</div>
-          <div class="assinatura-info">Data: ______ / ______ / ______</div>
+          <div class="assinatura-nome" th:text="${responsibleSignature} ?: ${mechanicName} ?: 'Responsável Técnico'">Responsável Técnico</div>
+          <div class="assinatura-info">Assinatura do Responsável</div>
+          <div class="assinatura-info" th:text="${responsibleSignatureDate} ?: 'Data: ______ / ______ / ______'">Data</div>
         </div>
       </td>
       <td>
         <div class="linha-assinatura">
-          <div class="assinatura-nome">Entregue por</div>
-          <div class="assinatura-info">Responsável pela Entrega</div>
-          <div class="assinatura-info" th:text="${dataEntregue} ?: ''"></div>
+          <div class="assinatura-nome" th:text="${supervisorSignature} ?: 'Supervisor'">Supervisor</div>
+          <div class="assinatura-info">Assinatura do Supervisor</div>
+          <div class="assinatura-info" th:text="${supervisorSignatureDate} ?: 'Data: ______ / ______ / ______'">Data</div>
         </div>
       </td>
     </tr>
@@ -394,7 +457,7 @@
   <!-- Rodapé -->
   <div class="footer">
     <p>Documento gerado pelo sistema FluxBus em <span th:text="${dataGeracao}"></span></p>
-    <p>Este documento autoriza a execução da manutenção descrita acima.</p>
+    <p>Este documento autoriza e certifica a execução da manutenção descrita acima.</p>
   </div>
 
 </body>

@@ -13,9 +13,11 @@ import java.util.UUID;
 
 import org.hibernate.annotations.Filter;
 import com.z7design.fleet_manager.tenant.TenantAware;
+import com.z7design.fleet_manager.tenant.TenantEntityListener;
 
 @Entity
 @Table(name = "vehicles")
+@EntityListeners(TenantEntityListener.class)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -47,6 +49,37 @@ public class Vehicle implements TenantAware {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private VehicleStatus status;
+
+    @Column(name = "patrimony_number")
+    private String patrimonyNumber;
+
+    @Column(name = "model_year")
+    private Integer modelYear;
+
+    @Column(name = "hourmeter")
+    private Integer hourmeter;
+
+    @Column(name = "contract_id")
+    private UUID contractId;
+
+    @Column(name = "project_id")
+    private UUID projectId;
+
+    @Column(name = "project_name")
+    private String projectName;
+
+    @Column(name = "operation_id")
+    private UUID operationId;
+
+    @Column(name = "operation_name")
+    private String operationName;
+
+    @Column(name = "garage_name")
+    private String garageName;
+
+    @Column(name = "operation_entry_date")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate operationEntryDate;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "vehicle_type")
@@ -88,6 +121,11 @@ public class Vehicle implements TenantAware {
 
     @Column(name = "work_post_id")
     private UUID workPostId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_post_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    private WorkPost workPostEntity;
 
     @Column
     private String location;
@@ -240,6 +278,18 @@ public class Vehicle implements TenantAware {
     private BigDecimal marketValue;
 
     // =====================================================================
+    // SOFT DELETE (RN10 — mesmo padrão de FleetWorkOrder)
+    // =====================================================================
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    /** Veículo excluído (soft delete) — invisível nas listagens e consultas */
+    @Transient
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    // =====================================================================
     // CAMPOS DE SEGURO
     // =====================================================================
     @Column(name = "insurance_policy_number")
@@ -373,9 +423,12 @@ public class Vehicle implements TenantAware {
         ACTIVE("Ativo"),
         INACTIVE("Inativo"),
         MAINTENANCE("Em Manutenção"),
+        BLOCKED("Bloqueado"),
+        SOLD("Vendido"),
+        BAIXADO("Baixado"),
+        LEASED("Arrendado / Alugado"),
         OUT_OF_SERVICE("Fora de Serviço"),
-        RESERVED("Reservado"),
-        LEASED("Alugado");
+        RESERVED("Reservado");
 
         private final String displayName;
         VehicleStatus(String displayName) { this.displayName = displayName; }

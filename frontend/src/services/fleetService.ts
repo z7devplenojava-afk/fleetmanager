@@ -118,6 +118,12 @@ class FleetService {
     await api.delete(`/api/frota/vehicles/${id}`);
   }
 
+  /** Exclusão em massa (soft delete). Retorna { requested, deleted }. */
+  async bulkDeleteVehicles(ids: string[]): Promise<{ requested: number; deleted: number }> {
+    const response = await api.post('/api/frota/vehicles/bulk-delete', ids);
+    return response.data;
+  }
+
   // Buscar data da última manutenção de um veículo
   async getLastMaintenanceDate(vehicleId: string): Promise<string | null> {
     try {

@@ -1,10 +1,21 @@
 import api from '@/lib/axios';
 
+export enum MaintenanceType {
+    CORRETIVA = 'CORRETIVA',
+    PREVENTIVA = 'PREVENTIVA',
+    PREDITIVA = 'PREDITIVA',
+    INSPECAO = 'INSPECAO',
+    LUBRIFICACAO = 'LUBRIFICACAO',
+    OUTROS = 'OUTROS'
+}
+
 export enum WorkOrderStatus {
+    OPEN = 'OPEN',
     DRAFT = 'DRAFT',
     PENDING_APPROVAL = 'PENDING_APPROVAL',
     APPROVED = 'APPROVED',
     IN_PROGRESS = 'IN_PROGRESS',
+    WAITING_PARTS = 'WAITING_PARTS',
     COMPLETED = 'COMPLETED',
     CANCELLED = 'CANCELLED'
 }
@@ -26,6 +37,12 @@ export enum WorkOrderPriority {
     URGENT = 'URGENT'
 }
 
+export enum ChecklistStatus {
+    OK = 'OK',
+    NAO_OK = 'NAO_OK',
+    NAO_APLICA = 'NAO_APLICA'
+}
+
 export interface WorkOrderItem {
     id?: string;
     description: string;
@@ -35,6 +52,26 @@ export interface WorkOrderItem {
     totalPrice: number;
     productId?: string;
     provider?: string;
+}
+
+export interface ChecklistItemMaster {
+    id: string;
+    descricao: string;
+    categoria: string;
+    tipoManutencao: string;
+    ordem: number;
+    ativo: boolean;
+}
+
+export interface FleetWorkOrderChecklist {
+    id?: string;
+    workOrderId?: string;
+    checklistItemId: string;
+    checklistItemDescricao?: string;
+    checklistItemCategoria?: string;
+    situacao: ChecklistStatus;
+    observacao?: string;
+    reparoRealizado?: string;
 }
 
 export interface WorkOrderHistoryEntry {
@@ -51,6 +88,7 @@ export interface WorkOrderHistoryEntry {
 export interface FleetWorkOrder {
     id: string;
     osNumber?: string;
+    maintenanceType?: MaintenanceType;
     vehicleId: string;
     vehiclePlate?: string;
     vehicleModel?: string;
@@ -64,20 +102,51 @@ export interface FleetWorkOrder {
     actualDate?: string;
     startDate?: string;
     completionDate?: string;
+
+    // Campos Parada e Saída PRD
+    stopDate?: string;
+    stopTime?: string;
+    exitDate?: string;
+    exitTime?: string;
+    aggregateInfo?: string;
+
+    // Descrições PRD
+    anomaliesDescription?: string;
+    otherDescription?: string;
+    maintenancePerformed?: string;
+
+    // Envolvidos PRD
+    clientId?: string;
+    sectorId?: string;
+    requesterId?: string;
+    responsibleId?: string;
+    supervisorId?: string;
+
+    // Assinaturas PRD
+    responsibleSignature?: string;
+    responsibleSignatureDate?: string;
+    supervisorSignature?: string;
+    supervisorSignatureDate?: string;
+
     // Odômetro
     odometerIn?: number;
     odometerOut?: number;
+
     // Motivo da parada
     stopReason?: string;
+
     // Custos separados
     laborCost?: number;
     partsCost?: number;
     totalCost: number;
+
     // Tempo parado (calculado pelo backend)
     downtimeHours?: number;
     downtimeDays?: number;
     notes?: string;
+
     items: WorkOrderItem[];
+    checklistItems?: FleetWorkOrderChecklist[];
     photoAttachments?: string[];
     createdAt?: string;
     updatedAt?: string;
@@ -109,12 +178,16 @@ class FleetWorkOrderService {
         return data;
     }
 
+    async getChecklistMasterItems(): Promise<ChecklistItemMaster[]> {
+        const { data } = await api.get('/fleet-work-orders/checklist-items');
+        return data;
+    }
+
     async create(order: Partial<FleetWorkOrder>): Promise<FleetWorkOrder> {
         const { data } = await api.post('/fleet-work-orders', order);
         return data;
     }
 
-    /** Atualização completa — agora com PUT /{id} */
     async update(id: string, order: Partial<FleetWorkOrder>): Promise<FleetWorkOrder> {
         const { data } = await api.put(`/fleet-work-orders/${id}`, order);
         return data;
@@ -143,7 +216,6 @@ class FleetWorkOrderService {
 
     // ── Solicitar compra ao almoxarifado ─────────────────────────────────────
 
-    /** Cria uma solicitação de compra no módulo Compras com as peças (PART) da O.S. */
     async requestPurchase(id: string): Promise<any> {
         const { data } = await api.post(`/fleet-work-orders/${id}/request-purchase`);
         return data;
@@ -153,6 +225,13 @@ class FleetWorkOrderService {
 
     async getVehicleRanking(): Promise<VehicleMaintenanceRanking[]> {
         const { data } = await api.get('/fleet-work-orders/ranking/vehicles');
+        return data;
+    }
+
+    // ── Duplicar OS (PRD §25) ─────────────────────────────────────────────────
+
+    async duplicate(id: string): Promise<FleetWorkOrder> {
+        const { data } = await api.post(`/fleet-work-orders/${id}/duplicate`);
         return data;
     }
 }

@@ -11,15 +11,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import {
     Wrench, Trash2, Plus, ClipboardList, Clock, History,
-    Gauge, AlertTriangle, Send, ChevronDown, ChevronUp
+    Gauge, AlertTriangle, Send, ChevronDown, ChevronUp, CheckCircle, XCircle, MinusCircle, UserCheck,
+    Camera, UploadCloud, Image
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import fleetWorkOrderService, {
-    WorkOrderStatus, LaborType, WorkOrderItemType, WorkOrderPriority,
-    WorkOrderItem, FleetWorkOrder, WorkOrderHistoryEntry
+    WorkOrderStatus, LaborType, WorkOrderItemType, WorkOrderPriority, MaintenanceType, ChecklistStatus,
+    WorkOrderItem, FleetWorkOrder, FleetWorkOrderChecklist, WorkOrderHistoryEntry
 } from '@/services/fleetWorkOrderService';
 import fleetService from '@/services/fleetService';
+import { clientService } from '@/services/clientService';
+import { departmentService } from '@/services/departmentService';
+import { employeeService } from '@/services/employeeService';
 import { Vehicle } from '@/types/fleet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -53,18 +57,23 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     const queryClient     = useQueryClient();
     const isEdit          = !!order?.id;
 
-    const [isLoading, setIsLoading]   = useState(false);
-    const [newNote, setNewNote]       = useState('');
+    const [isLoading, setIsLoading]     = useState(false);
+    const [newNote, setNewNote]         = useState('');
     const [showHistory, setShowHistory] = useState(false);
 
     const [formData, setFormData] = useState<Partial<FleetWorkOrder>>({
-        vehicleId: '', status: WorkOrderStatus.DRAFT,
-        priority: WorkOrderPriority.MEDIUM, laborType: LaborType.INTERNAL,
+        vehicleId: '',
+        maintenanceType: MaintenanceType.CORRETIVA,
+        status: WorkOrderStatus.OPEN,
+        priority: WorkOrderPriority.MEDIUM,
+        laborType: LaborType.INTERNAL,
+        stopDate: new Date().toISOString().split('T')[0],
+        stopTime: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         laborCost: 0, partsCost: 0, totalCost: 0,
         odometerIn: undefined, odometerOut: undefined,
-        stopReason: '', mechanicName: '', notes: '', items: [],
+        stopReason: '', mechanicName: '', notes: '', items: [], checklistItems: [],
+        anomaliesDescription: '', otherDescription: '', maintenancePerformed: ''
     });
-
 
     // Histórico
     const { data: history = [] } = useQuery<WorkOrderHistoryEntry[]>({
@@ -79,17 +88,107 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         fleetService.getVehicles().then(setVehicles).catch(() => {});
     }, []);
 
+    // Clientes, Setores, Requerentes (PRD §6, §20, §21, §22)
+    const { data: clients = [] } = useQuery({
+        queryKey: ['clients-for-select'],
+        queryFn: () => clientService.getClientsForSelect(),
+        staleTime: 60_000,
+    });
+    const { data: departments = [] } = useQuery({
+        queryKey: ['departments-active'],
+        queryFn: () => departmentService.getAll(),
+        staleTime: 60_000,
+    });
+    const { data: employees = [] } = useQuery({
+        queryKey: ['employees-all-select'],
+        queryFn: () => employeeService.getAllEmployees(),
+        staleTime: 60_000,
+    });
+
+    // Lista de Mecânicos / Manutenção (filtrada por cargo ou fallback para todos)
+    const mechanicsList = React.useMemo(() => {
+        if (!employees || employees.length === 0) return [];
+        const filtered = employees.filter((e: any) => {
+            const pos = (e.position?.name || e.cargo || '').toLowerCase();
+            return pos.includes('mecanic') || pos.includes('mecânico') || pos.includes('manuten') || pos.includes('tecnic') || pos.includes('eletric');
+        });
+        return filtered.length > 0 ? filtered : employees;
+    }, [employees]);
+
+    // Handlers para Upload de Fotos / Evidências
+    const [newPhotoUrl, setNewPhotoUrl] = useState('');
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64Url = event.target?.result as string;
+                if (base64Url) {
+                    setFormData(p => ({
+                        ...p,
+                        photoAttachments: [...(p.photoAttachments || []), base64Url]
+                    }));
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const handleRemovePhoto = (idx: number) => {
+        setFormData(p => ({
+            ...p,
+            photoAttachments: (p.photoAttachments || []).filter((_, i) => i !== idx)
+        }));
+    };
+
+    const handleAddPhotoUrl = () => {
+        if (!newPhotoUrl.trim()) return;
+        setFormData(p => ({
+            ...p,
+            photoAttachments: [...(p.photoAttachments || []), newPhotoUrl.trim()]
+        }));
+        setNewPhotoUrl('');
+    };
+
+    // Carregar itens mestre de checklist caso selecione PREVENTIVA e ainda não tenha itens
+    useEffect(() => {
+        if (formData.maintenanceType === MaintenanceType.PREVENTIVA && (!formData.checklistItems || formData.checklistItems.length === 0)) {
+            fleetWorkOrderService.getChecklistMasterItems().then(masterItems => {
+                const initialChecklist: FleetWorkOrderChecklist[] = masterItems.map(m => ({
+                    checklistItemId: m.id,
+                    checklistItemDescricao: m.descricao,
+                    checklistItemCategoria: m.categoria,
+                    situacao: ChecklistStatus.OK,
+                    observacao: '',
+                    reparoRealizado: ''
+                }));
+                setFormData(p => ({ ...p, checklistItems: initialChecklist }));
+            }).catch(() => {});
+        }
+    }, [formData.maintenanceType]);
+
     // Popular form ao abrir
     useEffect(() => {
         if (order) {
             setFormData({ ...order });
         } else {
+            const today = new Date().toISOString().split('T')[0];
+            const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             setFormData({
-                vehicleId: initialVehicleId || '', status: WorkOrderStatus.DRAFT,
-                priority: WorkOrderPriority.MEDIUM, laborType: LaborType.INTERNAL,
-                plannedDate: new Date().toISOString().split('T')[0],
+                vehicleId: initialVehicleId || '',
+                maintenanceType: MaintenanceType.CORRETIVA,
+                status: WorkOrderStatus.OPEN,
+                priority: WorkOrderPriority.MEDIUM,
+                laborType: LaborType.INTERNAL,
+                plannedDate: today,
+                stopDate: today,
+                stopTime: nowTime,
                 laborCost: 0, partsCost: 0, totalCost: 0,
-                stopReason: '', mechanicName: '', notes: '', items: [],
+                stopReason: '', mechanicName: '', notes: '', items: [], checklistItems: [],
+                anomaliesDescription: '', otherDescription: '', maintenancePerformed: ''
             });
         }
         setShowHistory(false);
@@ -132,18 +231,44 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         setFormData(p => ({ ...p, laborCost: cost, totalCost: cost + (p.partsCost || 0) }));
     };
 
+    const handleChecklistStatusChange = (idx: number, status: ChecklistStatus) => {
+        setFormData(p => {
+            const list = [...(p.checklistItems || [])];
+            list[idx] = { ...list[idx], situacao: status };
+            return { ...p, checklistItems: list };
+        });
+    };
+
+    const handleChecklistTextChange = (idx: number, field: 'observacao' | 'reparoRealizado', value: string) => {
+        setFormData(p => {
+            const list = [...(p.checklistItems || [])];
+            list[idx] = { ...list[idx], [field]: value };
+            return { ...p, checklistItems: list };
+        });
+    };
 
     // ── Submit ─────────────────────────────────────────────────────────────────
     const handleSubmit = async (submitStatus?: WorkOrderStatus) => {
         if (!formData.vehicleId) {
-            toast({ title: 'Erro', description: 'Selecione um veículo.', variant: 'destructive' });
+            toast({ title: 'Erro', description: 'Selecione um veículo/equipamento.', variant: 'destructive' });
             return;
         }
+
+        if (formData.maintenanceType === MaintenanceType.CORRETIVA && !formData.anomaliesDescription?.trim()) {
+            toast({ title: 'Erro', description: 'A descrição de anomalias é obrigatória para OS Corretiva.', variant: 'destructive' });
+            return;
+        }
+
+        if (submitStatus === WorkOrderStatus.COMPLETED && !formData.maintenancePerformed?.trim()) {
+            toast({ title: 'Erro', description: 'Preencha a descrição da manutenção realizada para concluir a OS.', variant: 'destructive' });
+            return;
+        }
+
         setIsLoading(true);
         try {
             const payload: Partial<FleetWorkOrder> = {
                 ...formData,
-                status: submitStatus || formData.status || WorkOrderStatus.DRAFT,
+                status: submitStatus || formData.status || WorkOrderStatus.OPEN,
                 items: (formData.items || []).map(it => ({ ...it, type: it.type ?? WorkOrderItemType.PART })),
             };
             if (isEdit) {
@@ -151,16 +276,17 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             } else {
                 await fleetWorkOrderService.create(payload);
             }
-            toast({ title: 'Sucesso', description: 'Ordem de Serviço salva!' });
+            toast({ title: 'Sucesso', description: 'Ordem de Serviço salva com sucesso!' });
             onSuccess();
-        } catch {
-            toast({ title: 'Erro', description: 'Falha ao salvar OS.', variant: 'destructive' });
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || 'Falha ao salvar OS.';
+            toast({ title: 'Erro', description: msg, variant: 'destructive' });
         } finally {
             setIsLoading(false);
         }
     };
 
-    // ── Adicionar nota ─────────────────────────────────────────────────────────
+    // ── Adicionar nota ao histórico ────────────────────────────────────────────
     const handleAddNote = async () => {
         if (!newNote.trim() || !order?.id) return;
         setIsLoading(true);
@@ -176,39 +302,63 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         }
     };
 
-
     const footer = (
         <div className="flex w-full justify-between gap-3">
             <Button variant="outline" onClick={onClose} className="border-gray-600 text-gray-300">Cancelar</Button>
             <div className="flex gap-2 flex-wrap justify-end">
-                <Button variant="outline" onClick={() => handleSubmit(WorkOrderStatus.DRAFT)} disabled={isLoading}
+                <Button variant="outline" onClick={() => handleSubmit(WorkOrderStatus.OPEN)} disabled={isLoading}
                     className="border-blue-500 text-blue-400 hover:bg-blue-500/10">
-                    <Clock className="mr-2 h-4 w-4" /> Rascunho
+                    <Clock className="mr-2 h-4 w-4" /> Salvar Rascunho / Aberta
                 </Button>
-                <Button onClick={() => handleSubmit(WorkOrderStatus.PENDING_APPROVAL)} disabled={isLoading}
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold">
-                    <ClipboardList className="mr-2 h-4 w-4" /> Solicitar Aprovação
+                <Button onClick={() => handleSubmit(WorkOrderStatus.IN_PROGRESS)} disabled={isLoading}
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold">
+                    <Wrench className="mr-2 h-4 w-4" /> Em Andamento
+                </Button>
+                <Button onClick={() => handleSubmit(WorkOrderStatus.COMPLETED)} disabled={isLoading}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold">
+                    <CheckCircle className="mr-2 h-4 w-4" /> Concluir OS
                 </Button>
             </div>
         </div>
     );
 
+    // Agrupamento do Checklist por Categoria
+    const checklistByCategory = (formData.checklistItems || []).reduce<Record<string, { item: FleetWorkOrderChecklist, originalIndex: number }[]>>((acc, item, idx) => {
+        const cat = item.checklistItemCategoria || 'GERAL';
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push({ item, originalIndex: idx });
+        return acc;
+    }, {});
+
     return (
         <ResponsiveDrawer isOpen={isOpen} onClose={onClose}
             title={isEdit ? `OS ${order?.osNumber || order?.id?.slice(0, 8)} — Editar` : 'Nova Ordem de Serviço'}
-            description="Registre peças, mão de obra, odômetro e histórico de manutenção."
+            description="Cadastre manutenções corretivas e preventivas com controle completo de checklist e execução."
             footer={footer}
             className="sm:max-w-4xl bg-[#0a0a0b] border-gray-800/50 z-[10050]">
             <div className="space-y-6 py-2 pb-10">
 
-                {/* ── Seção 1: Veículo & Identificação ──────────────────────────── */}
-                <Section title="Identificação" icon={<ClipboardList className="h-4 w-4 text-red-500" />}>
+                {/* ── Seção 1: Tipo & Identificação ──────────────────────────── */}
+                <Section title="Identificação da OS" icon={<ClipboardList className="h-4 w-4 text-red-500" />}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <Field label="Veículo *">
+                        <Field label="Tipo de Manutenção *">
+                            <Select value={formData.maintenanceType || MaintenanceType.CORRETIVA}
+                                onValueChange={v => setFormData(p => ({ ...p, maintenanceType: v as MaintenanceType }))}>
+                                <SelectTrigger className="bg-seguranca-black border-gray-600 font-bold"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-seguranca-black border-gray-600">
+                                    <SelectItem value={MaintenanceType.CORRETIVA}>🔧 CORRETIVA</SelectItem>
+                                    <SelectItem value={MaintenanceType.PREVENTIVA}>📋 PREVENTIVA</SelectItem>
+                                    <SelectItem value={MaintenanceType.PREDITIVA}>📊 PREDITIVA</SelectItem>
+                                    <SelectItem value={MaintenanceType.INSPECAO}>🔍 INSPEÇÃO</SelectItem>
+                                    <SelectItem value={MaintenanceType.LUBRIFICACAO}>🛢️ LUBRIFICAÇÃO</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                        <Field label="Equipamento / Veículo *">
                             <Select value={formData.vehicleId} onValueChange={v => setFormData(p => ({ ...p, vehicleId: v }))}>
                                 <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione…" /></SelectTrigger>
                                 <SelectContent className="bg-seguranca-black border-gray-600">
-                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.plate} — {v.model}</SelectItem>)}
+                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.plate} — {v.model} ({v.brand || 'N/A'})</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </Field>
@@ -222,14 +372,29 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 </SelectContent>
                             </Select>
                         </Field>
-                        <Field label="Data Planejada">
-                            <Input type="date" value={formData.plannedDate?.toString() || ''} onChange={e => setFormData(p => ({ ...p, plannedDate: e.target.value }))} className="bg-seguranca-black border-gray-600" />
-                        </Field>
-                        <Field label="Data Real de Entrada">
-                            <Input type="date" value={formData.actualDate?.toString() || ''} onChange={e => setFormData(p => ({ ...p, actualDate: e.target.value }))} className="bg-seguranca-black border-gray-600" />
-                        </Field>
-                        <Field label="Mecânico / Responsável">
-                            <Input value={formData.mechanicName || ''} onChange={e => setFormData(p => ({ ...p, mechanicName: e.target.value }))} placeholder="Nome do mecânico" className="bg-seguranca-black border-gray-600" />
+                        <Field label="Mecânico / Responsável *">
+                            <Select
+                                value={formData.mechanicId || ''}
+                                onValueChange={v => {
+                                    const emp = employees.find((e: any) => e.id === v);
+                                    setFormData(p => ({
+                                        ...p,
+                                        mechanicId: v,
+                                        mechanicName: emp ? emp.name : p.mechanicName
+                                    }));
+                                }}
+                            >
+                                <SelectTrigger className="bg-seguranca-black border-gray-600">
+                                    <SelectValue placeholder={formData.mechanicName || "Selecione o mecânico..."} />
+                                </SelectTrigger>
+                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
+                                    {mechanicsList.map((emp: any) => (
+                                        <SelectItem key={emp.id} value={emp.id}>
+                                            {emp.name} {emp.position?.name ? `(${emp.position.name})` : ''}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </Field>
                         <Field label="Tipo de Mão de Obra">
                             <Select value={formData.laborType} onValueChange={v => setFormData(p => ({ ...p, laborType: v as LaborType }))}>
@@ -240,38 +405,197 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 </SelectContent>
                             </Select>
                         </Field>
+                        <Field label="Informação de Agregado">
+                            <Input value={formData.aggregateInfo || ''} onChange={e => setFormData(p => ({ ...p, aggregateInfo: e.target.value }))} placeholder="Ex: Carreta 02 / Reboque" className="bg-seguranca-black border-gray-600" />
+                        </Field>
+
+                        {/* PRD §6 §20 §21 §22 — Cliente, Setor, Requerente */}
+                        <Field label="Cliente *">
+                            <Select value={formData.clientId || ''} onValueChange={v => setFormData(p => ({ ...p, clientId: v }))}>
+                                <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione o cliente…" /></SelectTrigger>
+                                <SelectContent className="bg-seguranca-black border-gray-600">
+                                    {clients.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                        <Field label="Setor *">
+                            <Select value={formData.sectorId || ''} onValueChange={v => setFormData(p => ({ ...p, sectorId: v }))}>
+                                <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione o setor…" /></SelectTrigger>
+                                <SelectContent className="bg-seguranca-black border-gray-600">
+                                    {departments.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                        <Field label="Requerente *">
+                            <Select value={formData.requesterId || ''} onValueChange={v => setFormData(p => ({ ...p, requesterId: v }))}>
+                                <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione o requerente…" /></SelectTrigger>
+                                <SelectContent className="bg-seguranca-black border-gray-600">
+                                    {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.name || e.fullName}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </Field>
                     </div>
                 </Section>
 
-
-                {/* ── Seção 2: Odômetro & Parada ─────────────────────────────── */}
-                <Section title="Odômetro & Motivo da Parada" icon={<Gauge className="h-4 w-4 text-yellow-500" />}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Field label="Odômetro — Entrada (km)">
-                            <Input type="number" min={0} value={formData.odometerIn ?? ''} onChange={e => setFormData(p => ({ ...p, odometerIn: parseInt(e.target.value) || undefined }))} placeholder="Ex: 85400" className="bg-seguranca-black border-gray-600" />
+                {/* ── Seção 2: Dados de Parada e Saída ────────────────────────────── */}
+                <Section title="Dados da Parada & Saída" icon={<Gauge className="h-4 w-4 text-yellow-500" />}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <Field label="Data da Parada *">
+                            <Input type="date" value={formData.stopDate || ''} onChange={e => setFormData(p => ({ ...p, stopDate: e.target.value }))} className="bg-seguranca-black border-gray-600" />
                         </Field>
-                        <Field label="Odômetro — Saída (km)">
-                            <Input type="number" min={0} value={formData.odometerOut ?? ''} onChange={e => setFormData(p => ({ ...p, odometerOut: parseInt(e.target.value) || undefined }))} placeholder="Ex: 85450" className="bg-seguranca-black border-gray-600" />
+                        <Field label="Hora da Parada *">
+                            <Input type="time" value={formData.stopTime || ''} onChange={e => setFormData(p => ({ ...p, stopTime: e.target.value }))} className="bg-seguranca-black border-gray-600" />
+                        </Field>
+                        <Field label="Data de Saída (Encerramento)">
+                            <Input type="date" value={formData.exitDate || ''} onChange={e => setFormData(p => ({ ...p, exitDate: e.target.value }))} className="bg-seguranca-black border-gray-600" />
+                        </Field>
+                        <Field label="Hora de Saída">
+                            <Input type="time" value={formData.exitTime || ''} onChange={e => setFormData(p => ({ ...p, exitTime: e.target.value }))} className="bg-seguranca-black border-gray-600" />
                         </Field>
                     </div>
-                    {/* Tempo parado calculado */}
-                    {(formData.downtimeHours != null || formData.downtimeDays != null) && (
-                        <div className="flex gap-3 mt-2">
-                            <Badge className="bg-orange-600/20 text-orange-400 border border-orange-600/40">
-                                <Clock className="h-3 w-3 mr-1" /> {formData.downtimeHours}h parado
-                            </Badge>
-                            <Badge className="bg-orange-600/20 text-orange-400 border border-orange-600/40">
-                                {formData.downtimeDays} dia(s)
-                            </Badge>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                        <Field label="Odômetro / KM Parada">
+                            <Input type="number" min={0} value={formData.odometerIn ?? ''} onChange={e => setFormData(p => ({ ...p, odometerIn: parseInt(e.target.value) || undefined }))} placeholder="Ex: 120500" className="bg-seguranca-black border-gray-600" />
+                        </Field>
+                        <Field label="Odômetro / KM Saída">
+                            <Input type="number" min={0} value={formData.odometerOut ?? ''} onChange={e => setFormData(p => ({ ...p, odometerOut: parseInt(e.target.value) || undefined }))} placeholder="Ex: 120520" className="bg-seguranca-black border-gray-600" />
+                        </Field>
+                    </div>
+                </Section>
+
+                {/* ── Seção Dinâmica Corretiva vs Preventiva ──────────────────────── */}
+                {formData.maintenanceType === MaintenanceType.CORRETIVA ? (
+                    <Section title="Manutenção Corretiva — Anomalias" icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}>
+                        <Field label="Descrição das Anomalias Identificadas *">
+                            <Textarea value={formData.anomaliesDescription || ''} onChange={e => setFormData(p => ({ ...p, anomaliesDescription: e.target.value }))}
+                                placeholder="Descreva em detalhes os defeitos e anomalias identificados que necessitam de reparo…"
+                                className="bg-seguranca-black border-gray-600 min-h-[90px]" />
+                        </Field>
+                        <Field label="Outros Detalhes (Opcional)">
+                            <Textarea value={formData.otherDescription || ''} onChange={e => setFormData(p => ({ ...p, otherDescription: e.target.value }))}
+                                placeholder="Observações adicionais ou pendências relativas à OS…"
+                                className="bg-seguranca-black border-gray-600 min-h-[60px]" />
+                        </Field>
+                    </Section>
+                ) : (
+                    <Section title="Checklist de Inspeção Preventiva" icon={<ClipboardList className="h-4 w-4 text-green-400" />}>
+                        <div className="space-y-6">
+                            {Object.keys(checklistByCategory).length === 0 ? (
+                                <p className="text-sm text-gray-500 italic">Carregando itens de inspeção…</p>
+                            ) : (
+                                Object.entries(checklistByCategory).map(([category, items]) => (
+                                    <div key={category} className="border border-gray-800 rounded-lg p-3 bg-gray-900/40 space-y-3">
+                                        <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider text-red-400 flex items-center gap-2">
+                                            <span>•</span> {category}
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {items.map(({ item, originalIndex }) => (
+                                                <div key={originalIndex} className="p-2.5 bg-black/40 rounded border border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-medium text-gray-200">{item.checklistItemDescricao}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.OK ? 'default' : 'outline'}
+                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.OK)}
+                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.OK ? 'bg-green-600 text-white' : 'border-gray-700 text-gray-400'}`}>
+                                                            <CheckCircle className="h-3.5 w-3.5 mr-1" /> OK
+                                                        </Button>
+                                                        <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.NAO_OK ? 'default' : 'outline'}
+                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_OK)}
+                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_OK ? 'bg-red-600 text-white' : 'border-gray-700 text-gray-400'}`}>
+                                                            <XCircle className="h-3.5 w-3.5 mr-1" /> NÃO OK
+                                                        </Button>
+                                                        <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.NAO_APLICA ? 'default' : 'outline'}
+                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_APLICA)}
+                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_APLICA ? 'bg-gray-600 text-white' : 'border-gray-700 text-gray-400'}`}>
+                                                            <MinusCircle className="h-3.5 w-3.5 mr-1" /> N/A
+                                                        </Button>
+                                                    </div>
+                                                    {item.situacao === ChecklistStatus.NAO_OK && (
+                                                        <div className="w-full md:w-1/2 flex flex-col gap-1.5 mt-2 md:mt-0">
+                                                            <Input value={item.observacao || ''} onChange={e => handleChecklistTextChange(originalIndex, 'observacao', e.target.value)}
+                                                                placeholder="Observação da anomalia…" className="bg-seguranca-black border-red-900 text-xs h-8" />
+                                                            <Input value={item.reparoRealizado || ''} onChange={e => handleChecklistTextChange(originalIndex, 'reparoRealizado', e.target.value)}
+                                                                placeholder="Reparo executado para corrigir…" className="bg-seguranca-black border-green-900 text-xs h-8" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
-                    )}
-                    <Field label="Motivo da Parada / Defeito Relatado">
-                        <Textarea value={formData.stopReason || ''} onChange={e => setFormData(p => ({ ...p, stopReason: e.target.value }))} placeholder="Descreva o problema que levou o veículo à oficina…" className="bg-seguranca-black border-gray-600 min-h-[80px]" />
+                    </Section>
+                )}
+
+                {/* ── Seção 4: Manutenção / Reparos Realizados ────────────────────────── */}
+                <Section title="Descrição da Manutenção Realizada" icon={<Wrench className="h-4 w-4 text-blue-400" />}>
+                    <Field label="Manutenção / Reparos Executados (Obrigatório para Conclusão)">
+                        <Textarea value={formData.maintenancePerformed || ''} onChange={e => setFormData(p => ({ ...p, maintenancePerformed: e.target.value }))}
+                            placeholder="Detalhamento técnico dos procedimentos executados pela equipe de manutenção…"
+                            className="bg-seguranca-black border-gray-600 min-h-[100px]" />
                     </Field>
                 </Section>
 
-                {/* ── Seção 3: Peças & Serviços ──────────────────────────────── */}
-                <Section title="Peças e Serviços" icon={<Wrench className="h-4 w-4 text-blue-400" />}
+                {/* ── Seção: Upload de Evidências e Fotos ────────────────────── */}
+                <Section title="Evidências & Anexos da OS" icon={<Camera className="h-4 w-4 text-cyan-400" />}>
+                    <div className="space-y-4">
+                        <div className="flex flex-col sm:flex-row items-center gap-3 p-4 border-2 border-dashed border-gray-700 rounded-lg bg-gray-950/60 hover:border-gray-500 transition-colors">
+                            <div className="p-3 bg-gray-900 rounded-full text-cyan-400 shrink-0">
+                                <UploadCloud className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1 text-center sm:text-left">
+                                <p className="text-sm font-medium text-gray-200">Upload de fotos / imagens de evidências</p>
+                                <p className="text-xs text-gray-400">Selecione fotos do defeito, peças danificadas ou comprovantes (PNG, JPG, WebP)</p>
+                            </div>
+                            <label className="cursor-pointer inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-4 py-2 rounded-md transition-colors shrink-0">
+                                <Camera className="h-4 w-4" /> Selecionar Fotos
+                                <input type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
+                            </label>
+                        </div>
+
+                        {/* URL manual opcional */}
+                        <div className="flex gap-2">
+                            <Input
+                                value={newPhotoUrl}
+                                onChange={e => setNewPhotoUrl(e.target.value)}
+                                placeholder="Ou cole a URL da imagem/evidência..."
+                                className="bg-seguranca-black border-gray-600 text-xs flex-1"
+                                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddPhotoUrl())}
+                            />
+                            <Button type="button" size="sm" onClick={handleAddPhotoUrl} disabled={!newPhotoUrl.trim()} className="bg-gray-700 hover:bg-gray-600 text-xs">
+                                <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar URL
+                            </Button>
+                        </div>
+
+                        {/* Grid de Previews */}
+                        {formData.photoAttachments && formData.photoAttachments.length > 0 && (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                                {formData.photoAttachments.map((photo, idx) => (
+                                    <div key={idx} className="relative group border border-gray-700 rounded-lg overflow-hidden bg-black/60 aspect-video">
+                                        <img src={photo} alt={`Evidência ${idx + 1}`} className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                            <a href={photo} target="_blank" rel="noreferrer" title="Visualizar em tamanho real" className="p-1.5 bg-gray-900/80 rounded-full text-white hover:bg-gray-800">
+                                                <Image className="h-4 w-4" />
+                                            </a>
+                                            <button type="button" onClick={() => handleRemovePhoto(idx)} title="Remover foto" className="p-1.5 bg-red-600/80 rounded-full text-white hover:bg-red-700">
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                        <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] text-gray-300">
+                                            Foto #{idx + 1}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </Section>
+
+                {/* ── Seção 5: Peças e Serviços ──────────────────────────────── */}
+                <Section title="Peças e Serviços Utilizados" icon={<Wrench className="h-4 w-4 text-blue-400" />}
                     action={<Button type="button" variant="outline" size="sm" onClick={handleAddItem} className="border-red-500 text-red-400 hover:bg-red-500/10"><Plus className="h-4 w-4 mr-1" />Item</Button>}>
                     <div className="hidden md:block border border-gray-700 rounded-lg overflow-hidden">
                         <table className="w-full text-sm">
@@ -304,14 +628,13 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                         <td className="p-2 text-center"><Button variant="ghost" size="sm" onClick={() => handleRemoveItem(idx)} className="text-red-500 hover:bg-red-500/10 h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button></td>
                                     </tr>
                                 ))}
-                                {(!formData.items?.length) && (<tr><td colSpan={6} className="p-6 text-center text-gray-500 italic text-sm">Nenhum item. Clique em "+ Item" para adicionar.</td></tr>)}
+                                {(!formData.items?.length) && (<tr><td colSpan={6} className="p-6 text-center text-gray-500 italic text-sm">Nenhum item adicionado. Clique em "+ Item" se houver uso de peças ou mão de obra.</td></tr>)}
                             </tbody>
                         </table>
                     </div>
                 </Section>
 
-
-                {/* ── Seção 4: Resumo de Custos ──────────────────────────────── */}
+                {/* ── Seção 6: Resumo de Custos ──────────────────────────────── */}
                 <Section title="Resumo de Custos" icon={<AlertTriangle className="h-4 w-4 text-green-400" />}>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <Field label="Custo Mão de Obra (R$)">
@@ -327,16 +650,40 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     </div>
                 </Section>
 
-                {/* ── Seção 5: Observações ──────────────────────────────────── */}
-                <Section title="Observações Técnicas" icon={<ClipboardList className="h-4 w-4 text-gray-400" />}>
-                    <Textarea value={formData.notes || ''} onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
-                        placeholder="Diagnóstico, procedimentos realizados, recomendações do mecânico…"
-                        className="bg-seguranca-black border-gray-600 min-h-[90px]" />
+                {/* ── Seção 7: Responsáveis e Assinaturas ──────────────────────── */}
+                <Section title="Responsáveis & Assinaturas" icon={<UserCheck className="h-4 w-4 text-purple-400" />}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Field label="Assinatura / Responsável Técnico">
+                            <div className="p-3 border border-gray-800 rounded bg-gray-950 flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-bold text-gray-300">{formData.responsibleSignature || user?.name || 'Técnico Responsável'}</p>
+                                    <p className="text-[10px] text-gray-500">{formData.responsibleSignatureDate ? new Date(formData.responsibleSignatureDate).toLocaleString('pt-BR') : 'Assinatura Eletrônica Autenticada'}</p>
+                                </div>
+                                <Button type="button" size="sm" variant="outline" onClick={() => setFormData(p => ({ ...p, responsibleSignature: user?.name || 'Usuário Autenticado' }))}
+                                    className="border-purple-600 text-purple-400 text-xs">
+                                    Assinar
+                                </Button>
+                            </div>
+                        </Field>
+
+                        <Field label="Assinatura / Supervisor">
+                            <div className="p-3 border border-gray-800 rounded bg-gray-950 flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-bold text-gray-300">{formData.supervisorSignature || 'Supervisor da Operação'}</p>
+                                    <p className="text-[10px] text-gray-500">{formData.supervisorSignatureDate ? new Date(formData.supervisorSignatureDate).toLocaleString('pt-BR') : 'Assinatura Eletrônica Supervisor'}</p>
+                                </div>
+                                <Button type="button" size="sm" variant="outline" onClick={() => setFormData(p => ({ ...p, supervisorSignature: user?.name || 'Supervisor' }))}
+                                    className="border-purple-600 text-purple-400 text-xs">
+                                    Assinar
+                                </Button>
+                            </div>
+                        </Field>
+                    </div>
                 </Section>
 
-                {/* ── Seção 6: Histórico (somente edição) ──────────────────── */}
+                {/* ── Seção 8: Histórico (somente edição) ──────────────────── */}
                 {isEdit && (
-                    <Section title="Histórico da OS" icon={<History className="h-4 w-4 text-purple-400" />}
+                    <Section title="Histórico de Auditoria da OS" icon={<History className="h-4 w-4 text-purple-400" />}
                         action={
                             <Button variant="ghost" size="sm" onClick={() => setShowHistory(v => !v)} className="text-gray-400 hover:text-white">
                                 {showHistory ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -345,9 +692,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         }>
                         {showHistory && (
                             <div className="space-y-3">
-                                {/* Timeline */}
                                 <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
-                                    {history.length === 0 && <p className="text-sm text-gray-500 italic">Nenhum registro.</p>}
+                                    {history.length === 0 && <p className="text-sm text-gray-500 italic">Nenhum registro no histórico.</p>}
                                     {history.map(h => (
                                         <div key={h.id} className="flex gap-3 text-sm">
                                             <span className="mt-0.5 text-base shrink-0">{ACTION_ICONS[h.actionType] || '•'}</span>
@@ -362,7 +708,6 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                     ))}
                                 </div>
                                 <Separator className="bg-gray-700" />
-                                {/* Adicionar nota */}
                                 <div className="flex gap-2">
                                     <Input value={newNote} onChange={e => setNewNote(e.target.value)}
                                         placeholder="Adicionar anotação ao histórico…"

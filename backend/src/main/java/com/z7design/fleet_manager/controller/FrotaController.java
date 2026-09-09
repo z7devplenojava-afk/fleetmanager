@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 public class FrotaController {
 
     private final VehicleRepository vehicleRepository;
+    private final com.z7design.fleet_manager.service.VehicleService vehicleService;
 
     @GetMapping("/vehicles")
     public ResponseEntity<List<VehicleDTO>> getAllVehicles() {
@@ -1098,14 +1099,40 @@ public class FrotaController {
 
     @DeleteMapping("/vehicles/{id}")
     public ResponseEntity<Void> deleteVehicle(@PathVariable("id") UUID id) {
+        // Soft delete: o veículo mantém o histórico (abastecimentos, manutenções,
+        // multas, pneus, OSs) e apenas deixa de aparecer nas listagens.
         try {
             if (!vehicleRepository.existsById(id)) {
                 throw new ResourceNotFoundException("VeÃ­culo nÃ£o encontrado com ID: " + id);
             }
-            vehicleRepository.deleteById(id);
+            vehicleRepository.softDelete(id);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             System.err.println("[DEBUG] FrotaController.deleteVehicle() - Erro: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    /**
+     * Exclusão em massa de veículos (soft delete).
+     * Retorna { requested, deleted } para feedback preciso na UI.
+     */
+    @PostMapping("/vehicles/bulk-delete")
+    public ResponseEntity<Map<String, Object>> bulkDeleteVehicles(@RequestBody List<String> ids) {
+        try {
+            List<UUID> vehicleIds = ids.stream()
+                    .map(UUID::fromString)
+                    .collect(java.util.stream.Collectors.toList());
+            int deleted = vehicleService.deleteVehicles(vehicleIds);
+            return ResponseEntity.ok(Map.of(
+                    "requested", vehicleIds.size(),
+                    "deleted", deleted));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "ID inválido na solicitação de exclusão em massa."));
+        } catch (Exception e) {
+            System.err.println("[DEBUG] FrotaController.bulkDeleteVehicles() - Erro: " + e.getMessage());
             e.printStackTrace();
             throw e;
         }

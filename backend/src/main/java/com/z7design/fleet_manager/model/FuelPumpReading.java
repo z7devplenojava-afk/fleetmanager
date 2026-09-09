@@ -43,10 +43,45 @@ public class FuelPumpReading implements TenantAware {
     @JoinColumn(name = "fuel_pump_id", nullable = false)
     private FuelPump fuelPump;
 
+    @Column(name = "declared_liters", precision = 12, scale = 2)
+    private BigDecimal declaredLiters;
+
+    @Column(name = "difference_liters", precision = 12, scale = 2)
+    private BigDecimal differenceLiters;
+
+    @Column(name = "operator_name")
+    private String operatorName;
+
+    @Column(name = "vehicle_plate")
+    private String vehiclePlate;
+
+    @Column(name = "driver_name")
+    private String driverName;
+
+    @Column(name = "has_divergence_alert")
+    private Boolean hasDivergenceAlert = false;
+
     @Column(name = "company_id")
     private UUID companyId;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @PrePersist
+    @PreUpdate
+    protected void calculateDivergence() {
+        if (finalValue != null && initialValue != null) {
+            this.totalLiters = finalValue.subtract(initialValue);
+        }
+        if (this.totalLiters != null && declaredLiters != null) {
+            this.differenceLiters = this.totalLiters.subtract(declaredLiters);
+            // Tolerância configurável (ex: divergência maior que 2.00 litros gera alerta)
+            if (this.differenceLiters.abs().doubleValue() > 2.0) {
+                this.hasDivergenceAlert = true;
+            } else {
+                this.hasDivergenceAlert = false;
+            }
+        }
+    }
 }

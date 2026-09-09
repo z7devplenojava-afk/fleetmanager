@@ -46,6 +46,8 @@ interface VacationBalance {
   nextAcquisitionDate: string;
 }
 
+import { feriasService } from '@/services/feriasService';
+
 const Vacations: React.FC = () => {
   const { toast } = useToast();
   const [vacations, setVacations] = useState<Vacation[]>([]);
@@ -63,64 +65,6 @@ const Vacations: React.FC = () => {
     type: 'VACATION' as const
   });
 
-  // Dados mockados para funcionar offline
-  const mockVacations: Vacation[] = [
-    {
-      id: '1',
-      startDate: '2024-12-20',
-      endDate: '2024-12-31',
-      daysRequested: 10,
-      reason: 'Férias de fim de ano',
-      status: 'APPROVED',
-      requestDate: '2024-11-01',
-      approver: 'João Silva',
-      approvalDate: '2024-11-05',
-      type: 'VACATION'
-    },
-    {
-      id: '2',
-      startDate: '2024-08-15',
-      endDate: '2024-08-17',
-      daysRequested: 3,
-      reason: 'Folga pessoal',
-      status: 'APPROVED',
-      requestDate: '2024-08-01',
-      approver: 'Maria Santos',
-      approvalDate: '2024-08-02',
-      type: 'PERSONAL_LEAVE'
-    },
-    {
-      id: '3',
-      startDate: '2024-10-10',
-      endDate: '2024-10-12',
-      daysRequested: 3,
-      reason: 'Consulta médica',
-      status: 'REJECTED',
-      requestDate: '2024-10-01',
-      rejectionReason: 'Período já solicitado por outro colega',
-      type: 'MEDICAL_LEAVE'
-    },
-    {
-      id: '4',
-      startDate: '2025-01-15',
-      endDate: '2025-01-20',
-      daysRequested: 5,
-      reason: 'Viagem familiar',
-      status: 'PENDING',
-      requestDate: '2024-12-01',
-      type: 'VACATION'
-    }
-  ];
-
-  const mockVacationBalance: VacationBalance = {
-    availableDays: 15,
-    usedDays: 13,
-    daysInProgress: 5,
-    totalDays: 30,
-    acquisitionPeriod: '2024/2025',
-    nextAcquisitionDate: '2025-01-01'
-  };
-
   useEffect(() => {
     loadVacations();
     loadVacationBalance();
@@ -129,31 +73,61 @@ const Vacations: React.FC = () => {
   const loadVacations = async () => {
     setLoading(true);
     try {
-      setTimeout(() => {
-        setVacations(mockVacations);
-        setLoading(false);
-      }, 500);
+      const data = await feriasService.getMinhasSolicitacoes();
+      if (Array.isArray(data)) {
+        const mapped: Vacation[] = data.map((v: any) => ({
+          id: v.id || String(Math.random()),
+          startDate: v.dataInicio || v.startDate || '',
+          endDate: v.dataFim || v.endDate || '',
+          daysRequested: v.dias || v.daysRequested || 0,
+          reason: v.observacao || v.reason || '',
+          status: (v.status || 'PENDING') as any,
+          requestDate: v.createdAt || new Date().toISOString().split('T')[0],
+          approver: v.aprovador,
+          approvalDate: v.dataAprovacao,
+          rejectionReason: v.motivoRejeicao,
+          type: (v.tipo || 'VACATION') as any
+        }));
+        setVacations(mapped);
+      } else {
+        setVacations([]);
+      }
     } catch (error) {
+      console.error('Erro ao carregar férias:', error);
       toast({
-        title: 'Informação',
-        description: 'Backend offline - exibindo dados mockados',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
-      setVacations(mockVacations);
+      setVacations([]);
+    } finally {
       setLoading(false);
     }
   };
 
   const loadVacationBalance = async () => {
     try {
-      setVacationBalance(mockVacationBalance);
+      const balance = await feriasService.getMeuSaldo();
+      if (balance) {
+        setVacationBalance({
+          availableDays: balance.diasDisponiveis || balance.availableDays || 0,
+          usedDays: balance.diasUtilizados || balance.usedDays || 0,
+          daysInProgress: balance.diasEmAndamento || balance.daysInProgress || 0,
+          totalDays: balance.diasTotais || balance.totalDays || 30,
+          acquisitionPeriod: balance.periodoAquisitivo || '2024/2025',
+          nextAcquisitionDate: balance.proximoPeriodo || ''
+        });
+      } else {
+        setVacationBalance(null);
+      }
     } catch (error) {
+      console.error('Erro ao carregar saldo de férias:', error);
       toast({
-        title: 'Informação',
-        description: 'Backend offline - exibindo dados mockados',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
-      setVacationBalance(mockVacationBalance);
+      setVacationBalance(null);
     }
   };
 
@@ -169,31 +143,27 @@ const Vacations: React.FC = () => {
 
     setRequesting(true);
     try {
-      const newVacation: Vacation = {
-        id: Date.now().toString(),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        daysRequested: calculateDays(formData.startDate, formData.endDate),
-        reason: formData.reason,
-        status: 'PENDING',
-        requestDate: new Date().toISOString().split('T')[0],
-        type: formData.type
-      };
-
-      setVacations([newVacation, ...vacations]);
+      await feriasService.solicitarFerias({
+        dataInicio: formData.startDate,
+        dataFim: formData.endDate,
+        observacao: formData.reason,
+        tipo: formData.type
+      });
       
       toast({
         title: 'Sucesso',
-        description: 'Solicitação enviada com sucesso (Simulado - Backend offline)',
+        description: 'Solicitação enviada com sucesso!',
       });
 
       setShowRequestForm(false);
       setFormData({ startDate: '', endDate: '', reason: '', type: 'VACATION' });
+      loadVacations();
     } catch (error) {
+      console.error('Erro ao solicitar férias:', error);
       toast({
-        title: 'Informação',
-        description: 'Solicitação simulada - Backend offline',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
     } finally {
       setRequesting(false);
@@ -202,21 +172,19 @@ const Vacations: React.FC = () => {
 
   const handleCancelVacation = async (vacation: Vacation) => {
     try {
-      setVacations(vacations.map(v => 
-        v.id === vacation.id 
-          ? { ...v, status: 'CANCELLED' as const }
-          : v
-      ));
+      await feriasService.cancelarSolicitacao(vacation.id);
       
       toast({
         title: 'Sucesso',
-        description: 'Solicitação cancelada (Simulado - Backend offline)',
+        description: 'Solicitação cancelada com sucesso!',
       });
+      loadVacations();
     } catch (error) {
+      console.error('Erro ao cancelar férias:', error);
       toast({
-        title: 'Informação',
-        description: 'Cancelamento simulado - Backend offline',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
     }
   };
@@ -305,20 +273,6 @@ const Vacations: React.FC = () => {
         </Button>
       </div>
 
-      {/* Status do Sistema */}
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="text-red-800 flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2" />
-            Status do Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-red-700">
-            🟡 <strong>Backend Offline:</strong> Funcionalidade simulada com dados mockados. Solicitações não serão processadas até que o backend esteja online.
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Balance Card */}
       {vacationBalance && (

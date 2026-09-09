@@ -162,73 +162,31 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
     }
   }, [open]);
 
-  // Atualizar usuário e cargo selecionados quando os dados forem carregados
+  // Sync selection states when select data (positions, users, companies, doctors) or funcionario changes
   useEffect(() => {
-    if (funcionario && open && users.length > 0 && positions.length > 0) {
-      console.log('🔄 Atualizando selects com dados carregados');
-      console.log('👤 Funcionário user ID:', funcionario.user?.id);
-      console.log('💼 Funcionário position ID:', funcionario.position?.id);
-      console.log('📋 Users disponíveis:', users.length);
-      console.log('📋 Positions disponíveis:', positions.length);
-      
-      // Preencher usuário selecionado
-      if (funcionario.user?.id) {
-        const user = users.find(u => u.id === funcionario.user?.id);
-        if (user) {
-          setSelectedUser(user);
-          setUserSearchTerm(user.name || user.email || '');
-          console.log('✅ Usuário encontrado e selecionado:', user.name);
-        } else {
-          console.warn('⚠️ Usuário não encontrado na lista:', funcionario.user?.id);
-        }
-      } else {
-        console.log('ℹ️ Funcionário não tem usuário associado');
+    if (open && (funcionario || form.name)) {
+      const posId = form.position?.id || funcionario?.position?.id;
+      if (posId && positions.length > 0) {
+        const found = positions.find(p => String(p.id) === String(posId));
+        if (found) setSelectedPosition(found);
       }
-      
-      // Preencher cargo selecionado - comparar IDs como strings
-      if (funcionario.position?.id) {
-        const positionId = String(funcionario.position.id);
-        const position = positions.find(p => String(p.id) === positionId);
-        if (position) {
-          setSelectedPosition(position);
-          console.log('✅ Cargo encontrado e selecionado:', position.name);
-        } else {
-          console.warn('⚠️ Cargo não encontrado na lista:', positionId);
+
+      const uId = form.user?.id || funcionario?.user?.id;
+      if (uId && users.length > 0) {
+        const found = users.find(u => String(u.id) === String(uId));
+        if (found) {
+          setSelectedUser(found);
+          setUserSearchTerm(found.name || found.email || '');
         }
-      } else {
-        console.log('ℹ️ Funcionário não tem cargo associado');
       }
-      
-      // Preencher usuário selecionado - comparar IDs como strings
-      if (funcionario.user?.id) {
-        const userId = String(funcionario.user.id);
-        const user = users.find(u => String(u.id) === userId);
-        if (user) {
-          setSelectedUser(user);
-          setUserSearchTerm(user.name || user.email || '');
-          console.log('✅ Usuário encontrado e selecionado:', user.name);
-        } else {
-          console.warn('⚠️ Usuário não encontrado na lista:', userId);
-        }
-      } else {
-        console.log('ℹ️ Funcionário não tem usuário associado');
-      }
-      
-      // Preencher empresa selecionada - comparar IDs como strings
-      if (funcionario.company?.id && companies.length > 0) {
-        const companyId = String(funcionario.company.id);
-        const company = companies.find(c => String(c.id) === companyId);
-        if (company) {
-          setSelectedCompany(company);
-          console.log('✅ Empresa encontrada e selecionada:', company.name, company.id);
-        } else {
-          console.warn('⚠️ Empresa não encontrada na lista:', companyId);
-        }
-      } else {
-        console.log('ℹ️ Funcionário não tem empresa associada ou lista de empresas não carregada');
+
+      const cId = form.company?.id || funcionario?.company?.id;
+      if (cId && companies.length > 0) {
+        const found = companies.find(c => String(c.id) === String(cId));
+        if (found) setSelectedCompany(found);
       }
     }
-  }, [funcionario, users, positions, companies, open]);
+  }, [open, funcionario, positions, users, companies, form.position?.id, form.user?.id, form.company?.id]);
 
   // Filtrar usuários baseado no termo de busca
   useEffect(() => {
@@ -424,9 +382,39 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
           decretoNaturalizacao: employeeData.decretoNaturalizacao || '',
           vistoFiscalizacao: employeeData.vistoFiscalizacao || '',
           assinaturaFuncionario: employeeData.assinaturaFuncionario || '',
-          dataRescisao: employeeData.dataRescisao || '',
           gender: employeeData.gender || ''
         });
+
+        // Sincronizar objetos selecionados para os dropdowns com dados atualizados
+        if (employeeData.position?.id && positions.length > 0) {
+          const posId = String(employeeData.position.id);
+          const found = positions.find(p => String(p.id) === posId);
+          if (found) setSelectedPosition(found);
+        }
+
+        if (employeeData.user?.id && users.length > 0) {
+          const uId = String(employeeData.user.id);
+          const found = users.find(u => String(u.id) === uId);
+          if (found) {
+            setSelectedUser(found);
+            setUserSearchTerm(found.name || found.email || '');
+          }
+        }
+
+        if (employeeData.company?.id && companies.length > 0) {
+          const cId = String(employeeData.company.id);
+          const found = companies.find(c => String(c.id) === cId);
+          if (found) setSelectedCompany(found);
+        }
+
+        const docId = (employeeData as any).doctorId || (employeeData as any).doctor?.id;
+        if (docId && doctors.length > 0) {
+          const found = doctors.find(d => String(d.id) === String(docId));
+          if (found) {
+            setSelectedDoctor(found);
+            setDoctorSearchTerm(found.name || '');
+          }
+        }
         
         console.log('✅ Formulário preenchido com dados completos do funcionário');
         console.log('📋 Dados principais:', {

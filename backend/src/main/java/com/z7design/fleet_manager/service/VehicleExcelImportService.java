@@ -211,6 +211,8 @@ public class VehicleExcelImportService {
                 map.put(cell.getColumnIndex(), "MILEAGE");
             } else if (normalized.contains("combustivel") || normalized.contains("combustível")) {
                 map.put(cell.getColumnIndex(), "FUEL_TYPE");
+            } else if (normalized.contains("tipo de veiculo") || normalized.contains("tipo veiculo") || normalized.equals("tipo") || normalized.contains("categoria") || normalized.contains("especie")) {
+                map.put(cell.getColumnIndex(), "VEHICLE_TYPE");
             }
         }
         return map;
@@ -234,6 +236,7 @@ public class VehicleExcelImportService {
         String ownerValue = null;
         String clientValue = null;
         String mileageValue = null;
+        String vehicleTypeValue = null;
         BigDecimal marketValue = null;
 
         for (Map.Entry<Integer, String> entry : columnMap.entrySet()) {
@@ -291,6 +294,9 @@ public class VehicleExcelImportService {
                 case "MILEAGE":
                     mileageValue = val.trim();
                     break;
+                case "VEHICLE_TYPE":
+                    vehicleTypeValue = val.trim();
+                    break;
                 case "MARKET_VALUE":
                     try {
                         marketValue = new BigDecimal(val.trim().replaceAll("[^0-9,.]", "").replace(",", "."));
@@ -299,20 +305,30 @@ public class VehicleExcelImportService {
             }
         }
 
+        // Validar Chassi (17 caracteres alfanuméricos)
+        String finalChassis = parseAndValidateChassis(chassisValue);
+
+        // Validar RENAVAM (9 a 11 dígitos numéricos)
+        String finalRenavam = parseAndValidateRenavam(renavamValue);
+
         // REGRA PRINCIPAL: PATRIMÔNIO ou PLACA é o identificador inserido no campo PLACA
         String finalPlate = plateValue;
-        if (finalPlate != null && (isHeaderWord(finalPlate) || isPureRenavamNumber(finalPlate))) {
-            if (isPureRenavamNumber(finalPlate) && (renavamValue == null || renavamValue.isBlank())) {
-                renavamValue = finalPlate;
+        if (finalPlate != null && (isHeaderWord(finalPlate) || isPureRenavamNumber(finalPlate) || isPureChassisString(finalPlate))) {
+            if (isPureRenavamNumber(finalPlate) && finalRenavam == null) {
+                finalRenavam = parseAndValidateRenavam(finalPlate);
+            } else if (isPureChassisString(finalPlate) && finalChassis == null) {
+                finalChassis = parseAndValidateChassis(finalPlate);
             }
             finalPlate = null;
         }
 
         if ((finalPlate == null || finalPlate.isBlank()) && patrimonioValue != null && !patrimonioValue.isBlank()) {
-            if (!isHeaderWord(patrimonioValue) && !isPureRenavamNumber(patrimonioValue)) {
+            if (!isHeaderWord(patrimonioValue) && !isPureRenavamNumber(patrimonioValue) && !isPureChassisString(patrimonioValue)) {
                 finalPlate = patrimonioValue;
-            } else if (isPureRenavamNumber(patrimonioValue) && (renavamValue == null || renavamValue.isBlank())) {
-                renavamValue = patrimonioValue;
+            } else if (isPureRenavamNumber(patrimonioValue) && finalRenavam == null) {
+                finalRenavam = parseAndValidateRenavam(patrimonioValue);
+            } else if (isPureChassisString(patrimonioValue) && finalChassis == null) {
+                finalChassis = parseAndValidateChassis(patrimonioValue);
             }
         }
 
@@ -322,7 +338,7 @@ public class VehicleExcelImportService {
         }
 
         finalPlate = cleanPlate(finalPlate);
-        if (finalPlate.isBlank() || isHeaderWord(finalPlate) || isPureRenavamNumber(finalPlate)) {
+        if (finalPlate.isBlank() || isHeaderWord(finalPlate) || isPureRenavamNumber(finalPlate) || isPureChassisString(finalPlate) || finalPlate.length() < 5 || finalPlate.length() > 8) {
             result.setSkipped(result.getSkipped() + 1);
             return;
         }
@@ -346,6 +362,7 @@ public class VehicleExcelImportService {
 
         String finalModel = (modelValue != null && !modelValue.isBlank()) ? modelValue : "Modelo Não Especificado";
         String finalBrand = (brandValue != null && !brandValue.isBlank()) ? brandValue : extractBrandFromModel(finalModel);
+        VehicleType parsedVehicleType = parseVehicleType(vehicleTypeValue);
 
         Vehicle vehicle = existingMap.get(finalPlate);
         UUID currentCompanyId = TenantContext.get();
@@ -353,12 +370,12 @@ public class VehicleExcelImportService {
         if (vehicle != null) {
             boolean updated = false;
 
-            if (chassisValue != null && !chassisValue.isBlank() && !chassisValue.equalsIgnoreCase(vehicle.getChassisNumber())) {
-                vehicle.setChassisNumber(truncateString(chassisValue, 50));
+            if (finalChassis != null && !finalChassis.equalsIgnoreCase(vehicle.getChassisNumber())) {
+                vehicle.setChassisNumber(truncateString(finalChassis, 50));
                 updated = true;
             }
-            if (renavamValue != null && !renavamValue.isBlank() && !renavamValue.equalsIgnoreCase(vehicle.getRenavan())) {
-                vehicle.setRenavan(truncateString(renavamValue, 50));
+            if (finalRenavam != null && !finalRenavam.equalsIgnoreCase(vehicle.getRenavan())) {
+                vehicle.setRenavan(truncateString(finalRenavam, 50));
                 updated = true;
             }
             if (modelValue != null && !modelValue.isBlank() && !modelValue.equalsIgnoreCase(vehicle.getModel())) {
@@ -367,6 +384,10 @@ public class VehicleExcelImportService {
             }
             if (parsedYear != null && !parsedYear.equals(vehicle.getYear())) {
                 vehicle.setYear(parsedYear);
+                updated = true;
+            }
+            if (parsedVehicleType != null && !parsedVehicleType.equals(vehicle.getVehicleType())) {
+                vehicle.setVehicleType(parsedVehicleType);
                 updated = true;
             }
             if (colorValue != null && !colorValue.isBlank()) {
@@ -412,15 +433,15 @@ public class VehicleExcelImportService {
             Vehicle newVehicle = new Vehicle();
             newVehicle.setPlate(finalPlate);
             newVehicle.setFleetNumber(truncateString(fleetNum, 50));
-            newVehicle.setChassisNumber(truncateString(chassisValue, 50));
-            newVehicle.setRenavan(truncateString(renavamValue, 50));
+            newVehicle.setChassisNumber(truncateString(finalChassis, 50));
+            newVehicle.setRenavan(truncateString(finalRenavam, 50));
             newVehicle.setModel(truncateString(finalModel, 50));
             newVehicle.setBrand(truncateString(finalBrand, 50));
             newVehicle.setYear(parsedYear);
             newVehicle.setColor(truncateString(colorValue != null ? colorValue : "Branco", 30));
             newVehicle.setStatus(VehicleStatus.ACTIVE);
             newVehicle.setFuelType(FuelType.DIESEL);
-            newVehicle.setVehicleType(VehicleType.BUS_ROAD);
+            newVehicle.setVehicleType(parsedVehicleType != null ? parsedVehicleType : VehicleType.BUS_ROAD);
             newVehicle.setCapacity(parseInteger(capacityValue, 44));
             newVehicle.setCurrentMileage(parseInteger(mileageValue, 0));
             newVehicle.setBodyBuilder(truncateString(bodyBuilderValue, 100));
@@ -556,5 +577,54 @@ public class VehicleExcelImportService {
         String digitsOnly = text.replaceAll("\\D", "");
         // RENAVAM no Brasil possui de 9 a 11 dígitos numéricos puros
         return digitsOnly.length() >= 9 && digitsOnly.length() <= 11 && text.replaceAll("[0-9]", "").isEmpty();
+    }
+
+    private boolean isPureChassisString(String text) {
+        if (text == null) return false;
+        String cleaned = text.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        return cleaned.length() == 17;
+    }
+
+    private String parseAndValidateChassis(String rawChassis) {
+        if (rawChassis == null || rawChassis.isBlank()) return null;
+        String cleaned = rawChassis.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        if (cleaned.length() == 17) {
+            return cleaned;
+        }
+        return null;
+    }
+
+    private String parseAndValidateRenavam(String rawRenavam) {
+        if (rawRenavam == null || rawRenavam.isBlank()) return null;
+        String digitsOnly = rawRenavam.replaceAll("\\D", "");
+        if (digitsOnly.length() >= 9 && digitsOnly.length() <= 11) {
+            return digitsOnly;
+        }
+        return null;
+    }
+
+    private VehicleType parseVehicleType(String text) {
+        if (text == null || text.isBlank()) return null;
+        String norm = normalizeText(text);
+
+        if (norm.contains("micro")) return VehicleType.MINIBUS;
+        if (norm.contains("van")) return VehicleType.VAN;
+        if (norm.contains("rodoviario") || norm.contains("rodoviaria")) return VehicleType.BUS_ROAD;
+        if (norm.contains("urbano") || norm.contains("urbana")) return VehicleType.BUS_URBAN;
+        if (norm.contains("luxo") || norm.contains("double decker")) return VehicleType.BUS_LUXURY_TOURISM;
+        if (norm.contains("onibus") || norm.contains("bus")) return VehicleType.BUS_ROAD;
+        if (norm.contains("caminhao") || norm.contains("truck") || norm.contains("carreta") || norm.contains("cavalo")) return VehicleType.TRUCK;
+        if (norm.contains("utilitario") || norm.contains("furgao")) return VehicleType.CAR_UTILITY;
+        if (norm.contains("pickup") || norm.contains("picape") || norm.contains("camionete") || norm.contains("cabine")) return VehicleType.PICKUP;
+        if (norm.contains("suv")) return VehicleType.SUV;
+        if (norm.contains("moto")) return VehicleType.MOTORCYCLE;
+        if (norm.contains("carro") || norm.contains("passeio") || norm.contains("automovel")) return VehicleType.CAR;
+
+        for (VehicleType vt : VehicleType.values()) {
+            if (norm.equalsIgnoreCase(normalizeText(vt.name())) || norm.equalsIgnoreCase(normalizeText(vt.getDisplayName()))) {
+                return vt;
+            }
+        }
+        return null;
     }
 }

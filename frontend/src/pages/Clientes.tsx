@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { useToast } from '@/hooks/use-toast';
 import { useGSAP } from '@/hooks/use-gsap';
-import { Search, Plus, RefreshCw, Building2, Users, CheckCircle2, Clock, XCircle, AlertCircle, FileText } from 'lucide-react';
+import { Search, Plus, RefreshCw, Building2, Users, CheckCircle2, Clock, XCircle, AlertCircle, FileText, FileSpreadsheet } from 'lucide-react';
 import { clientService } from '@/services/clientService';
 import { notificationService } from '@/services/notificationService';
 import { Client, ClientStatus, ClientSearchParams } from '@/types/client';
@@ -16,6 +16,7 @@ import { ClientFormModal } from '@/components/clientes/ClientFormModal';
 import { ClientViewModal } from '@/components/clientes/ClientViewModal';
 import { ClientReportFilters, ReportFilters } from '@/components/clientes/ClientReportFilters';
 import { clientReportService } from '@/services/clientReportService';
+import { ClientObraImportModal } from '@/components/clientes/ClientObraImportModal';
 
 const Clientes: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -29,6 +30,7 @@ const Clientes: React.FC = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | undefined>();
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isImportObraModalOpen, setIsImportObraModalOpen] = useState(false);
 
   const { toast } = useToast();
   useGSAP();
@@ -315,6 +317,14 @@ const Clientes: React.FC = () => {
               <Plus size={20} className="mr-2" />
               Novo Cliente
             </Button>
+            <Button 
+              variant="outline"
+              onClick={() => setIsImportObraModalOpen(true)}
+              className="border-seguranca-yellow/50 text-seguranca-yellow hover:bg-seguranca-yellow/10 hover:border-seguranca-yellow"
+            >
+              <FileSpreadsheet size={20} className="mr-2" />
+              Importar Quadro de Obras
+            </Button>
           </div>
         </div>
 
@@ -459,6 +469,19 @@ const Clientes: React.FC = () => {
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
         client={selectedClient}
+      />
+
+      {/* Import Quadro de Obras Modal */}
+      <ClientObraImportModal
+        open={isImportObraModalOpen}
+        onOpenChange={setIsImportObraModalOpen}
+        onSuccess={() => {
+          loadClients();
+          toast({
+            title: 'Importação concluída!',
+            description: 'Clientes, veículos e contratos foram importados com sucesso.',
+          });
+        }}
       />
     </StandardLayout>
   );

@@ -4,35 +4,28 @@ import {
   FileText, 
   BookOpen, 
   Calendar, 
-  Bell,
-  TrendingUp,
-  CheckCircle,
-  User,
-  CreditCard
+  Bell
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { timeRecordService } from '@/services/timeRecordService';
+import { employeeService } from '@/services/employeeService';
+import { notificationService } from '@/services/notificationService';
 
 const EmployeeDashboard: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Debug: Verificar se o EmployeeDashboard está carregando
-  console.log('🔍 EmployeeDashboard Debug:');
-  console.log('- Component loaded');
-  console.log('- User:', user);
-
-  // Dados mockados para funcionar offline
-  const mockData = {
+  const [dashboardData, setDashboardData] = useState({
     profile: {
       name: user?.name || 'Funcionário',
-      position: 'Cargo',
-      department: 'Departamento',
-      admissionDate: '2024-01-01'
+      position: 'Não informado',
+      department: 'Geral',
+      admissionDate: '-'
     },
     timeBalance: {
       balance: '00:00',
@@ -44,30 +37,79 @@ const EmployeeDashboard: React.FC = () => {
       usedDays: 0,
       daysInProgress: 0
     },
-    recentPayslips: [],
-    expiringTrainings: [],
-    pendingDocuments: [],
-    unreadNotifications: [],
+    recentPayslips: [] as any[],
+    expiringTrainings: [] as any[],
+    pendingDocuments: [] as any[],
+    unreadNotifications: [] as any[],
     hasTimePunchToday: false
+  });
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [user?.id]);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      if (user?.id) {
+        const todayRecords = await timeRecordService.getTodayRecords(user.id).catch(() => []);
+        const notifications = await notificationService.getNotifications().catch(() => []);
+
+        setDashboardData(prev => ({
+          ...prev,
+          profile: {
+            name: user.name || 'Funcionário',
+            position: (user as any)?.role || 'Funcionário',
+            department: (user as any)?.department || 'Geral',
+            admissionDate: '-'
+          },
+          hasTimePunchToday: Array.isArray(todayRecords) && todayRecords.length > 0,
+          unreadNotifications: Array.isArray(notifications) ? notifications.filter((n: any) => !n.lida) : []
+        }));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dashboard:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTimePunch = async () => {
-    toast({
-      title: 'Informação',
-      description: 'Funcionalidade de ponto em desenvolvimento. Backend offline.',
-      variant: 'default',
-    });
+    if (!user?.id) return;
+    try {
+      await timeRecordService.registerTimeRecord({
+        employeeId: user.id,
+        recordType: 'ENTRADA'
+      });
+      toast({
+        title: 'Sucesso',
+        description: 'Ponto registrado com sucesso!',
+      });
+      loadDashboardData();
+    } catch (error) {
+      console.error('Erro ao bater ponto:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  const { profile, timeBalance, vacationBalance, recentPayslips, expiringTrainings, pendingDocuments, unreadNotifications, hasTimePunchToday } = mockData;
+  const { profile, timeBalance, vacationBalance, recentPayslips, expiringTrainings, unreadNotifications, hasTimePunchToday } = dashboardData;
 
   return (
     <div className="space-y-6">
@@ -144,32 +186,6 @@ const EmployeeDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Status do Sistema */}
-      <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
-        <CardHeader>
-          <CardTitle className="text-orange-800 dark:text-orange-200 flex items-center">
-            <Bell className="h-5 w-5 mr-2" />
-            Status do Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <p className="text-sm text-orange-700 dark:text-orange-300">
-              🟡 <strong>Backend Offline:</strong> O servidor está retornando erro 500 para todas as APIs do Portal do Funcionário.
-            </p>
-            <p className="text-sm text-orange-700 dark:text-orange-300">
-              📋 <strong>Funcionalidades Disponíveis:</strong> Navegação entre abas, interface do usuário.
-            </p>
-            <p className="text-sm text-orange-700 dark:text-orange-300">
-              ⚠️ <strong>Funcionalidades Indisponíveis:</strong> Carregamento de dados, registro de ponto, consultas.
-            </p>
-            <p className="text-sm text-orange-700 dark:text-orange-300">
-              🔧 <strong>Ação Necessária:</strong> Verificar os logs do backend e corrigir os erros 500 no EmployeePortalController.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
@@ -196,7 +212,7 @@ const EmployeeDashboard: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground text-center py-4">Nenhum holerite encontrado (Backend offline)</p>
+                <p className="text-muted-foreground text-center py-4">Nenhum holerite recente encontrado</p>
               )}
             </div>
           </CardContent>
@@ -214,15 +230,15 @@ const EmployeeDashboard: React.FC = () => {
               {unreadNotifications.length > 0 ? (
                 unreadNotifications.slice(0, 5).map((notification: any) => (
                   <div key={notification.id} className="p-3 border rounded border-border">
-                    <p className="font-medium text-foreground">{notification.title}</p>
-                    <p className="text-sm text-muted-foreground">{notification.message}</p>
+                    <p className="font-medium text-foreground">{notification.titulo || notification.title}</p>
+                    <p className="text-sm text-muted-foreground">{notification.descricao || notification.message}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(notification.createdAt).toLocaleDateString('pt-BR')}
+                      {notification.timestamp ? new Date(notification.timestamp).toLocaleDateString('pt-BR') : ''}
                     </p>
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground text-center py-4">Nenhuma notificação não lida (Backend offline)</p>
+                <p className="text-muted-foreground text-center py-4">Nenhuma notificação não lida</p>
               )}
             </div>
           </CardContent>
