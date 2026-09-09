@@ -203,11 +203,12 @@ public class GlobalExceptionHandler {
             }
         }
 
+        String errorMsg = (ex.getMessage() != null && !ex.getMessage().isBlank()) ? ex.getMessage() : "Erro interno do servidor. Tente novamente mais tarde.";
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .error("INTERNAL_SERVER_ERROR")
-                .message("Erro interno do servidor. Tente novamente mais tarde.")
+                .message(errorMsg)
                 .path(request.getDescription(false).replace("uri=", ""))
                 .build();
 

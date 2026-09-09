@@ -43,6 +43,12 @@ public class FleetWorkOrderController {
         return ResponseEntity.ok(service.getById(id));
     }
 
+    /** Lista os itens mestre de checklist ativo */
+    @GetMapping("/checklist-items")
+    public ResponseEntity<List<com.z7design.fleet_manager.dto.ChecklistItemDTO>> getChecklistMasterItems() {
+        return ResponseEntity.ok(service.getChecklistMasterItems());
+    }
+
     /** Cria nova OS */
     @PostMapping
     public ResponseEntity<FleetWorkOrderDTO> create(@RequestBody FleetWorkOrderDTO dto) {
@@ -73,11 +79,28 @@ public class FleetWorkOrderController {
         return ResponseEntity.ok(service.updateStatus(id, status));
     }
 
-    /** Exclui uma OS */
+    /** Exclui uma OS (soft-delete — RN10: bloqueia se status = COMPLETED) */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> delete(@PathVariable("id") UUID id) {
+        try {
+            service.delete(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /** Duplica uma OS gerando novo numero e status OPEN (PRD §25) */
+    @PostMapping("/{id}/duplicate")
+    public ResponseEntity<?> duplicate(@PathVariable("id") UUID id) {
+        try {
+            return ResponseEntity.ok(service.duplicate(id));
+        } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Erro ao duplicar Ordem de Servico: " + e.getMessage()));
+        }
     }
 
     /**
@@ -105,7 +128,7 @@ public class FleetWorkOrderController {
     }
 
     /** Gera o PDF da OS para impressão / entrega ao mecânico */
-    @GetMapping("/{id}/pdf")
+    @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> generatePdf(@PathVariable("id") UUID id) {
         try {
             byte[] pdfBytes = pdfService.generatePdf(id);
@@ -116,6 +139,10 @@ public class FleetWorkOrderController {
                     .body(pdfBytes);
         } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
             return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(FleetWorkOrderController.class)
+                    .error("Erro ao gerar PDF para Ordem de Serviço ID {}: ", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

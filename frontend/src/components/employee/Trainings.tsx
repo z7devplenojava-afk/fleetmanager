@@ -37,6 +37,8 @@ interface Training {
   progress: number;
 }
 
+import { trainingService } from '@/services/trainingService';
+
 const Trainings: React.FC = () => {
   const { toast } = useToast();
   const [trainings, setTrainings] = useState<Training[]>([]);
@@ -46,82 +48,6 @@ const Trainings: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [selectedTraining, setSelectedTraining] = useState<Training | null>(null);
 
-  // Dados mockados para funcionar offline
-  const mockTrainings: Training[] = [
-    {
-      id: '1',
-      title: 'Segurança no Trabalho',
-      description: 'Treinamento obrigatório sobre normas de segurança',
-      category: 'Segurança',
-      instructor: 'Dr. João Silva',
-      duration: 8,
-      startDate: '2024-06-01',
-      endDate: '2024-06-01',
-      status: 'COMPLETED',
-      completionDate: '2024-06-01',
-      certificateUrl: '#',
-      isMandatory: true,
-      nextRenewalDate: '2025-06-01',
-      progress: 100
-    },
-    {
-      id: '2',
-      title: 'Primeiros Socorros',
-      description: 'Atendimento de emergência e primeiros socorros',
-      category: 'Saúde',
-      instructor: 'Enf. Maria Santos',
-      duration: 4,
-      startDate: '2024-08-15',
-      endDate: '2024-08-15',
-      status: 'COMPLETED',
-      completionDate: '2024-08-15',
-      certificateUrl: '#',
-      isMandatory: true,
-      nextRenewalDate: '2025-08-15',
-      progress: 100
-    },
-    {
-      id: '3',
-      title: 'Direção Defensiva',
-      description: 'Técnicas de condução segura e prevenção de acidentes',
-      category: 'Operacional',
-      instructor: 'Instrutor Carlos',
-      duration: 6,
-      startDate: '2024-09-10',
-      endDate: '2024-09-10',
-      status: 'EXPIRING',
-      isMandatory: true,
-      nextRenewalDate: '2025-09-10',
-      progress: 100
-    },
-    {
-      id: '4',
-      title: 'Comunicação Efetiva',
-      description: 'Melhorando habilidades de comunicação no trabalho',
-      category: 'Soft Skills',
-      instructor: 'Prof. Ana Costa',
-      duration: 4,
-      startDate: '2024-11-01',
-      endDate: '2024-11-01',
-      status: 'IN_PROGRESS',
-      isMandatory: false,
-      progress: 60
-    },
-    {
-      id: '5',
-      title: 'Gestão de Tempo',
-      description: 'Técnicas para otimizar o uso do tempo',
-      category: 'Soft Skills',
-      instructor: 'Prof. Pedro Lima',
-      duration: 3,
-      startDate: '2024-12-01',
-      endDate: '2024-12-01',
-      status: 'PENDING',
-      isMandatory: false,
-      progress: 0
-    }
-  ];
-
   useEffect(() => {
     loadTrainings();
   }, []);
@@ -129,27 +55,50 @@ const Trainings: React.FC = () => {
   const loadTrainings = async () => {
     setLoading(true);
     try {
-      setTimeout(() => {
-        setTrainings(mockTrainings);
-        setLoading(false);
-      }, 500);
+      const data = await trainingService.getAllTrainings();
+      if (Array.isArray(data)) {
+        const mapped: Training[] = data.map((t: any) => ({
+          id: t.id || String(Math.random()),
+          title: t.title || t.titulo || 'Treinamento',
+          description: t.description || t.descricao || '',
+          category: t.category || t.categoria || 'Geral',
+          instructor: t.instructor || t.instrutor || 'Instrutor',
+          duration: t.duration || t.duracaoHoras || 0,
+          startDate: t.startDate || t.dataInicio || '',
+          endDate: t.endDate || t.dataFim || '',
+          status: (t.status || 'PENDING') as any,
+          completionDate: t.completionDate || t.dataConclusao,
+          certificateUrl: t.certificateUrl,
+          isMandatory: Boolean(t.isMandatory || t.obrigatorio),
+          nextRenewalDate: t.nextRenewalDate || t.proximaRenovacao,
+          progress: t.progress || t.progresso || 0
+        }));
+        setTrainings(mapped);
+      } else {
+        setTrainings([]);
+      }
     } catch (error) {
+      console.error('Erro ao carregar treinamentos:', error);
       toast({
-        title: 'Informação',
-        description: 'Backend offline - exibindo dados mockados',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
-      setTrainings(mockTrainings);
+      setTrainings([]);
+    } finally {
       setLoading(false);
     }
   };
 
   const handleViewCertificate = (training: Training) => {
-    toast({
-      title: 'Informação',
-      description: `Download simulado - Backend offline. Certificado: ${training.title}`,
-      variant: 'default',
-    });
+    if (training.certificateUrl) {
+      window.open(training.certificateUrl, '_blank');
+    } else {
+      toast({
+        title: 'Informação',
+        description: `Visualizando certificado do treinamento ${training.title}...`,
+      });
+    }
   };
 
   const handleViewDetails = (training: Training) => {
@@ -159,8 +108,7 @@ const Trainings: React.FC = () => {
   const handleStartTraining = (training: Training) => {
     toast({
       title: 'Informação',
-      description: `Iniciando treinamento: ${training.title} (Simulado - Backend offline)`,
-      variant: 'default',
+      description: `Iniciando treinamento: ${training.title}`,
     });
   };
 
@@ -235,21 +183,6 @@ const Trainings: React.FC = () => {
           <span>Novo Treinamento</span>
         </Button>
       </div>
-
-      {/* Status do Sistema */}
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="text-red-800 flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2" />
-            Status do Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-red-700">
-            🟡 <strong>Backend Offline:</strong> Funcionalidade simulada com dados mockados. Downloads e inscrições não funcionarão até que o backend esteja online.
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

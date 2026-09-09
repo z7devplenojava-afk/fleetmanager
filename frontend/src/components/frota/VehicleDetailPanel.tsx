@@ -13,6 +13,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
+import MaintenanceAlertWidget from '@/components/frota/MaintenanceAlertWidget';
 import fleetService from '@/services/fleetService';
 import fleetWorkOrderService, { FleetWorkOrder, VehicleMaintenanceRanking } from '@/services/fleetWorkOrderService';
 import tireService, { Tire } from '@/services/tireService';
@@ -452,6 +453,9 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
 
                 {/* ---------- VISÃO GERAL ---------- */}
                 <TabsContent value="overview" className="mt-4 space-y-5">
+                  {/* Próxima Manutenção — status dos planos preventivos */}
+                  <MaintenanceAlertWidget vehicleId={veiculo.id} onCreateOrder={() => setIsOsFormOpen(true)} />
+
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                     {/* Fotos */}
                     <div className="lg:col-span-2 space-y-5">

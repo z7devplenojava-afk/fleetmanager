@@ -729,7 +729,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     }
   }, [location.pathname, location.search]);
 
-  const getActiveId = () => {
+  const activeId = useMemo(() => {
     const path = location.pathname;
     const search = location.search;
     const fullPath = path + search;
@@ -775,9 +775,9 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     }
 
     return activeItem?.id || 'dashboard';
-  };
+  }, [location.pathname, location.search]);
 
-  const isActive = (id: string) => getActiveId() === id;
+  const isActive = useCallback((id: string) => activeId === id, [activeId]);
 
   return (
     <>

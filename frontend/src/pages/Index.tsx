@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,7 +42,8 @@ import {
   RefreshCw,
   CreditCard,
   Banknote,
-  MessageSquare
+  MessageSquare,
+  Truck
 } from 'lucide-react';
 import { getRoleDisplayName, getRoleColor } from '@/utils/permissions';
 import { dashboardService, DashboardSummary } from '@/services/dashboardService';

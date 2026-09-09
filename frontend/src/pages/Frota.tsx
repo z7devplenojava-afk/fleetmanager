@@ -175,6 +175,7 @@ const Frota: React.FC = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>('ALL');
+  const [maintenanceAlertFilter, setMaintenanceAlertFilter] = useState<string>('ALL');
   const [isVeiculoModalOpen, setIsVeiculoModalOpen] = useState(false);
   const [isVeiculoEditModalOpen, setIsVeiculoEditModalOpen] = useState(false);
   const [isAbastecimentoModalOpen, setIsAbastecimentoModalOpen] = useState(false);
@@ -1424,6 +1425,17 @@ const Frota: React.FC = () => {
                   <option value="SUV">🚙 SUV</option>
                   <option value="OTHER">❓ Outro</option>
                 </select>
+                <select
+                  value={maintenanceAlertFilter}
+                  onChange={(e) => setMaintenanceAlertFilter(e.target.value)}
+                  className="bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded-md px-3 py-2 text-sm focus:border-seguranca-yellow focus:ring-1 focus:ring-seguranca-yellow"
+                >
+                  <option value="ALL">🔧 Manutenção: Todas</option>
+                  <option value="OVERDUE">🔴 Vencida</option>
+                  <option value="UPCOMING">🟡 Próxima</option>
+                  <option value="OK">🟢 Em Dia</option>
+                  <option value="NO_SCHEDULE">⚪ Sem Plano</option>
+                </select>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -1456,6 +1468,7 @@ const Frota: React.FC = () => {
               veiculos={vehicles ? vehicles.map(mapVehicleToComponent) : []}
               searchTerm={searchTerm}
               vehicleTypeFilter={vehicleTypeFilter}
+              maintenanceAlertFilter={maintenanceAlertFilter}
               maintenances={maintenances}
               onRefresh={refetchVehicles}
               onEdit={handleVeiculoEdit}

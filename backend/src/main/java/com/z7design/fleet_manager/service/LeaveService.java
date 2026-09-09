@@ -23,12 +23,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class LeaveService {
     
-    @Autowired
-    private LeaveRepository leaveRepository;
+    private final LeaveRepository leaveRepository;
     private final UserRepository userRepository;
-    
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
     
     @Transactional
     public Leave create(Leave leave) {

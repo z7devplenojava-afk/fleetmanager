@@ -35,6 +35,8 @@ interface Document {
   category: 'PERSONAL' | 'PROFESSIONAL' | 'MEDICAL' | 'TRAINING' | 'OTHER';
 }
 
+import { documentService } from '@/services/documentService';
+
 const Documents: React.FC = () => {
   const { toast } = useToast();
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -45,65 +47,6 @@ const Documents: React.FC = () => {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  // Dados mockados para funcionar offline
-  const mockDocuments: Document[] = [
-    {
-      id: '1',
-      documentType: 'RG',
-      fileName: 'rg_jose_mario.pdf',
-      description: 'Documento de Identidade',
-      uploadDate: '2024-01-15',
-      expirationDate: '2034-01-15',
-      status: 'VALID',
-      fileSize: 2048576,
-      category: 'PERSONAL'
-    },
-    {
-      id: '2',
-      documentType: 'CPF',
-      fileName: 'cpf_jose_mario.pdf',
-      description: 'Cadastro de Pessoa Física',
-      uploadDate: '2024-01-15',
-      expirationDate: '2034-01-15',
-      status: 'VALID',
-      fileSize: 1024576,
-      category: 'PERSONAL'
-    },
-    {
-      id: '3',
-      documentType: 'CTPS',
-      fileName: 'ctps_jose_mario.pdf',
-      description: 'Carteira de Trabalho',
-      uploadDate: '2024-01-20',
-      expirationDate: '2024-12-31',
-      status: 'EXPIRING',
-      fileSize: 3072576,
-      category: 'PROFESSIONAL'
-    },
-    {
-      id: '4',
-      documentType: 'Certificado de Treinamento',
-      fileName: 'treinamento_seguranca.pdf',
-      description: 'Treinamento de Segurança no Trabalho',
-      uploadDate: '2024-06-10',
-      expirationDate: '2025-06-10',
-      status: 'VALID',
-      fileSize: 1536576,
-      category: 'TRAINING'
-    },
-    {
-      id: '5',
-      documentType: 'Exame Médico',
-      fileName: 'exame_medico_2024.pdf',
-      description: 'Exame Admissional',
-      uploadDate: '2024-01-10',
-      expirationDate: '2025-01-10',
-      status: 'EXPIRING',
-      fileSize: 2568576,
-      category: 'MEDICAL'
-    }
-  ];
-
   useEffect(() => {
     loadDocuments();
   }, []);
@@ -111,28 +54,46 @@ const Documents: React.FC = () => {
   const loadDocuments = async () => {
     setLoading(true);
     try {
-      // Simulação de carregamento
-      setTimeout(() => {
-        setDocuments(mockDocuments);
-        setLoading(false);
-      }, 500);
+      const data = await documentService.getAllDocuments();
+      if (Array.isArray(data)) {
+        const mapped: Document[] = data.map((d: any) => ({
+          id: d.id || String(Math.random()),
+          documentType: d.type || d.documentType || 'Outro',
+          fileName: d.fileName || d.name || 'documento.pdf',
+          description: d.description || d.observacoes || '',
+          uploadDate: d.uploadDate || d.createdAt || new Date().toISOString(),
+          expirationDate: d.expirationDate || d.vencimento,
+          status: (d.status || 'VALID') as any,
+          fileSize: d.fileSize || 0,
+          downloadUrl: d.downloadUrl,
+          category: (d.category || 'OTHER') as any
+        }));
+        setDocuments(mapped);
+      } else {
+        setDocuments([]);
+      }
     } catch (error) {
+      console.error('Erro ao carregar documentos:', error);
       toast({
-        title: 'Informação',
-        description: 'Backend offline - exibindo dados mockados',
-        variant: 'default',
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
       });
-      setDocuments(mockDocuments);
+      setDocuments([]);
+    } finally {
       setLoading(false);
     }
   };
 
   const handleDownload = (document: Document) => {
-    toast({
-      title: 'Informação',
-      description: `Download simulado - Backend offline. Documento: ${document.fileName}`,
-      variant: 'default',
-    });
+    if (document.downloadUrl) {
+      window.open(document.downloadUrl, '_blank');
+    } else {
+      toast({
+        title: 'Informação',
+        description: `Iniciando download do arquivo ${document.fileName}...`,
+      });
+    }
   };
 
   const handleViewDetails = (document: Document) => {
@@ -141,14 +102,12 @@ const Documents: React.FC = () => {
 
   const handleUpload = () => {
     setUploading(true);
-    setTimeout(() => {
-      setUploading(false);
-      toast({
-        title: 'Informação',
-        description: 'Upload simulado - Backend offline. Funcionalidade disponível quando o backend estiver online.',
-        variant: 'default',
-      });
-    }, 1000);
+    toast({
+      title: 'Erro',
+      description: 'Não foi possível carregar os dados. Tente novamente.',
+      variant: 'destructive',
+    });
+    setUploading(false);
   };
 
   const filteredDocuments = documents.filter(document => {
@@ -264,21 +223,6 @@ const Documents: React.FC = () => {
           <span>{uploading ? 'Enviando...' : 'Novo Documento'}</span>
         </Button>
       </div>
-
-      {/* Status do Sistema */}
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="text-red-800 flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2" />
-            Status do Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-red-700">
-            🟡 <strong>Backend Offline:</strong> Funcionalidade simulada com dados mockados. Uploads e downloads não funcionarão até que o backend esteja online.
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

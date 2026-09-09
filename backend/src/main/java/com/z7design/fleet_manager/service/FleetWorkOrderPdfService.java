@@ -4,6 +4,7 @@ import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.FleetWorkOrder;
 import com.z7design.fleet_manager.model.WorkOrderItem;
+import com.z7design.fleet_manager.model.WorkPost;
 import com.z7design.fleet_manager.repository.CompanyRepository;
 import com.z7design.fleet_manager.repository.FleetWorkOrderRepository;
 import com.z7design.fleet_manager.tenant.TenantContext;
@@ -61,8 +62,15 @@ public class FleetWorkOrderPdfService {
                 .orElseThrow(() -> new ResourceNotFoundException("FleetWorkOrder not found: " + workOrderId));
 
         // Inicializa coleções lazy dentro da transação
-        if (order.getItems() != null) {
-            order.getItems().size();
+        try {
+            if (order.getItems() != null) {
+                order.getItems().size();
+            }
+            if (order.getChecklistItems() != null) {
+                order.getChecklistItems().size();
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao inicializar coleções da OS {}: {}", workOrderId, e.getMessage());
         }
 
         Map<String, Object> data = buildDataMap(order);
@@ -94,13 +102,15 @@ public class FleetWorkOrderPdfService {
                 : "#" + (order.getId() != null ? order.getId().toString().split("-")[0] : "");
 
         data.put("osNumber", osNumber);
+        data.put("maintenanceType", order.getMaintenanceType() != null ? order.getMaintenanceType().name() : "CORRETIVA");
         data.put("dataEmissao", LocalDate.now().format(DATE_FMT));
         data.put("dataGeracao", LocalDateTime.now().format(DATETIME_FMT));
 
         // Identificação
         data.put("vehiclePlate", order.getVehicle() != null ? order.getVehicle().getPlate() : null);
         data.put("vehicleModel", order.getVehicle() != null ? order.getVehicle().getModel() : null);
-        data.put("planoManutencao", order.getPlan() != null && order.getPlan().getTaskName() != null
+        data.put("vehicleBrand", order.getVehicle() != null ? order.getVehicle().getBrand() : null);
+        data.put("planoManutencao", (order.getPlan() != null && order.getPlan().getTaskName() != null)
                 ? order.getPlan().getTaskName() : null);
         data.put("mechanicName", order.getMechanicName());
         data.put("mecanicoAssinatura", order.getMechanicName());
@@ -109,26 +119,91 @@ public class FleetWorkOrderPdfService {
         data.put("prioridade", formatPriority(order.getPriority()));
         data.put("dataPlanejada", order.getPlannedDate() != null ? order.getPlannedDate().format(DATE_FMT) : null);
         data.put("dataEntrada", order.getActualDate() != null ? order.getActualDate().format(DATE_FMT) : null);
-        data.put("dataEntregue", LocalDate.now().format(DATE_FMT));
+        data.put("dataEntregue", order.getExitDate() != null ? order.getExitDate().format(DATE_FMT) : LocalDate.now().format(DATE_FMT));
+        data.put("stopDate", order.getStopDate() != null ? order.getStopDate().format(DATE_FMT) : null);
+        data.put("stopTime", order.getStopTime());
+        data.put("exitDate", order.getExitDate() != null ? order.getExitDate().format(DATE_FMT) : null);
+        data.put("exitTime", order.getExitTime());
+        data.put("aggregateInfo", order.getAggregateInfo());
+
+        // Obra / Cliente
+        try {
+            WorkPost obra = order.getWorkPost();
+            if (obra == null && order.getVehicle() != null) {
+                obra = order.getVehicle().getWorkPostEntity();
+            }
+            if (obra != null) {
+                data.put("workPostName", obra.getName());
+                data.put("clientName", obra.getClient() != null ? obra.getClient().getName() : null);
+            } else {
+                data.put("workPostName", null);
+                data.put("clientName", null);
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao resolver Obra/Cliente da OS {}: {}", order.getId(), e.getMessage());
+            data.put("workPostName", null);
+            data.put("clientName", null);
+        }
+
         data.put("odometerIn", order.getOdometerIn() != null ? formatKm(order.getOdometerIn()) : null);
         data.put("odometerOut", order.getOdometerOut() != null ? formatKm(order.getOdometerOut()) : null);
         data.put("tempoParado", formatDowntime(order.getDowntimeHours(), order.getDowntimeDays()));
 
-        // Motivo da parada
+        // Descrições PRD
+        data.put("anomaliesDescription", order.getAnomaliesDescription());
+        data.put("otherDescription", order.getOtherDescription());
+        data.put("maintenancePerformed", order.getMaintenancePerformed());
         data.put("stopReason", order.getStopReason());
+
+        // Assinaturas
+        data.put("responsibleSignature", order.getResponsibleSignature());
+        data.put("responsibleSignatureDate", order.getResponsibleSignatureDate() != null ? order.getResponsibleSignatureDate().format(DATETIME_FMT) : null);
+        data.put("supervisorSignature", order.getSupervisorSignature());
+        data.put("supervisorSignatureDate", order.getSupervisorSignatureDate() != null ? order.getSupervisorSignatureDate().format(DATETIME_FMT) : null);
+
+        // Checklist Items (para OS Preventiva)
+        List<Map<String, Object>> checklistData = new ArrayList<>();
+        try {
+            if (order.getChecklistItems() != null) {
+                for (com.z7design.fleet_manager.model.FleetWorkOrderChecklist cItem : order.getChecklistItems()) {
+                    if (cItem == null) continue;
+                    Map<String, Object> cMap = new HashMap<>();
+                    String desc = "";
+                    String cat = "GERAL";
+                    if (cItem.getChecklistItem() != null) {
+                        desc = cItem.getChecklistItem().getDescricao() != null ? cItem.getChecklistItem().getDescricao() : "";
+                        cat = cItem.getChecklistItem().getCategoria() != null ? cItem.getChecklistItem().getCategoria() : "GERAL";
+                    }
+                    cMap.put("itemDescricao", desc);
+                    cMap.put("categoria", cat);
+                    cMap.put("situacao", cItem.getSituacao() != null ? cItem.getSituacao().name() : "OK");
+                    cMap.put("observacao", cItem.getObservacao());
+                    cMap.put("reparoRealizado", cItem.getReparoRealizado());
+                    checklistData.add(cMap);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao mapear itens de checklist da OS {}: {}", order.getId(), e.getMessage());
+        }
+        data.put("checklistItems", checklistData);
 
         // Itens
         List<Map<String, Object>> itens = new ArrayList<>();
-        if (order.getItems() != null) {
-            for (WorkOrderItem item : order.getItems()) {
-                Map<String, Object> itemMap = new HashMap<>();
-                itemMap.put("descricao", item.getDescription());
-                itemMap.put("tipo", item.getType() == WorkOrderItem.ItemType.LABOR ? "Serviço" : "Peça");
-                itemMap.put("quantidade", formatQuantity(item.getQuantity()));
-                itemMap.put("unitario", formatCurrency(item.getUnitPrice()));
-                itemMap.put("total", formatCurrency(item.getTotalPrice()));
-                itens.add(itemMap);
+        try {
+            if (order.getItems() != null) {
+                for (WorkOrderItem item : order.getItems()) {
+                    if (item == null) continue;
+                    Map<String, Object> itemMap = new HashMap<>();
+                    itemMap.put("descricao", item.getDescription());
+                    itemMap.put("tipo", item.getType() == WorkOrderItem.ItemType.LABOR ? "Serviço" : "Peça");
+                    itemMap.put("quantidade", formatQuantity(item.getQuantity()));
+                    itemMap.put("unitario", formatCurrency(item.getUnitPrice()));
+                    itemMap.put("total", formatCurrency(item.getTotalPrice()));
+                    itens.add(itemMap);
+                }
             }
+        } catch (Exception e) {
+            log.warn("Aviso ao mapear itens de peças/serviços da OS {}: {}", order.getId(), e.getMessage());
         }
         data.put("itens", itens);
 
@@ -141,12 +216,16 @@ public class FleetWorkOrderPdfService {
         data.put("observacoes", order.getNotes());
 
         // Empresa (nome/logo para o cabeçalho do PDF)
-        Company company = resolveCompany(order);
-        if (company != null) {
-            data.put("companyName", company.getName());
-            data.put("companyCnpj", CompanyDataFormatter.formatCnpjForHeader(company));
-            data.put("companyAddress", CompanyDataFormatter.formatFullAddress(company));
-            data.put("companyLogo", loadLogoAsDataUri(company.getLogoUrl()));
+        try {
+            Company company = resolveCompany(order);
+            if (company != null) {
+                data.put("companyName", company.getName());
+                data.put("companyCnpj", CompanyDataFormatter.formatCnpjForHeader(company));
+                data.put("companyAddress", CompanyDataFormatter.formatFullAddress(company));
+                data.put("companyLogo", loadLogoAsDataUri(company.getLogoUrl()));
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao resolver dados de empresa para PDF da OS {}: {}", order.getId(), e.getMessage());
         }
 
         return data;
@@ -157,18 +236,22 @@ public class FleetWorkOrderPdfService {
      * para o tenant da requisição atual (JWT).
      */
     private Company resolveCompany(FleetWorkOrder order) {
-        // 1º: empresa da própria OS; 2º: empresa do veículo; 3º: tenant da requisição (JWT)
-        UUID companyId = order.getCompanyId();
-        if (companyId == null && order.getVehicle() != null) {
-            companyId = order.getVehicle().getCompanyId();
-        }
-        if (companyId == null) {
-            companyId = TenantContext.get();
-        }
-        if (companyId == null) {
+        try {
+            UUID companyId = order.getCompanyId();
+            if (companyId == null && order.getVehicle() != null) {
+                companyId = order.getVehicle().getCompanyId();
+            }
+            if (companyId == null) {
+                companyId = TenantContext.get();
+            }
+            if (companyId == null) {
+                return null;
+            }
+            return companyRepository.findById(companyId).orElse(null);
+        } catch (Exception e) {
+            log.warn("Erro ao resolver empresa da OS {}: {}", order.getId(), e.getMessage());
             return null;
         }
-        return companyRepository.findById(companyId).orElse(null);
     }
 
     /**
@@ -254,10 +337,12 @@ public class FleetWorkOrderPdfService {
     private String formatStatus(FleetWorkOrder.WorkOrderStatus status) {
         if (status == null) return null;
         return switch (status) {
+            case OPEN -> "Aberta";
             case DRAFT -> "Rascunho";
             case PENDING_APPROVAL -> "Pendente Aprovação";
             case APPROVED -> "Aprovado";
             case IN_PROGRESS -> "Em Execução";
+            case WAITING_PARTS -> "Aguardando Peça";
             case COMPLETED -> "Concluído";
             case CANCELLED -> "Cancelado";
         };

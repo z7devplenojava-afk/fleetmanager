@@ -193,7 +193,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
       };
 
       // Apenas ADMINS podem alterar senha via UI de edição
-      if (isSuperAdmin && formData.password) {
+      if (isAdmin && formData.password) {
         updateData.password = formData.password;
       }
 
@@ -210,7 +210,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
     } catch (error: any) {
       toast({
         title: 'Erro!',
-        description: error.response?.data?.message || 'Erro ao atualizar usuário.',
+        description: error.response?.data?.error || error.response?.data?.message || 'Erro ao atualizar usuário.',
         variant: 'destructive',
       });
     } finally {
@@ -418,7 +418,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                   <Label htmlFor="company" className="text-seguranca-lightgray">
                     Empresa
                   </Label>
-                  {hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN') ? (
+                  {hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN') || hasRole('COMPANY_ADMIN') || hasRole('ADMIN') ? (
                     <Select
                       value={formData.companyId}
                       onValueChange={(value) => handleInputChange('companyId', value)}

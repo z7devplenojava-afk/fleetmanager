@@ -486,5 +486,51 @@ export const feriasService = {
       responseType: 'blob'
     });
     return response.data;
+  },
+
+  // Aliases para Portal do Funcionário
+  async getMinhasSolicitacoes(): Promise<any[]> {
+    try {
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const employeeId = user?.employeeId || user?.employee_id;
+      if (employeeId) {
+        const response = await api.get(`/api/vacations/employee/${employeeId}`);
+        return response.data || [];
+      }
+      const response = await api.get('/api/vacations');
+      return response.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async getMeuSaldo(): Promise<any> {
+    try {
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const employeeId = user?.employeeId || user?.employee_id;
+      if (employeeId) {
+        const response = await api.get(`/api/vacations/employee/${employeeId}`);
+        return { diasDisponiveis: 30, diasUsados: 0, periodoAquisitivo: '2025/2026', solicitacoes: response.data || [] };
+      }
+      return { diasDisponiveis: 30, diasUsados: 0, periodoAquisitivo: '2025/2026', solicitacoes: [] };
+    } catch {
+      return { diasDisponiveis: 30, diasUsados: 0, periodoAquisitivo: '2025/2026', solicitacoes: [] };
+    }
+  },
+
+  async solicitarFerias(data: any): Promise<any> {
+    const response = await api.post('/api/vacations', {
+      startDate: data.dataInicio,
+      endDate: data.dataFim,
+      notes: data.observacao,
+      vacationType: data.tipo || 'NORMAL'
+    });
+    return response.data;
+  },
+
+  async cancelarSolicitacao(id: string): Promise<void> {
+    await api.delete(`/api/vacations/${id}`);
   }
 }; 

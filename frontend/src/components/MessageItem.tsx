@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { User, Clock, ChevronDown, ChevronUp, ExternalLink, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { User, Clock, ChevronDown, ChevronUp, ExternalLink, AlertCircle, CheckCircle, Info, Wrench, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SystemMessage } from '@/stores/messageStore';
+import { getMessageAction } from '@/utils/messageActions';
+import { useNavigate } from 'react-router-dom';
 import '@/styles/notifications.css';
 
 interface MessageItemProps {
@@ -15,6 +17,8 @@ interface MessageItemProps {
     label: string;
   };
   isCompact?: boolean;
+  /** Chamado ao navegar pelo deep-link (ex: para fechar o sino) */
+  onNavigate?: () => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -22,10 +26,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onMarkAsRead,
   formatDate,
   getPriorityConfig,
-  isCompact = true
+  isCompact = true,
+  onNavigate
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const navigate = useNavigate();
   const priorityConfig = getPriorityConfig(message.priority);
+  const messageAction = getMessageAction(message);
 
   const handleClick = () => {
     if (message.status === 'UNREAD') {
@@ -77,15 +84,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <div className={`p-2 rounded-lg ${
-            message.status === 'UNREAD' 
+            message.rawType === 'NOTIFICATION'
+              ? 'bg-seguranca-red/20'
+              : message.status === 'UNREAD' 
               ? 'bg-seguranca-yellow/20' 
               : 'bg-gray-600/20'
           }`}>
-            <User className={`h-4 w-4 ${
-              message.status === 'UNREAD' 
-                ? 'text-seguranca-yellow' 
-                : 'text-gray-400'
-            }`} />
+            {message.rawType === 'NOTIFICATION' ? (
+              <Wrench className={`h-4 w-4 ${
+                message.status === 'UNREAD' ? 'text-seguranca-red' : 'text-gray-400'
+              }`} />
+            ) : (
+              <User className={`h-4 w-4 ${
+                message.status === 'UNREAD' 
+                  ? 'text-seguranca-yellow' 
+                  : 'text-gray-400'
+              }`} />
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-seguranca-lightgray text-base leading-tight mb-1">
@@ -194,6 +209,24 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         </div>
         
         <div className="flex items-center gap-2">
+          {messageAction && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (message.status === 'UNREAD') {
+                  onMarkAsRead(message.id);
+                }
+                onNavigate?.();
+                navigate(messageAction.to);
+              }}
+              className="h-7 px-2 text-[11px] font-semibold text-seguranca-yellow border-seguranca-yellow/40 hover:bg-seguranca-yellow/10"
+            >
+              {messageAction.label}
+              <ArrowRight className="h-3 w-3 ml-1" />
+            </Button>
+          )}
           {message.type === 'GLOBAL' && (
             <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-400 bg-blue-500/10">
               Global

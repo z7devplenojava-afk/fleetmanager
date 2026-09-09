@@ -3,6 +3,7 @@ package com.z7design.fleet_manager.service;
 import com.z7design.fleet_manager.dto.VehicleDTO;
 import com.z7design.fleet_manager.model.Vehicle;
 import com.z7design.fleet_manager.repository.VehicleRepository;
+import com.z7design.fleet_manager.security.TenantSecurityValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,27 +20,29 @@ import java.util.stream.Collectors;
 public class VehicleService {
     
     private final VehicleRepository vehicleRepository;
+    private final TenantSecurityValidator tenantSecurityValidator;
     
     @Transactional(readOnly = true)
     public List<VehicleDTO> getAllVehicles() {
-        log.debug("Buscando todos os veÃ­culos");
+        log.debug("Buscando todos os veículos");
         try {
             List<Vehicle> vehicles = vehicleRepository.findAll();
-            log.debug("Encontrados {} veÃ­culos", vehicles.size());
+            log.debug("Encontrados {} veículos", vehicles.size());
             return vehicles.stream()
                     .map(VehicleDTO::fromEntity)
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("Erro ao buscar veÃ­culos: ", e);
-            throw new RuntimeException("Erro ao buscar veÃ­culos: " + e.getMessage(), e);
+            log.error("Erro ao buscar veículos: ", e);
+            throw new RuntimeException("Erro ao buscar veículos: " + e.getMessage(), e);
         }
     }
     
     @Transactional(readOnly = true)
     public VehicleDTO getVehicleById(UUID id) {
-        log.debug("Buscando veÃ­culo por ID: {}", id);
+        log.debug("Buscando veículo por ID: {}", id);
         Vehicle vehicle = vehicleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("VeÃ­culo nÃ£o encontrado com ID: " + id));
+                .orElseThrow(() -> new RuntimeException("Veículo não encontrado com ID: " + id));
+        tenantSecurityValidator.validateTenantAccess(vehicle.getCompanyId());
         return VehicleDTO.fromEntity(vehicle);
     }
     
@@ -101,15 +104,16 @@ public class VehicleService {
     
     @Transactional
     public VehicleDTO updateVehicle(UUID id, VehicleDTO vehicleDTO) {
-        log.debug("Atualizando veÃ­culo ID: {}", id);
+        log.debug("Atualizando veículo ID: {}", id);
         try {
             Vehicle existingVehicle = vehicleRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("VeÃ­culo nÃ£o encontrado com ID: " + id));
+                    .orElseThrow(() -> new RuntimeException("Veículo não encontrado com ID: " + id));
+            tenantSecurityValidator.validateTenantAccess(existingVehicle.getCompanyId());
             
-            // Validar se a placa jÃ¡ existe em outro veÃ­culo
+            // Validar se a placa já existe em outro veículo
             if (!existingVehicle.getPlate().equals(vehicleDTO.getPlate()) && 
                 vehicleRepository.existsByPlate(vehicleDTO.getPlate())) {
-                throw new RuntimeException("JÃ¡ existe um veÃ­culo com a placa: " + vehicleDTO.getPlate());
+                throw new RuntimeException("Já existe um veículo com a placa: " + vehicleDTO.getPlate());
             }
             
             // Atualizar campos
@@ -173,17 +177,34 @@ public class VehicleService {
     
     @Transactional
     public void deleteVehicle(UUID id) {
-        log.debug("Excluindo veÃ­culo ID: {}", id);
+        log.debug("Excluindo veículo ID: {}", id);
         try {
             Vehicle vehicle = vehicleRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("VeÃ­culo nÃ£o encontrado com ID: " + id));
-            
-            vehicleRepository.delete(vehicle);
-            log.debug("VeÃ­culo excluÃ­do com sucesso: {}", id);
+                    .orElseThrow(() -> new RuntimeException("Veículo não encontrado com ID: " + id));
+            tenantSecurityValidator.validateTenantAccess(vehicle.getCompanyId());
+
+            // Soft delete: preserva histórico referenciado (abastecimentos,
+            // manutenções, multas, pneus, OSs) e evita violação de FK.
+            vehicleRepository.softDelete(id);
+            log.debug("Veículo excluído (soft delete) com sucesso: {}", id);
         } catch (Exception e) {
             log.error("Erro ao excluir veÃ­culo: ", e);
             throw new RuntimeException("Erro ao excluir veÃ­culo: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Exclusão em massa via soft delete. Retorna o número de veículos efetivamente
+     * excluídos (os demais: inexistentes ou já excluídos).
+     */
+    @Transactional
+    public int deleteVehicles(java.util.List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        int deleted = vehicleRepository.softDeleteAll(ids);
+        log.debug("Exclusão em massa: {} de {} veículo(s) marcado(s) como excluído(s)", deleted, ids.size());
+        return deleted;
     }
     
     @Transactional(readOnly = true)

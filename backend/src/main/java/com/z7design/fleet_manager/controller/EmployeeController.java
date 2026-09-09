@@ -35,6 +35,23 @@ public class EmployeeController {
     private final EmployeeService employeeService;
     private final EmployeeRecordPdfService employeeRecordPdfService;
     private final EmployeeExcelImportService employeeExcelImportService;
+    private final com.z7design.fleet_manager.service.EmployeePdfImportService employeePdfImportService;
+
+    @PostMapping(value = "/import-pdf", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Importar Ficha de Registro em PDF", description = "Importa um ou múltiplos funcionários e dados da empresa a partir de PDF da Ficha de Registro de Empregado")
+    public ResponseEntity<Object> importEmployeePdf(@RequestParam("file") MultipartFile file) {
+        try {
+            com.z7design.fleet_manager.service.EmployeePdfImportService.PdfImportResult result = employeePdfImportService.importEmployeeFromPdf(file);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("Erro ao importar PDF de funcionário: " + e.getMessage());
+            e.printStackTrace();
+            String msg = (e.getMessage() != null && !e.getMessage().isBlank()) ? e.getMessage() : e.getClass().getName();
+            java.util.Map<String, String> errorResponse = new java.util.HashMap<>();
+            errorResponse.put("error", msg);
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
     
     @GetMapping("/count")
     @Operation(summary = "Contar funcionÃ¡rios", description = "Retorna o nÃºmero total de funcionÃ¡rios")
@@ -375,7 +392,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "FuncionÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, noRollbackFor = com.z7design.fleet_manager.exception.ResourceNotFoundException.class)
     public ResponseEntity<Object> getById(@PathVariable("id") String id) {
         try {
             System.out.println("ðŸ” EmployeeController.getById - Buscando funcionÃ¡rio ID: " + id);
@@ -403,10 +420,14 @@ public class EmployeeController {
             return ResponseEntity.ok(dto);
             
         } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
-            System.err.println("âŒ FuncionÃ¡rio nÃ£o encontrado: " + id);
+            System.err.println("❌ Funcionário não encontrado: " + id);
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
-            System.err.println("âŒ EmployeeController.getById - Erro: " + e.getMessage());
+            if (e.getMessage() != null && (e.getMessage().contains("não encontrado") || e.getMessage().contains("not found"))) {
+                System.err.println("❌ Funcionário não encontrado: " + id);
+                return ResponseEntity.notFound().build();
+            }
+            System.err.println("❌ EmployeeController.getById - Erro: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(500).body(java.util.Map.of("error", e.getMessage()));
         }

@@ -56,7 +56,7 @@ import com.z7design.fleet_manager.tenant.TenantAware;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class User implements UserDetails, TenantAware {
 
     @Id

@@ -26,15 +26,17 @@ import com.z7design.fleet_manager.model.Department;
 
 import org.hibernate.annotations.Filter;
 import com.z7design.fleet_manager.tenant.TenantAware;
+import com.z7design.fleet_manager.tenant.TenantEntityListener;
 
 @Data
 @Entity
 @Table(name = "employees")
+@EntityListeners(TenantEntityListener.class)
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "documents", "benefits", "dependents", "timeRecords",
         "payrolls", "epis", "occurrences" })
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class Employee implements TenantAware {
 
     @Id
@@ -585,7 +587,42 @@ public class Employee implements TenantAware {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate afastamentoData;
 
-    // MÃ©todo para obter o nome completo do funcionÃ¡rio
+    // Campos Ficha de Registro de Empregado
+    @Column(name = "ativ_federal", length = 50)
+    private String ativFederal;
+
+    @Column(name = "numero_recibo", length = 50)
+    private String numeroRecibo;
+
+    @Column(name = "raca_cor", length = 30)
+    private String racaCor;
+
+    @Column(name = "sindicato", length = 100)
+    private String sindicato;
+
+    @Column(name = "organograma", length = 100)
+    private String organograma;
+
+    @Column(name = "modo_pagamento", length = 50)
+    private String modoPagamento;
+
+    @Column(name = "ctps_uf", length = 2)
+    private String ctpsUf;
+
+    @Column(name = "codigo_funcionario", length = 50)
+    private String codigoFuncionario;
+
+    @Column(name = "reservista_categoria", length = 50)
+    private String reservistaCategoria;
+
+    @Column(name = "registro_profissional", length = 50)
+    private String registroProfissional;
+
+    @Column(name = "data_registro_profissional")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate dataRegistroProfissional;
+
+    // Método para obter o nome completo do funcionário
     public String getFullName() {
         return this.name;
     }

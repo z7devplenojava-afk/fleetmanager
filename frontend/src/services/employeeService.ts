@@ -143,11 +143,13 @@ export const employeeService = {
    * Buscar funcionário por ID
    */
   async getEmployeeById(id: string): Promise<Employee | null> {
+    if (!id || id.startsWith('00000000-0000-0000-0000')) {
+      return null;
+    }
     try {
       const response = await api.get(`/api/employees/${id}`);
       return response.data;
     } catch (error) {
-      console.error('Erro ao buscar funcionário:', error);
       return null;
     }
   },
@@ -370,6 +372,28 @@ export const employeeService = {
     } catch (error: any) {
       console.error('Erro ao importar funcionários:', error);
       throw new Error(error.response?.data?.message || 'Erro ao importar funcionários');
+    }
+  },
+
+  /**
+   * Importar funcionários de PDF Ficha de Registro de Empregado (suporta múltiplos funcionários)
+   */
+  async importEmployeePdf(file: File): Promise<PdfImportResult> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await api.post('/api/employees/import-pdf', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 180000,
+      });
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Erro ao importar PDF da ficha de registro:', error);
+      throw new Error(error.response?.data?.error || error.response?.data?.message || 'Erro ao importar PDF da ficha de registro');
     }
   }
 };

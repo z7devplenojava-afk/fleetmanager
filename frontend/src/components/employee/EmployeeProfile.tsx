@@ -67,6 +67,8 @@ interface EmployeeProfile {
   };
 }
 
+import { employeeService } from '@/services/employeeService';
+
 const EmployeeProfile: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -76,69 +78,85 @@ const EmployeeProfile: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<EmployeeProfile | null>(null);
 
-  // Dados mockados para funcionar offline
-  const mockProfile: EmployeeProfile = {
-    id: user?.id || '1',
-    personalInfo: {
-      name: user?.name || 'Jose Mario Ramos',
-      email: user?.email || 'jose.ramos@empresa.com',
-      phone: '(11) 98765-4321',
-      cpf: '123.456.789-00',
-      rg: '12.345.678-9',
-      birthDate: '1985-05-15',
-      gender: 'Masculino',
-      maritalStatus: 'Casado',
-      address: {
-        street: 'Rua das Flores',
-        number: '123',
-        complement: 'Apto 45',
-        neighborhood: 'Centro',
-        city: 'São Paulo',
-        state: 'SP',
-        zipCode: '01234-567'
-      }
-    },
-    professionalInfo: {
-      position: 'Motorista',
-      department: 'Operacional',
-      admissionDate: '2020-03-15',
-      salary: 3500.00,
-      workSchedule: 'Segunda a Sexta - 08:00 às 17:00',
-      supervisor: 'João Silva',
-      employeeId: 'EMP001234'
-    },
-    bankingInfo: {
-      bank: 'Banco do Brasil',
-      agency: '1234-5',
-      account: '12345-6',
-      accountType: 'Corrente',
-      pixKey: 'jose.ramos@empresa.com'
-    },
-    emergencyContact: {
-      name: 'Maria Ramos',
-      phone: '(11) 91234-5678',
-      relationship: 'Esposa'
-    }
-  };
-
   useEffect(() => {
     loadProfile();
-  }, []);
+  }, [user?.id]);
 
   const loadProfile = async () => {
+    if (!user?.id) return;
     setLoading(true);
     try {
-      setTimeout(() => {
-        setProfile(mockProfile);
-        setLoading(false);
-      }, 500);
-    } catch (error) {
-      toast({
-        title: 'Informação',
-        description: 'Backend offline - exibindo dados mockados',
-        variant: 'default',
+      const data = await employeeService.getEmployeeById(user.id);
+      setProfile({
+        id: data?.id || user.id,
+        personalInfo: {
+          name: data?.name || user.name || 'Usuário',
+          email: data?.email || user.email || '',
+          phone: data?.phone || '',
+          cpf: data?.cpf || data?.document || '',
+          rg: '',
+          birthDate: data?.birthDate || '',
+          gender: '',
+          maritalStatus: '',
+          address: {
+            street: data?.address || '',
+            number: '',
+            complement: '',
+            neighborhood: '',
+            city: '',
+            state: '',
+            zipCode: ''
+          }
+        },
+        professionalInfo: {
+          position: (data as any)?.position?.name || user.role || 'Não informado',
+          department: (data as any)?.department?.name || 'Geral',
+          admissionDate: data?.hireDate || '',
+          salary: data?.salario || 0,
+          workSchedule: '',
+          supervisor: '',
+          employeeId: data?.registrationNumber || user.id
+        },
+        bankingInfo: {
+          bank: '',
+          agency: '',
+          account: '',
+          accountType: ''
+        },
+        emergencyContact: {
+          name: '',
+          phone: '',
+          relationship: ''
+        }
       });
-      setProfile(mockProfile);
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error);
+      setProfile({
+        id: user.id,
+        personalInfo: {
+          name: user.name || 'Usuário',
+          email: user.email || '',
+          phone: '',
+          cpf: '',
+          rg: '',
+          birthDate: '',
+          gender: '',
+          maritalStatus: '',
+          address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' }
+        },
+        professionalInfo: {
+          position: user.role || 'Não informado',
+          department: 'Geral',
+          admissionDate: '',
+          salary: 0,
+          workSchedule: '',
+          supervisor: '',
+          employeeId: user.id
+        },
+        bankingInfo: { bank: '', agency: '', account: '', accountType: '' },
+        emergencyContact: { name: '', phone: '', relationship: '' }
+      });
+    } finally {
       setLoading(false);
     }
   };
@@ -149,27 +167,32 @@ const EmployeeProfile: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!formData) return;
+    if (!formData || !user?.id) return;
 
     setSaving(true);
     try {
-      // Simulação de salvamento
-      setTimeout(() => {
-        setProfile(formData);
-        setEditing(false);
-        setSaving(false);
-        
-        toast({
-          title: 'Sucesso',
-          description: 'Perfil atualizado com sucesso (Simulado - Backend offline)',
-        });
-      }, 1000);
-    } catch (error) {
-      toast({
-        title: 'Informação',
-        description: 'Atualização simulada - Backend offline',
-        variant: 'default',
+      await employeeService.updateEmployee(user.id, {
+        name: formData.personalInfo.name,
+        email: formData.personalInfo.email,
+        phone: formData.personalInfo.phone,
+        cpf: formData.personalInfo.cpf,
+        address: formData.personalInfo.address?.street
       });
+      setProfile(formData);
+      setEditing(false);
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Perfil atualizado com sucesso!',
+      });
+    } catch (error) {
+      console.error('Erro ao salvar perfil:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
       setSaving(false);
     }
   };
@@ -250,20 +273,6 @@ const EmployeeProfile: React.FC = () => {
         </div>
       </div>
 
-      {/* Status do Sistema */}
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="text-muted-foreground flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2" />
-            Status do Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-red-700">
-            🟡 <strong>Backend Offline:</strong> Funcionalidade simulada com dados mockados. Alterações não serão salvas até que o backend esteja online.
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Personal Information */}
       <Card>

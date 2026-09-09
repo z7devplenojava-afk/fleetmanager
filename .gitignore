@@ -93,3 +93,10 @@ payslips_output/
 
 # Certificados self-signed da stack fluxbus (gerar localmente)
 fluxbus-nginx/certs/
+
+# Compiled bin
+backend/bin/
+backend/data/
+backend/nul
+scripts/_tmp_*
+*.log*
