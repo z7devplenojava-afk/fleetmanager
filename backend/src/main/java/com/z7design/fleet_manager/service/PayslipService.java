@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -2421,9 +2422,41 @@ public class PayslipService {
     }
 
     public Payslip getPayslipById(java.util.UUID id) {
-        log.info("ðŸ” Buscando payslip pelo ID: {}", id);
+        log.info("Buscando payslip pelo ID: {}", id);
         return payslipRepository.findById(id)
                 .orElse(null);
+    }
+
+    public java.util.List<Payslip> findByEmployeeIdAndDateRange(UUID employeeId, LocalDate startDate, LocalDate endDate) {
+        Optional<Employee> employeeOpt = employeeRepository.findById(employeeId);
+        if (employeeOpt.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        Employee employee = employeeOpt.get();
+        String cpf = employee.getDocument();
+        if (cpf == null || cpf.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        String normalizedCpf = cpf.replaceAll("[^0-9]", "");
+        return payslipRepository.findAllByCpf(normalizedCpf);
+    }
+
+    public byte[] generatePayslipPdf(UUID payslipId) {
+        Payslip payslip = getPayslipById(payslipId);
+        if (payslip == null) {
+            return new byte[0];
+        }
+        try {
+            if (payslip.getFileName() != null) {
+                java.nio.file.Path path = java.nio.file.Paths.get("uploads/holerites/" + payslip.getFileName());
+                if (java.nio.file.Files.exists(path)) {
+                    return java.nio.file.Files.readAllBytes(path);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Erro ao ler PDF do holerite {}: {}", payslipId, e.getMessage());
+        }
+        return new byte[0];
     }
 
     public Payslip getPayslipByFileName(String fileName) {

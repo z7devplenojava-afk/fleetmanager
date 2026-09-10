@@ -390,47 +390,6 @@ public class EmployeeService {
                 existingEmployee.setEscalaTrabalho(dto.getEscalaTrabalho());
             }
             
-            // Benefícios, descontos, horas extras e afastamento
-            if (dto.getMensalidadePlanoSaude() != null) {
-                existingEmployee.setMensalidadePlanoSaude(dto.getMensalidadePlanoSaude());
-            }
-            if (dto.getCoparticipacaoSaude() != null) {
-                existingEmployee.setCoparticipacaoSaude(dto.getCoparticipacaoSaude());
-            }
-            if (dto.getPlanoOdontologico() != null) {
-                existingEmployee.setPlanoOdontologico(dto.getPlanoOdontologico());
-            }
-            if (dto.getValeTransporte() != null) {
-                existingEmployee.setValeTransporte(dto.getValeTransporte());
-            }
-            if (dto.getDescontoMultas() != null) {
-                existingEmployee.setDescontoMultas(dto.getDescontoMultas());
-            }
-            if (dto.getDescontoAvarias() != null) {
-                existingEmployee.setDescontoAvarias(dto.getDescontoAvarias());
-            }
-            if (dto.getValeAdiantamento() != null) {
-                existingEmployee.setValeAdiantamento(dto.getValeAdiantamento());
-            }
-            if (dto.getAdicionalNoturno() != null) {
-                existingEmployee.setAdicionalNoturno(dto.getAdicionalNoturno());
-            }
-            if (dto.getHorasExtras50() != null) {
-                existingEmployee.setHorasExtras50(dto.getHorasExtras50());
-            }
-            if (dto.getHorasExtras60() != null) {
-                existingEmployee.setHorasExtras60(dto.getHorasExtras60());
-            }
-            if (dto.getHorasExtras100() != null) {
-                existingEmployee.setHorasExtras100(dto.getHorasExtras100());
-            }
-            if (dto.getAfastamentoMotivo() != null) {
-                existingEmployee.setAfastamentoMotivo(dto.getAfastamentoMotivo());
-            }
-            if (dto.getAfastamentoData() != null) {
-                existingEmployee.setAfastamentoData(dto.getAfastamentoData());
-            }
-            
             applyTerminationRules(existingEmployee, dto);
 
             // Atualizar timestamp
@@ -503,12 +462,13 @@ public class EmployeeService {
         });
     }
     
-    @Transactional(readOnly = true, noRollbackFor = ResourceNotFoundException.class)
+    @Transactional(readOnly = true)
     // Removido @Cacheable - entidade Employee tem relacionamentos circulares que causam problemas no Redis
     // O cache serÃ¡ aplicado apenas nos mÃ©todos que retornam DTOs
     public Employee findById(UUID id) {
         Employee employee = employeeRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+            .orElseGet(() -> employeeRepository.findByUserId(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id)));
         
         // ForÃ§ar inicializaÃ§Ã£o de relacionamentos LAZY para evitar LazyInitializationException
         try {
@@ -543,6 +503,12 @@ public class EmployeeService {
     
     public Optional<Employee> findByEmail(String email) {
         return employeeRepository.findByEmail(email);
+    }
+
+    @Transactional(readOnly = true)
+    public Employee findByUserId(UUID userId) {
+        return employeeRepository.findByUserId(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Employee not found for user id: " + userId));
     }
     
     public List<Employee> findByStatus(EmploymentStatus status) {
@@ -976,21 +942,6 @@ public class EmployeeService {
             e.setAssinaturaFuncionario(dto.getAssinaturaFuncionario());
             e.setDataRescisao(dto.getDataRescisao());
             
-            // Benefícios, descontos, horas extras e afastamento
-            e.setMensalidadePlanoSaude(dto.getMensalidadePlanoSaude());
-            e.setCoparticipacaoSaude(dto.getCoparticipacaoSaude());
-            e.setPlanoOdontologico(dto.getPlanoOdontologico());
-            e.setValeTransporte(dto.getValeTransporte());
-            e.setDescontoMultas(dto.getDescontoMultas());
-            e.setDescontoAvarias(dto.getDescontoAvarias());
-            e.setValeAdiantamento(dto.getValeAdiantamento());
-            e.setAdicionalNoturno(dto.getAdicionalNoturno());
-            e.setHorasExtras50(dto.getHorasExtras50());
-            e.setHorasExtras60(dto.getHorasExtras60());
-            e.setHorasExtras100(dto.getHorasExtras100());
-            e.setAfastamentoMotivo(dto.getAfastamentoMotivo());
-            e.setAfastamentoData(dto.getAfastamentoData());
-            
             // Setar entidades relacionais (agora opcionais)
             if (dto.getUser() != null && dto.getUser().getId() != null) {
                 e.setUser(userRepository.findById(dto.getUser().getId())
@@ -1250,21 +1201,6 @@ public class EmployeeService {
             dto.setVistoFiscalizacao(e.getVistoFiscalizacao());
             dto.setAssinaturaFuncionario(e.getAssinaturaFuncionario());
             dto.setDataRescisao(e.getDataRescisao());
-            
-            // Benefícios, descontos, horas extras e afastamento
-            dto.setMensalidadePlanoSaude(e.getMensalidadePlanoSaude());
-            dto.setCoparticipacaoSaude(e.getCoparticipacaoSaude());
-            dto.setPlanoOdontologico(e.getPlanoOdontologico());
-            dto.setValeTransporte(e.getValeTransporte());
-            dto.setDescontoMultas(e.getDescontoMultas());
-            dto.setDescontoAvarias(e.getDescontoAvarias());
-            dto.setValeAdiantamento(e.getValeAdiantamento());
-            dto.setAdicionalNoturno(e.getAdicionalNoturno());
-            dto.setHorasExtras50(e.getHorasExtras50());
-            dto.setHorasExtras60(e.getHorasExtras60());
-            dto.setHorasExtras100(e.getHorasExtras100());
-            dto.setAfastamentoMotivo(e.getAfastamentoMotivo());
-            dto.setAfastamentoData(e.getAfastamentoData());
             
             // Mapear dados bancÃ¡rios
             if (e.getBanco() != null || e.getAgencia() != null || e.getContaCorrente() != null) {

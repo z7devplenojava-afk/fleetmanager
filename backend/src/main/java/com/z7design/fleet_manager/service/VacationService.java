@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -176,5 +177,44 @@ public class VacationService {
         // TODO: Buscar o usuÃ¡rio atual do contexto de seguranÃ§a para setar approvedBy
         
         return vacationRepository.save(vacation);
+    }
+
+    @Transactional
+    public Vacation cancelVacation(UUID vacationId) {
+        Vacation vacation = vacationRepository.findById(vacationId)
+            .orElseThrow(() -> new ResourceNotFoundException("Solicitação de férias não encontrada"));
+        
+        vacation.setStatus(VacationStatus.CANCELLED);
+        vacation.setUpdatedAt(LocalDateTime.now());
+        
+        return vacationRepository.save(vacation);
+    }
+
+    public com.z7design.fleet_manager.dto.VacationBalanceDTO calculateBalance(UUID employeeId) {
+        List<Vacation> vacations = findByEmployeeId(employeeId);
+        
+        int totalDays = 30;
+        int usedDays = 0;
+        int daysInProgress = 0;
+        
+        for (Vacation v : vacations) {
+            if (v.getStatus() == VacationStatus.APPROVED || v.getStatus() == VacationStatus.PENDING) {
+                usedDays += v.getDaysTaken() != null ? v.getDaysTaken() : 0;
+            }
+            if (v.getStatus() == VacationStatus.PENDING) {
+                daysInProgress += v.getDaysTaken() != null ? v.getDaysTaken() : 0;
+            }
+        }
+        
+        int availableDays = Math.max(0, totalDays - usedDays);
+        
+        com.z7design.fleet_manager.dto.VacationBalanceDTO balance = new com.z7design.fleet_manager.dto.VacationBalanceDTO();
+        balance.setTotalDays(totalDays);
+        balance.setUsedDays(usedDays);
+        balance.setAvailableDays(availableDays);
+        balance.setDaysInProgress(daysInProgress);
+        balance.setPeriod(java.time.Year.now().getValue() + "/" + (java.time.Year.now().getValue() + 1));
+        
+        return balance;
     }
 } 
