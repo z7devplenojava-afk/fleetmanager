@@ -751,7 +751,7 @@ public class TimeRecordService {
     }
 
     public com.z7design.fleet_manager.dto.TimeBalanceDTO calculateBalance(UUID employeeId) {
-        UUID resolvedId = resolveEmployeeId(employeeId);
+        UUID resolvedId = employeeId;
         YearMonth currentMonth = YearMonth.now();
         LocalDate startDate = currentMonth.atDay(1);
         LocalDate endDate = currentMonth.atEndOfMonth();
