@@ -6,6 +6,11 @@ const api = axios.create({
   baseURL: getApiUrl(),
 });
 
+// Circuit breaker: enquanto "aberto", requisições falham imediatamente sem atacar o servidor
+// (evita retry storm quando a origem VPS está fora e o dashboard dispara dezenas de requests)
+let serverDownUntil = 0;
+const SERVER_DOWN_COOLDOWN_MS = 30000;
+
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
@@ -119,35 +124,41 @@ api.interceptors.response.use(
       return Promise.reject(createConnectionError(apiUrl, connectionCause));
     }
 
-    // Tratamento específico para erro 522 (Cloudflare timeout) com retry automático
-    if (error.response?.status === 522) {
+    // Tratamento unificado para 522/524 (Cloudflare: origem não responde) com circuit breaker global
+    // Enquanto o servidor estiver fora, novas requisições falham rápido (sem retry storm de dezenas de endpoints)
+    const status = error.response?.status;
+    if (status === 522 || status === 524) {
+      const now = Date.now();
+
+      // Circuito aberto: falha imediata sem tocar o servidor
+      if (serverDownUntil > now) {
+        const errorOrigin = new Error('O servidor está temporariamente indisponível. Aguarde alguns instantes e tente novamente.');
+        (errorOrigin as any).is522Error = true;
+        (errorOrigin as any).isConnectionError = true;
+        (errorOrigin as any).status = status;
+        return Promise.reject(errorOrigin);
+      }
+
       const originalRequest = error.config;
       const retryCount = (originalRequest as any).__retryCount || 0;
-      const maxRetries = 3;
+      const maxRetries = 2;
 
       if (retryCount < maxRetries) {
         (originalRequest as any).__retryCount = retryCount + 1;
-        const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Backoff exponencial: 1s, 2s, 4s
-
-        console.warn(`⚠️ Erro 522 (tentativa ${retryCount + 1}/${maxRetries}). Aguardando ${delay}ms antes de tentar novamente...`);
-
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 4000); // Backoff: 2s, 4s
+        console.warn(`⚠️ Erro ${status} (tentativa ${retryCount + 1}/${maxRetries}). Aguardando ${delay}ms antes de tentar novamente...`);
         await new Promise(resolve => setTimeout(resolve, delay));
-
-        // Tentar novamente a requisição
         return api(originalRequest);
-      } else {
-        const apiUrl = error.config?.baseURL || getApiUrl();
-        console.error('❌ Erro 522: Timeout do servidor (Cloudflare) após', maxRetries, 'tentativas');
-        console.error('❌ O servidor de origem não está respondendo:', apiUrl);
-        console.error('❌ Isso geralmente indica que o servidor está sobrecarregado ou inacessível');
-
-        // Criar erro customizado para erro 522
-        const error522 = new Error('O servidor está temporariamente indisponível. Por favor, tente novamente em alguns instantes.');
-        (error522 as any).is522Error = true;
-        (error522 as any).isConnectionError = true;
-        (error522 as any).status = 522;
-        return Promise.reject(error522);
       }
+
+      // Esgotou as tentativas: abre o circuito por 30s e falha rápido para todas as requisições
+      serverDownUntil = Date.now() + SERVER_DOWN_COOLDOWN_MS;
+      console.error('❌ Erro ' + status + ': origem (Cloudflare) não respondeu após ' + maxRetries + ' tentativas. Circuito aberto por ' + (SERVER_DOWN_COOLDOWN_MS / 1000) + 's.');
+      const errorOrigin = new Error('O servidor está temporariamente indisponível. Por favor, tente novamente em alguns instantes.');
+      (errorOrigin as any).is522Error = true;
+      (errorOrigin as any).isConnectionError = true;
+      (errorOrigin as any).status = status;
+      return Promise.reject(errorOrigin);
     }
 
     console.error('❌ Axios Response Error:', error.response?.status, error.config?.url);
