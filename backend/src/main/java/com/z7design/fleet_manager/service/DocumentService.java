@@ -104,6 +104,37 @@ public class DocumentService {
         return documentRepository.countBySignedFalse();
     }
     
+    public List<Document> findPendingDocumentsByEmployeeId(UUID employeeId) {
+        return documentRepository.findByEmployeeId(employeeId).stream()
+                .filter(d -> !d.getSigned())
+                .collect(java.util.stream.Collectors.toList());
+    }
+    
+    public byte[] downloadFile(UUID documentId) {
+        Document document = findById(documentId);
+        if (document.getFileUrl() != null && !document.getFileUrl().isEmpty()) {
+            try {
+                Path path = Paths.get(document.getFileUrl());
+                if (Files.exists(path)) {
+                    return Files.readAllBytes(path);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Erro ao ler arquivo do documento", e);
+            }
+        }
+        if (document.getFileName() != null && !document.getFileName().isEmpty()) {
+            try {
+                Path path = uploadPath.resolve(document.getFileName());
+                if (Files.exists(path)) {
+                    return Files.readAllBytes(path);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Erro ao ler arquivo do documento", e);
+            }
+        }
+        throw new RuntimeException("Arquivo do documento não encontrado");
+    }
+    
     public long countExpired() {
         return documentRepository.countByExpirationDateBefore(LocalDateTime.now());
     }
