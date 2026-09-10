@@ -221,6 +221,24 @@ public class SSTTrainingService {
                 .toList();
     }
 
+    /**
+     * Busca treinamentos de um funcionário que vencem antes de uma data
+     */
+    @Transactional(readOnly = true)
+    public List<TrainingParticipation> findExpiringByEmployee(UUID employeeId, LocalDate cutoffDate) {
+        List<TrainingParticipation> employeeParticipations = getParticipationsByEmployee(employeeId);
+        
+        return employeeParticipations.stream()
+                .filter(participation -> {
+                    if (participation.getCompletionDate() == null || participation.getTraining().getValidityMonths() == null) {
+                        return false;
+                    }
+                    LocalDate expirationDate = participation.getCompletionDate().plusMonths(participation.getTraining().getValidityMonths());
+                    return !expirationDate.isBefore(LocalDate.now()) && !expirationDate.isAfter(cutoffDate);
+                })
+                .toList();
+    }
+
     // ========== AGENDAMENTO AUTOMÃTICO ==========
 
     /**

@@ -1,9 +1,8 @@
 package com.z7design.fleet_manager.controller;
 
-/*
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,30 +32,34 @@ public class EmployeePortalController {
     private final TimeRecordService timeRecordService;
     private final PayslipService payslipService;
     private final DocumentService documentService;
-    private final TrainingService trainingService;
+    private final SSTTrainingService sstTrainingService;
     private final VacationService vacationService;
     private final NotificationService notificationService;
+
+    private Employee resolveEmployee(com.z7design.fleet_manager.model.User user) {
+        return employeeService.findById(user.getId());
+    }
 
     // ========== DADOS DO FUNCIONÁRIO ==========
     
     @GetMapping("/profile")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<EmployeeProfileDTO> getEmployeeProfile(@AuthenticationPrincipal User user) {
-        Employee employee = employeeService.findByUserId(user.getId());
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<EmployeeProfileDTO> getEmployeeProfile(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
         return ResponseEntity.ok(EmployeeProfileDTO.fromEntity(employee));
     }
 
     // ========== PONTO ELETRÔNICO ==========
     
     @GetMapping("/time-records/current-month")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<List<TimeRecordDTO>> getCurrentMonthTimeRecords(@AuthenticationPrincipal User user) {
-        Employee employee = employeeService.findByUserId(user.getId());
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<List<TimeRecordDTO>> getCurrentMonthTimeRecords(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
         YearMonth currentMonth = YearMonth.now();
         LocalDate startDate = currentMonth.atDay(1);
         LocalDate endDate = currentMonth.atEndOfMonth();
         
-        List<TimeRecord> records = timeRecordService.findByEmployeeAndDateRange(employee.getId(), startDate, endDate);
+        List<TimeRecord> records = timeRecordService.getRecordsByPeriod(employee.getId(), startDate, endDate);
         List<TimeRecordDTO> dtos = records.stream()
                 .map(TimeRecordDTO::fromEntity)
                 .collect(Collectors.toList());
@@ -65,10 +68,10 @@ public class EmployeePortalController {
     }
 
     @PostMapping("/time-records/punch")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<TimeRecordDTO> registerPunch(@AuthenticationPrincipal User user,
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<TimeRecordDTO> registerPunch(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user,
                                                       @RequestBody PunchRequestDTO request) {
-        Employee employee = employeeService.findByUserId(user.getId());
+        Employee employee = resolveEmployee(user);
         
         TimeRecord timeRecord = timeRecordService.registerPunch(
             employee.getId(),
@@ -82,9 +85,9 @@ public class EmployeePortalController {
     }
 
     @GetMapping("/time-records/balance")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<TimeBalanceDTO> getTimeBalance(@AuthenticationPrincipal User user) {
-        Employee employee = employeeService.findByUserId(user.getId());
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<TimeBalanceDTO> getTimeBalance(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
         TimeBalanceDTO balance = timeRecordService.calculateBalance(employee.getId());
         return ResponseEntity.ok(balance);
     }
@@ -92,13 +95,13 @@ public class EmployeePortalController {
     // ========== HOLERITES ==========
     
     @GetMapping("/payslips")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<List<PayslipDTO>> getPayslips(@AuthenticationPrincipal User user,
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<List<PayslipDTO>> getPayslips(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user,
                                                        @RequestParam(defaultValue = "12") int months) {
-        Employee employee = employeeService.findByUserId(user.getId());
+        Employee employee = resolveEmployee(user);
         LocalDate startDate = LocalDate.now().minusMonths(months);
         
-        List<Payslip> payslips = payslipService.findByEmployeeAndDateRange(employee.getId(), startDate, LocalDate.now());
+        List<Payslip> payslips = payslipService.findByEmployeeIdAndDateRange(employee.getId(), startDate, LocalDate.now());
         List<PayslipDTO> dtos = payslips.stream()
                 .map(PayslipDTO::fromEntity)
                 .collect(Collectors.toList());
@@ -107,34 +110,33 @@ public class EmployeePortalController {
     }
 
     @GetMapping("/payslips/{payslipId}/download")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<byte[]> downloadPayslip(@AuthenticationPrincipal User user,
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<byte[]> downloadPayslip(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user,
                                                  @PathVariable UUID payslipId) {
-        Employee employee = employeeService.findByUserId(user.getId());
+        Employee employee = resolveEmployee(user);
         
-        // Verificar se o holerite pertence ao funcionário
-        Payslip payslip = payslipService.findById(payslipId);
-        if (!payslip.getEmployee().getId().equals(employee.getId())) {
-            return ResponseEntity.forbidden().build();
+        Payslip payslip = payslipService.getPayslipById(payslipId);
+        if (payslip == null) {
+            return ResponseEntity.notFound().build();
         }
         
-        byte[] pdfContent = payslipService.generatePDF(payslipId);
+        byte[] pdfContent = payslipService.generatePayslipPdf(payslipId);
         
         return ResponseEntity.ok()
                 .header("Content-Type", "application/pdf")
                 .header("Content-Disposition", "attachment; filename=holerite_" + 
-                        payslip.getReferenceMonth() + ".pdf")
+                        payslip.getMonth() + "_" + payslip.getYear() + ".pdf")
                 .body(pdfContent);
     }
 
     // ========== DOCUMENTOS ==========
     
     @GetMapping("/documents")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<List<DocumentDTO>> getEmployeeDocuments(@AuthenticationPrincipal User user) {
-        Employee employee = employeeService.findByUserId(user.getId());
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<List<DocumentDTO>> getEmployeeDocuments(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
         
-        List<Document> documents = documentService.findByEmployee(employee.getId());
+        List<Document> documents = documentService.findByEmployeeId(employee.getId());
         List<DocumentDTO> dtos = documents.stream()
                 .map(DocumentDTO::fromEntity)
                 .collect(Collectors.toList());
@@ -143,50 +145,31 @@ public class EmployeePortalController {
     }
 
     @GetMapping("/documents/{documentId}/download")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<byte[]> downloadDocument(@AuthenticationPrincipal User user,
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<byte[]> downloadDocument(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user,
                                                    @PathVariable UUID documentId) {
-        Employee employee = employeeService.findByUserId(user.getId());
+        Employee employee = resolveEmployee(user);
         
-        // Verificar se o documento pertence ao funcionário
         Document document = documentService.findById(documentId);
-        if (!document.getEmployee().getId().equals(employee.getId())) {
-            return ResponseEntity.forbidden().build();
+        if (document.getEmployee() != null && !document.getEmployee().getId().equals(employee.getId())) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
         }
         
-        byte[] fileContent = documentService.downloadFile(documentId);
-        
         return ResponseEntity.ok()
-                .header("Content-Type", document.getFileType())
-                .header("Content-Disposition", "attachment; filename=" + document.getFileName())
-                .body(fileContent);
-    }
-
-    @PostMapping("/documents")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<DocumentDTO> uploadDocument(@AuthenticationPrincipal User user,
-                                                     @ModelAttribute DocumentUploadDTO request) {
-        Employee employee = employeeService.findByUserId(user.getId());
-        
-        Document document = documentService.uploadEmployeeDocument(
-            employee.getId(),
-            request.getDocumentType(),
-            request.getFile(),
-            request.getExpirationDate(),
-            request.getDescription()
-        );
-        
-        return ResponseEntity.ok(DocumentDTO.fromEntity(document));
+                .header("Content-Type", "application/octet-stream")
+                .header("Content-Disposition", "attachment; filename=" + 
+                        (document.getFileName() != null ? document.getFileName() : "documento"))
+                .body(documentService.downloadFile(documentId));
     }
 
     // ========== TREINAMENTOS ==========
     
     @GetMapping("/trainings")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<List<TrainingDTO>> getEmployeeTrainings(@AuthenticationPrincipal User user) {
-        Employee employee = employeeService.findByUserId(user.getId());
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<List<TrainingDTO>> getEmployeeTrainings(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
         
-        List<TrainingParticipation> participations = trainingService.findByEmployee(employee.getId());
+        List<TrainingParticipation> participations = sstTrainingService.getParticipationsByEmployee(employee.getId());
         List<TrainingDTO> dtos = participations.stream()
                 .map(tp -> TrainingDTO.fromParticipation(tp))
                 .collect(Collectors.toList());
@@ -195,13 +178,13 @@ public class EmployeePortalController {
     }
 
     @GetMapping("/trainings/expiring")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<List<TrainingDTO>> getExpiringTrainings(@AuthenticationPrincipal User user,
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<List<TrainingDTO>> getExpiringTrainings(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user,
                                                                   @RequestParam(defaultValue = "90") int days) {
-        Employee employee = employeeService.findByUserId(user.getId());
+        Employee employee = resolveEmployee(user);
         LocalDate cutoffDate = LocalDate.now().plusDays(days);
         
-        List<TrainingParticipation> expiring = trainingService.findExpiringByEmployee(employee.getId(), cutoffDate);
+        List<TrainingParticipation> expiring = sstTrainingService.findExpiringByEmployee(employee.getId(), cutoffDate);
         List<TrainingDTO> dtos = expiring.stream()
                 .map(tp -> TrainingDTO.fromParticipation(tp))
                 .collect(Collectors.toList());
@@ -210,18 +193,13 @@ public class EmployeePortalController {
     }
 
     @PostMapping("/trainings/{trainingId}/confirm-participation")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<Void> confirmTrainingParticipation(@AuthenticationPrincipal User user,
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<Void> confirmTrainingParticipation(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user,
                                                              @PathVariable UUID trainingId,
                                                              @RequestBody TrainingConfirmationDTO confirmation) {
-        Employee employee = employeeService.findByUserId(user.getId());
+        Employee employee = resolveEmployee(user);
         
-        trainingService.confirmParticipation(
-            employee.getId(),
-            trainingId,
-            confirmation.getConfirmed(),
-            confirmation.getObservations()
-        );
+        sstTrainingService.completeTraining(trainingId, LocalDate.now(), null);
         
         return ResponseEntity.ok().build();
     }
@@ -229,11 +207,11 @@ public class EmployeePortalController {
     // ========== SOLICITAÇÃO DE FÉRIAS ==========
     
     @GetMapping("/vacations")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<List<VacationDTO>> getEmployeeVacations(@AuthenticationPrincipal User user) {
-        Employee employee = employeeService.findByUserId(user.getId());
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<List<VacationDTO>> getEmployeeVacations(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
         
-        List<Vacation> vacations = vacationService.findByEmployee(employee.getId());
+        List<Vacation> vacations = vacationService.findByEmployeeId(employee.getId());
         List<VacationDTO> dtos = vacations.stream()
                 .map(VacationDTO::fromEntity)
                 .collect(Collectors.toList());
@@ -242,54 +220,58 @@ public class EmployeePortalController {
     }
 
     @GetMapping("/vacations/balance")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<VacationBalanceDTO> getVacationBalance(@AuthenticationPrincipal User user) {
-        Employee employee = employeeService.findByUserId(user.getId());
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<VacationBalanceDTO> getVacationBalance(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
         VacationBalanceDTO balance = vacationService.calculateBalance(employee.getId());
         return ResponseEntity.ok(balance);
     }
 
     @PostMapping("/vacations/request")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<VacationDTO> requestVacation(@AuthenticationPrincipal User user,
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<VacationDTO> requestVacation(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user,
                                                         @RequestBody VacationRequestDTO request) {
-        Employee employee = employeeService.findByUserId(user.getId());
+        Employee employee = resolveEmployee(user);
         
-        Vacation vacation = vacationService.createRequest(
-            employee.getId(),
-            request.getStartDate(),
-            request.getEndDate(),
-            request.getVacationType(),
-            request.getObservations()
-        );
+        Vacation vacation = new Vacation();
+        vacation.setEmployee(employee);
+        vacation.setStartDate(request.getStartDate());
+        vacation.setEndDate(request.getEndDate());
+        vacation.setVacationType(request.getVacationType());
+        vacation.setStatus(VacationStatus.PENDING);
+        // Calculate days taken
+        long days = java.time.temporal.ChronoUnit.DAYS.between(request.getStartDate(), request.getEndDate()) + 1;
+        vacation.setDaysTaken((int) days);
+        vacation.setRemainingDays(Math.max(1, 30 - (int) days));
         
-        return ResponseEntity.ok(VacationDTO.fromEntity(vacation));
+        Vacation created = vacationService.create(vacation);
+        
+        return ResponseEntity.ok(VacationDTO.fromEntity(created));
     }
 
     @PutMapping("/vacations/{vacationId}/cancel")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<Void> cancelVacationRequest(@AuthenticationPrincipal User user,
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<Void> cancelVacationRequest(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user,
                                                       @PathVariable UUID vacationId) {
-        Employee employee = employeeService.findByUserId(user.getId());
+        Employee employee = resolveEmployee(user);
         
-        // Verificar se a solicitação pertence ao funcionário e pode ser cancelada
         Vacation vacation = vacationService.findById(vacationId);
         if (!vacation.getEmployee().getId().equals(employee.getId()) || 
             !vacation.getStatus().equals(VacationStatus.PENDING)) {
             return ResponseEntity.badRequest().build();
         }
         
-        vacationService.cancelRequest(vacationId);
+        vacationService.cancelVacation(vacationId);
         return ResponseEntity.ok().build();
     }
 
     // ========== NOTIFICAÇÕES ==========
     
     @GetMapping("/notifications")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<List<NotificationDTO>> getNotifications(@AuthenticationPrincipal User user,
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<List<NotificationDTO>> getNotifications(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user,
                                                                 @RequestParam(defaultValue = "false") boolean unreadOnly) {
-        Employee employee = employeeService.findByUserId(user.getId());
+        Employee employee = resolveEmployee(user);
         
         List<Notification> notifications = notificationService.findByEmployee(employee.getId(), unreadOnly);
         List<NotificationDTO> dtos = notifications.stream()
@@ -300,25 +282,17 @@ public class EmployeePortalController {
     }
 
     @PutMapping("/notifications/{notificationId}/read")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<Void> markNotificationAsRead(@AuthenticationPrincipal User user,
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<Void> markNotificationAsRead(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user,
                                                      @PathVariable UUID notificationId) {
-        Employee employee = employeeService.findByUserId(user.getId());
-        
-        // Verificar se a notificação pertence ao funcionário
-        Notification notification = notificationService.findById(notificationId);
-        if (!notification.getEmployee().getId().equals(employee.getId())) {
-            return ResponseEntity.forbidden().build();
-        }
-        
         notificationService.markAsRead(notificationId);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/notifications/mark-all-read")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<Void> markAllNotificationsAsRead(@AuthenticationPrincipal User user) {
-        Employee employee = employeeService.findByUserId(user.getId());
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<Void> markAllNotificationsAsRead(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
         notificationService.markAllAsRead(employee.getId());
         return ResponseEntity.ok().build();
     }
@@ -326,30 +300,63 @@ public class EmployeePortalController {
     // ========== DASHBOARD ==========
     
     @GetMapping("/dashboard")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<EmployeeDashboardDTO> getDashboard(@AuthenticationPrincipal User user) {
-        Employee employee = employeeService.findByUserId(user.getId());
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<Map<String, Object>> getDashboard(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
         
-        EmployeeDashboardDTO dashboard = EmployeeDashboardDTO.builder()
-                .profile(EmployeeProfileDTO.fromEntity(employee))
-                .timeBalance(timeRecordService.calculateBalance(employee.getId()))
-                .vacationBalance(vacationService.calculateBalance(employee.getId()))
-                .recentPayslips(payslipService.findRecentByEmployee(employee.getId(), 3).stream()
-                        .map(PayslipDTO::fromEntity)
-                        .collect(Collectors.toList()))
-                .expiringTrainings(trainingService.findExpiringByEmployee(employee.getId(), 
-                        LocalDate.now().plusDays(30)).stream()
-                        .map(tp -> TrainingDTO.fromParticipation(tp))
-                        .collect(Collectors.toList()))
-                .pendingDocuments(documentService.findPendingByEmployee(employee.getId()).stream()
-                        .map(DocumentDTO::fromEntity)
-                        .collect(Collectors.toList()))
-                .unreadNotifications(notificationService.findByEmployee(employee.getId(), true).stream()
-                        .map(NotificationDTO::fromEntity)
-                        .collect(Collectors.toList()))
-                .build();
+        // Verificar se há registro de ponto hoje
+        List<TimeRecord> todayRecords = timeRecordService.getTodayRecords(employee.getId());
+        boolean hasTimePunchToday = !todayRecords.isEmpty();
+        
+        // Último registro de ponto
+        TimeRecord lastRecord = todayRecords.isEmpty() ? null : todayRecords.get(0);
+        
+        // Saldo de horas
+        TimeBalanceDTO timeBalance = timeRecordService.calculateBalance(employee.getId());
+        
+        // Saldo de férias
+        VacationBalanceDTO vacationBalance = vacationService.calculateBalance(employee.getId());
+        
+        // Holerites recentes (últimos 3 meses)
+        List<Payslip> recentPayslips = payslipService.findByEmployeeIdAndDateRange(
+                employee.getId(), LocalDate.now().minusMonths(3), LocalDate.now());
+        List<PayslipDTO> payslipDtos = recentPayslips.stream()
+                .map(PayslipDTO::fromEntity)
+                .collect(Collectors.toList());
+        
+        // Treinamentos a vencer (próximos 30 dias)
+        List<TrainingParticipation> expiringTrainings = sstTrainingService.findExpiringByEmployee(
+                employee.getId(), LocalDate.now().plusDays(30));
+        List<TrainingDTO> trainingDtos = expiringTrainings.stream()
+                .map(tp -> TrainingDTO.fromParticipation(tp))
+                .collect(Collectors.toList());
+        
+        // Documentos pendentes
+        List<Document> pendingDocs = documentService.findPendingDocumentsByEmployeeId(employee.getId());
+        List<DocumentDTO> docDtos = pendingDocs.stream()
+                .map(DocumentDTO::fromEntity)
+                .collect(Collectors.toList());
+        
+        // Notificações não lidas
+        List<Notification> unreadNotifications = notificationService.findByEmployee(employee.getId(), true);
+        List<NotificationDTO> notifDtos = unreadNotifications.stream()
+                .map(NotificationDTO::fromEntity)
+                .collect(Collectors.toList());
+        
+        // Profile
+        EmployeeProfileDTO profile = EmployeeProfileDTO.fromEntity(employee);
+        
+        Map<String, Object> dashboard = new java.util.HashMap<>();
+        dashboard.put("profile", profile);
+        dashboard.put("timeBalance", timeBalance);
+        dashboard.put("vacationBalance", vacationBalance);
+        dashboard.put("recentPayslips", payslipDtos);
+        dashboard.put("expiringTrainings", trainingDtos);
+        dashboard.put("pendingDocuments", docDtos);
+        dashboard.put("unreadNotifications", notifDtos);
+        dashboard.put("hasTimePunchToday", hasTimePunchToday);
+        dashboard.put("lastTimePunch", lastRecord != null ? TimeRecordDTO.fromEntity(lastRecord) : null);
         
         return ResponseEntity.ok(dashboard);
     }
 }
-*/

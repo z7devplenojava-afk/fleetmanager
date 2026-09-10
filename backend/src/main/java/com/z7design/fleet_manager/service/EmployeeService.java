@@ -467,7 +467,8 @@ public class EmployeeService {
     // O cache serÃ¡ aplicado apenas nos mÃ©todos que retornam DTOs
     public Employee findById(UUID id) {
         Employee employee = employeeRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+            .orElseGet(() -> employeeRepository.findByUserId(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id)));
         
         // ForÃ§ar inicializaÃ§Ã£o de relacionamentos LAZY para evitar LazyInitializationException
         try {
@@ -502,6 +503,12 @@ public class EmployeeService {
     
     public Optional<Employee> findByEmail(String email) {
         return employeeRepository.findByEmail(email);
+    }
+
+    @Transactional(readOnly = true)
+    public Employee findByUserId(UUID userId) {
+        return employeeRepository.findByUserId(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Employee not found for user id: " + userId));
     }
     
     public List<Employee> findByStatus(EmploymentStatus status) {
