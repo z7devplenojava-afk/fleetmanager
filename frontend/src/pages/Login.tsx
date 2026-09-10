@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, AlertTriangle, User, Shield, Building2 } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle, User, Shield, Building2, ChevronDown } from 'lucide-react';
 import SEO from '@/components/SEO';
 import Logo from '../components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { useGSAP } from '@/hooks/use-gsap';
 import { useToast } from '@/hooks/use-toast';
 import { EmpresaInfo } from '@/types/user';
+import api from '@/lib/axios';
 
 const Login = () => {
   useGSAP();
@@ -42,6 +43,9 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
 
   useEffect(() => {
     const savedUsername = localStorage.getItem('rememberedUsername');
@@ -51,6 +55,22 @@ const Login = () => {
       setUsername(savedUsername);
       setRememberMe(true);
     }
+  }, []);
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      setLoadingCompanies(true);
+      try {
+        const response = await api.get('/api/companies');
+        const data = Array.isArray(response.data) ? response.data : [];
+        setCompanies(data.map((c: any) => ({ id: c.id, name: c.name })));
+      } catch (err) {
+        console.warn('Não foi possível carregar empresas:', err);
+      } finally {
+        setLoadingCompanies(false);
+      }
+    };
+    fetchCompanies();
   }, []);
 
   useEffect(() => {
@@ -71,8 +91,7 @@ const Login = () => {
 
     setLoading(true);
     try {
-      // No Smart Login, o companyId não é mais obrigatório no frontend
-      await login(username, password);
+      await login(username, password, selectedCompanyId || undefined);
 
       if (rememberMe) {
         localStorage.setItem('rememberedUsername', username);
@@ -216,6 +235,31 @@ const Login = () => {
                   </button>
                 </div>
               </div>
+
+              {companies.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="company" className="text-xs font-bold uppercase tracking-tighter text-white/90 ml-1">
+                    Empresa
+                  </Label>
+                  <div className="relative group">
+                    <Building2 size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-primary transition-colors" />
+                    <select
+                      id="company"
+                      value={selectedCompanyId}
+                      onChange={(e) => setSelectedCompanyId(e.target.value)}
+                      className="h-14 w-full bg-black/40 border-white/10 focus:border-primary/50 focus:ring-primary/20 rounded-2xl pl-12 pr-10 transition-all font-medium text-white appearance-none cursor-pointer !bg-black/40 !text-white"
+                    >
+                      <option value="" className="bg-black text-white">Selecione a empresa</option>
+                      {companies.map((company) => (
+                        <option key={company.id} value={company.id} className="bg-black text-white">
+                          {company.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-between text-xs px-1">
                 <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setRememberMe(!rememberMe)}>
