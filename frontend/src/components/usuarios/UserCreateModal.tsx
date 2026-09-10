@@ -20,6 +20,7 @@ import { getRoleDisplayName, getRoleColor, USER_ROLE_LIST } from '@/utils/permis
 import { userService } from '@/services/userService';
 import { companyService } from '@/services/companyService';
 import { useToast } from '@/hooks/use-toast';
+import { extractApiErrorMessage } from '@/utils/apiError';
 
 interface UserCreateModalProps {
   isOpen: boolean;
@@ -157,9 +158,10 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
       onSave();
       onClose();
     } catch (error: any) {
+      console.error('Erro ao criar usuário:', error?.response?.status, error?.response?.data);
       toast({
         title: 'Erro!',
-        description: error.response?.data?.message || 'Erro ao criar usuário.',
+        description: extractApiErrorMessage(error, 'Erro ao criar usuário.'),
         variant: 'destructive',
       });
     } finally {

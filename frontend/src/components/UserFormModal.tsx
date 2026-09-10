@@ -24,6 +24,7 @@ import { userService, CreateUserRequest, UpdateUserRequest, User as UserType } f
 import { companyService } from '@/services/companyService';
 import { getRoleDisplayName, USER_ROLE_LIST } from '@/utils/permissions';
 import { useAuth } from '@/contexts/AuthContext';
+import { extractApiErrorMessage } from '@/utils/apiError';
 
 interface UserFormModalProps {
   isOpen: boolean;
@@ -151,6 +152,27 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
       return;
     }
 
+    // Mesma regra do backend: maiúscula + minúscula + número + especial (ou CPF@2025)
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^a-zA-Z0-9\s]).*$/;
+    const isCpfDefault = /^\d{11}@2025$/.test(formData.password);
+    if (formData.password && !isCpfDefault && !passwordRegex.test(formData.password)) {
+      toast({
+        title: "Erro",
+        description: "A senha deve conter pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (mode === 'create' && (!formData.roles || formData.roles.length === 0)) {
+      toast({
+        title: "Erro",
+        description: "Selecione pelo menos uma permissão (role).",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -199,10 +221,10 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Erro ao salvar usuário:', error);
+      console.error('Erro ao salvar usuário:', error?.response?.status, error?.response?.data);
       toast({
         title: "Erro",
-        description: error.response?.data?.message || "Não foi possível salvar o usuário.",
+        description: extractApiErrorMessage(error, "Não foi possível salvar o usuário."),
         variant: "destructive"
       });
     } finally {
