@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit, Trash2, Eye, Building2, Mail, Phone, MapPin, User, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, Eye, Building2, Mail, Phone, MapPin, User, Sparkles, TrendingUp, Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Client, ClientStatus } from '@/types/client';
+
+type SortField = 'name' | 'cnpj' | 'contactName' | 'status';
+type SortDirection = 'asc' | 'desc';
 
 interface ClientsTableProps {
   clients: Client[];
@@ -22,6 +25,53 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
   onView,
   isLoading = false
 }) => {
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedClients = useMemo(() => {
+    if (!clients || clients.length === 0) return [];
+    return [...clients].sort((a, b) => {
+      let valA = '';
+      let valB = '';
+      if (sortField === 'name') {
+        valA = a.name || '';
+        valB = b.name || '';
+      } else if (sortField === 'cnpj') {
+        valA = a.cnpj || '';
+        valB = b.cnpj || '';
+      } else if (sortField === 'contactName') {
+        valA = a.contactName || '';
+        valB = b.contactName || '';
+      } else if (sortField === 'status') {
+        valA = a.status || '';
+        valB = b.status || '';
+      }
+
+      const cmp = valA.localeCompare(valB, 'pt-BR', { sensitivity: 'base', numeric: true });
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [clients, sortField, sortDirection]);
+
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3.5 w-3.5 opacity-40 group-hover/head:opacity-100 transition-opacity" />;
+    }
+    return sortDirection === 'asc' ? (
+      <ArrowUp className="h-3.5 w-3.5 text-seguranca-yellow font-bold" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5 text-seguranca-yellow font-bold" />
+    );
+  };
+
   const getStatusBadge = (status: ClientStatus) => {
     const statusConfig = {
       [ClientStatus.ACTIVE]: { 
@@ -109,32 +159,60 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
         <div className="overflow-hidden">
           <Table className="w-full table-fixed">
           <TableHeader>
-            <TableRow className="bg-gradient-to-r from-seguranca-graphite/80 to-seguranca-black/60 hover:from-seguranca-graphite to-seguranca-black/80 border-gray-600/20">
-              <TableHead className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[30%]">
+            <TableRow className="bg-gradient-to-r from-seguranca-graphite/90 to-seguranca-black/80 hover:from-seguranca-graphite to-seguranca-black border-b border-gray-600/30">
+              <TableHead 
+                onClick={() => handleSort('name')}
+                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[30%] cursor-pointer select-none group/head hover:text-white transition-colors"
+                title="Clique para ordenar por Nome (A-Z / Z-A)"
+              >
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4" />
-                  Cliente
+                  <span>Cliente</span>
+                  {renderSortIcon('name')}
                 </div>
               </TableHead>
-              <TableHead className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[18%]">CNPJ</TableHead>
-              <TableHead className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[20%]">
+              <TableHead 
+                onClick={() => handleSort('cnpj')}
+                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[18%] cursor-pointer select-none group/head hover:text-white transition-colors"
+                title="Clique para ordenar por CNPJ"
+              >
+                <div className="flex items-center gap-2">
+                  <span>CNPJ</span>
+                  {renderSortIcon('cnpj')}
+                </div>
+              </TableHead>
+              <TableHead 
+                onClick={() => handleSort('contactName')}
+                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[20%] cursor-pointer select-none group/head hover:text-white transition-colors"
+                title="Clique para ordenar por Contato"
+              >
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Contato
+                  <span>Contato</span>
+                  {renderSortIcon('contactName')}
                 </div>
               </TableHead>
-              <TableHead className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[15%]">
+              <TableHead className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[15%] select-none">
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
                   Telefones
                 </div>
               </TableHead>
-              <TableHead className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[12%]">Status</TableHead>
+              <TableHead 
+                onClick={() => handleSort('status')}
+                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[12%] cursor-pointer select-none group/head hover:text-white transition-colors"
+                title="Clique para ordenar por Status"
+              >
+                <div className="flex items-center gap-2">
+                  <span>Status</span>
+                  {renderSortIcon('status')}
+                </div>
+              </TableHead>
               <TableHead className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[5%]">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {clients.map((client, index) => (
+            {sortedClients.map((client, index) => (
               <TableRow 
                 key={client.id}
                 className="border-gray-600/20 hover:bg-gradient-to-r hover:from-seguranca-black/40 hover:to-seguranca-graphite/20 transition-all duration-300 cursor-pointer group backdrop-blur-sm"
@@ -258,7 +336,35 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
 
       {/* Mobile View - Cards */}
       <div className="lg:hidden space-y-6">
-        {clients.map((client, index) => (
+        {/* Mobile Sort Control */}
+        <div className="flex items-center justify-between bg-seguranca-black/40 p-3 rounded-xl border border-gray-600/20 text-xs text-gray-400">
+          <span className="font-medium flex items-center gap-1.5">
+            <ArrowUpDown className="h-3.5 w-3.5 text-seguranca-yellow" />
+            Ordenar por:
+          </span>
+          <div className="flex items-center gap-2">
+            <select
+              value={sortField}
+              onChange={(e) => setSortField(e.target.value as SortField)}
+              className="bg-seguranca-graphite border border-gray-600/30 text-white rounded px-2 py-1 text-xs focus:outline-none focus:border-seguranca-red"
+            >
+              <option value="name">Nome (Cliente)</option>
+              <option value="cnpj">CNPJ</option>
+              <option value="contactName">Contato</option>
+              <option value="status">Status</option>
+            </select>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+              className="h-7 px-2 text-xs text-seguranca-yellow hover:bg-seguranca-graphite"
+            >
+              {sortDirection === 'asc' ? 'A-Z ↑' : 'Z-A ↓'}
+            </Button>
+          </div>
+        </div>
+
+        {sortedClients.map((client, index) => (
           <Card 
             key={client.id}
             className="bg-gradient-to-br from-seguranca-black/60 to-seguranca-graphite/30 border-gray-600/20 hover:border-seguranca-red/50 transition-all duration-500 overflow-hidden group cursor-pointer shadow-xl hover:shadow-2xl hover:shadow-seguranca-red/10 backdrop-blur-sm"
