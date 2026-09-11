@@ -26,6 +26,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,40 +49,68 @@ public class ClientObraImportService {
     private final VehicleRepository vehicleRepository;
     private final ContractRepository contractRepository;
     private final PlatformTransactionManager transactionManager;
+    private static final int BATCH_SIZE = 100;
+    private final AtomicInteger plateSeq = new AtomicInteger(1000);
+    private final AtomicInteger cnpjSeq = new AtomicInteger(10000);
+    private final AtomicInteger contractSeq = new AtomicInteger(1000);
 
     public ImportResultDto importFromExcel(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("O arquivo de importação está vazio ou não foi enviado.");
         }
 
+        long startTime = System.currentTimeMillis();
         ImportResultDto result = ImportResultDto.empty();
-        log.info("📥 Iniciando importação de QUADRO DE OBRAS: {}", file.getOriginalFilename());
+        log.info("📥 Iniciando importação otimizada de QUADRO DE OBRAS: {}", file.getOriginalFilename());
 
         try (InputStream is = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(is)) {
 
-            // Pré-carregar clientes existentes por nome
+            // Pré-carregar clientes existentes por nome e CNPJs
             Map<String, Client> existingClientsByName = new HashMap<>();
-            List<Client> allClients = clientRepository.findAll();
-            for (Client c : allClients) {
-                if (c.getName() != null) {
-                    existingClientsByName.put(normalizeText(c.getName()), c);
+            Set<String> usedCnpjs = new HashSet<>();
+            try {
+                List<Client> allClients = clientRepository.findAll();
+                for (Client c : allClients) {
+                    if (c.getName() != null) {
+                        existingClientsByName.put(normalizeText(c.getName()), c);
+                    }
+                    if (c.getCnpj() != null) {
+                        usedCnpjs.add(c.getCnpj().replaceAll("[^0-9]", ""));
+                    }
                 }
+            } catch (Exception e) {
+                log.warn("Aviso ao pré-carregar clientes: {}", e.getMessage());
             }
-            log.info("Pré-carregados {} clientes existentes.", existingClientsByName.size());
 
-            // Pré-carregar veículos existentes por placa
-            Map<String, Vehicle> existingVehiclesByPlate = new HashMap<>();
+            // Pré-carregar placas existentes
+            Set<String> usedPlates = new HashSet<>();
             try {
                 List<Vehicle> allVehicles = vehicleRepository.findAll();
                 for (Vehicle v : allVehicles) {
                     if (v.getPlate() != null) {
-                        existingVehiclesByPlate.put(v.getPlate().toUpperCase(), v);
+                        usedPlates.add(v.getPlate().toUpperCase().trim());
                     }
                 }
             } catch (Exception e) {
-                log.warn("Não foi possível pré-carregar veículos: {}", e.getMessage());
+                log.warn("Aviso ao pré-carregar veículos: {}", e.getMessage());
             }
+
+            // Pré-carregar números de contrato existentes
+            Set<String> usedContractNumbers = new HashSet<>();
+            try {
+                List<Contract> allContracts = contractRepository.findAll();
+                for (Contract c : allContracts) {
+                    if (c.getContractNumber() != null) {
+                        usedContractNumbers.add(c.getContractNumber().toUpperCase().trim());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Aviso ao pré-carregar contratos: {}", e.getMessage());
+            }
+
+            log.info("Pré-carregamento concluído: Clientes={}, Placas={}, CNPJs={}, Contratos={}",
+                    existingClientsByName.size(), usedPlates.size(), usedCnpjs.size(), usedContractNumbers.size());
 
             List<Client> clientsToInsert = new ArrayList<>();
             List<Client> clientsToUpdate = new ArrayList<>();
@@ -91,40 +120,29 @@ public class ClientObraImportService {
             Set<String> processedClientNames = new HashSet<>();
 
             int numberOfSheets = workbook.getNumberOfSheets();
-            log.info("Processando arquivo com {} aba(s)", numberOfSheets);
-
             for (int s = 0; s < numberOfSheets; s++) {
                 Sheet sheet = workbook.getSheetAt(s);
                 if (workbook.isSheetHidden(s) || sheet.getPhysicalNumberOfRows() == 0) continue;
 
-                log.info("Processando aba '{}'", sheet.getSheetName());
                 processSheet(sheet, result, existingClientsByName, processedClientNames,
+                        usedCnpjs, usedPlates, usedContractNumbers,
                         clientsToInsert, clientsToUpdate, vehiclesToInsert, contractsToInsert);
             }
 
-            // Persistir em lote
+            // Persistir em lotes com transação otimizada
             if (!clientsToInsert.isEmpty() || !clientsToUpdate.isEmpty() ||
                     !vehiclesToInsert.isEmpty() || !contractsToInsert.isEmpty()) {
 
-                log.info("Persistindo: {} clientes novos, {} atualizados, {} veículos, {} contratos",
+                log.info("Persistindo em lote: {} clientes novos, {} atualizados, {} veículos, {} contratos",
                         clientsToInsert.size(), clientsToUpdate.size(),
                         vehiclesToInsert.size(), contractsToInsert.size());
 
                 TransactionTemplate tt = new TransactionTemplate(transactionManager);
-                tt.execute(status -> {
-                    if (!clientsToInsert.isEmpty()) {
-                        clientRepository.saveAll(clientsToInsert);
-                    }
-                    if (!clientsToUpdate.isEmpty()) {
-                        clientRepository.saveAll(clientsToUpdate);
-                    }
-                    if (!vehiclesToInsert.isEmpty()) {
-                        vehicleRepository.saveAll(vehiclesToInsert);
-                    }
-                    if (!contractsToInsert.isEmpty()) {
-                        contractRepository.saveAll(contractsToInsert);
-                    }
-                    return null;
+                tt.executeWithoutResult(status -> {
+                    saveInChunks(clientsToInsert, clientRepository::saveAll);
+                    saveInChunks(clientsToUpdate, clientRepository::saveAll);
+                    saveInChunks(vehiclesToInsert, vehicleRepository::saveAll);
+                    saveInChunks(contractsToInsert, contractRepository::saveAll);
                 });
 
                 result.setInserted(clientsToInsert.size() + vehiclesToInsert.size() + contractsToInsert.size());
@@ -136,22 +154,31 @@ public class ClientObraImportService {
             result.getErrors().add("Falha ao ler arquivo: " + e.getMessage());
         }
 
-        log.info("✅ Importação concluída. Inseridos: {}, Atualizados: {}, Erros: {}",
-                result.getInserted(), result.getUpdated(), result.getErrors().size());
+        long elapsedTime = System.currentTimeMillis() - startTime;
+        log.info("✅ Importação concluída em {} ms. Inseridos: {}, Atualizados: {}, Erros: {}",
+                elapsedTime, result.getInserted(), result.getUpdated(), result.getErrors().size());
 
         return result;
+    }
+
+    private <T> void saveInChunks(List<T> items, java.util.function.Consumer<List<T>> saveFunction) {
+        if (items == null || items.isEmpty()) return;
+        for (int i = 0; i < items.size(); i += BATCH_SIZE) {
+            List<T> chunk = items.subList(i, Math.min(i + BATCH_SIZE, items.size()));
+            saveFunction.accept(chunk);
+        }
     }
 
     private void processSheet(Sheet sheet, ImportResultDto result,
                               Map<String, Client> existingClientsByName,
                               Set<String> processedClientNames,
+                              Set<String> usedCnpjs, Set<String> usedPlates, Set<String> usedContractNumbers,
                               List<Client> clientsToInsert, List<Client> clientsToUpdate,
                               List<Vehicle> vehiclesToInsert, List<Contract> contractsToInsert) {
 
         int lastRowNum = sheet.getLastRowNum();
         if (lastRowNum < 0) return;
 
-        // Encontrar linha de cabeçalho
         int headerRowIndex = -1;
         Map<Integer, String> columnMap = new HashMap<>();
 
@@ -173,8 +200,6 @@ public class ClientObraImportService {
             return;
         }
 
-        log.info("Cabeçalho encontrado na linha {}. Colunas: {}", headerRowIndex + 1, columnMap.values());
-
         for (int r = headerRowIndex + 1; r <= lastRowNum; r++) {
             Row row = sheet.getRow(r);
             if (row == null || isRowEmpty(row)) continue;
@@ -183,6 +208,7 @@ public class ClientObraImportService {
 
             try {
                 processRow(row, r + 1, columnMap, existingClientsByName, processedClientNames,
+                        usedCnpjs, usedPlates, usedContractNumbers,
                         clientsToInsert, clientsToUpdate, vehiclesToInsert, contractsToInsert, result);
             } catch (Exception e) {
                 log.error("Erro na linha {}: ", r + 1, e);
@@ -222,6 +248,7 @@ public class ClientObraImportService {
     private void processRow(Row row, int rowNum, Map<Integer, String> columnMap,
                             Map<String, Client> existingClientsByName,
                             Set<String> processedClientNames,
+                            Set<String> usedCnpjs, Set<String> usedPlates, Set<String> usedContractNumbers,
                             List<Client> clientsToInsert, List<Client> clientsToUpdate,
                             List<Vehicle> vehiclesToInsert, List<Contract> contractsToInsert,
                             ImportResultDto result) {
@@ -250,7 +277,6 @@ public class ClientObraImportService {
             }
         }
 
-        // Validar campo obrigatório
         if (clienteObra == null || clienteObra.isBlank()) {
             result.setSkipped(result.getSkipped() + 1);
             return;
@@ -258,7 +284,6 @@ public class ClientObraImportService {
 
         String normalizedName = normalizeText(clienteObra);
 
-        // Evitar duplicatas no arquivo
         if (processedClientNames.contains(normalizedName)) {
             result.setSkipped(result.getSkipped() + 1);
             return;
@@ -272,8 +297,7 @@ public class ClientObraImportService {
         if (client == null) {
             client = new Client();
             client.setName(truncateString(clienteObra, 255));
-            // CNPJ temporário baseado no nome (será atualizado depois)
-            String tempCnpj = generateTempCnpj(clienteObra);
+            String tempCnpj = generateUniqueCnpj(clienteObra, usedCnpjs);
             client.setCnpj(tempCnpj);
             client.setStatus(ClientStatus.ACTIVE);
             if (companyId != null) client.setCompanyId(companyId);
@@ -282,25 +306,22 @@ public class ClientObraImportService {
             }
             clientsToInsert.add(client);
             existingClientsByName.put(normalizedName, client);
-            log.info("Novo cliente: {}", clienteObra);
         } else {
-            // Atualizar notas se tem tipo de serviço
             if (tipoServico != null && client.getNotes() == null) {
                 client.setNotes("Serviços: " + truncateString(tipoServico, 500));
                 clientsToUpdate.add(client);
             }
         }
 
-        // 2. Determinar tipo de veículo baseado na descrição
+        // 2. Tipo de veículo
         Vehicle.VehicleType vehicleType = mapDescriptionToVehicleType(descricao);
         Vehicle.BusType busType = mapDescriptionToBusType(descricao);
 
-        // 3. Criar veículos alocados
-        int qty = (quantidade != null && quantidade > 0) ? quantidade : 1;
+        // 3. Criar veículos alocados (com limite de segurança de 100 por linha)
+        int qty = (quantidade != null && quantidade > 0) ? Math.min(quantidade, 100) : 1;
         for (int i = 0; i < qty; i++) {
             Vehicle vehicle = new Vehicle();
-            // Gerar placa temporária única
-            String tempPlate = generateTempPlate(clienteObra, i);
+            String tempPlate = generateUniquePlate(usedPlates);
             vehicle.setPlate(tempPlate);
             vehicle.setModel(descricao != null ? truncateString(descricao, 50) : "Não especificado");
             vehicle.setBrand("A definir");
@@ -315,7 +336,6 @@ public class ClientObraImportService {
             vehicle.setClientName(truncateString(clienteObra, 200));
             if (companyId != null) vehicle.setCompanyId(companyId);
 
-            // Alocar valor por veículo como marketValue
             if (valorPorVeiculo != null) {
                 vehicle.setMarketValue(valorPorVeiculo);
             }
@@ -323,15 +343,14 @@ public class ClientObraImportService {
             vehiclesToInsert.add(vehicle);
         }
 
-        // 4. Criar Contrato
+        // 4. Criar Contrato com número único garantido
         Contract contract = new Contract();
-        contract.setContractNumber(generateContractNumber(clienteObra));
+        contract.setContractNumber(generateUniqueContractNumber(clienteObra, usedContractNumbers));
         contract.setDescription("Contrato de prestação de serviços - " + truncateString(clienteObra, 450));
         contract.setClient(client);
         contract.setContractType(ContractType.LOCACAO_VEICULOS);
         contract.setStatus(ContractStatus.ACTIVE);
 
-        // Valor do contrato = valor mensal ou (valorPorVeiculo * quantidade)
         if (valorMensal != null && valorMensal.compareTo(BigDecimal.ZERO) > 0) {
             contract.setValue(valorMensal);
         } else if (valorPorVeiculo != null && qty > 0) {
@@ -340,7 +359,6 @@ public class ClientObraImportService {
             contract.setValue(BigDecimal.ZERO);
         }
 
-        // Parse vigência
         LocalDate[] dates = parseVigencia(vigencia);
         if (dates[0] != null) contract.setStartDate(dates[0]);
         if (dates[1] != null) contract.setEndDate(dates[1]);
@@ -350,10 +368,53 @@ public class ClientObraImportService {
         }
 
         contractsToInsert.add(contract);
+    }
 
-        result.setTotalRows(result.getTotalRows());
-        log.info("Linha {}: Cliente={}, Qtd={}, Tipo={}, Valor/Mês={}",
-                rowNum, clienteObra, qty, vehicleType, contract.getValue());
+    private String generateUniqueCnpj(String name, Set<String> usedCnpjs) {
+        int hash = Math.abs(name.hashCode()) % 10000000;
+        while (true) {
+            int seq = cnpjSeq.incrementAndGet();
+            String digits = String.format("99%07d%03d01", hash, seq % 1000);
+            if (digits.length() > 14) digits = digits.substring(0, 14);
+
+            String formatted = digits.substring(0, 2) + "." + digits.substring(2, 5) + "." +
+                    digits.substring(5, 8) + "/" + digits.substring(8, 12) + "-" + digits.substring(12, 14);
+
+            if (!usedCnpjs.contains(digits) && !usedCnpjs.contains(formatted)) {
+                usedCnpjs.add(digits);
+                usedCnpjs.add(formatted);
+                return formatted;
+            }
+        }
+    }
+
+    private String generateUniquePlate(Set<String> usedPlates) {
+        while (true) {
+            int seq = plateSeq.incrementAndGet();
+            String candidate;
+            if (seq < 9999) {
+                candidate = String.format("OBR%04d", seq);
+            } else {
+                candidate = String.format("OB%05d", seq % 100000);
+            }
+            candidate = candidate.toUpperCase();
+            if (!usedPlates.contains(candidate)) {
+                usedPlates.add(candidate);
+                return candidate;
+            }
+        }
+    }
+
+    private String generateUniqueContractNumber(String name, Set<String> usedContractNumbers) {
+        int year = LocalDate.now().getYear();
+        while (true) {
+            int seq = contractSeq.incrementAndGet();
+            String candidate = String.format("QO-%d-%06d", year, seq);
+            if (!usedContractNumbers.contains(candidate)) {
+                usedContractNumbers.add(candidate);
+                return candidate;
+            }
+        }
     }
 
     /**
