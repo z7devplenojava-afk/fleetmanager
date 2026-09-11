@@ -5,9 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Client, ClientStatus } from '@/types/client';
-import { MapPin, Phone, Mail, User, Building, Calendar, FileText, Briefcase, Loader2 } from 'lucide-react';
+import { MapPin, Phone, Mail, User, Building, Calendar, FileText, Briefcase, Truck, Loader2 } from 'lucide-react';
 import ClientWorkPostsTab from './ClientWorkPostsTab';
 import ClientContractsTab from './ClientContractsTab';
+import ClientVehiclesTab from './ClientVehiclesTab';
 
 interface ClientViewModalProps {
   isOpen: boolean;
@@ -67,12 +68,15 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
         <div className="space-y-6">
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-gray-100">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-gray-100 dark:bg-gray-800">
               <TabsTrigger value="dados" className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
                 <Building className="h-4 w-4 mr-1" /> Dados
               </TabsTrigger>
               <TabsTrigger value="postos" className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
                 <Briefcase className="h-4 w-4 mr-1" /> Postos / Obras
+              </TabsTrigger>
+              <TabsTrigger value="veiculos" className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
+                <Truck className="h-4 w-4 mr-1" /> Veículos Alocados
               </TabsTrigger>
               <TabsTrigger value="contratos" className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
                 <FileText className="h-4 w-4 mr-1" /> Contratos
@@ -229,6 +233,11 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
           {/* === TAB: POSTOS DE TRABALHO === */}
           <TabsContent value="postos" className="mt-4">
             <ClientWorkPostsTab clientId={client.id} clientName={client.name} />
+          </TabsContent>
+
+          {/* === TAB: VEÍCULOS ALOCADOS === */}
+          <TabsContent value="veiculos" className="mt-4">
+            <ClientVehiclesTab clientId={client.id} clientName={client.name} />
           </TabsContent>
 
           {/* === TAB: CONTRATOS === */}
