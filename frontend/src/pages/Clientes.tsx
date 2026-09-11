@@ -31,6 +31,7 @@ const Clientes: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<Client | undefined>();
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isImportObraModalOpen, setIsImportObraModalOpen] = useState(false);
+  const [showReportFilters, setShowReportFilters] = useState(false);
 
   const { toast } = useToast();
   useGSAP();
@@ -325,26 +326,16 @@ const Clientes: React.FC = () => {
               <FileSpreadsheet size={20} className="mr-2" />
               Importar Quadro de Obras
             </Button>
+            <Button 
+              variant="outline"
+              onClick={() => setShowReportFilters(!showReportFilters)}
+              className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 hover:border-blue-400"
+            >
+              <FileText size={20} className="mr-2" />
+              {showReportFilters ? 'Ocultar Relatórios' : 'Relatórios Avançados'}
+            </Button>
           </div>
         </div>
-
-        {/* Report Filters */}
-        <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-8 shadow-2xl backdrop-blur-sm" data-animate="fadeUp">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-500/30 shadow-lg shadow-blue-500/10">
-              <FileText className="h-6 w-6 text-blue-400" />
-            </div>
-            <div>
-              <h3 className="font-bold text-xl text-white mb-1">Relatórios Avançados</h3>
-              <p className="text-sm text-gray-400">Gere relatórios personalizados em PDF ou Excel</p>
-            </div>
-          </div>
-          
-          <ClientReportFilters 
-            onGenerate={handleGenerateReport}
-            isLoading={isGeneratingReport}
-          />
-        </Card>
 
         {/* Search Section */}
         <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-8 shadow-2xl backdrop-blur-sm mt-6" data-animate="fadeUp">
@@ -454,6 +445,26 @@ const Clientes: React.FC = () => {
             </div>
           )}
         </Card>
+
+        {/* Report Filters */}
+        {showReportFilters && (
+          <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-8 shadow-2xl backdrop-blur-sm mt-6" data-animate="fadeUp">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-500/30 shadow-lg shadow-blue-500/10">
+                <FileText className="h-6 w-6 text-blue-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-xl text-white mb-1">Relatórios Avançados</h3>
+                <p className="text-sm text-gray-400">Gere relatórios personalizados em PDF ou Excel</p>
+              </div>
+            </div>
+            
+            <ClientReportFilters 
+              onGenerate={handleGenerateReport}
+              isLoading={isGeneratingReport}
+            />
+          </Card>
+        )}
       </div>
 
       {/* Form Modal */}
