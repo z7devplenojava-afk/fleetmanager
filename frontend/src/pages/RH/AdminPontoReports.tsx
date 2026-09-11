@@ -36,8 +36,8 @@ const AdminPontoReports: React.FC = () => {
     format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
   );
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [departmentFilter, setDepartmentFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('__all__');
+  const [statusFilter, setStatusFilter] = useState('__all__');
 
   const loadRecords = useCallback(async () => {
     try {
@@ -45,8 +45,8 @@ const AdminPontoReports: React.FC = () => {
       const response = await timeRecordService.getAdminRecords({
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        department: departmentFilter || undefined,
-        status: statusFilter || undefined
+        department: departmentFilter === '__all__' ? undefined : departmentFilter,
+        status: statusFilter === '__all__' ? undefined : statusFilter
       });
       if (response.success) {
         setRecords(response.data);
@@ -202,7 +202,7 @@ const AdminPontoReports: React.FC = () => {
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="__all__">Todos</SelectItem>
                     <SelectItem value="Operacional">Operacional</SelectItem>
                     <SelectItem value="Administrativo">Administrativo</SelectItem>
                     <SelectItem value="Financeiro">Financeiro</SelectItem>
@@ -217,7 +217,7 @@ const AdminPontoReports: React.FC = () => {
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="__all__">Todos</SelectItem>
                     <SelectItem value="APPROVED">Aprovados</SelectItem>
                     <SelectItem value="PENDING">Pendentes</SelectItem>
                     <SelectItem value="REJECTED">Rejeitados</SelectItem>
