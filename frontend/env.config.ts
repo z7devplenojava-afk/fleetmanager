@@ -1,7 +1,7 @@
 // Configuration file for environment variables
 export const config = {
   // API Configuration
-  API_URL: import.meta.env.VITE_API_URL || 'https://ci.z7botsolutions.com.br/api',
+  API_URL: import.meta.env.VITE_API_URL || 'https://fluxbus.com.br/api',
   
   // Authentication
   TOKEN_KEY: import.meta.env.VITE_TOKEN_KEY || 'token',
@@ -12,6 +12,6 @@ export const config = {
   RECAPTCHA_SITE_KEY: import.meta.env.VITE_RECAPTCHA_SITE_KEY || '',
   
   // App Configuration
-  APP_NAME: import.meta.env.VITE_APP_NAME || 'SecuredGuard',
+  APP_NAME: import.meta.env.VITE_APP_NAME || 'FluxBus',
   APP_VERSION: import.meta.env.VITE_APP_VERSION || '1.0.0',
 } as const; 

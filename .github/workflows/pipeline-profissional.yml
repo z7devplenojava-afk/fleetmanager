@@ -155,22 +155,24 @@ jobs:
     needs: deploy-ci
     runs-on: ubuntu-latest
     steps:
-      - name: ⏳ Aguardar inicialização
-        run: sleep 60
-
-      - name: 🔍 Verificar Backend
+      - name: 🔍 Verificar Backend (com retries)
         id: health-check
-        uses: fjogeleit/http-request-action@v1
-        with:
-          url: 'https://api.ci.fluxbus.com.br/api/health'
-          method: 'GET'
-          timeout: 30000
-        continue-on-error: true
-
-      - name: ✅ Resultado do Health Check
-        if: ${{ steps.health-check.outcome == 'success' }}
         run: |
-          echo "✅ Ambiente CI saudável!"
+          echo "🔍 Testando https://api.ci.fluxbus.com.br/api/health com retries (até 3 minutos)..."
+          SUCCESS=0
+          for i in {1..18}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 10 https://api.ci.fluxbus.com.br/api/health || echo "000")
+            echo "Tentativa $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Ambiente CI saudável!"
+              SUCCESS=1
+              break
+            fi
+            sleep 10
+          done
+          if [ "$SUCCESS" -ne 1 ]; then
+            echo "::warning::Ambiente CI não retornou HTTP 200 dentro de 3 minutos."
+          fi
 
   approve-dev:
     name: 📋 Aprovação para Deploy em Dev
@@ -255,22 +257,24 @@ jobs:
     needs: deploy-dev
     runs-on: ubuntu-latest
     steps:
-      - name: ⏳ Aguardar inicialização
-        run: sleep 60
-
-      - name: 🔍 Verificar Backend
+      - name: 🔍 Verificar Backend (com retries)
         id: health-check
-        uses: fjogeleit/http-request-action@v1
-        with:
-          url: 'https://api.dev.fluxbus.com.br/api/health'
-          method: 'GET'
-          timeout: 30000
-        continue-on-error: true
-
-      - name: ✅ Resultado do Health Check
-        if: ${{ steps.health-check.outcome == 'success' }}
         run: |
-          echo "✅ Ambiente Dev saudável!"
+          echo "🔍 Testando https://api.dev.fluxbus.com.br/api/health com retries (até 3 minutos)..."
+          SUCCESS=0
+          for i in {1..18}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 10 https://api.dev.fluxbus.com.br/api/health || echo "000")
+            echo "Tentativa $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Ambiente Dev saudável!"
+              SUCCESS=1
+              break
+            fi
+            sleep 10
+          done
+          if [ "$SUCCESS" -ne 1 ]; then
+            echo "::warning::Ambiente Dev não retornou HTTP 200 dentro de 3 minutos."
+          fi
 
   approve-prod:
     name: 📋 Aprovação para Deploy em Produção
@@ -361,22 +365,24 @@ jobs:
     needs: deploy-prod
     runs-on: ubuntu-latest
     steps:
-      - name: ⏳ Aguardar inicialização
-        run: sleep 60
-
-      - name: 🔍 Verificar Backend
+      - name: 🔍 Verificar Backend (com retries)
         id: health-check
-        uses: fjogeleit/http-request-action@v1
-        with:
-          url: 'https://api.fluxbus.com.br/api/health'
-          method: 'GET'
-          timeout: 30000
-        continue-on-error: true
-
-      - name: ✅ Resultado do Health Check
-        if: ${{ steps.health-check.outcome == 'success' }}
         run: |
-          echo "✅ Ambiente Produção saudável!"
+          echo "🔍 Testando https://api.fluxbus.com.br/api/health com retries (até 3 minutos)..."
+          SUCCESS=0
+          for i in {1..18}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 10 https://api.fluxbus.com.br/api/health || echo "000")
+            echo "Tentativa $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Ambiente Produção saudável!"
+              SUCCESS=1
+              break
+            fi
+            sleep 10
+          done
+          if [ "$SUCCESS" -ne 1 ]; then
+            echo "::warning::Ambiente Produção não retornou HTTP 200 dentro de 3 minutos."
+          fi
 
   notify:
     name: 📢 Notificação Final

@@ -340,12 +340,48 @@ public class MeasurementController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir boletim", description = "Exclui um boletim do sistema")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Boletim excluÃ­do com sucesso"),
-            @ApiResponse(responseCode = "404", description = "Boletim nÃ£o encontrado"),
+            @ApiResponse(responseCode = "204", description = "Boletim excluído com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Boletim não encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         measurementService.deleteBulletin(UUID.fromString(id));
         return ResponseEntity.noContent().build();
+    }
+
+    // ===== PRD 1.0 - ENDPOINTS DE DOCUMENTOS FISCAIS (NFE / CTE) =====
+
+    @PostMapping("/{id}/invoices")
+    @Operation(summary = "Vincular NFE/CTE", description = "Vincular documento fiscal NFE ou CTE à medição")
+    public ResponseEntity<com.z7design.fleet_manager.dto.MeasurementInvoiceDTO> addInvoice(
+            @PathVariable("id") String id,
+            @RequestBody com.z7design.fleet_manager.dto.MeasurementInvoiceDTO dto) {
+        return ResponseEntity.ok(measurementService.saveInvoice(UUID.fromString(id), dto));
+    }
+
+    @GetMapping("/{id}/invoices")
+    @Operation(summary = "Listar NFE/CTE", description = "Retorna lista de documentos fiscais vinculados à medição")
+    public ResponseEntity<List<com.z7design.fleet_manager.dto.MeasurementInvoiceDTO>> getInvoices(
+            @PathVariable("id") String id) {
+        return ResponseEntity.ok(measurementService.getInvoices(UUID.fromString(id)));
+    }
+
+    // ===== PRD 1.0 - ENDPOINTS DE VERSIONAMENTO IMUTÁVEL =====
+
+    @PostMapping("/{id}/versions")
+    @Operation(summary = "Criar versão da medição", description = "Registra um snapshot JSON imutável da revisão da medição")
+    public ResponseEntity<com.z7design.fleet_manager.dto.MeasurementVersionDTO> createVersion(
+            @PathVariable("id") String id,
+            @RequestParam(value = "justification", required = false) String justification,
+            @RequestParam(value = "createdBy", required = false) String createdBy,
+            @RequestBody(required = false) String snapshotJson) {
+        return ResponseEntity.ok(measurementService.saveVersion(UUID.fromString(id), justification, createdBy, snapshotJson));
+    }
+
+    @GetMapping("/{id}/versions")
+    @Operation(summary = "Histórico de versões", description = "Retorna histórico de versões da medição")
+    public ResponseEntity<List<com.z7design.fleet_manager.dto.MeasurementVersionDTO>> getVersions(
+            @PathVariable("id") String id) {
+        return ResponseEntity.ok(measurementService.getVersions(UUID.fromString(id)));
     }
 }

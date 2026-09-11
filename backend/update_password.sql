@@ -1,1 +1,2 @@
-UPDATE users SET password = '$2a$10$KMDUWdI9t.09cP1crMCr4erbl1m8ZDnnhyvhIV6KYn45p0JA2QOLN2' WHERE username = 'jose.ramos';
+UPDATE users SET password = '$2b$10$XocoOdFAeCAVtZ0t13YjruW2ERTvADbP71h3h2aYkiMWNl5MvnVcG' WHERE username = 'jose.ramos';
+

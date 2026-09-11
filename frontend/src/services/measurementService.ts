@@ -245,5 +245,59 @@ export const measurementService = {
       console.error('Erro ao gerar conta a receber:', error);
       throw new Error('Falha ao gerar conta a receber');
     }
+  },
+
+  /**
+   * Vincular NFE ou CTE à medição (PRD 1.0)
+   */
+  async saveInvoice(bulletinId: string, invoiceData: any): Promise<any> {
+    try {
+      const response = await api.post(`/measurements/${bulletinId}/invoices`, invoiceData);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao vincular documento fiscal:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Listar NFE/CTE da medição (PRD 1.0)
+   */
+  async getInvoices(bulletinId: string): Promise<any[]> {
+    try {
+      const response = await api.get(`/measurements/${bulletinId}/invoices`);
+      return response.data || [];
+    } catch (error) {
+      console.error('Erro ao carregar documentos fiscais:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Criar versão imutável da medição (PRD 1.0)
+   */
+  async saveVersion(bulletinId: string, justification?: string, snapshotJson?: string): Promise<any> {
+    try {
+      const response = await api.post(`/measurements/${bulletinId}/versions`, snapshotJson, {
+        params: { justification }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao salvar versão da medição:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Histórico de versões da medição (PRD 1.0)
+   */
+  async getVersions(bulletinId: string): Promise<any[]> {
+    try {
+      const response = await api.get(`/measurements/${bulletinId}/versions`);
+      return response.data || [];
+    } catch (error) {
+      console.error('Erro ao carregar histórico de versões:', error);
+      return [];
+    }
   }
 }; 
