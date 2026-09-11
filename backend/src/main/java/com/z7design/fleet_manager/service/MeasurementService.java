@@ -37,6 +37,29 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.ArrayList;
 
+import com.z7design.fleet_manager.model.*;
+import com.z7design.fleet_manager.repository.*;
+import com.z7design.fleet_manager.dto.*;
+import com.z7design.fleet_manager.model.enums.MeasurementStatus;
+import com.z7design.fleet_manager.model.enums.MeasurementCategory;
+import com.z7design.fleet_manager.exception.ResourceNotFoundException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.hibernate.Hibernate;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -52,6 +75,16 @@ public class MeasurementService {
     private final CostCenterRepository costCenterRepository;
     private final WorkPostRepository workPostRepository;
     private final AccountsReceivableRepository accountsReceivableRepository;
+
+    // PRD 1.0 - Repositórios e Motor de Cálculo
+    private final MeasurementContractRepository measurementContractRepository;
+    private final MeasurementContractPriceRepository measurementContractPriceRepository;
+    private final MeasurementPointingRepository measurementPointingRepository;
+    private final MeasurementCutRepository measurementCutRepository;
+    private final MeasurementSurplusRepository measurementSurplusRepository;
+    private final MeasurementInvoiceRepository measurementInvoiceRepository;
+    private final MeasurementVersionRepository measurementVersionRepository;
+    private final MeasurementCalculationEngine calculationEngine;
 
     private void performBusinessCalculations(MeasurementBulletin bulletin) {
         if (bulletin.getItems() == null || bulletin.getItems().isEmpty()) {
@@ -740,5 +773,91 @@ public class MeasurementService {
         return bulletinRepository.findByContractNumber(contractNumber).stream()
                 .map(MeasurementBulletinDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    // ===== PRD 1.0 - VÍNCULO DE NFE / CTE =====
+    public MeasurementInvoiceDTO saveInvoice(UUID bulletinId, MeasurementInvoiceDTO dto) {
+        MeasurementBulletin bulletin = bulletinRepository.findById(bulletinId)
+                .orElseThrow(() -> new ResourceNotFoundException("Boletim de medição não encontrado: " + bulletinId));
+
+        MeasurementInvoice invoice = new MeasurementInvoice();
+        invoice.setBulletin(bulletin);
+        invoice.setInvoiceType(dto.getInvoiceType());
+        invoice.setNumber(dto.getNumber());
+        invoice.setSeries(dto.getSeries());
+        invoice.setAccessKey(dto.getAccessKey());
+        invoice.setIssueDate(dto.getIssueDate());
+        invoice.setAmount(dto.getAmount());
+        invoice.setIssuerName(dto.getIssuerName());
+        invoice.setStatus("VINCULADO");
+        invoice.setXmlUrl(dto.getXmlUrl());
+        invoice.setPdfUrl(dto.getPdfUrl());
+
+        MeasurementInvoice saved = measurementInvoiceRepository.save(invoice);
+        dto.setId(saved.getId());
+        dto.setBulletinId(bulletinId);
+        return dto;
+    }
+
+    public List<MeasurementInvoiceDTO> getInvoices(UUID bulletinId) {
+        return measurementInvoiceRepository.findByBulletinId(bulletinId).stream()
+                .map(inv -> {
+                    MeasurementInvoiceDTO dto = new MeasurementInvoiceDTO();
+                    dto.setId(inv.getId());
+                    dto.setBulletinId(inv.getBulletin().getId());
+                    dto.setInvoiceType(inv.getInvoiceType());
+                    dto.setNumber(inv.getNumber());
+                    dto.setSeries(inv.getSeries());
+                    dto.setAccessKey(inv.getAccessKey());
+                    dto.setIssueDate(inv.getIssueDate());
+                    dto.setAmount(inv.getAmount());
+                    dto.setIssuerName(inv.getIssuerName());
+                    dto.setStatus(inv.getStatus());
+                    dto.setXmlUrl(inv.getXmlUrl());
+                    dto.setPdfUrl(inv.getPdfUrl());
+                    return dto;
+                }).collect(Collectors.toList());
+    }
+
+    // ===== PRD 1.0 - VERSIONAMENTO IMUTÁVEL =====
+    public MeasurementVersionDTO saveVersion(UUID bulletinId, String justification, String createdBy, String snapshotJson) {
+        MeasurementBulletin bulletin = bulletinRepository.findById(bulletinId)
+                .orElseThrow(() -> new ResourceNotFoundException("Boletim de medição não encontrado: " + bulletinId));
+
+        List<MeasurementVersion> existing = measurementVersionRepository.findByBulletinIdOrderByVersionNumberDesc(bulletinId);
+        int nextVersionNumber = existing.isEmpty() ? 1 : existing.get(0).getVersionNumber() + 1;
+
+        MeasurementVersion version = new MeasurementVersion();
+        version.setBulletin(bulletin);
+        version.setVersionNumber(nextVersionNumber);
+        version.setSnapshotJson(snapshotJson != null ? snapshotJson : "{}");
+        version.setJustification(justification);
+        version.setCreatedBy(createdBy);
+
+        MeasurementVersion saved = measurementVersionRepository.save(version);
+        MeasurementVersionDTO dto = new MeasurementVersionDTO();
+        dto.setId(saved.getId());
+        dto.setBulletinId(bulletinId);
+        dto.setVersionNumber(saved.getVersionNumber());
+        dto.setSnapshotJson(saved.getSnapshotJson());
+        dto.setJustification(saved.getJustification());
+        dto.setCreatedBy(saved.getCreatedBy());
+        dto.setCreatedAt(saved.getCreatedAt());
+        return dto;
+    }
+
+    public List<MeasurementVersionDTO> getVersions(UUID bulletinId) {
+        return measurementVersionRepository.findByBulletinIdOrderByVersionNumberDesc(bulletinId).stream()
+                .map(v -> {
+                    MeasurementVersionDTO dto = new MeasurementVersionDTO();
+                    dto.setId(v.getId());
+                    dto.setBulletinId(v.getBulletin().getId());
+                    dto.setVersionNumber(v.getVersionNumber());
+                    dto.setSnapshotJson(v.getSnapshotJson());
+                    dto.setJustification(v.getJustification());
+                    dto.setCreatedBy(v.getCreatedBy());
+                    dto.setCreatedAt(v.getCreatedAt());
+                    return dto;
+                }).collect(Collectors.toList());
     }
 }

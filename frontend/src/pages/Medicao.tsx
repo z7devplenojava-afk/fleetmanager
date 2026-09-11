@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,11 +45,15 @@ import { SimplifiedMeasurementModal } from '@/components/financeiro/SimplifiedMe
 import { MeasurementValidationModal } from '@/components/financeiro/MeasurementValidationModal';
 import { MeasurementDeleteDialog } from '@/components/financeiro/MeasurementDeleteDialog';
 import { MeasurementViewModal } from '@/components/financeiro/MeasurementViewModal';
+import { MeasurementWizardModal } from '@/components/financeiro/MeasurementWizardModal';
+import { MeasurementVersionDrawer } from '@/components/financeiro/MeasurementVersionDrawer';
 import { useToast } from '@/hooks/use-toast';
 import { measurementService } from '@/services/measurementService';
 import { MeasurementBulletin, MeasurementStatus } from '@/types/measurement';
 
 const Medicao: React.FC = () => {
+  const [showWizardModal, setShowWizardModal] = useState(false);
+  const [showVersionDrawer, setShowVersionDrawer] = useState(false);
   const [showBulletinModal, setShowBulletinModal] = useState(false);
   const [showSimplifiedModal, setShowSimplifiedModal] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
@@ -284,8 +288,18 @@ const Medicao: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-white">Medição</h1>
             <p className="text-seguranca-lightgray">
-              Gestão de medições completas e simplificadas
+              Gestão de medições financeiras, apontamentos, cortes e versionamento (PRD 1.0)
             </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowWizardModal(true)}
+              className="bg-seguranca-yellow text-seguranca-black hover:bg-yellow-500 font-bold"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Gerar Medição (PRD 1.0)
+            </Button>
           </div>
         </div>
 
@@ -716,6 +730,21 @@ const Medicao: React.FC = () => {
             }}
           />
         )}
+
+        {/* Modais do PRD 1.0 */}
+        <MeasurementWizardModal
+          isOpen={showWizardModal}
+          onClose={() => setShowWizardModal(false)}
+          onSuccess={() => {
+            loadDashboardData();
+          }}
+        />
+
+        <MeasurementVersionDrawer
+          isOpen={showVersionDrawer}
+          onClose={() => setShowVersionDrawer(false)}
+          bulletinId={selectedBulletin?.id || null}
+        />
       </div>
     </StandardLayout>
   );
