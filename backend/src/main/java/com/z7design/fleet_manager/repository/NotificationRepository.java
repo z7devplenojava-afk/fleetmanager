@@ -15,7 +15,19 @@ import com.z7design.fleet_manager.model.enums.NotificationType;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
-    
+
+    /**
+     * Verifica se já existe notificação de alerta de manutenção para o usuário no dia.
+     * Usado para não duplicar os alertas diários do MaintenanceAlertScheduler.
+     */
+    @Query("SELECT COUNT(n) > 0 FROM Notification n WHERE n.user.id = :userId " +
+           "AND n.type = com.z7design.fleet_manager.model.enums.NotificationType.SYSTEM " +
+           "AND n.title LIKE :titlePrefix% " +
+           "AND n.createdAt >= :startOfDay")
+    boolean existsMaintenanceAlertToday(@Param("userId") UUID userId,
+                                       @Param("titlePrefix") String titlePrefix,
+                                       @Param("startOfDay") LocalDateTime startOfDay);
+
     @Query("SELECT DISTINCT n FROM Notification n LEFT JOIN FETCH n.user WHERE n.user.id = :userId")
     List<Notification> findByUserId(@Param("userId") UUID userId);
     

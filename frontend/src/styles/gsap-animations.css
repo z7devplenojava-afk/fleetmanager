@@ -7,16 +7,12 @@
 
 /* Estado padrão: VISÍVEL (fallback seguro) */
 [data-animate] {
-  opacity: 1 !important;
-  visibility: visible !important;
-  transform: none !important;
+  visibility: visible;
 }
 
 /* Performance - GPU acceleration */
 [data-animate] {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  perspective: 1000px;
+  will-change: transform, opacity;
 }
 
 /* Elementos sendo animados */

@@ -28,42 +28,42 @@ public class PassengerController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar passageiro", description = "Atualiza um passageiro existente")
-    public ResponseEntity<PassengerDTO> update(@PathVariable UUID id, @RequestBody PassengerDTO dto) {
+    public ResponseEntity<PassengerDTO> update(@PathVariable("id") UUID id, @RequestBody PassengerDTO dto) {
         PassengerDTO updated = passengerService.update(id, dto);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir passageiro", description = "Exclui um passageiro")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         passengerService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar passageiro por ID", description = "Retorna um passageiro pelo ID")
-    public ResponseEntity<PassengerDTO> getById(@PathVariable UUID id) {
+    public ResponseEntity<PassengerDTO> getById(@PathVariable("id") UUID id) {
         PassengerDTO passenger = passengerService.getById(id);
         return ResponseEntity.ok(passenger);
     }
 
     @GetMapping("/company/{companyId}")
     @Operation(summary = "Listar passageiros por empresa", description = "Retorna todos os passageiros de uma empresa")
-    public ResponseEntity<List<PassengerDTO>> getByCompanyId(@PathVariable UUID companyId) {
+    public ResponseEntity<List<PassengerDTO>> getByCompanyId(@PathVariable("companyId") UUID companyId) {
         List<PassengerDTO> passengers = passengerService.getByCompanyId(companyId);
         return ResponseEntity.ok(passengers);
     }
 
     @GetMapping("/route/{routeId}")
     @Operation(summary = "Listar passageiros por rota", description = "Retorna todos os passageiros de uma rota")
-    public ResponseEntity<List<PassengerDTO>> getByRouteId(@PathVariable UUID routeId) {
+    public ResponseEntity<List<PassengerDTO>> getByRouteId(@PathVariable("routeId") UUID routeId) {
         List<PassengerDTO> passengers = passengerService.getByRouteId(routeId);
         return ResponseEntity.ok(passengers);
     }
 
     @GetMapping("/company/{companyId}/active")
     @Operation(summary = "Listar passageiros ativos por empresa", description = "Retorna todos os passageiros ativos de uma empresa")
-    public ResponseEntity<List<PassengerDTO>> getActiveByCompanyId(@PathVariable UUID companyId) {
+    public ResponseEntity<List<PassengerDTO>> getActiveByCompanyId(@PathVariable("companyId") UUID companyId) {
         List<PassengerDTO> passengers = passengerService.getActiveByCompanyId(companyId);
         return ResponseEntity.ok(passengers);
     }

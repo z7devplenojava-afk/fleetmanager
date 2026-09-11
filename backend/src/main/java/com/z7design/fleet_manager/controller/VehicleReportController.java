@@ -26,8 +26,8 @@ public class VehicleReportController {
     
     @GetMapping("/pdf")
     public ResponseEntity<?> generateVehicleReportPDF(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) java.util.UUID companyId) {
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "companyId", required = false) java.util.UUID companyId) {
         
         try {
             log.info("Gerando relatÃ³rio PDF de veÃ­culos - Status: {}", status);

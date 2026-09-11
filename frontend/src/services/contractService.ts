@@ -1,5 +1,7 @@
 import api from '@/lib/axios';
 
+export type ContractType = 'ARRENDAMENTO' | 'LOCACAO_VEICULOS' | 'PRESTACAO_SERVICOS' | 'VENDA' | 'OUTROS';
+
 export interface Contract {
   id: string;
   contractNumber: string;
@@ -8,6 +10,7 @@ export interface Contract {
   endDate?: string;
   value: number;
   status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED' | 'PENDING';
+  contractType?: ContractType;
   notes?: string;
   // Dados do cliente vêm como campos separados do backend
   clientId: string;
@@ -37,8 +40,21 @@ export interface CreateContractRequest {
   endDate?: string;
   value: number;
   status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED' | 'PENDING';
+  contractType?: ContractType;
   clientId: string;
   notes?: string;
+}
+
+export interface ContractDocument {
+  id: string;
+  contractId: string;
+  contractNumber: string;
+  originalName: string;
+  fileSize?: number;
+  displaySize?: string;
+  mimeType?: string;
+  uploadedBy?: string;
+  createdAt: string;
 }
 
 export interface UpdateContractRequest extends Partial<CreateContractRequest> {
@@ -142,6 +158,33 @@ export const contractService = {
   async updateContractStatus(id: string, status: string): Promise<Contract> {
     const response = await api.put(`/api/contracts/${id}/status?status=${status}`);
     return response.data;
+  },
+
+  // ===== Documentos do contrato =====
+
+  async listContractDocuments(contractId: string): Promise<ContractDocument[]> {
+    const response = await api.get(`/api/contracts/${contractId}/documents`);
+    return response.data;
+  },
+
+  async uploadContractDocument(contractId: string, file: File): Promise<ContractDocument> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/api/contracts/${contractId}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  async downloadContractDocument(documentId: string): Promise<Blob> {
+    const response = await api.get(`/api/contracts/documents/${documentId}/download`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  async deleteContractDocument(documentId: string): Promise<void> {
+    await api.delete(`/api/contracts/documents/${documentId}`);
   },
 
   // Verificar se número do contrato já existe

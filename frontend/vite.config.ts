@@ -1,18 +1,31 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import fs from "fs";
 import basicSsl from '@vitejs/plugin-basic-ssl';
 
-/** HTTPS no dev só se VITE_DEV_HTTPS=true — evita ERR_CERT_AUTHORITY_INVALID ao acessar por IP ou cert não confiável */
-const useDevHttps = process.env.VITE_DEV_HTTPS === 'true';
+/** HTTPS no dev só se VITE_DEV_HTTPS=true (lido do .env via loadEnv) — evita ERR_CERT_AUTHORITY_INVALID ao acessar por IP ou cert não confiável */
 // import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  // .env NÃO é injetado em process.env pelo Vite — carregar explicitamente (precisa reiniciar o servidor após mudar o .env)
+  const env = loadEnv(mode, process.cwd(), '');
+  const useDevHttps = env.VITE_DEV_HTTPS === 'true';
+
+  // Usar o cert assinado pela 'FluxBus Local CA' (fluxbus-nginx/certs) p/ não ter warning no navegador.
+  // Se os arquivos não existirem, cai no plugin basicSsl (self-signed) como fallback.
+  const certPath = path.resolve(__dirname, '../fluxbus-nginx/certs/localhost.crt');
+  const keyPath = path.resolve(__dirname, '../fluxbus-nginx/certs/localhost.key');
+  const hasTrustedCert = fs.existsSync(certPath) && fs.existsSync(keyPath);
+  const httpsOptions = useDevHttps && hasTrustedCert
+    ? { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }
+    : undefined;
+
   const plugins = [
     react(),
-    ...(useDevHttps ? [basicSsl()] : []),
+    ...(useDevHttps && !hasTrustedCert ? [basicSsl()] : []),
     // ...(mode === 'development' ? [componentTagger()] : []),
     VitePWA({
       registerType: 'autoUpdate',
@@ -82,33 +95,25 @@ export default defineConfig(({ mode }) => {
   return {
     server: {
       host: "0.0.0.0", // Permite acesso de qualquer IP na rede
-      port: 3000,
-      strictPort: false, // Permite usar outra porta se 3000 estiver ocupada
-      // Alinhar protocolo do HMR ao do servidor: wss só com basicSsl; senão ws (evita "WebSocket closed without opened")
+      // Porta 5174: 3000 conflita com busconnect-frontend e 5173 com o vite do z7design-showcase
+      port: 5174,
+      strictPort: true,
+      https: httpsOptions,
+      // HMR: host explícito evita falha de WebSocket quando o servidor escuta em 0.0.0.0
       hmr: {
         overlay: false,
+        host: "localhost",
+        port: 5174,
         protocol: useDevHttps ? "wss" : "ws",
-        ...(useDevHttps ? { clientPort: 3000 } : {}),
       },
       proxy: {
         '/api': {
-          target: 'http://localhost:8083',
+          target: 'http://localhost:8081',
           changeOrigin: true,
           secure: false,
-          configure: (proxy, options) => {
-            proxy.on('error', (err, req, res) => {
-              console.log('proxy error', err);
-            });
-            proxy.on('proxyReq', (proxyReq, req, res) => {
-              console.log('Sending Request to the Target:', req.method, req.url);
-            });
-            proxy.on('proxyRes', (proxyRes, req, res) => {
-              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
-            });
-          },
         },
         '/ws': {
-          target: 'http://localhost:8083',
+          target: 'http://localhost:8081',
           changeOrigin: true,
           secure: false,
           ws: true,

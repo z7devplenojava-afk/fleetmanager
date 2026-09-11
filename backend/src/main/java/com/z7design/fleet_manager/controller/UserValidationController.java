@@ -26,7 +26,7 @@ public class UserValidationController {
     @GetMapping("/validate-by-cpf/{cpf}")
     @Operation(summary = "Validar usuÃ¡rio por CPF", 
                description = "Verifica se usuÃ¡rio existe, tem contatos cadastrados e estÃ¡ apto para receber documentos")
-    public ResponseEntity<Map<String, Object>> validateUserByCpf(@PathVariable String cpf) {
+    public ResponseEntity<Map<String, Object>> validateUserByCpf(@PathVariable("cpf") String cpf) {
         Map<String, Object> response = new HashMap<>();
         
         try {

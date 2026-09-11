@@ -8,5 +8,6 @@ public class CreateDriverDTO {
     @NotBlank(message = "O nome do motorista Ã© obrigatÃ³rio.")
     private String name;
     private String licenseNumber;
+    private String phone;
     private String status = "ATIVO";
 } 

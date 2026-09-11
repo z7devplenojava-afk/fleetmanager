@@ -38,20 +38,20 @@ public class DriverShiftController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<DriverShift> getShiftById(@PathVariable UUID id) {
+    public ResponseEntity<DriverShift> getShiftById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(shiftService.findById(id));
     }
 
     @GetMapping("/date/{date}")
     public List<DriverShift> getShiftsByDate(
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return shiftService.findByDate(date);
     }
 
     @GetMapping("/driver/{driverId}")
     public List<DriverShift> getShiftsByDriver(
-            @PathVariable UUID driverId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @PathVariable("driverId") UUID driverId,
+            @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         if (date != null) {
             return shiftService.findByDriverAndDate(driverId, date);
         }
@@ -60,9 +60,9 @@ public class DriverShiftController {
 
     @GetMapping("/driver/{driverId}/period")
     public List<DriverShift> getShiftsByDriverPeriod(
-            @PathVariable UUID driverId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+            @PathVariable("driverId") UUID driverId,
+            @RequestParam(value = "start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam(value = "end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
         return shiftService.findByDriverAndPeriod(driverId, start, end);
     }
 
@@ -72,12 +72,12 @@ public class DriverShiftController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<DriverShift> updateShift(@PathVariable UUID id, @RequestBody DriverShift shift) {
+    public ResponseEntity<DriverShift> updateShift(@PathVariable("id") UUID id, @RequestBody DriverShift shift) {
         return ResponseEntity.ok(shiftService.updateShift(id, shift));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteShift(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteShift(@PathVariable("id") UUID id) {
         shiftService.deleteShift(id);
         return ResponseEntity.noContent().build();
     }
@@ -88,25 +88,25 @@ public class DriverShiftController {
 
     /** Iniciar turno */
     @PostMapping("/{id}/start")
-    public ResponseEntity<DriverShift> startShift(@PathVariable UUID id) {
+    public ResponseEntity<DriverShift> startShift(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(shiftService.startShift(id));
     }
 
     /** Finalizar turno */
     @PostMapping("/{id}/end")
-    public ResponseEntity<DriverShift> endShift(@PathVariable UUID id) {
+    public ResponseEntity<DriverShift> endShift(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(shiftService.endShift(id));
     }
 
     /** Iniciar pausa */
     @PostMapping("/{id}/break/start")
-    public ResponseEntity<DriverShift> startBreak(@PathVariable UUID id) {
+    public ResponseEntity<DriverShift> startBreak(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(shiftService.startBreak(id));
     }
 
     /** Finalizar pausa */
     @PostMapping("/{id}/break/end")
-    public ResponseEntity<DriverShift> endBreak(@PathVariable UUID id) {
+    public ResponseEntity<DriverShift> endBreak(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(shiftService.endBreak(id));
     }
 
@@ -117,7 +117,7 @@ public class DriverShiftController {
     /** Atualizar localização do motorista */
     @PutMapping("/{id}/location")
     public ResponseEntity<DriverShift> updateLocation(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody Map<String, Object> payload) {
         double lat = ((Number) payload.get("latitude")).doubleValue();
         double lon = ((Number) payload.get("longitude")).doubleValue();
@@ -132,8 +132,8 @@ public class DriverShiftController {
     /** Atribuir rota ao turno */
     @PostMapping("/{shiftId}/routes/{routeId}")
     public ResponseEntity<RouteExecution> assignRoute(
-            @PathVariable UUID shiftId,
-            @PathVariable UUID routeId,
+            @PathVariable("shiftId") UUID shiftId,
+            @PathVariable("routeId") UUID routeId,
             @RequestBody(required = false) Map<String, String> payload) {
         LocalTime start = null;
         LocalTime end = null;
@@ -157,7 +157,7 @@ public class DriverShiftController {
     /** Iniciar execução de rota */
     @PostMapping("/executions/{executionId}/start")
     public ResponseEntity<RouteExecution> startExecution(
-            @PathVariable UUID executionId,
+            @PathVariable("executionId") UUID executionId,
             @RequestBody(required = false) Map<String, Object> payload) {
         Double lat = payload != null && payload.containsKey("latitude")
                 ? ((Number) payload.get("latitude")).doubleValue() : null;
@@ -169,7 +169,7 @@ public class DriverShiftController {
     /** Finalizar execução de rota */
     @PostMapping("/executions/{executionId}/complete")
     public ResponseEntity<RouteExecution> completeExecution(
-            @PathVariable UUID executionId,
+            @PathVariable("executionId") UUID executionId,
             @RequestBody(required = false) Map<String, Object> payload) {
         Double lat = null, lon = null, km = null;
         String obs = null;
@@ -189,39 +189,39 @@ public class DriverShiftController {
     /** Listar motoristas disponíveis para realocação */
     @GetMapping("/available")
     public List<DriverShift> getAvailableDrivers(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return shiftService.findAvailableDrivers(date != null ? date : LocalDate.now());
     }
 
     /** Motoristas disponíveis próximos a uma localização */
     @GetMapping("/available/nearby")
     public List<DriverShift> getAvailableNearby(
-            @RequestParam double latitude,
-            @RequestParam double longitude,
-            @RequestParam(defaultValue = "30") double radiusKm,
-            @RequestParam(defaultValue = "0.25") double minHours) {
+            @RequestParam(value = "latitude") double latitude,
+            @RequestParam(value = "longitude") double longitude,
+            @RequestParam(value = "radiusKm", defaultValue = "30") double radiusKm,
+            @RequestParam(value = "minHours", defaultValue = "0.25") double minHours) {
         return shiftService.findAvailableNearby(latitude, longitude, radiusKm, minHours);
     }
 
     /** Sugestões de realocação para todos os motoristas disponíveis */
     @GetMapping("/reallocation/suggestions")
     public List<DriverReallocationService.ReallocationSuggestion> getReallocationSuggestions(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return reallocationService.findReallocationSuggestions(date != null ? date : LocalDate.now());
     }
 
     /** Sugestões de realocação para um motorista específico */
     @GetMapping("/{shiftId}/reallocation/suggestions")
     public List<DriverReallocationService.ReallocationSuggestion> getSuggestionsForDriver(
-            @PathVariable UUID shiftId) {
+            @PathVariable("shiftId") UUID shiftId) {
         return reallocationService.findSuggestionsForDriver(shiftId);
     }
 
     /** Executar realocação */
     @PostMapping("/{shiftId}/reallocate/{routeId}")
     public ResponseEntity<RouteExecution> executeReallocation(
-            @PathVariable UUID shiftId,
-            @PathVariable UUID routeId) {
+            @PathVariable("shiftId") UUID shiftId,
+            @PathVariable("routeId") UUID routeId) {
         return ResponseEntity.ok(reallocationService.executeReallocation(shiftId, routeId));
     }
 }

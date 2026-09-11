@@ -118,6 +118,12 @@ class FleetService {
     await api.delete(`/api/frota/vehicles/${id}`);
   }
 
+  /** Exclusão em massa (soft delete). Retorna { requested, deleted }. */
+  async bulkDeleteVehicles(ids: string[]): Promise<{ requested: number; deleted: number }> {
+    const response = await api.post('/api/frota/vehicles/bulk-delete', ids);
+    return response.data;
+  }
+
   // Buscar data da última manutenção de um veículo
   async getLastMaintenanceDate(vehicleId: string): Promise<string | null> {
     try {
@@ -472,6 +478,26 @@ class FleetService {
     
     return response.data;
   }
+
+  async importVehiclesExcel(file: File): Promise<{
+    totalRows: number;
+    inserted: number;
+    updated: number;
+    skipped: number;
+    errors: string[];
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post('/api/vehicles/import/excel', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data;
+  }
 }
 
-export default new FleetService();
+export const fleetService = new FleetService();
+export default fleetService;

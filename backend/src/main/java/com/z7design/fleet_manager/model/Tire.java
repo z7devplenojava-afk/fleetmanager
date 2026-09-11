@@ -1,5 +1,6 @@
 package com.z7design.fleet_manager.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.z7design.fleet_manager.model.enums.TireStatus;
 import jakarta.persistence.*;
@@ -15,6 +16,7 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Tire {
 
     @Id
@@ -54,7 +56,7 @@ public class Tire {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id", insertable = false, updatable = false)
-    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    @JsonIgnore
     private Vehicle vehicle;
 
     @Column(nullable = false)

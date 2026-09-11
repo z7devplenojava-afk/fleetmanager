@@ -54,7 +54,7 @@ public class PaymentReceiptController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'RH', 'FINANCEIRO', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_FINANCEIRO', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COLABORADOR')")
     public ResponseEntity<List<PaymentReceiptDTO>> getAllPaymentReceipts(
-            @RequestParam(required = false) String search) {
+            @RequestParam(value = "search", required = false) String search) {
         try {
             // Se houver termo de busca, usar busca filtrada
             if (search != null && !search.trim().isEmpty() && search.trim().length() >= 4) {
@@ -93,8 +93,8 @@ public class PaymentReceiptController {
     // Buscar comprovantes por ano e mÃªs
     @GetMapping("/year/{year}/month/{month}")
     public ResponseEntity<List<PaymentReceiptDTO>> getPaymentReceiptsByYearAndMonth(
-            @PathVariable Integer year, 
-            @PathVariable Integer month) {
+            @PathVariable("year") Integer year, 
+            @PathVariable("month") Integer month) {
         try {
             List<PaymentReceiptDTO> receipts = paymentReceiptService.findByYearAndMonth(year, month);
             return ResponseEntity.ok(receipts);
@@ -116,7 +116,7 @@ public class PaymentReceiptController {
     
     // Buscar todos os meses Ãºnicos para um ano
     @GetMapping("/years/{year}/months")
-    public ResponseEntity<List<Integer>> getDistinctMonthsByYear(@PathVariable Integer year) {
+    public ResponseEntity<List<Integer>> getDistinctMonthsByYear(@PathVariable("year") Integer year) {
         try {
             List<Integer> months = paymentReceiptService.findDistinctMonthsByYear(year);
             return ResponseEntity.ok(months);
@@ -149,7 +149,7 @@ public class PaymentReceiptController {
     
     // Download de comprovante individual
     @GetMapping("/{id}/download")
-    public ResponseEntity<byte[]> downloadReceipt(@PathVariable String id) {
+    public ResponseEntity<byte[]> downloadReceipt(@PathVariable("id") String id) {
         try {
             log.info("ðŸ“¥ Download individual de comprovante: {}", id);
             return paymentReceiptService.downloadReceiptFile(id);
@@ -211,7 +211,7 @@ public class PaymentReceiptController {
     
     // Visualizar PDF do comprovante
     @GetMapping("/{id}/view")
-    public ResponseEntity<byte[]> viewReceipt(@PathVariable String id) {
+    public ResponseEntity<byte[]> viewReceipt(@PathVariable("id") String id) {
         try {
             return paymentReceiptService.viewReceiptFile(id);
         } catch (Exception e) {
@@ -273,7 +273,7 @@ public class PaymentReceiptController {
     
     // Excluir comprovante individual
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> deletePaymentReceipt(@PathVariable String id) {
+    public ResponseEntity<Map<String, Object>> deletePaymentReceipt(@PathVariable("id") String id) {
         try {
             log.info("ðŸ—‘ï¸ Excluindo comprovante individual: {}", id);
             

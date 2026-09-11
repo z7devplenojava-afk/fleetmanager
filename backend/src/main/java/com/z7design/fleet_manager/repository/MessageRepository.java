@@ -57,6 +57,18 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
      */
     @Query("SELECT COUNT(m) FROM Message m JOIN m.recipients r WHERE r.id = :userId AND m.status = 'UNREAD'")
     Long countUnreadByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Dedupe do MaintenanceAlertScheduler: verifica se já existe mensagem de
+     * alerta de manutenção para o usuário hoje (título prefixado + tipo NOTIFICATION).
+     */
+    @Query("SELECT COUNT(m) > 0 FROM Message m JOIN m.recipients r WHERE r.id = :userId " +
+           "AND m.type = com.z7design.fleet_manager.model.enums.MessageType.NOTIFICATION " +
+           "AND m.title LIKE :titlePrefix% " +
+           "AND m.createdAt >= :startOfDay")
+    boolean existsMaintenanceAlertToday(@Param("userId") UUID userId,
+                                        @Param("titlePrefix") String titlePrefix,
+                                        @Param("startOfDay") java.time.LocalDateTime startOfDay);
     
     /**
      * Busca mensagens recebidas por usuÃ¡rio e tipo

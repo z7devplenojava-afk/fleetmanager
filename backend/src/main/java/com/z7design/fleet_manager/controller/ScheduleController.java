@@ -9,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 
 import com.z7design.fleet_manager.model.Schedule;
+import com.z7design.fleet_manager.model.User;
+import com.z7design.fleet_manager.service.AuthenticationService;
 import com.z7design.fleet_manager.service.ScheduleService;
 import com.z7design.fleet_manager.dto.ErrorResponse;
 import com.z7design.fleet_manager.dto.CreateScheduleDTO;
@@ -49,6 +52,7 @@ import jakarta.validation.Valid;
 public class ScheduleController {
 
         private final ScheduleService scheduleService;
+        private final AuthenticationService authenticationService;
 
         @Operation(summary = "Cria uma nova escala de trabalho", description = "Adiciona uma nova escala de trabalho ao sistema. Requer o papel de ADMIN ou GESTOR.")
         @ApiResponses(value = {
@@ -84,7 +88,7 @@ public class ScheduleController {
         })
         @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Dados da escala de trabalho para atualizaÃ§Ã£o", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Schedule.class), examples = @ExampleObject(value = "{\"id\":\"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"startTime\":\"09:00:00\", \"endTime\":\"18:00:00\", \"notes\":\"Ajuste de horÃ¡rio.\"}")))
         @PutMapping("/{id}")
-        public ResponseEntity<Schedule> update(@PathVariable UUID id, @RequestBody Schedule schedule) {
+        public ResponseEntity<Schedule> update(@PathVariable("id") UUID id, @RequestBody Schedule schedule) {
                 return ResponseEntity.ok(scheduleService.update(id, schedule));
         }
 
@@ -95,9 +99,45 @@ public class ScheduleController {
                         @ApiResponse(responseCode = "404", description = "Escala de trabalho nÃ£o encontrada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
         })
         @DeleteMapping("/{id}")
-        public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
                 scheduleService.delete(id);
                 return ResponseEntity.noContent().build();
+        }
+
+        @Operation(summary = "Minhas escalas", description = "Retorna as escalas do funcionário vinculado ao usuário autenticado (portal do motorista).")
+        @GetMapping("/me")
+        public ResponseEntity<List<Schedule>> findMySchedules(
+                        Authentication authentication,
+                        @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                        @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+                User user = authenticationService.getCurrentUser(authentication);
+                return ResponseEntity.ok(scheduleService.findMySchedules(user, startDate, endDate));
+        }
+
+        @Operation(summary = "PDF das minhas escalas", description = "Gera PDF das escalas do funcionário autenticado para visualização ou download.")
+        @GetMapping(value = "/me/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+        public ResponseEntity<byte[]> generateMyPDFReport(
+                        Authentication authentication,
+                        @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                        @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+                        @RequestParam(name = "inline", required = false, defaultValue = "false") boolean inline) {
+                try {
+                        User user = authenticationService.getCurrentUser(authentication);
+                        byte[] pdfBytes = scheduleService.generateMyPDFReport(user, startDate, endDate);
+                        String fileName = "minha-escala-"
+                                        + java.time.LocalDate.now().format(
+                                                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                                        + ".pdf";
+                        String disposition = inline ? "inline" : "attachment";
+                        return ResponseEntity.ok()
+                                        .header(HttpHeaders.CONTENT_DISPOSITION,
+                                                        disposition + "; filename=\"" + fileName + "\"")
+                                        .contentType(MediaType.APPLICATION_PDF)
+                                        .body(pdfBytes);
+                } catch (IOException e) {
+                        log.error("Erro ao gerar PDF das minhas escalas: {}", e.getMessage(), e);
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+                }
         }
 
         @Operation(summary = "Busca uma escala de trabalho pelo ID", description = "Retorna as informaÃ§Ãµes de uma escala de trabalho especÃ­fica. Requer o papel de ADMIN, GESTOR, SUPERVISOR ou VIGILANTE (se for sua prÃ³pria escala).")
@@ -107,7 +147,7 @@ public class ScheduleController {
                         @ApiResponse(responseCode = "404", description = "Escala de trabalho nÃ£o encontrada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
         })
         @GetMapping("/{id}")
-        public ResponseEntity<Schedule> findById(@PathVariable UUID id) {
+        public ResponseEntity<Schedule> findById(@PathVariable("id") UUID id) {
                 return ResponseEntity.ok(scheduleService.findById(id));
         }
 
@@ -117,7 +157,7 @@ public class ScheduleController {
                         @ApiResponse(responseCode = "403", description = "Acesso negado (papel insuficiente)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
         })
         @GetMapping("/employee/{employeeId}")
-        public ResponseEntity<List<Schedule>> findByEmployeeId(@PathVariable UUID employeeId) {
+        public ResponseEntity<List<Schedule>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
                 return ResponseEntity.ok(scheduleService.findByEmployeeId(employeeId));
         }
 

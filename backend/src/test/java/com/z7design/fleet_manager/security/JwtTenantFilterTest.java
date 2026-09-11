@@ -89,8 +89,8 @@ class JwtTenantFilterTest {
 
         // Security Context (Normal User)
         when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.getAuthorities())
-                .thenReturn(Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+        doReturn(Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")))
+                .when(authentication).getAuthorities();
 
         // Act
         jwtTenantFilter.doFilterInternal(request, response, filterChain);
@@ -174,8 +174,8 @@ class JwtTenantFilterTest {
 
         when(jwtService.extractEmpresaId(token)).thenReturn(tokenCompanyId);
 
-        // Header attempts override
-        when(request.getHeader("X-Target-Company-ID")).thenReturn(targetCompanyId.toString());
+        // O usuário normal nunca lê o header X-Target-Company-ID (por isso ele é
+        // ignorado); portanto não fazemos stub desse header neste cenário.
 
         // Security Context (Normal User)
         when(securityContext.getAuthentication()).thenReturn(authentication);

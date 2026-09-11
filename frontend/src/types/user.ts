@@ -1,4 +1,4 @@
-export type UserRole = 'FLEX_ADMIN' | 'COMPANY_ADMIN' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPERVISOR' | 'RH' | 'ASSISTENCIA_RH' | 'DEPARTAMENTO_PESSOAL' | 'FINANCEIRO' | 'OPERACIONAL' | 'VIGILANTE' | 'AUXI_ADMINISTRATIVO' | 'AUX_DEP' | 'TI_SUPORTE' | 'AUDITOR' | 'COLABORADOR' | 'MOTORISTA' | 'MECANICO' | 'PORTARIA' | 'GESTOR' | 'GESTOR_TRAFEGO' | 'EMPLOYEE';
+export type UserRole = 'FLEX_ADMIN' | 'COMPANY_ADMIN' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPERVISOR' | 'RH' | 'ASSISTENCIA_RH' | 'DEPARTAMENTO_PESSOAL' | 'FINANCEIRO' | 'OPERACIONAL' | 'VIGILANTE' | 'AUXI_ADMINISTRATIVO' | 'AUX_DEP' | 'TI_SUPORTE' | 'AUDITOR' | 'COLABORADOR' | 'MOTORISTA' | 'MECANICO' | 'PORTARIA' | 'GESTOR' | 'GESTOR_TRAFEGO' | 'GESTOR_DE_TRAFEGO' | 'MANUTENCAO' | 'GESTOR_DE_MANUTENCAO' | 'ENCARREGADO_DE_MANUTENCAO' | 'ALMOXARIFADO' | 'COMPRAS' | 'GESTOR_DE_COMPRAS' | 'GESTOR_FINANCEIRO' | 'GESTOR_OPERACIONAL' | 'AUXILIAR_ADMINISTRATIVO' | 'AUXILIAR_DE_RH' | 'AUXILIAR_DE_DEPARTAMENTO_PESSOAL' | 'ASSISTENTE_OPERACIONAL' | 'ASSISTENTE_LIMPEZA' | 'LAVADOR' | 'ASSISTENTE_FINANCEIRO' | 'EMPLOYEE';
 
 export type UserGroup = 'GRUPO_SUPER_ADMIN' | 'GRUPO_ADMIN' | 'GRUPO_GESTOR' | 'GRUPO_RH' | 'GRUPO_DPE' | 'GRUPO_SUPERVISOR' | 'GRUPO_COLABORADORES' | 'GRUPO_OPERACIONAL' | 'GRUPO_VIGILANTES' | 'GRUPO_FINANCEIRO' | 'GRUPO_TI_SUPORTE' | 'GRUPO_AUDITOR' | 'GRUPO_AUXILIARES';
 
@@ -203,11 +203,12 @@ export interface User {
   employeeCode?: string;
   phone?: string;
   whatsapp?: string;
-  address?: string;
   username?: string;
   status?: string;
   active?: boolean;
-  firstAccessCompleted?: boolean; // Indica se o usuário completou o primeiro acesso (mudança de senha)
+  firstAccessCompleted?: boolean;
+  companyId?: string;
+  companyName?: string;
   createdAt?: string;
   updatedAt?: string;
 }

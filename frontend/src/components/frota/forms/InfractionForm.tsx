@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertTriangle, DollarSign, FileText, MapPin, Calendar, CheckSquare, Save, Loader2, PlusCircle } from 'lucide-react';
+import { AlertTriangle, DollarSign, FileText, MapPin, Calendar, CheckSquare, Save, Loader2, PlusCircle, MessageCircle } from 'lucide-react';
 import { InfractionFormData } from './types';
 import { Vehicle } from '@/types/fleet';
 import { Driver } from '@/types/driver';
@@ -23,6 +23,7 @@ interface InfractionFormProps {
 const DEFAULT_FORM_DATA: InfractionFormData = {
     vehicleId: '',
     driverId: '',
+    driverPhone: '',
     date: new Date().toISOString().split('T')[0],
     dueDate: new Date().toISOString().split('T')[0],
     type: '',
@@ -54,6 +55,13 @@ export const InfractionForm: React.FC<InfractionFormProps> = ({
 
     const handleInputChange = (field: keyof InfractionFormData, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    // Ao trocar o motorista, preencher o WhatsApp automaticamente com o telefone cadastrado
+    const handleDriverChange = (val: string) => {
+        handleInputChange('driverId', val);
+        const selectedDriver = drivers.find(d => d.id === val);
+        handleInputChange('driverPhone', selectedDriver?.phone || '');
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -120,7 +128,7 @@ export const InfractionForm: React.FC<InfractionFormProps> = ({
                             <div className="space-y-2">
                                 <Label className="text-gray-300 font-medium">Motorista</Label>
                                 <div className="flex gap-2">
-                                    <Select value={formData.driverId || ''} onValueChange={(val) => handleInputChange('driverId', val)}>
+                                    <Select value={formData.driverId || ''} onValueChange={handleDriverChange}>
                                         <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white w-full">
                                             <SelectValue placeholder="Selecione o motorista (opcional)" />
                                         </SelectTrigger>
@@ -136,6 +144,23 @@ export const InfractionForm: React.FC<InfractionFormProps> = ({
                                         </Button>
                                     )}
                                 </div>
+                            </div>
+
+                            {/* WhatsApp do motorista (para notificação de multa) */}
+                            <div className="space-y-2">
+                                <Label className="text-gray-300 font-medium">WhatsApp do Motorista</Label>
+                                <div className="relative">
+                                    <MessageCircle className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                                    <Input
+                                        value={formData.driverPhone || ''}
+                                        onChange={(e) => handleInputChange('driverPhone', e.target.value)}
+                                        className="pl-10 bg-gray-900/50 border-gray-600 text-white"
+                                        placeholder="(00) 00000-0000 — envia alerta da multa"
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                    Preenchido automaticamente com o WhatsApp cadastrado do motorista. Se informado, o motorista recebe uma notificação no WhatsApp quando a multa for registrada no nome dele.
+                                </p>
                             </div>
 
                             {/* Type, Points, Location */}

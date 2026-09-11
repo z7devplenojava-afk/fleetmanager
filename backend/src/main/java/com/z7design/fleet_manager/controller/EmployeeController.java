@@ -35,6 +35,23 @@ public class EmployeeController {
     private final EmployeeService employeeService;
     private final EmployeeRecordPdfService employeeRecordPdfService;
     private final EmployeeExcelImportService employeeExcelImportService;
+    private final com.z7design.fleet_manager.service.EmployeePdfImportService employeePdfImportService;
+
+    @PostMapping(value = "/import-pdf", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Importar Ficha de Registro em PDF", description = "Importa um ou múltiplos funcionários e dados da empresa a partir de PDF da Ficha de Registro de Empregado")
+    public ResponseEntity<Object> importEmployeePdf(@RequestParam("file") MultipartFile file) {
+        try {
+            com.z7design.fleet_manager.service.EmployeePdfImportService.PdfImportResult result = employeePdfImportService.importEmployeeFromPdf(file);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("Erro ao importar PDF de funcionário: " + e.getMessage());
+            e.printStackTrace();
+            String msg = (e.getMessage() != null && !e.getMessage().isBlank()) ? e.getMessage() : e.getClass().getName();
+            java.util.Map<String, String> errorResponse = new java.util.HashMap<>();
+            errorResponse.put("error", msg);
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
     
     @GetMapping("/count")
     @Operation(summary = "Contar funcionÃ¡rios", description = "Retorna o nÃºmero total de funcionÃ¡rios")
@@ -171,7 +188,7 @@ public class EmployeeController {
 
     @GetMapping("/by-id/{id}")
     @Operation(summary = "Buscar funcionÃ¡rio por ID individual", description = "Busca um funcionÃ¡rio especÃ­fico por ID")
-    public ResponseEntity<Object> getEmployeeById(@PathVariable UUID id) {
+    public ResponseEntity<Object> getEmployeeById(@PathVariable("id") UUID id) {
         try {
             System.out.println("ðŸ” EmployeeController.getEmployeeById - Buscando funcionÃ¡rio ID: " + id);
             
@@ -375,8 +392,8 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "FuncionÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    @Transactional(readOnly = true)
-    public ResponseEntity<Object> getById(@PathVariable String id) {
+    @Transactional(readOnly = true, noRollbackFor = com.z7design.fleet_manager.exception.ResourceNotFoundException.class)
+    public ResponseEntity<Object> getById(@PathVariable("id") String id) {
         try {
             System.out.println("ðŸ” EmployeeController.getById - Buscando funcionÃ¡rio ID: " + id);
             
@@ -403,10 +420,14 @@ public class EmployeeController {
             return ResponseEntity.ok(dto);
             
         } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
-            System.err.println("âŒ FuncionÃ¡rio nÃ£o encontrado: " + id);
+            System.err.println("❌ Funcionário não encontrado: " + id);
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
-            System.err.println("âŒ EmployeeController.getById - Erro: " + e.getMessage());
+            if (e.getMessage() != null && (e.getMessage().contains("não encontrado") || e.getMessage().contains("not found"))) {
+                System.err.println("❌ Funcionário não encontrado: " + id);
+                return ResponseEntity.notFound().build();
+            }
+            System.err.println("❌ EmployeeController.getById - Erro: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(500).body(java.util.Map.of("error", e.getMessage()));
         }
@@ -414,7 +435,7 @@ public class EmployeeController {
     
     @GetMapping("/email/{email}")
     @Operation(summary = "Buscar funcionÃ¡rio por email", description = "Retorna um funcionÃ¡rio especÃ­fico pelo email")
-    public ResponseEntity<EmployeeDTO> getByEmail(@PathVariable String email) {
+    public ResponseEntity<EmployeeDTO> getByEmail(@PathVariable("email") String email) {
         Employee employee = employeeService.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("FuncionÃ¡rio nÃ£o encontrado"));
         return ResponseEntity.ok(employeeService.toDTO(employee));
@@ -440,7 +461,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "FuncionÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<EmployeeDTO> update(@PathVariable String id, @Valid @RequestBody EmployeeDTO employeeDTO) {
+    public ResponseEntity<EmployeeDTO> update(@PathVariable("id") String id, @Valid @RequestBody EmployeeDTO employeeDTO) {
         EmployeeDTO updatedEmployee = employeeService.update(UUID.fromString(id), employeeDTO);
         return ResponseEntity.ok(updatedEmployee);
     }
@@ -452,7 +473,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "FuncionÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         employeeService.delete(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }
@@ -477,7 +498,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "400", description = "Status invÃ¡lido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<List<EmployeeDTO>> getByStatus(@PathVariable String status) {
+    public ResponseEntity<List<EmployeeDTO>> getByStatus(@PathVariable("status") String status) {
         try {
             System.out.println("[DEBUG] EmployeeController.getByStatus - Status recebido: " + status);
             com.z7design.fleet_manager.model.enums.EmploymentStatus employmentStatus = 
@@ -591,7 +612,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "FuncionÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<EmployeeDTO> findByCpfExact(@PathVariable String cpf) {
+    public ResponseEntity<EmployeeDTO> findByCpfExact(@PathVariable("cpf") String cpf) {
         try {
             System.out.println("[DEBUG] EmployeeController.findByCpfExact - CPF recebido: " + cpf);
             
@@ -619,7 +640,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "FuncionÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "500", description = "Erro ao gerar PDF")
     })
-    public ResponseEntity<byte[]> generateEmployeeRecordPdf(@PathVariable String id) {
+    public ResponseEntity<byte[]> generateEmployeeRecordPdf(@PathVariable("id") String id) {
         try {
             System.out.println("[DEBUG] EmployeeController.generateEmployeeRecordPdf - ID: " + id);
             
@@ -646,7 +667,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "FuncionÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "500", description = "Erro ao gerar Excel")
     })
-    public ResponseEntity<byte[]> generateEmployeeRecordExcel(@PathVariable String id) {
+    public ResponseEntity<byte[]> generateEmployeeRecordExcel(@PathVariable("id") String id) {
         try {
             System.out.println("[DEBUG] EmployeeController.generateEmployeeRecordExcel - ID: " + id);
 

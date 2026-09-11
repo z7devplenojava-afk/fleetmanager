@@ -182,7 +182,7 @@ public class FacialRecognitionController {
         @ApiResponse(responseCode = "404", description = "Face nÃ£o encontrada"),
         @ApiResponse(responseCode = "500", description = "Erro interno do servidor")
     })
-    public ResponseEntity<Map<String, Object>> removeFace(@PathVariable String cpf) {
+    public ResponseEntity<Map<String, Object>> removeFace(@PathVariable("cpf") String cpf) {
         log.info("Recebida requisiÃ§Ã£o de remoÃ§Ã£o de face para CPF: {}", cpf);
         
         try {
@@ -239,7 +239,7 @@ public class FacialRecognitionController {
         @ApiResponse(responseCode = "404", description = "Face nÃ£o encontrada"),
         @ApiResponse(responseCode = "500", description = "Erro interno do servidor")
     })
-    public ResponseEntity<EmployeeFace> getFaceByCpf(@PathVariable String cpf) {
+    public ResponseEntity<EmployeeFace> getFaceByCpf(@PathVariable("cpf") String cpf) {
         log.info("Recebida requisiÃ§Ã£o para buscar face por CPF: {}", cpf);
         
         try {

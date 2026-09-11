@@ -8,6 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -78,6 +79,30 @@ public class MeasurementItem {
 
     @Column(name = "disregarded_km", precision = 10, scale = 2)
     private BigDecimal disregardedKm;
+
+    @Column(name = "diaria", precision = 15, scale = 2)
+    private BigDecimal diaria = BigDecimal.ZERO;
+
+    @Column(name = "km_considerado", precision = 10, scale = 2)
+    private BigDecimal kmConsiderado;
+
+    @Column(name = "km_excedido", precision = 10, scale = 2)
+    private BigDecimal kmExcedido;
+
+    @Column(name = "valor_km_excedido", precision = 15, scale = 2)
+    private BigDecimal valorKmExcedido = BigDecimal.ZERO;
+
+    @Column(name = "trip_date")
+    private LocalDate tripDate;
+
+    @Column(name = "route")
+    private String route;
+
+    @Column(name = "vehicle_type")
+    private String vehicleType;
+
+    @Column(name = "observations", length = 500)
+    private String observations;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bulletin_id", nullable = false)
@@ -205,5 +230,61 @@ public class MeasurementItem {
 
     public void setBulletin(MeasurementBulletin bulletin) {
         this.bulletin = bulletin;
+    }
+
+    public BigDecimal getDiaria() {
+        return diaria;
+    }
+
+    public void setDiaria(BigDecimal diaria) {
+        this.diaria = diaria;
+    }
+
+    public BigDecimal getKmConsiderado() {
+        return kmConsiderado;
+    }
+
+    public void setKmConsiderado(BigDecimal kmConsiderado) {
+        this.kmConsiderado = kmConsiderado;
+    }
+
+    public BigDecimal getKmExcedido() {
+        return kmExcedido;
+    }
+
+    public void setKmExcedido(BigDecimal kmExcedido) {
+        this.kmExcedido = kmExcedido;
+    }
+
+    public BigDecimal getValorKmExcedido() {
+        return valorKmExcedido;
+    }
+
+    public void setValorKmExcedido(BigDecimal valorKmExcedido) {
+        this.valorKmExcedido = valorKmExcedido;
+    }
+
+    public LocalDate getTripDate() {
+        return tripDate;
+    }
+
+    public void setTripDate(LocalDate tripDate) {
+        this.tripDate = tripDate;
+    }
+
+    public String getRoute() {
+        return route;
+    }
+
+    public void setRoute(String route) {
+        this.route = route;
+    }
+
+    public String getVehicleType() {
+        return vehicleType;
+    }
+
+    public void setVehicleType(String vehicleType) {
+        this.vehicleType = vehicleType;
     }
 }

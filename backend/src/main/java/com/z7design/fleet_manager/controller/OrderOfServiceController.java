@@ -26,9 +26,9 @@ public class OrderOfServiceController {
     @GetMapping
     @Operation(summary = "Listar ordens de serviÃ§o", description = "Lista todas as ordens de serviÃ§o ou filtra por funcionÃ¡rio")
     public ResponseEntity<List<OrderOfServiceDTO>> list(
-            @RequestParam(required = false) String employeeId,
-            @RequestParam(required = false) Boolean signed,
-            @RequestParam(required = false) String search) {
+            @RequestParam(value = "employeeId", required = false) String employeeId,
+            @RequestParam(value = "signed", required = false) Boolean signed,
+            @RequestParam(value = "search", required = false) String search) {
         
         if (employeeId != null) {
             List<OrderOfServiceDTO> orders = orderOfServiceService.listByEmployee(UUID.fromString(employeeId));
@@ -51,7 +51,7 @@ public class OrderOfServiceController {
     
     @GetMapping("/{id}")
     @Operation(summary = "Buscar ordem de serviÃ§o por ID", description = "Retorna uma ordem de serviÃ§o especÃ­fica")
-    public ResponseEntity<OrderOfServiceDTO> findById(@PathVariable String id) {
+    public ResponseEntity<OrderOfServiceDTO> findById(@PathVariable("id") String id) {
         OrderOfServiceDTO order = orderOfServiceService.findById(UUID.fromString(id));
         return ResponseEntity.ok(order);
     }
@@ -65,28 +65,28 @@ public class OrderOfServiceController {
     
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar ordem de serviÃ§o", description = "Atualiza uma ordem de serviÃ§o existente")
-    public ResponseEntity<OrderOfServiceDTO> update(@PathVariable String id, @Valid @RequestBody CreateOrderOfServiceDTO dto) {
+    public ResponseEntity<OrderOfServiceDTO> update(@PathVariable("id") String id, @Valid @RequestBody CreateOrderOfServiceDTO dto) {
         OrderOfServiceDTO updatedOrder = orderOfServiceService.update(UUID.fromString(id), dto);
         return ResponseEntity.ok(updatedOrder);
     }
     
     @PostMapping("/{id}/sign")
     @Operation(summary = "Assinar ordem de serviÃ§o", description = "Marca uma ordem de serviÃ§o como assinada")
-    public ResponseEntity<OrderOfServiceDTO> sign(@PathVariable String id) {
+    public ResponseEntity<OrderOfServiceDTO> sign(@PathVariable("id") String id) {
         OrderOfServiceDTO signedOrder = orderOfServiceService.sign(UUID.fromString(id));
         return ResponseEntity.ok(signedOrder);
     }
     
     @PostMapping("/{id}/document")
     @Operation(summary = "Atualizar URL do documento", description = "Atualiza a URL do documento da ordem de serviÃ§o")
-    public ResponseEntity<OrderOfServiceDTO> updateDocumentUrl(@PathVariable String id, @RequestBody String documentUrl) {
+    public ResponseEntity<OrderOfServiceDTO> updateDocumentUrl(@PathVariable("id") String id, @RequestBody String documentUrl) {
         OrderOfServiceDTO updatedOrder = orderOfServiceService.updateDocumentUrl(UUID.fromString(id), documentUrl);
         return ResponseEntity.ok(updatedOrder);
     }
     
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir ordem de serviÃ§o", description = "Exclui uma ordem de serviÃ§o")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         orderOfServiceService.delete(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }

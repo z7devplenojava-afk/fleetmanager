@@ -53,7 +53,7 @@ public class SeatTemplateController {
 
     @Operation(summary = "Busca um template pelo ID")
     @GetMapping("/{id}")
-    public ResponseEntity<SeatTemplate> findById(@PathVariable UUID id) {
+    public ResponseEntity<SeatTemplate> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(seatTemplateService.getById(id));
     }
 

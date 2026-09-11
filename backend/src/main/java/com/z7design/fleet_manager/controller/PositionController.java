@@ -40,7 +40,7 @@ public class PositionController {
     }
     
     @GetMapping("/search")
-    @PreAuthorize("hasAnyAuthority('HR_READ', 'EMPLOYEES_READ', 'EMPLOYEES_WRITE', 'EMPLOYEES_CREATE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('HR_READ', 'EMPLOYEES_READ', 'EMPLOYEES_WRITE', 'EMPLOYEES_CREATE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
     @Operation(summary = "Buscar cargos", description = "Busca cargos por nome com filtro dinÃ¢mico")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Cargos encontrados com sucesso"),
@@ -83,7 +83,7 @@ public class PositionController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<PositionDTO> getPositionById(
-            @Parameter(description = "ID do cargo") @PathVariable UUID id) {
+            @Parameter(description = "ID do cargo") @PathVariable("id") UUID id) {
         log.debug("Buscando cargo por ID: {}", id);
         PositionDTO position = positionService.getPositionById(id);
         return ResponseEntity.ok(position);
@@ -112,7 +112,7 @@ public class PositionController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<PositionDTO> updatePosition(
-            @Parameter(description = "ID do cargo") @PathVariable UUID id,
+            @Parameter(description = "ID do cargo") @PathVariable("id") UUID id,
             @Parameter(description = "Dados atualizados do cargo") @Valid @RequestBody PositionDTO positionDTO) {
         log.debug("Recebida requisiÃ§Ã£o para atualizar cargo ID: {}", id);
         PositionDTO updatedPosition = positionService.updatePosition(id, positionDTO);
@@ -127,7 +127,7 @@ public class PositionController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Void> deletePosition(
-            @Parameter(description = "ID do cargo") @PathVariable UUID id) {
+            @Parameter(description = "ID do cargo") @PathVariable("id") UUID id) {
         log.debug("Recebida requisiÃ§Ã£o para excluir cargo ID: {}", id);
         positionService.deletePosition(id);
         return ResponseEntity.noContent().build();

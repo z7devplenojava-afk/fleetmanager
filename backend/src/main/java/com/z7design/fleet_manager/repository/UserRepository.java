@@ -51,6 +51,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
        List<User> findSupervisors();
 
        /**
+        * Candidatos a "remetente do sistema" para mensagens geradas automaticamente
+        * (o Message exige sender nÃ£o nulo). Retorna admins ativos, mais antigo primeiro.
+        */
+       @Query("SELECT u FROM User u " +
+                     "JOIN u.roles r " +
+                     "WHERE u.active = true AND r.name IN ('SUPER_ADMIN', 'FLEX_ADMIN', 'ADMIN') " +
+                     "ORDER BY u.createdAt ASC")
+       List<User> findSystemMessageSenderCandidates();
+
+       /**
         * Busca usuÃ¡rios por nome, email ou username
         */
        @Query("SELECT DISTINCT u FROM User u " +

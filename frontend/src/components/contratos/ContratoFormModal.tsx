@@ -30,6 +30,16 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
 import { clientService } from '@/services/clientService';
 
+type ContractType = 'ARRENDAMENTO' | 'LOCACAO_VEICULOS' | 'PRESTACAO_SERVICOS' | 'VENDA' | 'OUTROS';
+
+const CONTRACT_TYPES: { value: ContractType; label: string }[] = [
+  { value: 'ARRENDAMENTO', label: 'Arrendamento' },
+  { value: 'LOCACAO_VEICULOS', label: 'Locação de Veículos' },
+  { value: 'PRESTACAO_SERVICOS', label: 'Prestação de Serviços' },
+  { value: 'VENDA', label: 'Venda' },
+  { value: 'OUTROS', label: 'Outros' },
+];
+
 interface ContratoFormData {
   clientId: string;
   contractNumber: string;
@@ -38,6 +48,7 @@ interface ContratoFormData {
   endDate?: Date | null;
   value: number;
   status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED' | 'PENDING';
+  contractType?: ContractType;
   notes?: string;
   notificar_rh?: boolean;
   notificar_dp?: boolean;
@@ -70,6 +81,7 @@ export const ContratoFormModal: React.FC<ContratoFormModalProps> = ({
     endDate: null,
     value: 0,
     status: 'ACTIVE',
+    contractType: 'PRESTACAO_SERVICOS',
     notes: '',
     notificar_rh: false,
     notificar_dp: false,
@@ -161,6 +173,7 @@ export const ContratoFormModal: React.FC<ContratoFormModalProps> = ({
         endDate: null,
         value: 0,
         status: 'ACTIVE',
+        contractType: 'PRESTACAO_SERVICOS',
         notes: '',
         notificar_rh: false,
         notificar_dp: false,
@@ -233,6 +246,7 @@ export const ContratoFormModal: React.FC<ContratoFormModalProps> = ({
           endDate: formData.endDate ? formData.endDate.toISOString().split('T')[0] : null,
           value: formData.value,
           status: formData.status,
+          contractType: formData.contractType,
           clientId: formData.clientId,
           notes: formData.notes
         };
@@ -457,6 +471,29 @@ export const ContratoFormModal: React.FC<ContratoFormModalProps> = ({
                       placeholder="0,00"
                       required
                     />
+                  </div>
+
+                  {/* Tipo do Contrato */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
+                      <FileText size={14} />
+                      Tipo do Contrato
+                    </Label>
+                    <Select
+                      value={formData.contractType}
+                      onValueChange={(value) => setFormData({ ...formData, contractType: value as ContractType })}
+                    >
+                      <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow h-12">
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-seguranca-black border-gray-600">
+                        {CONTRACT_TYPES.map(t => (
+                          <SelectItem key={t.value} value={t.value} className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Status */}

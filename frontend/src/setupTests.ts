@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import { jest, beforeAll, afterAll } from '@jest/globals';
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
@@ -19,15 +20,15 @@ global.ResizeObserver = class ResizeObserver {
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: (global as any).jest.fn().mockImplementation((query: string) => ({
+  value: jest.fn().mockImplementation((query: string) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: (global as any).jest.fn(), // deprecated
-    removeListener: (global as any).jest.fn(), // deprecated
-    addEventListener: (global as any).jest.fn(),
-    removeEventListener: (global as any).jest.fn(),
-    dispatchEvent: (global as any).jest.fn(),
+    addListener: jest.fn(), // deprecated
+    removeListener: jest.fn(), // deprecated
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
   })),
 });
 
@@ -35,7 +36,7 @@ Object.defineProperty(window, 'matchMedia', {
 const originalError = console.error;
 const originalWarn = console.warn;
 
-(global as any).beforeAll(() => {
+beforeAll(() => {
   console.error = (...args: any[]) => {
     if (
       typeof args[0] === 'string' &&
@@ -57,7 +58,7 @@ const originalWarn = console.warn;
   };
 });
 
-(global as any).afterAll(() => {
+afterAll(() => {
   console.error = originalError;
   console.warn = originalWarn;
 }); 

@@ -23,7 +23,6 @@ import java.util.List;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -38,21 +37,36 @@ public class VehicleGateChecklistService {
     private static final String UPLOAD_DIR = "uploads/vehicle-gate-checklists/odometer-photos/";
     private static final String VEHICLE_PHOTOS_DIR = "uploads/vehicles/";
 
+    @Transactional(readOnly = true)
     public List<VehicleGateChecklistDTO> findAll() {
-        return repository.findAll().stream()
+        return repository.findAllWithAssociations().stream()
+                .sorted((a, b) -> {
+                    if (a.getOccurredAt() == null && b.getOccurredAt() == null) return 0;
+                    if (a.getOccurredAt() == null) return 1;
+                    if (b.getOccurredAt() == null) return -1;
+                    return b.getOccurredAt().compareTo(a.getOccurredAt());
+                })
                 .map(this::toDTO)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<VehicleGateChecklistDTO> findByFilters(UUID vehicleId, VehicleGateChecklist.ChecklistType type,
                                                        LocalDate dateFrom, LocalDate dateTo) {
         LocalDateTime dateFromDt = dateFrom != null ? dateFrom.atStartOfDay() : null;
         LocalDateTime dateToDt = dateTo != null ? dateTo.atTime(LocalTime.MAX) : null;
         return repository.findByFilters(vehicleId, type, dateFromDt, dateToDt).stream()
+                .sorted((a, b) -> {
+                    if (a.getOccurredAt() == null && b.getOccurredAt() == null) return 0;
+                    if (a.getOccurredAt() == null) return 1;
+                    if (b.getOccurredAt() == null) return -1;
+                    return b.getOccurredAt().compareTo(a.getOccurredAt());
+                })
                 .map(this::toDTO)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public VehicleGateChecklistDTO findById(UUID id) {
         VehicleGateChecklist entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Checklist de portaria não encontrado com ID: " + id));

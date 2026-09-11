@@ -29,8 +29,8 @@ public class SectorOrganizationController {
     @PostMapping("/process")
     // @PreAuthorize - TEMPORARIAMENTE REMOVIDO PARA DEBUG (endpoint jÃ¡ protegido no SecurityConfig)
     public ResponseEntity<Map<String, Object>> processAllDocuments(
-        @RequestParam(required = false) Integer filterMonth,
-        @RequestParam(required = false) Integer filterYear
+        @RequestParam(value = "filterMonth", required = false) Integer filterMonth,
+        @RequestParam(value = "filterYear", required = false) Integer filterYear
     ) {
         try {
             log.info("ðŸš€ Iniciando processamento de documentos por setor (MÃªs: {}, Ano: {})", 
@@ -188,9 +188,9 @@ public class SectorOrganizationController {
      */
     @GetMapping("/download/{sector}/{period}/{fileName}")
     public ResponseEntity<org.springframework.core.io.Resource> downloadDocument(
-            @PathVariable String sector,
-            @PathVariable String period,
-            @PathVariable String fileName) {
+            @PathVariable("sector") String sector,
+            @PathVariable("period") String period,
+            @PathVariable("fileName") String fileName) {
         try {
             log.info("ðŸ“¥ Download solicitado: Setor={}, PerÃ­odo={}, Arquivo={}", sector, period, fileName);
             
@@ -214,8 +214,8 @@ public class SectorOrganizationController {
      */
     @GetMapping("/download-zip/{sector}/{period}")
     public ResponseEntity<org.springframework.core.io.Resource> downloadSectorZip(
-            @PathVariable String sector,
-            @PathVariable String period) {
+            @PathVariable("sector") String sector,
+            @PathVariable("period") String period) {
         try {
             log.info("ðŸ“¦ Download ZIP solicitado: Setor={}, PerÃ­odo={}", sector, period);
             

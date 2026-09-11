@@ -47,7 +47,7 @@ public class QuoteController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar orÃ§amento por ID", description = "Retorna um orÃ§amento especÃ­fico pelo ID")
-    public ResponseEntity<QuoteDTO> getQuoteById(@PathVariable String id) {
+    public ResponseEntity<QuoteDTO> getQuoteById(@PathVariable("id") String id) {
         Quote quote = quoteService.findById(UUID.fromString(id));
         QuoteDTO quoteDTO = quoteService.convertToDTO(quote);
         return ResponseEntity.ok(quoteDTO);
@@ -71,7 +71,7 @@ public class QuoteController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar orÃ§amento", description = "Atualiza um orÃ§amento existente")
-    public ResponseEntity<QuoteDTO> updateQuote(@PathVariable String id, @RequestBody QuoteDTO quoteDTO) {
+    public ResponseEntity<QuoteDTO> updateQuote(@PathVariable("id") String id, @RequestBody QuoteDTO quoteDTO) {
         Quote updated = quoteService.update(UUID.fromString(id), quoteDTO);
         QuoteDTO updatedDTO = quoteService.convertToDTO(updated);
         return ResponseEntity.ok(updatedDTO);
@@ -79,7 +79,7 @@ public class QuoteController {
 
     @PatchMapping("/{id}/status")
     @Operation(summary = "Atualizar status do orÃ§amento", description = "Atualiza apenas o status de um orÃ§amento")
-    public ResponseEntity<QuoteDTO> updateQuoteStatus(@PathVariable String id, @RequestBody Map<String, String> statusUpdate) {
+    public ResponseEntity<QuoteDTO> updateQuoteStatus(@PathVariable("id") String id, @RequestBody Map<String, String> statusUpdate) {
         String status = statusUpdate.get("status");
         Quote updated = quoteService.updateStatus(UUID.fromString(id), status);
         QuoteDTO updatedDTO = quoteService.convertToDTO(updated);
@@ -88,14 +88,14 @@ public class QuoteController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir orÃ§amento", description = "Exclui um orÃ§amento do sistema")
-    public ResponseEntity<Void> deleteQuote(@PathVariable String id) {
+    public ResponseEntity<Void> deleteQuote(@PathVariable("id") String id) {
         quoteService.delete(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/status/{status}")
     @Operation(summary = "Buscar orÃ§amentos por status", description = "Retorna orÃ§amentos filtrados por status")
-    public ResponseEntity<List<QuoteDTO>> getQuotesByStatus(@PathVariable String status) {
+    public ResponseEntity<List<QuoteDTO>> getQuotesByStatus(@PathVariable("status") String status) {
         QuoteStatus quoteStatus = QuoteStatus.valueOf(status.toUpperCase());
         List<Quote> quotes = quoteService.findByStatus(quoteStatus);
         List<QuoteDTO> quoteDTOs = quoteService.convertToDTOList(quotes);
@@ -104,7 +104,7 @@ public class QuoteController {
 
     @GetMapping("/client/{clientId}")
     @Operation(summary = "Buscar orÃ§amentos por cliente", description = "Retorna orÃ§amentos de um cliente especÃ­fico")
-    public ResponseEntity<List<QuoteDTO>> getQuotesByClient(@PathVariable String clientId) {
+    public ResponseEntity<List<QuoteDTO>> getQuotesByClient(@PathVariable("clientId") String clientId) {
         List<Quote> quotes = quoteService.findByClient(UUID.fromString(clientId));
         List<QuoteDTO> quoteDTOs = quoteService.convertToDTOList(quotes);
         return ResponseEntity.ok(quoteDTOs);
@@ -112,7 +112,7 @@ public class QuoteController {
 
     @GetMapping("/lead/{leadId}")
     @Operation(summary = "Buscar orÃ§amentos por lead", description = "Retorna orÃ§amentos de um lead especÃ­fico")
-    public ResponseEntity<List<QuoteDTO>> getQuotesByLead(@PathVariable String leadId) {
+    public ResponseEntity<List<QuoteDTO>> getQuotesByLead(@PathVariable("leadId") String leadId) {
         List<Quote> quotes = quoteService.findByLead(UUID.fromString(leadId));
         List<QuoteDTO> quoteDTOs = quoteService.convertToDTOList(quotes);
         return ResponseEntity.ok(quoteDTOs);
@@ -120,7 +120,7 @@ public class QuoteController {
 
     @GetMapping("/assigned/{userId}")
     @Operation(summary = "Buscar orÃ§amentos por responsÃ¡vel", description = "Retorna orÃ§amentos atribuÃ­dos a um usuÃ¡rio especÃ­fico")
-    public ResponseEntity<List<QuoteDTO>> getQuotesByAssignedTo(@PathVariable String userId) {
+    public ResponseEntity<List<QuoteDTO>> getQuotesByAssignedTo(@PathVariable("userId") String userId) {
         List<Quote> quotes = quoteService.findByAssignedTo(UUID.fromString(userId));
         List<QuoteDTO> quoteDTOs = quoteService.convertToDTOList(quotes);
         return ResponseEntity.ok(quoteDTOs);
@@ -128,7 +128,7 @@ public class QuoteController {
 
     @GetMapping("/created/{userId}")
     @Operation(summary = "Buscar orÃ§amentos por criador", description = "Retorna orÃ§amentos criados por um usuÃ¡rio especÃ­fico")
-    public ResponseEntity<List<QuoteDTO>> getQuotesByCreatedBy(@PathVariable String userId) {
+    public ResponseEntity<List<QuoteDTO>> getQuotesByCreatedBy(@PathVariable("userId") String userId) {
         List<Quote> quotes = quoteService.findByCreatedBy(UUID.fromString(userId));
         List<QuoteDTO> quoteDTOs = quoteService.convertToDTOList(quotes);
         return ResponseEntity.ok(quoteDTOs);
@@ -144,7 +144,7 @@ public class QuoteController {
 
     @GetMapping("/expiring-soon/{days}")
     @Operation(summary = "Buscar orÃ§amentos expirando em breve", description = "Retorna orÃ§amentos que expiram nos prÃ³ximos X dias")
-    public ResponseEntity<List<QuoteDTO>> getQuotesExpiringSoon(@PathVariable int days) {
+    public ResponseEntity<List<QuoteDTO>> getQuotesExpiringSoon(@PathVariable("days") int days) {
         List<Quote> quotes = quoteService.findQuotesExpiringSoon(days);
         List<QuoteDTO> quoteDTOs = quoteService.convertToDTOList(quotes);
         return ResponseEntity.ok(quoteDTOs);
@@ -152,7 +152,7 @@ public class QuoteController {
 
     @GetMapping("/search")
     @Operation(summary = "Buscar orÃ§amentos", description = "Busca orÃ§amentos por termo de pesquisa")
-    public ResponseEntity<List<QuoteDTO>> searchQuotes(@RequestParam String term) {
+    public ResponseEntity<List<QuoteDTO>> searchQuotes(@RequestParam(value = "term") String term) {
         List<Quote> quotes = quoteService.searchQuotes(term);
         List<QuoteDTO> quoteDTOs = quoteService.convertToDTOList(quotes);
         return ResponseEntity.ok(quoteDTOs);

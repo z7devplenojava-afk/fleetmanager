@@ -64,6 +64,8 @@ export interface SystemMessage {
     title: string;
     content: string;
     type: 'INDIVIDUAL' | 'GROUP' | 'GLOBAL';
+    /** Tipo original do backend (ex: 'NOTIFICATION', 'EMAIL') — usado para deep-links */
+    rawType?: string;
     priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
     status: 'UNREAD' | 'READ' | 'ARCHIVED';
     sender: User;

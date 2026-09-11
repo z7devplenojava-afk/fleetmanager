@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MessageCircle } from 'lucide-react';
 import driverService from '@/services/driverService';
 import { useToast } from '@/hooks/use-toast';
 import { Driver } from '@/types/driver';
@@ -21,6 +22,7 @@ const DriverFormModal: React.FC<DriverFormModalProps> = ({ isOpen, onOpenChange,
   const [employeeId, setEmployeeId] = useState('');
   const [name, setName] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
+  const [phone, setPhone] = useState('');
   const [status, setStatus] = useState<'ATIVO' | 'INATIVO'>('ATIVO');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -32,11 +34,13 @@ const DriverFormModal: React.FC<DriverFormModalProps> = ({ isOpen, onOpenChange,
       setEmployeeId('');
       setName(driver.name);
       setLicenseNumber(driver.licenseNumber || '');
+      setPhone(driver.phone || '');
       setStatus(driver.status);
     } else {
       setEmployeeId('');
       setName('');
       setLicenseNumber('');
+      setPhone('');
       setStatus('ATIVO');
     }
   }, [driver, isOpen]);
@@ -50,6 +54,7 @@ const DriverFormModal: React.FC<DriverFormModalProps> = ({ isOpen, onOpenChange,
         if (emp) {
           setName(emp.name || '');
           if (emp.cnhNumber) setLicenseNumber(emp.cnhNumber);
+          if (emp.phone) setPhone(emp.phone);
           if (emp.status && ['ACTIVE', 'ATIVO'].includes(emp.status)) {
             setStatus('ATIVO');
           } else if (emp.status && ['INACTIVE', 'INATIVO'].includes(emp.status)) {
@@ -98,7 +103,7 @@ const DriverFormModal: React.FC<DriverFormModalProps> = ({ isOpen, onOpenChange,
     setIsLoading(true);
 
     try {
-      const driverData = { name, licenseNumber, status };
+      const driverData = { name, licenseNumber, phone, status };
       if (isEditing && driver) {
         await driverService.updateDriver(driver.id, driverData);
       } else {
@@ -186,6 +191,23 @@ const DriverFormModal: React.FC<DriverFormModalProps> = ({ isOpen, onOpenChange,
           onChange={(e) => setLicenseNumber(e.target.value)}
           className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="phone" className="text-seguranca-lightgray">
+          WhatsApp
+        </Label>
+        <div className="relative">
+          <MessageCircle className="absolute left-3 top-2.5 h-4 w-4 text-seguranca-lightgray/50" />
+          <Input
+            id="phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="pl-10 bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+            placeholder="(00) 00000-0000"
+          />
+        </div>
+        <p className="text-xs text-gray-400">Usado para enviar notificações de multas e alertas ao motorista.</p>
       </div>
 
       <div className="space-y-2">

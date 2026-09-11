@@ -66,10 +66,10 @@ public class FacialAuthController {
     @Operation(summary = "Registrar embedding facial", 
                description = "Registra um novo embedding facial para um supervisor")
     public ResponseEntity<FacialAuthResponse> registerFace(
-            @RequestParam UUID supervisorId,
-            @RequestParam String embeddingData,
-            @RequestParam(defaultValue = "0.8") BigDecimal confidenceScore,
-            @RequestParam(defaultValue = "false") boolean livenessVerified) {
+            @RequestParam(value = "supervisorId") UUID supervisorId,
+            @RequestParam(value = "embeddingData") String embeddingData,
+            @RequestParam(value = "confidenceScore", defaultValue = "0.8") BigDecimal confidenceScore,
+            @RequestParam(value = "livenessVerified", defaultValue = "false") boolean livenessVerified) {
         
         log.info("Registrando embedding facial para supervisor: {} com score: {}", 
                 supervisorId, confidenceScore);
@@ -99,8 +99,8 @@ public class FacialAuthController {
     @Operation(summary = "EstatÃ­sticas de autenticaÃ§Ã£o facial", 
                description = "Busca estatÃ­sticas de tentativas de login facial para um supervisor")
     public ResponseEntity<Object[]> getSupervisorStats(
-            @PathVariable UUID supervisorId,
-            @RequestParam(defaultValue = "30") int daysBack) {
+            @PathVariable("supervisorId") UUID supervisorId,
+            @RequestParam(value = "daysBack", defaultValue = "30") int daysBack) {
         
         log.info("Buscando estatÃ­sticas de autenticaÃ§Ã£o facial para supervisor: {} (Ãºltimos {} dias)", 
                 supervisorId, daysBack);
@@ -123,8 +123,8 @@ public class FacialAuthController {
     @Operation(summary = "Tentativas suspeitas", 
                description = "Busca tentativas suspeitas de autenticaÃ§Ã£o facial")
     public ResponseEntity<?> getSuspiciousAttempts(
-            @RequestParam String ipAddress,
-            @RequestParam(defaultValue = "24") int hoursBack) {
+            @RequestParam(value = "ipAddress") String ipAddress,
+            @RequestParam(value = "hoursBack", defaultValue = "24") int hoursBack) {
         
         log.info("Buscando tentativas suspeitas para IP: {} (Ãºltimas {} horas)", ipAddress, hoursBack);
         
@@ -146,7 +146,7 @@ public class FacialAuthController {
     @Operation(summary = "Limpeza de tentativas antigas", 
                description = "Remove tentativas de autenticaÃ§Ã£o facial antigas")
     public ResponseEntity<Void> cleanupOldAttempts(
-            @RequestParam(defaultValue = "90") int daysBack) {
+            @RequestParam(value = "daysBack", defaultValue = "90") int daysBack) {
         
         log.info("Iniciando limpeza de tentativas de autenticaÃ§Ã£o facial (mais de {} dias)", daysBack);
         

@@ -46,11 +46,11 @@ public class ReportController {
     })
     public ResponseEntity<?> generateContasAPagarReport(
             @Parameter(description = "Data de inÃ­cio do perÃ­odo") 
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "Data de fim do perÃ­odo") 
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @Parameter(description = "Formato de resposta: html ou pdf") 
-            @RequestParam(defaultValue = "html") String format) {
+            @RequestParam(value = "format", defaultValue = "html") String format) {
         
         try {
             log.info("Gerando relatÃ³rio de contas a pagar para perÃ­odo: {} a {}, formato: {}", startDate, endDate, format);
@@ -91,9 +91,9 @@ public class ReportController {
     @GetMapping("/payroll/pdf")
     @Operation(summary = "RelatÃ³rio PDF da Folha de Pagamento", description = "Gera relatÃ³rio PDF para envio Ã  contabilidade.")
     public ResponseEntity<byte[]> generatePayrollPdf(
-            @RequestParam(required = false) String referenceMonth,
-            @RequestParam(required = false) java.util.UUID unitId,
-            @RequestParam(required = false) java.util.UUID employeeId) {
+            @RequestParam(value = "referenceMonth", required = false) String referenceMonth,
+            @RequestParam(value = "unitId", required = false) java.util.UUID unitId,
+            @RequestParam(value = "employeeId", required = false) java.util.UUID employeeId) {
         try {
             byte[] pdf = reportService.generatePayrollReportPdf(referenceMonth, unitId, employeeId);
             return ResponseEntity.ok()
@@ -108,10 +108,10 @@ public class ReportController {
     @PostMapping("/payroll/send-email")
     @Operation(summary = "Enviar relatÃ³rio de folha em PDF por email", description = "Gera o PDF e envia para a contabilidade.")
     public ResponseEntity<Void> sendPayrollPdfByEmail(
-            @RequestParam(required = false) String to,
-            @RequestParam(required = false) String referenceMonth,
-            @RequestParam(required = false) java.util.UUID unitId,
-            @RequestParam(required = false) java.util.UUID employeeId) {
+            @RequestParam(value = "to", required = false) String to,
+            @RequestParam(value = "referenceMonth", required = false) String referenceMonth,
+            @RequestParam(value = "unitId", required = false) java.util.UUID unitId,
+            @RequestParam(value = "employeeId", required = false) java.util.UUID employeeId) {
         try {
             byte[] pdf = reportService.generatePayrollReportPdf(referenceMonth, unitId, employeeId);
             String subject = "RelatÃ³rio de Folha - " + (referenceMonth != null ? referenceMonth : "PerÃ­odo");
@@ -135,9 +135,9 @@ public class ReportController {
     })
     public ResponseEntity<?> generateContasAPagarReportByStatus(
             @Parameter(description = "Status das contas") 
-            @PathVariable ExpenseStatus status,
+            @PathVariable("status") ExpenseStatus status,
             @Parameter(description = "Formato de resposta: html ou pdf") 
-            @RequestParam(defaultValue = "html") String format) {
+            @RequestParam(value = "format", defaultValue = "html") String format) {
         
         try {
             log.info("Gerando relatÃ³rio de contas a pagar por status: {}, formato: {}", status, format);
@@ -185,9 +185,9 @@ public class ReportController {
     })
     public ResponseEntity<?> generateContasAPagarReportByType(
             @Parameter(description = "Tipo das contas") 
-            @PathVariable ExpenseType type,
+            @PathVariable("type") ExpenseType type,
             @Parameter(description = "Formato de resposta: html ou pdf") 
-            @RequestParam(defaultValue = "html") String format) {
+            @RequestParam(value = "format", defaultValue = "html") String format) {
         
         try {
             log.info("Gerando relatÃ³rio de contas a pagar por tipo: {}, formato: {}", type, format);
@@ -234,7 +234,7 @@ public class ReportController {
     })
     public ResponseEntity<?> generateContasAPagarSummaryReport(
             @Parameter(description = "Formato de resposta: html ou pdf") 
-            @RequestParam(defaultValue = "html") String format) {
+            @RequestParam(value = "format", defaultValue = "html") String format) {
         
         try {
             log.info("Gerando relatÃ³rio resumido de contas a pagar, formato: {}", format);
@@ -282,13 +282,13 @@ public class ReportController {
     })
     public ResponseEntity<?> generateContasAPagarReportByCompany(
             @Parameter(description = "Sigla da empresa") 
-            @PathVariable String companySigla,
+            @PathVariable("companySigla") String companySigla,
             @Parameter(description = "Data de inÃ­cio do perÃ­odo") 
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "Data de fim do perÃ­odo") 
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @Parameter(description = "Formato de resposta: html ou pdf") 
-            @RequestParam(defaultValue = "pdf") String format) {
+            @RequestParam(value = "format", defaultValue = "pdf") String format) {
         
         try {
             log.info("Gerando relatÃ³rio de contas a pagar por empresa: {}, formato: {}", companySigla, format);
@@ -354,7 +354,7 @@ public class ReportController {
     })
     public ResponseEntity<String> getTemplate(
             @Parameter(description = "Nome do template") 
-            @PathVariable String templateName) {
+            @PathVariable("templateName") String templateName) {
         
         try {
             String template = reportTemplateService.loadTemplate(templateName);

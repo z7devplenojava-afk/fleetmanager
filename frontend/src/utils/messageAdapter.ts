@@ -87,6 +87,7 @@ export const adaptMessageResponse = (dto: MessageResponseDTO): SystemMessage => 
     title: dto.title,
     content: dto.content,
     type: mapMessageType(dto.type),
+    rawType: dto.type, // preserva o tipo original (ex: NOTIFICATION) para deep-links
     priority: mapMessagePriority(dto.priority),
     status: mapMessageStatus(dto.status),
     sender: {

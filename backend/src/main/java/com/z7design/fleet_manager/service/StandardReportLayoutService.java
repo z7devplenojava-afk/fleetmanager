@@ -98,7 +98,8 @@ public class StandardReportLayoutService {
      */
     public DocumentWithPdf createDocumentWithLayout(PdfWriter writer, ReportLayoutConfig config) throws IOException {
         PdfDocument pdfDoc = new PdfDocument(writer);
-        Document document = new Document(pdfDoc, PageSize.A4);
+        PageSize pageSize = config.isLandscape() ? PageSize.A4.rotate() : PageSize.A4;
+        Document document = new Document(pdfDoc, pageSize);
         
         // Configurar margens baseadas na configuraÃ§Ã£o
         document.setMargins(

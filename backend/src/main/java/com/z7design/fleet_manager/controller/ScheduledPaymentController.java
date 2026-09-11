@@ -62,7 +62,7 @@ public class ScheduledPaymentController {
             @ApiResponse(responseCode = "404", description = "Pagamento agendado nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<ScheduledPaymentDTO> getById(@PathVariable UUID id) {
+    public ResponseEntity<ScheduledPaymentDTO> getById(@PathVariable("id") UUID id) {
         log.info("GET /api/scheduled-payments/{} - Buscando pagamento agendado por ID", id);
         return ResponseEntity.ok(scheduledPaymentService.getScheduledPaymentById(id));
     }
@@ -88,7 +88,7 @@ public class ScheduledPaymentController {
             @ApiResponse(responseCode = "400", description = "Dados invÃ¡lidos"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<ScheduledPaymentDTO> update(@PathVariable UUID id, @Valid @RequestBody ScheduledPaymentDTO dto) {
+    public ResponseEntity<ScheduledPaymentDTO> update(@PathVariable("id") UUID id, @Valid @RequestBody ScheduledPaymentDTO dto) {
         log.info("PUT /api/scheduled-payments/{} - Atualizando pagamento agendado", id);
         ScheduledPaymentDTO updated = scheduledPaymentService.updateScheduledPayment(id, dto);
         return ResponseEntity.ok(updated);
@@ -101,7 +101,7 @@ public class ScheduledPaymentController {
             @ApiResponse(responseCode = "404", description = "Pagamento agendado nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         log.info("DELETE /api/scheduled-payments/{} - Deletando pagamento agendado", id);
         scheduledPaymentService.deleteScheduledPayment(id);
         return ResponseEntity.noContent().build();
@@ -109,14 +109,14 @@ public class ScheduledPaymentController {
     
     @GetMapping("/client/{clientId}")
     @Operation(summary = "Buscar pagamentos agendados por cliente", description = "Retorna todos os pagamentos agendados de um cliente especÃ­fico")
-    public ResponseEntity<List<ScheduledPaymentDTO>> getByClient(@PathVariable UUID clientId) {
+    public ResponseEntity<List<ScheduledPaymentDTO>> getByClient(@PathVariable("clientId") UUID clientId) {
         log.info("GET /api/scheduled-payments/client/{} - Buscando pagamentos agendados por cliente", clientId);
         return ResponseEntity.ok(scheduledPaymentService.getScheduledPaymentsByClient(clientId));
     }
     
     @GetMapping("/status/{status}")
     @Operation(summary = "Buscar pagamentos agendados por status", description = "Retorna todos os pagamentos agendados com um status especÃ­fico")
-    public ResponseEntity<List<ScheduledPaymentDTO>> getByStatus(@PathVariable ScheduledPaymentStatus status) {
+    public ResponseEntity<List<ScheduledPaymentDTO>> getByStatus(@PathVariable("status") ScheduledPaymentStatus status) {
         log.info("GET /api/scheduled-payments/status/{} - Buscando pagamentos agendados por status", status);
         return ResponseEntity.ok(scheduledPaymentService.getScheduledPaymentsByStatus(status));
     }
@@ -143,9 +143,9 @@ public class ScheduledPaymentController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<ScheduledPaymentDTO> markAsExecuted(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Parameter(description = "Data da execuÃ§Ã£o") 
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate executionDate) {
+            @RequestParam(value = "executionDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate executionDate) {
         log.info("PUT /api/scheduled-payments/{}/mark-executed - Marcando pagamento como executado", id);
         ScheduledPaymentDTO updated = scheduledPaymentService.markAsExecuted(id, executionDate);
         return ResponseEntity.ok(updated);
@@ -158,7 +158,7 @@ public class ScheduledPaymentController {
             @ApiResponse(responseCode = "404", description = "Pagamento agendado nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<ScheduledPaymentDTO> cancel(@PathVariable UUID id) {
+    public ResponseEntity<ScheduledPaymentDTO> cancel(@PathVariable("id") UUID id) {
         log.info("PUT /api/scheduled-payments/{}/cancel - Cancelando pagamento agendado", id);
         ScheduledPaymentDTO updated = scheduledPaymentService.cancelScheduledPayment(id);
         return ResponseEntity.ok(updated);

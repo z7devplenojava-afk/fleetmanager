@@ -1,0 +1,630 @@
+package com.z7design.fleet_manager.service;
+
+import com.z7design.fleet_manager.dto.ImportResultDto;
+import com.z7design.fleet_manager.model.Vehicle;
+import com.z7design.fleet_manager.model.Vehicle.FuelType;
+import com.z7design.fleet_manager.model.Vehicle.VehicleStatus;
+import com.z7design.fleet_manager.model.Vehicle.VehicleType;
+import com.z7design.fleet_manager.repository.VehicleRepository;
+import com.z7design.fleet_manager.tenant.TenantContext;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.text.Normalizer;
+import java.time.LocalDate;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class VehicleExcelImportService {
+
+    private final VehicleRepository vehicleRepository;
+    private final PlatformTransactionManager transactionManager;
+
+    private static final Pattern YEAR_PATTERN = Pattern.compile("(19\\d{2}|20\\d{2})");
+
+    public ImportResultDto importVehiclesFromExcel(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("O arquivo de importação está vazio ou não foi enviado.");
+        }
+
+        ImportResultDto result = ImportResultDto.empty();
+        log.info("Iniciando importação otimizada de veículos a partir do arquivo Excel: {}", file.getOriginalFilename());
+
+        try (InputStream is = file.getInputStream();
+             Workbook workbook = WorkbookFactory.create(is)) {
+
+            // 1. Pré-carregar todos os veículos existentes para busca O(1) em memória
+            Map<String, Vehicle> existingMap = new HashMap<>();
+            try {
+                List<Vehicle> allVehicles = vehicleRepository.findAll();
+                for (Vehicle v : allVehicles) {
+                    if (v.getPlate() != null) {
+                        existingMap.put(v.getPlate().toUpperCase(), v);
+                    }
+                }
+                log.info("Pré-carregados {} veículos existentes em memória.", existingMap.size());
+            } catch (Exception e) {
+                log.warn("Não foi possível pré-carregar veículos: {}", e.getMessage());
+            }
+
+            Set<String> processedPlatesInFile = new HashSet<>();
+            List<Vehicle> toInsert = new ArrayList<>();
+            List<Vehicle> toUpdate = new ArrayList<>();
+
+            int numberOfSheets = workbook.getNumberOfSheets();
+            log.info("Processando arquivo Excel com {} abas", numberOfSheets);
+
+            for (int s = 0; s < numberOfSheets; s++) {
+                Sheet sheet = workbook.getSheetAt(s);
+                String sheetName = sheet.getSheetName();
+
+                if (workbook.isSheetHidden(s) || sheet.getPhysicalNumberOfRows() == 0) {
+                    continue;
+                }
+
+                log.info("Processando aba '{}' ({}/{})", sheetName, s + 1, numberOfSheets);
+                processSheet(sheet, sheetName, result, existingMap, processedPlatesInFile, toInsert, toUpdate);
+            }
+
+            // 2. Persistir em lote em uma única transação otimizada
+            if (!toInsert.isEmpty() || !toUpdate.isEmpty()) {
+                log.info("Persistindo lote: {} a inserir, {} a atualizar", toInsert.size(), toUpdate.size());
+                TransactionTemplate tt = new TransactionTemplate(transactionManager);
+                tt.execute(status -> {
+                    if (!toInsert.isEmpty()) {
+                        vehicleRepository.saveAll(toInsert);
+                    }
+                    if (!toUpdate.isEmpty()) {
+                        vehicleRepository.saveAll(toUpdate);
+                    }
+                    return null;
+                });
+                result.setInserted(toInsert.size());
+                result.setUpdated(toUpdate.size());
+            }
+
+        } catch (Exception e) {
+            log.error("Erro crítico ao ler o arquivo Excel de veículos: ", e);
+            result.getErrors().add("Falha ao ler arquivo Excel: " + e.getMessage());
+        }
+
+        log.info("Importação de veículos concluída. Inseridos: {}, Atualizados: {}, Ignorados: {}, Erros: {}",
+                result.getInserted(), result.getUpdated(), result.getSkipped(), result.getErrors().size());
+
+        return result;
+    }
+
+    private void processSheet(Sheet sheet, String sheetName, ImportResultDto result,
+                              Map<String, Vehicle> existingMap, Set<String> processedPlatesInFile,
+                              List<Vehicle> toInsert, List<Vehicle> toUpdate) {
+        int firstRowNum = sheet.getFirstRowNum();
+        int lastRowNum = sheet.getLastRowNum();
+
+        if (lastRowNum < 0) return;
+
+        int headerRowIndex = -1;
+        Map<Integer, String> columnMap = new HashMap<>();
+
+        // Procurar linha de cabeçalho válida (deve possuir ao menos 2 colunas reconhecidas)
+        for (int r = firstRowNum; r <= Math.min(firstRowNum + 15, lastRowNum); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) continue;
+
+            Map<Integer, String> tempMap = mapHeaders(row);
+            if (tempMap.size() >= 2 && (tempMap.containsValue("PLATE") || tempMap.containsValue("PATRIMONIO") || tempMap.containsValue("MODEL"))) {
+                headerRowIndex = r;
+                columnMap = tempMap;
+                break;
+            }
+        }
+
+        // Fallback: se não encontrou com 2+, tentar com 1 coluna reconhecida
+        if (headerRowIndex == -1) {
+            for (int r = firstRowNum; r <= Math.min(firstRowNum + 15, lastRowNum); r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+
+                Map<Integer, String> tempMap = mapHeaders(row);
+                if (tempMap.containsValue("PLATE") || tempMap.containsValue("PATRIMONIO")) {
+                    headerRowIndex = r;
+                    columnMap = tempMap;
+                    break;
+                }
+            }
+        }
+
+        if (headerRowIndex == -1 || columnMap.isEmpty()) {
+            log.warn("Nenhum cabeçalho válido encontrado na aba '{}'", sheetName);
+            return;
+        }
+
+        log.info("Cabeçalho localizado na aba '{}', linha {}. Colunas: {}", sheetName, headerRowIndex + 1, columnMap.values());
+
+        for (int r = headerRowIndex + 1; r <= lastRowNum; r++) {
+            Row row = sheet.getRow(r);
+            if (row == null || isRowEmpty(row)) {
+                continue;
+            }
+
+            result.setTotalRows(result.getTotalRows() + 1);
+
+            try {
+                processRow(row, r + 1, sheetName, columnMap, result, existingMap, processedPlatesInFile, toInsert, toUpdate);
+            } catch (Exception e) {
+                log.error("Erro na aba '{}', linha {}: ", sheetName, r + 1, e);
+                result.setSkipped(result.getSkipped() + 1);
+                result.getErrors().add(String.format("Aba '%s', Linha %d: %s", sheetName, r + 1, e.getMessage()));
+            }
+        }
+    }
+
+    private Map<Integer, String> mapHeaders(Row headerRow) {
+        Map<Integer, String> map = new HashMap<>();
+        for (Cell cell : headerRow) {
+            String val = getCellValueAsString(cell);
+            if (val == null || val.isBlank()) continue;
+
+            String normalized = normalizeText(val);
+
+            if (normalized.equals("placa") || normalized.equals("plate") || normalized.startsWith("placa")) {
+                map.put(cell.getColumnIndex(), "PLATE");
+            } else if (normalized.contains("patrimonio") || normalized.contains("patrimon") || normalized.contains("patrim")) {
+                map.put(cell.getColumnIndex(), "PATRIMONIO");
+            } else if (normalized.contains("frota") || normalized.contains("prefixo") || normalized.contains("subsidio") || normalized.contains("num veiculo")) {
+                map.put(cell.getColumnIndex(), "FLEET_NUMBER");
+            } else if (normalized.contains("chassi") || normalized.contains("chassis") || normalized.contains("vin")) {
+                map.put(cell.getColumnIndex(), "CHASSIS");
+            } else if (normalized.contains("renavam") || normalized.contains("renavan")) {
+                map.put(cell.getColumnIndex(), "RENAVAM");
+            } else if (normalized.contains("modelo") || normalized.contains("model") || normalized.contains("marca/modelo") || normalized.contains("descricao")) {
+                map.put(cell.getColumnIndex(), "MODEL");
+            } else if (normalized.contains("ano") || normalized.contains("mod") || normalized.contains("ano/mod")) {
+                map.put(cell.getColumnIndex(), "YEAR");
+            } else if (normalized.contains("marca") || normalized.contains("brand") || normalized.contains("fabricante") || normalized.contains("montadora")) {
+                map.put(cell.getColumnIndex(), "BRAND");
+            } else if (normalized.contains("cor") || normalized.contains("color")) {
+                map.put(cell.getColumnIndex(), "COLOR");
+            } else if (normalized.contains("capacidade") || normalized.contains("lotacao") || normalized.contains("passageiros") || normalized.contains("assentos")) {
+                map.put(cell.getColumnIndex(), "CAPACITY");
+            } else if (normalized.contains("carroceria") || normalized.contains("encatavel")) {
+                map.put(cell.getColumnIndex(), "BODY_BUILDER");
+            } else if (normalized.contains("chassi marca") || normalized.contains("marca chassi") || normalized.contains("mod chassi")) {
+                map.put(cell.getColumnIndex(), "CHASSIS_BRAND");
+            } else if (normalized.contains("proprietario") || normalized.contains("proprietário") || normalized.contains("proprix") || normalized.contains("dono")) {
+                map.put(cell.getColumnIndex(), "OWNER");
+            } else if (normalized.contains("cliente") || normalized.contains("empresa") || normalized.contains("contrato")) {
+                map.put(cell.getColumnIndex(), "CLIENT");
+            } else if (normalized.contains("valor") || normalized.contains("avaliacao")) {
+                map.put(cell.getColumnIndex(), "MARKET_VALUE");
+            } else if (normalized.contains("km") || normalized.contains("odometro")) {
+                map.put(cell.getColumnIndex(), "MILEAGE");
+            } else if (normalized.contains("combustivel") || normalized.contains("combustível")) {
+                map.put(cell.getColumnIndex(), "FUEL_TYPE");
+            } else if (normalized.contains("tipo de veiculo") || normalized.contains("tipo veiculo") || normalized.equals("tipo") || normalized.contains("categoria") || normalized.contains("especie")) {
+                map.put(cell.getColumnIndex(), "VEHICLE_TYPE");
+            }
+        }
+        return map;
+    }
+
+    private void processRow(Row row, int rowNum, String sheetName, Map<Integer, String> columnMap,
+                            ImportResultDto result, Map<String, Vehicle> existingMap,
+                            Set<String> processedPlatesInFile, List<Vehicle> toInsert, List<Vehicle> toUpdate) {
+        String plateValue = null;
+        String patrimonioValue = null;
+        String fleetNumberValue = null;
+        String chassisValue = null;
+        String renavamValue = null;
+        String modelValue = null;
+        String yearValue = null;
+        String brandValue = null;
+        String colorValue = null;
+        String capacityValue = null;
+        String bodyBuilderValue = null;
+        String chassisBrandValue = null;
+        String ownerValue = null;
+        String clientValue = null;
+        String mileageValue = null;
+        String vehicleTypeValue = null;
+        BigDecimal marketValue = null;
+
+        for (Map.Entry<Integer, String> entry : columnMap.entrySet()) {
+            int colIdx = entry.getKey();
+            String fieldType = entry.getValue();
+            Cell cell = row.getCell(colIdx);
+            String val = getCellValueAsString(cell);
+
+            if (val == null || val.isBlank()) continue;
+
+            switch (fieldType) {
+                case "PLATE":
+                    plateValue = val.trim().toUpperCase();
+                    break;
+                case "PATRIMONIO":
+                    patrimonioValue = val.trim().toUpperCase();
+                    break;
+                case "FLEET_NUMBER":
+                    fleetNumberValue = val.trim();
+                    break;
+                case "CHASSIS":
+                    chassisValue = val.trim().toUpperCase();
+                    break;
+                case "RENAVAM":
+                    renavamValue = val.trim().replaceAll("\\D", "");
+                    if (renavamValue.isBlank()) renavamValue = val.trim();
+                    break;
+                case "MODEL":
+                    modelValue = val.trim();
+                    break;
+                case "YEAR":
+                    yearValue = val.trim();
+                    break;
+                case "BRAND":
+                    brandValue = val.trim();
+                    break;
+                case "COLOR":
+                    colorValue = val.trim();
+                    break;
+                case "CAPACITY":
+                    capacityValue = val.trim();
+                    break;
+                case "BODY_BUILDER":
+                    bodyBuilderValue = val.trim();
+                    break;
+                case "CHASSIS_BRAND":
+                    chassisBrandValue = val.trim();
+                    break;
+                case "OWNER":
+                    ownerValue = val.trim();
+                    break;
+                case "CLIENT":
+                    clientValue = val.trim();
+                    break;
+                case "MILEAGE":
+                    mileageValue = val.trim();
+                    break;
+                case "VEHICLE_TYPE":
+                    vehicleTypeValue = val.trim();
+                    break;
+                case "MARKET_VALUE":
+                    try {
+                        marketValue = new BigDecimal(val.trim().replaceAll("[^0-9,.]", "").replace(",", "."));
+                    } catch (Exception ignored) {}
+                    break;
+            }
+        }
+
+        // Validar Chassi (17 caracteres alfanuméricos)
+        String finalChassis = parseAndValidateChassis(chassisValue);
+
+        // Validar RENAVAM (9 a 11 dígitos numéricos)
+        String finalRenavam = parseAndValidateRenavam(renavamValue);
+
+        // REGRA PRINCIPAL: PATRIMÔNIO ou PLACA é o identificador inserido no campo PLACA
+        String finalPlate = plateValue;
+        if (finalPlate != null && (isHeaderWord(finalPlate) || isPureRenavamNumber(finalPlate) || isPureChassisString(finalPlate))) {
+            if (isPureRenavamNumber(finalPlate) && finalRenavam == null) {
+                finalRenavam = parseAndValidateRenavam(finalPlate);
+            } else if (isPureChassisString(finalPlate) && finalChassis == null) {
+                finalChassis = parseAndValidateChassis(finalPlate);
+            }
+            finalPlate = null;
+        }
+
+        if ((finalPlate == null || finalPlate.isBlank()) && patrimonioValue != null && !patrimonioValue.isBlank()) {
+            if (!isHeaderWord(patrimonioValue) && !isPureRenavamNumber(patrimonioValue) && !isPureChassisString(patrimonioValue)) {
+                finalPlate = patrimonioValue;
+            } else if (isPureRenavamNumber(patrimonioValue) && finalRenavam == null) {
+                finalRenavam = parseAndValidateRenavam(patrimonioValue);
+            } else if (isPureChassisString(patrimonioValue) && finalChassis == null) {
+                finalChassis = parseAndValidateChassis(patrimonioValue);
+            }
+        }
+
+        if (finalPlate == null || finalPlate.isBlank()) {
+            result.setSkipped(result.getSkipped() + 1);
+            return;
+        }
+
+        finalPlate = cleanPlate(finalPlate);
+        if (finalPlate.isBlank() || isHeaderWord(finalPlate) || isPureRenavamNumber(finalPlate) || isPureChassisString(finalPlate) || finalPlate.length() < 5 || finalPlate.length() > 8) {
+            result.setSkipped(result.getSkipped() + 1);
+            return;
+        }
+
+        // Ignorar duplicatas dentro do próprio arquivo Excel
+        if (processedPlatesInFile.contains(finalPlate)) {
+            result.setSkipped(result.getSkipped() + 1);
+            return;
+        }
+        processedPlatesInFile.add(finalPlate);
+
+        String fleetNum = fleetNumberValue;
+        if ((fleetNum == null || fleetNum.isBlank()) && patrimonioValue != null && !patrimonioValue.isBlank()) {
+            fleetNum = patrimonioValue.trim();
+        }
+
+        Integer parsedYear = parseYear(yearValue);
+        if (parsedYear == null) {
+            parsedYear = LocalDate.now().getYear();
+        }
+
+        String finalModel = (modelValue != null && !modelValue.isBlank()) ? modelValue : "Modelo Não Especificado";
+        String finalBrand = (brandValue != null && !brandValue.isBlank()) ? brandValue : extractBrandFromModel(finalModel);
+        VehicleType parsedVehicleType = parseVehicleType(vehicleTypeValue);
+
+        Vehicle vehicle = existingMap.get(finalPlate);
+        UUID currentCompanyId = TenantContext.get();
+
+        if (vehicle != null) {
+            boolean updated = false;
+
+            if (finalChassis != null && !finalChassis.equalsIgnoreCase(vehicle.getChassisNumber())) {
+                vehicle.setChassisNumber(truncateString(finalChassis, 50));
+                updated = true;
+            }
+            if (finalRenavam != null && !finalRenavam.equalsIgnoreCase(vehicle.getRenavan())) {
+                vehicle.setRenavan(truncateString(finalRenavam, 50));
+                updated = true;
+            }
+            if (modelValue != null && !modelValue.isBlank() && !modelValue.equalsIgnoreCase(vehicle.getModel())) {
+                vehicle.setModel(truncateString(finalModel, 50));
+                updated = true;
+            }
+            if (parsedYear != null && !parsedYear.equals(vehicle.getYear())) {
+                vehicle.setYear(parsedYear);
+                updated = true;
+            }
+            if (parsedVehicleType != null && !parsedVehicleType.equals(vehicle.getVehicleType())) {
+                vehicle.setVehicleType(parsedVehicleType);
+                updated = true;
+            }
+            if (colorValue != null && !colorValue.isBlank()) {
+                vehicle.setColor(truncateString(colorValue, 30));
+                updated = true;
+            }
+            if (fleetNum != null && !fleetNum.isBlank() && !fleetNum.equalsIgnoreCase(vehicle.getFleetNumber())) {
+                vehicle.setFleetNumber(truncateString(fleetNum, 50));
+                updated = true;
+            }
+            if (bodyBuilderValue != null && !bodyBuilderValue.isBlank()) {
+                vehicle.setBodyBuilder(truncateString(bodyBuilderValue, 100));
+                updated = true;
+            }
+            if (chassisBrandValue != null && !chassisBrandValue.isBlank()) {
+                vehicle.setChassisBrand(truncateString(chassisBrandValue, 50));
+                updated = true;
+            }
+            if (ownerValue != null && !ownerValue.isBlank()) {
+                vehicle.setAggregatedOwnerName(truncateString(ownerValue, 200));
+                vehicle.setIsAggregated(true);
+                updated = true;
+            }
+            if (clientValue != null && !clientValue.isBlank()) {
+                vehicle.setClientName(truncateString(clientValue, 200));
+                updated = true;
+            }
+            if (marketValue != null) {
+                vehicle.setMarketValue(marketValue);
+                updated = true;
+            }
+            if (currentCompanyId != null && vehicle.getCompanyId() == null) {
+                vehicle.setCompanyId(currentCompanyId);
+                updated = true;
+            }
+
+            if (updated) {
+                toUpdate.add(vehicle);
+            } else {
+                result.setSkipped(result.getSkipped() + 1);
+            }
+        } else {
+            Vehicle newVehicle = new Vehicle();
+            newVehicle.setPlate(finalPlate);
+            newVehicle.setFleetNumber(truncateString(fleetNum, 50));
+            newVehicle.setChassisNumber(truncateString(finalChassis, 50));
+            newVehicle.setRenavan(truncateString(finalRenavam, 50));
+            newVehicle.setModel(truncateString(finalModel, 50));
+            newVehicle.setBrand(truncateString(finalBrand, 50));
+            newVehicle.setYear(parsedYear);
+            newVehicle.setColor(truncateString(colorValue != null ? colorValue : "Branco", 30));
+            newVehicle.setStatus(VehicleStatus.ACTIVE);
+            newVehicle.setFuelType(FuelType.DIESEL);
+            newVehicle.setVehicleType(parsedVehicleType != null ? parsedVehicleType : VehicleType.BUS_ROAD);
+            newVehicle.setCapacity(parseInteger(capacityValue, 44));
+            newVehicle.setCurrentMileage(parseInteger(mileageValue, 0));
+            newVehicle.setBodyBuilder(truncateString(bodyBuilderValue, 100));
+            newVehicle.setChassisBrand(truncateString(chassisBrandValue, 50));
+
+            if (ownerValue != null && !ownerValue.isBlank()) {
+                newVehicle.setAggregatedOwnerName(truncateString(ownerValue, 200));
+                newVehicle.setIsAggregated(true);
+            }
+            if (clientValue != null && !clientValue.isBlank()) {
+                newVehicle.setClientName(truncateString(clientValue, 200));
+            }
+            if (marketValue != null) {
+                newVehicle.setMarketValue(marketValue);
+            }
+            if (currentCompanyId != null) {
+                newVehicle.setCompanyId(currentCompanyId);
+            }
+
+            toInsert.add(newVehicle);
+        }
+    }
+
+    private String truncateString(String str, int maxLen) {
+        if (str == null) return null;
+        return str.length() > maxLen ? str.substring(0, maxLen) : str;
+    }
+
+    private String cleanPlate(String rawPlate) {
+        if (rawPlate == null) return "";
+        String cleaned = rawPlate.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        if (cleaned.length() > 10) {
+            cleaned = cleaned.substring(0, 10);
+        }
+        return cleaned;
+    }
+
+    private Integer parseYear(String yearStr) {
+        if (yearStr == null || yearStr.isBlank()) return null;
+        Matcher matcher = YEAR_PATTERN.matcher(yearStr);
+        Integer lastMatch = null;
+        while (matcher.find()) {
+            try {
+                lastMatch = Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException ignored) {}
+        }
+        return lastMatch;
+    }
+
+    private String extractBrandFromModel(String model) {
+        if (model == null || model.isBlank()) return "Outros";
+        String lower = model.toLowerCase();
+        if (lower.contains("mercedes") || lower.contains("mb")) return "Mercedes-Benz";
+        if (lower.contains("volvo")) return "Volvo";
+        if (lower.contains("scania")) return "Scania";
+        if (lower.contains("vw") || lower.contains("volks")) return "Volkswagen";
+        if (lower.contains("marcopolo")) return "Marcopolo";
+        if (lower.contains("caio")) return "Caio";
+        if (lower.contains("mascarello")) return "Mascarello";
+        if (lower.contains("comil")) return "Comil";
+        if (lower.contains("fiat")) return "Fiat";
+        if (lower.contains("ford")) return "Ford";
+        if (lower.contains("chevrolet") || lower.contains("gm")) return "Chevrolet";
+        return "Outros";
+    }
+
+    private Integer parseInteger(String str, int defaultVal) {
+        if (str == null || str.isBlank()) return defaultVal;
+        try {
+            return (int) Math.round(Double.parseDouble(str.replaceAll("[^0-9.]", "")));
+        } catch (Exception e) {
+            return defaultVal;
+        }
+    }
+
+    private String normalizeText(String text) {
+        if (text == null) return "";
+        String normalized = Normalizer.normalize(text, Normalizer.Form.NFD);
+        return normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "").toLowerCase().trim();
+    }
+
+    private String getCellValueAsString(Cell cell) {
+        if (cell == null) return "";
+        CellType type = cell.getCellType();
+        if (type == CellType.FORMULA) {
+            type = cell.getCachedFormulaResultType();
+        }
+        switch (type) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getLocalDateTimeCellValue().toLocalDate().toString();
+                }
+                double num = cell.getNumericCellValue();
+                if (num == Math.floor(num)) {
+                    return String.format("%.0f", num);
+                }
+                return String.valueOf(num);
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            default:
+                return "";
+        }
+    }
+
+    private boolean isRowEmpty(Row row) {
+        if (row == null) return true;
+        for (int c = row.getFirstCellNum(); c < row.getLastCellNum(); c++) {
+            Cell cell = row.getCell(c);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                String val = getCellValueAsString(cell);
+                if (val != null && !val.isBlank()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean isHeaderWord(String text) {
+        if (text == null) return true;
+        String norm = normalizeText(text);
+        return norm.equals("renavam") || norm.equals("renavan") || norm.equals("placa") || norm.equals("plate")
+                || norm.contains("patrimonio") || norm.contains("chassi") || norm.equals("modelo")
+                || norm.equals("marca") || norm.equals("ano") || norm.equals("cor") || norm.equals("status")
+                || norm.equals("frota") || norm.equals("prefixo") || norm.equals("subsidio")
+                || norm.equals("patrimon") || norm.equals("patrim");
+    }
+
+    private boolean isPureRenavamNumber(String text) {
+        if (text == null) return false;
+        String digitsOnly = text.replaceAll("\\D", "");
+        // RENAVAM no Brasil possui de 9 a 11 dígitos numéricos puros
+        return digitsOnly.length() >= 9 && digitsOnly.length() <= 11 && text.replaceAll("[0-9]", "").isEmpty();
+    }
+
+    private boolean isPureChassisString(String text) {
+        if (text == null) return false;
+        String cleaned = text.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        return cleaned.length() == 17;
+    }
+
+    private String parseAndValidateChassis(String rawChassis) {
+        if (rawChassis == null || rawChassis.isBlank()) return null;
+        String cleaned = rawChassis.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        if (cleaned.length() == 17) {
+            return cleaned;
+        }
+        return null;
+    }
+
+    private String parseAndValidateRenavam(String rawRenavam) {
+        if (rawRenavam == null || rawRenavam.isBlank()) return null;
+        String digitsOnly = rawRenavam.replaceAll("\\D", "");
+        if (digitsOnly.length() >= 9 && digitsOnly.length() <= 11) {
+            return digitsOnly;
+        }
+        return null;
+    }
+
+    private VehicleType parseVehicleType(String text) {
+        if (text == null || text.isBlank()) return null;
+        String norm = normalizeText(text);
+
+        if (norm.contains("micro")) return VehicleType.MINIBUS;
+        if (norm.contains("van")) return VehicleType.VAN;
+        if (norm.contains("rodoviario") || norm.contains("rodoviaria")) return VehicleType.BUS_ROAD;
+        if (norm.contains("urbano") || norm.contains("urbana")) return VehicleType.BUS_URBAN;
+        if (norm.contains("luxo") || norm.contains("double decker")) return VehicleType.BUS_LUXURY_TOURISM;
+        if (norm.contains("onibus") || norm.contains("bus")) return VehicleType.BUS_ROAD;
+        if (norm.contains("caminhao") || norm.contains("truck") || norm.contains("carreta") || norm.contains("cavalo")) return VehicleType.TRUCK;
+        if (norm.contains("utilitario") || norm.contains("furgao")) return VehicleType.CAR_UTILITY;
+        if (norm.contains("pickup") || norm.contains("picape") || norm.contains("camionete") || norm.contains("cabine")) return VehicleType.PICKUP;
+        if (norm.contains("suv")) return VehicleType.SUV;
+        if (norm.contains("moto")) return VehicleType.MOTORCYCLE;
+        if (norm.contains("carro") || norm.contains("passeio") || norm.contains("automovel")) return VehicleType.CAR;
+
+        for (VehicleType vt : VehicleType.values()) {
+            if (norm.equalsIgnoreCase(normalizeText(vt.name())) || norm.equalsIgnoreCase(normalizeText(vt.getDisplayName()))) {
+                return vt;
+            }
+        }
+        return null;
+    }
+}

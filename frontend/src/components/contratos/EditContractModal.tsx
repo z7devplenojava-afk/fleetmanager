@@ -7,8 +7,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, X } from 'lucide-react';
-import { Contract, contractService, UpdateContractRequest } from '@/services/contractService';
+import { Contract, ContractType, contractService, UpdateContractRequest } from '@/services/contractService';
 import { clientService, Client } from '@/services/clientService';
+
+const CONTRACT_TYPES: { value: ContractType; label: string }[] = [
+  { value: 'ARRENDAMENTO', label: 'Arrendamento' },
+  { value: 'LOCACAO_VEICULOS', label: 'Locação de Veículos' },
+  { value: 'PRESTACAO_SERVICOS', label: 'Prestação de Serviços' },
+  { value: 'VENDA', label: 'Venda' },
+  { value: 'OUTROS', label: 'Outros' },
+];
 
 interface EditContractModalProps {
   open: boolean;
@@ -51,6 +59,7 @@ export const EditContractModal: React.FC<EditContractModalProps> = ({
           endDate: contract.endDate || '',
           value: contract.value,
           status: contract.status,
+          contractType: contract.contractType || 'PRESTACAO_SERVICOS',
           clientId: contract.clientId,
           notes: contract.notes || ''
         });
@@ -99,6 +108,7 @@ export const EditContractModal: React.FC<EditContractModalProps> = ({
         endDate: formData.endDate || undefined,
         value: formData.value,
         status: formData.status,
+        contractType: formData.contractType,
         clientId: formData.clientId,
         notes: formData.notes || undefined
       });
@@ -171,6 +181,25 @@ export const EditContractModal: React.FC<EditContractModalProps> = ({
                   className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
                   required
                 />
+              </div>
+              
+              <div>
+                <Label className="text-seguranca-lightgray">Tipo do Contrato</Label>
+                <Select
+                  value={formData.contractType}
+                  onValueChange={(value: ContractType) =>
+                    setFormData(prev => ({ ...prev, contractType: value }))
+                  }
+                >
+                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-600">
+                    {CONTRACT_TYPES.map(t => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div>

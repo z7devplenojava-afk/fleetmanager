@@ -115,7 +115,7 @@ public class EnvioController {
      * ðŸ” Verificar se funcionÃ¡rio tem WhatsApp disponÃ­vel
      */
     @GetMapping("/verificar-whatsapp/{cpf}")
-    public ResponseEntity<WhatsAppVerificacaoResponse> verificarWhatsApp(@PathVariable String cpf) {
+    public ResponseEntity<WhatsAppVerificacaoResponse> verificarWhatsApp(@PathVariable("cpf") String cpf) {
         log.info("ðŸ” Verificando WhatsApp para CPF: {}", cpf);
         
         boolean temWhatsApp = envioService.funcionarioTemWhatsApp(cpf);
@@ -148,7 +148,7 @@ public class EnvioController {
      * ðŸ” Reenvio manual por ID de log
      */
     @PostMapping("/resend/{logId}")
-    public ResponseEntity<EnvioResponse> resend(@PathVariable String logId) {
+    public ResponseEntity<EnvioResponse> resend(@PathVariable("logId") String logId) {
         EnvioResponse resp = envioService.reenviarPorLogId(logId);
         return resp.isSucesso() ? ResponseEntity.ok(resp) : ResponseEntity.badRequest().body(resp);
     }
@@ -158,9 +158,9 @@ public class EnvioController {
      */
     @GetMapping("/logs")
     public ResponseEntity<java.util.List<com.z7design.fleet_manager.model.PayslipDeliveryLog>> listarLogs(
-            @RequestParam(required = false) String cpf,
-            @RequestParam(required = false) Integer month,
-            @RequestParam(required = false) Integer year) {
+            @RequestParam(value = "cpf", required = false) String cpf,
+            @RequestParam(value = "month", required = false) Integer month,
+            @RequestParam(value = "year", required = false) Integer year) {
         return ResponseEntity.ok(envioService.listarLogs(cpf, month, year));
     }
 } 

@@ -168,7 +168,7 @@ export default function MeasurementCompleteTable({
     const matchesSearch = 
       bulletin.contractNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bulletin.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bulletin.client?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      bulletin.clientName?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || bulletin.status === statusFilter;
     const matchesContract = contractFilter === 'all' || bulletin.contractNumber === contractFilter;
@@ -530,7 +530,7 @@ export default function MeasurementCompleteTable({
             {selectedBulletins.size > 0 && (
               <>
                 <Button
-                  onClick={handleBulkDelete}
+                  onClick={() => handleBulkDelete()}
                   variant="destructive"
                   className="bg-red-600 hover:bg-red-700"
                 >
@@ -634,15 +634,15 @@ export default function MeasurementCompleteTable({
                             {bulletin.contractNumber}
                           </div>
                           <div className="text-sm text-gray-400">
-                            {bulletin.contract?.description || 'Sem descrição'}
+                            {bulletin.contractDescription || bulletin.contract?.description || 'Sem descrição'}
                           </div>
                         </td>
                         <td className="py-3 px-4">
                           <div className="text-seguranca-lightgray">
-                            {bulletin.client?.name || 'Cliente não definido'}
+                            {bulletin.clientName || bulletin.client?.name || 'Cliente não definido'}
                           </div>
                           <div className="text-sm text-gray-400">
-                            {bulletin.unit?.name || 'Unidade não definida'}
+                            {bulletin.unitName || bulletin.unit?.name || 'Unidade não definida'}
                           </div>
                         </td>
                         <td className="py-3 px-4">

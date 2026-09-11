@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Client, ClientStatus } from '@/types/client';
-import { MapPin, Phone, Mail, User, Building, Calendar } from 'lucide-react';
+import { MapPin, Phone, Mail, User, Building, Calendar, FileText, Briefcase, Loader2 } from 'lucide-react';
+import ClientWorkPostsTab from './ClientWorkPostsTab';
+import ClientContractsTab from './ClientContractsTab';
 
 interface ClientViewModalProps {
   isOpen: boolean;
@@ -17,6 +20,12 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
   onClose,
   client
 }) => {
+  const [activeTab, setActiveTab] = useState('dados');
+
+  useEffect(() => {
+    if (isOpen) setActiveTab('dados');
+  }, [isOpen]);
+
   if (!client) return null;
 
   const getStatusBadge = (status: ClientStatus) => {
@@ -56,6 +65,22 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
         </DialogHeader>
         
         <div className="space-y-6">
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3 bg-gray-100">
+              <TabsTrigger value="dados" className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
+                <Building className="h-4 w-4 mr-1" /> Dados
+              </TabsTrigger>
+              <TabsTrigger value="postos" className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
+                <Briefcase className="h-4 w-4 mr-1" /> Postos / Obras
+              </TabsTrigger>
+              <TabsTrigger value="contratos" className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
+                <FileText className="h-4 w-4 mr-1" /> Contratos
+              </TabsTrigger>
+            </TabsList>
+
+          {/* === TAB: DADOS === */}
+          <TabsContent value="dados" className="space-y-6 mt-4">
           {/* Header Info */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-gray-50 rounded-lg">
             <div>
@@ -199,6 +224,19 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
               </div>
             </CardContent>
           </Card>
+          </TabsContent>
+
+          {/* === TAB: POSTOS DE TRABALHO === */}
+          <TabsContent value="postos" className="mt-4">
+            <ClientWorkPostsTab clientId={client.id} clientName={client.name} />
+          </TabsContent>
+
+          {/* === TAB: CONTRATOS === */}
+          <TabsContent value="contratos" className="mt-4">
+            <ClientContractsTab clientId={client.id} clientName={client.name} />
+          </TabsContent>
+
+          </Tabs>
         </div>
 
         <div className="flex justify-end pt-4">

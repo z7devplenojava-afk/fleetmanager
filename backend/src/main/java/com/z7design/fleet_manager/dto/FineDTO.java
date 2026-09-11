@@ -21,6 +21,7 @@ public class FineDTO {
     private UUID driverId;
     private String driverName;
     private String driverLicenseNumber;
+    private String driverPhone; // WhatsApp do motorista para notificação
     private LocalDate date;
     private String description;
     private BigDecimal amount;
@@ -52,6 +53,7 @@ public class FineDTO {
             dto.setDriverName(fine.getDriver().getName());
             dto.setDriverLicenseNumber(fine.getDriver().getLicenseNumber());
         }
+        dto.setDriverPhone(fine.getDriverPhone());
         
         dto.setDate(fine.getDate());
         dto.setDescription(fine.getDescription());

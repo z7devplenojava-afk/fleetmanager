@@ -27,7 +27,7 @@ public class AccountingFormController {
      */
     @GetMapping("/{employeeId}/html")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_READ')")
-    public ResponseEntity<String> generateAccountingFormHtml(@PathVariable UUID employeeId) {
+    public ResponseEntity<String> generateAccountingFormHtml(@PathVariable("employeeId") UUID employeeId) {
         try {
             log.info("ðŸ“„ Gerando ficha de contabilidade HTML para funcionÃ¡rio: {}", employeeId);
             
@@ -50,7 +50,7 @@ public class AccountingFormController {
      */
     @GetMapping("/{employeeId}/pdf")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_READ')")
-    public ResponseEntity<byte[]> generateAccountingFormPdf(@PathVariable UUID employeeId) {
+    public ResponseEntity<byte[]> generateAccountingFormPdf(@PathVariable("employeeId") UUID employeeId) {
         try {
             log.info("ðŸ“„ Gerando ficha de contabilidade PDF para funcionÃ¡rio: {}", employeeId);
             
@@ -74,7 +74,7 @@ public class AccountingFormController {
      */
     @GetMapping("/{employeeId}/excel")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_READ')")
-    public ResponseEntity<byte[]> generateAccountingFormExcel(@PathVariable UUID employeeId) {
+    public ResponseEntity<byte[]> generateAccountingFormExcel(@PathVariable("employeeId") UUID employeeId) {
         try {
             log.info("ðŸ“Š Gerando ficha de contabilidade Excel para funcionÃ¡rio: {}", employeeId);
 

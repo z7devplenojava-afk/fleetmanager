@@ -54,6 +54,14 @@ class TrainingService {
     return response.data;
   }
 
+  async getAllTrainings(params?: { name?: string; provider?: string }): Promise<Training[]> {
+    try {
+      return await this.getTrainings(params);
+    } catch {
+      return [];
+    }
+  }
+
   async getPositions(): Promise<Position[]> {
     const response = await api.get('/positions');
     return response.data;

@@ -143,15 +143,23 @@ public class ClientChecklistService {
 
     // --- Records ---
 
+    @Transactional(readOnly = true)
     public List<ClientChecklistRecordDTO> findRecordsByFilters(UUID clientId, UUID templateId,
                                                                LocalDate dateFrom, LocalDate dateTo) {
         LocalDateTime dateFromDt = dateFrom != null ? dateFrom.atStartOfDay() : null;
         LocalDateTime dateToDt = dateTo != null ? dateTo.atTime(LocalTime.MAX) : null;
         return recordRepository.findByFilters(clientId, templateId, dateFromDt, dateToDt).stream()
+                .sorted((a, b) -> {
+                    if (a.getOccurredAt() == null && b.getOccurredAt() == null) return 0;
+                    if (a.getOccurredAt() == null) return 1;
+                    if (b.getOccurredAt() == null) return -1;
+                    return b.getOccurredAt().compareTo(a.getOccurredAt());
+                })
                 .map(this::recordToDTO)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public ClientChecklistRecordDTO findRecordById(UUID id) {
         ClientChecklistRecord entity = recordRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Registro de checklist não encontrado: " + id));

@@ -32,7 +32,7 @@ public class DepartmentController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obter departamento por ID")
-    public ResponseEntity<Department> getById(@PathVariable UUID id) {
+    public ResponseEntity<Department> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(departmentService.getById(id));
     }
 
@@ -46,14 +46,14 @@ public class DepartmentController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     @Operation(summary = "Atualizar departamento")
-    public ResponseEntity<Department> update(@PathVariable UUID id, @RequestBody Department department) {
+    public ResponseEntity<Department> update(@PathVariable("id") UUID id, @RequestBody Department department) {
         return ResponseEntity.ok(departmentService.update(id, department));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     @Operation(summary = "Excluir departamento")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         departmentService.delete(id);
         return ResponseEntity.noContent().build();
     }

@@ -44,8 +44,8 @@ public class SystemNotificationController {
      */
     @PostMapping("/new-client")
     public ResponseEntity<SystemNotification> createNewClientNotification(
-            @RequestParam String clientName,
-            @RequestParam String department) {
+            @RequestParam(value = "clientName") String clientName,
+            @RequestParam(value = "department") String department) {
         log.info("POST /api/operational/notifications/new-client - Criando notificaÃ§Ã£o para novo cliente: {}", clientName);
         
         try {
@@ -62,10 +62,10 @@ public class SystemNotificationController {
      */
     @PostMapping("/contract-expiring")
     public ResponseEntity<SystemNotification> createContractExpiringNotification(
-            @RequestParam String clientName,
-            @RequestParam String contractReference,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime expirationDate,
-            @RequestParam BigDecimal value) {
+            @RequestParam(value = "clientName") String clientName,
+            @RequestParam(value = "contractReference") String contractReference,
+            @RequestParam(value = "expirationDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime expirationDate,
+            @RequestParam(value = "value") BigDecimal value) {
         log.info("POST /api/operational/notifications/contract-expiring - Criando notificaÃ§Ã£o para contrato vencendo: {}", contractReference);
         
         try {
@@ -83,8 +83,8 @@ public class SystemNotificationController {
      */
     @PostMapping("/employee-late")
     public ResponseEntity<SystemNotification> createEmployeeLateNotification(
-            @RequestParam String employeeName,
-            @RequestParam String location) {
+            @RequestParam(value = "employeeName") String employeeName,
+            @RequestParam(value = "location") String location) {
         log.info("POST /api/operational/notifications/employee-late - Criando notificaÃ§Ã£o para funcionÃ¡rio atrasado: {}", employeeName);
         
         try {
@@ -101,10 +101,10 @@ public class SystemNotificationController {
      */
     @PostMapping("/occurrence")
     public ResponseEntity<SystemNotification> createOccurrenceNotification(
-            @RequestParam String employeeName,
-            @RequestParam String occurrenceType,
-            @RequestParam String location,
-            @RequestParam String priority) {
+            @RequestParam(value = "employeeName") String employeeName,
+            @RequestParam(value = "occurrenceType") String occurrenceType,
+            @RequestParam(value = "location") String location,
+            @RequestParam(value = "priority") String priority) {
         log.info("POST /api/operational/notifications/occurrence - Criando notificaÃ§Ã£o para ocorrÃªncia: {}", occurrenceType);
         
         try {
@@ -126,9 +126,9 @@ public class SystemNotificationController {
      */
     @PostMapping("/schedule")
     public ResponseEntity<SystemNotification> createScheduleNotification(
-            @RequestParam String employeeName,
-            @RequestParam String location,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime scheduleDate) {
+            @RequestParam(value = "employeeName") String employeeName,
+            @RequestParam(value = "location") String location,
+            @RequestParam(value = "scheduleDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime scheduleDate) {
         log.info("POST /api/operational/notifications/schedule - Criando notificaÃ§Ã£o para nova escala: {}", employeeName);
         
         try {
@@ -144,7 +144,7 @@ public class SystemNotificationController {
      * Buscar notificaÃ§Ã£o por ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<SystemNotification> getNotificationById(@PathVariable UUID id) {
+    public ResponseEntity<SystemNotification> getNotificationById(@PathVariable("id") UUID id) {
         log.info("GET /api/operational/notifications/{} - Buscando notificaÃ§Ã£o por ID", id);
         
         try {
@@ -176,7 +176,7 @@ public class SystemNotificationController {
      * Buscar notificaÃ§Ãµes por destinatÃ¡rio
      */
     @GetMapping("/recipient/{recipientId}")
-    public ResponseEntity<List<SystemNotification>> getNotificationsByRecipient(@PathVariable UUID recipientId) {
+    public ResponseEntity<List<SystemNotification>> getNotificationsByRecipient(@PathVariable("recipientId") UUID recipientId) {
         log.info("GET /api/operational/notifications/recipient/{} - Buscando notificaÃ§Ãµes por destinatÃ¡rio", recipientId);
         
         try {
@@ -192,7 +192,7 @@ public class SystemNotificationController {
      * Buscar notificaÃ§Ãµes nÃ£o lidas por destinatÃ¡rio
      */
     @GetMapping("/unread/recipient/{recipientId}")
-    public ResponseEntity<List<SystemNotification>> getUnreadNotificationsByRecipient(@PathVariable UUID recipientId) {
+    public ResponseEntity<List<SystemNotification>> getUnreadNotificationsByRecipient(@PathVariable("recipientId") UUID recipientId) {
         log.info("GET /api/operational/notifications/unread/recipient/{} - Buscando notificaÃ§Ãµes nÃ£o lidas", recipientId);
         
         try {
@@ -208,7 +208,7 @@ public class SystemNotificationController {
      * Buscar notificaÃ§Ãµes por tipo
      */
     @GetMapping("/type/{type}")
-    public ResponseEntity<List<SystemNotification>> getNotificationsByType(@PathVariable String type) {
+    public ResponseEntity<List<SystemNotification>> getNotificationsByType(@PathVariable("type") String type) {
         log.info("GET /api/operational/notifications/type/{} - Buscando notificaÃ§Ãµes por tipo", type);
         
         try {
@@ -228,7 +228,7 @@ public class SystemNotificationController {
      * Buscar notificaÃ§Ãµes por prioridade
      */
     @GetMapping("/priority/{priority}")
-    public ResponseEntity<List<SystemNotification>> getNotificationsByPriority(@PathVariable String priority) {
+    public ResponseEntity<List<SystemNotification>> getNotificationsByPriority(@PathVariable("priority") String priority) {
         log.info("GET /api/operational/notifications/priority/{} - Buscando notificaÃ§Ãµes por prioridade", priority);
         
         try {
@@ -249,8 +249,8 @@ public class SystemNotificationController {
      */
     @GetMapping("/period")
     public ResponseEntity<List<SystemNotification>> getNotificationsByPeriod(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         log.info("GET /api/operational/notifications/period - Buscando notificaÃ§Ãµes por perÃ­odo: {} a {}", startDate, endDate);
         
         try {
@@ -282,7 +282,7 @@ public class SystemNotificationController {
      * Buscar notificaÃ§Ãµes por departamento
      */
     @GetMapping("/department")
-    public ResponseEntity<List<SystemNotification>> getNotificationsByDepartment(@RequestParam String department) {
+    public ResponseEntity<List<SystemNotification>> getNotificationsByDepartment(@RequestParam(value = "department") String department) {
         log.info("GET /api/operational/notifications/department - Buscando notificaÃ§Ãµes por departamento: {}", department);
         
         try {
@@ -298,7 +298,7 @@ public class SystemNotificationController {
      * Buscar notificaÃ§Ãµes por funcionÃ¡rio
      */
     @GetMapping("/employee")
-    public ResponseEntity<List<SystemNotification>> getNotificationsByEmployee(@RequestParam String employeeName) {
+    public ResponseEntity<List<SystemNotification>> getNotificationsByEmployee(@RequestParam(value = "employeeName") String employeeName) {
         log.info("GET /api/operational/notifications/employee - Buscando notificaÃ§Ãµes por funcionÃ¡rio: {}", employeeName);
         
         try {
@@ -314,7 +314,7 @@ public class SystemNotificationController {
      * Buscar notificaÃ§Ãµes por cliente
      */
     @GetMapping("/client")
-    public ResponseEntity<List<SystemNotification>> getNotificationsByClient(@RequestParam String clientName) {
+    public ResponseEntity<List<SystemNotification>> getNotificationsByClient(@RequestParam(value = "clientName") String clientName) {
         log.info("GET /api/operational/notifications/client - Buscando notificaÃ§Ãµes por cliente: {}", clientName);
         
         try {
@@ -330,7 +330,7 @@ public class SystemNotificationController {
      * Buscar notificaÃ§Ãµes por contrato
      */
     @GetMapping("/contract")
-    public ResponseEntity<List<SystemNotification>> getNotificationsByContract(@RequestParam String contractReference) {
+    public ResponseEntity<List<SystemNotification>> getNotificationsByContract(@RequestParam(value = "contractReference") String contractReference) {
         log.info("GET /api/operational/notifications/contract - Buscando notificaÃ§Ãµes por contrato: {}", contractReference);
         
         try {
@@ -346,7 +346,7 @@ public class SystemNotificationController {
      * Buscar notificaÃ§Ãµes por valor mÃ­nimo
      */
     @GetMapping("/value")
-    public ResponseEntity<List<SystemNotification>> getNotificationsByValueGreaterThan(@RequestParam BigDecimal minValue) {
+    public ResponseEntity<List<SystemNotification>> getNotificationsByValueGreaterThan(@RequestParam(value = "minValue") BigDecimal minValue) {
         log.info("GET /api/operational/notifications/value - Buscando notificaÃ§Ãµes com valor maior que: {}", minValue);
         
         try {
@@ -378,7 +378,7 @@ public class SystemNotificationController {
      * Atualizar notificaÃ§Ã£o existente
      */
     @PutMapping("/{id}")
-    public ResponseEntity<SystemNotification> updateNotification(@PathVariable UUID id, 
+    public ResponseEntity<SystemNotification> updateNotification(@PathVariable("id") UUID id, 
                                                               @RequestBody SystemNotification notificationDetails) {
         log.info("PUT /api/operational/notifications/{} - Atualizando notificaÃ§Ã£o", id);
         
@@ -395,7 +395,7 @@ public class SystemNotificationController {
      * Marcar notificaÃ§Ã£o como lida
      */
     @PatchMapping("/{id}/read")
-    public ResponseEntity<Void> markNotificationAsRead(@PathVariable UUID id) {
+    public ResponseEntity<Void> markNotificationAsRead(@PathVariable("id") UUID id) {
         log.info("PATCH /api/operational/notifications/{}/read - Marcando notificaÃ§Ã£o como lida", id);
         
         try {
@@ -411,7 +411,7 @@ public class SystemNotificationController {
      * Marcar todas as notificaÃ§Ãµes de um destinatÃ¡rio como lidas
      */
     @PatchMapping("/read-all/recipient/{recipientId}")
-    public ResponseEntity<Void> markAllNotificationsAsReadByRecipient(@PathVariable UUID recipientId) {
+    public ResponseEntity<Void> markAllNotificationsAsReadByRecipient(@PathVariable("recipientId") UUID recipientId) {
         log.info("PATCH /api/operational/notifications/read-all/recipient/{} - Marcando todas as notificaÃ§Ãµes como lidas", recipientId);
         
         try {
@@ -427,7 +427,7 @@ public class SystemNotificationController {
      * Contar notificaÃ§Ãµes nÃ£o lidas por destinatÃ¡rio
      */
     @GetMapping("/count/unread/recipient/{recipientId}")
-    public ResponseEntity<Long> countUnreadNotificationsByRecipient(@PathVariable UUID recipientId) {
+    public ResponseEntity<Long> countUnreadNotificationsByRecipient(@PathVariable("recipientId") UUID recipientId) {
         log.info("GET /api/operational/notifications/count/unread/recipient/{} - Contando notificaÃ§Ãµes nÃ£o lidas", recipientId);
         
         try {
@@ -444,9 +444,9 @@ public class SystemNotificationController {
      */
     @GetMapping("/count/type/{type}")
     public ResponseEntity<Long> countNotificationsByTypeAndPeriod(
-            @PathVariable String type,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @PathVariable("type") String type,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         log.info("GET /api/operational/notifications/count/type/{} - Contando notificaÃ§Ãµes por tipo e perÃ­odo", type);
         
         try {
@@ -466,7 +466,7 @@ public class SystemNotificationController {
      * Deletar notificaÃ§Ã£o
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteNotification(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteNotification(@PathVariable("id") UUID id) {
         log.info("DELETE /api/operational/notifications/{} - Deletando notificaÃ§Ã£o", id);
         
         try {

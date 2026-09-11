@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
-import { Shield, Users, Mail, Phone, Building, User, MessageSquare } from 'lucide-react';
+import { Bus, Users, Route, ShoppingBag, Calendar, Shield, User, Mail, Phone, Building, MessageSquare, PlayCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface QuoteModalProps {
@@ -27,34 +27,40 @@ const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose }) => {
 
   const services = [
     {
-      id: 'vigilancia-patrimonial',
-      title: 'Vigilância Patrimonial',
-      description: 'Proteção 24h do patrimônio físico, áreas internas e externas',
-      icon: Shield
+      id: 'frota',
+      title: 'Gestão de Frota',
+      description: 'Controle de veículos, multas, abastecimentos e manutenções',
+      icon: Bus
     },
     {
-      id: 'portaria',
-      title: 'Portaria',
-      description: 'Controle de acesso e orientação de entrada/saída',
+      id: 'motoristas',
+      title: 'Gestão de Motoristas',
+      description: 'Cadastro, CNH, escalas e avaliação de motoristas',
       icon: Users
     },
     {
-      id: 'controlador-acesso',
-      title: 'Controlador de Acesso',
-      description: 'Monitoramento e controle de pessoas e veículos',
-      icon: Shield
+      id: 'rotas',
+      title: 'Rotas e Viagens',
+      description: 'Planejamento de rotas, viagens e controle de passageiros',
+      icon: Route
     },
     {
-      id: 'vigia',
-      title: 'Vigia',
-      description: 'Guarda e vigilância para prevenção de crimes',
-      icon: Shield
+      id: 'fretamento',
+      title: 'Fretamento',
+      description: 'Contratos, orçamentos e propostas comerciais',
+      icon: ShoppingBag
     },
     {
-      id: 'facilities',
-      title: 'Facilities',
-      description: 'Limpeza e manutenção de áreas administrativas',
-      icon: Building
+      id: 'escalas',
+      title: 'Escalas',
+      description: 'Gestão de escalas e otimização de recursos',
+      icon: Calendar
+    },
+    {
+      id: 'rh-sst',
+      title: 'RH e SST',
+      description: 'Holerites, férias, SST, EPIs e exames médicos',
+      icon: Shield
     }
   ];
 
@@ -74,41 +80,35 @@ const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.phone || formData.services.length === 0) {
-      toast.error('Por favor, preencha todos os campos obrigatórios e selecione pelo menos um serviço.');
+    if (!formData.name || !formData.email || !formData.phone) {
+      toast.error('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Preparar dados para envio
       const selectedServices = services
         .filter(service => formData.services.includes(service.id))
         .map(service => service.title)
         .join(', ');
 
-      const emailBody = `
-Nova Solicitação de Orçamento
+      const demoRequest = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        company: formData.company || 'Não informado',
+        modules: selectedServices || 'A definir com o consultor',
+        message: formData.message || 'Solicitação de demonstração via portal'
+      };
 
-` +
-        `Nome: ${formData.name}\n` +
-        `Email: ${formData.email}\n` +
-        `Telefone: ${formData.phone}\n` +
-        `Empresa: ${formData.company || 'Não informado'}\n\n` +
-        `Serviços Solicitados:\n${selectedServices}\n\n` +
-        `Mensagem Adicional:\n${formData.message || 'Nenhuma mensagem adicional'}`;
-
-      // Simular envio de email (aqui você integraria com um serviço real)
-      console.log('Enviando orçamento para: comercial@promovervigilancia.com.br');
-      console.log('Dados:', emailBody);
+      console.log('Solicitação de demonstração enviada:', demoRequest);
 
       // Simular delay de envio
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      toast.success('Solicitação de orçamento enviada com sucesso! Entraremos em contato em breve.');
+      toast.success('Solicitação de demonstração enviada! Nossa equipe entrará em contato para agendar.');
       
-      // Reset form
       setFormData({
         name: '',
         email: '',
@@ -130,11 +130,12 @@ Nova Solicitação de Orçamento
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center text-gray-900">
-            Solicitar Orçamento
+          <DialogTitle className="text-2xl font-bold text-center text-gray-900 flex items-center justify-center gap-2">
+            <PlayCircle className="h-7 w-7 text-red-600" />
+            Solicitar Demonstração
           </DialogTitle>
           <p className="text-center text-gray-600 mt-2">
-            Preencha os dados abaixo e selecione os serviços desejados
+            Preencha os dados e escolha os módulos que deseja conhecer. Agendaremos uma demonstração personalizada.
           </p>
         </DialogHeader>
 
@@ -198,9 +199,10 @@ Nova Solicitação de Orçamento
             </div>
           </div>
 
-          {/* Seleção de Serviços */}
+          {/* Seleção de Módulos */}
           <div className="space-y-4">
-            <Label className="text-lg font-semibold">Serviços Desejados *</Label>
+            <Label className="text-lg font-semibold">Módulos de Interesse</Label>
+            <p className="text-sm text-gray-500 -mt-2">Selecione os módulos que deseja ver na demonstração</p>
             <div className="grid md:grid-cols-2 gap-4">
               {services.map((service) => {
                 const IconComponent = service.icon;
@@ -239,13 +241,13 @@ Nova Solicitação de Orçamento
           <div className="space-y-2">
             <Label htmlFor="message" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
-              Mensagem Adicional
+              Observações
             </Label>
             <Textarea
               id="message"
               value={formData.message}
               onChange={(e) => handleInputChange('message', e.target.value)}
-              placeholder="Descreva detalhes específicos sobre suas necessidades (opcional)"
+              placeholder="Conte-nos um pouco sobre sua operação e suas necessidades (opcional)"
               rows={4}
             />
           </div>
@@ -266,7 +268,7 @@ Nova Solicitação de Orçamento
               className="flex-1 bg-red-600 hover:bg-red-700"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Enviando...' : 'Solicitar Orçamento'}
+              {isSubmitting ? 'Enviando...' : 'Agendar Demonstração'}
             </Button>
           </div>
         </form>

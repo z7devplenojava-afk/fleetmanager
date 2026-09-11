@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, DollarSign, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ContractRetentionTab } from '@/components/financeiro/ContractRetentionTab';
 
 const FinanceiroSimple: React.FC = () => {
   const { toast } = useToast();
@@ -85,6 +86,9 @@ const FinanceiroSimple: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="medicoes" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-xs px-2 py-1">
               Medições
+            </TabsTrigger>
+            <TabsTrigger value="retencoes" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow text-xs px-2 py-1">
+              Retenções
             </TabsTrigger>
           </TabsList>
 
@@ -217,6 +221,10 @@ const FinanceiroSimple: React.FC = () => {
                 <p className="text-gray-400">Funcionalidade em desenvolvimento</p>
               </div>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="retencoes">
+            <ContractRetentionTab />
           </TabsContent>
         </Tabs>
       </div>

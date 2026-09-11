@@ -71,7 +71,7 @@ public class WhatsAppConsentController {
     @GetMapping("/status/{userId}")
     @Operation(summary = "Verificar status do consentimento", 
                description = "Retorna se o funcionÃ¡rio autorizou receber mensagens WhatsApp")
-    public ResponseEntity<WhatsAppConsentResponse> checkConsentStatus(@PathVariable UUID userId) {
+    public ResponseEntity<WhatsAppConsentResponse> checkConsentStatus(@PathVariable("userId") UUID userId) {
         
         log.info("ðŸ” Verificando status de consentimento WhatsApp para userId: {}", userId);
         

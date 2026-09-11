@@ -20,8 +20,16 @@ public final class TenantContext {
         EMPRESA.set(empresaId);
     }
 
+    public static void setCurrentTenant(UUID empresaId) {
+        set(empresaId);
+    }
+
     public static UUID get() {
         return EMPRESA.get();
+    }
+
+    public static UUID getCurrentTenant() {
+        return get();
     }
 
     public static void clear() {

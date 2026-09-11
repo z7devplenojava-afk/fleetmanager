@@ -32,8 +32,11 @@ public class MeasurementBulletinDTO {
     private UUID clientId;
     private String clientName;
     private UUID contractId;
+    private String contractDescription;
     private UUID unitId;
     private String unitName;
+    private UUID workPostId;
+    private String workPostName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String notes;
@@ -68,11 +71,17 @@ public class MeasurementBulletinDTO {
 
         if (entity.getContract() != null) {
             dto.setContractId(entity.getContract().getId());
+            dto.setContractDescription(entity.getContract().getDescription());
         }
 
         if (entity.getUnit() != null) {
             dto.setUnitId(entity.getUnit().getId());
             dto.setUnitName(entity.getUnit().getName());
+        }
+
+        if (entity.getWorkPost() != null) {
+            dto.setWorkPostId(entity.getWorkPost().getId());
+            dto.setWorkPostName(entity.getWorkPost().getName());
         }
 
         if (entity.getItems() != null) {

@@ -1,5 +1,6 @@
 package com.z7design.fleet_manager.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.z7design.fleet_manager.model.enums.TireMovementType;
 import com.z7design.fleet_manager.model.enums.TireRotationPosition;
 import jakarta.persistence.*;
@@ -26,6 +27,7 @@ public class TireMovement {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tire_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Tire tire;
 
     @Column(name = "vehicle_id")
@@ -33,6 +35,7 @@ public class TireMovement {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Vehicle vehicle;
 
     @Enumerated(EnumType.STRING)

@@ -80,6 +80,7 @@ public class AccountsReceivableDTO {
         this.client = ClientDTO.fromEntity(entity.getClient());
         this.invoiceNumber = entity.getInvoiceNumber();
         this.measurementNumber = entity.getMeasurementNumber();
+        this.measurementId = entity.getMeasurement() != null ? entity.getMeasurement().getId() : null;
         this.description = entity.getDescription();
         this.amount = entity.getAmount();
         this.amountPaid = entity.getAmountPaid();

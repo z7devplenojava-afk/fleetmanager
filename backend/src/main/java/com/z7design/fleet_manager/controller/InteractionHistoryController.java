@@ -44,7 +44,7 @@ public class InteractionHistoryController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<InteractionHistoryDTO> getById(@PathVariable String id) {
+    public ResponseEntity<InteractionHistoryDTO> getById(@PathVariable("id") String id) {
         Optional<InteractionHistory> history = interactionHistoryService.findById(UUID.fromString(id));
         return history.map(h -> ResponseEntity.ok(toDTO(h))).orElse(ResponseEntity.notFound().build());
     }
@@ -57,7 +57,7 @@ public class InteractionHistoryController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<InteractionHistoryDTO> update(@PathVariable String id, @Valid @RequestBody InteractionHistoryDTO dto) {
+    public ResponseEntity<InteractionHistoryDTO> update(@PathVariable("id") String id, @Valid @RequestBody InteractionHistoryDTO dto) {
         if (!interactionHistoryService.findById(UUID.fromString(id)).isPresent()) {
             return ResponseEntity.notFound().build();
         }
@@ -68,7 +68,7 @@ public class InteractionHistoryController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         if (!interactionHistoryService.findById(UUID.fromString(id)).isPresent()) {
             return ResponseEntity.notFound().build();
         }

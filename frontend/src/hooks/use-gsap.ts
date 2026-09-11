@@ -39,7 +39,7 @@ export const useGSAP = () => {
       elements.forEach((element, index) => {
         const animationType = element.getAttribute('data-animate') || 'fadeUp';
         const delay = parseFloat(element.getAttribute('data-delay') || '0');
-        const duration = parseFloat(element.getAttribute('data-duration') || '0.8');
+        const duration = parseFloat(element.getAttribute('data-duration') || '0.15');
 
         // IMPORTANTE: Garantir que o elemento está visível desde o início
         gsap.set(element, { opacity: 1, visibility: 'visible' });
@@ -51,12 +51,9 @@ export const useGSAP = () => {
           ease: 'power2.out',
           scrollTrigger: {
             trigger: element,
-            start: 'top 95%', // Inicia quando o elemento está 95% visível (mais cedo)
+            start: 'top 100%', // Inicia imediatamente quando o elemento entra na tela
             toggleActions: 'play none none none',
             once: true,
-            onEnter: () => {
-              console.log(`✨ Animando elemento ${index + 1}:`, animationType);
-            },
           },
         };
 
@@ -66,7 +63,7 @@ export const useGSAP = () => {
             gsap.from(element, {
               ...animationConfig,
               opacity: 0,
-              y: 50,
+              y: 12,
             });
             break;
 
@@ -74,7 +71,7 @@ export const useGSAP = () => {
             gsap.from(element, {
               ...animationConfig,
               opacity: 0,
-              y: -50,
+              y: -12,
             });
             break;
 
@@ -82,7 +79,7 @@ export const useGSAP = () => {
             gsap.from(element, {
               ...animationConfig,
               opacity: 0,
-              x: -50,
+              x: -12,
             });
             break;
 
@@ -90,7 +87,7 @@ export const useGSAP = () => {
             gsap.from(element, {
               ...animationConfig,
               opacity: 0,
-              x: 50,
+              x: 12,
             });
             break;
 
@@ -98,7 +95,7 @@ export const useGSAP = () => {
             gsap.from(element, {
               ...animationConfig,
               opacity: 0,
-              scale: 0.8,
+              scale: 0.96,
             });
             break;
 
@@ -106,12 +103,12 @@ export const useGSAP = () => {
             gsap.from(element, {
               ...animationConfig,
               opacity: 0,
-              scale: 1.2,
+              scale: 1.04,
             });
             break;
 
           default:
-            // Sem animação específica, apenas fade in
+            // Sem animação específica, apenas fade in rápido
             gsap.from(element, {
               ...animationConfig,
               opacity: 0,
@@ -120,7 +117,7 @@ export const useGSAP = () => {
       });
 
       console.log('✅ GSAP: Animações configuradas!');
-    }, 100);
+    }, 10);
 
     return () => {
       clearTimeout(timer);

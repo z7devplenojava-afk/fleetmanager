@@ -33,7 +33,7 @@ public class SecuritySettingsController {
             @ApiResponse(responseCode = "404", description = "ConfiguraÃ§Ãµes nÃ£o encontradas"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<SecuritySettingsDTO> getSecuritySettings(@PathVariable UUID companyId) {
+    public ResponseEntity<SecuritySettingsDTO> getSecuritySettings(@PathVariable("companyId") UUID companyId) {
         log.info("GET /api/security-settings/company/{} - Buscando configuraÃ§Ãµes de seguranÃ§a", companyId);
         
         try {
@@ -94,7 +94,7 @@ public class SecuritySettingsController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<SecuritySettingsDTO> updateSecuritySettings(
-            @PathVariable UUID companyId, 
+            @PathVariable("companyId") UUID companyId, 
             @Valid @RequestBody SecuritySettingsDTO settingsDTO) {
         log.info("PUT /api/security-settings/company/{} - Atualizando configuraÃ§Ãµes de seguranÃ§a", companyId);
         
@@ -115,7 +115,7 @@ public class SecuritySettingsController {
             @ApiResponse(responseCode = "404", description = "ConfiguraÃ§Ãµes nÃ£o encontradas"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> deleteSecuritySettings(@PathVariable UUID companyId) {
+    public ResponseEntity<Void> deleteSecuritySettings(@PathVariable("companyId") UUID companyId) {
         log.info("DELETE /api/security-settings/company/{} - Deletando configuraÃ§Ãµes de seguranÃ§a", companyId);
         
         try {

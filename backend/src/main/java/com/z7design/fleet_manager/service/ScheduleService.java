@@ -3,10 +3,12 @@ package com.z7design.fleet_manager.service;
 import com.z7design.fleet_manager.dto.ScheduleDTO;
 import com.z7design.fleet_manager.dto.EmployeeScheduleDTO;
 import com.z7design.fleet_manager.dto.CreateScheduleDTO;
+import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.model.Schedule;
 import com.z7design.fleet_manager.model.EmployeeSchedule;
 import com.z7design.fleet_manager.model.Location;
 import com.z7design.fleet_manager.model.Employee;
+import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.WorkPost;
 import com.z7design.fleet_manager.model.Position;
 import com.z7design.fleet_manager.model.Route;
@@ -32,7 +34,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.itextpdf.kernel.pdf.PdfDocument;
@@ -438,6 +442,71 @@ public class ScheduleService {
 
     public List<Schedule> findByDate(LocalDate date) {
         return scheduleRepository.findByScheduleDate(date);
+    }
+
+    /**
+     * Resolve o funcionário vinculado ao usuário autenticado (portal do motorista/colaborador).
+     */
+    @Transactional(readOnly = true)
+    public Employee resolveEmployeeForUser(User user) {
+        if (user == null || user.getId() == null) {
+            throw new ResourceNotFoundException("Usuário não autenticado");
+        }
+
+        Optional<Employee> byUserId = employeeRepository.findByUserId(user.getId());
+        if (byUserId.isPresent()) {
+            return byUserId.get();
+        }
+
+        Optional<Employee> byUser = employeeRepository.findByUser(user).stream().findFirst();
+        if (byUser.isPresent()) {
+            return byUser.get();
+        }
+
+        if (user.getName() != null && !user.getName().isBlank()) {
+            Optional<Employee> byName = employeeRepository.findByNameIgnoreCase(user.getName().trim());
+            if (byName.isPresent()) {
+                log.warn("Funcionário resolvido por nome para usuário {} ({})", user.getUsername(), user.getName());
+                return byName.get();
+            }
+        }
+
+        throw new ResourceNotFoundException(
+                "Funcionário não vinculado ao seu usuário. Solicite ao RH o vínculo do perfil para acessar suas escalas.");
+    }
+
+    /**
+     * Escalas do funcionário autenticado, opcionalmente filtradas por período.
+     */
+    @Transactional(readOnly = true)
+    public List<Schedule> findMySchedules(User user, LocalDate startDate, LocalDate endDate) {
+        Employee employee = resolveEmployeeForUser(user);
+        List<Schedule> schedules = scheduleRepository.findByEmployeeId(employee.getId());
+
+        return schedules.stream()
+                .filter(s -> {
+                    if (startDate != null && s.getScheduleDate() != null && s.getScheduleDate().isBefore(startDate)) {
+                        return false;
+                    }
+                    if (endDate != null && s.getScheduleDate() != null && s.getScheduleDate().isAfter(endDate)) {
+                        return false;
+                    }
+                    return true;
+                })
+                .sorted(Comparator.comparing(Schedule::getScheduleDate,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Gera PDF das escalas do funcionário autenticado.
+     */
+    @Transactional(readOnly = true)
+    public byte[] generateMyPDFReport(User user, LocalDate startDate, LocalDate endDate) throws IOException {
+        Employee employee = resolveEmployeeForUser(user);
+        LocalDate start = startDate != null ? startDate : LocalDate.now().withDayOfMonth(1);
+        LocalDate end = endDate != null ? endDate : start.withDayOfMonth(start.lengthOfMonth());
+        return generatePDFReport(start, end, employee.getId(), null, null);
     }
 
     @Transactional(readOnly = true)

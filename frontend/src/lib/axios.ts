@@ -172,6 +172,20 @@ api.interceptors.response.use(
     // Não devemos redirecionar para login em caso de 403, apenas em 401
     if (error.response?.status === 401 && !originalRequest._retry) {
       const requestUrl = String(originalRequest?.url || '');
+
+      // Endpoints públicos (chat do portal, chatbot, etc.) NUNCA devem redirecionar para login
+      // Erros de autenticação neles devem ser tratados pelo próprio serviço com fallback local
+      const isPublicEndpoint =
+        requestUrl.includes('/chat/') ||
+        requestUrl.includes('/chatbot/') ||
+        requestUrl.includes('/public/');
+      if (isPublicEndpoint) {
+        if (isHttpDebugMode()) {
+          console.warn('🌐 [axios] 401 em endpoint público, sem redirect para login:', requestUrl);
+        }
+        return Promise.reject(error);
+      }
+
       // Falha de login/senha NÃO deve disparar redirect hard — deixa a tela mostrar o erro
       const isAuthCredentialRequest =
         requestUrl.includes('/auth/login') ||

@@ -155,6 +155,21 @@ export interface Employee {
   mesReferencia?: string;
   anoReferencia?: string;
   
+  // Benefícios, descontos, horas extras e afastamento (Folha de Pagamento)
+  mensalidadePlanoSaude?: number;
+  coparticipacaoSaude?: number;
+  planoOdontologico?: number;
+  valeTransporte?: number;
+  descontoMultas?: number;
+  descontoAvarias?: number;
+  valeAdiantamento?: number;
+  adicionalNoturno?: number;
+  horasExtras50?: number;
+  horasExtras60?: number;
+  horasExtras100?: number;
+  afastamentoMotivo?: string;
+  afastamentoData?: string;
+  
   // Dados do cônjuge
   spouseName?: string;
   spouseCpf?: string;

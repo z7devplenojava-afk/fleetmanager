@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Ordem de Serviço — Frota</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      font-size: 11px; 
+      margin: 20px;
+      color: #333;
+      line-height: 1.5;
+    }
+    
+    .header { 
+      text-align: center; 
+      margin-bottom: 20px;
+      border-bottom: 3px solid #d32f2f;
+      padding-bottom: 10px;
+    }
+    
+    .header h1 { 
+      font-size: 20px; 
+      margin: 0 0 5px 0;
+      text-transform: uppercase;
+      font-weight: bold;
+      color: #d32f2f;
+    }
+    
+    .header p {
+      margin: 2px 0;
+      font-size: 10px;
+      color: #666;
+    }
+
+    .type-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff;
+      background-color: #d32f2f;
+      border-radius: 4px;
+      margin-top: 5px;
+      text-transform: uppercase;
+    }
+
+    .type-badge.preventiva {
+      background-color: #2e7d32;
+    }
+    
+    .brand {
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+    }
+    
+    .brand-logo {
+      max-height: 70px;
+      max-width: 240px;
+      margin-bottom: 4px;
+    }
+    
+    .brand-name {
+      font-size: 16px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #333;
+      letter-spacing: 0.5px;
+    }
+    
+    .brand-cnpj {
+      font-size: 10px;
+      color: #666;
+      margin-top: 2px;
+    }
+    
+    .brand-address {
+      font-size: 10px;
+      color: #666;
+      margin-top: 2px;
+    }
+    
+    .numero-os {
+      text-align: center;
+      font-size: 14px;
+      font-weight: bold;
+      margin: 15px 0;
+      padding: 10px;
+      background-color: #f5f5f5;
+      border: 2px solid #d32f2f;
+      color: #d32f2f;
+    }
+    
+    .secao { 
+      margin-bottom: 18px;
+      page-break-inside: avoid;
+    }
+    
+    .secao-titulo {
+      background-color: #f5f5f5;
+      padding: 6px 10px;
+      font-weight: bold;
+      font-size: 12px;
+      border-left: 4px solid #d32f2f;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      color: #d32f2f;
+    }
+    
+    table.info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+    }
+    
+    table.info-table td {
+      padding: 7px 8px;
+      border: 1px solid #ddd;
+      background-color: #fafafa;
+      vertical-align: top;
+    }
+    
+    table.info-table td.label {
+      font-weight: bold;
+      font-size: 9px;
+      text-transform: uppercase;
+      color: #666;
+      width: 25%;
+    }
+    
+    table.info-table td.valor {
+      font-size: 11px;
+      color: #333;
+      width: 25%;
+    }
+
+    table.checklist-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+    }
+
+    table.checklist-table th {
+      background-color: #333;
+      color: #fff;
+      padding: 6px 8px;
+      font-size: 9px;
+      text-transform: uppercase;
+      text-align: left;
+    }
+
+    table.checklist-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #ddd;
+      font-size: 10px;
+    }
+    
+    table.itens-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+    }
+    
+    table.itens-table th {
+      background-color: #333;
+      color: #fff;
+      padding: 6px 8px;
+      font-size: 9px;
+      text-transform: uppercase;
+      text-align: left;
+    }
+    
+    table.itens-table th.num { width: 6%; text-align: center; }
+    table.itens-table th.qtd { width: 10%; text-align: center; }
+    table.itens-table th.unit { width: 18%; text-align: right; }
+    table.itens-table th.total { width: 18%; text-align: right; }
+    
+    table.itens-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #ddd;
+      font-size: 10px;
+    }
+    
+    table.itens-table td.num { text-align: center; }
+    table.itens-table td.qtd { text-align: center; }
+    table.itens-table td.unit { text-align: right; }
+    table.itens-table td.total { text-align: right; }
+    
+    table.itens-table tr.alternate td {
+      background-color: #f5f5f5;
+    }
+    
+    .resumo {
+      width: 55%;
+      margin-left: auto;
+      margin-bottom: 15px;
+    }
+    
+    .resumo table { width: 100%; border-collapse: collapse; }
+    .resumo td { padding: 5px 8px; font-size: 11px; }
+    .resumo td.label { text-align: right; color: #666; }
+    .resumo td.valor { text-align: right; font-weight: bold; }
+    .resumo tr.total td {
+      border-top: 2px solid #333;
+      font-size: 13px;
+      font-weight: bold;
+      color: #d32f2f;
+      padding-top: 8px;
+    }
+    
+    .descricao-box {
+      margin: 10px 0;
+      padding: 12px;
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      min-height: 40px;
+    }
+    
+    .observacoes-box {
+      margin: 10px 0;
+      padding: 12px;
+      background-color: #fff9c4;
+      border: 1px solid #f57f17;
+      border-left: 4px solid #f57f17;
+      min-height: 40px;
+    }
+    
+    .assinatura-table {
+      width: 100%;
+      margin-top: 40px;
+      border-collapse: collapse;
+      page-break-inside: avoid;
+    }
+    
+    .assinatura-table td {
+      text-align: center;
+      padding: 20px 20px 0 20px;
+      vertical-align: top;
+      width: 50%;
+    }
+    
+    .linha-assinatura {
+      border-top: 2px solid #333;
+      margin-bottom: 8px;
+      padding-top: 8px;
+    }
+    
+    .assinatura-nome {
+      font-weight: bold;
+      font-size: 11px;
+    }
+    
+    .assinatura-info {
+      font-size: 9px;
+      color: #666;
+      margin-top: 3px;
+    }
+    
+    .data-local {
+      text-align: right;
+      font-size: 10px;
+      margin-bottom: 15px;
+      color: #666;
+    }
+    
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 9px;
+      color: #999;
+      border-top: 1px solid #ddd;
+      padding-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Cabeçalho -->
+  <div class="header">
+    <div class="brand" th:if="${companyName != null and companyName != ''}">
+      <img class="brand-logo" th:if="${companyLogo != null and companyLogo != ''}" th:src="${companyLogo}" alt="Logo da Empresa" />
+      <div class="brand-name" th:text="${companyName}">NOME DA EMPRESA</div>
+      <div class="brand-cnpj" th:if="${companyCnpj != null and companyCnpj != ''}" th:text="${companyCnpj}">CNPJ: --</div>
+      <div class="brand-address" th:if="${companyAddress != null and companyAddress != ''}" th:text="${companyAddress}">Endereço</div>
+    </div>
+    <h1>Ordem de Serviço — Frota</h1>
+    <div class="type-badge" th:classappend="${maintenanceType == 'PREVENTIVA' ? 'preventiva' : ''}" th:text="${maintenanceType}">CORRETIVA</div>
+  </div>
+
+  <!-- Número da OS -->
+  <div class="numero-os" th:if="${osNumber != null and osNumber != ''}">
+    OS Nº <span th:text="${osNumber}">0000</span>
+  </div>
+
+  <!-- Data de Emissão -->
+  <div class="data-local">
+    <b>Data de Emissão:</b> <span th:text="${dataEmissao}">--</span>
+  </div>
+
+  <!-- Identificação & Parada -->
+  <div class="secao">
+    <div class="secao-titulo">Identificação & Dados de Parada</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">Veículo / Equipamento:</td>
+        <td class="valor" th:text="${vehiclePlate} ?: '—'">—</td>
+        <td class="label">Marca / Modelo:</td>
+        <td class="valor" th:text="${vehicleModel} ?: '—'">—</td>
+      </tr>
+      <tr>
+        <td class="label">Mecânico / Responsável:</td>
+        <td class="valor" th:text="${mechanicName} ?: 'Não designado'">—</td>
+        <td class="label">Mão de Obra:</td>
+        <td class="valor" th:text="${laborType} ?: '—'">—</td>
+      </tr>
+      <tr>
+        <td class="label">Data / Hora Parada:</td>
+        <td class="valor"><span th:text="${stopDate} ?: '—'"></span> <span th:text="${stopTime} ?: ''"></span></td>
+        <td class="label">Data / Hora Saída:</td>
+        <td class="valor"><span th:text="${exitDate} ?: '—'"></span> <span th:text="${exitTime} ?: ''"></span></td>
+      </tr>
+      <tr>
+        <td class="label">Obra (Cliente):</td>
+        <td class="valor" colspan="3"><span th:text="${workPostName} ?: '—'">—</span><span th:if="${clientName}" th:text="' — ' + ${clientName}"></span></td>
+      </tr>
+      <tr>
+        <td class="label">Odômetro Parada (KM):</td>
+        <td class="valor" th:text="${odometerIn} ?: '—'">—</td>
+        <td class="label">Odômetro Saída (KM):</td>
+        <td class="valor" th:text="${odometerOut} ?: '—'">—</td>
+      </tr>
+      <tr>
+        <td class="label">Informação Agregado:</td>
+        <td class="valor" th:text="${aggregateInfo} ?: '—'">—</td>
+        <td class="label">Status OS:</td>
+        <td class="valor" th:text="${status} ?: '—'">—</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Seção Anomalias (Corretiva) -->
+  <div class="secao" th:if="${anomaliesDescription != null and anomaliesDescription != ''}">
+    <div class="secao-titulo">Descrição de Anomalias Identificadas</div>
+    <div class="descricao-box" th:text="${anomaliesDescription}">—</div>
+  </div>
+
+  <!-- Seção Checklist (Preventiva) -->
+  <div class="secao" th:if="${not #lists.isEmpty(checklistItems)}">
+    <div class="secao-titulo">Checklist de Inspeção Preventiva</div>
+    <table class="checklist-table">
+      <thead>
+        <tr>
+          <th>Categoria</th>
+          <th>Item de Inspeção</th>
+          <th style="width: 15%; text-align: center;">Situação</th>
+          <th>Observação / Reparo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="cItem : ${checklistItems}">
+          <td th:text="${cItem.categoria}">GERAL</td>
+          <td th:text="${cItem.itemDescricao}">Item</td>
+          <td style="text-align: center; font-weight: bold;" th:text="${cItem.situacao}">OK</td>
+          <td>
+            <span th:if="${cItem.observacao != null and cItem.observacao != ''}" th:text="'Obs: ' + ${cItem.observacao}"></span>
+            <span th:if="${cItem.reparoRealizado != null and cItem.reparoRealizado != ''}" th:text="' | Reparo: ' + ${cItem.reparoRealizado}"></span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Manutenção Realizada -->
+  <div class="secao" th:if="${maintenancePerformed != null and maintenancePerformed != ''}">
+    <div class="secao-titulo">Descrição das Manutenções / Reparos Realizados</div>
+    <div class="descricao-box" th:text="${maintenancePerformed}">—</div>
+  </div>
+
+  <!-- Itens / Peças e Serviços -->
+  <div class="secao">
+    <div class="secao-titulo">Peças e Serviços Utilizados</div>
+    <table class="itens-table" th:if="${#lists.isEmpty(itens)}">
+      <tr><td style="padding: 10px; text-align: center; color: #999;">Nenhum item registrado nesta ordem de serviço.</td></tr>
+    </table>
+    <table class="itens-table" th:unless="${#lists.isEmpty(itens)}">
+      <thead>
+        <tr>
+          <th class="num">#</th>
+          <th>Descrição</th>
+          <th>Tipo</th>
+          <th class="qtd">Qtd</th>
+          <th class="unit">Unitário</th>
+          <th class="total">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="item, stat : ${itens}" th:class="${stat.even} ? 'alternate'">
+          <td class="num" th:text="${stat.count}">1</td>
+          <td th:text="${item.descricao}">—</td>
+          <td th:text="${item.tipo}">—</td>
+          <td class="qtd" th:text="${item.quantidade}">1</td>
+          <td class="unit" th:text="${item.unitario}">R$ 0,00</td>
+          <td class="total" th:text="${item.total}">R$ 0,00</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Resumo de Custos -->
+  <div class="secao">
+    <div class="secao-titulo">Resumo de Custos</div>
+    <div class="resumo">
+      <table>
+        <tr>
+          <td class="label">Mão de Obra:</td>
+          <td class="valor" th:text="${laborCost}">R$ 0,00</td>
+        </tr>
+        <tr>
+          <td class="label">Peças / Materiais:</td>
+          <td class="valor" th:text="${partsCost}">R$ 0,00</td>
+        </tr>
+        <tr class="total">
+          <td class="label">TOTAL GERAL:</td>
+          <td class="valor" th:text="${totalCost}">R$ 0,00</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Observações -->
+  <div class="secao" th:if="${observacoes != null and observacoes != ''}">
+    <div class="secao-titulo">Observações Técnicas Adicionais</div>
+    <div class="observacoes-box" th:text="${observacoes}">—</div>
+  </div>
+
+  <!-- Assinaturas -->
+  <table class="assinatura-table">
+    <tr>
+      <td>
+        <div class="linha-assinatura">
+          <div class="assinatura-nome" th:text="${responsibleSignature} ?: ${mechanicName} ?: 'Responsável Técnico'">Responsável Técnico</div>
+          <div class="assinatura-info">Assinatura do Responsável</div>
+          <div class="assinatura-info" th:text="${responsibleSignatureDate} ?: 'Data: ______ / ______ / ______'">Data</div>
+        </div>
+      </td>
+      <td>
+        <div class="linha-assinatura">
+          <div class="assinatura-nome" th:text="${supervisorSignature} ?: 'Supervisor'">Supervisor</div>
+          <div class="assinatura-info">Assinatura do Supervisor</div>
+          <div class="assinatura-info" th:text="${supervisorSignatureDate} ?: 'Data: ______ / ______ / ______'">Data</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Rodapé -->
+  <div class="footer">
+    <p>Documento gerado pelo sistema FluxBus em <span th:text="${dataGeracao}"></span></p>
+    <p>Este documento autoriza e certifica a execução da manutenção descrita acima.</p>
+  </div>
+
+</body>
+</html>

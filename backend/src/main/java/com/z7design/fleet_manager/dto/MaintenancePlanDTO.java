@@ -27,6 +27,7 @@ public class MaintenancePlanDTO {
     private Integer nextDueKm;
     private LocalDate nextDueDate;
     private Boolean isActive;
+    private UUID companyId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -45,6 +46,7 @@ public class MaintenancePlanDTO {
                 .nextDueKm(entity.getNextDueKm())
                 .nextDueDate(entity.getNextDueDate())
                 .isActive(entity.getIsActive())
+                .companyId(entity.getCompanyId())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

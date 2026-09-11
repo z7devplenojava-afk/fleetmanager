@@ -2,12 +2,16 @@ package com.z7design.fleet_manager.service;
 
 import com.z7design.fleet_manager.dto.TransportMobilizationDTO;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
+import com.z7design.fleet_manager.model.Client;
 import com.z7design.fleet_manager.model.Driver;
 import com.z7design.fleet_manager.model.TransportMobilization;
 import com.z7design.fleet_manager.model.Vehicle;
+import com.z7design.fleet_manager.model.WorkPost;
+import com.z7design.fleet_manager.repository.ClientRepository;
 import com.z7design.fleet_manager.repository.DriverRepository;
 import com.z7design.fleet_manager.repository.TransportMobilizationRepository;
 import com.z7design.fleet_manager.repository.VehicleRepository;
+import com.z7design.fleet_manager.repository.WorkPostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +38,8 @@ public class TransportMobilizationService {
     private final TransportMobilizationRepository repository;
     private final VehicleRepository vehicleRepository;
     private final DriverRepository driverRepository;
+    private final ClientRepository clientRepository;
+    private final WorkPostRepository workPostRepository;
 
     private static final String UPLOAD_DIR = "uploads/transport-mobilizations/odometer-photos/";
     private static final String VEHICLE_PHOTOS_DIR = "uploads/vehicles/";
@@ -71,6 +77,20 @@ public class TransportMobilizationService {
             driver = driverRepository.findById(dto.getDriverId()).orElse(null);
         }
 
+        Client client = null;
+        String clientName = null;
+        if (dto.getClientId() != null) {
+            client = clientRepository.findById(dto.getClientId()).orElse(null);
+            if (client != null) clientName = client.getName();
+        }
+
+        WorkPost workPost = null;
+        String workPostName = null;
+        if (dto.getWorkPostId() != null) {
+            workPost = workPostRepository.findById(dto.getWorkPostId()).orElse(null);
+            if (workPost != null) workPostName = workPost.getName();
+        }
+
         String jsonData = dto.getJsonData();
         if (jsonData == null && dto.getChecklistData() != null) {
             jsonData = dto.getChecklistData();
@@ -84,6 +104,10 @@ public class TransportMobilizationService {
         TransportMobilization entity = TransportMobilization.builder()
                 .vehicle(vehicle)
                 .driver(driver)
+                .client(client)
+                .clientName(clientName)
+                .workPost(workPost)
+                .workPostName(workPostName)
                 .type(dto.getType())
                 .occurredAt(dto.getOccurredAt() != null ? dto.getOccurredAt() : LocalDateTime.now())
                 .kmReading(dto.getKmReading())
@@ -122,6 +146,16 @@ public class TransportMobilizationService {
         }
         if (dto.getDriverId() != null) {
             entity.setDriver(driverRepository.findById(dto.getDriverId()).orElse(null));
+        }
+        if (dto.getClientId() != null) {
+            Client client = clientRepository.findById(dto.getClientId()).orElse(null);
+            entity.setClient(client);
+            entity.setClientName(client != null ? client.getName() : null);
+        }
+        if (dto.getWorkPostId() != null) {
+            WorkPost workPost = workPostRepository.findById(dto.getWorkPostId()).orElse(null);
+            entity.setWorkPost(workPost);
+            entity.setWorkPostName(workPost != null ? workPost.getName() : null);
         }
 
         if (dto.getType() != null)
@@ -166,6 +200,10 @@ public class TransportMobilizationService {
                 .vehiclePlate(entity.getVehicle().getPlate())
                 .driverId(entity.getDriver() != null ? entity.getDriver().getId() : null)
                 .driverName(entity.getDriver() != null ? entity.getDriver().getName() : null)
+                .clientId(entity.getClient() != null ? entity.getClient().getId() : null)
+                .clientName(entity.getClientName())
+                .workPostId(entity.getWorkPost() != null ? entity.getWorkPost().getId() : null)
+                .workPostName(entity.getWorkPostName())
                 .type(entity.getType())
                 .occurredAt(entity.getOccurredAt())
                 .kmReading(entity.getKmReading())

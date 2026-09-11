@@ -48,6 +48,8 @@ public class SecurityConfig {
                 http
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .csrf(csrf -> csrf.disable())
+                                .exceptionHandling(exception -> exception
+                                                .authenticationEntryPoint(new org.springframework.security.web.authentication.HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .headers(headers -> headers
@@ -208,6 +210,15 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/frota/vehicle-gate-checklists/**")
                                                 .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
                                                                 "ROLE_FLEX_ADMIN", "ROLE_PORTARIA",
+                                                                "ROLE_MECANICO", "ROLE_MOTORISTA")
+                                                // Configuração de itens de checklist por veículo - leitura autenticada
+                                                // (motorista lê para executar o checklist), escrita para admin/portaria
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                                                "/api/frota/checklist-configs/**")
+                                                .authenticated()
+                                                .requestMatchers("/api/frota/checklist-configs/**")
+                                                .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
+                                                                "ROLE_FLEX_ADMIN", "ROLE_PORTARIA",
                                                                 "ROLE_MECANICO")
                                                 .requestMatchers("/api/mechanic/dashboard/**")
                                                 .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
@@ -355,7 +366,6 @@ public class SecurityConfig {
                                                                 "ROLE_FINANCEIRO", "ROLE_COLABORADOR", "ROLE_MOTORISTA",
                                                                 "ROLE_MECANICO", "ROLE_PORTARIA")
                                                 // Endpoints de organizaÃ§Ã£o por setor - temporariamente pÃºblico para
-                                                // debug
                                                 .requestMatchers("/api/sector-organization/**").permitAll()
                                                 // Endpoints de relatÃ³rios - requerem permissÃµes especÃ­ficas
                                                 .requestMatchers("/api/reports/**")
@@ -363,21 +373,9 @@ public class SecurityConfig {
                                                                 "ROLE_SUPER_ADMIN",
                                                                 "ROLE_ADMIN", "ROLE_COMPANY_ADMIN", "ROLE_FLEX_ADMIN",
                                                                 "ROLE_GESTOR", "ROLE_SUPERVISOR")
-                                                // Endpoints de chat - permitir para todos os roles principais,
-                                                // incluindo
-                                                // Departamento Pessoal
-                                                .requestMatchers("/api/v1/chat/**").hasAnyRole(
-                                                                "SUPER_ADMIN",
-                                                                "ADMIN",
-                                                                "SUPERVISOR",
-                                                                "COLABORADOR",
-                                                                "VIGILANTE",
-                                                                "RH",
-                                                                "DEPARTAMENTO_PESSOAL",
-                                                                "FINANCEIRO",
-                                                                "GESTOR",
-                                                                "COMPANY_ADMIN",
-                                                                "FLEX_ADMIN")
+                                                // Endpoints de chat e leads (CRM)
+                                                .requestMatchers("/api/v1/chat/**").authenticated()
+                                                .requestMatchers("/api/leads/**").authenticated()
                                                 // Endpoints de mensagens - permitir para todos os roles principais,
                                                 // incluindo
                                                 // Departamento Pessoal
@@ -441,6 +439,13 @@ public class SecurityConfig {
                                                 // para
                                                 // desenvolvimento)
                                                 .requestMatchers("/api/fines/**").authenticated()
+                                                .requestMatchers("/api/vehicles/**").authenticated()
+                                                .requestMatchers("/api/frota/**").authenticated()
+                                                .requestMatchers("/api/fuel-records/**").authenticated()
+                                                .requestMatchers("/api/maintenances/**").authenticated()
+                                                .requestMatchers("/api/drivers/**").authenticated()
+                                                .requestMatchers("/api/groups/**").authenticated()
+                                                .requestMatchers("/api/tires/**").authenticated()
                                                 // Endpoints de dashboard - requerem apenas autenticaÃ§Ã£o para
                                                 // usuÃ¡rios
                                                 // logados
@@ -468,37 +473,14 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/visit-control-reports/**").authenticated()
                                                 // Endpoints de dados de teste - pÃºblicos para desenvolvimento
                                                 .requestMatchers("/api/test-data/**").permitAll()
-                                                // Endpoints de controle de visitas - temporariamente pÃºblicos para
-                                                // desenvolvimento
-                                                .requestMatchers("/api/visits/**").permitAll()
-                                                // Endpoints de mediÃ§Ãµes - liberar GET autenticado e manter
-                                                // POST/PUT/DELETE
-                                                // restritos
+                                                // Endpoints de medições e retenções contratuais - requerem autenticação
                                                 .requestMatchers("/api/measurements/test-pdf").permitAll()
                                                 .requestMatchers("/api/measurements/*/pdf").permitAll()
                                                 .requestMatchers("/api/measurements/*/excel").permitAll()
                                                 .requestMatchers("/api/measurements/bulk/pdf").permitAll()
                                                 .requestMatchers("/api/measurements/bulk/excel").permitAll()
-                                                .requestMatchers(org.springframework.http.HttpMethod.GET,
-                                                                "/api/measurements/**")
-                                                .authenticated()
-                                                .requestMatchers(org.springframework.http.HttpMethod.POST,
-                                                                "/api/measurements/**")
-                                                .hasAnyAuthority("FINANCIAL_WRITE", "FINANCIAL_CREATE",
-                                                                "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
-                                                                "ROLE_FINANCEIRO")
-                                                .requestMatchers(org.springframework.http.HttpMethod.PUT,
-                                                                "/api/measurements/**")
-                                                .hasAnyAuthority("FINANCIAL_WRITE", "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
-                                                                "ROLE_FINANCEIRO")
-                                                .requestMatchers(org.springframework.http.HttpMethod.PATCH,
-                                                                "/api/measurements/**")
-                                                .hasAnyAuthority("FINANCIAL_WRITE", "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
-                                                                "ROLE_FINANCEIRO")
-                                                .requestMatchers(org.springframework.http.HttpMethod.DELETE,
-                                                                "/api/measurements/**")
-                                                .hasAnyAuthority("FINANCIAL_DELETE", "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
-                                                                "ROLE_FINANCEIRO")
+                                                .requestMatchers("/api/measurements/**").authenticated()
+                                                .requestMatchers("/api/contract-retentions/**").authenticated()
                                                 // Endpoints de estoque - requerem permissÃµes especÃ­ficas ou
                                                 // autenticaÃ§Ã£o
                                                 .requestMatchers("/api/stock/**")

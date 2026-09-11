@@ -366,7 +366,7 @@ const PontoEletronico: React.FC = () => {
     }
   };
 
-  const handleSaveJustification = () => {
+  const handleSaveJustification = async () => {
     if (!justificationText.trim()) {
       toast({
         title: 'Justificativa vazia',
@@ -376,13 +376,39 @@ const PontoEletronico: React.FC = () => {
       return;
     }
 
-    // Por enquanto apenas exibe um feedback; integração com backend pode ser adicionada depois
-    toast({
-      title: 'Justificativa registrada',
-      description: 'Sua justificativa foi registrada localmente. Integração completa será adicionada em breve.',
-    });
-    setJustificationText('');
-    setShowJustificationDialog(false);
+    if (!user?.employeeId || registrosHoje.length === 0) {
+      toast({
+        title: 'Erro',
+        description: 'Nenhum registro de hoje para justificar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Justificar o último registro pendente ou todos os registros de hoje
+      const promises = registrosHoje
+        .filter(r => r.status === 'PENDING' || r.status === 'APPROVED')
+        .map(r => timeRecordService.submitJustification(r.id, user.employeeId!, justificationText));
+
+      await Promise.all(promises);
+
+      toast({
+        title: 'Justificativa registrada',
+        description: 'Sua justificativa foi enviada para aprovação.',
+      });
+
+      setJustificationText('');
+      setShowJustificationDialog(false);
+      await loadTodayRecords();
+    } catch (error: any) {
+      console.error('Erro ao enviar justificativa:', error);
+      toast({
+        title: 'Erro ao enviar justificativa',
+        description: error.response?.data?.error || error.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   const getProximoRegistroButton = () => {

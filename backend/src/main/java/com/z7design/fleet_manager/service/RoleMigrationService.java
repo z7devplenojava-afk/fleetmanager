@@ -165,7 +165,26 @@ public class RoleMigrationService {
                 "SUPERVISOR",
                 "TI_SUPORTE",
                 "AUDITOR",
-                "USER"
+                "USER",
+                "MANUTENCAO",
+                "MECANICO",
+                "GESTOR_TRAFEGO",
+                "GESTOR_DE_TRAFEGO",
+                "MOTORISTA",
+                "ALMOXARIFADO",
+                "COMPRAS",
+                "GESTOR_DE_MANUTENCAO",
+                "ENCARREGADO_DE_MANUTENCAO",
+                "GESTOR_DE_COMPRAS",
+                "GESTOR_FINANCEIRO",
+                "GESTOR_OPERACIONAL",
+                "AUXILIAR_ADMINISTRATIVO",
+                "AUXILIAR_DE_RH",
+                "AUXILIAR_DE_DEPARTAMENTO_PESSOAL",
+                "ASSISTENTE_OPERACIONAL",
+                "ASSISTENTE_LIMPEZA",
+                "LAVADOR",
+                "ASSISTENTE_FINANCEIRO"
         };
 
         for (String roleName : defaultRoles) {

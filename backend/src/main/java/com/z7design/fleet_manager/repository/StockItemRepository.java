@@ -16,8 +16,14 @@ import java.util.UUID;
 @Repository
 public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
 
-    // Buscar por cÃ³digo
+    // Buscar por código
     Optional<StockItem> findByCode(String code);
+
+    // Buscar por empresa e código
+    Optional<StockItem> findByCompanyIdAndCode(UUID companyId, String code);
+
+    // Buscar por código sem empresa (legado/admin)
+    Optional<StockItem> findByCodeAndCompanyIdIsNull(String code);
 
     // Buscar por QR Code
     Optional<StockItem> findByQrCode(String qrCode);
@@ -44,11 +50,11 @@ public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
 
     // Busca com filtros mÃºltiplos
     @Query("SELECT si FROM StockItem si WHERE " +
-           "(:category IS NULL OR si.category = :category) AND " +
-           "(:active IS NULL OR si.active = :active) AND " +
-           "(:unitId IS NULL OR si.unit.id = :unitId) AND " +
-           "(:lowStock IS NULL OR (:lowStock = true AND si.currentQuantity <= si.minimumQuantity) OR (:lowStock = false)) AND " +
-           "(:searchTerm IS NULL OR " +
+           "(CAST(:category AS string) IS NULL OR si.category = :category) AND " +
+           "(CAST(:active AS boolean) IS NULL OR si.active = :active) AND " +
+           "(CAST(:unitId AS uuid) IS NULL OR si.unit.id = :unitId) AND " +
+           "(CAST(:lowStock AS boolean) IS NULL OR CAST(:lowStock AS boolean) = false OR (CAST(:lowStock AS boolean) = true AND si.currentQuantity <= si.minimumQuantity)) AND " +
+           "(CAST(:searchTerm AS string) IS NULL OR " +
            "si.name LIKE %:searchTerm% OR " +
            "si.code LIKE %:searchTerm% OR " +
            "si.description LIKE %:searchTerm% OR " +

@@ -16,7 +16,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER_DEV:-fluxbus_user_dev}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV:-devpass123}
     ports:
-      - "5433:5432"
+      # 5435 no host para nao conflitar com busconnect-postgres (5433) e pg local (5432)
+      - "5435:5432"
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data
     networks:
@@ -56,6 +57,16 @@ services:
     container_name: fluxbus-backend-dev
     environment:
       SPRING_PROFILES_ACTIVE: dev
+      # Porta interna fixa em 8083 (perfil dev usaria 8081) — mapping, healthcheck e webhook assumem 8083
+      SERVER_PORT: 8083
+      # Banco novo (0 tabelas) precisa de schema: base properties tem hbm2ddl.auto=none que anula ddl-auto=update do dev
+      SPRING_JPA_PROPERTIES_HIBERNATE_HBM2DDL_AUTO: update
+      # Perfil dev espera POSTGRES_* (nao DB_URL, que e prod-style) — sem isso cai em localhost:5432
+      POSTGRES_HOST: postgres-dev
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB_DEV:-fluxbus_db_dev}
+      POSTGRES_USER: ${POSTGRES_USER_DEV:-fluxbus_user_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV:-devpass123}
       DB_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-fluxbus_db_dev}
       DB_USERNAME: ${POSTGRES_USER_DEV:-fluxbus_user_dev}
       DB_PASSWORD: ${POSTGRES_PASSWORD_DEV:-devpass123}
@@ -119,14 +130,19 @@ services:
     image: z7design/fluxbus-frontend:dev
     container_name: fluxbus-frontend-dev
     ports:
-      - "81:80"
+      - "81:443"
+    volumes:
+      # HTTPS via nginx (cert self-signed p/ localhost + config SSL que proxya /api para o backend)
+      - ./fluxbus-nginx/ssl.conf:/etc/nginx/conf.d/ssl.conf:ro
+      - ./fluxbus-nginx/certs:/etc/nginx/certs:ro
     depends_on:
       backend-dev:
         condition: service_started
     networks:
       - fluxbus-dev-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost || exit 1"]
+      # 127.0.0.1: localhost resolve ::1 (IPv6) e o nginx escuta so IPv4 -> wget busybox nao faz fallback
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

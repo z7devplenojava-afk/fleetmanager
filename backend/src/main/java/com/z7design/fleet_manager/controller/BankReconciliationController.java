@@ -52,7 +52,7 @@ public class BankReconciliationController {
     
     @GetMapping("/accounts/{id}")
     @Operation(summary = "Buscar conta bancÃ¡ria por ID", description = "Retorna uma conta bancÃ¡ria especÃ­fica pelo seu ID")
-    public ResponseEntity<BankAccountDTO> getBankAccountById(@PathVariable UUID id) {
+    public ResponseEntity<BankAccountDTO> getBankAccountById(@PathVariable("id") UUID id) {
         log.info("GET /api/bank-reconciliation/accounts/{} - Buscando conta bancÃ¡ria", id);
         return ResponseEntity.ok(bankReconciliationService.getBankAccountById(id));
     }
@@ -83,7 +83,7 @@ public class BankReconciliationController {
     
     @GetMapping("/files/{id}")
     @Operation(summary = "Buscar arquivo bancÃ¡rio por ID", description = "Retorna um arquivo bancÃ¡rio especÃ­fico pelo seu ID")
-    public ResponseEntity<BankFileDTO> getBankFileById(@PathVariable UUID id) {
+    public ResponseEntity<BankFileDTO> getBankFileById(@PathVariable("id") UUID id) {
         log.info("GET /api/bank-reconciliation/files/{} - Buscando arquivo bancÃ¡rio", id);
         return ResponseEntity.ok(bankReconciliationService.getBankFileById(id));
     }
@@ -103,7 +103,7 @@ public class BankReconciliationController {
     
     @DeleteMapping("/files/{id}")
     @Operation(summary = "Remover arquivo bancÃ¡rio", description = "Remove um arquivo bancÃ¡rio e suas transaÃ§Ãµes associadas")
-    public ResponseEntity<Void> deleteBankFile(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteBankFile(@PathVariable("id") UUID id) {
         log.info("DELETE /api/bank-reconciliation/files/{} - Removendo arquivo bancÃ¡rio", id);
         bankReconciliationService.deleteBankFile(id);
         return ResponseEntity.noContent().build();
@@ -113,14 +113,14 @@ public class BankReconciliationController {
     
     @GetMapping("/files/{fileId}/transactions")
     @Operation(summary = "Listar transaÃ§Ãµes de um arquivo", description = "Retorna todas as transaÃ§Ãµes de um arquivo bancÃ¡rio especÃ­fico")
-    public ResponseEntity<List<BankTransactionDTO>> getTransactionsByFileId(@PathVariable UUID fileId) {
+    public ResponseEntity<List<BankTransactionDTO>> getTransactionsByFileId(@PathVariable("fileId") UUID fileId) {
         log.info("GET /api/bank-reconciliation/files/{}/transactions - Buscando transaÃ§Ãµes do arquivo", fileId);
         return ResponseEntity.ok(bankReconciliationService.getTransactionsByFileId(fileId));
     }
     
     @GetMapping("/transactions/status/{status}")
     @Operation(summary = "Listar transaÃ§Ãµes por status", description = "Retorna transaÃ§Ãµes filtradas por status de conciliaÃ§Ã£o")
-    public ResponseEntity<List<BankTransactionDTO>> getTransactionsByStatus(@PathVariable BankTransaction.ReconciliationStatus status) {
+    public ResponseEntity<List<BankTransactionDTO>> getTransactionsByStatus(@PathVariable("status") BankTransaction.ReconciliationStatus status) {
         log.info("GET /api/bank-reconciliation/transactions/status/{} - Buscando transaÃ§Ãµes por status", status);
         return ResponseEntity.ok(bankReconciliationService.getTransactionsByStatus(status));
     }
@@ -157,7 +157,7 @@ public class BankReconciliationController {
     @GetMapping("/reports/file/{fileId}")
     @Operation(summary = "Gerar relatÃ³rio de arquivo", description = "Gera relatÃ³rio PDF de conciliaÃ§Ã£o para um arquivo especÃ­fico")
     public ResponseEntity<byte[]> generateFileReport(
-            @PathVariable UUID fileId,
+            @PathVariable("fileId") UUID fileId,
             @RequestParam(value = "status", required = false, defaultValue = "ALL") String statusFilter) {
         log.info("GET /api/bank-reconciliation/reports/file/{} - Gerando relatÃ³rio de arquivo com filtro: {}", fileId, statusFilter);
         

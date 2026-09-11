@@ -23,9 +23,9 @@ public class PontoProcessingController {
     @PostMapping("/process/{employeeId}")
     @PreAuthorize("hasAnyAuthority('PONTO_RAW_IMPORT', 'TIME_RECORD_CREATE', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> processBatidasForEmployee(
-            @PathVariable UUID employeeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             PontoProcessingService.ProcessingResult result = 
                     pontoProcessingService.processBatidasForEmployee(employeeId, startDate, endDate);

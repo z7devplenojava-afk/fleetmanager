@@ -29,7 +29,7 @@ public class PurchaseRequestController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO')")
-    public ResponseEntity<PurchaseRequestDTO> getPurchaseRequestById(@PathVariable UUID id) {
+    public ResponseEntity<PurchaseRequestDTO> getPurchaseRequestById(@PathVariable("id") UUID id) {
         log.info("Buscando requisiÃ§Ã£o de compra com ID: {}", id);
         return purchaseRequestService.getPurchaseRequestById(id)
                 .map(ResponseEntity::ok)
@@ -46,7 +46,7 @@ public class PurchaseRequestController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS')")
-    public ResponseEntity<PurchaseRequestDTO> updatePurchaseRequest(@PathVariable UUID id,
+    public ResponseEntity<PurchaseRequestDTO> updatePurchaseRequest(@PathVariable("id") UUID id,
             @RequestBody PurchaseRequestDTO requestDTO) {
         log.info("Atualizando requisiÃ§Ã£o de compra com ID: {}", id);
         try {
@@ -59,7 +59,7 @@ public class PurchaseRequestController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
-    public ResponseEntity<Void> deletePurchaseRequest(@PathVariable UUID id) {
+    public ResponseEntity<Void> deletePurchaseRequest(@PathVariable("id") UUID id) {
         log.info("Deletando requisiÃ§Ã£o de compra com ID: {}", id);
         purchaseRequestService.deletePurchaseRequest(id);
         return ResponseEntity.noContent().build();
@@ -68,9 +68,9 @@ public class PurchaseRequestController {
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_FINANCEIRO')")
     public ResponseEntity<PurchaseRequestDTO> approveRequest(
-            @PathVariable UUID id,
-            @RequestParam String approverName,
-            @RequestParam(required = false) String approvalNotes) {
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "approverName") String approverName,
+            @RequestParam(value = "approvalNotes", required = false) String approvalNotes) {
         log.info("Aprovando requisiÃ§Ã£o de compra com ID: {}", id);
         try {
             PurchaseRequestDTO approvedRequest = purchaseRequestService.approveRequest(id, approverName, approvalNotes);
@@ -83,9 +83,9 @@ public class PurchaseRequestController {
     @PostMapping("/{id}/reject")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_FINANCEIRO')")
     public ResponseEntity<PurchaseRequestDTO> rejectRequest(
-            @PathVariable UUID id,
-            @RequestParam String rejectorName,
-            @RequestParam String rejectionReason) {
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "rejectorName") String rejectorName,
+            @RequestParam(value = "rejectionReason") String rejectionReason) {
         log.info("Rejeitando requisiÃ§Ã£o de compra com ID: {}", id);
         try {
             PurchaseRequestDTO rejectedRequest = purchaseRequestService.rejectRequest(id, rejectorName,
@@ -97,7 +97,7 @@ public class PurchaseRequestController {
     }
 
     @PostMapping("/{id}/complete")
-    public ResponseEntity<PurchaseRequestDTO> completeRequest(@PathVariable UUID id) {
+    public ResponseEntity<PurchaseRequestDTO> completeRequest(@PathVariable("id") UUID id) {
         log.info("Completando requisiÃ§Ã£o de compra com ID: {}", id);
         try {
             PurchaseRequestDTO completedRequest = purchaseRequestService.completeRequest(id);
@@ -108,35 +108,35 @@ public class PurchaseRequestController {
     }
 
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<PurchaseRequestDTO>> getRequestsByStatus(@PathVariable String status) {
+    public ResponseEntity<List<PurchaseRequestDTO>> getRequestsByStatus(@PathVariable("status") String status) {
         log.info("Buscando requisiÃ§Ãµes de compra com status: {}", status);
         List<PurchaseRequestDTO> requests = purchaseRequestService.getRequestsByStatus(status);
         return ResponseEntity.ok(requests);
     }
 
     @GetMapping("/priority/{priority}")
-    public ResponseEntity<List<PurchaseRequestDTO>> getRequestsByPriority(@PathVariable String priority) {
+    public ResponseEntity<List<PurchaseRequestDTO>> getRequestsByPriority(@PathVariable("priority") String priority) {
         log.info("Buscando requisiÃ§Ãµes de compra com prioridade: {}", priority);
         List<PurchaseRequestDTO> requests = purchaseRequestService.getRequestsByPriority(priority);
         return ResponseEntity.ok(requests);
     }
 
     @GetMapping("/requester/{requesterId}")
-    public ResponseEntity<List<PurchaseRequestDTO>> getRequestsByRequester(@PathVariable UUID requesterId) {
+    public ResponseEntity<List<PurchaseRequestDTO>> getRequestsByRequester(@PathVariable("requesterId") UUID requesterId) {
         log.info("Buscando requisiÃ§Ãµes de compra do solicitante: {}", requesterId);
         List<PurchaseRequestDTO> requests = purchaseRequestService.getRequestsByRequester(requesterId);
         return ResponseEntity.ok(requests);
     }
 
     @GetMapping("/approver/{approverId}")
-    public ResponseEntity<List<PurchaseRequestDTO>> getRequestsByApprover(@PathVariable UUID approverId) {
+    public ResponseEntity<List<PurchaseRequestDTO>> getRequestsByApprover(@PathVariable("approverId") UUID approverId) {
         log.info("Buscando requisiÃ§Ãµes de compra do aprovador: {}", approverId);
         List<PurchaseRequestDTO> requests = purchaseRequestService.getRequestsByApprover(approverId);
         return ResponseEntity.ok(requests);
     }
 
     @GetMapping("/unit/{unitId}")
-    public ResponseEntity<List<PurchaseRequestDTO>> getRequestsByUnit(@PathVariable UUID unitId) {
+    public ResponseEntity<List<PurchaseRequestDTO>> getRequestsByUnit(@PathVariable("unitId") UUID unitId) {
         log.info("Buscando requisiÃ§Ãµes de compra da unidade: {}", unitId);
         List<PurchaseRequestDTO> requests = purchaseRequestService.getRequestsByUnit(unitId);
         return ResponseEntity.ok(requests);
@@ -164,14 +164,14 @@ public class PurchaseRequestController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<PurchaseRequestDTO>> searchRequests(@RequestParam String searchTerm) {
+    public ResponseEntity<List<PurchaseRequestDTO>> searchRequests(@RequestParam(value = "searchTerm") String searchTerm) {
         log.info("Buscando requisiÃ§Ãµes de compra com termo: {}", searchTerm);
         List<PurchaseRequestDTO> requests = purchaseRequestService.searchRequests(searchTerm);
         return ResponseEntity.ok(requests);
     }
 
     @GetMapping("/stats/count/{status}")
-    public ResponseEntity<Long> getRequestsCountByStatus(@PathVariable String status) {
+    public ResponseEntity<Long> getRequestsCountByStatus(@PathVariable("status") String status) {
         log.info("Buscando contagem de requisiÃ§Ãµes com status: {}", status);
         long count = purchaseRequestService.getRequestsCountByStatus(status);
         return ResponseEntity.ok(count);

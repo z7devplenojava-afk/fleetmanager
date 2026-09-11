@@ -617,6 +617,7 @@ const CotacoesCompras: React.FC = () => {
           setViewingPurchaseRequest(null);
         }}
         request={viewingPurchaseRequest || undefined}
+        onQuotationCreated={loadQuotations}
       />
 
       {/* Diálogo de confirmação de exclusão */}

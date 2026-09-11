@@ -60,7 +60,7 @@ public class VehicleMaintenanceController {
 
     // GET /api/maintenances/{id} - Buscar manutenÃ§Ã£o por ID
     @GetMapping("/{id}")
-    public ResponseEntity<VehicleMaintenanceDTO> getMaintenanceById(@PathVariable UUID id) {
+    public ResponseEntity<VehicleMaintenanceDTO> getMaintenanceById(@PathVariable("id") UUID id) {
         log.info("GET /api/maintenances/{} - Buscando manutenÃ§Ã£o por ID", id);
         VehicleMaintenanceDTO maintenance = maintenanceService.getMaintenanceById(id);
         return ResponseEntity.ok(maintenance);
@@ -77,7 +77,7 @@ public class VehicleMaintenanceController {
     // PUT /api/maintenances/{id} - Atualizar manutenÃ§Ã£o
     @PutMapping("/{id}")
     public ResponseEntity<VehicleMaintenanceDTO> updateMaintenance(
-            @PathVariable UUID id, 
+            @PathVariable("id") UUID id, 
             @Valid @RequestBody VehicleMaintenanceDTO dto) {
         log.info("PUT /api/maintenances/{} - Atualizando manutenÃ§Ã£o", id);
         VehicleMaintenanceDTO updatedMaintenance = maintenanceService.updateMaintenance(id, dto);
@@ -86,7 +86,7 @@ public class VehicleMaintenanceController {
 
     // DELETE /api/maintenances/{id} - Deletar manutenÃ§Ã£o
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteMaintenance(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteMaintenance(@PathVariable("id") UUID id) {
         log.info("DELETE /api/maintenances/{} - Deletando manutenÃ§Ã£o", id);
         maintenanceService.deleteMaintenance(id);
         return ResponseEntity.noContent().build();
@@ -94,7 +94,7 @@ public class VehicleMaintenanceController {
 
     // GET /api/maintenances/vehicle/{vehicleId} - Buscar manutenÃ§Ãµes por veÃ­culo
     @GetMapping("/vehicle/{vehicleId}")
-    public ResponseEntity<List<VehicleMaintenanceDTO>> getMaintenancesByVehicle(@PathVariable UUID vehicleId) {
+    public ResponseEntity<List<VehicleMaintenanceDTO>> getMaintenancesByVehicle(@PathVariable("vehicleId") UUID vehicleId) {
         log.info("GET /api/maintenances/vehicle/{} - Buscando manutenÃ§Ãµes por veÃ­culo", vehicleId);
         List<VehicleMaintenanceDTO> maintenances = maintenanceService.getMaintenancesByVehicle(vehicleId);
         return ResponseEntity.ok(maintenances);
@@ -102,7 +102,7 @@ public class VehicleMaintenanceController {
 
     // GET /api/maintenances/vehicle/{vehicleId}/last-date - Buscar data da Ãºltima manutenÃ§Ã£o
     @GetMapping("/vehicle/{vehicleId}/last-date")
-    public ResponseEntity<LocalDate> getLastMaintenanceDateByVehicle(@PathVariable UUID vehicleId) {
+    public ResponseEntity<LocalDate> getLastMaintenanceDateByVehicle(@PathVariable("vehicleId") UUID vehicleId) {
         log.info("GET /api/maintenances/vehicle/{}/last-date - Buscando data da Ãºltima manutenÃ§Ã£o", vehicleId);
         LocalDate lastMaintenanceDate = maintenanceService.getLastMaintenanceDateByVehicle(vehicleId);
         return ResponseEntity.ok(lastMaintenanceDate);
@@ -110,7 +110,7 @@ public class VehicleMaintenanceController {
 
     // GET /api/maintenances/status/{status} - Buscar manutenÃ§Ãµes por status
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<VehicleMaintenanceDTO>> getMaintenancesByStatus(@PathVariable String status) {
+    public ResponseEntity<List<VehicleMaintenanceDTO>> getMaintenancesByStatus(@PathVariable("status") String status) {
         log.info("GET /api/maintenances/status/{} - Buscando manutenÃ§Ãµes por status", status);
         List<VehicleMaintenanceDTO> maintenances = maintenanceService.getMaintenancesByStatus(status);
         return ResponseEntity.ok(maintenances);
@@ -118,7 +118,7 @@ public class VehicleMaintenanceController {
 
     // GET /api/maintenances/priority/{priority} - Buscar manutenÃ§Ãµes por prioridade
     @GetMapping("/priority/{priority}")
-    public ResponseEntity<List<VehicleMaintenanceDTO>> getMaintenancesByPriority(@PathVariable String priority) {
+    public ResponseEntity<List<VehicleMaintenanceDTO>> getMaintenancesByPriority(@PathVariable("priority") String priority) {
         log.info("GET /api/maintenances/priority/{} - Buscando manutenÃ§Ãµes por prioridade", priority);
         List<VehicleMaintenanceDTO> maintenances = maintenanceService.getMaintenancesByPriority(priority);
         return ResponseEntity.ok(maintenances);
@@ -127,8 +127,8 @@ public class VehicleMaintenanceController {
     // GET /api/maintenances/period - Buscar manutenÃ§Ãµes por perÃ­odo
     @GetMapping("/period")
     public ResponseEntity<List<VehicleMaintenanceDTO>> getMaintenancesByPeriod(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         log.info("GET /api/maintenances/period - Buscando manutenÃ§Ãµes entre {} e {}", startDate, endDate);
         List<VehicleMaintenanceDTO> maintenances = maintenanceService.getMaintenancesByPeriod(startDate, endDate);
         return ResponseEntity.ok(maintenances);
@@ -169,8 +169,8 @@ public class VehicleMaintenanceController {
     // PATCH /api/maintenances/{id}/status - Atualizar apenas o status
     @PatchMapping("/{id}/status")
     public ResponseEntity<VehicleMaintenanceDTO> updateMaintenanceStatus(
-            @PathVariable UUID id, 
-            @RequestParam String status) {
+            @PathVariable("id") UUID id, 
+            @RequestParam(value = "status") String status) {
         log.info("PATCH /api/maintenances/{}/status - Atualizando status para {}", id, status);
         
         VehicleMaintenanceDTO dto = maintenanceService.getMaintenanceById(id);
@@ -183,8 +183,8 @@ public class VehicleMaintenanceController {
     // PATCH /api/maintenances/{id}/priority - Atualizar apenas a prioridade
     @PatchMapping("/{id}/priority")
     public ResponseEntity<VehicleMaintenanceDTO> updateMaintenancePriority(
-            @PathVariable UUID id, 
-            @RequestParam String priority) {
+            @PathVariable("id") UUID id, 
+            @RequestParam(value = "priority") String priority) {
         log.info("PATCH /api/maintenances/{}/priority - Atualizando prioridade para {}", id, priority);
         
         VehicleMaintenanceDTO dto = maintenanceService.getMaintenanceById(id);
@@ -246,7 +246,7 @@ public class VehicleMaintenanceController {
     // PUT /api/maintenances/{id}/upload - Atualizar manutenÃ§Ã£o com upload de arquivos
     @PutMapping(value = "/{id}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<VehicleMaintenanceDTO> updateMaintenanceWithFiles(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestParam("vehicleId") String vehicleId,
             @RequestParam("date") String date,
             @RequestParam("maintenanceType") String maintenanceType,
@@ -307,12 +307,12 @@ public class VehicleMaintenanceController {
     @GetMapping(value = "/report/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     @Operation(summary = "Gerar relatÃ³rio PDF de manutenÃ§Ãµes", description = "Gera relatÃ³rio PDF filtrado por data, placa, status, tipo e descriÃ§Ã£o")
     public ResponseEntity<byte[]> generatePDFReport(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) UUID vehicleId,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String maintenanceType,
-            @RequestParam(required = false) String description) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "vehicleId", required = false) UUID vehicleId,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "maintenanceType", required = false) String maintenanceType,
+            @RequestParam(value = "description", required = false) String description) {
         try {
             VehicleMaintenance.MaintenanceStatus statusEnum = null;
             if (status != null && !status.isEmpty() && !"all".equals(status)) {

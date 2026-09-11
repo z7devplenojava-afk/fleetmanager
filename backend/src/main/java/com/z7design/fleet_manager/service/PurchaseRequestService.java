@@ -9,6 +9,7 @@ import com.z7design.fleet_manager.model.Unit;
 import com.z7design.fleet_manager.repository.PurchaseRequestRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.repository.UnitRepository;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -303,12 +304,61 @@ public class PurchaseRequestService {
         dto.setOverdue(request.isOverdue());
         dto.setDaysUntilRequired(request.getDaysUntilRequired());
 
-        // Se nÃ£o houver itens, usar estimatedTotal como totalValue
-        if (dto.getItems() == null || dto.getItems().isEmpty()) {
+        // Itens da solicitaÃ§Ã£o
+        if (request.getItems() != null && !request.getItems().isEmpty()) {
+            List<PurchaseRequestItemDTO> itemDtos = request.getItems().stream()
+                    .map(this::convertItemToDTO)
+                    .collect(Collectors.toList());
+            dto.setItems(itemDtos);
+            dto.setTotalItems(itemDtos.size());
+            BigDecimal itemsTotal = itemDtos.stream()
+                    .map(PurchaseRequestItemDTO::getTotalPrice)
+                    .filter(java.util.Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            dto.setTotalValue(itemsTotal.compareTo(BigDecimal.ZERO) > 0
+                    ? itemsTotal
+                    : (request.getEstimatedTotal() != null ? request.getEstimatedTotal() : BigDecimal.ZERO));
+        } else {
             dto.setTotalValue(request.getEstimatedTotal() != null ? request.getEstimatedTotal() : BigDecimal.ZERO);
             dto.setTotalItems(0);
         }
 
+        return dto;
+    }
+
+    private PurchaseRequestItemDTO convertItemToDTO(PurchaseRequestItem item) {
+        PurchaseRequestItemDTO dto = PurchaseRequestItemDTO.builder()
+                .id(item.getId())
+                .purchaseRequestId(item.getPurchaseRequest() != null ? item.getPurchaseRequest().getId() : null)
+                .productId(item.getProduct() != null ? item.getProduct().getId() : null)
+                .productName(item.getProduct() != null ? item.getProduct().getName() : null)
+                .itemName(item.getItemName())
+                .description(item.getDescription())
+                .specification(item.getSpecification())
+                .unit(item.getUnit())
+                .quantity(item.getQuantity())
+                .unitPrice(item.getUnitPrice())
+                .totalPrice(item.getTotalPrice())
+                .brand(item.getBrand())
+                .model(item.getModel())
+                .supplier(item.getSupplier())
+                .priority(item.getPriority())
+                .status(item.getStatus())
+                .justification(item.getJustification())
+                .alternativeSupplier(item.getAlternativeSupplier())
+                .notes(item.getNotes())
+                .urgency(item.getUrgency())
+                .currentStock(item.getCurrentStock())
+                .minimumStock(item.getMinimumStock())
+                .stockStatus(item.getStockStatus())
+                .approvedBy(item.getApprovedBy())
+                .approvalNotes(item.getApprovalNotes())
+                .rejectedBy(item.getRejectedBy())
+                .rejectionReason(item.getRejectionReason())
+                .urgent(item.isUrgent())
+                .lowStock(item.isLowStock())
+                .outOfStock(item.isOutOfStock())
+                .build();
         return dto;
     }
 
@@ -356,7 +406,62 @@ public class PurchaseRequestService {
             approver.ifPresent(request::setApprover);
         }
 
+        // Tenant: preenche o company_id a partir do contexto (consistente com os demais módulos)
+        if (request.getCompanyId() == null) {
+            UUID tenantCompanyId = TenantContext.get();
+            if (tenantCompanyId == null && request.getRequester() != null) {
+                tenantCompanyId = request.getRequester().getCompanyId();
+            }
+            request.setCompanyId(tenantCompanyId);
+        }
+
+        // Itens
+        if (dto.getItems() != null) {
+            request.getItems().clear();
+            for (PurchaseRequestItemDTO itemDto : dto.getItems()) {
+                request.getItems().add(convertItemToEntity(request, itemDto));
+            }
+        }
+
         return request;
+    }
+
+    private PurchaseRequestItem convertItemToEntity(PurchaseRequest request, PurchaseRequestItemDTO dto) {
+        PurchaseRequestItem item = PurchaseRequestItem.builder()
+                .purchaseRequest(request)
+                .itemName(dto.getItemName())
+                .description(dto.getDescription())
+                .specification(dto.getSpecification())
+                .unit(dto.getUnit())
+                .quantity(dto.getQuantity())
+                .unitPrice(dto.getUnitPrice())
+                .totalPrice(dto.getTotalPrice())
+                .brand(dto.getBrand())
+                .model(dto.getModel())
+                .supplier(dto.getSupplier())
+                .priority(dto.getPriority())
+                .status(dto.getStatus())
+                .justification(dto.getJustification())
+                .alternativeSupplier(dto.getAlternativeSupplier())
+                .notes(dto.getNotes())
+                .urgency(dto.getUrgency())
+                .currentStock(dto.getCurrentStock())
+                .minimumStock(dto.getMinimumStock())
+                .approvedBy(dto.getApprovedBy())
+                .approvalNotes(dto.getApprovalNotes())
+                .rejectedBy(dto.getRejectedBy())
+                .rejectionReason(dto.getRejectionReason())
+                .build();
+
+        if (item.getTotalPrice() == null && item.getQuantity() != null && item.getUnitPrice() != null) {
+            item.calculateTotalPrice();
+        }
+
+        if (dto.getProductId() != null) {
+            productRepository.findById(dto.getProductId()).ifPresent(item::setProduct);
+        }
+
+        return item;
     }
 
     private void updateRequestFromDTO(PurchaseRequest request, PurchaseRequestDTO dto) {
@@ -394,6 +499,14 @@ public class PurchaseRequestService {
         if (dto.getApproverId() != null) {
             Optional<User> approver = userRepository.findById(dto.getApproverId());
             approver.ifPresent(request::setApprover);
+        }
+
+        // Itens
+        if (dto.getItems() != null) {
+            request.getItems().clear();
+            for (PurchaseRequestItemDTO itemDto : dto.getItems()) {
+                request.getItems().add(convertItemToEntity(request, itemDto));
+            }
         }
     }
 }

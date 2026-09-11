@@ -68,7 +68,7 @@ public class UnitController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('HR_READ','ADMIN','SUPER_ADMIN','ROLE_ADMIN','ROLE_SUPER_ADMIN')")
     @Operation(summary = "Buscar unidade por ID", description = "Retorna uma unidade especÃ­fica pelo ID")
-    public ResponseEntity<UnitDTO> getById(@PathVariable UUID id) {
+    public ResponseEntity<UnitDTO> getById(@PathVariable("id") UUID id) {
         log.debug("Buscando unidade por ID: {}", id);
         UnitDTO unit = unitService.findByIdAsDTO(id);
         return ResponseEntity.ok(unit);
@@ -76,7 +76,7 @@ public class UnitController {
     
     @GetMapping("/code/{code}")
     @Operation(summary = "Buscar unidade por cÃ³digo", description = "Retorna uma unidade especÃ­fica pelo cÃ³digo")
-    public ResponseEntity<UnitDTO> getByCode(@PathVariable String code) {
+    public ResponseEntity<UnitDTO> getByCode(@PathVariable("code") String code) {
         log.debug("Buscando unidade por cÃ³digo: {}", code);
         UnitDTO unit = unitService.findByCodeAsDTO(code);
         return ResponseEntity.ok(unit);
@@ -86,7 +86,7 @@ public class UnitController {
     @PreAuthorize("hasAnyAuthority('HR_READ','ADMIN','SUPER_ADMIN','ROLE_ADMIN','ROLE_SUPER_ADMIN')")
     @Operation(summary = "Buscar unidades por nome", description = "Retorna unidades que contenham o nome especificado")
     public ResponseEntity<List<UnitDTO>> searchByName(
-            @Parameter(description = "Nome para busca") @RequestParam String name) {
+            @Parameter(description = "Nome para busca") @RequestParam(value = "name") String name) {
         log.debug("Buscando unidades por nome: {}", name);
         List<UnitDTO> units = unitService.findByNameContainingAsDTO(name);
         return ResponseEntity.ok(units);
@@ -95,7 +95,7 @@ public class UnitController {
     @GetMapping("/search/active")
     @Operation(summary = "Buscar unidades ativas por nome", description = "Retorna unidades ativas que contenham o nome especificado")
     public ResponseEntity<List<UnitDTO>> searchActiveByName(
-            @Parameter(description = "Nome para busca") @RequestParam String name) {
+            @Parameter(description = "Nome para busca") @RequestParam(value = "name") String name) {
         log.debug("Buscando unidades ativas por nome: {}", name);
         List<UnitDTO> units = unitService.findActiveByNameContainingAsDTO(name);
         return ResponseEntity.ok(units);
@@ -119,7 +119,7 @@ public class UnitController {
     
     @GetMapping("/{id}/children")
     @Operation(summary = "Listar unidades filhas", description = "Retorna as unidades filhas de uma unidade especÃ­fica")
-    public ResponseEntity<List<UnitDTO>> getChildren(@PathVariable UUID id) {
+    public ResponseEntity<List<UnitDTO>> getChildren(@PathVariable("id") UUID id) {
         log.debug("Buscando unidades filhas de: {}", id);
         List<UnitDTO> units = unitService.findChildrenAsDTO(id);
         return ResponseEntity.ok(units);
@@ -127,7 +127,7 @@ public class UnitController {
     
     @GetMapping("/client/{clientId}")
     @Operation(summary = "Listar unidades por cliente", description = "Retorna unidades associadas a um cliente especÃ­fico")
-    public ResponseEntity<List<UnitDTO>> getByClientId(@PathVariable String clientId) {
+    public ResponseEntity<List<UnitDTO>> getByClientId(@PathVariable("clientId") String clientId) {
         log.debug("Buscando unidades do cliente: {}", clientId);
         List<UnitDTO> units = unitService.findByClientIdAsDTO(UUID.fromString(clientId));
         return ResponseEntity.ok(units);
@@ -135,7 +135,7 @@ public class UnitController {
     
     @GetMapping("/client/{clientId}/active")
     @Operation(summary = "Listar unidades ativas por cliente", description = "Retorna unidades ativas associadas a um cliente especÃ­fico")
-    public ResponseEntity<List<UnitDTO>> getActiveByClientId(@PathVariable String clientId) {
+    public ResponseEntity<List<UnitDTO>> getActiveByClientId(@PathVariable("clientId") String clientId) {
         log.debug("Buscando unidades ativas do cliente: {}", clientId);
         List<UnitDTO> units = unitService.findActiveByClientIdAsDTO(UUID.fromString(clientId));
         return ResponseEntity.ok(units);
@@ -169,7 +169,7 @@ public class UnitController {
             @ApiResponse(responseCode = "404", description = "Unidade nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<UnitDTO> updateUnit(@PathVariable UUID id, @Valid @RequestBody UpdateUnitRequest request) {
+    public ResponseEntity<UnitDTO> updateUnit(@PathVariable("id") UUID id, @Valid @RequestBody UpdateUnitRequest request) {
         log.info("Atualizando unidade: {}", id);
         UnitDTO updatedUnit = unitService.updateUnitFromRequest(id, request);
         return ResponseEntity.ok(updatedUnit);
@@ -177,7 +177,7 @@ public class UnitController {
     
     @PatchMapping("/{id}/toggle-active")
     @Operation(summary = "Ativar/Desativar unidade", description = "Alterna o status ativo/inativo de uma unidade")
-    public ResponseEntity<UnitDTO> toggleActive(@PathVariable UUID id) {
+    public ResponseEntity<UnitDTO> toggleActive(@PathVariable("id") UUID id) {
         log.info("Alternando status da unidade: {}", id);
         UnitDTO updatedUnit = unitService.toggleActiveAsDTO(id);
         return ResponseEntity.ok(updatedUnit);
@@ -191,7 +191,7 @@ public class UnitController {
             @ApiResponse(responseCode = "404", description = "Unidade nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> deleteUnit(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteUnit(@PathVariable("id") UUID id) {
         log.info("Excluindo unidade: {}", id);
         unitService.deleteUnit(id);
         return ResponseEntity.noContent().build();
@@ -205,7 +205,7 @@ public class UnitController {
             @ApiResponse(responseCode = "404", description = "Unidade nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> deleteUnitWithDependencies(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteUnitWithDependencies(@PathVariable("id") UUID id) {
         log.warn("Excluindo unidade {} com todas as dependÃªncias", id);
         unitService.deleteUnitWithDependencies(id);
         return ResponseEntity.noContent().build();
@@ -219,7 +219,7 @@ public class UnitController {
             @ApiResponse(responseCode = "404", description = "Unidade nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Map<String, Object>> checkDeletePossibility(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, Object>> checkDeletePossibility(@PathVariable("id") UUID id) {
         log.debug("Verificando possibilidade de exclusÃ£o da unidade: {}", id);
         Map<String, Object> result = unitService.checkDeletePossibility(id);
         return ResponseEntity.ok(result);

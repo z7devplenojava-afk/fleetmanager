@@ -27,7 +27,7 @@ public class UserCustomPermissionController {
      */
     @GetMapping
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<UserCustomPermission>> getAllPermissions(@PathVariable UUID userId) {
+    public ResponseEntity<List<UserCustomPermission>> getAllPermissions(@PathVariable("userId") UUID userId) {
         try {
             log.info("Buscando permissÃµes customizadas do usuÃ¡rio: {}", userId);
             List<UserCustomPermission> permissions = permissionService.getAllPermissions(userId);
@@ -43,7 +43,7 @@ public class UserCustomPermissionController {
      */
     @GetMapping("/active")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<String>> getActivePermissions(@PathVariable UUID userId) {
+    public ResponseEntity<List<String>> getActivePermissions(@PathVariable("userId") UUID userId) {
         try {
             log.info("Buscando permissÃµes ativas do usuÃ¡rio: {}", userId);
             List<String> permissions = permissionService.getActivePermissions(userId);
@@ -60,7 +60,7 @@ public class UserCustomPermissionController {
     @PostMapping
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<UserCustomPermission> grantPermission(
-            @PathVariable UUID userId,
+            @PathVariable("userId") UUID userId,
             @RequestBody Map<String, String> request,
             Authentication authentication) {
         try {
@@ -90,8 +90,8 @@ public class UserCustomPermissionController {
     @DeleteMapping("/{permissionKey}")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Void> revokePermission(
-            @PathVariable UUID userId,
-            @PathVariable String permissionKey) {
+            @PathVariable("userId") UUID userId,
+            @PathVariable("permissionKey") String permissionKey) {
         try {
             log.info("Revogando permissÃ£o {} do usuÃ¡rio {}", permissionKey, userId);
             permissionService.revokePermission(userId, permissionKey);
@@ -107,7 +107,7 @@ public class UserCustomPermissionController {
      */
     @DeleteMapping
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> revokeAllPermissions(@PathVariable UUID userId) {
+    public ResponseEntity<Void> revokeAllPermissions(@PathVariable("userId") UUID userId) {
         try {
             log.info("Revogando todas as permissÃµes do usuÃ¡rio {}", userId);
             permissionService.revokeAllPermissions(userId);
@@ -124,7 +124,7 @@ public class UserCustomPermissionController {
     @PutMapping
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Void> replacePermissions(
-            @PathVariable UUID userId,
+            @PathVariable("userId") UUID userId,
             @RequestBody List<String> permissionKeys,
             Authentication authentication) {
         try {
@@ -146,8 +146,8 @@ public class UserCustomPermissionController {
     @GetMapping("/check/{permissionKey}")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Map<String, Boolean>> checkPermission(
-            @PathVariable UUID userId,
-            @PathVariable String permissionKey) {
+            @PathVariable("userId") UUID userId,
+            @PathVariable("permissionKey") String permissionKey) {
         try {
             boolean hasPermission = permissionService.hasPermission(userId, permissionKey);
             return ResponseEntity.ok(Map.of("hasPermission", hasPermission));

@@ -60,7 +60,7 @@ public class OpportunityController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<OpportunityResponse> getById(@PathVariable String id) {
+    public ResponseEntity<OpportunityResponse> getById(@PathVariable("id") String id) {
         Optional<Opportunity> opportunity = opportunityService.findById(UUID.fromString(id));
         return opportunity.map(OpportunityResponse::fromEntity)
             .map(ResponseEntity::ok)
@@ -83,7 +83,7 @@ public class OpportunityController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('CRM_READ', 'LEADS_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<OpportunityDTO> update(@PathVariable String id, @Valid @RequestBody OpportunityDTO dto) {
+    public ResponseEntity<OpportunityDTO> update(@PathVariable("id") String id, @Valid @RequestBody OpportunityDTO dto) {
         if (!opportunityService.findById(UUID.fromString(id)).isPresent()) {
             return ResponseEntity.notFound().build();
         }
@@ -101,7 +101,7 @@ public class OpportunityController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('CRM_READ', 'LEADS_READ') or hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         if (!opportunityService.findById(UUID.fromString(id)).isPresent()) {
             return ResponseEntity.notFound().build();
         }

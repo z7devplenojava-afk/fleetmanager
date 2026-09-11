@@ -28,7 +28,7 @@ public class DriverController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<DriverDTO> getDriverById(@PathVariable UUID id) {
+    public ResponseEntity<DriverDTO> getDriverById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(driverService.getDriverById(id));
     }
 
@@ -48,18 +48,18 @@ public class DriverController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<DriverDTO> updateDriver(@PathVariable UUID id, @Valid @RequestBody CreateDriverDTO dto) {
+    public ResponseEntity<DriverDTO> updateDriver(@PathVariable("id") UUID id, @Valid @RequestBody CreateDriverDTO dto) {
         return ResponseEntity.ok(driverService.updateDriver(id, dto));
     }
 
     @PatchMapping("/{id}/deactivate")
-    public ResponseEntity<Void> deactivateDriver(@PathVariable UUID id) {
+    public ResponseEntity<Void> deactivateDriver(@PathVariable("id") UUID id) {
         driverService.deactivateDriver(id);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteDriver(@PathVariable UUID id) {
+    public ResponseEntity<?> deleteDriver(@PathVariable("id") UUID id) {
         System.out.println("ðŸ—‘ï¸ DriverController.deleteDriver - Recebida requisiÃ§Ã£o DELETE para ID: " + id);
         try {
             driverService.deleteDriver(id);

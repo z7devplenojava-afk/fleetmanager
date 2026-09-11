@@ -27,34 +27,34 @@ public class VacationCoverageController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<VacationCoverageResponse> getVacationCoverageById(@PathVariable UUID id) {
+    public ResponseEntity<VacationCoverageResponse> getVacationCoverageById(@PathVariable("id") UUID id) {
         return vacationCoverageService.getVacationCoverageById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<VacationCoverageResponse>> getVacationCoveragesByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<VacationCoverageResponse>> getVacationCoveragesByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<VacationCoverageResponse> coverages = vacationCoverageService.getVacationCoveragesByEmployee(employeeId);
         return ResponseEntity.ok(coverages);
     }
 
     @GetMapping("/substitute/{substituteEmployeeId}")
-    public ResponseEntity<List<VacationCoverageResponse>> getVacationCoveragesBySubstitute(@PathVariable UUID substituteEmployeeId) {
+    public ResponseEntity<List<VacationCoverageResponse>> getVacationCoveragesBySubstitute(@PathVariable("substituteEmployeeId") UUID substituteEmployeeId) {
         List<VacationCoverageResponse> coverages = vacationCoverageService.getVacationCoveragesBySubstitute(substituteEmployeeId);
         return ResponseEntity.ok(coverages);
     }
 
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<VacationCoverageResponse>> getVacationCoveragesByStatus(@PathVariable VacationCoverage.CoverageStatus status) {
+    public ResponseEntity<List<VacationCoverageResponse>> getVacationCoveragesByStatus(@PathVariable("status") VacationCoverage.CoverageStatus status) {
         List<VacationCoverageResponse> coverages = vacationCoverageService.getVacationCoveragesByStatus(status);
         return ResponseEntity.ok(coverages);
     }
 
     @GetMapping("/date-range")
     public ResponseEntity<List<VacationCoverageResponse>> getVacationCoveragesByDateRange(
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate) {
+            @RequestParam(value = "startDate") LocalDate startDate,
+            @RequestParam(value = "endDate") LocalDate endDate) {
         List<VacationCoverageResponse> coverages = vacationCoverageService.getVacationCoveragesByDateRange(startDate, endDate);
         return ResponseEntity.ok(coverages);
     }
@@ -76,7 +76,7 @@ public class VacationCoverageController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<VacationCoverageResponse> updateVacationCoverage(@PathVariable UUID id, @RequestBody CreateVacationCoverageRequest request) {
+    public ResponseEntity<VacationCoverageResponse> updateVacationCoverage(@PathVariable("id") UUID id, @RequestBody CreateVacationCoverageRequest request) {
         try {
             VacationCoverageResponse updatedCoverage = vacationCoverageService.updateVacationCoverage(id, request);
             return ResponseEntity.ok(updatedCoverage);
@@ -86,7 +86,7 @@ public class VacationCoverageController {
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<VacationCoverageResponse> updateStatus(@PathVariable UUID id, @RequestParam VacationCoverage.CoverageStatus status) {
+    public ResponseEntity<VacationCoverageResponse> updateStatus(@PathVariable("id") UUID id, @RequestParam(value = "status") VacationCoverage.CoverageStatus status) {
         try {
             VacationCoverageResponse updatedCoverage = vacationCoverageService.updateStatus(id, status);
             return ResponseEntity.ok(updatedCoverage);
@@ -96,7 +96,7 @@ public class VacationCoverageController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteVacationCoverage(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteVacationCoverage(@PathVariable("id") UUID id) {
         try {
             vacationCoverageService.deleteVacationCoverage(id);
             return ResponseEntity.ok().build();

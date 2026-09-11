@@ -59,13 +59,13 @@ public class SupplierController {
             @ApiResponse(responseCode = "404", description = "Fornecedor nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Supplier> getById(@PathVariable String id) {
+    public ResponseEntity<Supplier> getById(@PathVariable("id") String id) {
         return ResponseEntity.ok(supplierService.findById(UUID.fromString(id)).orElseThrow(() -> new ResourceNotFoundException("Fornecedor nÃ£o encontrado")));
     }
     
     @GetMapping("/cnpj/{cnpj}")
     @Operation(summary = "Buscar fornecedor por CNPJ", description = "Retorna um fornecedor especÃ­fico pelo seu CNPJ")
-    public ResponseEntity<Supplier> getByCnpj(@PathVariable String cnpj) {
+    public ResponseEntity<Supplier> getByCnpj(@PathVariable("cnpj") String cnpj) {
         Optional<Supplier> supplier = supplierService.findByCnpj(cnpj);
         return supplier.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -73,7 +73,7 @@ public class SupplierController {
     
     @GetMapping("/email/{email}")
     @Operation(summary = "Buscar fornecedor por email", description = "Retorna um fornecedor especÃ­fico pelo seu email")
-    public ResponseEntity<Supplier> getByEmail(@PathVariable String email) {
+    public ResponseEntity<Supplier> getByEmail(@PathVariable("email") String email) {
         Optional<Supplier> supplier = supplierService.findByEmail(email);
         return supplier.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -81,30 +81,30 @@ public class SupplierController {
     
     @GetMapping("/search")
     @Operation(summary = "Buscar fornecedores por nome", description = "Busca fornecedores pelo nome (parcial)")
-    public ResponseEntity<List<Supplier>> searchByName(@RequestParam String name) {
+    public ResponseEntity<List<Supplier>> searchByName(@RequestParam(value = "name") String name) {
         return ResponseEntity.ok(supplierService.findByNameContaining(name));
     }
     
     @GetMapping("/city/{city}")
     @Operation(summary = "Buscar fornecedores por cidade", description = "Retorna fornecedores de uma cidade especÃ­fica")
-    public ResponseEntity<List<Supplier>> getByCity(@PathVariable String city) {
+    public ResponseEntity<List<Supplier>> getByCity(@PathVariable("city") String city) {
         return ResponseEntity.ok(supplierService.findByCity(city));
     }
     
     @GetMapping("/state/{state}")
     @Operation(summary = "Buscar fornecedores por estado", description = "Retorna fornecedores de um estado especÃ­fico")
-    public ResponseEntity<List<Supplier>> getByState(@PathVariable String state) {
+    public ResponseEntity<List<Supplier>> getByState(@PathVariable("state") String state) {
         return ResponseEntity.ok(supplierService.findByState(state));
     }
     
     @GetMapping("/filters")
     @Operation(summary = "Buscar fornecedores com filtros", description = "Busca fornecedores aplicando mÃºltiplos filtros")
     public ResponseEntity<Page<Supplier>> getByFilters(
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String cnpj,
-            @RequestParam(required = false) String city,
-            @RequestParam(required = false) String state,
-            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(value = "name", required = false) String name,
+            @RequestParam(value = "cnpj", required = false) String cnpj,
+            @RequestParam(value = "city", required = false) String city,
+            @RequestParam(value = "state", required = false) String state,
+            @RequestParam(value = "isActive", required = false) Boolean isActive,
             Pageable pageable) {
         return ResponseEntity.ok(supplierService.findByFilters(name, cnpj, city, state, isActive, pageable));
     }
@@ -128,7 +128,7 @@ public class SupplierController {
             @ApiResponse(responseCode = "404", description = "Fornecedor nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Supplier> update(@PathVariable String id, @Valid @RequestBody SupplierDTO supplierDTO) {
+    public ResponseEntity<Supplier> update(@PathVariable("id") String id, @Valid @RequestBody SupplierDTO supplierDTO) {
         return ResponseEntity.ok(supplierService.update(UUID.fromString(id), supplierDTO));
     }
     
@@ -139,14 +139,14 @@ public class SupplierController {
             @ApiResponse(responseCode = "404", description = "Fornecedor nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         supplierService.deleteById(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }
     
     @PatchMapping("/{id}/toggle-status")
     @Operation(summary = "Alternar status do fornecedor", description = "Ativa ou desativa um fornecedor")
-    public ResponseEntity<Supplier> toggleStatus(@PathVariable String id) {
+    public ResponseEntity<Supplier> toggleStatus(@PathVariable("id") String id) {
         UUID uuid = UUID.fromString(id);
         Supplier supplier = supplierService.findById(uuid).orElseThrow(() -> new ResourceNotFoundException("Fornecedor nÃ£o encontrado"));
         if (supplier.getIsActive()) {

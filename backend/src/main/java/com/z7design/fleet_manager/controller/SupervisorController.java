@@ -64,7 +64,7 @@ public class SupervisorController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<SupervisorDTO> getSupervisorById(
-            @Parameter(description = "ID do supervisor") @PathVariable UUID id) {
+            @Parameter(description = "ID do supervisor") @PathVariable("id") UUID id) {
         SupervisorDTO supervisor = supervisorService.getSupervisorById(id);
         return ResponseEntity.ok(supervisor);
     }
@@ -78,7 +78,7 @@ public class SupervisorController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<SupervisorDTO> getSupervisorByCpf(
-            @Parameter(description = "CPF do supervisor") @PathVariable String cpf) {
+            @Parameter(description = "CPF do supervisor") @PathVariable("cpf") String cpf) {
         SupervisorDTO supervisor = supervisorService.getSupervisorByCpf(cpf);
         return ResponseEntity.ok(supervisor);
     }
@@ -107,7 +107,7 @@ public class SupervisorController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<SupervisorDTO> updateSupervisor(
-            @Parameter(description = "ID do supervisor") @PathVariable UUID id,
+            @Parameter(description = "ID do supervisor") @PathVariable("id") UUID id,
             @Parameter(description = "Dados do supervisor para atualizaÃ§Ã£o") @Valid @RequestBody UpdateSupervisorDTO updateDTO) {
         SupervisorDTO supervisor = supervisorService.updateSupervisor(id, updateDTO);
         return ResponseEntity.ok(supervisor);
@@ -122,7 +122,7 @@ public class SupervisorController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<Void> deleteSupervisor(
-            @Parameter(description = "ID do supervisor") @PathVariable UUID id) {
+            @Parameter(description = "ID do supervisor") @PathVariable("id") UUID id) {
         supervisorService.deleteSupervisor(id);
         return ResponseEntity.noContent().build();
     }
@@ -137,7 +137,7 @@ public class SupervisorController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<SupervisorDTO> registerFace(
-            @Parameter(description = "ID do supervisor") @PathVariable UUID id,
+            @Parameter(description = "ID do supervisor") @PathVariable("id") UUID id,
             @Parameter(description = "Arquivo de imagem da face") @RequestParam("image") MultipartFile imageFile) {
         SupervisorDTO supervisor = supervisorService.registerFace(id, imageFile);
         return ResponseEntity.ok(supervisor);
@@ -152,7 +152,7 @@ public class SupervisorController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<Void> removeFace(
-            @Parameter(description = "ID do supervisor") @PathVariable UUID id) {
+            @Parameter(description = "ID do supervisor") @PathVariable("id") UUID id) {
         supervisorService.removeFace(id);
         return ResponseEntity.noContent().build();
     }
@@ -165,7 +165,7 @@ public class SupervisorController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<List<SupervisorDTO>> searchSupervisorsByName(
-            @Parameter(description = "Nome para busca") @RequestParam String name) {
+            @Parameter(description = "Nome para busca") @RequestParam(value = "name") String name) {
         List<SupervisorDTO> supervisors = supervisorService.searchSupervisorsByName(name);
         return ResponseEntity.ok(supervisors);
     }

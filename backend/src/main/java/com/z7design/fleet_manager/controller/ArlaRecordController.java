@@ -22,7 +22,7 @@ public class ArlaRecordController {
     }
 
     @GetMapping("/vehicle/{vehicleId}")
-    public ResponseEntity<List<ArlaRecordDTO>> getByVehicle(@PathVariable UUID vehicleId) {
+    public ResponseEntity<List<ArlaRecordDTO>> getByVehicle(@PathVariable("vehicleId") UUID vehicleId) {
         return ResponseEntity.ok(service.getByVehicle(vehicleId));
     }
 
@@ -32,7 +32,7 @@ public class ArlaRecordController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

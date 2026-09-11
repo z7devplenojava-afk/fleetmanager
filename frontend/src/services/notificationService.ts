@@ -436,10 +436,25 @@ class NotificationService {
     }
   }
 
-  // Criar nova notificação
-    async createNotification(notificationData: CreateNotificationRequest): Promise<NotificationData> {
-    const response = await api.post('/notifications', notificationData);
-    return response.data;
+  // Aliases para compatibilidade
+  async getNotifications(): Promise<NotificationData[]> {
+    try {
+      return await this.getAllNotifications();
+    } catch {
+      try {
+        return await this.getPanelNotifications();
+      } catch {
+        return [];
+      }
+    }
+  }
+
+  async marcarComoLida(notificationId: string): Promise<void> {
+    return this.markAsRead(notificationId);
+  }
+
+  async marcarTodasComoLidas(): Promise<void> {
+    return this.markAllAsRead();
   }
 }
 

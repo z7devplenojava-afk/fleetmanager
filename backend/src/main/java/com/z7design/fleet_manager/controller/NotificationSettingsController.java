@@ -33,7 +33,7 @@ public class NotificationSettingsController {
             @ApiResponse(responseCode = "404", description = "ConfiguraÃ§Ãµes nÃ£o encontradas"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<NotificationSettingsDTO> getCompanyNotificationSettings(@PathVariable UUID companyId) {
+    public ResponseEntity<NotificationSettingsDTO> getCompanyNotificationSettings(@PathVariable("companyId") UUID companyId) {
         log.info("GET /api/notification-settings/company/{} - Buscando configuraÃ§Ãµes de notificaÃ§Ã£o", companyId);
         
         try {
@@ -54,8 +54,8 @@ public class NotificationSettingsController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<NotificationSettingsDTO> getUserNotificationSettings(
-            @PathVariable UUID companyId, 
-            @PathVariable UUID userId) {
+            @PathVariable("companyId") UUID companyId, 
+            @PathVariable("userId") UUID userId) {
         log.info("GET /api/notification-settings/company/{}/user/{} - Buscando configuraÃ§Ãµes de notificaÃ§Ã£o", companyId, userId);
         
         try {
@@ -116,7 +116,7 @@ public class NotificationSettingsController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<NotificationSettingsDTO> updateCompanyNotificationSettings(
-            @PathVariable UUID companyId, 
+            @PathVariable("companyId") UUID companyId, 
             @Valid @RequestBody NotificationSettingsDTO settingsDTO) {
         log.info("PUT /api/notification-settings/company/{} - Atualizando configuraÃ§Ãµes de notificaÃ§Ã£o", companyId);
         
@@ -139,8 +139,8 @@ public class NotificationSettingsController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<NotificationSettingsDTO> updateUserNotificationSettings(
-            @PathVariable UUID companyId, 
-            @PathVariable UUID userId,
+            @PathVariable("companyId") UUID companyId, 
+            @PathVariable("userId") UUID userId,
             @Valid @RequestBody NotificationSettingsDTO settingsDTO) {
         log.info("PUT /api/notification-settings/company/{}/user/{} - Atualizando configuraÃ§Ãµes de notificaÃ§Ã£o", companyId, userId);
         
@@ -161,7 +161,7 @@ public class NotificationSettingsController {
             @ApiResponse(responseCode = "404", description = "ConfiguraÃ§Ãµes nÃ£o encontradas"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> deleteNotificationSettings(@PathVariable UUID companyId) {
+    public ResponseEntity<Void> deleteNotificationSettings(@PathVariable("companyId") UUID companyId) {
         log.info("DELETE /api/notification-settings/company/{} - Deletando configuraÃ§Ãµes de notificaÃ§Ã£o", companyId);
         
         try {

@@ -55,7 +55,7 @@ public class PermissionController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar permissÃ£o por ID", description = "Retorna uma permissÃ£o especÃ­fica pelo ID")
-    public ResponseEntity<PermissionDTO> getPermissionById(@PathVariable UUID id) {
+    public ResponseEntity<PermissionDTO> getPermissionById(@PathVariable("id") UUID id) {
         Permission permission = permissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PermissÃ£o nÃ£o encontrada com ID: " + id));
         return ResponseEntity.ok(PermissionDTO.fromEntity(permission));
@@ -63,7 +63,7 @@ public class PermissionController {
 
     @GetMapping("/name/{name}")
     @Operation(summary = "Buscar permissÃ£o por nome", description = "Retorna uma permissÃ£o especÃ­fica pelo nome")
-    public ResponseEntity<PermissionDTO> getPermissionByName(@PathVariable String name) {
+    public ResponseEntity<PermissionDTO> getPermissionByName(@PathVariable("name") String name) {
         Permission permission = permissionRepository.findByName(name)
                 .orElseThrow(() -> new ResourceNotFoundException("PermissÃ£o nÃ£o encontrada com nome: " + name));
         return ResponseEntity.ok(PermissionDTO.fromEntity(permission));
@@ -87,7 +87,7 @@ public class PermissionController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar permissÃ£o", description = "Atualiza uma permissÃ£o existente")
-    public ResponseEntity<PermissionDTO> updatePermission(@PathVariable UUID id, @Valid @RequestBody UpdatePermissionDTO updatePermissionDTO) {
+    public ResponseEntity<PermissionDTO> updatePermission(@PathVariable("id") UUID id, @Valid @RequestBody UpdatePermissionDTO updatePermissionDTO) {
         Permission permission = permissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PermissÃ£o nÃ£o encontrada com ID: " + id));
 
@@ -106,7 +106,7 @@ public class PermissionController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir permissÃ£o", description = "Exclui uma permissÃ£o do sistema")
-    public ResponseEntity<Void> deletePermission(@PathVariable UUID id) {
+    public ResponseEntity<Void> deletePermission(@PathVariable("id") UUID id) {
         if (!permissionRepository.existsById(id)) {
             throw new ResourceNotFoundException("PermissÃ£o nÃ£o encontrada com ID: " + id);
         }
@@ -142,7 +142,7 @@ public class PermissionController {
 
     @GetMapping("/roles/{roleName}")
     @Operation(summary = "Obter permissÃµes de um role especÃ­fico")
-    public ResponseEntity<Map<String, Object>> getRolePermissions(@PathVariable String roleName) {
+    public ResponseEntity<Map<String, Object>> getRolePermissions(@PathVariable("roleName") String roleName) {
         try {
             UserRole role = UserRole.valueOf(roleName.toUpperCase());
             Set<com.z7design.fleet_manager.model.enums.Permission> permissions = permissionService.getPermissionsForRole(role);
@@ -164,8 +164,8 @@ public class PermissionController {
     @GetMapping("/check")
     @Operation(summary = "Verificar se um role tem determinada permissÃ£o")
     public ResponseEntity<Map<String, Object>> checkPermission(
-            @RequestParam String roleName,
-            @RequestParam String permissionName) {
+            @RequestParam(value = "roleName") String roleName,
+            @RequestParam(value = "permissionName") String permissionName) {
         try {
             UserRole role = UserRole.valueOf(roleName.toUpperCase());
             com.z7design.fleet_manager.model.enums.Permission permission = com.z7design.fleet_manager.model.enums.Permission.valueOf(permissionName.toUpperCase());

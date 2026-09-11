@@ -2,8 +2,10 @@ package com.z7design.fleet_manager.controller;
 
 import com.z7design.fleet_manager.dto.ClientDTO;
 import com.z7design.fleet_manager.dto.ClientSelectDTO;
+import com.z7design.fleet_manager.dto.ImportResultDto;
 import com.z7design.fleet_manager.model.Client;
 import com.z7design.fleet_manager.model.enums.ClientStatus;
+import com.z7design.fleet_manager.service.ClientObraImportService;
 import com.z7design.fleet_manager.service.ClientService;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,6 +33,7 @@ import java.util.UUID;
 public class ClientController {
     
     private final ClientService clientService;
+    private final ClientObraImportService clientObraImportService;
     
     @GetMapping
     @Operation(summary = "Listar todos os clientes", description = "Retorna uma lista paginada de todos os clientes")
@@ -80,7 +83,7 @@ public class ClientController {
             @ApiResponse(responseCode = "404", description = "Cliente nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<ClientDTO> getById(@PathVariable String id) {
+    public ResponseEntity<ClientDTO> getById(@PathVariable("id") String id) {
         return ResponseEntity.ok(clientService.getClientById(UUID.fromString(id)));
     }
     
@@ -117,7 +120,7 @@ public class ClientController {
             @ApiResponse(responseCode = "404", description = "Cliente nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<ClientDTO> update(@PathVariable String id, @Valid @RequestBody ClientDTO clientDTO) {
+    public ResponseEntity<ClientDTO> update(@PathVariable("id") String id, @Valid @RequestBody ClientDTO clientDTO) {
         ClientDTO updated = clientService.updateClient(UUID.fromString(id), clientDTO);
         return ResponseEntity.ok(updated);
     }
@@ -129,8 +132,31 @@ public class ClientController {
             @ApiResponse(responseCode = "404", description = "Cliente nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         clientService.deleteClient(UUID.fromString(id));
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/import/quadro-obras")
+    @Operation(summary = "Importar Quadro de Obras via Excel",
+               description = "Importa planilha QUADRO DE OBRAS criando clientes, veículos alocados e contratos")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Importação concluída"),
+            @ApiResponse(responseCode = "400", description = "Arquivo inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado")
+    })
+    public ResponseEntity<ImportResultDto> importQuadroObras(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        log.info("📥 Importação Quadro de Obras - arquivo: {} ({} bytes)",
+                file.getOriginalFilename(), file.getSize());
+        try {
+            ImportResultDto result = clientObraImportService.importFromExcel(file);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Erro na importação do Quadro de Obras: ", e);
+            ImportResultDto errorResult = ImportResultDto.empty();
+            errorResult.getErrors().add("Erro ao processar importação: " + e.getMessage());
+            return ResponseEntity.ok(errorResult);
+        }
     }
 } 

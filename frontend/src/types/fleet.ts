@@ -1,3 +1,11 @@
+export type VehicleType = 'BUS_ROAD' | 'BUS_LUXURY_TOURISM' | 'MINIBUS' | 'VAN' | 'BUS_URBAN' | 'CAR_UTILITY' | 'CAR' | 'TRUCK' | 'MOTORCYCLE' | 'PICKUP' | 'SUV' | 'OTHER';
+
+export type BusType = 'RODOVIARIO' | 'LUXO_TURISMO' | 'DOUBLE_DECKER' | 'URBANO' | 'ARTICULADO' | 'BIARTICULADO' | 'MICRO_ONIBUS' | 'PADRON' | 'ELETRICO' | 'HIBRIDO' | 'ESCOLA' | 'FRETADO' | 'INTERMUNICIPAL';
+
+export type FinancingStatus = 'OWNED' | 'FINANCED' | 'LEASED' | 'RENTED';
+
+export type AggregatedPaymentType = 'DAILY' | 'MONTHLY' | 'PER_TRIP' | 'PERCENTAGE';
+
 export interface Vehicle {
   id: string;
   plate: string;
@@ -8,8 +16,46 @@ export interface Vehicle {
   color: string;
   fuelType: 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'FLEX';
   currentMileage: number;
-  status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE';
+  status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'BLOCKED' | 'SOLD' | 'BAIXADO' | 'LEASED' | 'OUT_OF_SERVICE' | 'RESERVED';
+  patrimonyNumber?: string;
+  modelYear?: number;
+  hourmeter?: number;
+  contractId?: string;
+  projectId?: string;
+  projectName?: string;
+  operationId?: string;
+  operationName?: string;
+  garageName?: string;
+  operationEntryDate?: string;
   capacity: number;
+  vehicleType?: VehicleType;
+
+  // Documentais
+  chassisNumber?: string;
+  renavan?: string;
+
+  // Ônibus
+  busType?: BusType;
+  passengerCapacity?: number;
+  standingCapacity?: number;
+  totalDoors?: number;
+  hasAccessibility?: boolean;
+  hasAirConditioning?: boolean;
+  hasWiFi?: boolean;
+  hasCamera?: boolean;
+  hasCctv?: boolean;
+  busBodyType?: string;
+  chassisBrand?: string;
+  bodyBuilder?: string;
+  engineModel?: string;
+  enginePowerHp?: number;
+  transmissionType?: string;
+  axleCount?: number;
+  totalWeightKg?: number;
+  payloadKg?: number;
+  fuelTankCapacityLiters?: number;
+  routeNumber?: string;
+  routeName?: string;
   assignedDriver?: string;
   department?: string;
   location?: string;
@@ -27,6 +73,52 @@ export interface Vehicle {
   companyId?: string;
   departmentId?: string;
   photos?: FileList | null;
+
+  // Financiamento
+  financingStatus?: FinancingStatus;
+  financingInstallmentValue?: number;
+  financingRemainingInstallments?: number;
+  financingPayoffBalance?: number;
+  financingBankOrInstitution?: string;
+  financingContractNumber?: string;
+  financingStartDate?: string;
+  financingEndDate?: string;
+
+  // Valor de mercado
+  marketValue?: number;
+
+  // Seguros
+  insurancePolicyNumber?: string;
+  insuranceCompany?: string;
+  insurancePremiumValue?: number;
+  insuranceCoverageType?: string;
+  insuranceSecondPolicyNumber?: string;
+  insuranceSecondCompany?: string;
+  insuranceSecondPremiumValue?: number;
+  insuranceSecondExpiryDate?: string;
+
+  // Cliente / Alocação
+  clientName?: string;
+  clientId?: string;
+  allocationContractNumber?: string;
+  allocationStartDate?: string;
+  allocationEndDate?: string;
+
+  // Agregado
+  isAggregated?: boolean;
+  aggregatedOwnerName?: string;
+  aggregatedOwnerCpfCnpj?: string;
+  aggregatedOwnerPhone?: string;
+  aggregatedOwnerEmail?: string;
+  aggregatedDailyRate?: number;
+  aggregatedMonthlyRate?: number;
+  aggregatedPaymentType?: AggregatedPaymentType;
+  aggregatedContractStartDate?: string;
+  aggregatedContractEndDate?: string;
+  aggregatedNotes?: string;
+
+  // Diferença financeira
+  financialDifference?: number;
 }
 
 export interface FuelRecord {
@@ -59,6 +151,7 @@ export interface Fine {
   driverId?: string;
   driverName?: string;
   driverLicenseNumber?: string;
+  driverPhone?: string; // WhatsApp do motorista para notificação
   date: string;
   description: string;
   amount: number;

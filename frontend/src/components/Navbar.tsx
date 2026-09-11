@@ -18,10 +18,12 @@ const Navbar: React.FC = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
-              <a href="/" className="flex items-center">
-                <div className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-600">
-                  Fluxbus
-                </div>
+              <a href="/" className="flex items-center py-1">
+                <img
+                  src="/fluxbus-logo.png"
+                  alt="FluxBus - Gestão de Fretamento e Turismo"
+                  className="h-16 sm:h-20 md:h-24 w-auto object-contain drop-shadow-xl hover:scale-105 transition-transform"
+                />
               </a>
             </div>
 
@@ -71,7 +73,7 @@ const Navbar: React.FC = () => {
                     className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 w-full py-3"
                     onClick={() => setIsQuoteModalOpen(true)}
                   >
-                    Solicitar Orçamento
+                    Solicitar Demonstração
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </div>

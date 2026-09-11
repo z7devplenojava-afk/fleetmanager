@@ -42,6 +42,7 @@ public class DriverService {
         Driver driver = Driver.builder()
                 .name(dto.getName())
                 .licenseNumber(dto.getLicenseNumber())
+                .phone(dto.getPhone())
                 .status(dto.getStatus() != null ? dto.getStatus() : "ATIVO")
                 .build();
         driverRepository.save(driver);
@@ -54,6 +55,7 @@ public class DriverService {
                 .orElseThrow(() -> new ResourceNotFoundException("Motorista nÃ£o encontrado com ID: " + id));
         driver.setName(dto.getName());
         driver.setLicenseNumber(dto.getLicenseNumber());
+        driver.setPhone(dto.getPhone());
         if (dto.getStatus() != null) driver.setStatus(dto.getStatus());
         driverRepository.save(driver);
         return DriverDTO.fromEntity(driver);

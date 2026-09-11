@@ -20,6 +20,8 @@ import { format } from 'date-fns';
 interface QuotationFormModalProps {
   quotation?: Quotation | null;
   onClose: () => void;
+  initialPurchaseRequestId?: string;
+  onCreated?: () => void;
 }
 
 interface FormData {
@@ -38,12 +40,12 @@ interface FormData {
   status?: QuotationStatus;
 }
 
-const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ quotation, onClose }) => {
+const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ quotation, onClose, initialPurchaseRequestId, onCreated }) => {
   const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
     supplierId: '',
-    purchaseRequestId: '',
+    purchaseRequestId: initialPurchaseRequestId || '',
     unitId: '',
     totalValue: '',
     validUntil: '',
@@ -122,7 +124,7 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ quotation, onCl
         title: '',
         description: '',
         supplierId: '',
-        purchaseRequestId: '',
+        purchaseRequestId: initialPurchaseRequestId || '',
         unitId: '',
         totalValue: '',
         validUntil: '',
@@ -207,6 +209,21 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ quotation, onCl
       }));
     }
   }, [quotation, loadingPurchaseRequests, loadingSuppliers, purchaseRequests.length, users.length]);
+
+  // Pré-selecionar a solicitação de compra quando o modal for aberto a partir do "Nova Cotação" da solicitação
+  useEffect(() => {
+    if (!initialPurchaseRequestId) return;
+    const req = purchaseRequests.find(r => String(r.id) === String(initialPurchaseRequestId));
+    if (req) {
+      setFormData(prev => ({
+        ...prev,
+        purchaseRequestId: prev.purchaseRequestId || String(req.id),
+        title: prev.title || `Cotação - ${req.requestNumber}`,
+        description: prev.description || `Cotação para a solicitação ${req.requestNumber} - ${req.title}`,
+        totalValue: prev.totalValue || String(req.totalValue || req.estimatedTotal || ''),
+      }));
+    }
+  }, [purchaseRequests, initialPurchaseRequestId]);
 
   const handleSaveSupplier = async (data: CreateSupplierRequest) => {
     try {
@@ -312,6 +329,7 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ quotation, onCl
           title: "Sucesso",
           description: "Cotação criada com sucesso!",
         });
+        onCreated?.();
       }
 
       onClose();

@@ -1051,17 +1051,34 @@ export const getRoleDisplayName = (role: UserRole): string => {
     COLABORADOR: 'Colaborador',
     GESTOR: 'Gestor',
     GESTOR_TRAFEGO: 'Gestor de Tráfego',
+    GESTOR_DE_TRAFEGO: 'Gestor de Tráfego',
     MOTORISTA: 'Motorista',
     MECANICO: 'Mecânico',
     PORTARIA: 'Portaria / Controle de Acesso',
+    MANUTENCAO: 'Manutenção',
+    GESTOR_DE_MANUTENCAO: 'Gestor de Manutenção',
+    ENCARREGADO_DE_MANUTENCAO: 'Encarregado de Manutenção',
+    ALMOXARIFADO: 'Almoxarifado',
+    COMPRAS: 'Compras',
+    GESTOR_DE_COMPRAS: 'Gestor de Compras',
+    GESTOR_FINANCEIRO: 'Gestor Financeiro',
+    GESTOR_OPERACIONAL: 'Gestor Operacional',
+    AUXILIAR_ADMINISTRATIVO: 'Auxiliar Administrativo',
+    AUXILIAR_DE_RH: 'Auxiliar de RH',
+    AUXILIAR_DE_DEPARTAMENTO_PESSOAL: 'Auxiliar de Departamento Pessoal',
+    ASSISTENTE_OPERACIONAL: 'Assistente Operacional',
+    ASSISTENTE_LIMPEZA: 'Assistente de Limpeza',
+    LAVADOR: 'Lavador',
+    ASSISTENTE_FINANCEIRO: 'Assistente Financeiro',
+    EMPLOYEE: 'Funcionário / Colaborador',
   };
   return roleNames[role] || role;
 };
 
 // Função para obter a cor do role (para badges, etc.)
 export const getRoleColor = (role: UserRole): string => {
-  const roleColors: Record<UserRole, string> = {
-    FLEX_ADMIN: 'bg- Seguranca-red text-white',
+  const roleColors: Record<string, string> = {
+    FLEX_ADMIN: 'bg-Seguranca-red text-white',
     COMPANY_ADMIN: 'bg-indigo-600 text-white',
     SUPER_ADMIN: 'bg-red-100 text-red-800',
     ADMIN: 'bg-blue-100 text-blue-800',
@@ -1079,9 +1096,25 @@ export const getRoleColor = (role: UserRole): string => {
     COLABORADOR: 'bg-indigo-100 text-indigo-800',
     GESTOR: 'bg-teal-100 text-teal-800',
     GESTOR_TRAFEGO: 'bg-orange-600 text-white',
+    GESTOR_DE_TRAFEGO: 'bg-orange-600 text-white',
     MOTORISTA: 'bg-indigo-600 text-white',
     MECANICO: 'bg-gray-700 text-white',
     PORTARIA: 'bg-slate-500 text-white',
+    MANUTENCAO: 'bg-blue-600 text-white',
+    GESTOR_DE_MANUTENCAO: 'bg-blue-700 text-white',
+    ENCARREGADO_DE_MANUTENCAO: 'bg-blue-800 text-white',
+    ALMOXARIFADO: 'bg-amber-600 text-white',
+    COMPRAS: 'bg-emerald-600 text-white',
+    GESTOR_DE_COMPRAS: 'bg-emerald-700 text-white',
+    GESTOR_FINANCEIRO: 'bg-green-700 text-white',
+    GESTOR_OPERACIONAL: 'bg-cyan-700 text-white',
+    AUXILIAR_ADMINISTRATIVO: 'bg-purple-600 text-white',
+    AUXILIAR_DE_RH: 'bg-yellow-600 text-white',
+    AUXILIAR_DE_DEPARTAMENTO_PESSOAL: 'bg-amber-700 text-white',
+    ASSISTENTE_OPERACIONAL: 'bg-cyan-600 text-white',
+    ASSISTENTE_LIMPEZA: 'bg-teal-600 text-white',
+    LAVADOR: 'bg-sky-600 text-white',
+    ASSISTENTE_FINANCEIRO: 'bg-green-600 text-white',
   };
   return roleColors[role] || 'bg-gray-100 text-gray-800';
 };

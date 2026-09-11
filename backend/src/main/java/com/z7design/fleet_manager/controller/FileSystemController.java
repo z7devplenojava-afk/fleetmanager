@@ -30,7 +30,7 @@ public class FileSystemController {
      */
     @GetMapping
     public ResponseEntity<FileSystemResponse> listFiles(
-            @RequestParam(defaultValue = "/") String path,
+            @RequestParam(value = "path", defaultValue = "/") String path,
             Authentication authentication) {
         
         try {
@@ -75,7 +75,7 @@ public class FileSystemController {
     @PostMapping("/upload")
     public ResponseEntity<FileSystemResponse> uploadFile(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(defaultValue = "/") String parentPath,
+            @RequestParam(value = "parentPath", defaultValue = "/") String parentPath,
             Authentication authentication) {
         
         try {
@@ -108,7 +108,7 @@ public class FileSystemController {
      */
     @GetMapping("/{id}/download")
     public ResponseEntity<Resource> downloadFile(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             Authentication authentication) {
         
         try {
@@ -133,7 +133,7 @@ public class FileSystemController {
      */
     @PutMapping("/{id}/rename")
     public ResponseEntity<FileSystemResponse> renameItem(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody RenameItemRequest request,
             Authentication authentication) {
         
@@ -156,7 +156,7 @@ public class FileSystemController {
      */
     @PutMapping("/{id}/move")
     public ResponseEntity<FileSystemResponse> moveItem(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody MoveItemRequest request,
             Authentication authentication) {
         
@@ -178,7 +178,7 @@ public class FileSystemController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<FileSystemResponse> deleteItem(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             Authentication authentication) {
         
         try {
@@ -200,7 +200,7 @@ public class FileSystemController {
      */
     @GetMapping("/search")
     public ResponseEntity<FileSystemResponse> searchFiles(
-            @RequestParam String name,
+            @RequestParam(value = "name") String name,
             Authentication authentication) {
         
         try {
@@ -221,7 +221,7 @@ public class FileSystemController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<FileSystemResponse> getItemInfo(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             Authentication authentication) {
         
         try {

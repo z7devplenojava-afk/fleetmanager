@@ -101,7 +101,7 @@ const LgpdConsent = () => {
 
   return (
     <>
-      <SEO title="Consentimento LGPD - Fleet Manager" />
+      <SEO title="Consentimento LGPD - FluxBus" />
       <div className="min-h-screen w-full bg-seguranca-black flex flex-col items-center justify-center p-4 sm:p-6">
         <div className="w-full max-w-4xl space-y-4 sm:space-y-6">
           {/* Logo */}
@@ -114,7 +114,7 @@ const LgpdConsent = () => {
             <CardHeader className="pb-4 sm:pb-6">
               <CardTitle className="flex items-center gap-2 text-seguranca-lightgray text-xl sm:text-2xl md:text-3xl">
                 <Shield className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-blue-400" />
-                Bem-vindo ao Fleet Manager
+                Bem-vindo ao FluxBus
               </CardTitle>
               <p className="text-gray-300 text-sm sm:text-base mt-2">
                 Para utilizar nosso sistema, é necessário aceitar os termos de uso e políticas de privacidade, conforme exigido pela LGPD.
@@ -164,7 +164,7 @@ const LgpdConsent = () => {
                 <CardContent className="space-y-3 sm:space-y-4">
                   <div className="text-xs sm:text-sm text-gray-300 space-y-2">
                     <p><strong>1. Aceitação dos Termos</strong></p>
-                    <p>Ao acessar e usar o Fleet Manager, você concorda em cumprir estes Termos de Uso.</p>
+                    <p>Ao acessar e usar o FluxBus, você concorda em cumprir estes Termos de Uso.</p>
                     
                     <p className="mt-3"><strong>2. Uso do Sistema</strong></p>
                     <ul className="list-disc list-inside space-y-1 ml-2">

@@ -16,6 +16,10 @@ export interface TransportMobilization {
     vehiclePlate?: string;
     driverId?: string;
     driverName?: string;
+    clientId?: string;
+    clientName?: string;
+    workPostId?: string;
+    workPostName?: string;
     type: MobilizationType;
     occurredAt: string;
     kmReading?: number;
@@ -35,6 +39,8 @@ export interface TransportMobilization {
 export interface CreateTransportMobilizationDTO {
     vehicleId: string;
     driverId?: string;
+    clientId?: string;
+    workPostId?: string;
     type: MobilizationType;
     occurredAt?: string;
     kmReading?: number;

@@ -1,13 +1,22 @@
 package com.z7design.fleet_manager.tenant;
 
+import com.z7design.fleet_manager.model.Company;
 import java.util.UUID;
 
 /**
- * Interface marcadora para entidades que suportam multi-tenancy.
- * Entidades que implementam essa interface devem ter o campo companyId.
+ * Interface implementada por entidades que pertencem a uma empresa (Tenant).
  */
 public interface TenantAware {
-    UUID getCompanyId();
 
-    void setCompanyId(UUID companyId);
+    default Company getCompany() {
+        return null;
+    }
+
+    default void setCompany(Company company) {
+    }
+
+    default UUID getCompanyId() {
+        Company company = getCompany();
+        return company != null ? company.getId() : null;
+    }
 }

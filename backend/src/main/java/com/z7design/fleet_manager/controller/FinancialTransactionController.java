@@ -49,13 +49,13 @@ public class FinancialTransactionController {
             @ApiResponse(responseCode = "404", description = "TransaÃ§Ã£o nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<FinancialTransactionDTO> getById(@PathVariable String id) {
+    public ResponseEntity<FinancialTransactionDTO> getById(@PathVariable("id") String id) {
         return ResponseEntity.ok(transactionService.findById(UUID.fromString(id)).map(FinancialTransactionDTO::fromEntity).orElseThrow(() -> new ResourceNotFoundException("TransaÃ§Ã£o nÃ£o encontrada")));
     }
     
     @GetMapping("/type/{type}")
     @Operation(summary = "Buscar transaÃ§Ãµes por tipo", description = "Retorna transaÃ§Ãµes de um tipo especÃ­fico")
-    public ResponseEntity<List<FinancialTransactionDTO>> getByType(@PathVariable String type) {
+    public ResponseEntity<List<FinancialTransactionDTO>> getByType(@PathVariable("type") String type) {
         List<FinancialTransaction> transactions = transactionService.findByType(type);
         List<FinancialTransactionDTO> dtos = transactions.stream().map(FinancialTransactionDTO::fromEntity).collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -63,7 +63,7 @@ public class FinancialTransactionController {
     
     @GetMapping("/status/{status}")
     @Operation(summary = "Buscar transaÃ§Ãµes por status", description = "Retorna transaÃ§Ãµes de um status especÃ­fico")
-    public ResponseEntity<List<FinancialTransactionDTO>> getByStatus(@PathVariable String status) {
+    public ResponseEntity<List<FinancialTransactionDTO>> getByStatus(@PathVariable("status") String status) {
         List<FinancialTransaction> transactions = transactionService.findByStatus(status);
         List<FinancialTransactionDTO> dtos = transactions.stream().map(FinancialTransactionDTO::fromEntity).collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -71,7 +71,7 @@ public class FinancialTransactionController {
     
     @GetMapping("/category/{category}")
     @Operation(summary = "Buscar transaÃ§Ãµes por categoria", description = "Retorna transaÃ§Ãµes de uma categoria especÃ­fica")
-    public ResponseEntity<List<FinancialTransactionDTO>> getByCategory(@PathVariable String category) {
+    public ResponseEntity<List<FinancialTransactionDTO>> getByCategory(@PathVariable("category") String category) {
         List<FinancialTransaction> transactions = transactionService.findByCategory(category);
         List<FinancialTransactionDTO> dtos = transactions.stream().map(FinancialTransactionDTO::fromEntity).collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -79,7 +79,7 @@ public class FinancialTransactionController {
     
     @GetMapping("/date/{date}")
     @Operation(summary = "Buscar transaÃ§Ãµes por data", description = "Retorna transaÃ§Ãµes de uma data especÃ­fica")
-    public ResponseEntity<List<FinancialTransactionDTO>> getByDate(@PathVariable String date) {
+    public ResponseEntity<List<FinancialTransactionDTO>> getByDate(@PathVariable("date") String date) {
         java.time.LocalDate localDate = java.time.LocalDate.parse(date);
         List<FinancialTransaction> transactions = transactionService.findByDate(localDate);
         List<FinancialTransactionDTO> dtos = transactions.stream().map(FinancialTransactionDTO::fromEntity).collect(java.util.stream.Collectors.toList());
@@ -120,7 +120,7 @@ public class FinancialTransactionController {
             @ApiResponse(responseCode = "404", description = "TransaÃ§Ã£o nÃ£o encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         transactionService.deleteById(UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }
@@ -128,7 +128,7 @@ public class FinancialTransactionController {
     // Endpoints para busca por unidade
     @GetMapping("/unit/{unitId}")
     @Operation(summary = "Buscar transaÃ§Ãµes por unidade", description = "Retorna transaÃ§Ãµes de uma unidade especÃ­fica")
-    public ResponseEntity<List<FinancialTransactionDTO>> getByUnit(@PathVariable UUID unitId) {
+    public ResponseEntity<List<FinancialTransactionDTO>> getByUnit(@PathVariable("unitId") UUID unitId) {
         List<FinancialTransaction> transactions = transactionService.findByUnitId(unitId);
         List<FinancialTransactionDTO> dtos = transactions.stream().map(FinancialTransactionDTO::fromEntity).collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -136,7 +136,7 @@ public class FinancialTransactionController {
     
     @GetMapping("/unit/{unitId}/type/{type}")
     @Operation(summary = "Buscar transaÃ§Ãµes por unidade e tipo", description = "Retorna transaÃ§Ãµes de uma unidade com tipo especÃ­fico")
-    public ResponseEntity<List<FinancialTransactionDTO>> getByUnitAndType(@PathVariable UUID unitId, @PathVariable String type) {
+    public ResponseEntity<List<FinancialTransactionDTO>> getByUnitAndType(@PathVariable("unitId") UUID unitId, @PathVariable("type") String type) {
         List<FinancialTransaction> transactions = transactionService.findByUnitIdAndType(unitId, type);
         List<FinancialTransactionDTO> dtos = transactions.stream().map(FinancialTransactionDTO::fromEntity).collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -144,7 +144,7 @@ public class FinancialTransactionController {
     
     @GetMapping("/unit/{unitId}/status/{status}")
     @Operation(summary = "Buscar transaÃ§Ãµes por unidade e status", description = "Retorna transaÃ§Ãµes de uma unidade com status especÃ­fico")
-    public ResponseEntity<List<FinancialTransactionDTO>> getByUnitAndStatus(@PathVariable UUID unitId, @PathVariable String status) {
+    public ResponseEntity<List<FinancialTransactionDTO>> getByUnitAndStatus(@PathVariable("unitId") UUID unitId, @PathVariable("status") String status) {
         List<FinancialTransaction> transactions = transactionService.findByUnitIdAndStatus(unitId, status);
         List<FinancialTransactionDTO> dtos = transactions.stream().map(FinancialTransactionDTO::fromEntity).collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -152,7 +152,7 @@ public class FinancialTransactionController {
     
     @GetMapping("/unit/{unitId}/category/{category}")
     @Operation(summary = "Buscar transaÃ§Ãµes por unidade e categoria", description = "Retorna transaÃ§Ãµes de uma unidade com categoria especÃ­fica")
-    public ResponseEntity<List<FinancialTransactionDTO>> getByUnitAndCategory(@PathVariable UUID unitId, @PathVariable String category) {
+    public ResponseEntity<List<FinancialTransactionDTO>> getByUnitAndCategory(@PathVariable("unitId") UUID unitId, @PathVariable("category") String category) {
         List<FinancialTransaction> transactions = transactionService.findByUnitIdAndCategory(unitId, category);
         List<FinancialTransactionDTO> dtos = transactions.stream().map(FinancialTransactionDTO::fromEntity).collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -160,7 +160,7 @@ public class FinancialTransactionController {
     
     @GetMapping("/unit/{unitId}/date/{date}")
     @Operation(summary = "Buscar transaÃ§Ãµes por unidade e data", description = "Retorna transaÃ§Ãµes de uma unidade com data especÃ­fica")
-    public ResponseEntity<List<FinancialTransactionDTO>> getByUnitAndDate(@PathVariable UUID unitId, @PathVariable String date) {
+    public ResponseEntity<List<FinancialTransactionDTO>> getByUnitAndDate(@PathVariable("unitId") UUID unitId, @PathVariable("date") String date) {
         java.time.LocalDate localDate = java.time.LocalDate.parse(date);
         List<FinancialTransaction> transactions = transactionService.findByUnitIdAndDate(unitId, localDate);
         List<FinancialTransactionDTO> dtos = transactions.stream().map(FinancialTransactionDTO::fromEntity).collect(java.util.stream.Collectors.toList());

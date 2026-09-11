@@ -26,15 +26,17 @@ import com.z7design.fleet_manager.model.Department;
 
 import org.hibernate.annotations.Filter;
 import com.z7design.fleet_manager.tenant.TenantAware;
+import com.z7design.fleet_manager.tenant.TenantEntityListener;
 
 @Data
 @Entity
 @Table(name = "employees")
+@EntityListeners(TenantEntityListener.class)
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "documents", "benefits", "dependents", "timeRecords",
         "payrolls", "epis", "occurrences" })
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class Employee implements TenantAware {
 
     @Id
@@ -539,9 +541,88 @@ public class Employee implements TenantAware {
     private Boolean exameMedicoPrimeiroEmprego; // true = Sim, false = NÃ£o
 
     @Column(name = "exame_medico_contribuicao_sindical_paga")
-    private Boolean exameMedicoContribuicaoSindicalPaga; // true = Sim, false = NÃ£o
+    private Boolean exameMedicoContribuicaoSindicalPaga; // true = Sim, false = Não
 
-    // MÃ©todo para obter o nome completo do funcionÃ¡rio
+    // =========================================================================
+    // Campos de Benefícios e Descontos (importação da planilha de folha)
+    // =========================================================================
+
+    @Column(name = "mensalidade_plano_saude", precision = 15, scale = 2)
+    private java.math.BigDecimal mensalidadePlanoSaude;
+
+    @Column(name = "coparticipacao_saude", precision = 15, scale = 2)
+    private java.math.BigDecimal coparticipacaoSaude;
+
+    @Column(name = "plano_odontologico", precision = 15, scale = 2)
+    private java.math.BigDecimal planoOdontologico;
+
+    @Column(name = "vale_transporte", precision = 15, scale = 2)
+    private java.math.BigDecimal valeTransporte;
+
+    @Column(name = "desconto_multas", precision = 15, scale = 2)
+    private java.math.BigDecimal descontoMultas;
+
+    @Column(name = "desconto_avarias", precision = 15, scale = 2)
+    private java.math.BigDecimal descontoAvarias;
+
+    @Column(name = "vale_adiantamento", precision = 15, scale = 2)
+    private java.math.BigDecimal valeAdiantamento;
+
+    @Column(name = "adicional_noturno", precision = 15, scale = 2)
+    private java.math.BigDecimal adicionalNoturno;
+
+    @Column(name = "horas_extras_50", precision = 15, scale = 2)
+    private java.math.BigDecimal horasExtras50;
+
+    @Column(name = "horas_extras_60", precision = 15, scale = 2)
+    private java.math.BigDecimal horasExtras60;
+
+    @Column(name = "horas_extras_100", precision = 15, scale = 2)
+    private java.math.BigDecimal horasExtras100;
+
+    @Column(name = "afastamento_motivo", length = 255)
+    private String afastamentoMotivo;
+
+    @Column(name = "afastamento_data")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate afastamentoData;
+
+    // Campos Ficha de Registro de Empregado
+    @Column(name = "ativ_federal", length = 50)
+    private String ativFederal;
+
+    @Column(name = "numero_recibo", length = 50)
+    private String numeroRecibo;
+
+    @Column(name = "raca_cor", length = 30)
+    private String racaCor;
+
+    @Column(name = "sindicato", length = 100)
+    private String sindicato;
+
+    @Column(name = "organograma", length = 100)
+    private String organograma;
+
+    @Column(name = "modo_pagamento", length = 50)
+    private String modoPagamento;
+
+    @Column(name = "ctps_uf", length = 2)
+    private String ctpsUf;
+
+    @Column(name = "codigo_funcionario", length = 50)
+    private String codigoFuncionario;
+
+    @Column(name = "reservista_categoria", length = 50)
+    private String reservistaCategoria;
+
+    @Column(name = "registro_profissional", length = 50)
+    private String registroProfissional;
+
+    @Column(name = "data_registro_profissional")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate dataRegistroProfissional;
+
+    // Método para obter o nome completo do funcionário
     public String getFullName() {
         return this.name;
     }

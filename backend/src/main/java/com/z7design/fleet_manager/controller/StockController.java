@@ -3,6 +3,7 @@ package com.z7design.fleet_manager.controller;
 import com.z7design.fleet_manager.dto.StockItemDTO;
 import com.z7design.fleet_manager.dto.StockMovementDTO;
 import com.z7design.fleet_manager.dto.StockAlertDTO;
+import com.z7design.fleet_manager.dto.ImportResultDto;
 import com.z7design.fleet_manager.model.enums.StockCategory;
 import com.z7design.fleet_manager.model.enums.MovementType;
 import com.z7design.fleet_manager.model.enums.MovementReason;
@@ -21,6 +22,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
@@ -53,14 +55,23 @@ public class StockController {
         return ResponseEntity.ok(items);
     }
 
+    @PostMapping("/import")
+    @Operation(summary = "Importar itens de planilha Excel", description = "Importa itens de estoque a partir de planilha (.xlsx/.xls) com colunas: Código, Estoque, Vr. Compra, Total Médio. Upsert por código.")
+    public ResponseEntity<ImportResultDto> importExcel(
+            @Parameter(description = "Arquivo Excel (.xlsx/.xls)") @RequestParam("file") MultipartFile file) {
+        log.info("POST /api/stock/import - Importando planilha: {}", file.getOriginalFilename());
+        ImportResultDto result = stockService.importExcel(file);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/items/search")
     @Operation(summary = "Buscar itens com filtros", description = "Busca itens aplicando mÃºltiplos filtros")
     public ResponseEntity<Page<StockItemDTO>> searchItems(
-            @Parameter(description = "Categoria do item") @RequestParam(required = false) StockCategory category,
-            @Parameter(description = "Status ativo") @RequestParam(required = false) Boolean active,
-            @Parameter(description = "ID da unidade") @RequestParam(required = false) UUID unitId,
-            @Parameter(description = "Apenas itens com baixo estoque") @RequestParam(required = false) Boolean lowStock,
-            @Parameter(description = "Termo de busca") @RequestParam(required = false) String searchTerm,
+            @Parameter(description = "Categoria do item") @RequestParam(value = "category", required = false) StockCategory category,
+            @Parameter(description = "Status ativo") @RequestParam(value = "active", required = false) Boolean active,
+            @Parameter(description = "ID da unidade") @RequestParam(value = "unitId", required = false) UUID unitId,
+            @Parameter(description = "Apenas itens com baixo estoque") @RequestParam(value = "lowStock", required = false) Boolean lowStock,
+            @Parameter(description = "Termo de busca") @RequestParam(value = "searchTerm", required = false) String searchTerm,
             @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
         
         log.info("GET /api/stock/items/search - Buscando itens com filtros");
@@ -72,7 +83,7 @@ public class StockController {
     @GetMapping("/items/{id}")
     @Operation(summary = "Buscar item por ID", description = "Retorna um item especÃ­fico")
     public ResponseEntity<StockItemDTO> getItemById(
-            @Parameter(description = "ID do item") @PathVariable UUID id) {
+            @Parameter(description = "ID do item") @PathVariable("id") UUID id) {
         
         log.info("GET /api/stock/items/{} - Buscando item por ID", id);
         StockItemDTO item = stockService.getItemById(id);
@@ -82,7 +93,7 @@ public class StockController {
     @GetMapping("/items/code/{code}")
     @Operation(summary = "Buscar item por cÃ³digo", description = "Retorna um item pelo cÃ³digo")
     public ResponseEntity<StockItemDTO> getItemByCode(
-            @Parameter(description = "CÃ³digo do item") @PathVariable String code) {
+            @Parameter(description = "CÃ³digo do item") @PathVariable("code") String code) {
         
         log.info("GET /api/stock/items/code/{} - Buscando item por cÃ³digo", code);
         StockItemDTO item = stockService.getItemByCode(code);
@@ -92,7 +103,7 @@ public class StockController {
     @GetMapping("/items/qr/{qrCode}")
     @Operation(summary = "Buscar item por QR Code", description = "Retorna um item pelo QR Code")
     public ResponseEntity<StockItemDTO> getItemByQrCode(
-            @Parameter(description = "QR Code do item") @PathVariable String qrCode) {
+            @Parameter(description = "QR Code do item") @PathVariable("qrCode") String qrCode) {
         
         log.info("GET /api/stock/items/qr/{} - Buscando item por QR Code", qrCode);
         StockItemDTO item = stockService.getItemByQrCode(qrCode);
@@ -112,7 +123,7 @@ public class StockController {
     @PutMapping("/items/{id}")
     @Operation(summary = "Atualizar item", description = "Atualiza um item existente")
     public ResponseEntity<StockItemDTO> updateItem(
-            @Parameter(description = "ID do item") @PathVariable UUID id,
+            @Parameter(description = "ID do item") @PathVariable("id") UUID id,
             @Valid @RequestBody StockItemDTO itemDTO) {
         
         log.info("PUT /api/stock/items/{} - Atualizando item", id);
@@ -123,7 +134,7 @@ public class StockController {
     @DeleteMapping("/items/{id}")
     @Operation(summary = "Excluir item", description = "Marca um item como inativo")
     public ResponseEntity<Void> deleteItem(
-            @Parameter(description = "ID do item") @PathVariable UUID id) {
+            @Parameter(description = "ID do item") @PathVariable("id") UUID id) {
         
         log.info("DELETE /api/stock/items/{} - Excluindo item", id);
         stockService.deleteItem(id);
@@ -133,7 +144,7 @@ public class StockController {
     @GetMapping("/items/category/{category}")
     @Operation(summary = "Buscar itens por categoria", description = "Retorna itens de uma categoria especÃ­fica")
     public ResponseEntity<List<StockItemDTO>> getItemsByCategory(
-            @Parameter(description = "Categoria") @PathVariable StockCategory category) {
+            @Parameter(description = "Categoria") @PathVariable("category") StockCategory category) {
         
         log.info("GET /api/stock/items/category/{} - Buscando itens por categoria", category);
         List<StockItemDTO> items = stockService.getItemsByCategory(category);
@@ -195,17 +206,38 @@ public class StockController {
         }
     }
 
+    @DeleteMapping("/movements/{id}")
+    @Operation(summary = "Excluir movimentacao", description = "Exclui uma movimentacao revertendo o saldo de estoque do item")
+    public ResponseEntity<Void> deleteMovement(
+            @Parameter(description = "ID da movimentacao") @PathVariable("id") UUID id) {
+        log.info("DELETE /api/stock/movements/{} - Excluindo movimentacao", id);
+        stockService.deleteMovement(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/movements/bulk-delete")
+    @Operation(summary = "Excluir movimentacoes em lote", description = "Exclui varias movimentacoes revertendo o saldo de estoque de cada item")
+    public ResponseEntity<Map<String, Object>> bulkDeleteMovements(
+            @Parameter(description = "Lista de IDs das movimentacoes") @RequestBody List<UUID> ids) {
+        log.info("POST /api/stock/movements/bulk-delete - Excluindo {} movimentacao(oes) em lote", ids == null ? 0 : ids.size());
+        int deleted = stockService.deleteMovements(ids);
+        Map<String, Object> response = new HashMap<>();
+        response.put("deleted", deleted);
+        response.put("requested", ids == null ? 0 : ids.size());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/movements/search")
     @Operation(summary = "Buscar movimentaÃ§Ãµes", description = "Busca movimentaÃ§Ãµes com filtros")
     public ResponseEntity<Page<StockMovementDTO>> searchMovements(
-            @Parameter(description = "ID do item") @RequestParam(required = false) UUID stockItemId,
-            @Parameter(description = "ID do funcionÃ¡rio") @RequestParam(required = false) UUID employeeId,
-            @Parameter(description = "Tipo de movimentaÃ§Ã£o") @RequestParam(required = false) MovementType movementType,
-            @Parameter(description = "Motivo da movimentaÃ§Ã£o") @RequestParam(required = false) MovementReason reason,
-            @Parameter(description = "ID da unidade") @RequestParam(required = false) UUID unitId,
-            @Parameter(description = "Data inicial") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @Parameter(description = "Data final") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
-            @Parameter(description = "Termo de busca") @RequestParam(required = false) String searchTerm,
+            @Parameter(description = "ID do item") @RequestParam(value = "stockItemId", required = false) UUID stockItemId,
+            @Parameter(description = "ID do funcionÃ¡rio") @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @Parameter(description = "Tipo de movimentaÃ§Ã£o") @RequestParam(value = "movementType", required = false) MovementType movementType,
+            @Parameter(description = "Motivo da movimentaÃ§Ã£o") @RequestParam(value = "reason", required = false) MovementReason reason,
+            @Parameter(description = "ID da unidade") @RequestParam(value = "unitId", required = false) UUID unitId,
+            @Parameter(description = "Data inicial") @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @Parameter(description = "Data final") @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            @Parameter(description = "Termo de busca") @RequestParam(value = "searchTerm", required = false) String searchTerm,
             @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
         
         try {
@@ -223,7 +255,7 @@ public class StockController {
     @GetMapping("/movements/item/{itemId}")
     @Operation(summary = "HistÃ³rico de movimentaÃ§Ãµes do item", description = "Retorna todas as movimentaÃ§Ãµes de um item")
     public ResponseEntity<List<StockMovementDTO>> getMovementsByItem(
-            @Parameter(description = "ID do item") @PathVariable UUID itemId) {
+            @Parameter(description = "ID do item") @PathVariable("itemId") UUID itemId) {
         
         log.info("GET /api/stock/movements/item/{} - Buscando movimentaÃ§Ãµes do item", itemId);
         List<StockMovementDTO> movements = stockService.getMovementsByItem(itemId);
@@ -233,7 +265,7 @@ public class StockController {
     @GetMapping("/movements/employee/{employeeId}/deliveries")
     @Operation(summary = "HistÃ³rico de entregas do funcionÃ¡rio", description = "Retorna todas as entregas feitas a um funcionÃ¡rio")
     public ResponseEntity<List<StockMovementDTO>> getDeliveryHistoryByEmployee(
-            @Parameter(description = "ID do funcionÃ¡rio") @PathVariable UUID employeeId) {
+            @Parameter(description = "ID do funcionÃ¡rio") @PathVariable("employeeId") UUID employeeId) {
         
         log.info("GET /api/stock/movements/employee/{}/deliveries - HistÃ³rico de entregas", employeeId);
         List<StockMovementDTO> deliveries = stockService.getDeliveryHistoryByEmployee(employeeId);
@@ -243,7 +275,7 @@ public class StockController {
     @GetMapping("/movements/recent")
     @Operation(summary = "MovimentaÃ§Ãµes recentes", description = "Retorna as Ãºltimas movimentaÃ§Ãµes")
     public ResponseEntity<List<StockMovementDTO>> getRecentMovements(
-            @Parameter(description = "Limite de registros") @RequestParam(defaultValue = "10") int limit) {
+            @Parameter(description = "Limite de registros") @RequestParam(value = "limit", defaultValue = "10") int limit) {
         
         log.info("GET /api/stock/movements/recent - Buscando movimentaÃ§Ãµes recentes");
         List<StockMovementDTO> movements = stockService.getRecentMovements(limit);
@@ -271,7 +303,7 @@ public class StockController {
     @PatchMapping("/alerts/{alertId}/read")
     @Operation(summary = "Marcar alerta como lido", description = "Marca um alerta como lido")
     public ResponseEntity<Void> markAlertAsRead(
-            @Parameter(description = "ID do alerta") @PathVariable UUID alertId) {
+            @Parameter(description = "ID do alerta") @PathVariable("alertId") UUID alertId) {
         
         log.info("PATCH /api/stock/alerts/{}/read - Marcando alerta como lido", alertId);
         stockService.markAlertAsRead(alertId);
@@ -281,7 +313,7 @@ public class StockController {
     @PatchMapping("/alerts/{alertId}/resolve")
     @Operation(summary = "Resolver alerta", description = "Marca um alerta como resolvido")
     public ResponseEntity<Void> resolveAlert(
-            @Parameter(description = "ID do alerta") @PathVariable UUID alertId,
+            @Parameter(description = "ID do alerta") @PathVariable("alertId") UUID alertId,
             Authentication authentication) {
         
         log.info("PATCH /api/stock/alerts/{}/resolve - Resolvendo alerta", alertId);
@@ -305,7 +337,7 @@ public class StockController {
 
     @GetMapping("/reports/item/{itemId}")
     @Operation(summary = "RelatÃ³rio por item", description = "Retorna relatÃ³rio detalhado de um item especÃ­fico")
-    public ResponseEntity<com.z7design.fleet_manager.dto.StockItemReportDTO> getItemReport(@PathVariable UUID itemId) {
+    public ResponseEntity<com.z7design.fleet_manager.dto.StockItemReportDTO> getItemReport(@PathVariable("itemId") UUID itemId) {
         log.info("GET /api/stock/reports/item/{} - Gerando relatÃ³rio do item", itemId);
         try {
             com.z7design.fleet_manager.dto.StockItemReportDTO report = stockService.getItemReport(itemId);
@@ -321,11 +353,11 @@ public class StockController {
     @GetMapping("/reports/movements")
     @Operation(summary = "RelatÃ³rio de movimentaÃ§Ãµes", description = "Retorna relatÃ³rio detalhado de movimentaÃ§Ãµes com filtros")
     public ResponseEntity<com.z7design.fleet_manager.dto.MovementsReportDTO> getMovementsReport(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
-            @RequestParam(required = false) UUID itemId,
-            @RequestParam(required = false) UUID employeeId,
-            @RequestParam(required = false) MovementType movementType) {
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            @RequestParam(value = "itemId", required = false) UUID itemId,
+            @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @RequestParam(value = "movementType", required = false) MovementType movementType) {
         log.info("GET /api/stock/reports/movements - Gerando relatÃ³rio de movimentaÃ§Ãµes");
         try {
             com.z7design.fleet_manager.dto.MovementsReportDTO report = stockService.getMovementsReport(
@@ -353,8 +385,8 @@ public class StockController {
     @GetMapping("/reports/date-range")
     @Operation(summary = "RelatÃ³rio por perÃ­odo", description = "Retorna relatÃ³rio detalhado de movimentaÃ§Ãµes por perÃ­odo")
     public ResponseEntity<com.z7design.fleet_manager.dto.DateRangeReportDTO> getDateRangeReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         log.info("GET /api/stock/reports/date-range - Gerando relatÃ³rio por perÃ­odo de {} atÃ© {}", startDate, endDate);
         try {
             com.z7design.fleet_manager.dto.DateRangeReportDTO report = stockService.getDateRangeReport(startDate, endDate);

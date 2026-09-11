@@ -50,9 +50,11 @@ public class UserGroupService {
         return convertToDTO(group);
     }
     
+    @Transactional(readOnly = true)
     public List<UserGroupDTO> getGroupsByUserId(UUID userId) {
+        // Sem contagem de usuários (evita query extra e ciclos); suficiente para o AuthContext
         return userGroupRepository.findByUserId(userId).stream()
-                .map(this::convertToDTO)
+                .map(this::convertToDTOWithoutUsers)
                 .collect(Collectors.toList());
     }
     

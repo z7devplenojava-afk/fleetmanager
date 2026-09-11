@@ -97,7 +97,7 @@ public class WhatsAppController {
     }
 
     @GetMapping("/connection/status/{instanceName}")
-    public ResponseEntity<?> getConnectionStatus(@PathVariable String instanceName) {
+    public ResponseEntity<?> getConnectionStatus(@PathVariable("instanceName") String instanceName) {
         try {
             if (isEvolutionProvider()) {
                 String state = evolutionApiService.getConnectionState();
@@ -350,7 +350,7 @@ public class WhatsAppController {
     }
 
     @DeleteMapping("/connection/disconnect/{instanceName}")
-    public ResponseEntity<?> disconnectConnection(@PathVariable String instanceName) {
+    public ResponseEntity<?> disconnectConnection(@PathVariable("instanceName") String instanceName) {
         try {
             if (isEvolutionProvider()) {
                 boolean ok = evolutionApiService.disconnectInstance();

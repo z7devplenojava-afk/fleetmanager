@@ -231,5 +231,19 @@ export const measurementService = {
       console.error('Erro ao gerar Excel em lote:', error);
       throw error;
     }
+  },
+
+  /**
+   * Gera ou atualiza a Conta a Receber correspondente ao boletim de medição
+   */
+  async generateReceivable(id: string, dueDate?: string): Promise<void> {
+    try {
+      const params = new URLSearchParams();
+      if (dueDate) params.append('dueDate', dueDate);
+      await api.post(`/measurements/${id}/generate-receivable?${params.toString()}`);
+    } catch (error) {
+      console.error('Erro ao gerar conta a receber:', error);
+      throw new Error('Falha ao gerar conta a receber');
+    }
   }
 }; 

@@ -30,6 +30,7 @@ interface Multa {
   local_infracao: string;
   status: 'pendente' | 'paga' | 'vencida';
   observacoes?: string;
+  driverPhone?: string;
 }
 
 interface MultaFormModalProps {
@@ -67,6 +68,7 @@ const MultaFormModal: React.FC<MultaFormModalProps> = ({
       id: multa.id,
       vehicleId: multa.veiculo_id,
       driverId: multa.driverId || multa.motorista_id,
+      driverPhone: multa.driverPhone || '',
       date: multa.data_infracao,
       dueDate: multa.data_vencimento,
       type: multa.tipo_infracao,
@@ -90,6 +92,7 @@ const MultaFormModal: React.FC<MultaFormModalProps> = ({
       const payload = {
         vehicleId: formData.vehicleId,
         driverId: formData.driverId || undefined,
+        driverPhone: formData.driverPhone || undefined,
         date: formData.date,
         dueDate: formData.dueDate,
         amount: formData.amount,

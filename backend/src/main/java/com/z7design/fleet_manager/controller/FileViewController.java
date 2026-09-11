@@ -27,7 +27,7 @@ public class FileViewController {
      * Visualizar arquivo PDF de uploads
      */
     @GetMapping("/uploads/{fileName:.+}")
-    public ResponseEntity<Resource> viewUploadFile(@PathVariable String fileName) {
+    public ResponseEntity<Resource> viewUploadFile(@PathVariable("fileName") String fileName) {
         return serveFile("uploads", fileName);
     }
 
@@ -35,7 +35,7 @@ public class FileViewController {
      * Visualizar arquivo PDF de holerites
      */
     @GetMapping("/holerites/{fileName:.+}")
-    public ResponseEntity<Resource> viewHoleriteFile(@PathVariable String fileName) {
+    public ResponseEntity<Resource> viewHoleriteFile(@PathVariable("fileName") String fileName) {
         return serveFile("holerites", fileName);
     }
 
@@ -43,7 +43,7 @@ public class FileViewController {
      * Visualizar arquivo PDF de recibos
      */
     @GetMapping("/receipts/{fileName:.+}")
-    public ResponseEntity<Resource> viewReceiptFile(@PathVariable String fileName) {
+    public ResponseEntity<Resource> viewReceiptFile(@PathVariable("fileName") String fileName) {
         return serveFile("uploads/receipts", fileName);
     }
 
@@ -51,7 +51,7 @@ public class FileViewController {
      * Visualizar arquivo PDF unificado
      */
     @GetMapping("/unified/{fileName:.+}")
-    public ResponseEntity<Resource> viewUnifiedFile(@PathVariable String fileName) {
+    public ResponseEntity<Resource> viewUnifiedFile(@PathVariable("fileName") String fileName) {
         return serveFile("uploads/unified", fileName);
     }
 
@@ -106,7 +106,7 @@ public class FileViewController {
      * Verificar se arquivo existe
      */
     @GetMapping("/exists/{directory}/{fileName:.+}")
-    public ResponseEntity<Boolean> fileExists(@PathVariable String directory, @PathVariable String fileName) {
+    public ResponseEntity<Boolean> fileExists(@PathVariable("directory") String directory, @PathVariable("fileName") String fileName) {
         try {
             Path filePath = Paths.get(directory, fileName);
             boolean exists = Files.exists(filePath);

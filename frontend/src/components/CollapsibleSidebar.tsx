@@ -39,6 +39,7 @@ import {
   Handshake,
   ArrowUpDown,
   Kanban,
+  Sparkles,
   Mail,
   Route,
   MessageCircle,
@@ -93,6 +94,7 @@ const mainMenuItems = [
   { icon: Home, text: 'Dashboard', to: '/dashboard', id: 'dashboard' },
   { icon: UserCircle, text: 'Portal do Funcionário', to: '/employee-portal', id: 'employee-portal' },
   { icon: User2, text: 'Portal do Motorista', to: '/driver-dashboard', id: 'driver-dashboard' },
+  { icon: ClipboardCheck, text: 'Check-in / Check-out', to: '/driver/checklist', id: 'driver-checklist' },
   { icon: FileSpreadsheet, text: 'Holerites', to: '/holerites', id: 'holerites' },
   { icon: Building2, text: 'Filiais', to: '/filiais', id: 'filiais' },
 ];
@@ -108,6 +110,7 @@ const manutencaoMenuItems = [
   { icon: Database, text: 'Gestão de Pneus', to: '/pneus', id: 'pneus' },
   { icon: DoorOpen, text: 'Gestão de Portaria', to: '/manutencao/portaria', id: 'gestao-portaria' },
   { icon: ClipboardCheck, text: 'Gestão Checklist por Cliente', to: '/manutencao/checklist-cliente', id: 'gestao-checklist-cliente' },
+  { icon: ClipboardCheck, text: 'Checklist por Veículo', to: '/manutencao/checklist-veiculo', id: 'gestao-checklist-veiculo' },
 ];
 
 // Módulo de Mobilização (Novo)
@@ -158,6 +161,7 @@ const operacionalMenuItems = [
   { icon: FileText, text: 'Guia de Transporte', to: '/operacional?tab=guia-transporte', id: 'operacional-guia-transporte' },
   { icon: Calculator, text: 'Rateio de Serviços', to: '/operacional?tab=rateio-servicos', id: 'operacional-rateio-servicos' },
   { icon: ClipboardCheck, text: 'Gestão Operacional', to: '/operacional?tab=gestao-operacional', id: 'operacional-gestao' },
+  { icon: Ruler, text: 'Medição', to: '/operacional/medicao', id: 'operacional-medicao' },
 ];
 
 // Módulo RH - Menu principal
@@ -230,6 +234,7 @@ const comercialMenuItems = [
   { icon: Calculator, text: 'Orçamentos', to: '/orcamentos', id: 'orcamentos' },
   { icon: FileText, text: 'Contratos', to: '/contratos', id: 'contratos' },
   { icon: Kanban, text: 'CRM Comercial', to: '/crm', id: 'crm' },
+  { icon: Sparkles, text: 'Prospecção', to: '/prospeccao', id: 'prospeccao' },
 ];
 
 // Módulo Estoque Simplificado
@@ -245,6 +250,11 @@ const estoqueMenuItems = [
 //   { icon: Headphones, text: 'Central de Suporte', to: '/suporte', id: 'suporte' },
 //   { icon: Send, text: 'Tickets', to: '/tickets', id: 'tickets' },
 // ];
+
+// ===== MÓDULO DE GESTÃO DE E-MAILS (IMAP/SMTP) =====
+const emailMenuItems = [
+  { icon: Mail, text: 'Gestão de E-mails', to: '/email', id: 'email-module' },
+];
 
 // ===== MÓDULO DE COMUNICAÇÃO INTERNA (SIMPLIFICADO) =====
 const comunicacaoInternaMenuItems = [
@@ -302,165 +312,7 @@ const sistemaMenuItems = [
   { icon: Settings, text: 'Configurações', to: '/configuracoes', id: 'configuracoes' },
 ];
 
-const ALL_ADMIN_ALLOWED_IDS = new Set([
-  // Menu Principal
-  'dashboard',
-  'employee-portal',
-  'driver-dashboard',
-  'holerites',
-  'filiais',
-  
-  // Manutenção & Frota
-  'manutencao',
-  'frota',
-  'manutencao-v2',
-  'mechanic-dashboard',
-  'frota-os',
-  'abastecimento',
-  'pneus',
-  'gestao-portaria',
-  'gestao-checklist-cliente',
-  
-  // Mobilização
-  'mobilizacao-transportes',
-  
-  // Passagens
-  'ticketing-booking',
-  'ticketing-templates',
-  'ticketing-trips',
-  
-  // Tráfego
-  'trafego-dashboard',
-  'trafego-rotas',
-  'trafego-viagens',
-  'trafego-turnos',
-  'trafego-atribuicoes',
-  'driver-trips',
-  'passenger-qrcode',
-  
-  // Fiscal
-  'fiscal-dashboard',
-  'fiscal-importar',
-  'fiscal-impostos',
-  'fiscal-relatorios',
-  
-  // Operacional
-  'operacional-dashboard',
-  'operacional-servicos',
-  'operacional-equipamentos',
-  'operacional-controle-visitas',
-  'operacional-escalas',
-  'operacional-notificacoes',
-  'operacional-ocorrencias',
-  'operacional-atividades',
-  'operacional-troca-plantao',
-  'operacional-parte-diaria',
-  'controle-rondas',
-  'operacional-guia-transporte',
-  'operacional-rateio-servicos',
-  'operacional-gestao',
-  
-  // RH
-  'rh',
-  'rh-controle-horas',
-  'rh-funcionarios',
-  'rh-postos',
-  'rh-vagas',
-  'rh-beneficios',
-  'rh-treinamentos',
-  'rh-relatorios',
-  'rh-sst',
-  'rh-sst-exames',
-  'rh-sst-epis',
-  'rh-sst-acidentes',
-  'rh-sst-treinamentos',
-  'rh-sst-cipa',
-  'rh-sst-relatorios',
-  'dp-funcionarios',
-  'dp-funcionarios-importar-bancarios',
-  'dp-admissao-demissao',
-  'dp-remanejamentos',
-  'dp-ferias',
-  'dp-ponto-eletronico',
-  'rh-fechamento-horas',
-  'dp-ocorrencias',
-  'dp-beneficios',
-  'dp-funcoes',
-  'dp-cargos',
-  'dp-postos',
-  'dp-epis',
-  'dp-documentos',
-  'dp-ordens-servico',
-  'dp-vagas',
-  
-  // Comercial
-  'leads',
-  'empresas',
-  'clientes',
-  'propostas',
-  'orcamentos',
-  'contratos',
-  'crm',
-  
-  // Estoque
-  'estoque-simplificado',
-  'estoque-relatorios',
-  'estoque-alertas',
-  'estoque-fornecedores',
-  
-  // Compras
-  'compras',
-  'compras-solicitacoes',
-  'compras-aprovacoes',
-  'compras-cotacoes',
-  'compras-relatorios',
-  
-  // Comunicação Interna
-  'chat-interno',
-  'mensagens',
-  'gestao-mensagens-grupos',
-  'gestao-mensagens-notificacoes',
-  
-  // Atendimento
-  'gestao-atendimento-dashboard',
-  'gestao-atendimento-tickets',
-  'gestao-atendimento-historico',
-  'gestao-atendimento-agentes',
-  'gestao-atendimento-metricas',
-  'gestao-atendimento-chatbot',
-  
-  // Financeiro
-  'financeiro',
-  'financeiro-contas-pagar',
-  'financeiro-contas-receber',
-  'financeiro-fluxo-caixa',
-  'financeiro-pagamentos',
-  'financeiro-conciliacao-bancaria',
-  'financeiro-bancos',
-  'financeiro-agencias',
-  'financeiro-relatorios',
-  'financeiro-centro-custos',
-  'financeiro-medicao',
-  
-  // Sistema
-  'usuarios',
-  'grupos',
-  'whatsapp-connection',
-  'sistema-importar-whatsapp',
-  'atividades',
-  'sistema',
-  'backup',
-  'configuracoes',
-]);
-
 const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
-  SUPER_ADMIN: ALL_ADMIN_ALLOWED_IDS,
-  ADMIN: ALL_ADMIN_ALLOWED_IDS,
-  FLEX_ADMIN: ALL_ADMIN_ALLOWED_IDS,
-  COMPANY_ADMIN: ALL_ADMIN_ALLOWED_IDS,
-  GESTOR: ALL_ADMIN_ALLOWED_IDS,
-  SUPERVISOR: ALL_ADMIN_ALLOWED_IDS,
-  OPERACIONAL: ALL_ADMIN_ALLOWED_IDS,
   COLABORADOR: new Set([
     'dashboard',
     'holerites',
@@ -567,6 +419,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'dashboard',
     'holerites',
     'driver-dashboard',
+    'driver-checklist',
     'driver-trips',
     'chat-interno',
     'mensagens',
@@ -588,6 +441,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
   PORTARIA: new Set([
     'dashboard',
     'gestao-portaria',
+    'gestao-checklist-veiculo',
     'frota',
     'chat-interno',
     'mensagens',
@@ -601,6 +455,162 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'chat-interno',
     'mensagens',
     'operacional-rateio-servicos',
+  ]),
+  SUPER_ADMIN: new Set([
+    // Menu Principal
+    'dashboard',
+    'employee-portal',
+    'driver-dashboard',
+    'driver-checklist',
+    'holerites',
+    'filiais',
+    
+    // Manutenção & Frota
+    'manutencao',
+    'frota',
+    'manutencao-v2',
+    'mechanic-dashboard',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    'gestao-checklist-veiculo',
+    
+    // Mobilização
+    'mobilizacao-transportes',
+    
+    // Passagens
+    'ticketing-booking',
+    'ticketing-templates',
+    'ticketing-trips',
+    
+    // Tráfego
+    'trafego-dashboard',
+    'trafego-rotas',
+    'trafego-viagens',
+    'trafego-turnos',
+    'trafego-atribuicoes',
+    'driver-trips',
+    'passenger-qrcode',
+    
+    // Fiscal
+    'fiscal-dashboard',
+    'fiscal-importar',
+    'fiscal-impostos',
+    'fiscal-relatorios',
+    
+    // Operacional
+    'operacional-dashboard',
+    'operacional-servicos',
+    'operacional-equipamentos',
+    'operacional-controle-visitas',
+    'operacional-escalas',
+    'operacional-notificacoes',
+    'operacional-ocorrencias',
+    'operacional-atividades',
+    'operacional-troca-plantao',
+    'operacional-parte-diaria',
+    'controle-rondas',
+    'operacional-guia-transporte',
+    'operacional-rateio-servicos',
+    'operacional-gestao',
+    'operacional-medicao',
+    
+    // RH
+    'rh',
+    'rh-controle-horas',
+    'rh-funcionarios',
+    'rh-postos',
+    'rh-vagas',
+    'rh-beneficios',
+    'rh-treinamentos',
+    'rh-relatorios',
+    'rh-sst',
+    'rh-sst-exames',
+    'rh-sst-epis',
+    'rh-sst-acidentes',
+    'rh-sst-treinamentos',
+    'rh-sst-cipa',
+    'rh-sst-relatorios',
+    'dp-funcionarios',
+    'dp-funcionarios-importar-bancarios',
+    'dp-admissao-demissao',
+    'dp-remanejamentos',
+    'dp-ferias',
+    'dp-ponto-eletronico',
+    'rh-fechamento-horas',
+    'dp-ocorrencias',
+    'dp-beneficios',
+    'dp-funcoes',
+    'dp-cargos',
+    'dp-postos',
+    'dp-epis',
+    'dp-documentos',
+    'dp-ordens-servico',
+    'dp-vagas',
+    
+    // Comercial
+    'leads',
+    'empresas',
+    'clientes',
+    'propostas',
+    'orcamentos',
+    'contratos',
+    'crm',
+    
+    // Estoque
+    'estoque-simplificado',
+    'estoque-relatorios',
+    'estoque-alertas',
+    'estoque-fornecedores',
+    
+    // Compras
+    'compras',
+    'compras-solicitacoes',
+    'compras-aprovacoes',
+    'compras-cotacoes',
+    'compras-relatorios',
+    
+    // Comunicação Interna
+    'chat-interno',
+    'mensagens',
+    'gestao-mensagens-grupos',
+    'gestao-mensagens-notificacoes',
+    
+    // Atendimento
+    'gestao-atendimento-dashboard',
+    'gestao-atendimento-tickets',
+    'gestao-atendimento-historico',
+    'gestao-atendimento-agentes',
+    'gestao-atendimento-metricas',
+    'gestao-atendimento-chatbot',
+    
+    // Financeiro
+    'financeiro',
+    'financeiro-contas-pagar',
+    'financeiro-contas-receber',
+    'financeiro-fluxo-caixa',
+    'financeiro-pagamentos',
+    'financeiro-conciliacao-bancaria',
+    'financeiro-bancos',
+    'financeiro-agencias',
+    'financeiro-relatorios',
+    'financeiro-centro-custos',
+    'financeiro-medicao',
+    
+    // Sistema
+    'usuarios',
+    'grupos',
+    'whatsapp-connection',
+    'sistema-importar-whatsapp',
+    'atividades',
+    'sistema',
+    'backup',
+    'configuracoes',
+
+    // E-mails
+    'email-module',
   ]),
 };
 
@@ -619,13 +629,6 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     [user?.role]
   );
   const allowedItemIds = useMemo(() => ROLE_ALLOWED_ITEM_IDS[normalizedRole], [normalizedRole]);
-
-  // Debug: Verificar papel e permissões
-  console.log('🔍 CollapsibleSidebar Debug:');
-  console.log('- User role:', user?.role);
-  console.log('- Normalized role:', normalizedRole);
-  console.log('- Allowed item IDs:', allowedItemIds);
-  console.log('- Can see employee-portal:', allowedItemIds?.has('employee-portal'));
 
   // Referências para controlar o scroll da própria sidebar
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -694,6 +697,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const filteredComercialItems = useMemo(() => filterItemsForRole(comercialMenuItems), [filterItemsForRole]);
   const filteredEstoqueItems = useMemo(() => filterItemsForRole(estoqueMenuItems), [filterItemsForRole]);
   const filteredComprasItems = useMemo(() => filterItemsForRole(comprasMenuItems), [filterItemsForRole]);
+  const filteredEmailItems = useMemo(() => filterItemsForRole(emailMenuItems), [filterItemsForRole]);
   const filteredComunicacaoInternaItems = useMemo(
     () => filterItemsForRole(comunicacaoInternaMenuItems).filter(item => {
       // Regras por permissão para cada item de comunicação interna
@@ -725,13 +729,14 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     }
   }, [location.pathname, location.search]);
 
-  const getActiveId = () => {
+  const activeId = useMemo(() => {
     const path = location.pathname;
     const search = location.search;
     const fullPath = path + search;
 
     const allItems = [
       ...mainMenuItems,
+      ...emailMenuItems,
       ...manutencaoMenuItems,
       ...financeiroMenuItems,
       ...operacionalMenuItems,
@@ -770,9 +775,9 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     }
 
     return activeItem?.id || 'dashboard';
-  };
+  }, [location.pathname, location.search]);
 
-  const isActive = (id: string) => getActiveId() === id;
+  const isActive = useCallback((id: string) => activeId === id, [activeId]);
 
   return (
     <>
@@ -845,6 +850,42 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
               ))}
             </nav>
           </div>
+
+          {/* Módulo de Gestão de E-mails */}
+          {filteredEmailItems.length > 0 && (
+            <div className="mb-6">
+              {!collapsed && (
+                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
+                  E-mails
+                </div>
+              )}
+              <nav className="space-y-1 px-4">
+                {filteredEmailItems.map((item) => (
+                  <ScrollPreservingLink
+                    key={item.id}
+                    to={item.to}
+                    preserveScroll={true}
+                    ref={isActive(item.id) ? activeItemRef : undefined}
+                    className={`
+                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
+                    ${isActive(item.id)
+                        ? 'bg-red-600 text-white shadow-md'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                      }
+                  `}
+                  >
+                    <item.icon
+                      size={20}
+                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
+                    />
+                    {!collapsed && (
+                      <span className="truncate tracking-wide">{item.text}</span>
+                    )}
+                  </ScrollPreservingLink>
+                ))}
+              </nav>
+            </div>
+          )}
 
           {/* Módulo de Manutenção e Frota */}
           {filteredManutencaoItems.length > 0 && (

@@ -277,6 +277,33 @@ export const scheduleService = {
   },
 
   /**
+   * Escalas do usuário autenticado (portal do motorista).
+   */
+  async findMySchedules(filters?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Schedule[]> {
+    const response = await api.get('/api/schedules/me', { params: filters });
+    const data = response.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  /**
+   * PDF das escalas do usuário autenticado.
+   */
+  async generateMyPDFReport(filters?: {
+    startDate?: string;
+    endDate?: string;
+    inline?: boolean;
+  }): Promise<Blob> {
+    const response = await api.get('/api/schedules/me/pdf', {
+      params: filters,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  /**
    * Gera relatório PDF de escalas com filtros opcionais
    */
   async generatePDFReport(filters: {

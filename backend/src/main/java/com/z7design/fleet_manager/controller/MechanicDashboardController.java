@@ -23,7 +23,7 @@ public class MechanicDashboardController {
     }
 
     @GetMapping("/vehicle/{id}")
-    public ResponseEntity<VehicleHealthDTO> getVehicleHealth(@PathVariable UUID id) {
+    public ResponseEntity<VehicleHealthDTO> getVehicleHealth(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(dashboardService.getVehicleHealth(id));
     }
 }

@@ -48,7 +48,7 @@ public class SSTTrainingController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar treinamento por ID", description = "Retorna um treinamento especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<SSTTraining> getTrainingById(@PathVariable UUID id) {
+    public ResponseEntity<SSTTraining> getTrainingById(@PathVariable("id") UUID id) {
         SSTTraining training = trainingService.getTrainingById(id);
         if (training == null) {
             return ResponseEntity.notFound().build();
@@ -59,7 +59,7 @@ public class SSTTrainingController {
     @GetMapping("/{id}/with-stats")
     @Operation(summary = "Buscar treinamento por ID com estatÃ­sticas", description = "Retorna um treinamento especÃ­fico com informaÃ§Ãµes agregadas")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<SSTTrainingDTO> getTrainingWithStatsById(@PathVariable UUID id) {
+    public ResponseEntity<SSTTrainingDTO> getTrainingWithStatsById(@PathVariable("id") UUID id) {
         SSTTrainingDTO training = trainingService.getTrainingWithStatsById(id);
         if (training == null) {
             return ResponseEntity.notFound().build();
@@ -94,7 +94,7 @@ public class SSTTrainingController {
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar treinamento", description = "Atualiza um treinamento existente")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<SSTTraining> updateTraining(@PathVariable UUID id, @RequestBody SSTTraining training) {
+    public ResponseEntity<SSTTraining> updateTraining(@PathVariable("id") UUID id, @RequestBody SSTTraining training) {
         SSTTraining updated = trainingService.updateTraining(id, training);
         if (updated == null) {
             return ResponseEntity.notFound().build();
@@ -105,7 +105,7 @@ public class SSTTrainingController {
     @PutMapping("/{id}/update")
     @Operation(summary = "Atualizar treinamento a partir de DTO", description = "Atualiza um treinamento existente a partir de DTO")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<SSTTraining> updateTrainingFromDTO(@PathVariable UUID id, @RequestBody CreateSSTTrainingDTO dto) {
+    public ResponseEntity<SSTTraining> updateTrainingFromDTO(@PathVariable("id") UUID id, @RequestBody CreateSSTTrainingDTO dto) {
         SSTTraining existing = trainingService.getTrainingById(id);
         if (existing == null) {
             return ResponseEntity.notFound().build();
@@ -128,7 +128,7 @@ public class SSTTrainingController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir treinamento", description = "Exclui um treinamento")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteTraining(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteTraining(@PathVariable("id") UUID id) {
         trainingService.deleteTraining(id);
         return ResponseEntity.noContent().build();
     }
@@ -146,7 +146,7 @@ public class SSTTrainingController {
     @GetMapping("/participations/{id}")
     @Operation(summary = "Buscar participaÃ§Ã£o por ID", description = "Retorna uma participaÃ§Ã£o especÃ­fica")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<TrainingParticipation> getParticipationById(@PathVariable UUID id) {
+    public ResponseEntity<TrainingParticipation> getParticipationById(@PathVariable("id") UUID id) {
         TrainingParticipation participation = trainingService.getParticipationById(id);
         if (participation == null) {
             return ResponseEntity.notFound().build();
@@ -157,7 +157,7 @@ public class SSTTrainingController {
     @GetMapping("/participations/employee/{employeeId}")
     @Operation(summary = "Listar participaÃ§Ãµes por funcionÃ¡rio", description = "Retorna participaÃ§Ãµes de um funcionÃ¡rio especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<TrainingParticipation>> getParticipationsByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<TrainingParticipation>> getParticipationsByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<TrainingParticipation> participations = trainingService.getParticipationsByEmployee(employeeId);
         return ResponseEntity.ok(participations);
     }
@@ -165,7 +165,7 @@ public class SSTTrainingController {
     @GetMapping("/participations/training/{trainingId}")
     @Operation(summary = "Listar participaÃ§Ãµes por treinamento", description = "Retorna participaÃ§Ãµes de um treinamento especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<TrainingParticipation>> getParticipationsByTraining(@PathVariable UUID trainingId) {
+    public ResponseEntity<List<TrainingParticipation>> getParticipationsByTraining(@PathVariable("trainingId") UUID trainingId) {
         List<TrainingParticipation> participations = trainingService.getParticipationsByTraining(trainingId);
         return ResponseEntity.ok(participations);
     }
@@ -181,7 +181,7 @@ public class SSTTrainingController {
     @PutMapping("/participations/{id}")
     @Operation(summary = "Atualizar participaÃ§Ã£o", description = "Atualiza uma participaÃ§Ã£o existente")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<TrainingParticipation> updateParticipation(@PathVariable UUID id, @RequestBody TrainingParticipation participation) {
+    public ResponseEntity<TrainingParticipation> updateParticipation(@PathVariable("id") UUID id, @RequestBody TrainingParticipation participation) {
         TrainingParticipation updated = trainingService.updateParticipation(id, participation);
         if (updated == null) {
             return ResponseEntity.notFound().build();
@@ -192,7 +192,7 @@ public class SSTTrainingController {
     @DeleteMapping("/participations/{id}")
     @Operation(summary = "Excluir participaÃ§Ã£o", description = "Exclui uma participaÃ§Ã£o")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteParticipation(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteParticipation(@PathVariable("id") UUID id) {
         trainingService.deleteParticipation(id);
         return ResponseEntity.noContent().build();
     }
@@ -210,7 +210,7 @@ public class SSTTrainingController {
     @GetMapping("/expiring")
     @Operation(summary = "Listar treinamentos prÃ³ximos do vencimento", description = "Retorna treinamentos que estÃ£o prÃ³ximos do vencimento")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<TrainingParticipation>> getExpiringTrainings(@RequestParam(defaultValue = "30") int daysAhead) {
+    public ResponseEntity<List<TrainingParticipation>> getExpiringTrainings(@RequestParam(value = "daysAhead", defaultValue = "30") int daysAhead) {
         List<TrainingParticipation> participations = trainingService.getExpiringTrainings(daysAhead);
         return ResponseEntity.ok(participations);
     }
@@ -221,9 +221,9 @@ public class SSTTrainingController {
     @Operation(summary = "Agendar treinamento", description = "Agenda automaticamente um treinamento para um funcionÃ¡rio")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<TrainingParticipation> scheduleTraining(
-            @PathVariable UUID trainingId, 
-            @PathVariable UUID employeeId,
-            @RequestParam LocalDate scheduledDate) {
+            @PathVariable("trainingId") UUID trainingId, 
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "scheduledDate") LocalDate scheduledDate) {
         TrainingParticipation participation = trainingService.scheduleTraining(trainingId, employeeId, scheduledDate);
         return ResponseEntity.ok(participation);
     }
@@ -232,9 +232,9 @@ public class SSTTrainingController {
     @Operation(summary = "Completar treinamento", description = "Marca um treinamento como completo")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<TrainingParticipation> completeTraining(
-            @PathVariable UUID participationId,
-            @RequestParam LocalDate completionDate,
-            @RequestParam(required = false) String certificateUrl) {
+            @PathVariable("participationId") UUID participationId,
+            @RequestParam(value = "completionDate") LocalDate completionDate,
+            @RequestParam(value = "certificateUrl", required = false) String certificateUrl) {
         TrainingParticipation participation = trainingService.completeTraining(participationId, completionDate, certificateUrl);
         return ResponseEntity.ok(participation);
     }

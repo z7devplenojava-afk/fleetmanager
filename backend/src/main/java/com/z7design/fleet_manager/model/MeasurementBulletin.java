@@ -83,6 +83,10 @@ public class MeasurementBulletin {
     @JoinColumn(name = "unit_id")
     private Unit unit;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_post_id")
+    private WorkPost workPost;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -60,7 +60,7 @@ public class ModeloDocumentoController {
      */
     @GetMapping("/{id}")
     // @PreAuthorize("hasAuthority('EMPLOYEES_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
-    public ResponseEntity<ModeloDocumento> buscarPorId(@PathVariable UUID id) {
+    public ResponseEntity<ModeloDocumento> buscarPorId(@PathVariable("id") UUID id) {
         try {
             ModeloDocumento modelo = modeloDocumentoService.buscarPorId(id);
             return ResponseEntity.ok(modelo);
@@ -73,7 +73,7 @@ public class ModeloDocumentoController {
      * Lista modelos por categoria
      */
     @GetMapping("/categoria/{categoria}")
-    public ResponseEntity<List<ModeloDocumento>> listarPorCategoria(@PathVariable String categoria) {
+    public ResponseEntity<List<ModeloDocumento>> listarPorCategoria(@PathVariable("categoria") String categoria) {
         List<ModeloDocumento> modelos = modeloDocumentoService.listarPorCategoria(categoria);
         return ResponseEntity.ok(modelos);
     }
@@ -82,7 +82,7 @@ public class ModeloDocumentoController {
      * Busca modelos por nome
      */
     @GetMapping("/buscar")
-    public ResponseEntity<List<ModeloDocumento>> buscarPorNome(@RequestParam String nome) {
+    public ResponseEntity<List<ModeloDocumento>> buscarPorNome(@RequestParam(value = "nome") String nome) {
         List<ModeloDocumento> modelos = modeloDocumentoService.buscarPorNome(nome);
         return ResponseEntity.ok(modelos);
     }
@@ -161,7 +161,7 @@ public class ModeloDocumentoController {
      * Atualiza um modelo existente
      */
     @PutMapping("/{id}")
-    public ResponseEntity<ModeloDocumento> atualizar(@PathVariable UUID id, @RequestBody ModeloDocumento modelo) {
+    public ResponseEntity<ModeloDocumento> atualizar(@PathVariable("id") UUID id, @RequestBody ModeloDocumento modelo) {
         try {
             ModeloDocumento modeloAtualizado = modeloDocumentoService.atualizar(id, modelo);
             return ResponseEntity.ok(modeloAtualizado);
@@ -176,7 +176,7 @@ public class ModeloDocumentoController {
      * Desativa um modelo (soft delete)
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> desativar(@PathVariable UUID id) {
+    public ResponseEntity<Void> desativar(@PathVariable("id") UUID id) {
         try {
             modeloDocumentoService.desativar(id);
             return ResponseEntity.noContent().build();
@@ -189,7 +189,7 @@ public class ModeloDocumentoController {
      * Remove um modelo permanentemente
      */
     @DeleteMapping("/{id}/permanent")
-    public ResponseEntity<Void> remover(@PathVariable UUID id) {
+    public ResponseEntity<Void> remover(@PathVariable("id") UUID id) {
         try {
             modeloDocumentoService.remover(id);
             return ResponseEntity.noContent().build();
@@ -202,7 +202,7 @@ public class ModeloDocumentoController {
      * Verifica se existe modelo com o mesmo nome
      */
     @GetMapping("/existe")
-    public ResponseEntity<Map<String, Boolean>> verificarExistencia(@RequestParam String nomeModelo) {
+    public ResponseEntity<Map<String, Boolean>> verificarExistencia(@RequestParam(value = "nomeModelo") String nomeModelo) {
         boolean existe = modeloDocumentoService.existePorNome(nomeModelo);
         return ResponseEntity.ok(Map.of("existe", existe));
     }
@@ -211,7 +211,7 @@ public class ModeloDocumentoController {
      * Lista modelos nÃ£o utilizados recentemente
      */
     @GetMapping("/nao-utilizados")
-    public ResponseEntity<List<ModeloDocumento>> listarNaoUtilizados(@RequestParam(defaultValue = "30") int diasLimite) {
+    public ResponseEntity<List<ModeloDocumento>> listarNaoUtilizados(@RequestParam(value = "diasLimite", defaultValue = "30") int diasLimite) {
         List<ModeloDocumento> modelos = modeloDocumentoService.buscarNaoUtilizados(diasLimite);
         return ResponseEntity.ok(modelos);
     }
@@ -220,7 +220,7 @@ public class ModeloDocumentoController {
      * Lista modelos por versÃ£o
      */
     @GetMapping("/versao/{versao}")
-    public ResponseEntity<List<ModeloDocumento>> listarPorVersao(@PathVariable String versao) {
+    public ResponseEntity<List<ModeloDocumento>> listarPorVersao(@PathVariable("versao") String versao) {
         List<ModeloDocumento> modelos = modeloDocumentoService.buscarPorVersao(versao);
         return ResponseEntity.ok(modelos);
     }
@@ -247,7 +247,7 @@ public class ModeloDocumentoController {
      * Download do arquivo original do modelo
      */
     @GetMapping("/{id}/download")
-    public ResponseEntity<byte[]> downloadArquivo(@PathVariable UUID id) {
+    public ResponseEntity<byte[]> downloadArquivo(@PathVariable("id") UUID id) {
         try {
             ModeloDocumento modelo = modeloDocumentoService.buscarPorId(id);
             if (modelo.getArquivoOriginal() == null || modelo.getArquivoOriginal().length == 0) {

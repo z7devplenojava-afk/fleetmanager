@@ -53,6 +53,15 @@ public class Fine {
     @Column
     private Integer points; // Pontos na CNH
     
+    @Column(name = "driver_phone", length = 20)
+    private String driverPhone; // WhatsApp do motorista para notificação
+    
+    @Column(name = "due_reminder_sent")
+    private Boolean dueReminderSent = false; // Evita reenvio diário do alerta de vencimento
+    
+    @Column(name = "overdue_reminder_sent")
+    private Boolean overdueReminderSent = false; // Evita reenvio do alerta de multa vencida
+    
     @Column(nullable = false)
     private LocalDateTime createdAt;
     

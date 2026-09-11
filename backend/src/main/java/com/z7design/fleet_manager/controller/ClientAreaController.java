@@ -31,14 +31,14 @@ public class ClientAreaController {
     @GetMapping("/routes/{routeId}/timeline")
     @Operation(summary = "Obter timeline de eventos da rota")
     @PreAuthorize("hasAnyAuthority('ROLE_CLIENT_MANAGER', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
-    public ResponseEntity<List<ClientTimelineEventDTO>> getRouteTimeline(@PathVariable String routeId) {
+    public ResponseEntity<List<ClientTimelineEventDTO>> getRouteTimeline(@PathVariable("routeId") String routeId) {
         return ResponseEntity.ok(clientAreaService.getRouteTimeline(routeId));
     }
 
     @GetMapping("/vehicles/{vehicleId}/snapshot")
     @Operation(summary = "Obter snapshot da câmera do veículo")
     @PreAuthorize("hasAnyAuthority('ROLE_CLIENT_MANAGER', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
-    public ResponseEntity<ClientSnapshotDTO> getCameraSnapshot(@PathVariable String vehicleId) {
+    public ResponseEntity<ClientSnapshotDTO> getCameraSnapshot(@PathVariable("vehicleId") String vehicleId) {
         return ResponseEntity.ok(clientAreaService.getCameraSnapshot(vehicleId));
     }
 }

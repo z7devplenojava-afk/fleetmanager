@@ -56,7 +56,7 @@ import com.z7design.fleet_manager.tenant.TenantAware;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class User implements UserDetails, TenantAware {
 
     @Id
@@ -270,8 +270,13 @@ public class User implements UserDetails, TenantAware {
         // Adicionar todos os roles do usuÃ¡rio
         if (roles != null) {
             for (Role role : roles) {
-                authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
-                // Adicionar permissÃµes do role
+                authorities.add(new SimpleGrantedAuthority(role.getName()));
+                if (!role.getName().startsWith("ROLE_")) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
+                } else {
+                    authorities.add(new SimpleGrantedAuthority(role.getName().substring(5)));
+                }
+                // Adicionar permissões do role
                 if (role.getPermissions() != null) {
                     for (Permission permission : role.getPermissions()) {
                         authorities.add(new SimpleGrantedAuthority(permission.getName()));

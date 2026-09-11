@@ -21,12 +21,14 @@ import {
   XCircle,
   Loader2,
   Hash,
-  RefreshCw
+  RefreshCw,
+  Smartphone
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MainLayout } from '@/components/MainLayout';
+import WhatsAppChatPanel from '@/components/WhatsAppChatPanel';
 import supportService, {
   Agent,
   Ticket,
@@ -35,7 +37,7 @@ import supportService, {
   TicketPriority,
   TicketCategory
 } from '@/services/supportService';
-import employeeService, { SimpleEmployee } from '@/services/employeeService'; // Mudança: usar employeeService
+import employeeService, { SimpleEmployee } from '@/services/employeeService';
 import chatbotService, { ChatbotConfig, CreateChatbotConfigRequest, UpdateChatbotConfigRequest } from '@/services/chatbotService';
 
 const GestaoAtendimento: React.FC = () => {
@@ -373,6 +375,14 @@ const GestaoAtendimento: React.FC = () => {
           >
             <Settings className="w-4 h-4" />
             Chatbot
+          </Button>
+          <Button
+            variant={currentPage === 'whatsapp' ? 'default' : 'ghost'}
+            onClick={() => navigateToPage('whatsapp')}
+            className="flex items-center gap-2"
+          >
+            <Smartphone className="w-4 h-4" />
+            WhatsApp
           </Button>
         </div>
 
@@ -1234,6 +1244,24 @@ const GestaoAtendimento: React.FC = () => {
                 </div>
               </DialogContent>
             </Dialog>
+          </div>
+        )}
+
+        {/* Página de WhatsApp Chat ao Vivo */}
+        {currentPage === 'whatsapp' && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="w-5 h-5 text-green-600" />
+                  Atendimento WhatsApp e Chatbot
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Visualize e responda mensagens do WhatsApp, Chat Web e Chatbot em tempo real, sem sair do sistema.
+                </p>
+              </CardHeader>
+            </Card>
+            <WhatsAppChatPanel agentId="admin" agentName="Atendente" />
           </div>
         )}
 

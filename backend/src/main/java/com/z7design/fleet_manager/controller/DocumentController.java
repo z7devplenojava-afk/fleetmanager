@@ -82,7 +82,7 @@ public class DocumentController {
                     schema = @Schema(implementation = Document.class),
                     examples = @ExampleObject(value = "{\"id\": \"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"documentType\": \"CNH\", \"documentNumber\": \"987654321\", \"issueDate\": \"2020-01-01\", \"expiryDate\": \"2026-12-31\"}")))
     @PutMapping("/{id}")
-    public ResponseEntity<Document> update(@PathVariable UUID id, @RequestBody Document document) {
+    public ResponseEntity<Document> update(@PathVariable("id") UUID id, @RequestBody Document document) {
         return ResponseEntity.ok(documentService.update(id, document));
     }
     
@@ -96,7 +96,7 @@ public class DocumentController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         documentService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -112,7 +112,7 @@ public class DocumentController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Document> findById(@PathVariable UUID id) {
+    public ResponseEntity<Document> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(documentService.findById(id));
     }
     
@@ -125,7 +125,7 @@ public class DocumentController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<Document>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<Document>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         return ResponseEntity.ok(documentService.findByEmployeeId(employeeId));
     }
     
@@ -151,7 +151,7 @@ public class DocumentController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/type/{type}")
-    public ResponseEntity<List<Document>> findByType(@PathVariable DocumentType type) {
+    public ResponseEntity<List<Document>> findByType(@PathVariable("type") DocumentType type) {
         return ResponseEntity.ok(documentService.findByType(type));
     }
     
@@ -220,7 +220,7 @@ public class DocumentController {
     })
     @PostMapping(value = "/{id}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Document> uploadFile(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(documentService.uploadFile(id, file));
     }
@@ -236,7 +236,7 @@ public class DocumentController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}/download")
-    public ResponseEntity<Resource> downloadDocument(@PathVariable UUID id) {
+    public ResponseEntity<Resource> downloadDocument(@PathVariable("id") UUID id) {
         try {
             Document document = documentService.findById(id);
             if (document == null) {
@@ -272,7 +272,7 @@ public class DocumentController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}/view")
-    public ResponseEntity<Resource> viewFile(@PathVariable UUID id) {
+    public ResponseEntity<Resource> viewFile(@PathVariable("id") UUID id) {
         Document document = documentService.findById(id);
         Resource file = documentService.getFile(id);
         

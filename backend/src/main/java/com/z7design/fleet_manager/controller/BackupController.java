@@ -55,7 +55,7 @@ public class BackupController {
 
     @Operation(summary = "Executar backup manual")
     @PostMapping("/execute")
-    public ResponseEntity<?> executeBackup(@RequestParam String description) {
+    public ResponseEntity<?> executeBackup(@RequestParam(value = "description") String description) {
         try {
             log.info("ðŸ”„ Executando backup manual: {}", description);
             backupService.performManualBackup(description);
@@ -75,7 +75,7 @@ public class BackupController {
     @Operation(summary = "Listar histÃ³rico de backups")
     @GetMapping("/history")
     public ResponseEntity<List<BackupHistory>> getHistory(
-            @RequestParam(required = false, defaultValue = "10") int limit) {
+            @RequestParam(value = "limit", required = false, defaultValue = "10") int limit) {
         try {
             List<BackupHistory> history = backupHistoryRepository.findAll()
                     .stream()
@@ -116,7 +116,7 @@ public class BackupController {
 
     @Operation(summary = "Deletar configuraÃ§Ã£o")
     @DeleteMapping("/configurations/{id}")
-    public ResponseEntity<?> deleteConfiguration(@PathVariable java.util.UUID id) {
+    public ResponseEntity<?> deleteConfiguration(@PathVariable("id") java.util.UUID id) {
         try {
             backupConfigurationRepository.deleteById(id);
             return ResponseEntity.ok(Map.of(
@@ -134,7 +134,7 @@ public class BackupController {
     @Operation(summary = "Atualizar configuraÃ§Ã£o")
     @PutMapping("/configurations/{id}")
     public ResponseEntity<BackupConfiguration> updateConfiguration(
-            @PathVariable java.util.UUID id,
+            @PathVariable("id") java.util.UUID id,
             @RequestBody BackupConfiguration config) {
         try {
             var existing = backupConfigurationRepository.findById(id)

@@ -34,7 +34,7 @@ public class ExtractDataHoleritesController {
      * Buscar por ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ExtractDataHolerites> getById(@PathVariable UUID id) {
+    public ResponseEntity<ExtractDataHolerites> getById(@PathVariable("id") UUID id) {
         log.info("ðŸ” Buscando dados extraÃ­dos por ID: {}", id);
         Optional<ExtractDataHolerites> data = extractDataHoleritesService.findById(id);
         return data.map(ResponseEntity::ok)
@@ -45,7 +45,7 @@ public class ExtractDataHoleritesController {
      * Buscar por CPF
      */
     @GetMapping("/cpf/{cpf}")
-    public ResponseEntity<ExtractDataHolerites> getByCpf(@PathVariable String cpf) {
+    public ResponseEntity<ExtractDataHolerites> getByCpf(@PathVariable("cpf") String cpf) {
         log.info("ðŸ” Buscando dados extraÃ­dos por CPF: {}", cpf);
         Optional<ExtractDataHolerites> data = extractDataHoleritesService.findByCpf(cpf);
         return data.map(ResponseEntity::ok)
@@ -57,9 +57,9 @@ public class ExtractDataHoleritesController {
      */
     @GetMapping("/cpf/{cpf}/period/{mes}/{ano}")
     public ResponseEntity<ExtractDataHolerites> getByCpfAndPeriod(
-            @PathVariable String cpf,
-            @PathVariable String mes,
-            @PathVariable Integer ano) {
+            @PathVariable("cpf") String cpf,
+            @PathVariable("mes") String mes,
+            @PathVariable("ano") Integer ano) {
         log.info("ðŸ” Buscando dados extraÃ­dos por CPF: {} e perÃ­odo: {}/{}", cpf, mes, ano);
         Optional<ExtractDataHolerites> data = extractDataHoleritesService.findByCpfAndPeriod(cpf, mes, ano);
         return data.map(ResponseEntity::ok)
@@ -71,8 +71,8 @@ public class ExtractDataHoleritesController {
      */
     @GetMapping("/period/{mes}/{ano}")
     public ResponseEntity<List<ExtractDataHolerites>> getByPeriod(
-            @PathVariable String mes,
-            @PathVariable Integer ano) {
+            @PathVariable("mes") String mes,
+            @PathVariable("ano") Integer ano) {
         log.info("ðŸ” Buscando dados extraÃ­dos por perÃ­odo: {}/{}", mes, ano);
         List<ExtractDataHolerites> data = extractDataHoleritesService.findByPeriod(mes, ano);
         return ResponseEntity.ok(data);
@@ -82,7 +82,7 @@ public class ExtractDataHoleritesController {
      * Buscar por nome
      */
     @GetMapping("/search")
-    public ResponseEntity<List<ExtractDataHolerites>> searchByName(@RequestParam String nome) {
+    public ResponseEntity<List<ExtractDataHolerites>> searchByName(@RequestParam(value = "nome") String nome) {
         log.info("ðŸ” Buscando dados extraÃ­dos por nome: {}", nome);
         List<ExtractDataHolerites> data = extractDataHoleritesService.findByNome(nome);
         return ResponseEntity.ok(data);
@@ -92,7 +92,7 @@ public class ExtractDataHoleritesController {
      * Deletar por ID
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteById(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteById(@PathVariable("id") UUID id) {
         log.info("ðŸ—‘ï¸ Deletando dados extraÃ­dos por ID: {}", id);
         try {
             extractDataHoleritesService.deleteById(id);

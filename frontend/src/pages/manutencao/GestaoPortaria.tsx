@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,42 +41,15 @@ import {
     DialogFooter
 } from '@/components/ui/dialog';
 import vehicleGateChecklistService from '@/services/vehicleGateChecklistService';
+import checklistConfigService from '@/services/checklistConfigService';
 import { getApiUrl } from '@/config/environment';
 import fleetService from '@/services/fleetService';
 import driverService from '@/services/driverService';
 import type { ChecklistType, ChecklistItem } from '@/types/portaria';
+import { DEFAULT_CHECKLIST_ITEMS, CATEGORY_LABELS, configToChecklistItem } from '@/utils/checklistConfig';
 import { useToast } from '@/hooks/use-toast';
 
 import accessRecordService, { AccessRecord } from '@/services/accessRecordService';
-
-const DEFAULT_CHECKLIST_ITEMS: ChecklistItem[] = [
-    { id: 'doc-1', title: 'CNH', category: 'documentacao', required: true, checked: false },
-    { id: 'doc-2', title: 'CRLV', category: 'documentacao', required: true, checked: false },
-    { id: 'doc-3', title: 'Documentação do veículo', category: 'documentacao', required: true, checked: false },
-    { id: 'pneus-1', title: 'Calibragem', category: 'pneus', required: true, checked: false },
-    { id: 'pneus-2', title: 'Desgaste', category: 'pneus', required: true, checked: false },
-    { id: 'pneus-3', title: 'Estepe', category: 'pneus', required: false, checked: false },
-    { id: 'fluidos-1', title: 'Óleo', category: 'fluidos', required: true, checked: false },
-    { id: 'fluidos-2', title: 'Água', category: 'fluidos', required: true, checked: false },
-    { id: 'fluidos-3', title: 'Combustível', category: 'fluidos', required: true, checked: false },
-    { id: 'freios-1', title: 'Funcionamento dos freios', category: 'freios', required: true, checked: false },
-    { id: 'ilum-1', title: 'Faróis', category: 'iluminacao', required: true, checked: false },
-    { id: 'ilum-2', title: 'Lanternas e setas', category: 'iluminacao', required: true, checked: false },
-    { id: 'limpeza-1', title: 'Interior', category: 'limpeza', required: false, checked: false },
-    { id: 'limpeza-2', title: 'Exterior', category: 'limpeza', required: false, checked: false },
-    { id: 'outros-1', title: 'Cinto de segurança', category: 'outros', required: true, checked: false },
-    { id: 'outros-2', title: 'Espelhos', category: 'outros', required: true, checked: false },
-];
-
-const CATEGORY_LABELS: Record<string, string> = {
-    documentacao: 'Documentação',
-    pneus: 'Pneus',
-    fluidos: 'Óleo/Fluidos',
-    freios: 'Freios',
-    iluminacao: 'Iluminação',
-    limpeza: 'Limpeza',
-    outros: 'Outros',
-};
 
 const GestaoPortaria: React.FC = () => {
     const { toast } = useToast();
@@ -226,6 +199,35 @@ const GestaoPortaria: React.FC = () => {
         setIsFormOpen(false);
         setIsQRScannerOpen(false);
     };
+
+    // Carrega os itens configurados do checklist quando um veículo é selecionado no formulário
+    useEffect(() => {
+        if (!isFormOpen || formType === 'VISITOR' || formType === 'EMPLOYEE') return;
+        if (!formData.vehicleId) {
+            setChecklistItems(DEFAULT_CHECKLIST_ITEMS.map((i) => ({ ...i, checked: false })));
+            return;
+        }
+        let cancelled = false;
+        checklistConfigService
+            .getForVehicle(formData.vehicleId)
+            .then((configItems) => {
+                if (cancelled) return;
+                if (configItems && configItems.length > 0) {
+                    setChecklistItems(configItems.map((c) => configToChecklistItem(c)));
+                } else {
+                    setChecklistItems(DEFAULT_CHECKLIST_ITEMS.map((i) => ({ ...i, checked: false })));
+                }
+            })
+            .catch((err) => {
+                console.error('Erro ao carregar itens configurados do checklist:', err);
+                if (!cancelled) {
+                    setChecklistItems(DEFAULT_CHECKLIST_ITEMS.map((i) => ({ ...i, checked: false })));
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [isFormOpen, formData.vehicleId, formType]);
 
     const handleItemCheck = (id: string, checked: boolean) => {
         setChecklistItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked } : i)));

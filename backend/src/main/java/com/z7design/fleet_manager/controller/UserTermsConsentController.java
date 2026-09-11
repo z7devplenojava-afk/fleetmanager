@@ -38,8 +38,8 @@ public class UserTermsConsentController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Map<String, Object>> checkUserConsent(
-            @Parameter(description = "ID do usuÃ¡rio") @PathVariable UUID userId,
-            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable UserTermsConsent.UserType userType) {
+            @Parameter(description = "ID do usuÃ¡rio") @PathVariable("userId") UUID userId,
+            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable("userType") UserTermsConsent.UserType userType) {
         
         boolean hasAccepted = consentService.hasUserAcceptedTerms(userId, userType);
         boolean isRequired = consentService.isConsentRequired(userId, userType);
@@ -59,8 +59,8 @@ public class UserTermsConsentController {
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Map<String, Object>> checkUserConsentByCpf(
-            @Parameter(description = "CPF do usuÃ¡rio") @PathVariable String cpf,
-            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable UserTermsConsent.UserType userType) {
+            @Parameter(description = "CPF do usuÃ¡rio") @PathVariable("cpf") String cpf,
+            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable("userType") UserTermsConsent.UserType userType) {
         
         boolean hasAccepted = consentService.hasUserAcceptedTermsByCpf(cpf, userType);
         boolean isRequired = consentService.isConsentRequiredByCpf(cpf, userType);
@@ -114,8 +114,8 @@ public class UserTermsConsentController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<UserTermsConsentDTO> getLatestConsent(
-            @Parameter(description = "ID do usuÃ¡rio") @PathVariable UUID userId,
-            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable UserTermsConsent.UserType userType) {
+            @Parameter(description = "ID do usuÃ¡rio") @PathVariable("userId") UUID userId,
+            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable("userType") UserTermsConsent.UserType userType) {
         
         UserTermsConsentDTO consent = consentService.getLatestConsent(userId, userType);
         if (consent == null) {
@@ -133,8 +133,8 @@ public class UserTermsConsentController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<UserTermsConsentDTO> getLatestConsentByCpf(
-            @Parameter(description = "CPF do usuÃ¡rio") @PathVariable String cpf,
-            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable UserTermsConsent.UserType userType) {
+            @Parameter(description = "CPF do usuÃ¡rio") @PathVariable("cpf") String cpf,
+            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable("userType") UserTermsConsent.UserType userType) {
         
         UserTermsConsentDTO consent = consentService.getLatestConsentByCpf(cpf, userType);
         if (consent == null) {
@@ -176,7 +176,7 @@ public class UserTermsConsentController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<List<UserTermsConsentDTO>> getConsentsByUserType(
-            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable UserTermsConsent.UserType userType) {
+            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable("userType") UserTermsConsent.UserType userType) {
         List<UserTermsConsentDTO> consents = consentService.getConsentsByUserType(userType);
         return ResponseEntity.ok(consents);
     }
@@ -189,7 +189,7 @@ public class UserTermsConsentController {
     })
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<Map<String, Object>> countAcceptedConsents(
-            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable UserTermsConsent.UserType userType) {
+            @Parameter(description = "Tipo do usuÃ¡rio") @PathVariable("userType") UserTermsConsent.UserType userType) {
         long count = consentService.countAcceptedConsents(userType);
         return ResponseEntity.ok(Map.of("count", count, "userType", userType));
     }

@@ -41,7 +41,7 @@ public class RemanejamentoHistoricoController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<RemanejamentoHistorico> findById(@PathVariable UUID id) {
+    public ResponseEntity<RemanejamentoHistorico> findById(@PathVariable("id") UUID id) {
         Optional<RemanejamentoHistorico> historico = historicoService.findById(id);
         return historico.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -66,7 +66,7 @@ public class RemanejamentoHistoricoController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     @GetMapping("/remanejamento/{remanejamentoId}")
-    public ResponseEntity<List<RemanejamentoHistorico>> findByRemanejamentoId(@PathVariable UUID remanejamentoId) {
+    public ResponseEntity<List<RemanejamentoHistorico>> findByRemanejamentoId(@PathVariable("remanejamentoId") UUID remanejamentoId) {
         return ResponseEntity.ok(historicoService.findByRemanejamentoId(remanejamentoId));
     }
     
@@ -78,7 +78,7 @@ public class RemanejamentoHistoricoController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     @GetMapping("/funcionario/{employeeId}")
-    public ResponseEntity<List<RemanejamentoHistorico>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<RemanejamentoHistorico>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         return ResponseEntity.ok(historicoService.findByEmployeeId(employeeId));
     }
     
@@ -91,7 +91,7 @@ public class RemanejamentoHistoricoController {
     })
     @GetMapping("/funcionario/{employeeId}/pagina")
     public ResponseEntity<Page<RemanejamentoHistorico>> findByEmployeeIdPaginated(
-            @PathVariable UUID employeeId, Pageable pageable) {
+            @PathVariable("employeeId") UUID employeeId, Pageable pageable) {
         return ResponseEntity.ok(historicoService.findByEmployeeId(employeeId, pageable));
     }
     
@@ -103,7 +103,7 @@ public class RemanejamentoHistoricoController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     @GetMapping("/acao/{acao}")
-    public ResponseEntity<List<RemanejamentoHistorico>> findByAcao(@PathVariable AcaoHistorico acao) {
+    public ResponseEntity<List<RemanejamentoHistorico>> findByAcao(@PathVariable("acao") AcaoHistorico acao) {
         return ResponseEntity.ok(historicoService.findByAcao(acao));
     }
     
@@ -115,7 +115,7 @@ public class RemanejamentoHistoricoController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     @GetMapping("/usuario/{usuarioId}")
-    public ResponseEntity<List<RemanejamentoHistorico>> findByUsuarioQueExecutou(@PathVariable UUID usuarioId) {
+    public ResponseEntity<List<RemanejamentoHistorico>> findByUsuarioQueExecutou(@PathVariable("usuarioId") UUID usuarioId) {
         return ResponseEntity.ok(historicoService.findByUsuarioQueExecutou(usuarioId));
     }
     
@@ -128,8 +128,8 @@ public class RemanejamentoHistoricoController {
     })
     @GetMapping("/periodo")
     public ResponseEntity<List<RemanejamentoHistorico>> findByPeriodo(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
+            @RequestParam(value = "dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
+            @RequestParam(value = "dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
         return ResponseEntity.ok(historicoService.findByPeriodo(dataInicio, dataFim));
     }
     
@@ -142,9 +142,9 @@ public class RemanejamentoHistoricoController {
     })
     @GetMapping("/funcionario/{employeeId}/periodo")
     public ResponseEntity<List<RemanejamentoHistorico>> findByEmployeeIdAndPeriodo(
-            @PathVariable UUID employeeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
+            @RequestParam(value = "dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
         return ResponseEntity.ok(historicoService.findByEmployeeIdAndPeriodo(employeeId, dataInicio, dataFim));
     }
     
@@ -157,11 +157,11 @@ public class RemanejamentoHistoricoController {
     })
     @GetMapping("/filtros")
     public ResponseEntity<Page<RemanejamentoHistorico>> findWithFilters(
-            @RequestParam(required = false) UUID employeeId,
-            @RequestParam(required = false) AcaoHistorico acao,
-            @RequestParam(required = false) UUID usuarioId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim,
+            @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @RequestParam(value = "acao", required = false) AcaoHistorico acao,
+            @RequestParam(value = "usuarioId", required = false) UUID usuarioId,
+            @RequestParam(value = "dataInicio", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
+            @RequestParam(value = "dataFim", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim,
             Pageable pageable) {
         return ResponseEntity.ok(historicoService.findWithFilters(employeeId, acao, usuarioId, dataInicio, dataFim, pageable));
     }
@@ -175,7 +175,7 @@ public class RemanejamentoHistoricoController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     @GetMapping("/remanejamento/{remanejamentoId}/ultima-acao")
-    public ResponseEntity<RemanejamentoHistorico> findLastActionByRemanejamentoId(@PathVariable UUID remanejamentoId) {
+    public ResponseEntity<RemanejamentoHistorico> findLastActionByRemanejamentoId(@PathVariable("remanejamentoId") UUID remanejamentoId) {
         Optional<RemanejamentoHistorico> historico = historicoService.findLastActionByRemanejamentoId(remanejamentoId);
         return historico.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -189,8 +189,8 @@ public class RemanejamentoHistoricoController {
     })
     @GetMapping("/relatorio/atividades")
     public ResponseEntity<List<RemanejamentoHistorico>> gerarRelatorioAtividades(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
+            @RequestParam(value = "dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
+            @RequestParam(value = "dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
         return ResponseEntity.ok(historicoService.gerarRelatorioAtividades(dataInicio, dataFim));
     }
     
@@ -203,9 +203,9 @@ public class RemanejamentoHistoricoController {
     })
     @GetMapping("/relatorio/funcionario/{employeeId}")
     public ResponseEntity<List<RemanejamentoHistorico>> gerarRelatorioFuncionario(
-            @PathVariable UUID employeeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
+            @RequestParam(value = "dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
         return ResponseEntity.ok(historicoService.gerarRelatorioFuncionario(employeeId, dataInicio, dataFim));
     }
     
@@ -217,9 +217,9 @@ public class RemanejamentoHistoricoController {
     })
     @GetMapping("/estatisticas")
     public ResponseEntity<Map<String, Object>> getEstatisticas(
-            @RequestParam(required = false) UUID employeeId,
-            @RequestParam(required = false) AcaoHistorico acao,
-            @RequestParam(required = false) UUID usuarioId) {
+            @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @RequestParam(value = "acao", required = false) AcaoHistorico acao,
+            @RequestParam(value = "usuarioId", required = false) UUID usuarioId) {
         
         long totalPorFuncionario = employeeId != null ? historicoService.countByEmployeeId(employeeId) : 0;
         long totalPorAcao = acao != null ? historicoService.countByAcao(acao) : 0;

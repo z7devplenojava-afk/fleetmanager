@@ -1,6 +1,8 @@
 package com.z7design.fleet_manager.service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional;
 
 import java.util.UUID;
@@ -293,17 +295,25 @@ public class UserService {
             existingUser.setWhatsapp(request.getWhatsapp().trim().isEmpty() ? null : request.getWhatsapp());
         }
 
+        boolean wasActive = existingUser.isActive();
+        UUID oldCompanyId = existingUser.getCompanyId();
+
         // Atualizar senha somente se fornecida
         if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
             existingUser.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
-        // Atualizar status se fornecido
-        if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
+        // Atualizar status e active se fornecidos
+        if (request.getActive() != null) {
+            existingUser.setActive(request.getActive());
+            existingUser.setStatus(request.getActive() ? UserStatus.ACTIVE : UserStatus.INACTIVE);
+        } else if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
             try {
-                existingUser.setStatus(UserStatus.valueOf(request.getStatus().toUpperCase()));
+                UserStatus statusEnum = UserStatus.valueOf(request.getStatus().toUpperCase());
+                existingUser.setStatus(statusEnum);
+                existingUser.setActive(statusEnum == UserStatus.ACTIVE);
             } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Status de usuÃ¡rio invÃ¡lido: " + request.getStatus());
+                throw new IllegalArgumentException("Status de usuário inválido: " + request.getStatus());
             }
         }
 
@@ -313,9 +323,17 @@ public class UserService {
             existingUser.setCompanyId(request.getCompanyId());
         }
 
-        // Validar limite de usuários se o status mudou para ativo ou se a empresa mudou
-        if (existingUser.isActive() && existingUser.getCompanyId() != null) {
-            validateUserLimit(existingUser.getCompanyId());
+        boolean isNowActive = existingUser.isActive();
+        UUID newCompanyId = existingUser.getCompanyId();
+
+        // Validar limite de usuários somente se o usuário está sendo ativado (era inativo)
+        // ou se a empresa mudou (se já era ativo na mesma empresa, não consome nova licença)
+        if (isNowActive && newCompanyId != null) {
+            boolean becameActive = (!wasActive && isNowActive);
+            boolean companyChanged = (oldCompanyId == null || !oldCompanyId.equals(newCompanyId));
+            if (becameActive || companyChanged) {
+                validateUserLimit(newCompanyId);
+            }
         }
 
         // Atualizar roles se fornecidas
@@ -381,9 +399,48 @@ public class UserService {
     }
 
     public void delete(UUID id) {
-        userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
         userRepository.deleteById(id);
+    }
+
+    public Map<String, Object> deleteBulk(List<UUID> ids, String currentUsername) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of("deletedCount", 0, "message", "Nenhum ID fornecido");
+        }
+
+        UUID currentUserId = null;
+        if (currentUsername != null) {
+            currentUserId = userRepository.findByUsername(currentUsername)
+                    .map(User::getId)
+                    .orElse(null);
+        }
+
+        int deletedCount = 0;
+        int skippedCount = 0;
+
+        for (UUID id : ids) {
+            if (currentUserId != null && currentUserId.equals(id)) {
+                log.warn("Ignorando auto-exclusão do usuário logado: {}", id);
+                skippedCount++;
+                continue;
+            }
+            try {
+                if (userRepository.existsById(id)) {
+                    userRepository.deleteById(id);
+                    deletedCount++;
+                }
+            } catch (Exception e) {
+                log.error("Erro ao excluir usuário {}: {}", id, e.getMessage());
+                skippedCount++;
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("deletedCount", deletedCount);
+        result.put("skippedCount", skippedCount);
+        result.put("message", String.format("%d usuário(s) excluído(s) com sucesso.", deletedCount));
+        return result;
     }
 
     public Optional<User> findByUsername(String username) {

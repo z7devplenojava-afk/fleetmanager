@@ -21,12 +21,16 @@ export interface MeasurementBulletin {
   clientId?: string;
   clientName?: string;
   contractId?: string;
+  contractDescription?: string;
   unitId?: string;
   unitName?: string;
+  workPostId?: string;
+  workPostName?: string;
   // Objetos completos (para compatibilidade)
   client?: { id: number | string; name: string };
   contract?: { id: string; contractNumber: string; description: string };
   unit?: { id: string; name: string };
+  workPost?: { id: string; name: string };
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -65,6 +69,14 @@ export interface MeasurementItem {
   finalKm?: number;
   franchiseKm?: number;
   disregardedKm?: number;
+  diaria?: number; // Diária (valor por dia)
+  kmConsiderado?: number; // KM final - KM inicial
+  kmExcedido?: number; // KM considerado - franquia - desconsiderado
+  valorKmExcedido?: number; // KM excedido x preço unitário
+  tripDate?: string; // Data da viagem extra
+  route?: string; // Trajeto da viagem extra
+  vehicleType?: string; // Tipo de veículo da viagem extra
+  observations?: string; // Observações (ex: "02 MOTORISTAS")
 }
 
 export interface CalculationMemory {
@@ -107,6 +119,7 @@ export interface CreateMeasurementBulletinDTO {
   clientId?: string;
   contractId?: string;
   unitId?: string;
+  workPostId?: string;
   notes?: string;
   measurementType?: MeasurementType;
   items: CreateMeasurementItemDTO[];
@@ -137,6 +150,14 @@ export interface CreateMeasurementItemDTO {
   finalKm?: number;
   franchiseKm?: number;
   disregardedKm?: number;
+  diaria?: number;
+  kmConsiderado?: number;
+  kmExcedido?: number;
+  valorKmExcedido?: number;
+  tripDate?: string;
+  route?: string;
+  vehicleType?: string;
+  observations?: string;
 }
 
 export interface UpdateMeasurementBulletinDTO extends Partial<CreateMeasurementBulletinDTO> {

@@ -154,6 +154,7 @@ export const NotificationBell: React.FC = () => {
                     formatDate={formatDate}
                     getPriorityConfig={getPriorityConfig}
                     isCompact={true}
+                    onNavigate={() => setIsOpen(false)}
                   />
                 ))}
               </div>

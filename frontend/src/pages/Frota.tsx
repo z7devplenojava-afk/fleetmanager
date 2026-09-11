@@ -4,10 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, DollarSign, Settings, FileText, Filter, RefreshCw, TrendingUp } from 'lucide-react';
+import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, DollarSign, Settings, FileText, Filter, RefreshCw, TrendingUp, Users, UserCheck, FileSpreadsheet } from 'lucide-react';
+import { VehicleImportModal } from '@/components/frota/VehicleImportModal';
 import VeiculosTable from '@/components/frota/VeiculosTable';
+import AgregadosTable from '@/components/frota/AgregadosTable';
+import AgregadosDashboard from '@/components/frota/AgregadosDashboard';
+import AgregadosFormModal from '@/components/frota/AgregadosFormModal';
 import AbastecimentosTable from '@/components/frota/AbastecimentosTable';
 import MultasTable from '@/components/frota/MultasTable';
+import BateriasTable from '@/components/frota/BateriasTable';
+import VehicleDocumentsTable from '@/components/frota/VehicleDocumentsTable';
 import VeiculoFormModal from '@/components/frota/VeiculoFormModal';
 import VeiculoEditModal from '@/components/frota/VeiculoEditModal';
 import AbastecimentoFormModal from '@/components/frota/AbastecimentoFormModal';
@@ -58,6 +64,7 @@ interface VeiculoComponent {
   quilometragem?: number;
   quilometragemInicial?: number;
   status: string;
+  vehicleType?: string;
   data_aquisicao?: string;
   valor_aquisicao?: number;
   photos?: string; // URLs das fotos separadas por vírgula
@@ -110,6 +117,7 @@ interface MultaComponent {
   local_infracao: string;
   status: 'pendente' | 'paga' | 'vencida';
   observacoes?: string;
+  driverPhone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -127,6 +135,7 @@ const mapVehicleToComponent = (vehicle: Vehicle): VeiculoComponent => {
     quilometragem: vehicle.currentMileage,
     quilometragemInicial: undefined, // Campo não existe na interface Vehicle
     status: vehicle.status.toLowerCase(),
+    vehicleType: vehicle.vehicleType,
     data_aquisicao: vehicle.acquisitionDate,
     valor_aquisicao: vehicle.acquisitionValue ? Number(vehicle.acquisitionValue) : undefined,
     photos: vehicle.photos ? Array.from(vehicle.photos).map(file => file.name).join(',') : undefined,
@@ -165,6 +174,8 @@ const Frota: React.FC = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>('ALL');
+  const [maintenanceAlertFilter, setMaintenanceAlertFilter] = useState<string>('ALL');
   const [isVeiculoModalOpen, setIsVeiculoModalOpen] = useState(false);
   const [isVeiculoEditModalOpen, setIsVeiculoEditModalOpen] = useState(false);
   const [isAbastecimentoModalOpen, setIsAbastecimentoModalOpen] = useState(false);
@@ -173,7 +184,10 @@ const Frota: React.FC = () => {
   const [isManutencaoDeleteDialogOpen, setIsManutencaoDeleteDialogOpen] = useState(false);
   const [isManutencaoDeleting, setIsManutencaoDeleting] = useState(false);
   const [isVehicleReportModalOpen, setIsVehicleReportModalOpen] = useState(false);
+  const [isVehicleImportModalOpen, setIsVehicleImportModalOpen] = useState(false);
   const [isMultaModalOpen, setIsMultaModalOpen] = useState(false);
+  const [isAgregadoModalOpen, setIsAgregadoModalOpen] = useState(false);
+  const [selectedAgregado, setSelectedAgregado] = useState<Vehicle | null>(null);
 
   // Debug: Monitorar mudanças nos estados dos modais
   useEffect(() => {
@@ -207,7 +221,7 @@ const Frota: React.FC = () => {
     // Carregar dados da empresa para o layout premium
     const fetchCompany = async () => {
       try {
-        const companies = await companyService.getCompanies();
+        const companies = await companyService.getAllCompanies();
         if (companies && companies.length > 0) {
           setEmpresa(companies[0]);
         }
@@ -399,6 +413,7 @@ const Frota: React.FC = () => {
       local_infracao: fine.location,
       status: fine.status === 'PAID' ? 'paga' : fine.status === 'PENDING' ? 'pendente' : 'vencida',
       observacoes: undefined,
+      driverPhone: fine.driverPhone || undefined,
       created_at: fine.createdAt,
       updated_at: fine.createdAt
     };
@@ -444,6 +459,7 @@ const Frota: React.FC = () => {
   const totalFines = fines?.length || 0;
   const totalFinesAmount = fines?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
   const pendingFines = fines?.filter(f => f.status === 'PENDING').length || 0;
+  const aggregatedVehicles = vehicles?.filter(v => (v as any).isAggregated === true).length || 0;
 
   // Calcular multas próximas do vencimento (7 dias)
   const finesNearDue = multasComponent.filter(multa => {
@@ -1289,7 +1305,7 @@ const Frota: React.FC = () => {
       <div className="space-y-6">
 
         {/* Cards de Resumo */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
           <Card className="bg-seguranca-graphite border-gray-600">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-seguranca-lightgray">Veículos Ativos</CardTitle>
@@ -1330,6 +1346,17 @@ const Frota: React.FC = () => {
               <div className="text-2xl font-bold text-seguranca-lightgray">R$ {totalFinesAmount.toFixed(2)}</div>
             </CardContent>
           </Card>
+
+          <Card className="bg-seguranca-graphite border-gray-600">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-seguranca-lightgray">Veículos Agregados</CardTitle>
+              <Users className="h-4 w-4 text-orange-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-400">{aggregatedVehicles}</div>
+              <p className="text-xs text-gray-400">Veículos de terceiros</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Tabs */}
@@ -1356,12 +1383,21 @@ const Frota: React.FC = () => {
             <TabsTrigger value="multas" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               Multas
             </TabsTrigger>
+            <TabsTrigger value="baterias" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
+              Baterias
+            </TabsTrigger>
+            <TabsTrigger value="documentos" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
+              Documentos
+            </TabsTrigger>
+            <TabsTrigger value="agregados" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
+              👥 Agregados
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="veiculos" className="mt-6 space-y-4">
-            <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
-              <div className="flex items-center space-x-2 flex-1 max-w-sm">
-                <div className="relative flex-1">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
+                <div className="relative flex-1 max-w-sm w-full">
                   <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                   <Input
                     placeholder="Buscar por placa, marca ou modelo..."
@@ -1370,8 +1406,46 @@ const Frota: React.FC = () => {
                     className="pl-8 bg-seguranca-black border-gray-600 text-seguranca-lightgray"
                   />
                 </div>
+                <select
+                  value={vehicleTypeFilter}
+                  onChange={(e) => setVehicleTypeFilter(e.target.value)}
+                  className="bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded-md px-3 py-2 text-sm focus:border-seguranca-yellow focus:ring-1 focus:ring-seguranca-yellow"
+                >
+                  <option value="ALL">🚌 Todos os Tipos</option>
+                  <option value="BUS_ROAD">🚌 Ônibus Rodoviário</option>
+                  <option value="BUS_LUXURY_TOURISM">🚌✨ Ônibus Luxo Turismo</option>
+                  <option value="BUS_URBAN">🏙️ Ônibus Urbano</option>
+                  <option value="MINIBUS">🚐 Micro-ônibus</option>
+                  <option value="VAN">🚐 Van</option>
+                  <option value="CAR_UTILITY">🚗 Carro Utilitário</option>
+                  <option value="CAR">🚗 Carro</option>
+                  <option value="TRUCK">🚛 Caminhão</option>
+                  <option value="MOTORCYCLE">🏍️ Motocicleta</option>
+                  <option value="PICKUP">🛻 Pickup</option>
+                  <option value="SUV">🚙 SUV</option>
+                  <option value="OTHER">❓ Outro</option>
+                </select>
+                <select
+                  value={maintenanceAlertFilter}
+                  onChange={(e) => setMaintenanceAlertFilter(e.target.value)}
+                  className="bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded-md px-3 py-2 text-sm focus:border-seguranca-yellow focus:ring-1 focus:ring-seguranca-yellow"
+                >
+                  <option value="ALL">🔧 Manutenção: Todas</option>
+                  <option value="OVERDUE">🔴 Vencida</option>
+                  <option value="UPCOMING">🟡 Próxima</option>
+                  <option value="OK">🟢 Em Dia</option>
+                  <option value="NO_SCHEDULE">⚪ Sem Plano</option>
+                </select>
               </div>
               <div className="flex gap-2">
+                <Button
+                  onClick={() => setIsVehicleImportModalOpen(true)}
+                  variant="outline"
+                  className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black font-semibold"
+                >
+                  <FileSpreadsheet size={16} className="mr-2" />
+                  Importar Excel
+                </Button>
                 <Button
                   onClick={() => setIsVehicleReportModalOpen(true)}
                   variant="outline"
@@ -1393,6 +1467,8 @@ const Frota: React.FC = () => {
             <VeiculosTable
               veiculos={vehicles ? vehicles.map(mapVehicleToComponent) : []}
               searchTerm={searchTerm}
+              vehicleTypeFilter={vehicleTypeFilter}
+              maintenanceAlertFilter={maintenanceAlertFilter}
               maintenances={maintenances}
               onRefresh={refetchVehicles}
               onEdit={handleVeiculoEdit}
@@ -1781,6 +1857,44 @@ const Frota: React.FC = () => {
               </div>
             </div>
           </TabsContent>
+
+          <TabsContent value="baterias" className="mt-6 space-y-4">
+            <BateriasTable />
+          </TabsContent>
+
+          <TabsContent value="documentos" className="mt-6 space-y-4">
+            <VehicleDocumentsTable />
+          </TabsContent>
+
+          <TabsContent value="agregados" className="mt-6 space-y-4">
+            <AgregadosDashboard veiculos={vehicles || []} />
+            <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
+              <h3 className="text-seguranca-lightgray font-semibold flex items-center gap-2">
+                <UserCheck className="h-5 w-5 text-orange-400" />
+                Gestão de Agregados
+              </h3>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    setSelectedAgregado(null);
+                    setIsAgregadoModalOpen(true);
+                  }}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  <Plus size={16} className="mr-2" />
+                  Novo Agregado
+                </Button>
+              </div>
+            </div>
+            <AgregadosTable
+              veiculos={vehicles || []}
+              onRefresh={refetchVehicles}
+              onEdit={(veiculo) => {
+                setSelectedAgregado(veiculo);
+                setIsAgregadoModalOpen(true);
+              }}
+            />
+          </TabsContent>
         </Tabs>
 
         {/* Modais */}
@@ -1976,6 +2090,25 @@ const Frota: React.FC = () => {
             console.log('🔍 Fechando modal de relatório');
             setIsVehicleReportModalOpen(false);
           }}
+        />
+
+        <VehicleImportModal
+          open={isVehicleImportModalOpen}
+          onOpenChange={setIsVehicleImportModalOpen}
+          onSuccess={() => {
+            refetchVehicles();
+          }}
+        />
+
+        <AgregadosFormModal
+          isOpen={isAgregadoModalOpen}
+          onOpenChange={setIsAgregadoModalOpen}
+          onSuccess={() => {
+            refetchVehicles();
+            setSelectedAgregado(null);
+          }}
+          vehicle={selectedAgregado}
+          vehicles={vehicles || []}
         />
 
       </div>

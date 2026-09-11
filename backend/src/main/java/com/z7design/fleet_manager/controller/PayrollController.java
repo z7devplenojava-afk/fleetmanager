@@ -69,7 +69,7 @@ public class PayrollController {
                     schema = @Schema(implementation = Payroll.class),
                     examples = @ExampleObject(value = "{\"id\":\"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"grossSalary\":5200.00, \"netSalary\":4600.00}")))
     @PutMapping("/{id}")
-    public ResponseEntity<Payroll> update(@PathVariable UUID id, @RequestBody Payroll payroll) {
+    public ResponseEntity<Payroll> update(@PathVariable("id") UUID id, @RequestBody Payroll payroll) {
         return ResponseEntity.ok(payrollService.update(id, payroll));
     }
     
@@ -83,7 +83,7 @@ public class PayrollController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         payrollService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -99,7 +99,7 @@ public class PayrollController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Payroll> findById(@PathVariable UUID id) {
+    public ResponseEntity<Payroll> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(payrollService.findById(id));
     }
     
@@ -112,7 +112,7 @@ public class PayrollController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<Payroll>> findByEmployeeId(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<Payroll>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
         return ResponseEntity.ok(payrollService.findByEmployeeId(employeeId));
     }
     
@@ -125,7 +125,7 @@ public class PayrollController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/unit/{unitId}")
-    public ResponseEntity<List<Payroll>> findByUnitId(@PathVariable UUID unitId) {
+    public ResponseEntity<List<Payroll>> findByUnitId(@PathVariable("unitId") UUID unitId) {
         return ResponseEntity.ok(payrollService.findByUnitId(unitId));
     }
     
@@ -143,8 +143,8 @@ public class PayrollController {
     @Parameter(description = "Data de fim do perÃ­odo (formato YYYY-MM-DD)", example = "2023-12-31", required = true)
     @GetMapping("/date-range")
     public ResponseEntity<List<Payroll>> findByDateBetween(
-            @RequestParam String startDate,
-            @RequestParam String endDate) {
+            @RequestParam(value = "startDate") String startDate,
+            @RequestParam(value = "endDate") String endDate) {
         return ResponseEntity.ok(payrollService.findByDateBetween(startDate, endDate));
     }
     
@@ -160,7 +160,7 @@ public class PayrollController {
     })
     @Parameter(description = "MÃªs (formato MM)", example = "06", required = true)
     @GetMapping("/month/{month}")
-    public ResponseEntity<List<Payroll>> findByMonth(@PathVariable String month) {
+    public ResponseEntity<List<Payroll>> findByMonth(@PathVariable("month") String month) {
         return ResponseEntity.ok(payrollService.findByMonth(month));
     }
     
@@ -176,7 +176,7 @@ public class PayrollController {
     })
     @Parameter(description = "Ano (formato YYYY)", example = "2024", required = true)
     @GetMapping("/year/{year}")
-    public ResponseEntity<List<Payroll>> findByYear(@PathVariable Integer year) {
+    public ResponseEntity<List<Payroll>> findByYear(@PathVariable("year") Integer year) {
         return ResponseEntity.ok(payrollService.findByYear(year));
     }
     
@@ -195,13 +195,13 @@ public class PayrollController {
 
     // ===== Endpoints adicionais =====
     @PutMapping("/{id}/approve")
-    public ResponseEntity<Payroll> approve(@PathVariable UUID id) {
+    public ResponseEntity<Payroll> approve(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(payrollService.approve(id));
     }
 
     @PutMapping("/{id}/paid")
     public ResponseEntity<Payroll> markAsPaid(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) java.util.Map<String, String> body) {
         String dateStr = body != null ? body.get("paymentDate") : null;
         java.time.LocalDate paymentDate = null;
@@ -212,26 +212,26 @@ public class PayrollController {
     }
 
     @PutMapping("/{id}/cancel")
-    public ResponseEntity<Payroll> cancel(@PathVariable UUID id) {
+    public ResponseEntity<Payroll> cancel(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(payrollService.cancel(id));
     }
 
     @GetMapping("/total-salary/{referenceMonth}")
-    public ResponseEntity<Double> getTotalSalaryByReferenceMonth(@PathVariable String referenceMonth) {
+    public ResponseEntity<Double> getTotalSalaryByReferenceMonth(@PathVariable("referenceMonth") String referenceMonth) {
         return ResponseEntity.ok(payrollService.getTotalNetSalaryByReferenceMonth(referenceMonth));
     }
 
     @PutMapping("/{id}/reopen")
-    public ResponseEntity<Payroll> reopen(@PathVariable UUID id) {
+    public ResponseEntity<Payroll> reopen(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(payrollService.reopen(id));
     }
 
     // ===== IntegraÃ§Ãµes com holerite: download e envio por email =====
     @GetMapping("/{employeeCpf}/{month}/{year}/download")
     public ResponseEntity<org.springframework.core.io.Resource> downloadPayslipByCpfMonthYear(
-            @PathVariable String employeeCpf,
-            @PathVariable Integer month,
-            @PathVariable Integer year) throws java.net.MalformedURLException {
+            @PathVariable("employeeCpf") String employeeCpf,
+            @PathVariable("month") Integer month,
+            @PathVariable("year") Integer year) throws java.net.MalformedURLException {
         java.util.Optional<String> pathOpt = payslipService.resolvePayslipPathByCpfMonthYear(employeeCpf, month, year);
         if (pathOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -249,9 +249,9 @@ public class PayrollController {
 
     @PostMapping("/{employeeId}/{month}/{year}/send-email")
     public ResponseEntity<com.z7design.fleet_manager.dto.EnvioResponse> sendPayslipByEmail(
-            @PathVariable UUID employeeId,
-            @PathVariable Integer month,
-            @PathVariable Integer year) {
+            @PathVariable("employeeId") UUID employeeId,
+            @PathVariable("month") Integer month,
+            @PathVariable("year") Integer year) {
         // Monta request para envio individual via email
         com.z7design.fleet_manager.dto.EnvioRequest request = new com.z7design.fleet_manager.dto.EnvioRequest();
         request.setTipo("email");
@@ -265,9 +265,9 @@ public class PayrollController {
 
     @GetMapping("/report.csv")
     public ResponseEntity<String> reportCsv(
-            @RequestParam(required = false) String referenceMonth,
-            @RequestParam(required = false) String unitId,
-            @RequestParam(required = false) String employeeId) {
+            @RequestParam(value = "referenceMonth", required = false) String referenceMonth,
+            @RequestParam(value = "unitId", required = false) String unitId,
+            @RequestParam(value = "employeeId", required = false) String employeeId) {
         // CSV simples: id,employee,cpf,unit,referenceMonth,gross,net,status
         StringBuilder sb = new StringBuilder();
         sb.append("id,employee,cpf,unit,referenceMonth,gross,net,status\n");
@@ -293,16 +293,16 @@ public class PayrollController {
     // Alias compatÃ­vel com frontend existente
     @GetMapping("/report")
     public ResponseEntity<String> report(
-            @RequestParam(required = false) String referenceMonth,
-            @RequestParam(required = false) String unitId,
-            @RequestParam(required = false) String employeeId) {
+            @RequestParam(value = "referenceMonth", required = false) String referenceMonth,
+            @RequestParam(value = "unitId", required = false) String unitId,
+            @RequestParam(value = "employeeId", required = false) String employeeId) {
         return reportCsv(referenceMonth, unitId, employeeId);
     }
 
     // CompatÃ­vel com payrollService.ts: sendPayrollByEmail(id, email)
     @PostMapping("/{id}/send-email")
     public ResponseEntity<com.z7design.fleet_manager.dto.EnvioResponse> sendPayrollByEmail(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) java.util.Map<String, Object> body) {
         Payroll payroll = payrollService.findById(id);
         if (payroll.getEmployee() == null || payroll.getEmployee().getId() == null) {
@@ -320,7 +320,7 @@ public class PayrollController {
     }
 
     @GetMapping("/{id}/download")
-    public ResponseEntity<org.springframework.core.io.Resource> downloadByPayrollId(@PathVariable UUID id) throws java.net.MalformedURLException {
+    public ResponseEntity<org.springframework.core.io.Resource> downloadByPayrollId(@PathVariable("id") UUID id) throws java.net.MalformedURLException {
         Payroll payroll = payrollService.findById(id);
         String cpf = payroll.getEmployee() != null ? payroll.getEmployee().getDocument() : null;
         if (cpf == null) {

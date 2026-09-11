@@ -112,6 +112,7 @@ import {
   FolderUp,
   DoorOpen,
   UserCircle,
+  Ruler,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -258,6 +259,7 @@ const operacionalMenuItems = [
   { icon: Route, text: 'Supervisão de Postos', to: '/rota-semanal-supervisao', id: 'rota-semanal-supervisao' },
   { icon: Shield, text: 'Equipamentos', to: '/operacional', id: 'equipamentos' },
   { icon: ArrowUpDown, text: 'Troca de Plantão', to: '/operacional/troca-plantao', id: 'troca-plantao' },
+  { icon: Ruler, text: 'Medição', to: '/operacional/medicao', id: 'operacional-medicao' },
 ];
 
 // Grupo Empresas
@@ -275,6 +277,7 @@ const comercialMenuItems = [
   { icon: Calculator, text: 'Orçamentos', to: '/orcamentos', id: 'orcamentos' },
   { icon: FileText, text: 'Contratos', to: '/contratos', id: 'contratos' },
   { icon: BarChart3, text: 'CRM Comercial', to: '/crm', id: 'crm' },
+  { icon: Target, text: 'Prospecção', to: '/prospeccao', id: 'prospeccao' },
 ];
 
 // Módulo de Gestão de Estoque

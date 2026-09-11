@@ -140,31 +140,29 @@ const MaintenanceDashboardV2: React.FC = () => {
                                 </div>
                             </CardHeader>
                             <CardContent className="p-6 h-[350px]">
-                                <div style={{ width: '100%', height: '100%', minHeight: '300px' }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={data}>
-                                            <defs>
-                                                <linearGradient id="colorDiesel" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                                                </linearGradient>
-                                                <linearGradient id="colorArla" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#ffcc00" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#ffcc00" stopOpacity={0} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                            <XAxis dataKey="name" stroke="#666" fontSize={10} />
-                                            <YAxis stroke="#666" fontSize={10} />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }}
-                                                itemStyle={{ fontSize: '12px' }}
-                                            />
-                                            <Area type="monotone" dataKey="diesel" stroke="#ef4444" fillOpacity={1} fill="url(#colorDiesel)" />
-                                            <Area type="monotone" dataKey="arla" stroke="#ffcc00" fillOpacity={1} fill="url(#colorArla)" />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </div>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <AreaChart data={data}>
+                                        <defs>
+                                            <linearGradient id="colorDiesel" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                                            </linearGradient>
+                                            <linearGradient id="colorArla" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#ffcc00" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="#ffcc00" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                                        <XAxis dataKey="name" stroke="#666" fontSize={10} />
+                                        <YAxis stroke="#666" fontSize={10} />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }}
+                                            itemStyle={{ fontSize: '12px' }}
+                                        />
+                                        <Area type="monotone" dataKey="diesel" stroke="#ef4444" fillOpacity={1} fill="url(#colorDiesel)" />
+                                        <Area type="monotone" dataKey="arla" stroke="#ffcc00" fillOpacity={1} fill="url(#colorArla)" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
                             </CardContent>
                         </Card>
                     </motion.div>
@@ -179,21 +177,19 @@ const MaintenanceDashboardV2: React.FC = () => {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="flex flex-col items-center justify-center h-[350px]">
-                                <div style={{ width: '100%', height: '100%', minHeight: '300px' }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <RadialBarChart innerRadius="30%" outerRadius="100%" data={healthData} startAngle={180} endAngle={0}>
-                                            <RadialBar
-                                                minAngle={15}
-                                                label={{ fill: '#666', position: 'insideStart', fontSize: 10 }}
-                                                background
-                                                clockWise={true}
-                                                dataKey="value"
-                                            />
-                                            <Tooltip />
-                                            <Legend iconSize={10} width={120} height={140} layout="vertical" verticalAlign="middle" align="right" />
-                                        </RadialBarChart>
-                                    </ResponsiveContainer>
-                                </div>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <RadialBarChart innerRadius="30%" outerRadius="100%" data={healthData} startAngle={180} endAngle={0}>
+                                        <RadialBar
+                                            minAngle={15}
+                                            label={{ fill: '#666', position: 'insideStart', fontSize: 10 }}
+                                            background
+                                            clockWise={true}
+                                            dataKey="value"
+                                        />
+                                        <Tooltip />
+                                        <Legend iconSize={10} width={120} height={140} layout="vertical" verticalAlign="middle" align="right" />
+                                    </RadialBarChart>
+                                </ResponsiveContainer>
                             </CardContent>
                         </Card>
                     </motion.div>

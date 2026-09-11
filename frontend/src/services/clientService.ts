@@ -102,7 +102,23 @@ export const clientService = {
   // Excluir cliente
   async deleteClient(id: string): Promise<void> {
     await api.delete(`/api/clients/${id}`);
-  }
+  },
+
+  // Importar Quadro de Obras via Excel
+  async importQuadroObras(file: File): Promise<{
+    totalRows: number;
+    inserted: number;
+    updated: number;
+    skipped: number;
+    errors: string[];
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/clients/import/quadro-obras', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
 };
 
 export default clientService;

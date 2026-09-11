@@ -281,7 +281,6 @@ public class Client implements TenantAware {
         return companyId;
     }
 
-    @Override
     public void setCompanyId(UUID companyId) {
         this.companyId = companyId;
     }

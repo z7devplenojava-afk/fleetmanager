@@ -32,9 +32,9 @@ public class TimeSheetController {
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL')")
     @Operation(summary = "Gerar folha de ponto mensal em Excel para um funcionÃ¡rio")
     public ResponseEntity<byte[]> generateTimeSheet(
-            @PathVariable UUID employeeId,
-            @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Integer month) {
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "year", required = false) Integer year,
+            @RequestParam(value = "month", required = false) Integer month) {
         try {
             LocalDate today = LocalDate.now();
             int resolvedYear = (year != null) ? year : today.getYear();

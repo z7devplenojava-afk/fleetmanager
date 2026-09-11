@@ -61,14 +61,14 @@ public class MeasurementReportService {
             document = new Document(pdfDoc);
 
             // TÃ­tulo
-            Paragraph title = new Paragraph("TESTE DE GERAÃ‡ÃƒO DE PDF")
+            Paragraph title = new Paragraph("TESTE DE GERAÇÃO DE PDF")
                     .setTextAlignment(TextAlignment.CENTER)
                     .setFontSize(20)
                     .setBold();
             document.add(title);
 
             // ConteÃºdo de teste
-            Paragraph content = new Paragraph("Este Ã© um PDF de teste gerado pelo sistema.")
+            Paragraph content = new Paragraph("Este é um PDF de teste gerado pelo sistema.")
                     .setTextAlignment(TextAlignment.CENTER)
                     .setFontSize(12)
                     .setMarginTop(20);
@@ -103,15 +103,15 @@ public class MeasurementReportService {
     }
 
     /**
-     * Gera PDF de um boletim especÃ­fico com informaÃ§Ãµes completas
+     * Gera PDF de um boletim específico com informações completas
      */
     @Transactional(readOnly = true)
     public byte[] generateBulletinPDF(UUID bulletinId) throws IOException {
-        log.info("Gerando PDF para boletim: {} com informaÃ§Ãµes completas", bulletinId);
+        log.info("Gerando PDF para boletim: {} com informações completas", bulletinId);
 
         // Buscar o boletim no banco de dados
         MeasurementBulletin bulletin = bulletinRepository.findById(bulletinId)
-                .orElseThrow(() -> new RuntimeException("Boletim nÃ£o encontrado: " + bulletinId));
+                .orElseThrow(() -> new RuntimeException("Boletim não encontrado: " + bulletinId));
 
         // Inicializar relacionamentos lazy dentro da transaÃ§Ã£o
         if (bulletin.getItems() != null) {
@@ -132,7 +132,7 @@ public class MeasurementReportService {
                 log.warn("Nenhuma empresa ativa encontrada. Usando primeira empresa cadastrada: {} (ID: {})",
                         allCompanies.get(0).getName(), companyId);
             } else {
-                throw new ResourceNotFoundException("NÃ£o foi possÃ­vel determinar a empresa para o relatÃ³rio. " +
+                throw new ResourceNotFoundException("Não foi possível determinar a empresa para o relatório. " +
                         "Nenhuma empresa cadastrada no sistema. Por favor, cadastre pelo menos uma empresa.");
             }
         }
@@ -146,11 +146,12 @@ public class MeasurementReportService {
             // Criar documento com layout padrÃ£o
             ReportLayoutConfig layoutConfig = ReportLayoutConfig.builder()
                     .companyId(companyId)
-                    .reportTitle("BOLETIM DE MEDIÃ‡ÃƒO")
+                    .reportTitle("BOLETIM DE MEDIÇÃO")
                     .topMargin(120f) // EspaÃ§o para cabeÃ§alho
                     .bottomMargin(80f) // EspaÃ§o para rodapÃ©
                     .leftMargin(50f)
                     .rightMargin(50f)
+                    .landscape(true) // Paisagem para comportar todas as colunas
                     .build();
 
             docWithPdf = standardReportLayoutService.createDocumentWithLayout(writer, layoutConfig);
@@ -158,7 +159,7 @@ public class MeasurementReportService {
 
             // InformaÃ§Ãµes do contrato
             Paragraph contractInfo = new Paragraph(
-                    "NÂº Contrato: " + (bulletin.getContractNumber() != null ? bulletin.getContractNumber() : "N/A"))
+                    "Nº Contrato: " + (bulletin.getContractNumber() != null ? bulletin.getContractNumber() : "N/A"))
                     .setTextAlignment(TextAlignment.CENTER)
                     .setFontSize(12)
                     .setMarginTop(20);
@@ -166,7 +167,7 @@ public class MeasurementReportService {
 
             // PerÃ­odo
             String period = formatPeriod(bulletin.getPeriodStart(), bulletin.getPeriodEnd());
-            Paragraph periodInfo = new Paragraph("PerÃ­odo: " + period)
+            Paragraph periodInfo = new Paragraph("Período: " + period)
                     .setTextAlignment(TextAlignment.CENTER)
                     .setFontSize(12);
             document.add(periodInfo);
@@ -177,6 +178,12 @@ public class MeasurementReportService {
                     .setTextAlignment(TextAlignment.CENTER)
                     .setFontSize(12);
             document.add(companyInfo);
+
+            // Cliente
+            Paragraph clientInfo = new Paragraph("Cliente: " + getClientName(bulletin))
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setFontSize(12);
+            document.add(clientInfo);
 
             // Tabela de itens agrupada por categoria
             if (bulletin.getItems() != null && !bulletin.getItems().isEmpty()) {
@@ -206,37 +213,65 @@ public class MeasurementReportService {
                             .setMarginTop(20)
                             .setMarginBottom(10));
 
-                    // Cabeçalho da tabela - Ajustado para 7 colunas base
-                    Table table = new Table(7).setWidth(UnitValue.createPercentValue(100));
+                    // Cabeçalho da tabela - completa com todos os campos da medição
+                    // Larguras somam exatamente 100% para os cabeçalhos caberem em uma linha
+                    Table table = new Table(new UnitValue[] {
+                            UnitValue.createPercentValue(3f),
+                            UnitValue.createPercentValue(6f),
+                            UnitValue.createPercentValue(14f),
+                            UnitValue.createPercentValue(5f),
+                            UnitValue.createPercentValue(5f),
+                            UnitValue.createPercentValue(6f),
+                            UnitValue.createPercentValue(7f),
+                            UnitValue.createPercentValue(7f),
+                            UnitValue.createPercentValue(6f),
+                            UnitValue.createPercentValue(8f),
+                            UnitValue.createPercentValue(6f),
+                            UnitValue.createPercentValue(6f),
+                            UnitValue.createPercentValue(8f),
+                            UnitValue.createPercentValue(6f),
+                            UnitValue.createPercentValue(7f)
+                    }).setWidth(UnitValue.createPercentValue(100));
 
-                    table.addCell(createHeaderCell("Item"));
-                    table.addCell(createHeaderCell("Código"));
-                    table.addCell(createHeaderCell("Descrição"));
-                    table.addCell(createHeaderCell("Unidade"));
-                    table.addCell(createHeaderCell("Quantidade"));
-                    table.addCell(createHeaderCell("Preço Un."));
-                    table.addCell(createHeaderCell("Valor Total"));
+                    table.addCell(createHeaderCellSmall("Item"));
+                    table.addCell(createHeaderCellSmall("Código"));
+                    table.addCell(createHeaderCellSmall("Descrição"));
+                    table.addCell(createHeaderCellSmall("Unidade"));
+                    table.addCell(createHeaderCellSmall("Qtd/Dias"));
+                    table.addCell(createHeaderCellSmall("Diária"));
+                    table.addCell(createHeaderCellSmall("Preço Un."));
+                    table.addCell(createHeaderCellSmall("KM Consid."));
+                    table.addCell(createHeaderCellSmall("KM Exced."));
+                    table.addCell(createHeaderCellSmall("Valor KM Exc"));
+                    table.addCell(createHeaderCellSmall("Placa"));
+                    table.addCell(createHeaderCellSmall("Data"));
+                    table.addCell(createHeaderCellSmall("Trajeto"));
+                    table.addCell(createHeaderCellSmall("Tipo Veíc."));
+                    table.addCell(createHeaderCellSmall("Valor Total"));
 
                     for (MeasurementItem item : items) {
-                        table.addCell(
-                                createCell(String.valueOf(item.getItemNumber() != null ? item.getItemNumber() : "")));
-                        table.addCell(createCell(item.getCode() != null ? item.getCode() : ""));
+                        table.addCell(createCellSmall(
+                                String.valueOf(item.getItemNumber() != null ? item.getItemNumber() : "")));
+                        table.addCell(createCellSmall(item.getCode() != null ? item.getCode() : ""));
 
-                        // Descrição especial para KM Excedente
                         String description = item.getDescription() != null ? item.getDescription() : "";
-                        if (category == MeasurementCategory.EXCESS_KM) {
-                            description += String.format("\n(KM Final: %.2f - KM Inicial: %.2f - Franquia: %.2f)",
-                                    item.getFinalKm() != null ? item.getFinalKm() : BigDecimal.ZERO,
-                                    item.getInitialKm() != null ? item.getInitialKm() : BigDecimal.ZERO,
-                                    item.getFranchiseKm() != null ? item.getFranchiseKm() : BigDecimal.ZERO);
-                        }
-                        table.addCell(createCell(description));
+                        table.addCell(createCellSmall(description));
 
-                        table.addCell(createCell(item.getUnit() != null ? item.getUnit() : ""));
-                        table.addCell(createCell(String.format("%.2f",
+                        table.addCell(createCellSmall(item.getUnit() != null ? item.getUnit() : ""));
+                        table.addCell(createCellSmall(String.format("%.2f",
                                 item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO)));
-                        table.addCell(createCell(formatCurrency(item.getUnitPrice())));
-                        table.addCell(createCell(formatCurrency(item.getTotalValue())));
+                        table.addCell(createCellSmall(
+                                item.getDiaria() != null ? formatCurrency(item.getDiaria()) : "-"));
+                        table.addCell(createCellSmall(formatCurrency(item.getUnitPrice())));
+                        table.addCell(createCellSmall(formatNumberOrDash(item.getKmConsiderado())));
+                        table.addCell(createCellSmall(formatNumberOrDash(item.getKmExcedido())));
+                        table.addCell(createCellSmall(
+                                item.getValorKmExcedido() != null ? formatCurrency(item.getValorKmExcedido()) : "-"));
+                        table.addCell(createCellSmall(item.getVehiclePlate() != null ? item.getVehiclePlate() : "-"));
+                        table.addCell(createCellSmall(formatDate(item.getTripDate())));
+                        table.addCell(createCellSmall(item.getRoute() != null ? item.getRoute() : "-"));
+                        table.addCell(createCellSmall(item.getVehicleType() != null ? item.getVehicleType() : "-"));
+                        table.addCell(createCellSmall(formatCurrency(item.getTotalValue())));
                     }
                     document.add(table);
                 }
@@ -269,7 +304,7 @@ public class MeasurementReportService {
 
             document.add(new Paragraph("").setMarginTop(20));
 
-            Paragraph signature2 = new Paragraph("RESPONSÃVEL PELA MEDIÃ‡ÃƒO:")
+            Paragraph signature2 = new Paragraph("RESPONSÁVEL PELA MEDIÇÃO:")
                     .setFontSize(12)
                     .setBold();
             document.add(signature2);
@@ -323,10 +358,38 @@ public class MeasurementReportService {
                         .setTextAlignment(TextAlignment.CENTER));
     }
 
+    private com.itextpdf.layout.element.Cell createHeaderCellSmall(String text) {
+        return new com.itextpdf.layout.element.Cell()
+                .setPadding(1f)
+                .add(new Paragraph(text)
+                        .setBold()
+                        .setFontSize(8)
+                        .setTextAlignment(TextAlignment.CENTER));
+    }
+
+    private com.itextpdf.layout.element.Cell createCellSmall(String text) {
+        return new com.itextpdf.layout.element.Cell()
+                .add(new Paragraph(text != null ? text : "")
+                        .setFontSize(8)
+                        .setTextAlignment(TextAlignment.CENTER));
+    }
+
     private String formatCurrency(BigDecimal value) {
         if (value == null)
             return "R$ 0,00";
         return String.format("R$ %.2f", value).replace(".", ",");
+    }
+
+    private String formatNumberOrDash(BigDecimal value) {
+        if (value == null)
+            return "-";
+        return String.format("%.2f", value).replace(".", ",");
+    }
+
+    private String formatDate(java.time.LocalDate date) {
+        if (date == null)
+            return "-";
+        return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
     }
 
     private String formatPeriod(LocalDate start, LocalDate end) {
@@ -336,16 +399,33 @@ public class MeasurementReportService {
                 end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
     }
 
+    private String getClientName(MeasurementBulletin bulletin) {
+        String clientName = bulletin.getClient() != null ? bulletin.getClient().getName() : null;
+        return clientName != null && !clientName.trim().isEmpty() ? clientName : "N/A";
+    }
+
+    private void setExcelCell(Row row, int column, BigDecimal value, CellStyle numberStyle, CellStyle fallbackStyle) {
+        if (value != null) {
+            Cell cell = row.createCell(column);
+            cell.setCellValue(value.doubleValue());
+            cell.setCellStyle(numberStyle);
+        } else {
+            Cell cell = row.createCell(column);
+            cell.setCellValue("");
+            cell.setCellStyle(fallbackStyle);
+        }
+    }
+
     /**
-     * Gera Excel de um boletim especÃ­fico com informaÃ§Ãµes completas
+     * Gera Excel de um boletim específico com informações completas
      */
     @Transactional(readOnly = true)
     public byte[] generateBulletinExcel(UUID bulletinId) throws IOException {
-        log.info("Gerando Excel para boletim: {} com informaÃ§Ãµes completas", bulletinId);
+        log.info("Gerando Excel para boletim: {} com informações completas", bulletinId);
 
         // Buscar o boletim no banco de dados
         MeasurementBulletin bulletin = bulletinRepository.findById(bulletinId)
-                .orElseThrow(() -> new RuntimeException("Boletim nÃ£o encontrado: " + bulletinId));
+                .orElseThrow(() -> new RuntimeException("Boletim não encontrado: " + bulletinId));
 
         // Inicializar relacionamentos lazy dentro da transaÃ§Ã£o
         if (bulletin.getItems() != null) {
@@ -353,7 +433,7 @@ public class MeasurementReportService {
         }
 
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Sheet sheet = workbook.createSheet("Boletim de MediÃ§Ã£o");
+            Sheet sheet = workbook.createSheet("Boletim de Medição");
 
             // Estilos
             CellStyle headerStyle = workbook.createCellStyle();
@@ -408,16 +488,16 @@ public class MeasurementReportService {
             // CabeÃ§alho da empresa
             Row companyRow = sheet.createRow(rowIndex++);
             Cell companyCell = companyRow.createCell(0);
-            companyCell.setCellValue("Promover VigilÃ¢ncia & ServiÃ§os");
+            companyCell.setCellValue("Promover Vigilância & Serviços");
             companyCell.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(rowIndex - 1, rowIndex - 1, 0, 6));
+            sheet.addMergedRegion(new CellRangeAddress(rowIndex - 1, rowIndex - 1, 0, 14));
 
             // TÃ­tulo
             Row titleRow = sheet.createRow(rowIndex++);
             Cell titleCell = titleRow.createCell(0);
-            titleCell.setCellValue("BOLETIM DE MEDIÃ‡ÃƒO");
+            titleCell.setCellValue("BOLETIM DE MEDIÇÃO");
             titleCell.setCellStyle(headerStyle);
-            sheet.addMergedRegion(new CellRangeAddress(rowIndex - 1, rowIndex - 1, 0, 6));
+            sheet.addMergedRegion(new CellRangeAddress(rowIndex - 1, rowIndex - 1, 0, 14));
 
             rowIndex++; // Linha em branco
 
@@ -430,7 +510,7 @@ public class MeasurementReportService {
 
             // PerÃ­odo
             Row periodRow = sheet.createRow(rowIndex++);
-            periodRow.createCell(0).setCellValue("PerÃ­odo:");
+            periodRow.createCell(0).setCellValue("Período:");
             periodRow.getCell(0).setCellStyle(labelStyle);
             String period = formatPeriod(bulletin.getPeriodStart(), bulletin.getPeriodEnd());
             periodRow.createCell(1).setCellValue(period);
@@ -442,13 +522,20 @@ public class MeasurementReportService {
             companyInfoRow.createCell(1)
                     .setCellValue(bulletin.getCompanyName() != null ? bulletin.getCompanyName() : "N/A");
 
+            // Cliente
+            Row clientRow = sheet.createRow(rowIndex++);
+            clientRow.createCell(0).setCellValue("Cliente:");
+            clientRow.getCell(0).setCellStyle(labelStyle);
+            clientRow.createCell(1).setCellValue(getClientName(bulletin));
+
             rowIndex++; // Linha em branco
 
             // Tabela de itens
             if (bulletin.getItems() != null && !bulletin.getItems().isEmpty()) {
-                // CabeÃ§alho da tabela
+                // CabeÃ§alho da tabela - completa com todos os campos da mediÃ§Ã£o
                 Row tableHeader = sheet.createRow(rowIndex++);
-                String[] headers = { "Item", "CÃ³digo", "DescriÃ§Ã£o", "Unidade", "Quantidade", "PreÃ§o Un.",
+                String[] headers = { "Item", "Código", "Descrição", "Unidade", "Qtd/Dias", "Diária", "Preço Un.",
+                        "KM Consid.", "KM Exced.", "Valor KM Exc", "Placa", "Data", "Trajeto", "Tipo Veíc.",
                         "Valor Total" };
                 for (int i = 0; i < headers.length; i++) {
                     Cell cell = tableHeader.createCell(i);
@@ -483,23 +570,26 @@ public class MeasurementReportService {
                     }
                     itemRow.getCell(4).setCellStyle(tableCellStyle);
 
-                    if (item.getUnitPrice() != null) {
-                        Cell priceCell = itemRow.createCell(5);
-                        priceCell.setCellValue(item.getUnitPrice().doubleValue());
-                        priceCell.setCellStyle(currencyStyle);
-                    } else {
-                        itemRow.createCell(5).setCellValue("");
-                        itemRow.getCell(5).setCellStyle(tableCellStyle);
-                    }
+                    setExcelCell(itemRow, 5, item.getDiaria(), currencyStyle, tableCellStyle);
+                    setExcelCell(itemRow, 6, item.getUnitPrice(), currencyStyle, tableCellStyle);
+                    setExcelCell(itemRow, 7, item.getKmConsiderado(), tableCellStyle, tableCellStyle);
+                    setExcelCell(itemRow, 8, item.getKmExcedido(), tableCellStyle, tableCellStyle);
+                    setExcelCell(itemRow, 9, item.getValorKmExcedido(), currencyStyle, tableCellStyle);
 
-                    if (item.getTotalValue() != null) {
-                        Cell totalCell = itemRow.createCell(6);
-                        totalCell.setCellValue(item.getTotalValue().doubleValue());
-                        totalCell.setCellStyle(currencyStyle);
-                    } else {
-                        itemRow.createCell(6).setCellValue("");
-                        itemRow.getCell(6).setCellStyle(tableCellStyle);
-                    }
+                    itemRow.createCell(10).setCellValue(item.getVehiclePlate() != null ? item.getVehiclePlate() : "-");
+                    itemRow.getCell(10).setCellStyle(tableCellStyle);
+
+                    itemRow.createCell(11)
+                            .setCellValue(item.getTripDate() != null ? formatDate(item.getTripDate()) : "-");
+                    itemRow.getCell(11).setCellStyle(tableCellStyle);
+
+                    itemRow.createCell(12).setCellValue(item.getRoute() != null ? item.getRoute() : "-");
+                    itemRow.getCell(12).setCellStyle(tableCellStyle);
+
+                    itemRow.createCell(13).setCellValue(item.getVehicleType() != null ? item.getVehicleType() : "-");
+                    itemRow.getCell(13).setCellStyle(tableCellStyle);
+
+                    setExcelCell(itemRow, 14, item.getTotalValue(), currencyStyle, tableCellStyle);
                 }
             }
 
@@ -507,10 +597,10 @@ public class MeasurementReportService {
 
             // Subtotal
             Row subtotalRow = sheet.createRow(rowIndex++);
-            subtotalRow.createCell(5).setCellValue("Subtotal:");
-            subtotalRow.getCell(5).setCellStyle(labelStyle);
+            subtotalRow.createCell(13).setCellValue("Subtotal:");
+            subtotalRow.getCell(13).setCellStyle(labelStyle);
             if (bulletin.getSubtotal() != null) {
-                Cell subtotalCell = subtotalRow.createCell(6);
+                Cell subtotalCell = subtotalRow.createCell(14);
                 subtotalCell.setCellValue(bulletin.getSubtotal().doubleValue());
                 subtotalCell.setCellStyle(currencyStyle);
             }
@@ -532,7 +622,7 @@ public class MeasurementReportService {
             rowIndex++; // Linha em branco
 
             Row signature2LabelRow = sheet.createRow(rowIndex++);
-            signature2LabelRow.createCell(0).setCellValue("RESPONSÃVEL PELA MEDIÃ‡ÃƒO:");
+            signature2LabelRow.createCell(0).setCellValue("RESPONSÁVEL PELA MEDIÇÃO:");
             signature2LabelRow.getCell(0).setCellStyle(labelStyle);
 
             Row signature2LineRow = sheet.createRow(rowIndex++);
@@ -550,10 +640,10 @@ public class MeasurementReportService {
             dateCell.setCellValue("Gerado em: "
                     + java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
             dateCell.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(rowIndex - 1, rowIndex - 1, 0, 6));
+            sheet.addMergedRegion(new CellRangeAddress(rowIndex - 1, rowIndex - 1, 0, 14));
 
             // Ajustar largura das colunas
-            for (int i = 0; i < 7; i++) {
+            for (int i = 0; i < 15; i++) {
                 sheet.autoSizeColumn(i);
                 // Adicionar um pouco de espaÃ§o extra
                 sheet.setColumnWidth(i, sheet.getColumnWidth(i) + 1000);
@@ -573,15 +663,15 @@ public class MeasurementReportService {
      * Gera PDFs em lote (temporariamente desabilitado)
      */
     public byte[] generateBulkBulletinsPDF(List<UUID> bulletinIds) throws IOException {
-        log.info("PDF em lote nÃ£o implementado ainda para {} boletins", bulletinIds.size());
-        throw new IOException("GeraÃ§Ã£o de PDF em lote temporariamente nÃ£o disponÃ­vel");
+        log.info("PDF em lote não implementado ainda para {} boletins", bulletinIds.size());
+        throw new IOException("Geração de PDF em lote temporariamente não disponível");
     }
 
     /**
      * Gera Excel em lote (temporariamente desabilitado)
      */
     public byte[] generateBulkBulletinsExcel(List<UUID> bulletinIds) throws IOException {
-        log.info("Excel em lote nÃ£o implementado ainda para {} boletins", bulletinIds.size());
-        throw new IOException("GeraÃ§Ã£o de Excel em lote temporariamente nÃ£o disponÃ­vel");
+        log.info("Excel em lote não implementado ainda para {} boletins", bulletinIds.size());
+        throw new IOException("Geração de Excel em lote temporariamente não disponível");
     }
 }

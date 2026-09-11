@@ -53,7 +53,7 @@ public class UserController {
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Buscar usuÃ¡rio por ID", description = "Retorna um usuÃ¡rio especÃ­fico pelo ID. Permite acesso para usuÃ¡rios autenticados (necessÃ¡rio para chat)")
-    public ResponseEntity<?> getUserById(@PathVariable String id) {
+    public ResponseEntity<?> getUserById(@PathVariable("id") String id) {
         try {
             // Validar ID
             if (id == null || id.trim().isEmpty()) {
@@ -112,7 +112,7 @@ public class UserController {
     @GetMapping("/username/{username}")
     @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
     @Operation(summary = "Buscar usuÃ¡rio por username", description = "Retorna um usuÃ¡rio especÃ­fico pelo username")
-    public ResponseEntity<UserListResponseDTO> getUserByUsername(@PathVariable String username) {
+    public ResponseEntity<UserListResponseDTO> getUserByUsername(@PathVariable("username") String username) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isColaborador = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_COLABORADOR"));
@@ -131,7 +131,7 @@ public class UserController {
     @GetMapping("/email/{email}")
     @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
     @Operation(summary = "Buscar usuÃ¡rio por email", description = "Retorna um usuÃ¡rio especÃ­fico pelo email")
-    public ResponseEntity<UserListResponseDTO> getUserByEmail(@PathVariable String email) {
+    public ResponseEntity<UserListResponseDTO> getUserByEmail(@PathVariable("email") String email) {
         User user = userService.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado"));
 
@@ -167,7 +167,7 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "UsuÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<UserListResponseDTO> getUserByCpf(@PathVariable String cpf) {
+    public ResponseEntity<UserListResponseDTO> getUserByCpf(@PathVariable("cpf") String cpf) {
         User user = userService.findByEmployeeCpf(cpf)
                 .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado para o CPF informado"));
 
@@ -210,7 +210,7 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "UsuÃ¡rio nÃ£o encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<?> update(@PathVariable String id, @Valid @RequestBody UpdateUserRequest request) {
+    public ResponseEntity<?> update(@PathVariable("id") String id, @Valid @RequestBody UpdateUserRequest request) {
         try {
             // Validar ID
             if (id == null || id.trim().isEmpty()) {
@@ -325,13 +325,19 @@ public class UserController {
             dto.setRoles(java.util.Collections.emptyList());
         }
 
-        // Campos de informaÃ§Ãµes adicionais
+        // Campos de informações adicionais
         dto.setAvatar(user.getAvatar());
         dto.setDepartment(user.getDepartment());
         dto.setPosition(user.getPosition());
         dto.setEmployeeCode(user.getEmployeeCode());
         dto.setPhone(user.getPhone());
         dto.setAddress(user.getAddress());
+        if (user.getCompanyId() != null) {
+            dto.setCompanyId(user.getCompanyId().toString());
+        }
+        if (user.getCompany() != null) {
+            dto.setCompanyName(user.getCompany().getName());
+        }
 
         // Status online/offline
         try {
@@ -373,15 +379,51 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('USERS_DELETE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
-    @Operation(summary = "Excluir usuÃ¡rio", description = "Exclui um usuÃ¡rio do sistema")
+    @Operation(summary = "Excluir usuário", description = "Exclui um usuário do sistema pelo ID")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "UsuÃ¡rio excluÃ­do com sucesso"),
-            @ApiResponse(responseCode = "404", description = "UsuÃ¡rio nÃ£o encontrado"),
+            @ApiResponse(responseCode = "204", description = "Usuário excluído com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Não é permitido excluir a própria conta"),
+            @ApiResponse(responseCode = "404", description = "Usuário não encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<?> delete(@PathVariable("id") String id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            String currentUsername = auth.getName();
+            User targetUser = userService.findById(UUID.fromString(id)).orElse(null);
+            if (targetUser != null && currentUsername.equalsIgnoreCase(targetUser.getUsername())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Não é permitido excluir sua própria conta de usuário."));
+            }
+        }
         userService.delete(UUID.fromString(id));
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/bulk-delete")
+    @PreAuthorize("hasAuthority('USERS_DELETE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @Operation(summary = "Excluir usuários em massa", description = "Exclui múltiplos usuários do sistema pelos IDs informados")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Usuários excluídos com sucesso"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado")
+    })
+    public ResponseEntity<Map<String, Object>> deleteBulk(@RequestBody List<String> ids) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = (auth != null) ? auth.getName() : null;
+
+        List<UUID> uuidList = ids.stream()
+                .filter(id -> id != null && !id.trim().isEmpty())
+                .map(id -> {
+                    try {
+                        return UUID.fromString(id.trim());
+                    } catch (Exception e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toList());
+
+        Map<String, Object> result = userService.deleteBulk(uuidList, currentUsername);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/profile")

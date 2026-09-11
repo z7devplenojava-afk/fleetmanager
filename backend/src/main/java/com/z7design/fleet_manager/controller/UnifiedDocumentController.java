@@ -72,11 +72,11 @@ public class UnifiedDocumentController {
      */
     @PostMapping("/create")
     public ResponseEntity<Map<String, Object>> createUnifiedDocument(
-            @RequestParam String employeeName,
-            @RequestParam int month,
-            @RequestParam int year,
-            @RequestParam(required = false) java.util.UUID payslipId,
-            @RequestParam(required = false) java.util.UUID receiptId) {
+            @RequestParam(value = "employeeName") String employeeName,
+            @RequestParam(value = "month") int month,
+            @RequestParam(value = "year") int year,
+            @RequestParam(value = "payslipId", required = false) java.util.UUID payslipId,
+            @RequestParam(value = "receiptId", required = false) java.util.UUID receiptId) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -134,9 +134,9 @@ public class UnifiedDocumentController {
      */
     @GetMapping("/debug-search-receipt")
     public ResponseEntity<Map<String, Object>> debugSearchReceipt(
-            @RequestParam String employeeName,
-            @RequestParam int month,
-            @RequestParam int year) {
+            @RequestParam(value = "employeeName") String employeeName,
+            @RequestParam(value = "month") int month,
+            @RequestParam(value = "year") int year) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -204,8 +204,8 @@ public class UnifiedDocumentController {
      */
     @GetMapping("/debug-data")
     public ResponseEntity<Map<String, Object>> debugUnificationData(
-            @RequestParam(required = false) Integer month,
-            @RequestParam(required = false) Integer year) {
+            @RequestParam(value = "month", required = false) Integer month,
+            @RequestParam(value = "year", required = false) Integer year) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -337,9 +337,9 @@ public class UnifiedDocumentController {
      */
     @PostMapping("/test-create")
     public ResponseEntity<Map<String, Object>> testCreateUnifiedDocument(
-            @RequestParam(required = false) String employeeName,
-            @RequestParam(required = false) Integer month,
-            @RequestParam(required = false) Integer year) {
+            @RequestParam(value = "employeeName", required = false) String employeeName,
+            @RequestParam(value = "month", required = false) Integer month,
+            @RequestParam(value = "year", required = false) Integer year) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -520,7 +520,7 @@ public class UnifiedDocumentController {
      * Endpoint pÃºblico para servir arquivos PDF de documentos unificados
      */
     @GetMapping("/public/file/{fileName:.+}")
-    public ResponseEntity<Resource> serveUnifiedDocumentFile(@PathVariable String fileName) {
+    public ResponseEntity<Resource> serveUnifiedDocumentFile(@PathVariable("fileName") String fileName) {
         try {
             log.info("ðŸ“„ Servindo arquivo pÃºblico: {}", fileName);
             
@@ -580,7 +580,7 @@ public class UnifiedDocumentController {
     }
 
     @GetMapping("/view/{fileName:.+}")
-    public ResponseEntity<Resource> viewUnifiedDocument(@PathVariable String fileName) {
+    public ResponseEntity<Resource> viewUnifiedDocument(@PathVariable("fileName") String fileName) {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             boolean isColaborador = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_COLABORADOR"));
@@ -1098,7 +1098,7 @@ public class UnifiedDocumentController {
      * Endpoint alternativo para download de arquivos unificados
      */
     @GetMapping("/download/{fileName:.+}")
-    public ResponseEntity<Resource> downloadUnifiedDocument(@PathVariable String fileName) {
+    public ResponseEntity<Resource> downloadUnifiedDocument(@PathVariable("fileName") String fileName) {
         try {
             log.info("ðŸ“¥ Download de arquivo: {}", fileName);
             
@@ -1395,11 +1395,11 @@ public class UnifiedDocumentController {
      */
     @PostMapping("/send-email")
     public ResponseEntity<Map<String, Object>> sendUnifiedDocumentByEmail(
-            @RequestParam String toEmail,
-            @RequestParam String employeeName,
-            @RequestParam int month,
-            @RequestParam int year,
-            @RequestParam String filePath) {
+            @RequestParam(value = "toEmail") String toEmail,
+            @RequestParam(value = "employeeName") String employeeName,
+            @RequestParam(value = "month") int month,
+            @RequestParam(value = "year") int year,
+            @RequestParam(value = "filePath") String filePath) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -1434,10 +1434,10 @@ public class UnifiedDocumentController {
      */
     @PostMapping("/whatsapp-link")
     public ResponseEntity<Map<String, Object>> generateWhatsAppLink(
-            @RequestParam String phoneNumber,
-            @RequestParam String employeeName,
-            @RequestParam int month,
-            @RequestParam int year) {
+            @RequestParam(value = "phoneNumber") String phoneNumber,
+            @RequestParam(value = "employeeName") String employeeName,
+            @RequestParam(value = "month") int month,
+            @RequestParam(value = "year") int year) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -1750,8 +1750,8 @@ public class UnifiedDocumentController {
      */
     @PostMapping("/public/batch-create")
     public ResponseEntity<Map<String, Object>> createBatchUnifiedDocumentsPublic(
-            @RequestParam(required = false) Integer month,
-            @RequestParam(required = false) Integer year) {
+            @RequestParam(value = "month", required = false) Integer month,
+            @RequestParam(value = "year", required = false) Integer year) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -1796,8 +1796,8 @@ public class UnifiedDocumentController {
      */
     @GetMapping("/list-by-period")
     public ResponseEntity<Map<String, Object>> listUnifiedDocumentsByPeriod(
-            @RequestParam(required = false) Integer month,
-            @RequestParam(required = false) Integer year) {
+            @RequestParam(value = "month", required = false) Integer month,
+            @RequestParam(value = "year", required = false) Integer year) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -1831,7 +1831,7 @@ public class UnifiedDocumentController {
      */
     @GetMapping("/search")
     public ResponseEntity<Map<String, Object>> searchUnifiedDocuments(
-            @RequestParam(required = false) String search) {
+            @RequestParam(value = "search", required = false) String search) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -1868,7 +1868,7 @@ public class UnifiedDocumentController {
      * Exclui um documento unificado pelo nome do arquivo
      */
     @DeleteMapping("/delete/{fileName:.+}")
-    public ResponseEntity<Map<String, Object>> deleteUnifiedDocument(@PathVariable String fileName) {
+    public ResponseEntity<Map<String, Object>> deleteUnifiedDocument(@PathVariable("fileName") String fileName) {
         Map<String, Object> response = new HashMap<>();
         
         try {
@@ -1969,7 +1969,7 @@ public class UnifiedDocumentController {
      * Consulta o status de um job de exclusÃ£o
      */
     @GetMapping("/deletion-job/{jobId}/status")
-    public ResponseEntity<Map<String, Object>> getDeletionJobStatus(@PathVariable java.util.UUID jobId) {
+    public ResponseEntity<Map<String, Object>> getDeletionJobStatus(@PathVariable("jobId") java.util.UUID jobId) {
         Map<String, Object> response = new HashMap<>();
         
         try {
@@ -1995,7 +1995,7 @@ public class UnifiedDocumentController {
      * Cancela um job de exclusÃ£o em processamento
      */
     @PostMapping("/deletion-job/{jobId}/cancel")
-    public ResponseEntity<Map<String, Object>> cancelDeletionJob(@PathVariable java.util.UUID jobId) {
+    public ResponseEntity<Map<String, Object>> cancelDeletionJob(@PathVariable("jobId") java.util.UUID jobId) {
         Map<String, Object> response = new HashMap<>();
         
         try {
@@ -2078,9 +2078,9 @@ public class UnifiedDocumentController {
      */
     @PostMapping("/create-batch")
     public ResponseEntity<Map<String, Object>> createBatchUnifiedDocuments(
-            @RequestParam(required = false) Integer month,
-            @RequestParam(required = false) Integer year,
-            @RequestParam(required = false, defaultValue = "false") Boolean forceUnification) {
+            @RequestParam(value = "month", required = false) Integer month,
+            @RequestParam(value = "year", required = false) Integer year,
+            @RequestParam(value = "forceUnification", required = false, defaultValue = "false") Boolean forceUnification) {
         
         Map<String, Object> response = new HashMap<>();
         
@@ -2207,7 +2207,7 @@ public class UnifiedDocumentController {
      * Consulta o status de um job de unificaÃ§Ã£o
      */
     @GetMapping("/job/{jobId}/status")
-    public ResponseEntity<Map<String, Object>> getJobStatus(@PathVariable java.util.UUID jobId) {
+    public ResponseEntity<Map<String, Object>> getJobStatus(@PathVariable("jobId") java.util.UUID jobId) {
         Map<String, Object> response = new HashMap<>();
         
         try {
@@ -2233,7 +2233,7 @@ public class UnifiedDocumentController {
      * Cancela um job em processamento
      */
     @PostMapping("/job/{jobId}/cancel")
-    public ResponseEntity<Map<String, Object>> cancelJob(@PathVariable java.util.UUID jobId) {
+    public ResponseEntity<Map<String, Object>> cancelJob(@PathVariable("jobId") java.util.UUID jobId) {
         Map<String, Object> response = new HashMap<>();
         
         try {
