@@ -202,20 +202,26 @@ jobs:
     needs: deploy
     runs-on: ubuntu-latest
     steps:
-      - name: ⏳ Aguardar inicialização (2 minutos)
-        run: sleep 120
-
-      - name: 🔍 Verificar Health do Backend
+      - name: 🔍 Verificar Health do Backend (com retries)
         id: health-check
-        uses: fjogeleit/http-request-action@v1
-        with:
-          url: 'https://fluxbus.com.br/api/health'
-          method: 'GET'
-          timeout: 30000
-        continue-on-error: true
+        run: |
+          echo "🔍 Testando https://fluxbus.com.br/api/health com retries (até 3 minutos)..."
+          SUCCESS=0
+          for i in {1..18}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 10 https://fluxbus.com.br/api/health || echo "000")
+            echo "Tentativa $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Backend (Prod) respondendo com HTTP 200 OK!"
+              SUCCESS=1
+              break
+            fi
+            sleep 10
+          done
+          if [ "$SUCCESS" -ne 1 ]; then
+            echo "::warning::Backend Prod não retornou HTTP 200 dentro de 3 minutos (HTTP final: $STATUS)."
+          fi
 
       - name: ✅ Resultado Final
         if: always()
         run: |
-          echo "Health check outcome: ${{ steps.health-check.outcome }}"
           echo "🌐 Acesse: https://fluxbus.com.br"
