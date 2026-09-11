@@ -51,6 +51,15 @@ public class ParteDiariaService {
         pd.setNotes(dto.getNotes());
         pd.setCreatedBy(dto.getCreatedBy() != null ? dto.getCreatedBy() : "Operacional");
 
+        if (dto.getCompanyId() != null) {
+            pd.setCompanyId(dto.getCompanyId());
+        } else {
+            UUID tenantCompanyId = com.z7design.fleet_manager.tenant.TenantContext.get();
+            if (tenantCompanyId != null) {
+                pd.setCompanyId(tenantCompanyId);
+            }
+        }
+
         if (dto.getClientId() != null) {
             clientRepository.findById(dto.getClientId()).ifPresent(pd::setClient);
         }

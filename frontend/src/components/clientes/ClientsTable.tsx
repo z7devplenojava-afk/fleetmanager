@@ -354,7 +354,8 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </TableRow>
+                </TableCell>
+              </TableRow>
               );
             })}
           </TableBody>
