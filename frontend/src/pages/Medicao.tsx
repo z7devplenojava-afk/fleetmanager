@@ -283,9 +283,6 @@ const Medicao: React.FC = () => {
   return (
     <StandardLayout>
       <div className="space-y-6">
-  return (
-    <StandardLayout>
-      <div className="space-y-6">
         {/* Cabeçalho Principal com Ações */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-seguranca-black/90 via-seguranca-graphite/80 to-seguranca-black/90 p-6 rounded-2xl border border-white/10 shadow-2xl backdrop-blur-xl">
           <div>
