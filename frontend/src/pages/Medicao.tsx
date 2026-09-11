@@ -47,11 +47,13 @@ import { MeasurementDeleteDialog } from '@/components/financeiro/MeasurementDele
 import { MeasurementViewModal } from '@/components/financeiro/MeasurementViewModal';
 import { MeasurementWizardModal } from '@/components/financeiro/MeasurementWizardModal';
 import { MeasurementVersionDrawer } from '@/components/financeiro/MeasurementVersionDrawer';
+import { ParteDiariaModal } from '@/components/financeiro/ParteDiariaModal';
 import { useToast } from '@/hooks/use-toast';
 import { measurementService } from '@/services/measurementService';
 import { MeasurementBulletin, MeasurementStatus } from '@/types/measurement';
 
 const Medicao: React.FC = () => {
+  const [showParteDiariaModal, setShowParteDiariaModal] = useState(false);
   const [showWizardModal, setShowWizardModal] = useState(false);
   const [showVersionDrawer, setShowVersionDrawer] = useState(false);
   const [showBulletinModal, setShowBulletinModal] = useState(false);
@@ -310,12 +312,22 @@ const Medicao: React.FC = () => {
               <Clock className="h-4 w-4 mr-2 text-seguranca-yellow" />
               Histórico & Versões
             </Button>
+
             <Button
+              variant="outline"
               onClick={() => setShowWizardModal(true)}
-              className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-seguranca-black font-extrabold hover:brightness-110 shadow-lg shadow-amber-500/20 transition-all transform hover:-translate-y-0.5 px-5 py-2.5"
+              className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Gerar Medição
+            </Button>
+
+            <Button
+              onClick={() => setShowParteDiariaModal(true)}
+              className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-seguranca-black font-extrabold hover:brightness-110 shadow-lg shadow-amber-500/20 transition-all transform hover:-translate-y-0.5 px-5 py-2.5 text-sm"
             >
               <Plus className="h-5 w-5 mr-2" />
-              Gerar Medição (PRD 1.0)
+              Lançar Parte Diária
             </Button>
           </div>
         </div>
@@ -424,16 +436,16 @@ const Medicao: React.FC = () => {
 
                   {/* Modelos de Medição Rápidos */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto mb-8 text-left">
-                    <div onClick={() => setShowWizardModal(true)} className="cursor-pointer p-4 rounded-xl bg-seguranca-black/80 border border-gray-700/80 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all">
-                      <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block mb-1">Modelo COEDRA</span>
-                      <h4 className="text-sm font-semibold text-white">Medição Talude / Operação</h4>
-                      <p className="text-xs text-gray-400 mt-1">Cálculo mensal proporcional base 30 dias com cortes por manutenção.</p>
+                    <div onClick={() => setShowParteDiariaModal(true)} className="cursor-pointer p-4 rounded-xl bg-seguranca-black/80 border border-gray-700/80 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all">
+                      <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block mb-1">Modelo Padronizado</span>
+                      <h4 className="text-sm font-semibold text-white">Parte Diária Operacional</h4>
+                      <p className="text-xs text-gray-400 mt-1">Lançamento universal de veículos, horários, atividades e hodômetro.</p>
                     </div>
 
                     <div onClick={() => setShowWizardModal(true)} className="cursor-pointer p-4 rounded-xl bg-seguranca-black/80 border border-gray-700/80 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all">
-                      <span className="text-xs font-bold text-blue-400 uppercase tracking-wider block mb-1">Modelo CONSTRUCAP</span>
-                      <h4 className="text-sm font-semibold text-white">Medição Capanema</h4>
-                      <p className="text-xs text-gray-400 mt-1">Frota agregada + franquia de KM e diárias excedentes.</p>
+                      <span className="text-xs font-bold text-blue-400 uppercase tracking-wider block mb-1">Apuração Mensal</span>
+                      <h4 className="text-sm font-semibold text-white">Consolidação de Medição</h4>
+                      <p className="text-xs text-gray-400 mt-1">Frota agregada + apuração de cortes, diárias e excedentes de KM.</p>
                     </div>
 
                     <div onClick={() => setShowWizardModal(true)} className="cursor-pointer p-4 rounded-xl bg-seguranca-black/80 border border-gray-700/80 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all">
@@ -444,9 +456,9 @@ const Medicao: React.FC = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-4 justify-center">
-                    <Button onClick={() => setShowWizardModal(true)} className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-seguranca-black font-extrabold hover:brightness-110 shadow-lg shadow-amber-500/20 px-6 py-2.5 text-sm">
+                    <Button onClick={() => setShowParteDiariaModal(true)} className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-seguranca-black font-extrabold hover:brightness-110 shadow-lg shadow-amber-500/20 px-6 py-2.5 text-sm">
                       <Plus className="h-4 w-4 mr-2" />
-                      Gerar Nova Medição Automatizada (PRD 1.0)
+                      Lançar Parte Diária
                     </Button>
                   </div>
                 </div>
@@ -811,7 +823,15 @@ const Medicao: React.FC = () => {
           />
         )}
 
-        {/* Modais do PRD 1.0 */}
+        {/* Modais do PRD 1.0 e 1.1 */}
+        <ParteDiariaModal
+          isOpen={showParteDiariaModal}
+          onClose={() => setShowParteDiariaModal(false)}
+          onSuccess={() => {
+            loadDashboardData();
+          }}
+        />
+
         <MeasurementWizardModal
           isOpen={showWizardModal}
           onClose={() => setShowWizardModal(false)}
