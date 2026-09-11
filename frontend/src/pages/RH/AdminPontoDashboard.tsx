@@ -46,7 +46,7 @@ const AdminPontoDashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentRecords, setRecentRecords] = useState<TimeRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('__all__');
 
   useEffect(() => {
     loadDashboard();
@@ -57,7 +57,7 @@ const AdminPontoDashboard: React.FC = () => {
       setLoading(true);
       const [statsRes, recordsRes] = await Promise.all([
         timeRecordService.getAdminDashboard(),
-        timeRecordService.getAdminRecords({ department: departmentFilter || undefined })
+        timeRecordService.getAdminRecords({         department: departmentFilter === '__all__' ? undefined : departmentFilter })
       ]);
 
       if (statsRes.success) setStats(statsRes.data);
@@ -252,7 +252,7 @@ const AdminPontoDashboard: React.FC = () => {
                     <SelectValue placeholder="Todos departamentos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos departamentos</SelectItem>
+                    <SelectItem value="__all__">Todos departamentos</SelectItem>
                     <SelectItem value="Operacional">Operacional</SelectItem>
                     <SelectItem value="Administrativo">Administrativo</SelectItem>
                     <SelectItem value="Financeiro">Financeiro</SelectItem>

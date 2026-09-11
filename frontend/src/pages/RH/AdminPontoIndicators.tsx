@@ -42,7 +42,7 @@ const AdminPontoIndicators: React.FC = () => {
     format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
   );
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('__all__');
 
   useEffect(() => {
     loadIndicators();
@@ -52,7 +52,7 @@ const AdminPontoIndicators: React.FC = () => {
     try {
       setLoading(true);
       const response = await timeRecordService.getIndicators(
-        startDate, endDate, departmentFilter || undefined
+        startDate, endDate, departmentFilter === '__all__' ? undefined : departmentFilter
       );
       if (response.success) {
         setData(response.data);
@@ -137,7 +137,7 @@ const AdminPontoIndicators: React.FC = () => {
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="__all__">Todos</SelectItem>
                     <SelectItem value="Operacional">Operacional</SelectItem>
                     <SelectItem value="Administrativo">Administrativo</SelectItem>
                     <SelectItem value="Financeiro">Financeiro</SelectItem>

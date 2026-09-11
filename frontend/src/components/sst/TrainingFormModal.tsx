@@ -283,7 +283,7 @@ export default function TrainingFormModal({
                       </SelectTrigger>
                       <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[300px]">
                         {suppliers.length === 0 && !loadingSuppliers ? (
-                          <SelectItem value="" disabled className="text-gray-500">
+                          <SelectItem value="__no_supplier__" disabled className="text-gray-500">
                             Nenhum fornecedor cadastrado
                           </SelectItem>
                         ) : (
