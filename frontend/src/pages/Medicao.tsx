@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,11 +45,17 @@ import { SimplifiedMeasurementModal } from '@/components/financeiro/SimplifiedMe
 import { MeasurementValidationModal } from '@/components/financeiro/MeasurementValidationModal';
 import { MeasurementDeleteDialog } from '@/components/financeiro/MeasurementDeleteDialog';
 import { MeasurementViewModal } from '@/components/financeiro/MeasurementViewModal';
+import { MeasurementWizardModal } from '@/components/financeiro/MeasurementWizardModal';
+import { MeasurementVersionDrawer } from '@/components/financeiro/MeasurementVersionDrawer';
+import { ParteDiariaModal } from '@/components/financeiro/ParteDiariaModal';
 import { useToast } from '@/hooks/use-toast';
 import { measurementService } from '@/services/measurementService';
 import { MeasurementBulletin, MeasurementStatus } from '@/types/measurement';
 
 const Medicao: React.FC = () => {
+  const [showParteDiariaModal, setShowParteDiariaModal] = useState(false);
+  const [showWizardModal, setShowWizardModal] = useState(false);
+  const [showVersionDrawer, setShowVersionDrawer] = useState(false);
   const [showBulletinModal, setShowBulletinModal] = useState(false);
   const [showSimplifiedModal, setShowSimplifiedModal] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
@@ -279,83 +285,183 @@ const Medicao: React.FC = () => {
   return (
     <StandardLayout>
       <div className="space-y-6">
-        {/* Cabeçalho */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        {/* Cabeçalho Principal com Ações */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-seguranca-black/90 via-seguranca-graphite/80 to-seguranca-black/90 p-6 rounded-2xl border border-white/10 shadow-2xl backdrop-blur-xl">
           <div>
-            <h1 className="text-2xl font-bold text-white">Medição</h1>
-            <p className="text-seguranca-lightgray">
-              Gestão de medições completas e simplificadas
+            <div className="flex items-center gap-2 mb-1">
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs font-bold px-2 py-0.5">
+                PRD 1.0 — Gestão Financeira
+              </Badge>
+              <span className="text-xs text-gray-400">Processo Automatizado & Auditável</span>
+            </div>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+              <BarChart3 className="h-8 w-8 text-seguranca-yellow" />
+              Medições Financeiras
+            </h1>
+            <p className="text-sm text-seguranca-lightgray mt-1">
+              Geração de medições por contrato, apontamentos de frota, cortes por manutenção, excedentes e conciliação NFE/CTE
             </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowVersionDrawer(true)}
+              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black hover:text-white"
+            >
+              <Clock className="h-4 w-4 mr-2 text-seguranca-yellow" />
+              Histórico & Versões
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => setShowWizardModal(true)}
+              className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Gerar Medição
+            </Button>
+
+            <Button
+              onClick={() => setShowParteDiariaModal(true)}
+              className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-seguranca-black font-extrabold hover:brightness-110 shadow-lg shadow-amber-500/20 transition-all transform hover:-translate-y-0.5 px-5 py-2.5 text-sm"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Lançar Parte Diária
+            </Button>
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* KPI Cards de Resumo Executivo */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-amber-950/30 via-seguranca-black to-seguranca-graphite/40 border-amber-500/30 shadow-xl">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-amber-300 font-bold uppercase tracking-wider">Total Medido no Mês</p>
+                  <p className="text-2xl font-extrabold text-white mt-1">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.totalValue || 0)}
+                  </p>
+                  <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 mt-1">
+                    <TrendingUp size={12} /> +18.8% vs Mês Anterior
+                  </span>
+                </div>
+                <div className="p-3 bg-amber-500/20 border border-amber-500/30 rounded-xl">
+                  <DollarSign className="h-6 w-6 text-amber-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-950/30 via-seguranca-black to-seguranca-graphite/40 border-blue-500/30 shadow-xl">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-300 font-bold uppercase tracking-wider">Medições Cadastradas</p>
+                  <p className="text-2xl font-extrabold text-white mt-1">{dashboardData.totalBulletins}</p>
+                  <span className="text-[11px] text-blue-300 font-medium flex items-center gap-1 mt-1">
+                    <FileText size={12} /> {dashboardData.completeBulletins} Completas / {dashboardData.simplifiedBulletins} Simplificadas
+                  </span>
+                </div>
+                <div className="p-3 bg-blue-500/20 border border-blue-500/30 rounded-xl">
+                  <FileText className="h-6 w-6 text-blue-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-950/30 via-seguranca-black to-seguranca-graphite/40 border-purple-500/30 shadow-xl">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-purple-300 font-bold uppercase tracking-wider">Em Aprovação / Prévia</p>
+                  <p className="text-2xl font-extrabold text-white mt-1">{dashboardData.pendingBulletins}</p>
+                  <span className="text-[11px] text-purple-300 font-medium flex items-center gap-1 mt-1">
+                    <Clock size={12} /> Aguardando Validação
+                  </span>
+                </div>
+                <div className="p-3 bg-purple-500/20 border border-purple-500/30 rounded-xl">
+                  <Clock className="h-6 w-6 text-purple-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-emerald-950/30 via-seguranca-black to-seguranca-graphite/40 border-emerald-500/30 shadow-xl">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-emerald-300 font-bold uppercase tracking-wider">Medições Aprovadas</p>
+                  <p className="text-2xl font-extrabold text-white mt-1">{dashboardData.validatedBulletins}</p>
+                  <span className="text-[11px] text-emerald-300 font-medium flex items-center gap-1 mt-1">
+                    <CheckCircle size={12} /> Prontas p/ Faturamento
+                  </span>
+                </div>
+                <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-xl">
+                  <CheckCircle className="h-6 w-6 text-emerald-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabs Principais */}
         <Tabs defaultValue="dashboard" className="space-y-4">
-          <TabsList className="bg-seguranca-graphite border-gray-600">
-            <TabsTrigger value="dashboard" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
-              Dashboard
+          <TabsList className="bg-seguranca-graphite border-gray-600 p-1">
+            <TabsTrigger value="dashboard" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow font-bold">
+              📊 Dashboard Geral
             </TabsTrigger>
-            <TabsTrigger value="completa" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
-              Completa
+            <TabsTrigger value="completa" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow font-bold">
+              📑 Medições Completas (GLOBAL)
             </TabsTrigger>
-            <TabsTrigger value="simplificada" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
-              Simplificada
+            <TabsTrigger value="simplificada" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow font-bold">
+              ⚡ Medições Simplificadas
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard">
             <div className="space-y-6">
-              {/* Cabeçalho do Dashboard */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                    <BarChart3 className="h-6 w-6 text-seguranca-yellow" />
-                    Dashboard de Medições
-                  </h2>
-                  <p className="text-seguranca-lightgray">
-                    Visão geral das medições completas e simplificadas
-                  </p>
-                </div>
-                <Button
-                  onClick={loadDashboardData}
-                  disabled={dashboardLoading}
-                  variant="outline"
-                  className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${dashboardLoading ? 'animate-spin' : ''}`} />
-                  Atualizar
-                </Button>
-              </div>
-
-              {/* Estado Vazio */}
+              {/* Estado Vazio Interativo e Fluido */}
               {!dashboardLoading && !dashboardData.hasData && (
-                <Card className="bg-seguranca-graphite border-gray-600">
-                  <CardContent className="p-12 text-center">
-                    <Database className="h-16 w-16 text-gray-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      Nenhum Dado Registrado
-                    </h3>
-                    <p className="text-seguranca-lightgray mb-6">
-                      Não há medições cadastradas no sistema. Crie sua primeira medição para começar.
-                    </p>
-                    <div className="flex gap-4 justify-center">
-                      <Button
-                        onClick={handleCreateBulletin}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Nova Medição Completa
-                      </Button>
-                      <Button
-                        onClick={handleCreateSimplifiedBulletin}
-                        className="bg-purple-600 hover:bg-purple-700 text-white"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Nova Medição Simplificada
-                      </Button>
+                <div className="relative group p-8 md:p-12 text-center rounded-2xl bg-gradient-to-b from-seguranca-black/90 to-seguranca-graphite/60 border border-white/10 shadow-2xl backdrop-blur-xl">
+                  <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-amber-500/20 to-yellow-500/30 border border-amber-500/30 flex items-center justify-center shadow-xl shadow-amber-500/10 mb-6 group-hover:scale-105 transition-transform duration-300">
+                    <BarChart3 className="h-10 w-10 text-seguranca-yellow animate-pulse" />
+                  </div>
+                  <h3 className="text-2xl font-extrabold text-white mb-2 tracking-tight">
+                    Módulo de Medições Financeiras (PRD 1.0)
+                  </h3>
+                  <p className="text-sm text-gray-300 max-w-xl mx-auto mb-8 leading-relaxed">
+                    Gere medições de transporte automaticamente a partir dos contratos cadastrados, apontamento de frota, apuração de cortes por manutenção, excedentes de KM/diárias e conciliação NFE/CTE.
+                  </p>
+
+                  {/* Modelos de Medição Rápidos */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto mb-8 text-left">
+                    <div onClick={() => setShowParteDiariaModal(true)} className="cursor-pointer p-4 rounded-xl bg-seguranca-black/80 border border-gray-700/80 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all">
+                      <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block mb-1">Modelo Padronizado</span>
+                      <h4 className="text-sm font-semibold text-white">Parte Diária Operacional</h4>
+                      <p className="text-xs text-gray-400 mt-1">Lançamento universal de veículos, horários, atividades e hodômetro.</p>
                     </div>
-                  </CardContent>
-                </Card>
+
+                    <div onClick={() => setShowWizardModal(true)} className="cursor-pointer p-4 rounded-xl bg-seguranca-black/80 border border-gray-700/80 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all">
+                      <span className="text-xs font-bold text-blue-400 uppercase tracking-wider block mb-1">Apuração Mensal</span>
+                      <h4 className="text-sm font-semibold text-white">Consolidação de Medição</h4>
+                      <p className="text-xs text-gray-400 mt-1">Frota agregada + apuração de cortes, diárias e excedentes de KM.</p>
+                    </div>
+
+                    <div onClick={() => setShowWizardModal(true)} className="cursor-pointer p-4 rounded-xl bg-seguranca-black/80 border border-gray-700/80 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all">
+                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block mb-1">Conciliação Fiscal</span>
+                      <h4 className="text-sm font-semibold text-white">Vínculo NFE & CTE</h4>
+                      <p className="text-xs text-gray-400 mt-1">Vinculação direta de chave de acesso sem duplicar faturamento.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-4 justify-center">
+                    <Button onClick={() => setShowParteDiariaModal(true)} className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-seguranca-black font-extrabold hover:brightness-110 shadow-lg shadow-amber-500/20 px-6 py-2.5 text-sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Lançar Parte Diária
+                    </Button>
+                  </div>
+                </div>
               )}
 
               {/* Dashboard com Dados */}
@@ -716,6 +822,29 @@ const Medicao: React.FC = () => {
             }}
           />
         )}
+
+        {/* Modais do PRD 1.0 e 1.1 */}
+        <ParteDiariaModal
+          isOpen={showParteDiariaModal}
+          onClose={() => setShowParteDiariaModal(false)}
+          onSuccess={() => {
+            loadDashboardData();
+          }}
+        />
+
+        <MeasurementWizardModal
+          isOpen={showWizardModal}
+          onClose={() => setShowWizardModal(false)}
+          onSuccess={() => {
+            loadDashboardData();
+          }}
+        />
+
+        <MeasurementVersionDrawer
+          isOpen={showVersionDrawer}
+          onClose={() => setShowVersionDrawer(false)}
+          bulletinId={selectedBulletin?.id || null}
+        />
       </div>
     </StandardLayout>
   );

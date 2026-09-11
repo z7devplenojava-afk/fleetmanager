@@ -18,6 +18,7 @@ import { contractService, Contract } from '@/services/contractService';
 import { unitService } from '@/services/unitService';
 import { employeeService } from '@/services/employeeService';
 import { workPostService, WorkPost } from '@/services/workPostService';
+import { parteDiariaService } from '@/services/parteDiariaService';
 import { MeasurementBulletin, MeasurementItem, CalculationMemory, MeasurementStatus, MeasurementType, MeasurementCategory } from '@/types/measurement';
 import { Client } from '@/types/client';
 import { Unit } from '@/services/trainingService';
@@ -1149,42 +1150,98 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
             </CardContent>
           </Card>
 
-          {/* Itens de Medição */}
+          {/* Itens de Medição — Partes Diárias do Motorista */}
           <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg text-seguranca-lightgray flex items-center gap-2">
-                <div className="p-1.5 bg-seguranca-red/20 rounded-lg">
-                  <Calculator className="h-5 w-5 text-seguranca-red" />
-                </div>
-                Itens de Medição
-              </CardTitle>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <CardTitle className="text-lg text-seguranca-lightgray flex items-center gap-2">
+                  <div className="p-1.5 bg-seguranca-red/20 rounded-lg">
+                    <Calculator className="h-5 w-5 text-seguranca-red" />
+                  </div>
+                  Itens de Medição (Partes Diárias do Motorista)
+                </CardTitle>
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const list = await parteDiariaService.getPartesDiarias(formData.periodStart, formData.periodEnd);
+                      if (!list || list.length === 0) {
+                        toast({
+                          title: 'Nenhuma Parte Diária encontrada',
+                          description: 'Não foram encontradas partes diárias registradas para este período. Lance uma Parte Diária pelo botão principal.',
+                          variant: 'destructive'
+                        });
+                        return;
+                      }
+                      const imported: MeasurementItemForm[] = list.map((pd, index) => ({
+                        itemNumber: items.length + index + 1,
+                        code: pd.number || `PD-${13100 + index}`,
+                        description: `Parte Diária ${pd.number || ''} — ${pd.driverName || 'Motorista'} (${pd.vehiclePlate || ''})`,
+                        unit: 'VB/DIA',
+                        quantity: 1,
+                        unitPrice: 1050.00,
+                        costCenterId: '1',
+                        costCenterName: 'Operacional',
+                        vehiclePlate: pd.vehiclePlate || '',
+                        tripCount: 1,
+                        isExtraTrip: false,
+                        baseValue: 1050.00,
+                        workingDays: 1,
+                        category: MeasurementCategory.LEASE,
+                        initialKm: pd.startKm || 0,
+                        finalKm: pd.endKm || 0,
+                        disregardedKm: pd.disregardedKm || 0,
+                        diaria: 1050.00,
+                        tripDate: pd.date || '',
+                        route: pd.atividades?.[0]?.description || 'Linha Operacional',
+                        vehicleType: pd.vehicleModel || 'MICRO'
+                      }));
+                      setItems(prev => [...prev, ...imported]);
+                      toast({
+                        title: 'Partes Diárias Carregadas!',
+                        description: `${imported.length} Parte(s) Diária(s) vinculada(s) como item de medição.`
+                      });
+                    } catch (err: any) {
+                      toast({
+                        title: 'Erro no carregamento',
+                        description: 'Falha ao buscar partes diárias do sistema.',
+                        variant: 'destructive'
+                      });
+                    }
+                  }}
+                  variant="outline"
+                  className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-xs h-8"
+                >
+                  <FileText className="h-3.5 w-3.5 mr-1.5" /> Vincular Partes Diárias do Período
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Formulário para novo item */}
               <div className="p-5 bg-seguranca-graphite/90 rounded-lg border border-gray-600 shadow-lg space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-700 pb-2">
                   <span className="text-sm font-semibold text-seguranca-yellow flex items-center gap-2">
-                    <Plus className="h-4 w-4 text-seguranca-red" /> Adicionar Novo Item à Medição
+                    <Plus className="h-4 w-4 text-seguranca-red" /> Adicionar Parte Diária à Medição
                   </span>
                 </div>
 
                 {/* Linha 1: Código, Descrição e Placa */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
                   <div className="md:col-span-3 space-y-1.5">
-                    <Label className="text-xs text-gray-300 font-medium">Código do Item <span className="text-seguranca-red">*</span></Label>
+                    <Label className="text-xs text-gray-300 font-medium">Nº da Parte Diária <span className="text-seguranca-red">*</span></Label>
                     <Input
                       value={newItem.code}
                       onChange={(e) => setNewItem(prev => ({ ...prev, code: e.target.value }))}
-                      placeholder="Ex: CTC-001"
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
+                      placeholder="Ex: PD-13103"
+                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10 font-mono font-bold text-amber-400"
                     />
                   </div>
                   <div className="md:col-span-6 space-y-1.5">
-                    <Label className="text-xs text-gray-300 font-medium">Descrição Detalhada <span className="text-seguranca-red">*</span></Label>
+                    <Label className="text-xs text-gray-300 font-medium">Descrição da Atividade / Trajeto (Motorista) <span className="text-seguranca-red">*</span></Label>
                     <Input
                       value={newItem.description}
                       onChange={(e) => setNewItem(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Ex: Aluguel de Van com Motorista - Rota X"
+                      placeholder="Ex: Trajeto FM2C Infinite / Viagem Operacional"
                       className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm h-10"
                     />
                   </div>

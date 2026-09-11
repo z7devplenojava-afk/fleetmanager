@@ -49,18 +49,22 @@ public class EmailAccount {
     @Column(name = "imap_host", nullable = false)
     private String imapHost;
 
+    @Builder.Default
     @Column(name = "imap_port", nullable = false)
     private Integer imapPort = 993;
 
+    @Builder.Default
     @Column(name = "imap_ssl", nullable = false)
     private Boolean imapSsl = true;
 
     @Column(name = "smtp_host")
     private String smtpHost;
 
+    @Builder.Default
     @Column(name = "smtp_port")
     private Integer smtpPort = 587;
 
+    @Builder.Default
     @Column(name = "smtp_ssl", nullable = false)
     private Boolean smtpSsl = false;
 
@@ -71,12 +75,14 @@ public class EmailAccount {
     @Column(name = "password_encrypted", columnDefinition = "TEXT")
     private String password;
 
+    @Builder.Default
     @Column(name = "auth_type", length = 20)
     private String authType = "PASSWORD"; // 'password' | 'oauth2'
 
     @Column(name = "signature", columnDefinition = "TEXT")
     private String signature;
 
+    @Builder.Default
     @Column(name = "status", length = 20)
     private String status = "ACTIVE";
 
@@ -89,6 +95,7 @@ public class EmailAccount {
     @Column(name = "last_sync_message", columnDefinition = "TEXT")
     private String lastSyncMessage;
 
+    @Builder.Default
     @Column(name = "last_sync_total")
     private Integer lastSyncTotal = 0;
 

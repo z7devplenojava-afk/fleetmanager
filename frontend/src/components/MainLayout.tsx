@@ -122,52 +122,26 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 )}
               </Button>
 
-              {/* Branding da empresa ou padrão */}
-              {empresa?.logoUrl ? (
-                <div className="flex items-center" data-animate="fadeRight">
-                  <img
-                    src={(() => {
-                      if (!empresa.logoUrl) return '';
-                      if (empresa.logoUrl.startsWith('http')) return empresa.logoUrl;
-                      // Remover /api do final da URL base se existir
-                      const baseUrl = getApiUrl().replace(/\/api\/?$/, '');
-                      // Garantir que o path comece com /
-                      const path = empresa.logoUrl.startsWith('/') ? empresa.logoUrl : `/${empresa.logoUrl}`;
-                      return `${baseUrl}${path}`;
-                    })()}
-                    onError={(e) => {
-                      console.error('Erro ao carregar logo da empresa:', empresa.logoUrl);
-                      e.currentTarget.style.display = 'none';
-                      // Tentar mostrar o fallback de texto
-                      const parent = e.currentTarget.parentElement;
-                      if (parent) {
-                        const textElement = parent.querySelector('h2');
-                        if (textElement) textElement.style.display = 'block';
-                      }
-                    }}
-                    alt={empresa.nome || 'Empresa'}
-                    className="h-10 w-auto object-contain rounded bg-white/5 border border-white/10 p-1 shadow-lg shadow-white/5"
-                  />
-                </div>
-              ) : empresa?.nome ? (
-                <div className="flex items-center space-x-3" data-animate="fadeRight">
-                  <div className="w-8 h-8 bg-primary/20 rounded flex items-center justify-center">
-                    <Building2 className="h-5 w-5 text-primary" />
+              {/* Breadcrumb ou Título da Página */}
+              <div className="flex items-center space-x-2">
+                {title ? (
+                  <div>
+                    <h2 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
+                      {title}
+                    </h2>
+                    {subtitle && <p className="text-xs text-muted-foreground hidden sm:block">{subtitle}</p>}
                   </div>
-                  <h2 className="text-lg font-bold tracking-tight text-white truncate max-w-[160px]">
-                    {empresa.nome}
-                  </h2>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
-                    <Bus className="h-5 w-5 text-white" />
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-7 h-7 bg-red-600/20 border border-red-500/30 rounded flex items-center justify-center">
+                      <Bus className="h-4 w-4 text-red-500" />
+                    </div>
+                    <h2 className="text-base font-bold tracking-tight text-white uppercase italic">
+                      Flux<span className="text-red-500 not-italic">Bus</span>
+                    </h2>
                   </div>
-                  <h2 className="text-lg font-bold tracking-tight text-white uppercase italic">
-                    Flex<span className="text-white not-italic">Bus</span>
-                  </h2>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Lado direito */}
