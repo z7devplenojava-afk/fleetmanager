@@ -31,23 +31,22 @@ public class TenantAspect {
             // Verifica se há um TenantContext definido
             UUID companyId = TenantContext.get();
 
-            // Só tenta ativar o filtro se tivermos uma sessão Hibernate válida e um
-            // companyId
-            if (companyId != null && entityManager != null) {
+            if (entityManager != null) {
                 try {
                     Session session = entityManager.unwrap(Session.class);
                     if (session != null) {
-                        Filter filter = session.enableFilter("tenantFilter");
-                        filter.setParameter("companyId", companyId);
-                        log.info("AGGRESSIVE_DEBUG: TenantFilter ENABLED for companyId: {}", companyId);
-                    } else {
-                        log.warn("AGGRESSIVE_DEBUG: Could not enable TenantFilter: Session is NULL");
+                        if (companyId != null) {
+                            Filter filter = session.enableFilter("tenantFilter");
+                            filter.setParameter("companyId", companyId);
+                            log.debug("TenantFilter ENABLED for companyId: {}", companyId);
+                        } else {
+                            session.disableFilter("tenantFilter");
+                            log.debug("TenantFilter DISABLED (companyId is null)");
+                        }
                     }
                 } catch (Exception e) {
-                    log.error("AGGRESSIVE_DEBUG: Error enabling TenantFilter: {}", e.getMessage(), e);
+                    log.error("Erro ao aplicar TenantFilter no Hibernate: {}", e.getMessage(), e);
                 }
-            } else if (companyId == null) {
-                log.info("AGGRESSIVE_DEBUG: TenantFilter NOT enabled: companyId is NULL");
             }
         } catch (Exception e) {
             log.warn("Erro ao configurar TenantFilter: {}", e.getMessage());
