@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Edit, Trash2, Eye, Building2, Mail, Phone, MapPin, User, Sparkles, TrendingUp, Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Client, ClientStatus } from '@/types/client';
@@ -12,6 +13,9 @@ type SortDirection = 'asc' | 'desc';
 
 interface ClientsTableProps {
   clients: Client[];
+  selectedClientIds?: string[];
+  onSelectClient?: (clientId: string, selected: boolean) => void;
+  onSelectAllClients?: (selected: boolean) => void;
   onEdit: (client: Client) => void;
   onDelete: (client: Client) => void;
   onView: (client: Client) => void;
@@ -20,6 +24,9 @@ interface ClientsTableProps {
 
 export const ClientsTable: React.FC<ClientsTableProps> = ({
   clients,
+  selectedClientIds = [],
+  onSelectClient,
+  onSelectAllClients,
   onEdit,
   onDelete,
   onView,
@@ -152,6 +159,8 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
     );
   }
 
+  const isAllSelected = sortedClients.length > 0 && selectedClientIds.length === sortedClients.length && sortedClients.every(c => selectedClientIds.includes(c.id));
+
   return (
     <>
       {/* Desktop View - Table sem scroll horizontal */}
@@ -160,9 +169,17 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
           <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow className="bg-gradient-to-r from-seguranca-graphite/90 to-seguranca-black/80 hover:from-seguranca-graphite to-seguranca-black border-b border-gray-600/30">
+              <TableHead className="py-4 w-[4%] text-center select-none">
+                <Checkbox 
+                  checked={isAllSelected}
+                  onCheckedChange={(checked) => onSelectAllClients?.(!!checked)}
+                  className="border-gray-500 data-[state=checked]:bg-seguranca-red data-[state=checked]:border-seguranca-red"
+                  title="Selecionar todos os clientes"
+                />
+              </TableHead>
               <TableHead 
                 onClick={() => handleSort('name')}
-                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[30%] cursor-pointer select-none group/head hover:text-white transition-colors"
+                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[28%] cursor-pointer select-none group/head hover:text-white transition-colors"
                 title="Clique para ordenar por Nome (A-Z / Z-A)"
               >
                 <div className="flex items-center gap-2">
@@ -173,7 +190,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
               </TableHead>
               <TableHead 
                 onClick={() => handleSort('cnpj')}
-                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[18%] cursor-pointer select-none group/head hover:text-white transition-colors"
+                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[17%] cursor-pointer select-none group/head hover:text-white transition-colors"
                 title="Clique para ordenar por CNPJ"
               >
                 <div className="flex items-center gap-2">
@@ -183,7 +200,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
               </TableHead>
               <TableHead 
                 onClick={() => handleSort('contactName')}
-                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[20%] cursor-pointer select-none group/head hover:text-white transition-colors"
+                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[19%] cursor-pointer select-none group/head hover:text-white transition-colors"
                 title="Clique para ordenar por Contato"
               >
                 <div className="flex items-center gap-2">
@@ -212,13 +229,24 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedClients.map((client, index) => (
-              <TableRow 
-                key={client.id}
-                className="border-gray-600/20 hover:bg-gradient-to-r hover:from-seguranca-black/40 hover:to-seguranca-graphite/20 transition-all duration-300 cursor-pointer group backdrop-blur-sm"
-                onClick={() => onView(client)}
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
+            {sortedClients.map((client, index) => {
+              const isSelected = selectedClientIds.includes(client.id);
+              return (
+                <TableRow 
+                  key={client.id}
+                  className={`border-gray-600/20 transition-all duration-300 cursor-pointer group backdrop-blur-sm ${
+                    isSelected ? 'bg-seguranca-red/15 border-l-4 border-l-seguranca-red' : 'hover:bg-gradient-to-r hover:from-seguranca-black/40 hover:to-seguranca-graphite/20'
+                  }`}
+                  onClick={() => onView(client)}
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <TableCell className="py-6 text-center" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox 
+                      checked={isSelected}
+                      onCheckedChange={(checked) => onSelectClient?.(client.id, !!checked)}
+                      className="border-gray-500 data-[state=checked]:bg-seguranca-red data-[state=checked]:border-seguranca-red"
+                    />
+                  </TableCell>
                 <TableCell className="py-6">
                   <div className="flex items-start gap-3">
                     <div className="mt-1 p-2 rounded-lg bg-gradient-to-br from-seguranca-red/20 to-seguranca-red/10 border border-seguranca-red/30 group-hover:from-seguranca-red/30 group-hover:to-seguranca-red/20 transition-all duration-300 shadow-lg shadow-seguranca-red/10 flex-shrink-0">
@@ -326,9 +354,9 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         </div>
@@ -336,12 +364,16 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
 
       {/* Mobile View - Cards */}
       <div className="lg:hidden space-y-6">
-        {/* Mobile Sort Control */}
+        {/* Mobile Sort Control & Select All */}
         <div className="flex items-center justify-between bg-seguranca-black/40 p-3 rounded-xl border border-gray-600/20 text-xs text-gray-400">
-          <span className="font-medium flex items-center gap-1.5">
-            <ArrowUpDown className="h-3.5 w-3.5 text-seguranca-yellow" />
-            Ordenar por:
-          </span>
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              checked={isAllSelected}
+              onCheckedChange={(checked) => onSelectAllClients?.(!!checked)}
+              className="border-gray-500 data-[state=checked]:bg-seguranca-red data-[state=checked]:border-seguranca-red"
+            />
+            <span className="text-white font-medium">Todos</span>
+          </div>
           <div className="flex items-center gap-2">
             <select
               value={sortField}
@@ -364,20 +396,31 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
           </div>
         </div>
 
-        {sortedClients.map((client, index) => (
-          <Card 
-            key={client.id}
-            className="bg-gradient-to-br from-seguranca-black/60 to-seguranca-graphite/30 border-gray-600/20 hover:border-seguranca-red/50 transition-all duration-500 overflow-hidden group cursor-pointer shadow-xl hover:shadow-2xl hover:shadow-seguranca-red/10 backdrop-blur-sm"
-            onClick={() => onView(client)}
-            style={{ animationDelay: `${index * 150}ms` }}
-          >
-            <div className="p-6 space-y-4">
-              {/* Header */}
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="p-3 rounded-xl bg-gradient-to-br from-seguranca-red/20 to-seguranca-red/10 border border-seguranca-red/30 group-hover:from-seguranca-red/30 group-hover:to-seguranca-red/20 transition-all duration-300 shadow-lg shadow-seguranca-red/10">
-                    <Building2 className="h-6 w-6 text-seguranca-red" />
-                  </div>
+        {sortedClients.map((client, index) => {
+          const isSelected = selectedClientIds.includes(client.id);
+          return (
+            <Card 
+              key={client.id}
+              className={`bg-gradient-to-br from-seguranca-black/60 to-seguranca-graphite/30 border-gray-600/20 hover:border-seguranca-red/50 transition-all duration-500 overflow-hidden group cursor-pointer shadow-xl hover:shadow-2xl hover:shadow-seguranca-red/10 backdrop-blur-sm ${
+                isSelected ? 'ring-2 ring-seguranca-red border-seguranca-red' : ''
+              }`}
+              onClick={() => onView(client)}
+              style={{ animationDelay: `${index * 150}ms` }}
+            >
+              <div className="p-6 space-y-4">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 flex-1">
+                    <div onClick={(e) => e.stopPropagation()} className="pt-1">
+                      <Checkbox 
+                        checked={isSelected}
+                        onCheckedChange={(checked) => onSelectClient?.(client.id, !!checked)}
+                        className="border-gray-500 data-[state=checked]:bg-seguranca-red data-[state=checked]:border-seguranca-red"
+                      />
+                    </div>
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-seguranca-red/20 to-seguranca-red/10 border border-seguranca-red/30 group-hover:from-seguranca-red/30 group-hover:to-seguranca-red/20 transition-all duration-300 shadow-lg shadow-seguranca-red/10">
+                      <Building2 className="h-6 w-6 text-seguranca-red" />
+                    </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-lg text-seguranca-lightgray group-hover:text-white transition-colors mb-1 truncate">
                       {client.name}
@@ -460,7 +503,8 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
               </div>
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
     </>
   );

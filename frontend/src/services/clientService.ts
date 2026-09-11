@@ -104,6 +104,11 @@ export const clientService = {
     await api.delete(`/api/clients/${id}`);
   },
 
+  // Excluir múltiplos clientes em massa
+  async deleteClientsBulk(ids: string[]): Promise<void> {
+    await Promise.all(ids.map(id => api.delete(`/api/clients/${id}`)));
+  },
+
   // Importar Quadro de Obras via Excel
   async importQuadroObras(file: File): Promise<{
     totalRows: number;
