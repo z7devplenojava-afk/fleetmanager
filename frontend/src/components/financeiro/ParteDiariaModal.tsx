@@ -213,6 +213,10 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl bg-seguranca-graphite border-gray-600 text-seguranca-lightgray max-h-[92vh] overflow-y-auto p-0 rounded-2xl shadow-2xl">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Parte Diária de Veículos</DialogTitle>
+          <DialogDescription>Lançamento de horários, motorista, contrato e hodômetro</DialogDescription>
+        </DialogHeader>
         <form onSubmit={handleSubmit}>
           {/* Cabeçalho que Imita a Ficha Física Real */}
           <div className="bg-gradient-to-r from-seguranca-black via-gray-900 to-seguranca-black p-6 border-b border-gray-700/80 rounded-t-2xl">

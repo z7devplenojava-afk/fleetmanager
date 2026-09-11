@@ -22,17 +22,21 @@ import java.util.stream.Collectors;
 public class ParteDiariaService {
 
     private final ParteDiariaRepository parteDiariaRepository;
+    private final ClientRepository clientRepository;
+    private final VehicleRepository vehicleRepository;
+    private final DriverRepository driverRepository;
+    private final MeasurementContractRepository measurementContractRepository;
 
     public ParteDiariaDTO create(ParteDiariaDTO dto) {
         ParteDiaria pd = new ParteDiaria();
-        pd.setNumber(dto.getNumber() != null ? dto.getNumber() : "PD-" + System.currentTimeMillis() % 100000);
+        pd.setNumber(dto.getNumber() != null && !dto.getNumber().isBlank() ? dto.getNumber() : "PD-" + (System.currentTimeMillis() % 100000));
         pd.setDate(dto.getDate() != null ? dto.getDate() : LocalDate.now());
         pd.setObraName(dto.getObraName());
         pd.setServiceName(dto.getServiceName());
         pd.setRouteName(dto.getRouteName());
-        pd.setVehiclePlate(dto.getVehiclePlate());
+        pd.setVehiclePlate(dto.getVehiclePlate() != null && !dto.getVehiclePlate().isBlank() ? dto.getVehiclePlate() : "QMR-2F82");
         pd.setVehicleModel(dto.getVehicleModel());
-        pd.setDriverName(dto.getDriverName());
+        pd.setDriverName(dto.getDriverName() != null ? dto.getDriverName() : "Motorista Operacional");
         pd.setStartTime(dto.getStartTime());
         pd.setEndTime(dto.getEndTime());
         pd.setStartKm(dto.getStartKm());
@@ -43,6 +47,19 @@ public class ParteDiariaService {
         pd.setNotes(dto.getNotes());
         pd.setCreatedBy(dto.getCreatedBy() != null ? dto.getCreatedBy() : "Operacional");
 
+        if (dto.getClientId() != null) {
+            clientRepository.findById(dto.getClientId()).ifPresent(pd::setClient);
+        }
+        if (dto.getVehicleId() != null) {
+            vehicleRepository.findById(dto.getVehicleId()).ifPresent(pd::setVehicle);
+        }
+        if (dto.getDriverId() != null) {
+            driverRepository.findById(dto.getDriverId()).ifPresent(pd::setDriver);
+        }
+        if (dto.getContractId() != null) {
+            measurementContractRepository.findById(dto.getContractId()).ifPresent(pd::setContract);
+        }
+
         pd.calculateKms();
 
         if (dto.getAtividades() != null) {
@@ -51,7 +68,7 @@ public class ParteDiariaService {
                 at.setParteDiaria(pd);
                 at.setStartTime(atDto.getStartTime());
                 at.setEndTime(atDto.getEndTime());
-                at.setDescription(atDto.getDescription());
+                at.setDescription(atDto.getDescription() != null ? atDto.getDescription() : "Atendimento Operacional");
                 at.setActivityType(atDto.getActivityType());
                 at.setNotes(atDto.getNotes());
                 pd.getAtividades().add(at);

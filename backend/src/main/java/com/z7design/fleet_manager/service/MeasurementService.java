@@ -664,7 +664,10 @@ public class MeasurementService {
             desc += " - Obra/Setor: " + workPostName;
         }
         ar.setDescription(desc);
-        ar.setAmount(bulletin.getSubtotal() != null ? bulletin.getSubtotal() : BigDecimal.ZERO);
+        BigDecimal amt = bulletin.getSubtotal() != null && bulletin.getSubtotal().compareTo(BigDecimal.ZERO) > 0 
+                ? bulletin.getSubtotal() 
+                : BigDecimal.valueOf(1.00);
+        ar.setAmount(amt);
         
         LocalDate issueDate = LocalDate.now();
         ar.setIssueDate(issueDate);
