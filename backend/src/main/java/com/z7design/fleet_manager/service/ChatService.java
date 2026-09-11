@@ -229,14 +229,24 @@ public class ChatService {
      * EstatÃ­sticas rÃ¡pidas do chat para o painel: total de conversas, nÃ£o lidas e abertas
      */
     public java.util.Map<String, Long> getChatStats(UUID userId) {
-        Long total = chatMessageRepository.countConversationsForUser(userId);
-        Long unread = chatMessageRepository.countUnreadMessagesForUser(userId);
-        Long open = chatMessageRepository.countOpenConversationsForUser(userId);
-        return java.util.Map.of(
-                "total", total == null ? 0L : total,
-                "unread", unread == null ? 0L : unread,
-                "open", open == null ? 0L : open
-        );
+        try {
+            Long total = chatMessageRepository.countConversationsForUser(userId);
+            Long unread = chatMessageRepository.countUnreadMessagesForUser(userId);
+            Long open = chatMessageRepository.countOpenConversationsForUser(userId);
+
+            java.util.Map<String, Long> stats = new java.util.HashMap<>();
+            stats.put("total", total != null ? total : 0L);
+            stats.put("unread", unread != null ? unread : 0L);
+            stats.put("open", open != null ? open : 0L);
+            return stats;
+        } catch (Exception e) {
+            log.warn("Aviso ao buscar estatísticas de chat para o usuário {}: {}. Retornando valores zerados.", userId, e.getMessage());
+            java.util.Map<String, Long> fallback = new java.util.HashMap<>();
+            fallback.put("total", 0L);
+            fallback.put("unread", 0L);
+            fallback.put("open", 0L);
+            return fallback;
+        }
     }
     
     /**

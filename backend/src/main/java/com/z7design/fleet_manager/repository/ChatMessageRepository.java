@@ -42,15 +42,13 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     List<ChatMessage> findUnreadMessagesForUser(@Param("userId") UUID userId);
     
     /**
-     * Conta mensagens nÃ£o lidas para um usuÃ¡rio
+     * Conta mensagens não lidas para um usuário
      */
-    @Query("SELECT COUNT(cm) FROM ChatMessage cm WHERE " +
-           "(cm.recipient.id = :userId AND cm.isRead = false) OR " +
-           "(cm.group.id IN (SELECT ug.id FROM User u JOIN u.groups ug WHERE u.id = :userId) AND cm.isRead = false)")
+    @Query(value = "SELECT COUNT(*) FROM chat_messages WHERE (recipient_id = :userId AND is_read = false) OR (group_id IS NOT NULL AND is_read = false)", nativeQuery = true)
     Long countUnreadMessagesForUser(@Param("userId") UUID userId);
     
     /**
-     * Busca Ãºltimas mensagens de conversas para um usuÃ¡rio
+     * Busca últimas mensagens de conversas para um usuário
      */
     @Query("SELECT cm FROM ChatMessage cm WHERE cm.id IN (" +
            "SELECT MAX(cm2.id) FROM ChatMessage cm2 WHERE " +
@@ -64,26 +62,14 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     List<ChatMessage> findRecentConversationsForUser(@Param("userId") UUID userId);
 
     /**
-     * Conta o total de conversas (individuais + grupos) de um usuÃ¡rio
+     * Conta o total de conversas (individuais + grupos) de um usuário
      */
-    @Query("SELECT COUNT(DISTINCT CASE " +
-           "WHEN cm.recipient.id = :userId THEN cm.sender.id " +
-           "WHEN cm.sender.id = :userId THEN cm.recipient.id " +
-           "ELSE cm.group.id END) " +
-           "FROM ChatMessage cm WHERE " +
-           "(cm.sender.id = :userId OR cm.recipient.id = :userId OR " +
-           "cm.group.id IN (SELECT ug.id FROM User u JOIN u.groups ug WHERE u.id = :userId))")
+    @Query(value = "SELECT COUNT(DISTINCT COALESCE(CASE WHEN recipient_id = :userId THEN sender_id WHEN sender_id = :userId THEN recipient_id ELSE NULL END, group_id)) FROM chat_messages WHERE sender_id = :userId OR recipient_id = :userId OR group_id IS NOT NULL", nativeQuery = true)
     Long countConversationsForUser(@Param("userId") UUID userId);
 
     /**
-     * Conta conversas abertas (com mensagens nÃ£o lidas) de um usuÃ¡rio
+     * Conta conversas abertas (com mensagens não lidas) de um usuário
      */
-    @Query("SELECT COUNT(DISTINCT CASE " +
-           "WHEN cm.recipient.id = :userId THEN cm.sender.id " +
-           "WHEN cm.sender.id = :userId THEN cm.recipient.id " +
-           "ELSE cm.group.id END) " +
-           "FROM ChatMessage cm WHERE " +
-           "(cm.recipient.id = :userId AND cm.isRead = false) OR " +
-           "(cm.group.id IN (SELECT ug.id FROM User u JOIN u.groups ug WHERE u.id = :userId) AND cm.isRead = false)")
+    @Query(value = "SELECT COUNT(DISTINCT COALESCE(CASE WHEN recipient_id = :userId THEN sender_id ELSE NULL END, group_id)) FROM chat_messages WHERE (recipient_id = :userId AND is_read = false) OR (group_id IS NOT NULL AND is_read = false)", nativeQuery = true)
     Long countOpenConversationsForUser(@Param("userId") UUID userId);
 } 
