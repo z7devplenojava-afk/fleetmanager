@@ -39,14 +39,14 @@ export function detectEnvironment(): AppEnvironment {
 
   const hostname = window.location.hostname;
 
-  // Ambiente CI
-  if (hostname.includes('ci.z7botsolutions.com.br')) {
+  // Ambiente CI, Dev, Test ou Prod
+  if (hostname.includes('ci.fluxbus.com.br') || hostname.includes('ci.z7botsolutions.com.br')) {
     cachedEnvironment = 'ci';
-  } else if (hostname.includes('dev.z7botsolutions.com.br')) {
+  } else if (hostname.includes('dev.fluxbus.com.br') || hostname.includes('dev.z7botsolutions.com.br')) {
     cachedEnvironment = 'dev';
-  } else if (hostname.includes('test.z7botsolutions.com.br') || hostname.includes('testing.z7botsolutions.com.br')) {
+  } else if (hostname.includes('test.fluxbus.com.br') || hostname.includes('test.z7botsolutions.com.br') || hostname.includes('testing.z7botsolutions.com.br')) {
     cachedEnvironment = 'test';
-  } else if (hostname.includes('z7botsolutions.com.br') && !hostname.includes('ci.') && !hostname.includes('dev.') && !hostname.includes('test.')) {
+  } else if ((hostname.includes('fluxbus.com.br') || hostname.includes('z7botsolutions.com.br')) && !hostname.includes('ci.') && !hostname.includes('dev.') && !hostname.includes('test.')) {
     cachedEnvironment = 'prod';
   } else if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
     cachedEnvironment = 'local';
@@ -95,8 +95,8 @@ const environments: Record<string, EnvironmentConfig> = {
   },
   ci: {
     name: 'CI - Integração Contínua',
-    apiUrl: 'https://ci.z7botsolutions.com.br/api',
-    wsUrl: 'wss://ci.z7botsolutions.com.br/ws',
+    apiUrl: 'https://ci.fluxbus.com.br/api',
+    wsUrl: 'wss://ci.fluxbus.com.br/ws',
     debug: true,
     features: {
       notifications: true,
@@ -106,8 +106,8 @@ const environments: Record<string, EnvironmentConfig> = {
   },
   dev: {
     name: 'Desenvolvimento',
-    apiUrl: 'https://dev.z7botsolutions.com.br/api',
-    wsUrl: 'wss://dev.z7botsolutions.com.br/ws',
+    apiUrl: 'https://dev.fluxbus.com.br/api',
+    wsUrl: 'wss://dev.fluxbus.com.br/ws',
     debug: true,
     features: {
       notifications: true,
@@ -117,8 +117,8 @@ const environments: Record<string, EnvironmentConfig> = {
   },
   test: {
     name: 'Teste',
-    apiUrl: 'https://test.z7botsolutions.com.br/api',
-    wsUrl: 'wss://test.z7botsolutions.com.br/ws',
+    apiUrl: 'https://test.fluxbus.com.br/api',
+    wsUrl: 'wss://test.fluxbus.com.br/ws',
     debug: true,
     features: {
       notifications: true,
@@ -128,8 +128,8 @@ const environments: Record<string, EnvironmentConfig> = {
   },
   prod: {
     name: 'Produção',
-    apiUrl: 'https://app.z7botsolutions.com.br/api',
-    wsUrl: 'wss://app.z7botsolutions.com.br/ws',
+    apiUrl: 'https://fluxbus.com.br/api',
+    wsUrl: 'wss://fluxbus.com.br/ws',
     debug: false,
     features: {
       notifications: true,
