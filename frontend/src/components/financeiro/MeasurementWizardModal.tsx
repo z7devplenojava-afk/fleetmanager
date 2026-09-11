@@ -12,6 +12,7 @@ import { Calculator, FileText, CheckCircle2, AlertTriangle, Plus, Trash2, ArrowR
 import { measurementService } from '@/services/measurementService';
 import { clientService } from '@/services/clientService';
 import { fleetService } from '@/services/fleetService';
+import { contractService } from '@/services/contractService';
 import { Client } from '@/types/employee';
 import { Vehicle } from '@/types/fleet';
 
@@ -93,6 +94,25 @@ export const MeasurementWizardModal: React.FC<MeasurementWizardModalProps> = ({
       console.error('Erro ao carregar dados iniciais:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleClientChange = async (clientId: string) => {
+    setSelectedClientId(clientId);
+    try {
+      const rawContracts = await contractService.getContracts({ clientId }).catch(() => []);
+      const contractsList = Array.isArray(rawContracts) ? rawContracts : (rawContracts as any)?.content || [];
+      if (contractsList.length > 0) {
+        const firstContract = contractsList[0];
+        setContractNumber(firstContract.contractNumber || 'CT-2024/001');
+        setObraName(firstContract.description || firstContract.unitName || 'OBRA TALUDE');
+      } else {
+        const selectedClient = clients.find(c => c.id === clientId);
+        setContractNumber(`CT-2024/${selectedClient?.name?.substring(0, 6).toUpperCase() || 'FM2C'}`);
+        setObraName('OBRA TALUDE / OPERACIONAL');
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar contrato do cliente:', err);
     }
   };
 
@@ -219,7 +239,7 @@ export const MeasurementWizardModal: React.FC<MeasurementWizardModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Cliente</Label>
-                <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                <Select value={selectedClientId} onValueChange={handleClientChange}>
                   <SelectTrigger className="bg-seguranca-black border-gray-600">
                     <SelectValue placeholder="Selecione o cliente..." />
                   </SelectTrigger>

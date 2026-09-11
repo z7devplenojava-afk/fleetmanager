@@ -10,6 +10,8 @@ import { Truck, Plus, Trash2, CheckCircle2, Clock, MapPin, User, Hash, FileText,
 import { clientService, Client } from '@/services/clientService';
 import { fleetService } from '@/services/fleetService';
 import { parteDiariaService, ParteDiaria, ParteDiariaAtividade } from '@/services/parteDiariaService';
+import driverService, { Driver } from '@/services/driverService';
+import { contractService } from '@/services/contractService';
 
 interface ParteDiariaModalProps {
   isOpen: boolean;
@@ -26,15 +28,19 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
 
   // Dados do Cabeçalho da Parte Diária (Baseado no Documento Físico)
   const [docNumber, setDocNumber] = useState<string>(`PD-${Math.floor(10000 + Math.random() * 90000)}`);
   const [docDate, setDocDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [contractNumber, setContractNumber] = useState<string>('');
+  const [obraName, setObraName] = useState<string>('');
   const [vehicleType, setVehicleType] = useState<string>('MICRO'); // CARRO, ONIBUS, MICRO, VAN
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
   const [vehiclePlate, setVehiclePlate] = useState<string>('');
   const [driverName, setDriverName] = useState<string>('');
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [dpSignature, setDpSignature] = useState<string>('CONFERIDO / DP');
 
   // Atividades do dia
@@ -59,23 +65,60 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const loadInitialData = async () => {
     try {
       setIsLoading(true);
-      const [rawClients, rawVehicles] = await Promise.all([
+      const [rawClients, rawVehicles, rawDrivers] = await Promise.all([
         clientService.getAllClients().catch(() => []),
-        fleetService.getVehicles().catch(() => [])
+        fleetService.getVehicles().catch(() => []),
+        driverService.getDrivers().catch(() => [])
       ]);
       setClients(Array.isArray(rawClients) ? rawClients : (rawClients as any)?.content || []);
       const vehicleList = Array.isArray(rawVehicles) ? rawVehicles : (rawVehicles as any)?.content || [];
       setVehicles(vehicleList);
+      const driverList = Array.isArray(rawDrivers) ? rawDrivers : (rawDrivers as any)?.content || [];
+      setDrivers(driverList);
 
       if (vehicleList.length > 0) {
         const first = vehicleList[0];
         setSelectedVehicleId(first.id);
         setVehiclePlate(first.placa || first.plate || '');
       }
+
+      if (driverList.length > 0) {
+        setSelectedDriverId(driverList[0].id || '');
+        setDriverName(driverList[0].name || '');
+      }
     } catch (err) {
       console.error('Erro ao carregar dados do formulário:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleClientChange = async (clientId: string) => {
+    setSelectedClientId(clientId);
+    try {
+      const rawContracts = await contractService.getContracts({ clientId }).catch(() => []);
+      const contractsList = Array.isArray(rawContracts) ? rawContracts : (rawContracts as any)?.content || [];
+      if (contractsList.length > 0) {
+        const firstContract = contractsList[0];
+        setContractNumber(firstContract.contractNumber || 'CT-2024/001');
+        setObraName(firstContract.description || firstContract.unitName || 'OBRA TALUDE');
+      } else {
+        const selectedClient = clients.find(c => c.id === clientId);
+        setContractNumber(`CT-2024/${selectedClient?.name?.substring(0, 6).toUpperCase() || 'FM2C'}`);
+        setObraName('OBRA TALUDE / OPERACIONAL');
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar contratos do cliente:', err);
+    }
+  };
+
+  const handleDriverChange = (driverIdOrName: string) => {
+    const found = drivers.find(d => d.id === driverIdOrName || d.name === driverIdOrName);
+    if (found) {
+      setSelectedDriverId(found.id || '');
+      setDriverName(found.name || '');
+    } else {
+      setDriverName(driverIdOrName);
     }
   };
 
@@ -212,11 +255,11 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
           </div>
 
           <div className="p-6 space-y-6">
-            {/* Seção 1: Dados do Cliente, Veículo e Motorista */}
+            {/* Seção 1: Dados do Cliente, Contrato, Obra, Veículo e Motorista */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-seguranca-black/60 p-4 rounded-xl border border-gray-700/60">
               <div>
                 <Label className="text-xs text-gray-300 font-semibold">CLIENTE</Label>
-                <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                <Select value={selectedClientId} onValueChange={handleClientChange}>
                   <SelectTrigger className="bg-seguranca-black border-gray-600 text-white h-9 mt-1">
                     <SelectValue placeholder="Selecione o cliente..." />
                   </SelectTrigger>
@@ -226,6 +269,26 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <Label className="text-xs text-gray-300 font-semibold">NÚMERO DO CONTRATO</Label>
+                <Input
+                  value={contractNumber}
+                  onChange={(e) => setContractNumber(e.target.value)}
+                  placeholder="Auto-preenchido ou Ex: CT-2024/001"
+                  className="bg-seguranca-black border-gray-600 text-amber-400 font-bold h-9 mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs text-gray-300 font-semibold">OBRA / SETOR DE TRABALHO</Label>
+                <Input
+                  value={obraName}
+                  onChange={(e) => setObraName(e.target.value)}
+                  placeholder="Auto-preenchido ou Ex: OBRA TALUDE"
+                  className="bg-seguranca-black border-gray-600 text-white font-semibold h-9 mt-1"
+                />
               </div>
 
               <div>
@@ -273,14 +336,29 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 )}
               </div>
 
-              <div className="md:col-span-3">
+              <div>
                 <Label className="text-xs text-gray-300 font-semibold">MOTORISTA RESPONSÁVEL</Label>
-                <Input
-                  value={driverName}
-                  onChange={(e) => setDriverName(e.target.value)}
-                  placeholder="Nome completo do motorista..."
-                  className="bg-seguranca-black border-gray-600 text-white h-9 mt-1"
-                />
+                {drivers.length > 0 ? (
+                  <Select value={selectedDriverId || driverName} onValueChange={handleDriverChange}>
+                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-white h-9 mt-1">
+                      <SelectValue placeholder="Selecione o motorista..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-black border-gray-600 text-white">
+                      {drivers.map((d: any) => (
+                        <SelectItem key={d.id || d.name} value={d.id || d.name}>
+                          {d.name} {d.licenseNumber ? `(CNH: ${d.licenseNumber})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={driverName}
+                    onChange={(e) => setDriverName(e.target.value)}
+                    placeholder="Nome completo do motorista..."
+                    className="bg-seguranca-black border-gray-600 text-white h-9 mt-1"
+                  />
+                )}
               </div>
             </div>
 
