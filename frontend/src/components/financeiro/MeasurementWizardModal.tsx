@@ -62,12 +62,13 @@ export const MeasurementWizardModal: React.FC<MeasurementWizardModalProps> = ({
   const loadInitialData = async () => {
     try {
       setIsLoading(true);
-      const [clientList, vehicleList] = await Promise.all([
-        clientService.getClients().catch(() => []),
+      const [rawClients, vehicleList] = await Promise.all([
+        clientService.getAllClients().catch(() => []),
         fleetService.getVehicles().catch(() => [])
       ]);
-      setClients(clientList);
-      setVehicles(vehicleList);
+      const normalizedClients = Array.isArray(rawClients) ? rawClients : (rawClients as any)?.content || [];
+      setClients(normalizedClients);
+      setVehicles(Array.isArray(vehicleList) ? vehicleList : (vehicleList as any)?.content || []);
 
       // Preencher apontamentos iniciais baseados nos veículos ativos
       if (vehicleList && vehicleList.length > 0) {
@@ -223,7 +224,7 @@ export const MeasurementWizardModal: React.FC<MeasurementWizardModalProps> = ({
                     <SelectValue placeholder="Selecione o cliente..." />
                   </SelectTrigger>
                   <SelectContent className="bg-seguranca-black border-gray-600">
-                    {clients.map(c => (
+                    {(Array.isArray(clients) ? clients : []).map(c => (
                       <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
