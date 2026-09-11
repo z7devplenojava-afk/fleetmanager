@@ -17,6 +17,7 @@ import {
   Edit,
   Trash2,
   Image,
+  ImageOff,
   FileText,
   Download,
   ZoomIn
@@ -146,6 +147,7 @@ export function ManutencaoViewModal({
 }: ManutencaoViewModalProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   // Debug: Log dos dados recebidos
   console.log('🔍 ManutencaoViewModal - Dados recebidos:', {
@@ -348,33 +350,43 @@ export function ManutencaoViewModal({
                 Fotos ({maintenance.photos.length})
               </h4>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {maintenance.photos.map((photo, index) => (
-                  <div key={index} className="relative group">
-                    <div
-                      className="aspect-square bg-seguranca-black/30 rounded-lg border border-gray-600 overflow-hidden cursor-pointer hover:border-seguranca-yellow transition-colors"
-                      onClick={() => openLightbox(photo)}
-                    >
-                      <img
-                        src={photo.startsWith('http') ? photo : `${getApiUrl().replace('/api', '')}${photo}`}
-                        alt={`Foto ${index + 1}`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          console.error('Erro ao carregar imagem:', photo);
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                        onLoad={() => {
-                          console.log('✅ Imagem carregada com sucesso:', photo);
-                        }}
-                      />
+                {maintenance.photos.map((photo, index) => {
+                  const isFailed = failedImages[photo];
+                  const cleanBase = getApiUrl().replace(/\/api\/?$/, '');
+                  const cleanPhoto = photo.startsWith('/') ? photo : `/${photo}`;
+                  const photoUrl = photo.startsWith('http') ? photo : `${cleanBase}${cleanPhoto}`;
 
-                      {/* Overlay com ícone de zoom */}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <ZoomIn className="h-6 w-6 text-white" />
+                  return (
+                    <div key={index} className="relative group">
+                      <div
+                        className="aspect-square bg-seguranca-black/30 rounded-lg border border-gray-600 overflow-hidden cursor-pointer hover:border-seguranca-yellow transition-colors flex items-center justify-center"
+                        onClick={() => !isFailed && openLightbox(photo)}
+                      >
+                        {isFailed ? (
+                          <div className="flex flex-col items-center justify-center p-2 text-center text-gray-500">
+                            <ImageOff className="h-6 w-6 mb-1 text-gray-500" />
+                            <span className="text-[10px] font-medium text-gray-400">Imagem indisponível</span>
+                          </div>
+                        ) : (
+                          <>
+                            <img
+                              src={photoUrl}
+                              alt={`Foto ${index + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={() => {
+                                console.warn('⚠️ Não foi possível carregar foto de manutenção:', photo);
+                                setFailedImages(prev => ({ ...prev, [photo]: true }));
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <ZoomIn className="h-6 w-6 text-white" />
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
