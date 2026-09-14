@@ -196,8 +196,8 @@ public class TransportMobilizationService {
     private TransportMobilizationDTO toDTO(TransportMobilization entity) {
         return TransportMobilizationDTO.builder()
                 .id(entity.getId())
-                .vehicleId(entity.getVehicle().getId())
-                .vehiclePlate(entity.getVehicle().getPlate())
+                .vehicleId(entity.getVehicle() != null ? entity.getVehicle().getId() : null)
+                .vehiclePlate(entity.getVehicle() != null ? entity.getVehicle().getPlate() : null)
                 .driverId(entity.getDriver() != null ? entity.getDriver().getId() : null)
                 .driverName(entity.getDriver() != null ? entity.getDriver().getName() : null)
                 .clientId(entity.getClient() != null ? entity.getClient().getId() : null)

@@ -6,7 +6,11 @@ import com.z7design.fleet_manager.model.Client;
 import com.z7design.fleet_manager.model.enums.ReceivableStatus;
 import com.z7design.fleet_manager.repository.AccountsReceivableRepository;
 import com.z7design.fleet_manager.repository.ClientRepository;
+import com.z7design.fleet_manager.repository.ContractRepository;
+import com.z7design.fleet_manager.repository.WorkPostRepository;
 import com.z7design.fleet_manager.repository.UnitRepository;
+import com.z7design.fleet_manager.model.Contract;
+import com.z7design.fleet_manager.model.WorkPost;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,15 +26,21 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
 public class AccountsReceivableService {
+    private static final Logger log = LoggerFactory.getLogger(AccountsReceivableService.class);
     
     private final AccountsReceivableRepository accountsReceivableRepository;
     private final ClientRepository clientRepository;
     private final UnitRepository unitRepository;
+    private final ContractRepository contractRepository;
+    private final WorkPostRepository workPostRepository;
     
     /**
      * Buscar todas as contas a receber com paginaÃ§Ã£o
@@ -114,6 +124,16 @@ public class AccountsReceivableService {
         if (dto.getUnitId() != null) {
             account.setUnit(unitRepository.findById(dto.getUnitId()).orElse(null));
         }
+
+        // Definir contrato se fornecido
+        if (dto.getContractId() != null) {
+            account.setContract(contractRepository.findById(dto.getContractId()).orElse(null));
+        }
+
+        // Definir obra/posto se fornecido
+        if (dto.getWorkPostId() != null) {
+            account.setWorkPost(workPostRepository.findById(dto.getWorkPostId()).orElse(null));
+        }
         
         // Definir centro de custo se fornecido
         account.setCentroCusto(dto.getCentroCusto());
@@ -136,12 +156,12 @@ public class AccountsReceivableService {
         
         // Buscar conta existente
         AccountsReceivable account = accountsReceivableRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Conta a receber nÃ£o encontrada com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Conta a receber não encontrada com ID: " + id));
         
         // Buscar cliente se foi alterado
         if (!account.getClient().getId().equals(dto.getClientId())) {
             Client client = clientRepository.findById(dto.getClientId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Cliente nÃ£o encontrado com ID: " + dto.getClientId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com ID: " + dto.getClientId()));
             account.setClient(client);
         }
         
@@ -164,12 +184,12 @@ public class AccountsReceivableService {
             account.setStatus(dto.getStatus());
         }
         
-        // Atualizar categoria se fornecida (obrigatÃ³ria se fornecida)
+        // Atualizar categoria se fornecida (obrigatória se fornecida)
         if (dto.getCategory() != null) {
             account.setCategory(dto.getCategory());
         }
         
-        // Atualizar forma de pagamento se fornecida (obrigatÃ³ria se fornecida)
+        // Atualizar forma de pagamento se fornecida (obrigatória se fornecida)
         if (dto.getPaymentMethod() != null) {
             account.setPaymentMethod(dto.getPaymentMethod());
         }
@@ -182,9 +202,22 @@ public class AccountsReceivableService {
         // Atualizar unidade se unitId foi fornecido
         if (dto.getUnitId() != null) {
             account.setUnit(unitRepository.findById(dto.getUnitId()).orElse(null));
-        } else if (dto.getUnitId() == null && account.getUnit() != null) {
-            // Se unitId for null explicitamente, remover a unidade
+        } else {
             account.setUnit(null);
+        }
+
+        // Atualizar contrato se contractId foi fornecido
+        if (dto.getContractId() != null) {
+            account.setContract(contractRepository.findById(dto.getContractId()).orElse(null));
+        } else {
+            account.setContract(null);
+        }
+
+        // Atualizar obra/posto se workPostId foi fornecido
+        if (dto.getWorkPostId() != null) {
+            account.setWorkPost(workPostRepository.findById(dto.getWorkPostId()).orElse(null));
+        } else {
+            account.setWorkPost(null);
         }
         
         // Atualizar centro de custo se fornecido

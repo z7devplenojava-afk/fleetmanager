@@ -176,6 +176,12 @@ public class ContractService {
         existingContract.setStatus(contractDTO.getStatus());
         existingContract.setContractType(contractDTO.getContractType());
         existingContract.setNotes(contractDTO.getNotes());
+        existingContract.setObraName(contractDTO.getObraName());
+        existingContract.setVehicleQuantity(contractDTO.getVehicleQuantity());
+        existingContract.setUnitVehicleValue(contractDTO.getUnitVehicleValue());
+        existingContract.setServiceType(contractDTO.getServiceType());
+        existingContract.setVehicleDescription(contractDTO.getVehicleDescription());
+        existingContract.setVigenciaText(contractDTO.getVigenciaText());
         existingContract.setClient(client);
         existingContract.setUpdatedAt(LocalDateTime.now());
 
@@ -247,6 +253,12 @@ public class ContractService {
         contract.setStatus(dto.getStatus() != null ? dto.getStatus() : ContractStatus.ACTIVE);
         contract.setContractType(dto.getContractType());
         contract.setNotes(dto.getNotes());
+        contract.setObraName(dto.getObraName());
+        contract.setVehicleQuantity(dto.getVehicleQuantity());
+        contract.setUnitVehicleValue(dto.getUnitVehicleValue());
+        contract.setServiceType(dto.getServiceType());
+        contract.setVehicleDescription(dto.getVehicleDescription());
+        contract.setVigenciaText(dto.getVigenciaText());
     }
     
     private void notifyDepartmentsNewContract(Contract contract) {

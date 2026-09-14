@@ -48,6 +48,7 @@ import { MeasurementViewModal } from '@/components/financeiro/MeasurementViewMod
 import { MeasurementWizardModal } from '@/components/financeiro/MeasurementWizardModal';
 import { MeasurementVersionDrawer } from '@/components/financeiro/MeasurementVersionDrawer';
 import { ParteDiariaModal } from '@/components/financeiro/ParteDiariaModal';
+import { ParteDiariaFinanceiroTab } from '@/components/financeiro/ParteDiariaFinanceiroTab';
 import { useToast } from '@/hooks/use-toast';
 import { measurementService } from '@/services/measurementService';
 import { MeasurementBulletin, MeasurementStatus } from '@/types/measurement';
@@ -407,14 +408,17 @@ const Medicao: React.FC = () => {
 
         {/* Tabs Principais */}
         <Tabs defaultValue="dashboard" className="space-y-4">
-          <TabsList className="bg-seguranca-graphite border-gray-600 p-1">
-            <TabsTrigger value="dashboard" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow font-bold">
+          <TabsList className="bg-seguranca-black/90 border border-gray-700/80 p-1.5 rounded-xl flex flex-wrap gap-1">
+            <TabsTrigger value="dashboard" className="data-[state='active']:bg-amber-500 data-[state='active']:text-seguranca-black text-xs font-extrabold px-4 py-2 rounded-lg transition-all">
               📊 Dashboard Geral
             </TabsTrigger>
-            <TabsTrigger value="completa" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow font-bold">
+            <TabsTrigger value="parte-diaria" className="data-[state='active']:bg-amber-500 data-[state='active']:text-seguranca-black text-xs font-extrabold px-4 py-2 rounded-lg transition-all">
+              📋 Parte Diária Operacional
+            </TabsTrigger>
+            <TabsTrigger value="completa" className="data-[state='active']:bg-amber-500 data-[state='active']:text-seguranca-black text-xs font-extrabold px-4 py-2 rounded-lg transition-all">
               📑 Medições Completas (GLOBAL)
             </TabsTrigger>
-            <TabsTrigger value="simplificada" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow font-bold">
+            <TabsTrigger value="simplificada" className="data-[state='active']:bg-amber-500 data-[state='active']:text-seguranca-black text-xs font-extrabold px-4 py-2 rounded-lg transition-all">
               ⚡ Medições Simplificadas
             </TabsTrigger>
           </TabsList>
@@ -761,6 +765,13 @@ const Medicao: React.FC = () => {
               onDelete={handleDeleteBulletin}
               onCreate={handleCreateSimplifiedBulletin}
               onValidate={handleValidateBulletin}
+            />
+          </TabsContent>
+
+          <TabsContent value="parte-diaria">
+            <ParteDiariaFinanceiroTab
+              onOpenParteDiariaModal={() => setShowParteDiariaModal(true)}
+              onOpenBulletinModal={handleCreateBulletin}
             />
           </TabsContent>
         </Tabs>

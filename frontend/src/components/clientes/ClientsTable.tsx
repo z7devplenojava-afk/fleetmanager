@@ -84,25 +84,25 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
       [ClientStatus.ACTIVE]: { 
         label: 'Ativo', 
         variant: 'default' as const,
-        className: 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 border-green-500/40 shadow-green-500/20',
+        className: 'bg-emerald-950/90 text-emerald-400 border border-emerald-500/50 shadow-md shadow-emerald-950/50 font-bold',
         icon: TrendingUp
       },
       [ClientStatus.INACTIVE]: { 
         label: 'Inativo', 
         variant: 'secondary' as const,
-        className: 'bg-gradient-to-r from-gray-500/20 to-slate-500/20 text-gray-300 border-gray-500/40 shadow-gray-500/20',
+        className: 'bg-slate-900/90 text-slate-300 border border-slate-600/50 shadow-md font-bold',
         icon: Users
       },
       [ClientStatus.SUSPENDED]: { 
         label: 'Suspenso', 
         variant: 'destructive' as const,
-        className: 'bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-300 border-red-500/40 shadow-red-500/20',
+        className: 'bg-rose-950/90 text-rose-400 border border-rose-500/50 shadow-md shadow-rose-950/50 font-bold',
         icon: Users
       },
       [ClientStatus.PENDING]: { 
         label: 'Pendente', 
         variant: 'outline' as const,
-        className: 'bg-gradient-to-r from-yellow-500/20 to-amber-500/20 text-yellow-300 border-yellow-500/40 shadow-yellow-500/20',
+        className: 'bg-amber-950/90 text-amber-400 border border-amber-500/50 shadow-md shadow-amber-950/50 font-bold',
         icon: Sparkles
       }
     };
@@ -113,9 +113,9 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
     return (
       <Badge 
         variant={config.variant} 
-        className={`${config.className} px-3 py-1.5 font-medium flex items-center gap-1.5 shadow-lg`}
+        className={`${config.className} px-3 py-1.5 font-bold flex items-center gap-1.5 shadow-lg text-xs`}
       >
-        <IconComponent className="h-3 w-3" />
+        <IconComponent className="h-3.5 w-3.5" />
         {config.label}
       </Badge>
     );
@@ -163,13 +163,12 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
 
   return (
     <>
-      {/* Desktop View - Table sem scroll horizontal */}
-      <div className="hidden lg:block rounded-xl border border-gray-600/20 shadow-2xl bg-gradient-to-br from-seguranca-black/40 to-seguranca-graphite/20">
-        <div className="overflow-hidden">
-          <Table className="w-full table-fixed">
+      {/* Desktop View */}
+      <div className="hidden lg:block rounded-xl border border-gray-600/20 shadow-2xl bg-gradient-to-br from-seguranca-black/40 to-seguranca-graphite/20 overflow-x-auto">
+        <Table className="w-full min-w-[980px]">
           <TableHeader>
             <TableRow className="bg-gradient-to-r from-seguranca-graphite/90 to-seguranca-black/80 hover:from-seguranca-graphite to-seguranca-black border-b border-gray-600/30">
-              <TableHead className="py-4 w-[4%] text-center select-none">
+              <TableHead className="py-4 w-12 text-center select-none">
                 <Checkbox 
                   checked={isAllSelected}
                   onCheckedChange={(checked) => onSelectAllClients?.(!!checked)}
@@ -179,7 +178,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
               </TableHead>
               <TableHead 
                 onClick={() => handleSort('name')}
-                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[28%] cursor-pointer select-none group/head hover:text-white transition-colors"
+                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 min-w-[220px] cursor-pointer select-none group/head hover:text-white transition-colors"
                 title="Clique para ordenar por Nome (A-Z / Z-A)"
               >
                 <div className="flex items-center gap-2">
@@ -190,7 +189,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
               </TableHead>
               <TableHead 
                 onClick={() => handleSort('cnpj')}
-                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[17%] cursor-pointer select-none group/head hover:text-white transition-colors"
+                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 min-w-[140px] cursor-pointer select-none group/head hover:text-white transition-colors"
                 title="Clique para ordenar por CNPJ"
               >
                 <div className="flex items-center gap-2">
@@ -200,7 +199,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
               </TableHead>
               <TableHead 
                 onClick={() => handleSort('contactName')}
-                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[19%] cursor-pointer select-none group/head hover:text-white transition-colors"
+                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 min-w-[160px] cursor-pointer select-none group/head hover:text-white transition-colors"
                 title="Clique para ordenar por Contato"
               >
                 <div className="flex items-center gap-2">
@@ -209,7 +208,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                   {renderSortIcon('contactName')}
                 </div>
               </TableHead>
-              <TableHead className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[15%] select-none">
+              <TableHead className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 min-w-[140px] select-none">
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
                   Telefones
@@ -217,7 +216,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
               </TableHead>
               <TableHead 
                 onClick={() => handleSort('status')}
-                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[12%] cursor-pointer select-none group/head hover:text-white transition-colors"
+                className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 min-w-[110px] cursor-pointer select-none group/head hover:text-white transition-colors"
                 title="Clique para ordenar por Status"
               >
                 <div className="flex items-center gap-2">
@@ -225,7 +224,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                   {renderSortIcon('status')}
                 </div>
               </TableHead>
-              <TableHead className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 w-[5%]">Ações</TableHead>
+              <TableHead className="text-seguranca-yellow font-bold text-sm uppercase tracking-wider py-4 min-w-[220px] text-center">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -240,127 +239,121 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                   onClick={() => onView(client)}
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  <TableCell className="py-6 text-center" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="py-4 text-center" onClick={(e) => e.stopPropagation()}>
                     <Checkbox 
                       checked={isSelected}
                       onCheckedChange={(checked) => onSelectClient?.(client.id, !!checked)}
                       className="border-gray-500 data-[state=checked]:bg-seguranca-red data-[state=checked]:border-seguranca-red"
                     />
                   </TableCell>
-                <TableCell className="py-6">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1 p-2 rounded-lg bg-gradient-to-br from-seguranca-red/20 to-seguranca-red/10 border border-seguranca-red/30 group-hover:from-seguranca-red/30 group-hover:to-seguranca-red/20 transition-all duration-300 shadow-lg shadow-seguranca-red/10 flex-shrink-0">
-                      <Building2 className="h-4 w-4 text-seguranca-red" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-base text-seguranca-lightgray group-hover:text-white transition-colors mb-1 truncate">
-                        {client.name}
+                  <TableCell className="py-4">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1 p-2 rounded-lg bg-gradient-to-br from-seguranca-red/20 to-seguranca-red/10 border border-seguranca-red/30 group-hover:from-seguranca-red/30 group-hover:to-seguranca-red/20 transition-all duration-300 shadow-lg shadow-seguranca-red/10 flex-shrink-0">
+                        <Building2 className="h-4 w-4 text-seguranca-red" />
                       </div>
-                      {client.email && (
-                        <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-                          <Mail className="h-3 w-3 text-seguranca-red/60 flex-shrink-0" />
-                          <span className="truncate">{client.email}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-base text-seguranca-lightgray group-hover:text-white transition-colors mb-1 truncate">
+                          {client.name}
+                        </div>
+                        {client.email && (
+                          <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+                            <Mail className="h-3 w-3 text-seguranca-red/60 flex-shrink-0" />
+                            <span className="truncate">{client.email}</span>
+                          </div>
+                        )}
+                        {client.city && client.state && (
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <MapPin className="h-3 w-3 text-gray-500 flex-shrink-0" />
+                            <span className="truncate">{client.city}/{client.state}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <span className="font-mono text-xs text-seguranca-lightgray bg-gradient-to-r from-seguranca-black/60 to-seguranca-graphite/40 px-2.5 py-1 rounded border border-gray-600/30 shadow-inner inline-block whitespace-nowrap">
+                      {formatCnpj(client.cnpj)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-4">
+                    {client.contactName ? (
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 font-semibold text-sm text-seguranca-lightgray mb-1">
+                          <User className="h-3 w-3 text-seguranca-red/60 flex-shrink-0" />
+                          <span className="truncate">{client.contactName}</span>
+                        </div>
+                        {client.contactEmail && (
+                          <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <Mail className="h-3 w-3 text-gray-500 flex-shrink-0" />
+                            <span className="truncate">{client.contactEmail}</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500 italic text-xs">Sem contato</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <div className="space-y-1">
+                      {client.phone && (
+                        <div className="flex items-center gap-2 text-xs text-seguranca-lightgray whitespace-nowrap">
+                          <Phone className="h-3 w-3 text-seguranca-red/60 flex-shrink-0" />
+                          <span>{formatPhone(client.phone)}</span>
                         </div>
                       )}
-                      {client.city && client.state && (
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <MapPin className="h-3 w-3 text-gray-500 flex-shrink-0" />
-                          <span className="truncate">{client.city}/{client.state}</span>
+                      {client.mobile && (
+                        <div className="flex items-center gap-2 text-xs text-gray-400 whitespace-nowrap">
+                          <Phone className="h-3 w-3 text-gray-500 flex-shrink-0" />
+                          <span>{formatPhone(client.mobile)}</span>
                         </div>
                       )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className="font-mono text-xs text-seguranca-lightgray bg-gradient-to-r from-seguranca-black/60 to-seguranca-graphite/40 px-2 py-1 rounded border border-gray-600/30 shadow-inner truncate block">
-                    {formatCnpj(client.cnpj)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  {client.contactName ? (
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 font-semibold text-sm text-seguranca-lightgray mb-1">
-                        <User className="h-3 w-3 text-seguranca-red/60 flex-shrink-0" />
-                        <span className="truncate">{client.contactName}</span>
-                      </div>
-                      {client.contactEmail && (
-                        <div className="flex items-center gap-2 text-xs text-gray-400">
-                          <Mail className="h-3 w-3 text-gray-500 flex-shrink-0" />
-                          <span className="truncate">{client.contactEmail}</span>
-                        </div>
+                      {!client.phone && !client.mobile && (
+                        <span className="text-gray-500 italic text-xs">Sem telefone</span>
                       )}
                     </div>
-                  ) : (
-                    <span className="text-gray-500 italic text-xs">Sem contato</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    {client.phone && (
-                      <div className="flex items-center gap-2 text-xs text-seguranca-lightgray">
-                        <Phone className="h-3 w-3 text-seguranca-red/60 flex-shrink-0" />
-                        <span className="truncate">{formatPhone(client.phone)}</span>
-                      </div>
-                    )}
-                    {client.mobile && (
-                      <div className="flex items-center gap-2 text-xs text-gray-400">
-                        <Phone className="h-3 w-3 text-gray-500 flex-shrink-0" />
-                        <span className="truncate">{formatPhone(client.mobile)}</span>
-                      </div>
-                    )}
-                    {!client.phone && !client.mobile && (
-                      <span className="text-gray-500 italic text-xs">Sem telefone</span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {getStatusBadge(client.status)}
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                  </TableCell>
+                  <TableCell className="py-4 whitespace-nowrap">
+                    {getStatusBadge(client.status)}
+                  </TableCell>
+                  <TableCell className="py-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-center gap-2">
                       <Button 
-                        variant="ghost" 
-                        className="h-10 w-10 p-0 hover:bg-gradient-to-r hover:from-seguranca-red/20 hover:to-seguranca-red/10 hover:text-seguranca-red transition-all duration-300 rounded-lg"
-                      >
-                        <span className="sr-only">Abrir menu</span>
-                        <MoreHorizontal className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent 
-                      align="end" 
-                      className="bg-gradient-to-br from-seguranca-black to-seguranca-graphite border-gray-600/30 w-52 shadow-2xl backdrop-blur-sm"
-                    >
-                      <DropdownMenuItem 
+                        variant="outline" 
+                        size="sm" 
                         onClick={() => onView(client)}
-                        className="text-seguranca-lightgray hover:bg-gradient-to-r hover:from-seguranca-graphite hover:to-seguranca-black hover:text-white cursor-pointer transition-all duration-200"
+                        className="h-8 px-2.5 text-xs font-semibold text-blue-400 border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 hover:text-blue-300 hover:border-blue-400/50 rounded-lg transition-all flex items-center gap-1 shadow-sm"
+                        title="Visualizar Detalhes do Cliente"
                       >
-                        <Eye className="mr-3 h-4 w-4" />
-                        Visualizar Detalhes
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
+                        <Eye className="h-3.5 w-3.5" />
+                        <span>Ver</span>
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
                         onClick={() => onEdit(client)}
-                        className="text-seguranca-lightgray hover:bg-gradient-to-r hover:from-seguranca-graphite hover:to-seguranca-black hover:text-white cursor-pointer transition-all duration-200"
+                        className="h-8 px-2.5 text-xs font-semibold text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-400/50 rounded-lg transition-all flex items-center gap-1 shadow-sm"
+                        title="Editar Cadastro do Cliente"
                       >
-                        <Edit className="mr-3 h-4 w-4" />
-                        Editar Cliente
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
+                        <Edit className="h-3.5 w-3.5" />
+                        <span>Editar</span>
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
                         onClick={() => onDelete(client)}
-                        className="text-red-400 hover:bg-gradient-to-r hover:from-red-500/20 hover:to-red-600/10 hover:text-red-300 cursor-pointer transition-all duration-200"
+                        className="h-8 px-2.5 text-xs font-semibold text-red-400 border-red-500/30 bg-red-500/10 hover:bg-red-500/20 hover:text-red-300 hover:border-red-400/50 rounded-lg transition-all flex items-center gap-1 shadow-sm"
+                        title="Excluir Registro do Cliente"
                       >
-                        <Trash2 className="mr-3 h-4 w-4" />
-                        Excluir Cliente
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Excluir</span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
               );
             })}
           </TableBody>
         </Table>
-        </div>
       </div>
 
       {/* Mobile View - Cards */}

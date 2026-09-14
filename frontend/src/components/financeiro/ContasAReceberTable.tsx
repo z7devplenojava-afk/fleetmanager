@@ -226,9 +226,17 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
                       {conta.numeroFatura || '-'}
                     </TableCell>
                     <TableCell className="text-white">
-                      <div className="flex items-center gap-2">
-                        <Users size={14} className="text-gray-400" />
-                        {conta.cliente}
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <Users size={14} className="text-gray-400" />
+                          {conta.cliente || '-'}
+                        </div>
+                        {(conta.obra || conta.contrato) && (
+                          <div className="text-xs text-gray-400 mt-0.5 flex flex-wrap gap-2">
+                            {conta.obra && <span>Obra: {conta.obra}</span>}
+                            {conta.contrato && <span>Contrato: {conta.contrato}</span>}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-white max-w-[200px] truncate">

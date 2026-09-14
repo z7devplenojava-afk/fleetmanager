@@ -37,7 +37,13 @@ public class EmployeePortalController {
     private final NotificationService notificationService;
 
     private Employee resolveEmployee(com.z7design.fleet_manager.model.User user) {
-        return employeeService.findById(user.getId());
+        if (user == null || user.getId() == null) return null;
+        try {
+            return employeeService.findById(user.getId());
+        } catch (Exception e) {
+            log.warn("Nenhum funcionário vinculado ao usuário: {}", user.getId());
+            return null;
+        }
     }
 
     // ========== DADOS DO FUNCIONÁRIO ==========
@@ -303,6 +309,20 @@ public class EmployeePortalController {
     @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
     public ResponseEntity<Map<String, Object>> getDashboard(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
         Employee employee = resolveEmployee(user);
+        Map<String, Object> dashboard = new java.util.HashMap<>();
+        
+        if (employee == null) {
+            dashboard.put("profile", null);
+            dashboard.put("timeBalance", null);
+            dashboard.put("vacationBalance", null);
+            dashboard.put("recentPayslips", Collections.emptyList());
+            dashboard.put("expiringTrainings", Collections.emptyList());
+            dashboard.put("pendingDocuments", Collections.emptyList());
+            dashboard.put("unreadNotifications", Collections.emptyList());
+            dashboard.put("hasTimePunchToday", false);
+            dashboard.put("lastTimePunch", null);
+            return ResponseEntity.ok(dashboard);
+        }
         
         // Verificar se há registro de ponto hoje
         List<TimeRecord> todayRecords = timeRecordService.getTodayRecords(employee.getId());
@@ -346,7 +366,6 @@ public class EmployeePortalController {
         // Profile
         EmployeeProfileDTO profile = EmployeeProfileDTO.fromEntity(employee);
         
-        Map<String, Object> dashboard = new java.util.HashMap<>();
         dashboard.put("profile", profile);
         dashboard.put("timeBalance", timeBalance);
         dashboard.put("vacationBalance", vacationBalance);

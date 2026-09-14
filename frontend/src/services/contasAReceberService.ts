@@ -11,6 +11,10 @@ export type ContaAReceber = ContaAReceberForm & {
   invoiceNumber?: string; // Número da fatura
   measurementNumber?: string; // Número da medição
   dueDate?: Date; // Data de vencimento
+  contrato?: string;
+  contratoId?: string;
+  obra?: string;
+  obraId?: string;
   client?: {
     id: string;
     name: string;
@@ -21,6 +25,8 @@ export interface CreateContaAReceberRequest {
   invoiceNumber?: string;
   description: string;
   clientId: string | null;
+  contractId?: string | null;
+  workPostId?: string | null;
   unitId?: string; // ID da unidade/empresa
   amount: number;
   amountPaid?: number; // Valor pago (opcional, padrão 0)
@@ -183,6 +189,10 @@ export const contasAReceberService = {
         vencimento: parseDateFromBackend(account.dueDate) || new Date(),
         cliente: account.clientName || account.client?.name || 'Não informado',
         clienteId: account.clientId || account.client?.id,
+        contrato: account.contractNumber,
+        contratoId: account.contractId,
+        obra: account.workPostName,
+        obraId: account.workPostId,
         empresa: account.unitSigla || account.unitName || 'Não informado',
         empresaId: account.unitId,
         descricao: account.description || '',
@@ -217,10 +227,6 @@ export const contasAReceberService = {
     
     console.log('📋 Dados recebidos do backend para conta:', id, account);
     
-    // Nota: O backend não retorna unitId, unitSigla, unitName nem centroCusto
-    // porque esses campos não existem no modelo AccountsReceivable
-    // Eles são apenas campos do frontend e não são persistidos no backend
-    
     return {
       id: account.id,
       numeroFatura: account.invoiceNumber,
@@ -228,6 +234,10 @@ export const contasAReceberService = {
       vencimento: parseDateFromBackend(account.dueDate) || new Date(),
       cliente: account.clientName || account.client?.name || 'Não informado',
       clienteId: account.clientId || account.client?.id,
+      contrato: account.contractNumber,
+      contratoId: account.contractId,
+      obra: account.workPostName,
+      obraId: account.workPostId,
       empresa: account.unit?.sigla || account.unit?.name || account.unitSigla || account.unitName || account.companySigla || undefined,
       empresaId: account.unitId || account.unit?.id || account.companyId || undefined,
       descricao: account.description,
@@ -246,10 +256,6 @@ export const contasAReceberService = {
 
   // Criar nova conta
   async createContaAReceber(conta: Omit<ContaAReceber, 'id'>): Promise<ContaAReceber> {
-    // unitId removido - AccountsReceivableDTO não possui esse campo e não é necessário para contas a receber
-
-    // Categoria já deve vir como enum válido do formulário (INVOICE, NOTE, ADVANCE, SERVICE, PRODUCT, OTHER)
-    // Se não vier ou for 'NENHUMA', usar tipo para determinar categoria
     const validCategories = ['INVOICE', 'NOTE', 'ADVANCE', 'SERVICE', 'PRODUCT', 'OTHER'];
     let category = conta.categoria && conta.categoria !== 'NENHUMA' && validCategories.includes(conta.categoria.toUpperCase())
       ? conta.categoria.toUpperCase() // Já deve ser um valor válido do enum
@@ -266,6 +272,8 @@ export const contasAReceberService = {
     const requestData: CreateContaAReceberRequest = {
       description: conta.descricao,
       clientId: conta.clienteId || null,
+      contractId: conta.contratoId || null,
+      workPostId: conta.obraId || null,
       unitId: conta.empresaId || undefined,
       amount: Number(conta.valor) || 0,
       dueDate: formatDateForBackend(conta.vencimento) || '',
@@ -307,6 +315,8 @@ export const contasAReceberService = {
     const requestData: CreateContaAReceberRequest = {
       description: (conta.descricao || contaExistente.descricao || '').trim(),
       clientId: conta.clienteId || contaExistente.clienteId || null,
+      contractId: conta.contratoId !== undefined ? (conta.contratoId || null) : (contaExistente.contratoId || null),
+      workPostId: conta.obraId !== undefined ? (conta.obraId || null) : (contaExistente.obraId || null),
       unitId: conta.empresaId || contaExistente.empresaId || undefined,
       amount: Number(conta.valor !== undefined ? conta.valor : (contaExistente.valor || contaExistente.amount || 0)),
       amountPaid: Number(contaExistente.amountPaid !== undefined ? contaExistente.amountPaid : 0),

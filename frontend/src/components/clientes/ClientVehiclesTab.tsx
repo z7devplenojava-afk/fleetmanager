@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import {
   Truck, Car, Wrench, Shield, CheckCircle2, AlertTriangle, XCircle,
-  Building2, FileText, Calendar, Search, ExternalLink, Loader2, Gauge, Clock
+  Building2, FileText, Calendar, Search, ExternalLink, Loader2, Gauge, Clock, Eye
 } from 'lucide-react';
 import { fleetService } from '@/services/fleetService';
 import workPostService, { WorkPost } from '@/services/workPostService';
 import { contractService, Contract } from '@/services/contractService';
 import { Vehicle } from '@/types/fleet';
+import VehicleDetailPanel from '@/components/frota/VehicleDetailPanel';
 
 interface ClientVehiclesTabProps {
   clientId: string;
@@ -52,6 +53,8 @@ export const ClientVehiclesTab: React.FC<ClientVehiclesTabProps> = ({ clientId, 
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -65,13 +68,32 @@ export const ClientVehiclesTab: React.FC<ClientVehiclesTabProps> = ({ clientId, 
       setWorkPosts(wpData || []);
       setContracts(ctData || []);
 
-      const workPostIds = new Set((wpData || []).map(wp => wp.id));
+      const workPostIds = new Set((wpData || []).map(wp => wp.id).filter(Boolean));
+      const contractIds = new Set((ctData || []).map(ct => ct.id).filter(Boolean));
+      const contractNumbers = new Set((ctData || []).map(ct => ct.contractNumber?.trim().toLowerCase()).filter(Boolean));
+      const normClientName = clientName?.trim().toLowerCase();
 
-      // Filtrar veículos alocados a este cliente ou a um de seus postos/obras
+      // Filtrar veículos estritamente alocados a este cliente ou a uma de suas obras/postos/contratos
       const clientVehicles = (allVehicles || []).filter(v => {
+        // 1. ID direto do cliente
         if (v.clientId && v.clientId === clientId) return true;
-        if (v.clientName && v.clientName.trim().toLowerCase() === clientName.trim().toLowerCase()) return true;
+
+        // 2. Posto de Trabalho/Obra do veículo pertence aos postos deste cliente
         if (v.workPostId && workPostIds.has(v.workPostId)) return true;
+
+        // 3. Contrato do veículo pertence aos contratos deste cliente
+        if (v.contractId && contractIds.has(v.contractId)) return true;
+        if (v.allocationContractNumber && contractNumbers.has(v.allocationContractNumber.trim().toLowerCase())) return true;
+
+        // 4. Nome do cliente bate exatamente com o cliente (excluindo marcadores genéricos)
+        if (v.clientName && normClientName) {
+          const vClientNorm = v.clientName.trim().toLowerCase();
+          const genericNames = ['cliente direto', 'a definir', 'não informado', 'sem cliente', 'geral', 'matriz'];
+          if (!genericNames.includes(vClientNorm) && vClientNorm === normClientName) {
+            return true;
+          }
+        }
+
         return false;
       });
 
@@ -91,6 +113,31 @@ export const ClientVehiclesTab: React.FC<ClientVehiclesTabProps> = ({ clientId, 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleOpenDetail = (v: Vehicle) => {
+    setSelectedVehicle({
+      id: v.id,
+      placa: v.plate,
+      marca: v.brand || '',
+      modelo: v.model || '',
+      ano: v.year || new Date().getFullYear(),
+      cor: v.color,
+      combustivel: v.fuelType,
+      quilometragem: v.currentMileage,
+      status: v.status,
+      capacidade: v.capacity,
+      workPostId: v.workPostId,
+      insuranceExpiryDate: v.insuranceExpiryDate,
+      documentationExpiryDate: v.documentationExpiryDate,
+      lastMaintenanceDate: v.lastMaintenanceDate,
+      nextMaintenanceDate: v.nextMaintenanceDate,
+      assignedDriver: v.assignedDriver,
+      location: v.location,
+      observacoes: v.notes,
+      vehicleType: v.vehicleType,
+    });
+    setIsDetailOpen(true);
+  };
 
   const filteredVehicles = vehicles.filter(v => {
     if (!searchTerm) return true;
@@ -147,7 +194,10 @@ export const ClientVehiclesTab: React.FC<ClientVehiclesTabProps> = ({ clientId, 
             Veículos Alocados
           </h3>
           <p className="text-xs text-gray-400 mt-1">
-            {vehicles.length} veículo{vehicles.length !== 1 ? 's' : ''} alocado{vehicles.length !== 1 ? 's' : ''} para {clientName} e suas obras
+            {vehicles.length > 0 
+              ? `${vehicles.length} veículo${vehicles.length !== 1 ? 's' : ''} alocado${vehicles.length !== 1 ? 's' : ''} para ${clientName} e suas obras`
+              : `Nenhum veículo alocado para ${clientName}`
+            }
           </p>
         </div>
 
@@ -180,10 +230,10 @@ export const ClientVehiclesTab: React.FC<ClientVehiclesTabProps> = ({ clientId, 
       {/* Lista de Veículos */}
       {vehicles.length === 0 ? (
         <Card className="bg-seguranca-graphite border-gray-700 p-8 text-center">
-          <Truck className="mx-auto mb-2 text-gray-500" size={36} />
-          <p className="text-gray-400">Nenhum veículo alocado para este cliente ou suas obras.</p>
-          <p className="text-xs text-gray-500 mt-1">
-            Para alocar veículos, acesse a gestão de frota ou atribua um posto/obra ao veículo.
+          <Truck className="mx-auto mb-3 text-seguranca-yellow/70" size={40} />
+          <h4 className="text-gray-200 font-bold text-base mb-1">Este cliente ainda não possui veículos alocados.</h4>
+          <p className="text-xs text-gray-400 max-w-md mx-auto">
+            Para alocar veículos a <strong className="text-seguranca-yellow">{clientName}</strong>, acesse a gestão de frota ou atribua uma obra/posto ao veículo.
           </p>
         </Card>
       ) : filteredVehicles.length === 0 ? (
@@ -203,12 +253,13 @@ export const ClientVehiclesTab: React.FC<ClientVehiclesTabProps> = ({ clientId, 
             return (
               <Card
                 key={vehicle.id}
-                className="bg-seguranca-graphite border-gray-700 p-4 hover:border-seguranca-yellow transition-all"
+                className="bg-seguranca-graphite border-gray-700 p-4 hover:border-seguranca-yellow transition-all cursor-pointer group"
+                onClick={() => handleOpenDetail(vehicle)}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   {/* Info Principal */}
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-lg bg-seguranca-yellow/10 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-seguranca-yellow/10 flex items-center justify-center flex-shrink-0 group-hover:bg-seguranca-yellow/20 transition-colors">
                       {vehicle.vehicleType === 'MOTORCYCLE' ? (
                         <Car className="text-seguranca-yellow" size={20} />
                       ) : (
@@ -217,7 +268,7 @@ export const ClientVehiclesTab: React.FC<ClientVehiclesTabProps> = ({ clientId, 
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-white font-bold text-base uppercase font-mono">
+                        <span className="text-white font-bold text-base uppercase font-mono group-hover:text-seguranca-yellow transition-colors">
                           {vehicle.plate}
                         </span>
                         {vehicle.fleetNumber && (
@@ -273,15 +324,26 @@ export const ClientVehiclesTab: React.FC<ClientVehiclesTabProps> = ({ clientId, 
                   </div>
 
                   {/* Ações */}
-                  <div className="flex items-center gap-2 sm:self-center flex-shrink-0">
+                  <div className="flex items-center gap-2 sm:self-center flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate('/frota/veiculos')}
-                      className="border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 text-xs flex items-center gap-1"
+                      onClick={() => handleOpenDetail(vehicle)}
+                      className="border-amber-500/50 text-amber-300 hover:bg-amber-500/10 hover:border-amber-400 text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                      title="Ver detalhes completos do veículo"
+                    >
+                      <Eye size={14} />
+                      Ver Veículo
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate('/frota')}
+                      className="text-gray-400 hover:text-white hover:bg-seguranca-graphite text-xs flex items-center gap-1"
+                      title="Abrir página de Gestão da Frota"
                     >
                       <ExternalLink size={12} />
-                      Ver na Frota
+                      Ir para Frota
                     </Button>
                   </div>
                 </div>
@@ -290,8 +352,18 @@ export const ClientVehiclesTab: React.FC<ClientVehiclesTabProps> = ({ clientId, 
           })}
         </div>
       )}
+
+      {/* Modal de Detalhes do Veículo */}
+      {selectedVehicle && (
+        <VehicleDetailPanel
+          veiculo={selectedVehicle}
+          isOpen={isDetailOpen}
+          onClose={() => setIsDetailOpen(false)}
+        />
+      )}
     </div>
   );
 };
 
 export default ClientVehiclesTab;
+

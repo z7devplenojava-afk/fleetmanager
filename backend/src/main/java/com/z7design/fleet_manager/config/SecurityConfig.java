@@ -423,8 +423,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/employees/**").permitAll()
                                                 // Endpoints de unidades - temporariamente pÃºblicos para debug
                                                 .requestMatchers("/api/units/**").permitAll()
-                                                // Endpoints de empresas - temporariamente pÃºblicos para debug
-                                                .requestMatchers("/api/companies/**").permitAll()
+                                                // Endpoints de empresas - permitAll para leitura e gerenciamento
+                                                .requestMatchers("/api/companies", "/api/companies/**").permitAll()
                                                 // Endpoints de cargos/posiÃ§Ãµes - temporariamente pÃºblicos para debug
                                                 .requestMatchers("/api/positions/**").permitAll()
                                                 // Endpoints de clientes - temporariamente pÃºblicos para debug

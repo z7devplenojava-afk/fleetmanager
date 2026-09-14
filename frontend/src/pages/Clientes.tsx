@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { useToast } from '@/hooks/use-toast';
 import { useGSAP } from '@/hooks/use-gsap';
-import { Search, Plus, RefreshCw, Building2, Users, CheckCircle2, Clock, XCircle, AlertCircle, FileText, FileSpreadsheet } from 'lucide-react';
+import { Search, Plus, RefreshCw, Building2, Users, CheckCircle2, Clock, XCircle, AlertCircle, FileText, FileSpreadsheet, Trash2 } from 'lucide-react';
 import { clientService } from '@/services/clientService';
 import { notificationService } from '@/services/notificationService';
 import { Client, ClientStatus, ClientSearchParams } from '@/types/client';
@@ -418,9 +418,9 @@ const Clientes: React.FC = () => {
         )}
 
         {/* Search Section */}
-        <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-8 shadow-2xl backdrop-blur-sm mt-6" data-animate="fadeUp">
+        <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-4 sm:p-6 shadow-2xl backdrop-blur-sm mt-6" data-animate="fadeUp">
           {/* Search Header */}
-          <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center gap-4 mb-6">
             <div className="p-3 rounded-xl bg-gradient-to-br from-seguranca-red/20 to-seguranca-red/10 border border-seguranca-red/30 shadow-lg shadow-seguranca-red/10">
               <Search className="h-6 w-6 text-seguranca-red" />
             </div>
@@ -431,7 +431,7 @@ const Clientes: React.FC = () => {
           </div>
 
           {/* Search Filters */}
-          <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <Input
@@ -444,7 +444,7 @@ const Clientes: React.FC = () => {
             </div>
             
             <Select value={statusFilter} onValueChange={handleStatusFilter}>
-              <SelectTrigger className="lg:w-[220px] py-3 bg-seguranca-black/50 border-gray-600/30 text-white focus:border-seguranca-red/50 focus:ring-seguranca-red/20 rounded-xl">
+              <SelectTrigger className="sm:w-[200px] py-3 bg-seguranca-black/50 border-gray-600/30 text-white focus:border-seguranca-red/50 focus:ring-seguranca-red/20 rounded-xl">
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent className="bg-seguranca-black border-gray-600/30">
@@ -469,7 +469,7 @@ const Clientes: React.FC = () => {
             <Button 
               onClick={handleSearch}
               disabled={isLoading}
-              className="px-6 py-3 bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red shadow-lg shadow-seguranca-red/20 lg:w-auto w-full rounded-xl font-semibold"
+              className="px-6 py-3 bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red shadow-lg shadow-seguranca-red/20 sm:w-auto w-full rounded-xl font-semibold"
             >
               <Search size={20} className="mr-2" />
               Buscar
@@ -478,7 +478,7 @@ const Clientes: React.FC = () => {
         </Card>
 
         {/* Clients Table */}
-        <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-8 shadow-2xl backdrop-blur-sm mt-6" data-animate="fadeUp">
+        <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-3 sm:p-6 shadow-2xl backdrop-blur-sm mt-6" data-animate="fadeUp">
           <ClientsTable
             clients={clients}
             selectedClientIds={selectedClientIds}

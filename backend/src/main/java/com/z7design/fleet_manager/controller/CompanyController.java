@@ -35,7 +35,7 @@ public class CompanyController {
             @ApiResponse(responseCode = "200", description = "Empresas listadas com sucesso"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','FINANCEIRO','OPERACIONAL','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH','ROLE_FINANCEIRO','ROLE_OPERACIONAL')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<CompanyDTO>> getAllCompanies() {
         try {
             log.info("Buscando todas as empresas");
@@ -50,8 +50,8 @@ public class CompanyController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAnyAuthority('HR_READ', 'EMPLOYEES_READ', 'EMPLOYEES_WRITE', 'EMPLOYEES_CREATE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
-    @Operation(summary = "Buscar empresas", description = "Busca empresas por nome com filtro dinÃ¢mico")
+    @PreAuthorize("hasAnyAuthority('HR_READ', 'EMPLOYEES_READ', 'EMPLOYEES_WRITE', 'EMPLOYEES_CREATE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'COMPANY_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'ROLE_COMPANY_ADMIN')")
+    @Operation(summary = "Buscar empresas", description = "Busca empresas por nome com filtro dinâmico")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empresas encontradas com sucesso"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
@@ -68,10 +68,10 @@ public class CompanyController {
     }
 
     @GetMapping("/test")
-    @Operation(summary = "Teste bÃ¡sico de empresas", description = "Teste bÃ¡sico para verificar se o endpoint funciona")
+    @Operation(summary = "Teste básico de empresas", description = "Teste básico para verificar se o endpoint funciona")
     public ResponseEntity<Object> testCompanies() {
         try {
-            log.debug("Teste bÃ¡sico de empresas");
+            log.debug("Teste básico de empresas");
             List<CompanyDTO> companies = companyService.getAllCompanies();
             return ResponseEntity.ok(java.util.Map.of(
                     "count", companies.size(),
@@ -84,7 +84,7 @@ public class CompanyController {
     }
 
     @GetMapping("/active")
-    @PreAuthorize("hasAuthority('HR_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('HR_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('COMPANY_ADMIN') or hasAuthority('COMPANY_ADMIN')")
     @Operation(summary = "Listar empresas ativas", description = "Retorna uma lista de empresas ativas")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empresas ativas listadas com sucesso"),
@@ -97,11 +97,11 @@ public class CompanyController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('HR_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
-    @Operation(summary = "Buscar empresa por ID", description = "Retorna uma empresa especÃ­fica pelo ID")
+    @PreAuthorize("hasAuthority('HR_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('COMPANY_ADMIN') or hasAuthority('COMPANY_ADMIN')")
+    @Operation(summary = "Buscar empresa por ID", description = "Retorna uma empresa específica pelo ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empresa encontrada"),
-            @ApiResponse(responseCode = "404", description = "Empresa nÃ£o encontrada"),
+            @ApiResponse(responseCode = "404", description = "Empresa não encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<CompanyDTO> getCompanyById(
@@ -112,11 +112,11 @@ public class CompanyController {
     }
 
     @GetMapping("/sigla/{sigla}")
-    @PreAuthorize("hasAuthority('HR_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
-    @Operation(summary = "Buscar empresa por sigla", description = "Retorna uma empresa especÃ­fica pela sigla")
+    @PreAuthorize("hasAuthority('HR_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('COMPANY_ADMIN') or hasAuthority('COMPANY_ADMIN')")
+    @Operation(summary = "Buscar empresa por sigla", description = "Retorna uma empresa específica pela sigla")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empresa encontrada"),
-            @ApiResponse(responseCode = "404", description = "Empresa nÃ£o encontrada"),
+            @ApiResponse(responseCode = "404", description = "Empresa não encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<CompanyDTO> getCompanyBySigla(
@@ -127,39 +127,39 @@ public class CompanyController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('HR_WRITE','SUPER_ADMIN','ROLE_SUPER_ADMIN','ADMIN','ROLE_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('HR_WRITE','SUPER_ADMIN','ROLE_SUPER_ADMIN','ADMIN','ROLE_ADMIN','COMPANY_ADMIN','ROLE_COMPANY_ADMIN')")
     @Operation(summary = "Criar nova empresa", description = "Cria uma nova empresa")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Empresa criada com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados invÃ¡lidos"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<CompanyDTO> createCompany(
             @Parameter(description = "Dados da empresa") @Valid @RequestBody CompanyDTO companyDTO) {
-        log.debug("Recebida requisiÃ§Ã£o para criar empresa: {}", companyDTO.getName());
+        log.debug("Recebida requisição para criar empresa: {}", companyDTO.getName());
         CompanyDTO createdCompany = companyService.createCompany(companyDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdCompany);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('HR_WRITE','SUPER_ADMIN','ROLE_SUPER_ADMIN','ADMIN','ROLE_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('HR_WRITE','SUPER_ADMIN','ROLE_SUPER_ADMIN','ADMIN','ROLE_ADMIN','COMPANY_ADMIN','ROLE_COMPANY_ADMIN')")
     @Operation(summary = "Atualizar empresa", description = "Atualiza uma empresa existente")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empresa atualizada com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados invÃ¡lidos"),
-            @ApiResponse(responseCode = "404", description = "Empresa nÃ£o encontrada"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "404", description = "Empresa não encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<CompanyDTO> updateCompany(
             @Parameter(description = "ID da empresa") @PathVariable("id") UUID id,
             @Parameter(description = "Dados atualizados da empresa") @Valid @RequestBody CompanyDTO companyDTO) {
-        log.debug("Recebida requisiÃ§Ã£o para atualizar empresa ID: {}", id);
+        log.debug("Recebida requisição para atualizar empresa ID: {}", id);
         CompanyDTO updatedCompany = companyService.updateCompany(id, companyDTO);
         return ResponseEntity.ok(updatedCompany);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('HR_DELETE','SUPER_ADMIN','ROLE_SUPER_ADMIN','ADMIN','ROLE_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('HR_DELETE','SUPER_ADMIN','ROLE_SUPER_ADMIN','ADMIN','ROLE_ADMIN','COMPANY_ADMIN','ROLE_COMPANY_ADMIN')")
     @Operation(summary = "Excluir empresa", description = "Exclui uma empresa")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Empresa excluÃ­da com sucesso"),

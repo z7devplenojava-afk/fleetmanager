@@ -55,6 +55,12 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
     contractType: 'PRESTACAO_SERVICOS',
     clientId: clientId,
     notes: '',
+    obraName: '',
+    vehicleQuantity: 1,
+    unitVehicleValue: 0,
+    serviceType: '',
+    vehicleDescription: '',
+    vigenciaText: '',
   });
 
   const loadContracts = useCallback(async () => {
@@ -82,6 +88,12 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
       contractType: 'PRESTACAO_SERVICOS',
       clientId: clientId,
       notes: '',
+      obraName: '',
+      vehicleQuantity: 1,
+      unitVehicleValue: 0,
+      serviceType: '',
+      vehicleDescription: '',
+      vigenciaText: '',
     });
     setEditingContract(null);
   };
@@ -99,6 +111,12 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
       contractType: contract.contractType as any || 'PRESTACAO_SERVICOS',
       clientId: clientId,
       notes: contract.notes || '',
+      obraName: contract.obraName || '',
+      vehicleQuantity: contract.vehicleQuantity || 1,
+      unitVehicleValue: contract.unitVehicleValue || 0,
+      serviceType: contract.serviceType || '',
+      vehicleDescription: contract.vehicleDescription || '',
+      vigenciaText: contract.vigenciaText || '',
     });
     setEditingContract(contract);
     setShowForm(true);
@@ -164,10 +182,10 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
         <div>
           <h3 className="text-white font-bold text-lg flex items-center gap-2">
             <FileText size={18} className="text-seguranca-yellow" />
-            Contratos
+            Contratos e Obras
           </h3>
           <p className="text-xs text-gray-400 mt-1">
-            {contracts.length} contrato{contracts.length !== 1 ? 's' : ''} de {clientName}
+            {contracts.length} contrato{contracts.length !== 1 ? 's' : ''} / obra{contracts.length !== 1 ? 's' : ''} de {clientName}
           </p>
         </div>
         <Button onClick={openNewForm} className="bg-seguranca-yellow text-black hover:bg-yellow-500">
@@ -196,12 +214,42 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-white font-semibold">{contract.contractNumber}</p>
+                        {contract.obraName && (
+                          <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[11px]">
+                            Obra: {contract.obraName}
+                          </Badge>
+                        )}
                         <Badge className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full border ${stCfg.color}`}>
                           <StatusIcon size={10} className="mr-1" /> {stCfg.label}
                         </Badge>
                       </div>
                       <p className="text-gray-400 text-xs mt-0.5 truncate">{contract.description}</p>
-                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-1 flex-wrap">
+                      
+                      {/* Detalhes de Veículos e Serviços */}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {contract.serviceType && (
+                          <Badge variant="outline" className="text-[10px] text-gray-300 border-gray-600">
+                            Serviço: {contract.serviceType}
+                          </Badge>
+                        )}
+                        {contract.vehicleDescription && (
+                          <Badge variant="outline" className="text-[10px] text-gray-300 border-gray-600">
+                            Frota: {contract.vehicleDescription}
+                          </Badge>
+                        )}
+                        {contract.vehicleQuantity !== undefined && contract.vehicleQuantity > 0 && (
+                          <Badge variant="outline" className="text-[10px] text-amber-300 border-amber-500/40">
+                            {contract.vehicleQuantity} veículo{contract.vehicleQuantity > 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                        {contract.unitVehicleValue !== undefined && contract.unitVehicleValue > 0 && (
+                          <Badge variant="outline" className="text-[10px] text-emerald-300 border-emerald-500/40">
+                            Unitário: {formatCurrency(contract.unitVehicleValue)}
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-2 flex-wrap">
                         {contract.contractType && (
                           <span className="flex items-center gap-1">
                             <Briefcase size={10} /> {CONTRACT_TYPES.find(t => t.value === contract.contractType)?.label || contract.contractType}
@@ -212,7 +260,7 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
                           {contract.endDate ? ` — ${formatDate(contract.endDate)}` : ' — Sem previsão'}
                         </span>
                         <span className="flex items-center gap-1 font-semibold text-emerald-400">
-                          <DollarSign size={10} /> {formatCurrency(contract.value)}
+                          <DollarSign size={10} /> Valor Mensal: {formatCurrency(contract.value)}
                         </span>
                       </div>
                     </div>
@@ -226,8 +274,15 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
                     </button>
                   </div>
                 </div>
+
+                {contract.vigenciaText && (
+                  <div className="mt-2 p-2 bg-seguranca-black/40 rounded border border-gray-800 text-xs text-amber-200/90">
+                    <span className="font-semibold">Vigência / Aditivos:</span> {contract.vigenciaText}
+                  </div>
+                )}
+
                 {contract.notes && (
-                  <p className="text-xs text-gray-500 mt-2 ml-13">{contract.notes}</p>
+                  <p className="text-xs text-gray-400 mt-2">{contract.notes}</p>
                 )}
               </Card>
             );
@@ -241,7 +296,7 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText size={18} className="text-seguranca-yellow" />
-              {editingContract ? 'Editar Contrato' : 'Novo Contrato'}
+              {editingContract ? 'Editar Contrato / Obra' : 'Novo Contrato / Obra'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -252,7 +307,15 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
                   className="bg-seguranca-black border-gray-700 text-white text-sm" placeholder="Ex: CONTRATO-2025-001" />
               </div>
               <div>
-                <label className="text-xs text-gray-400 mb-1 block">Tipo</label>
+                <label className="text-xs text-gray-400 mb-1 block">Nome da Obra / Setor</label>
+                <Input value={formData.obraName || ''} onChange={e => setFormData({ ...formData, obraName: e.target.value })}
+                  className="bg-seguranca-black border-gray-700 text-white text-sm" placeholder="Ex: ITABIRITO-MG" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Tipo de Contrato</label>
                 <Select value={formData.contractType || 'PRESTACAO_SERVICOS'} onValueChange={v => setFormData({ ...formData, contractType: v as any })}>
                   <SelectTrigger className="bg-seguranca-black border-gray-700 text-white text-sm">
                     <SelectValue />
@@ -264,12 +327,38 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Tipo de Serviço</label>
+                <Input value={formData.serviceType || ''} onChange={e => setFormData({ ...formData, serviceType: e.target.value })}
+                  className="bg-seguranca-black border-gray-700 text-white text-sm" placeholder="Ex: LOCAÇÃO ou FRETAMENTO" />
+              </div>
             </div>
 
             <div>
               <label className="text-xs text-gray-400 mb-1 block">Descrição *</label>
               <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })}
                 className="bg-seguranca-black border-gray-700 text-white text-sm" rows={2} placeholder="Descrição do contrato" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Qtd Veículos</label>
+                <Input type="number" min={1} value={formData.vehicleQuantity || 1}
+                  onChange={e => setFormData({ ...formData, vehicleQuantity: parseInt(e.target.value) || 1 })}
+                  className="bg-seguranca-black border-gray-700 text-white text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Valor por Veículo (R$)</label>
+                <Input type="number" min={0} step={0.01} value={formData.unitVehicleValue || 0}
+                  onChange={e => setFormData({ ...formData, unitVehicleValue: parseFloat(e.target.value) || 0 })}
+                  className="bg-seguranca-black border-gray-700 text-white text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Valor Mensal (R$) *</label>
+                <Input type="number" min={0} step={0.01} value={formData.value}
+                  onChange={e => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                  className="bg-seguranca-black border-gray-700 text-white text-sm" />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -284,15 +373,6 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
                   className="bg-seguranca-black border-gray-700 text-white text-sm" />
               </div>
               <div>
-                <label className="text-xs text-gray-400 mb-1 block">Valor (R$) *</label>
-                <Input type="number" min={0} step={0.01} value={formData.value}
-                  onChange={e => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
-                  className="bg-seguranca-black border-gray-700 text-white text-sm" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
                 <label className="text-xs text-gray-400 mb-1 block">Status</label>
                 <Select value={formData.status} onValueChange={v => setFormData({ ...formData, status: v as any })}>
                   <SelectTrigger className="bg-seguranca-black border-gray-700 text-white text-sm">
@@ -306,6 +386,18 @@ const ClientContractsTab: React.FC<ClientContractsTabProps> = ({ clientId, clien
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Descrição da Frota</label>
+              <Input value={formData.vehicleDescription || ''} onChange={e => setFormData({ ...formData, vehicleDescription: e.target.value })}
+                className="bg-seguranca-black border-gray-700 text-white text-sm" placeholder="Ex: ONIBUS RODOVIARIO, MICRO 4X4, VAN" />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Texto de Vigência / Aditivos</label>
+              <Textarea value={formData.vigenciaText || ''} onChange={e => setFormData({ ...formData, vigenciaText: e.target.value })}
+                className="bg-seguranca-black border-gray-700 text-white text-sm" rows={2} placeholder="Ex: 20/01/2025 À 20/01/2026 - ADITIVO REALIZADO 13/06/2027" />
             </div>
 
             <div>

@@ -12,6 +12,12 @@ export interface Contract {
   status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED' | 'PENDING';
   contractType?: ContractType;
   notes?: string;
+  obraName?: string;
+  vehicleQuantity?: number;
+  unitVehicleValue?: number;
+  serviceType?: string;
+  vehicleDescription?: string;
+  vigenciaText?: string;
   // Dados do cliente vêm como campos separados do backend
   clientId: string;
   clientName: string;
@@ -43,6 +49,12 @@ export interface CreateContractRequest {
   contractType?: ContractType;
   clientId: string;
   notes?: string;
+  obraName?: string;
+  vehicleQuantity?: number;
+  unitVehicleValue?: number;
+  serviceType?: string;
+  vehicleDescription?: string;
+  vigenciaText?: string;
 }
 
 export interface ContractDocument {
@@ -74,6 +86,11 @@ export interface ContractFilters {
 }
 
 export const contractService = {
+  // Buscar todos os contratos (alias para getContracts)
+  async getAllContracts(): Promise<Contract[]> {
+    return this.getContracts();
+  },
+
   // Buscar todos os contratos com filtros
   async getContracts(filters: ContractFilters = {}): Promise<Contract[]> {
     const hasPagination = filters.page !== undefined && filters.size !== undefined;

@@ -55,6 +55,24 @@ public class ContractDTO {
     @Size(max = 1000, message = "ObservaÃ§Ãµes deve ter no mÃ¡ximo 1000 caracteres")
     private String notes;
     
+    @Schema(description = "Nome da Obra/Setor")
+    private String obraName;
+
+    @Schema(description = "Quantidade de Veículos")
+    private Integer vehicleQuantity;
+
+    @Schema(description = "Valor por Veículo")
+    private BigDecimal unitVehicleValue;
+
+    @Schema(description = "Tipo de Serviço (Locação, Fretamento, etc)")
+    private String serviceType;
+
+    @Schema(description = "Descrição dos veículos (Ônibus, Van, etc)")
+    private String vehicleDescription;
+
+    @Schema(description = "Texto completo de vigência e aditivos")
+    private String vigenciaText;
+
     @Schema(description = "ID do cliente", example = "1")
     @NotNull(message = "ID do cliente Ã© obrigatÃ³rio")
     private java.util.UUID clientId;

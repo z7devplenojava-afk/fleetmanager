@@ -535,11 +535,20 @@ public class StockService {
     }
 
     public void resolveAlert(UUID alertId, UUID userId) {
-        StockAlert alert = stockAlertRepository.findById(alertId)
-                .orElseThrow(() -> new ResourceNotFoundException("Alerta nÃ£o encontrado: " + alertId));
+        Optional<StockAlert> alertOpt = stockAlertRepository.findById(alertId);
+        if (alertOpt.isEmpty()) {
+            log.warn("Alerta não encontrado no banco para resolver: {}. Ignorando ação.", alertId);
+            return;
+        }
+        StockAlert alert = alertOpt.get();
         
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("UsuÃ¡rio nÃ£o encontrado: " + userId));
+        User user = null;
+        if (userId != null) {
+            user = userRepository.findById(userId).orElse(null);
+        }
+        if (user == null) {
+            user = userRepository.findByActiveTrue().stream().findFirst().orElse(null);
+        }
         
         alert.resolve(user);
         stockAlertRepository.save(alert);

@@ -4,12 +4,16 @@ import com.z7design.fleet_manager.dto.ImportResultDto;
 import com.z7design.fleet_manager.model.Client;
 import com.z7design.fleet_manager.model.Contract;
 import com.z7design.fleet_manager.model.Vehicle;
+import com.z7design.fleet_manager.model.WorkPost;
 import com.z7design.fleet_manager.model.enums.ClientStatus;
 import com.z7design.fleet_manager.model.enums.ContractStatus;
 import com.z7design.fleet_manager.model.enums.ContractType;
+import com.z7design.fleet_manager.model.enums.WorkPostStatus;
+import com.z7design.fleet_manager.model.enums.WorkPostType;
 import com.z7design.fleet_manager.repository.ClientRepository;
 import com.z7design.fleet_manager.repository.ContractRepository;
 import com.z7design.fleet_manager.repository.VehicleRepository;
+import com.z7design.fleet_manager.repository.WorkPostRepository;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +27,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
@@ -36,9 +41,11 @@ import java.util.regex.Pattern;
  *   CLIENTE/OBRA | QUANTIDADE DE VEÍCULOS | DESCRIÇÃO (tipo de ônibus) | TIPOS DE SERVIÇOS | VALOR POR VEÍCULO | VALOR MENSAL | VIGÊNCIA
  *
  * A importação:
- *   1. Cria ou atualiza o Cliente (busca por nome)
- *   2. Cria veículos alocados ao cliente (quantidade informada)
- *   3. Cria Contrato com valor mensal e vigência
+ *   1. Extrai Cliente e Obra do campo CLIENTE/OBRA
+ *   2. Cria ou atualiza o Cliente (busca por nome)
+ *   3. Cria o Contrato com obra, quantidade de veículos, valor unitário, valor mensal, tipo serviço e vigência/aditivos
+ *   4. Cria o Posto de Trabalho (Obra) associado ao cliente e ao contrato
+ *   5. Cria veículos alocados à obra e ao cliente
  */
 @Service
 @RequiredArgsConstructor
@@ -48,11 +55,13 @@ public class ClientObraImportService {
     private final ClientRepository clientRepository;
     private final VehicleRepository vehicleRepository;
     private final ContractRepository contractRepository;
+    private final WorkPostRepository workPostRepository;
     private final PlatformTransactionManager transactionManager;
     private static final int BATCH_SIZE = 100;
     private final AtomicInteger plateSeq = new AtomicInteger(1000);
     private final AtomicInteger cnpjSeq = new AtomicInteger(10000);
     private final AtomicInteger contractSeq = new AtomicInteger(1000);
+    private final AtomicInteger postCodeSeq = new AtomicInteger(1000);
 
     public ImportResultDto importFromExcel(MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -109,11 +118,25 @@ public class ClientObraImportService {
                 log.warn("Aviso ao pré-carregar contratos: {}", e.getMessage());
             }
 
-            log.info("Pré-carregamento concluído: Clientes={}, Placas={}, CNPJs={}, Contratos={}",
-                    existingClientsByName.size(), usedPlates.size(), usedCnpjs.size(), usedContractNumbers.size());
+            // Pré-carregar códigos de postos de trabalho existentes
+            Set<String> usedPostCodes = new HashSet<>();
+            try {
+                List<WorkPost> allWorkPosts = workPostRepository.findAll();
+                for (WorkPost wp : allWorkPosts) {
+                    if (wp.getPostCode() != null) {
+                        usedPostCodes.add(wp.getPostCode().toUpperCase().trim());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Aviso ao pré-carregar postos de trabalho: {}", e.getMessage());
+            }
+
+            log.info("Pré-carregamento concluído: Clientes={}, Placas={}, CNPJs={}, Contratos={}, Postos={}",
+                    existingClientsByName.size(), usedPlates.size(), usedCnpjs.size(), usedContractNumbers.size(), usedPostCodes.size());
 
             List<Client> clientsToInsert = new ArrayList<>();
             List<Client> clientsToUpdate = new ArrayList<>();
+            List<WorkPost> workPostsToInsert = new ArrayList<>();
             List<Vehicle> vehiclesToInsert = new ArrayList<>();
             List<Contract> contractsToInsert = new ArrayList<>();
 
@@ -125,27 +148,28 @@ public class ClientObraImportService {
                 if (workbook.isSheetHidden(s) || sheet.getPhysicalNumberOfRows() == 0) continue;
 
                 processSheet(sheet, result, existingClientsByName, processedClientNames,
-                        usedCnpjs, usedPlates, usedContractNumbers,
-                        clientsToInsert, clientsToUpdate, vehiclesToInsert, contractsToInsert);
+                        usedCnpjs, usedPlates, usedContractNumbers, usedPostCodes,
+                        clientsToInsert, clientsToUpdate, workPostsToInsert, vehiclesToInsert, contractsToInsert);
             }
 
             // Persistir em lotes com transação otimizada
             if (!clientsToInsert.isEmpty() || !clientsToUpdate.isEmpty() ||
-                    !vehiclesToInsert.isEmpty() || !contractsToInsert.isEmpty()) {
+                    !contractsToInsert.isEmpty() || !workPostsToInsert.isEmpty() || !vehiclesToInsert.isEmpty()) {
 
-                log.info("Persistindo em lote: {} clientes novos, {} atualizados, {} veículos, {} contratos",
+                log.info("Persistindo em lote: {} clientes novos, {} atualizados, {} contratos, {} postos/obras, {} veículos",
                         clientsToInsert.size(), clientsToUpdate.size(),
-                        vehiclesToInsert.size(), contractsToInsert.size());
+                        contractsToInsert.size(), workPostsToInsert.size(), vehiclesToInsert.size());
 
                 TransactionTemplate tt = new TransactionTemplate(transactionManager);
                 tt.executeWithoutResult(status -> {
                     saveInChunks(clientsToInsert, clientRepository::saveAll);
                     saveInChunks(clientsToUpdate, clientRepository::saveAll);
-                    saveInChunks(vehiclesToInsert, vehicleRepository::saveAll);
                     saveInChunks(contractsToInsert, contractRepository::saveAll);
+                    saveInChunks(workPostsToInsert, workPostRepository::saveAll);
+                    saveInChunks(vehiclesToInsert, vehicleRepository::saveAll);
                 });
 
-                result.setInserted(clientsToInsert.size() + vehiclesToInsert.size() + contractsToInsert.size());
+                result.setInserted(clientsToInsert.size() + contractsToInsert.size() + workPostsToInsert.size() + vehiclesToInsert.size());
                 result.setUpdated(clientsToUpdate.size());
             }
 
@@ -170,11 +194,11 @@ public class ClientObraImportService {
     }
 
     private void processSheet(Sheet sheet, ImportResultDto result,
-                              Map<String, Client> existingClientsByName,
-                              Set<String> processedClientNames,
-                              Set<String> usedCnpjs, Set<String> usedPlates, Set<String> usedContractNumbers,
-                              List<Client> clientsToInsert, List<Client> clientsToUpdate,
-                              List<Vehicle> vehiclesToInsert, List<Contract> contractsToInsert) {
+                               Map<String, Client> existingClientsByName,
+                               Set<String> processedClientNames,
+                               Set<String> usedCnpjs, Set<String> usedPlates, Set<String> usedContractNumbers, Set<String> usedPostCodes,
+                               List<Client> clientsToInsert, List<Client> clientsToUpdate,
+                               List<WorkPost> workPostsToInsert, List<Vehicle> vehiclesToInsert, List<Contract> contractsToInsert) {
 
         int lastRowNum = sheet.getLastRowNum();
         if (lastRowNum < 0) return;
@@ -208,8 +232,8 @@ public class ClientObraImportService {
 
             try {
                 processRow(row, r + 1, columnMap, existingClientsByName, processedClientNames,
-                        usedCnpjs, usedPlates, usedContractNumbers,
-                        clientsToInsert, clientsToUpdate, vehiclesToInsert, contractsToInsert, result);
+                        usedCnpjs, usedPlates, usedContractNumbers, usedPostCodes,
+                        clientsToInsert, clientsToUpdate, workPostsToInsert, vehiclesToInsert, contractsToInsert, result);
             } catch (Exception e) {
                 log.error("Erro na linha {}: ", r + 1, e);
                 result.setSkipped(result.getSkipped() + 1);
@@ -230,7 +254,7 @@ public class ClientObraImportService {
                 map.put(cell.getColumnIndex(), "CLIENTE_OBRA");
             } else if (normalized.contains("quantidade") || normalized.contains("qtd") || normalized.contains("veiculo")) {
                 map.put(cell.getColumnIndex(), "QUANTIDADE");
-            } else if (normalized.contains("descri") || normalized.contains("tipo") && normalized.contains("onibus")) {
+            } else if (normalized.contains("descri") || (normalized.contains("tipo") && normalized.contains("onibus"))) {
                 map.put(cell.getColumnIndex(), "DESCRICAO");
             } else if (normalized.contains("servico") || normalized.contains("servi")) {
                 map.put(cell.getColumnIndex(), "TIPO_SERVICO");
@@ -248,9 +272,9 @@ public class ClientObraImportService {
     private void processRow(Row row, int rowNum, Map<Integer, String> columnMap,
                             Map<String, Client> existingClientsByName,
                             Set<String> processedClientNames,
-                            Set<String> usedCnpjs, Set<String> usedPlates, Set<String> usedContractNumbers,
+                            Set<String> usedCnpjs, Set<String> usedPlates, Set<String> usedContractNumbers, Set<String> usedPostCodes,
                             List<Client> clientsToInsert, List<Client> clientsToUpdate,
-                            List<Vehicle> vehiclesToInsert, List<Contract> contractsToInsert,
+                            List<WorkPost> workPostsToInsert, List<Vehicle> vehiclesToInsert, List<Contract> contractsToInsert,
                             ImportResultDto result) {
 
         String clienteObra = null;
@@ -282,22 +306,20 @@ public class ClientObraImportService {
             return;
         }
 
-        String normalizedName = normalizeText(clienteObra);
+        // 1. Extrair Cliente e Obra
+        String[] parsed = parseClientAndObraName(clienteObra);
+        String clientName = parsed[0];
+        String obraName = parsed[1];
 
-        if (processedClientNames.contains(normalizedName)) {
-            result.setSkipped(result.getSkipped() + 1);
-            return;
-        }
-        processedClientNames.add(normalizedName);
-
+        String normalizedClientName = normalizeText(clientName);
         UUID companyId = TenantContext.get();
 
-        // 1. Criar ou atualizar Cliente
-        Client client = existingClientsByName.get(normalizedName);
+        // 2. Criar ou reutilizar Cliente
+        Client client = existingClientsByName.get(normalizedClientName);
         if (client == null) {
             client = new Client();
-            client.setName(truncateString(clienteObra, 255));
-            String tempCnpj = generateUniqueCnpj(clienteObra, usedCnpjs);
+            client.setName(truncateString(clientName, 255));
+            String tempCnpj = generateUniqueCnpj(clientName, usedCnpjs);
             client.setCnpj(tempCnpj);
             client.setStatus(ClientStatus.ACTIVE);
             if (companyId != null) client.setCompanyId(companyId);
@@ -305,7 +327,7 @@ public class ClientObraImportService {
                 client.setNotes("Serviços: " + truncateString(tipoServico, 500));
             }
             clientsToInsert.add(client);
-            existingClientsByName.put(normalizedName, client);
+            existingClientsByName.put(normalizedClientName, client);
         } else {
             if (tipoServico != null && client.getNotes() == null) {
                 client.setNotes("Serviços: " + truncateString(tipoServico, 500));
@@ -313,12 +335,73 @@ public class ClientObraImportService {
             }
         }
 
-        // 2. Tipo de veículo
+        int qty = (quantidade != null && quantidade > 0) ? Math.min(quantidade, 100) : 1;
+
+        // 3. Criar Contrato para esta obra/linha
+        Contract contract = new Contract();
+        contract.setContractNumber(generateUniqueContractNumber(clientName + "-" + obraName, usedContractNumbers));
+        contract.setObraName(truncateString(obraName, 255));
+        contract.setDescription("Contrato de " + (tipoServico != null ? tipoServico : "Locação") + " - Obra: " + truncateString(obraName, 200));
+        contract.setClient(client);
+        
+        if (tipoServico != null && tipoServico.toUpperCase().contains("FRETAMENTO")) {
+            contract.setContractType(ContractType.PRESTACAO_SERVICOS);
+        } else {
+            contract.setContractType(ContractType.LOCACAO_VEICULOS);
+        }
+        contract.setStatus(ContractStatus.ACTIVE);
+        contract.setServiceType(tipoServico);
+        contract.setVehicleDescription(descricao);
+        contract.setVehicleQuantity(qty);
+        contract.setUnitVehicleValue(valorPorVeiculo);
+
+        if (valorMensal != null && valorMensal.compareTo(BigDecimal.ZERO) > 0) {
+            contract.setValue(valorMensal);
+        } else if (valorPorVeiculo != null && qty > 0) {
+            contract.setValue(valorPorVeiculo.multiply(BigDecimal.valueOf(qty)));
+        } else {
+            contract.setValue(BigDecimal.ZERO);
+        }
+
+        contract.setVigenciaText(vigencia);
+        LocalDate[] dates = parseVigencia(vigencia);
+        if (dates[0] != null) contract.setStartDate(dates[0]);
+        else contract.setStartDate(LocalDate.now());
+
+        if (dates[1] != null) contract.setEndDate(dates[1]);
+
+        if (vigencia != null && !vigencia.isBlank()) {
+            contract.setNotes("Vigência: " + truncateString(vigencia, 950));
+        }
+
+        contractsToInsert.add(contract);
+
+        // 4. Criar Posto de Trabalho (Obra) associado ao Cliente e Contrato
+        WorkPost workPost = new WorkPost();
+        workPost.setPostCode(generateUniquePostCode(obraName, usedPostCodes));
+        workPost.setName(truncateString(obraName, 255));
+        workPost.setDescription("Obra/Setor: " + truncateString(obraName, 100) + (descricao != null ? " - " + truncateString(descricao, 300) : ""));
+        workPost.setType(WorkPostType.POSTO_24H);
+        workPost.setStatus(WorkPostStatus.ATIVO);
+        workPost.setAddress(truncateString(obraName, 255));
+        workPost.setCity("A definir");
+        workPost.setState("MG");
+        workPost.setClient(client);
+        workPost.setContract(contract);
+        workPost.setRequiredVigilantes(1);
+        workPost.setWorkSchedule("12x36");
+        workPost.setShiftStart(LocalTime.of(7, 0));
+        workPost.setShiftEnd(LocalTime.of(19, 0));
+        workPost.setCars(qty);
+        if (vigencia != null && !vigencia.isBlank()) {
+            workPost.setObservations("Vigência: " + truncateString(vigencia, 900));
+        }
+        workPostsToInsert.add(workPost);
+
+        // 5. Criar veículos alocados a esta Obra
         Vehicle.VehicleType vehicleType = mapDescriptionToVehicleType(descricao);
         Vehicle.BusType busType = mapDescriptionToBusType(descricao);
 
-        // 3. Criar veículos alocados (com limite de segurança de 100 por linha)
-        int qty = (quantidade != null && quantidade > 0) ? Math.min(quantidade, 100) : 1;
         for (int i = 0; i < qty; i++) {
             Vehicle vehicle = new Vehicle();
             String tempPlate = generateUniquePlate(usedPlates);
@@ -333,41 +416,55 @@ public class ClientObraImportService {
             vehicle.setBusType(busType);
             vehicle.setCapacity(44);
             vehicle.setCurrentMileage(0);
-            vehicle.setClientName(truncateString(clienteObra, 200));
+            vehicle.setClientName(truncateString(clientName, 200));
+            vehicle.setWorkPostEntity(workPost);
             if (companyId != null) vehicle.setCompanyId(companyId);
-
             if (valorPorVeiculo != null) {
                 vehicle.setMarketValue(valorPorVeiculo);
             }
 
             vehiclesToInsert.add(vehicle);
         }
+    }
 
-        // 4. Criar Contrato com número único garantido
-        Contract contract = new Contract();
-        contract.setContractNumber(generateUniqueContractNumber(clienteObra, usedContractNumbers));
-        contract.setDescription("Contrato de prestação de serviços - " + truncateString(clienteObra, 450));
-        contract.setClient(client);
-        contract.setContractType(ContractType.LOCACAO_VEICULOS);
-        contract.setStatus(ContractStatus.ACTIVE);
-
-        if (valorMensal != null && valorMensal.compareTo(BigDecimal.ZERO) > 0) {
-            contract.setValue(valorMensal);
-        } else if (valorPorVeiculo != null && qty > 0) {
-            contract.setValue(valorPorVeiculo.multiply(BigDecimal.valueOf(qty)));
-        } else {
-            contract.setValue(BigDecimal.ZERO);
+    /**
+     * Separa Nome do Cliente e Nome da Obra a partir de strings como:
+     * "CONSTRUTORA BARBOSA MELLO S.A. (CONGONHAS-MG)" -> ["CONSTRUTORA BARBOSA MELLO S.A.", "CONGONHAS-MG"]
+     * "ATERPA (ITABIRITO-MG)" -> ["ATERPA", "ITABIRITO-MG"]
+     * "FM2C SERVIÇOS DE MANUTENÇÃO LTDA - (BETIM X RIBEIRÃO DAS NEVES)" -> ["FM2C SERVIÇOS DE MANUTENÇÃO LTDA", "BETIM X RIBEIRÃO DAS NEVES"]
+     */
+    public static String[] parseClientAndObraName(String cellVal) {
+        if (cellVal == null || cellVal.isBlank()) {
+            return new String[]{"CLIENTE DESCONHECIDO", "MATRIZ"};
+        }
+        String str = cellVal.trim();
+        // Matcher para Padrão: CLIENTE (OBRA) ou CLIENTE - (OBRA)
+        Matcher m = Pattern.compile("^(.*?)\\s*(?:-\\s*)?\\(([^)]+)\\)\\s*$").matcher(str);
+        if (m.matches()) {
+            String client = m.group(1).replaceAll("^\\s*-\\s*", "").trim();
+            String obra = m.group(2).trim();
+            if (client.isEmpty()) client = obra;
+            return new String[]{client, obra};
         }
 
-        LocalDate[] dates = parseVigencia(vigencia);
-        if (dates[0] != null) contract.setStartDate(dates[0]);
-        if (dates[1] != null) contract.setEndDate(dates[1]);
-
-        if (tipoServico != null) {
-            contract.setNotes("Serviços: " + truncateString(tipoServico, 500));
+        // Matcher para Padrão: CLIENTE - OBRA
+        if (str.contains(" - ")) {
+            String[] parts = str.split("\\s+-\\s+", 2);
+            return new String[]{parts[0].trim(), parts[1].trim()};
         }
 
-        contractsToInsert.add(contract);
+        return new String[]{str, "MATRIZ"};
+    }
+
+    private String generateUniquePostCode(String name, Set<String> usedPostCodes) {
+        while (true) {
+            int seq = postCodeSeq.incrementAndGet();
+            String candidate = String.format("PST-%05d", seq);
+            if (!usedPostCodes.contains(candidate)) {
+                usedPostCodes.add(candidate);
+                return candidate;
+            }
+        }
     }
 
     private String generateUniqueCnpj(String name, Set<String> usedCnpjs) {

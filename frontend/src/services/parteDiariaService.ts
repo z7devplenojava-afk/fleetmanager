@@ -6,6 +6,8 @@ export interface ParteDiariaAtividade {
   endTime?: string;
   description?: string;
   activityType?: string;
+  startKm?: number;
+  endKm?: number;
   notes?: string;
 }
 

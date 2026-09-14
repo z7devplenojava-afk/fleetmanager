@@ -394,6 +394,25 @@ public class MeasurementService {
         MeasurementBulletin bulletin = MeasurementBulletinDTO.toEntity(dto);
         bulletin.setStatus(MeasurementStatus.DRAFT);
 
+        if (bulletin.getCompanyName() == null || bulletin.getCompanyName().isBlank()) {
+            bulletin.setCompanyName("PROMOVER VIGILÂNCIA PATRIMONIAL LTDA");
+        }
+        if (bulletin.getPeriodStart() == null) {
+            bulletin.setPeriodStart(LocalDate.now().withDayOfMonth(1));
+        }
+        if (bulletin.getPeriodEnd() == null) {
+            bulletin.setPeriodEnd(LocalDate.now());
+        }
+        if (bulletin.getContractNumber() == null || bulletin.getContractNumber().isBlank()) {
+            bulletin.setContractNumber(dto.getContractId() != null ? "CTR-" + dto.getContractId().toString().substring(0, 8) : "MED-" + System.currentTimeMillis());
+        }
+        if (bulletin.getElaboratedBy() == null || bulletin.getElaboratedBy().isBlank()) {
+            bulletin.setElaboratedBy("Sistema");
+        }
+        if (bulletin.getMeasuredBy() == null || bulletin.getMeasuredBy().isBlank()) {
+            bulletin.setMeasuredBy("Sistema");
+        }
+
         // Associar entidades relacionadas (tolerante a erros)
         if (dto.getClientId() != null) {
             try {

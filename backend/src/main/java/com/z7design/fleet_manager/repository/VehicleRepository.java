@@ -56,4 +56,16 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
     int restore(@Param("id") UUID id);
+
+    /** Desvincula veículos associados a postos de trabalho que serão excluídos */
+    @Query("UPDATE Vehicle v SET v.workPostId = NULL, v.workPostEntity = NULL, v.clientName = NULL WHERE v.workPostId IN :workPostIds")
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    int clearWorkPostAllocation(@Param("workPostIds") java.util.Collection<UUID> workPostIds);
+
+    /** Desvincula veículos com o nome do cliente que será excluído */
+    @Query("UPDATE Vehicle v SET v.clientName = NULL WHERE v.clientName = :clientName")
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    int clearClientNameAllocation(@Param("clientName") String clientName);
 }

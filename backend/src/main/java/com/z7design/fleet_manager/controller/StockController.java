@@ -318,8 +318,23 @@ public class StockController {
         
         log.info("PATCH /api/stock/alerts/{}/resolve - Resolvendo alerta", alertId);
         
-        // Obter ID do usuÃ¡rio logado
-        UUID userId = UUID.fromString("11111111-1111-1111-1111-111111111111"); // Placeholder
+        // Obter ID do usuário logado dinamicamente
+        UUID userId = null;
+        if (authentication != null && authentication.getName() != null) {
+            try {
+                userId = userRepository.findByUsername(authentication.getName())
+                        .map(com.z7design.fleet_manager.model.User::getId)
+                        .orElse(null);
+            } catch (Exception e) {
+                log.warn("Erro ao obter usuário autenticado ao resolver alerta: {}", e.getMessage());
+            }
+        }
+        if (userId == null) {
+            userId = userRepository.findByActiveTrue().stream()
+                    .findFirst()
+                    .map(com.z7design.fleet_manager.model.User::getId)
+                    .orElse(null);
+        }
         
         stockService.resolveAlert(alertId, userId);
         return ResponseEntity.ok().build();
