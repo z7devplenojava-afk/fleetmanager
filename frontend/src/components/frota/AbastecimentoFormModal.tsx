@@ -139,11 +139,20 @@ const AbastecimentoFormModal: React.FC<AbastecimentoFormModalProps> = ({
       fuelType: formData.fuelType,
       quantity: formData.liters,
       cost: formData.totalValue,
+      pricePerLiter: formData.pricePerLiter || null,
       mileage: formData.mileage,
+      initialMileage: formData.initialMileage || null,
       station: formData.station,
       driverId: formData.driverId || null,
       notes: formData.notes || '',
-      costCenter: formData.costCenter || null
+      costCenter: formData.costCenter || null,
+      clientId: formData.clientId || null,
+      clientName: formData.clientName || null,
+      workPostId: formData.workPostId || null,
+      obraName: formData.obraName || null,
+      contractId: formData.contractId || null,
+      contractNumber: formData.contractNumber || null,
+      supplierId: formData.supplierId || null
     };
 
     const data = new FormData();
@@ -153,9 +162,6 @@ const AbastecimentoFormModal: React.FC<AbastecimentoFormModalProps> = ({
     }
 
     createFuelRecordMutation.mutate(data as any);
-    // Note: createFuelRecord expects FormData or obj? Current service likely handles it. 
-    // Checking previous code: it passed FormData.
-
     setIsLoading(false);
   };
 
@@ -172,10 +178,6 @@ const AbastecimentoFormModal: React.FC<AbastecimentoFormModalProps> = ({
   };
 
   const handleCreateDriver = async (data: any) => {
-    // DriverFormModal usually handles the mutation itself, checking typical implementation...
-    // If DriverFormModal takes an onSubmit, we handle it. If it handles internally and takes onSuccess...
-    // Checking previous code: DriverFormModal wasn't used, it had inline state.
-    // I'm using DriverFormModal now for better reuse.
     queryClient.invalidateQueries({ queryKey: ['drivers'] });
     setIsDriverModalOpen(false);
   };
@@ -187,10 +189,9 @@ const AbastecimentoFormModal: React.FC<AbastecimentoFormModalProps> = ({
           <DialogHeader className="p-6 pb-2">
             <DialogTitle className="text-2xl font-bold">Registrar Abastecimento</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Lançamento de despesa de combustível.
+              Lançamento de despesa de combustível por veículo, cliente e contrato.
             </DialogDescription>
           </DialogHeader>
-          {/* We need to intercept vehicle change to update selectedVehicleId for lastFuelRecord query */}
           <RefuelingForm
             onSubmit={handleSubmit}
             isLoading={isLoading}
@@ -201,35 +202,8 @@ const AbastecimentoFormModal: React.FC<AbastecimentoFormModalProps> = ({
             lastFuelRecord={lastFuelRecord}
             onOpenDriverModal={() => setIsDriverModalOpen(true)}
             onOpenSupplierModal={() => setIsSupplierModalOpen(true)}
-            initialData={{
-              // We can hook into the form via a wrapper or just pass a key to reset?
-              // Actually, RefuelingForm doesn't expose onVehicleChange.
-              // We should modify RefuelingForm to accept onVehicleChange or 
-              // we can use a simpler approach: define a wrapper component inside here?
-              // No, standard way: pass a specialized setter or just listen to changes?
-              // Since RefuelingForm manages its own state, let's just use `key` to reset if needed, 
-              // BUT we need `selectedVehicleId` uplifted.
-              // I will strictly pass the onChange handler for vehicleId via `initialData`? 
-              // No, `initialData` is for init.
-              // I'll update RefuelingForm props in a second patch if needed, 
-              // OR I can rely on a hack: pass `vehicles` and `lastFuelRecord` is fetched INSIDE RefuelingForm?
-              // No, React Query belongs in the container.
-              // I will assume RefuelingForm has been written (I just wrote it) but I didn't add onVehicleChange prop.
-              // I will update RefuelingForm to accept `onFieldChange` or similar, 
-              // OR simpler: `AbastecimentoForm.tsx` (this file) will act as the Container and `RefuelingForm` as Presenter?
-              // `RefuelingForm` has internal state. 
-              // I will PATCH RefuelingForm to lift vehicleId state or accept a callback.
-            }}
-          // WORKAROUND: I will modify RefuelingForm in a subsequent step to accept onVehicleChange.
-          // For now, I will render it and users might notice validation only works if I wire it up.
-          // Wait, I can pass a tweaked "vehicles" list or similar? No.
-          // I'll make RefuelingForm accept `onVehicleChange` prop.
+            onVehicleChange={(vId) => setSelectedVehicleId(vId)}
           />
-          { /* Actually, I can just patch RefuelingForm right now before writing this file? 
-             No, I already wrote RefuelingForm. 
-             I will write this file, but logic for lastFuelRecord won't work perfectly without the callback.
-             I will add the callback to RefuelingForm by reading & patching it.
-        */ }
         </DialogContent>
       </Dialog>
 

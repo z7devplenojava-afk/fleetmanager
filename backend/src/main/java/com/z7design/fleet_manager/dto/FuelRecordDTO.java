@@ -32,6 +32,15 @@ public class FuelRecordDTO {
     private String notes;
     private String receiptUrl;
     private String costCenter;
+    private UUID clientId;
+    private String clientName;
+    private UUID workPostId;
+    private String obraName;
+    private UUID contractId;
+    private String contractNumber;
+    private UUID supplierId;
+    private String supplierName;
+    private BigDecimal pricePerLiter;
     private LocalDateTime createdAt;
     
     public static FuelRecordDTO fromEntity(FuelRecord fuelRecord) {
@@ -39,20 +48,20 @@ public class FuelRecordDTO {
             FuelRecordDTO dto = new FuelRecordDTO();
             dto.setId(fuelRecord.getId());
             
-            // Verificar se o veÃ­culo nÃ£o Ã© nulo
+            // Verificar se o veículo não é nulo
             if (fuelRecord.getVehicle() != null) {
                 dto.setVehicleId(fuelRecord.getVehicle().getId());
-                // Proteger contra proxies invÃ¡lidos ou entidades ausentes
+                // Proteger contra proxies inválidos ou entidades ausentes
                 try {
                     dto.setVehiclePlate(fuelRecord.getVehicle().getPlate());
                 } catch (EntityNotFoundException e) {
-                    System.err.println("VeÃ­culo nÃ£o encontrado ao acessar plate para FuelRecord " + fuelRecord.getId() + ": " + e.getMessage());
+                    System.err.println("Veículo não encontrado ao acessar plate para FuelRecord " + fuelRecord.getId() + ": " + e.getMessage());
                     dto.setVehiclePlate(null);
                 } catch (org.hibernate.ObjectNotFoundException e) {
-                    System.err.println("VeÃ­culo nÃ£o encontrado (ObjectNotFoundException) para FuelRecord " + fuelRecord.getId() + ": " + e.getMessage());
+                    System.err.println("Veículo não encontrado (ObjectNotFoundException) para FuelRecord " + fuelRecord.getId() + ": " + e.getMessage());
                     dto.setVehiclePlate(null);
                 } catch (org.hibernate.LazyInitializationException e) {
-                    System.err.println("LazyInitialization ao acessar plate do veÃ­culo para FuelRecord " + fuelRecord.getId() + ": " + e.getMessage());
+                    System.err.println("LazyInitialization ao acessar plate do veículo para FuelRecord " + fuelRecord.getId() + ": " + e.getMessage());
                     dto.setVehiclePlate(null);
                 }
             }
@@ -66,7 +75,7 @@ public class FuelRecordDTO {
             dto.setFinalMileage(fuelRecord.getFinalMileage());
             dto.setStation(fuelRecord.getStation());
             
-            // Verificar se o motorista nÃ£o Ã© nulo antes de converter
+            // Verificar se o motorista não é nulo antes de converter
             if (fuelRecord.getDriver() != null) {
                 try {
                     dto.setDriver(DriverDTO.fromEntity(fuelRecord.getDriver()));
@@ -82,8 +91,55 @@ public class FuelRecordDTO {
             dto.setNotes(fuelRecord.getNotes());
             dto.setReceiptUrl(fuelRecord.getReceiptUrl());
             dto.setCostCenter(fuelRecord.getCostCenter());
+
+            // Novas propriedades de alocação e fornecedor
+            dto.setPricePerLiter(fuelRecord.getPricePerLiter());
             
-            // Verificar se createdAt nÃ£o Ã© nulo
+            if (fuelRecord.getClient() != null) {
+                try {
+                    dto.setClientId(fuelRecord.getClient().getId());
+                    dto.setClientName(fuelRecord.getClient().getName());
+                } catch (Exception e) {
+                    dto.setClientName(fuelRecord.getClientName());
+                }
+            } else {
+                dto.setClientName(fuelRecord.getClientName());
+            }
+
+            if (fuelRecord.getWorkPost() != null) {
+                try {
+                    dto.setWorkPostId(fuelRecord.getWorkPost().getId());
+                    dto.setObraName(fuelRecord.getWorkPost().getName());
+                } catch (Exception e) {
+                    dto.setObraName(fuelRecord.getObraName());
+                }
+            } else {
+                dto.setObraName(fuelRecord.getObraName());
+            }
+
+            if (fuelRecord.getContract() != null) {
+                try {
+                    dto.setContractId(fuelRecord.getContract().getId());
+                    dto.setContractNumber(fuelRecord.getContract().getContractNumber());
+                } catch (Exception e) {
+                    dto.setContractNumber(fuelRecord.getContractNumber());
+                }
+            } else {
+                dto.setContractNumber(fuelRecord.getContractNumber());
+            }
+
+            if (fuelRecord.getSupplier() != null) {
+                try {
+                    dto.setSupplierId(fuelRecord.getSupplier().getId());
+                    dto.setSupplierName(fuelRecord.getSupplier().getName());
+                } catch (Exception e) {
+                    dto.setSupplierName(fuelRecord.getStation());
+                }
+            } else {
+                dto.setSupplierName(fuelRecord.getStation());
+            }
+            
+            // Verificar se createdAt não é nulo
             if (fuelRecord.getCreatedAt() != null) {
                 dto.setCreatedAt(fuelRecord.getCreatedAt());
             }

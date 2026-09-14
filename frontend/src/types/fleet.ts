@@ -141,6 +141,15 @@ export interface FuelRecord {
   };
   notes?: string;
   costCenter?: string;
+  clientId?: string;
+  clientName?: string;
+  workPostId?: string;
+  obraName?: string;
+  contractId?: string;
+  contractNumber?: string;
+  supplierId?: string;
+  supplierName?: string;
+  pricePerLiter?: number;
   createdAt: string;
 }
 

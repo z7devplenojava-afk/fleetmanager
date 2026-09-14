@@ -140,10 +140,18 @@ export interface RefuelingFormData {
     date: string; // YYYY-MM-DD
     fuelType: 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'FLEX';
     mileage: number;
+    initialMileage?: number;
     liters: number;
     pricePerLiter: number;
     totalValue: number;
     station: string; // Supplier name
+    supplierId?: string;
+    clientId?: string;
+    clientName?: string;
+    workPostId?: string;
+    obraName?: string;
+    contractId?: string;
+    contractNumber?: string;
     costCenter: string;
     notes: string;
     receiptFile: File | null;

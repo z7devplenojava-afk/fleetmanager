@@ -67,6 +67,34 @@ public class FuelRecord implements TenantAware {
     @Column(name = "cost_center")
     private String costCenter;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "client_id")
+    private Client client;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_post_id")
+    private WorkPost workPost;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contract_id")
+    private Contract contract;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id")
+    private Supplier supplier;
+
+    @Column(name = "price_per_liter", precision = 10, scale = 4)
+    private BigDecimal pricePerLiter;
+
+    @Column(name = "client_name")
+    private String clientName;
+
+    @Column(name = "obra_name")
+    private String obraName;
+
+    @Column(name = "contract_number")
+    private String contractNumber;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

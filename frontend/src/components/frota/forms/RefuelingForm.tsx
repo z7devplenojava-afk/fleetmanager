@@ -68,6 +68,30 @@ export const RefuelingForm: React.FC<RefuelingFormProps> = ({
         }
     }, [initialData]);
 
+    // Auto-preencher cliente, obra, contrato e KM anterior quando o veículo muda
+    useEffect(() => {
+        if (!formData.vehicleId || !vehicles || vehicles.length === 0) return;
+        const selected = vehicles.find(v => v.id === formData.vehicleId);
+        if (selected) {
+            const autoClient = selected.clientName || (selected as any).client?.name || '';
+            const autoObra = selected.postoDeTrabalho || (selected as any).workPostEntity?.name || '';
+            const autoContract = selected.allocationContractNumber || '';
+            const autoKm = lastFuelRecord?.mileage ?? selected.currentMileage ?? selected.quilometragem ?? 0;
+
+            setFormData(prev => ({
+                ...prev,
+                clientName: prev.clientName || autoClient,
+                clientId: prev.clientId || selected.clientId || '',
+                obraName: prev.obraName || autoObra,
+                workPostId: prev.workPostId || selected.workPostId || '',
+                contractNumber: prev.contractNumber || autoContract,
+                contractId: prev.contractId || selected.contractId || '',
+                initialMileage: autoKm,
+                mileage: prev.mileage > 0 ? prev.mileage : autoKm
+            }));
+        }
+    }, [formData.vehicleId, vehicles, lastFuelRecord]);
+
     // Validation for mileage
     useEffect(() => {
         if (!formData.mileage || !lastFuelRecord) {
@@ -196,8 +220,42 @@ export const RefuelingForm: React.FC<RefuelingFormProps> = ({
                                 </div>
                             </div>
 
+                            {/* Allocation Info (Cliente, Obra, Contrato) */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-900/40 p-4 rounded-lg border border-gray-700/60">
+                                <div className="space-y-2">
+                                    <Label className="text-gray-300 font-medium">Cliente (Alocado)</Label>
+                                    <Input
+                                        type="text"
+                                        placeholder="Nome do cliente"
+                                        value={formData.clientName || ''}
+                                        onChange={(e) => handleInputChange('clientName', e.target.value)}
+                                        className="bg-gray-900/50 border-gray-600 text-white"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-gray-300 font-medium">Obra / Setor de Trabalho</Label>
+                                    <Input
+                                        type="text"
+                                        placeholder="Nome da obra ou setor"
+                                        value={formData.obraName || ''}
+                                        onChange={(e) => handleInputChange('obraName', e.target.value)}
+                                        className="bg-gray-900/50 border-gray-600 text-white"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-gray-300 font-medium">Contrato</Label>
+                                    <Input
+                                        type="text"
+                                        placeholder="Número do contrato"
+                                        value={formData.contractNumber || ''}
+                                        onChange={(e) => handleInputChange('contractNumber', e.target.value)}
+                                        className="bg-gray-900/50 border-gray-600 text-white"
+                                    />
+                                </div>
+                            </div>
+
                             {/* Date & Mileage */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <Label className="text-gray-300 font-medium">Data *</Label>
                                     <div className="relative">
@@ -211,7 +269,20 @@ export const RefuelingForm: React.FC<RefuelingFormProps> = ({
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-gray-300 font-medium">Quilometragem *</Label>
+                                    <Label className="text-gray-300 font-medium">KM Anterior (Automático)</Label>
+                                    <div className="relative">
+                                        <Gauge className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                                        <Input
+                                            type="number"
+                                            readOnly
+                                            value={formData.initialMileage || lastFuelRecord?.mileage || 0}
+                                            className="pl-10 bg-gray-800/80 border-gray-700 text-yellow-400 font-semibold cursor-not-allowed"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-gray-400">Leitura anterior registrada</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-gray-300 font-medium">KM Abastecimento *</Label>
                                     <div className="relative">
                                         <Gauge className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                                         <Input
@@ -221,9 +292,6 @@ export const RefuelingForm: React.FC<RefuelingFormProps> = ({
                                             className={`pl-10 bg-gray-900/50 text-white ${mileageError ? 'border-red-500' : 'border-gray-600'}`}
                                         />
                                     </div>
-                                    {lastFuelRecord && (
-                                        <p className="text-xs text-gray-400">Último: {lastFuelRecord.mileage} km</p>
-                                    )}
                                     {mileageError && <p className="text-xs text-red-400">{mileageError}</p>}
                                     {mileageWarning && <p className="text-xs text-yellow-400">{mileageWarning}</p>}
                                 </div>

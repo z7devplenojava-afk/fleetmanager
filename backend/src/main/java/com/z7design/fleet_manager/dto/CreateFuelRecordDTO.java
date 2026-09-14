@@ -54,4 +54,13 @@ public class CreateFuelRecordDTO {
     private String receiptUrl;
     
     private String costCenter;
+
+    private UUID clientId;
+    private String clientName;
+    private UUID workPostId;
+    private String obraName;
+    private UUID contractId;
+    private String contractNumber;
+    private UUID supplierId;
+    private Double pricePerLiter;
 } 
