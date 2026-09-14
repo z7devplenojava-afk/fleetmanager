@@ -241,8 +241,14 @@ public class ClientService {
         }
 
         // 4. Excluir o registro do cliente
-        clientRepository.delete(client);
-        log.info("✅ Cliente {} ({}) excluído com sucesso!", client.getName(), id);
+        try {
+            clientRepository.delete(client);
+            log.info("✅ Cliente {} ({}) excluído com sucesso!", client.getName(), id);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.error("Erro de integridade ao excluir cliente {}: {}", client.getName(), e.getMessage());
+            throw new BusinessException("Não é possível excluir o cliente '" + client.getName() + 
+                    "' porque ele possui registros vinculados (faturas, contas a receber, ordens de serviço ou partes diárias).");
+        }
     }
     
     public void updateClientStatus(UUID id, ClientStatus status) {

@@ -8,7 +8,8 @@ import { groupService } from '@/services/groupService';
 import { companyService } from '@/services/companyService';
 import { getApiUrl } from '@/config/environment';
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = (globalThis as any).__AUTH_CONTEXT__ ||
+  ((globalThis as any).__AUTH_CONTEXT__ = createContext<AuthContextType | undefined>(undefined));
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
