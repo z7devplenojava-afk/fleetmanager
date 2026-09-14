@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, Loader2, Gauge } from 'lucide-react';
+import { Save, Loader2, Gauge, AlertCircle, CheckCircle2, Route } from 'lucide-react';
 import { DailyLog } from '@/services/dailyLogService';
 import { toast } from 'sonner';
 import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
@@ -73,33 +73,35 @@ const DailyLogFormModal: React.FC<DailyLogFormProps> = ({ open, onOpenChange, lo
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl bg-seguranca-graphite border-gray-600 text-seguranca-lightgray">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <Gauge className="text-seguranca-yellow" />
+            <DialogContent className="max-w-2xl bg-slate-900 border-slate-800 text-slate-100 shadow-2xl">
+                <DialogHeader className="border-b border-slate-800 pb-3">
+                    <DialogTitle className="flex items-center gap-2 text-white font-bold text-lg">
+                        <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400">
+                            <Gauge className="w-5 h-5" />
+                        </div>
                         {log ? 'Editar Parte Diária' : 'Nova Parte Diária'}
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="date">Data</Label>
+                <div className="grid gap-4 py-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="date" className="text-xs uppercase text-slate-400 font-semibold">Data da Operação</Label>
                             <Input
                                 id="date"
                                 type="date"
-                                className="bg-seguranca-black border-gray-600"
+                                className="bg-slate-950 border-slate-700 text-white focus:border-emerald-500 rounded-xl"
                                 value={formData.date}
                                 onChange={(e) => handleChange('date', e.target.value)}
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label>Turno</Label>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs uppercase text-slate-400 font-semibold">Turno de Operação</Label>
                             <Select value={formData.shift} onValueChange={(val) => handleChange('shift', val)}>
-                                <SelectTrigger className="bg-seguranca-black border-gray-600">
-                                    <SelectValue placeholder="Selecione" />
+                                <SelectTrigger className="bg-slate-950 border-slate-700 text-white focus:border-emerald-500 rounded-xl">
+                                    <SelectValue placeholder="Selecione o turno" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600">
+                                <SelectContent className="bg-slate-900 border-slate-700 text-white">
                                     <SelectItem value="DAY">Diurno</SelectItem>
                                     <SelectItem value="NIGHT">Noturno</SelectItem>
                                 </SelectContent>
@@ -107,98 +109,115 @@ const DailyLogFormModal: React.FC<DailyLogFormProps> = ({ open, onOpenChange, lo
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label>Veículo</Label>
+                    <div className="space-y-1.5">
+                        <Label className="text-xs uppercase text-slate-400 font-semibold">Veículo / Placa</Label>
                         <VehicleCombobox
                             value={formData.vehicleId}
                             onChange={(id) => handleChange('vehicleId', id)}
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="route">Rota</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="route" className="text-xs uppercase text-slate-400 font-semibold">Rota / Trajeto</Label>
                             <Input
                                 id="route"
-                                className="bg-seguranca-black border-gray-600"
-                                placeholder="Ex: Rota 01"
+                                className="bg-slate-950 border-slate-700 text-white placeholder:text-slate-600 focus:border-emerald-500 rounded-xl"
+                                placeholder="Ex: Rota Ibirité - BH"
                                 value={formData.route || ''}
                                 onChange={(e) => handleChange('route', e.target.value)}
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="client">Cliente (Opcional)</Label>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="client" className="text-xs uppercase text-slate-400 font-semibold">Cliente (Opcional)</Label>
                             <Input
                                 id="client"
-                                className="bg-seguranca-black border-gray-600"
-                                placeholder="Cliente..."
+                                className="bg-slate-950 border-slate-700 text-white placeholder:text-slate-600 focus:border-emerald-500 rounded-xl"
+                                placeholder="Nome do cliente..."
                                 value={formData.clientId || ''}
                                 onChange={(e) => handleChange('clientId', e.target.value)}
                             />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border border-gray-700 rounded-md bg-seguranca-black/30">
-                        <div className="space-y-2">
-                            <Label>KM Inicial</Label>
-                            <Input
-                                type="number"
-                                className="bg-seguranca-black border-gray-600 text-right"
-                                value={formData.initialKm}
-                                onChange={(e) => handleChange('initialKm', parseInt(e.target.value) || 0)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>KM Final</Label>
-                            <Input
-                                type="number"
-                                className="bg-seguranca-black border-gray-600 text-right"
-                                value={formData.finalKm}
-                                onChange={(e) => handleChange('finalKm', parseInt(e.target.value) || 0)}
-                            />
-                        </div>
-                        <div className="space-y-2 col-span-2">
-                            <Label className="text-seguranca-yellow font-bold">Total Percorrido</Label>
-                            <div className="h-10 flex items-center justify-end px-3 font-mono text-xl font-bold border-b border-gray-600">
-                                {totalKm} km
+                    {/* Bloco de Leitura de Odômetro */}
+                    <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                        <p className="text-xs uppercase font-bold text-amber-400 tracking-wider flex items-center gap-1.5">
+                            <Route className="w-4 h-4" /> Apuração do Odômetro
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-slate-400">KM Inicial</Label>
+                                <Input
+                                    type="number"
+                                    className="bg-slate-900 border-slate-700 text-white font-mono text-right focus:border-emerald-500 rounded-xl"
+                                    value={formData.initialKm}
+                                    onChange={(e) => handleChange('initialKm', parseInt(e.target.value) || 0)}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-slate-400">KM Final</Label>
+                                <Input
+                                    type="number"
+                                    className="bg-slate-900 border-slate-700 text-white font-mono text-right focus:border-emerald-500 rounded-xl"
+                                    value={formData.finalKm}
+                                    onChange={(e) => handleChange('finalKm', parseInt(e.target.value) || 0)}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-emerald-400 font-semibold">Total Percorrido</Label>
+                                <div className="h-10 bg-slate-900 border border-slate-700 rounded-xl flex items-center justify-end px-3 font-mono text-lg font-bold text-emerald-400">
+                                    {totalKm.toLocaleString('pt-BR')} km
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label>KM Descontado</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs uppercase text-slate-400 font-semibold">KM Descontado</Label>
                             <Input
                                 type="number"
-                                className="bg-seguranca-black border-gray-600 text-right"
+                                className="bg-slate-950 border-slate-700 text-white font-mono text-right focus:border-emerald-500 rounded-xl"
                                 value={formData.discountedKm}
                                 onChange={(e) => handleChange('discountedKm', parseInt(e.target.value) || 0)}
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label>Franquia (KM)</Label>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs uppercase text-slate-400 font-semibold">Franquia do Contrato (KM)</Label>
                             <Input
                                 type="number"
-                                className="bg-seguranca-black border-gray-600 text-right"
+                                className="bg-slate-950 border-slate-700 text-white font-mono text-right focus:border-emerald-500 rounded-xl"
                                 value={formData.allowance}
                                 onChange={(e) => handleChange('allowance', parseInt(e.target.value) || 0)}
                             />
                         </div>
                     </div>
 
-                    {excessKm > 0 && (
-                        <div className="bg-red-500/10 border border-red-500/50 p-3 rounded flex justify-between items-center animate-pulse">
-                            <span className="text-red-400 font-bold uppercase text-xs tracking-wider">Limite Excedido</span>
-                            <span className="text-red-400 font-mono font-bold text-lg">+{excessKm} km</span>
+                    {excessKm > 0 ? (
+                        <div className="bg-red-950/40 border border-red-500/50 p-3 rounded-xl flex justify-between items-center">
+                            <span className="text-red-400 font-bold uppercase text-xs tracking-wider flex items-center gap-1.5">
+                                <AlertCircle className="w-4 h-4" /> Excesso de Franquia Detectado
+                            </span>
+                            <span className="text-red-400 font-mono font-bold text-lg">+{excessKm.toLocaleString('pt-BR')} km</span>
+                        </div>
+                    ) : (
+                        <div className="bg-emerald-950/30 border border-emerald-500/30 p-2.5 rounded-xl flex justify-between items-center">
+                            <span className="text-emerald-400 font-semibold text-xs flex items-center gap-1.5">
+                                <CheckCircle2 className="w-4 h-4" /> Rodagem dentro do limite da franquia
+                            </span>
+                            <span className="text-emerald-400 font-mono font-bold text-sm">OK</span>
                         </div>
                     )}
                 </div>
 
-                <DialogFooter>
-                    <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-gray-400 hover:text-white">Cancelar</Button>
-                    <Button onClick={handleSave} className="bg-seguranca-red hover:bg-seguranca-darkred" disabled={isSaving}>
-                        {isSaving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-4 w-4" />}
-                        Salvar Lançamento
+                <DialogFooter className="border-t border-slate-800 pt-3">
+                    <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-700 text-slate-300 hover:bg-slate-800">
+                        Cancelar
+                    </Button>
+                    <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold" disabled={isSaving}>
+                        {isSaving ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
+                        Salvar Parte Diária
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -207,3 +226,4 @@ const DailyLogFormModal: React.FC<DailyLogFormProps> = ({ open, onOpenChange, lo
 };
 
 export default DailyLogFormModal;
+
