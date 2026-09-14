@@ -20,7 +20,7 @@ import {
   TrendingUp,
   TrendingDown,
   Clock,
-  CheckCircle,
+  CheckCircle2,
   AlertCircle,
   XCircle,
   X,
@@ -34,7 +34,11 @@ import {
   Trash2,
   CreditCard,
   BarChart3,
-  PieChart
+  PieChart,
+  RefreshCw,
+  ArrowUpRight,
+  ArrowDownRight,
+  Sparkles
 } from 'lucide-react';
 import { ContasAReceberGuard } from './FinanceiroPermissionGuard';
 import { ContasAReceberFormModal } from './ContasAReceberFormModal';
@@ -71,7 +75,6 @@ export const ContasAReceber: React.FC = () => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedConta, setSelectedConta] = useState<ContaAReceber | null>(null);
-  const [showForm, setShowForm] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showCobrancaModal, setShowCobrancaModal] = useState(false);
   const [cobrancaTexto, setCobrancaTexto] = useState('');
@@ -83,8 +86,6 @@ export const ContasAReceber: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
 
-  // Funções de cobrança e gestão
-  
   // Funções do modal
   const handleOpenFormModal = (conta?: ContaAReceber) => {
     if (conta) {
@@ -107,40 +108,6 @@ export const ContasAReceber: React.FC = () => {
     loadContas();
     handleCloseFormModal();
   };
-  const handleCobrancaAutomatica = async (contaId: string, tipo: 'email' | 'whatsapp' | 'telefone') => {
-    try {
-      // Implementar envio de cobrança automática
-      const conta = contas.find(c => c.id === contaId);
-      if (!conta) return;
-
-      const novoHistorico: HistoricoCobranca = {
-        id: Date.now().toString(),
-        data: new Date().toISOString(),
-        tipo,
-        descricao: `Cobrança automática enviada via ${tipo}`,
-        usuario: 'Sistema',
-        resultado: 'enviado'
-      };
-
-      // Atualizar histórico da conta
-      setContas(prev => prev.map(c => 
-        c.id === contaId 
-          ? { ...c, historicoCobranca: [...c.historicoCobranca, novoHistorico] }
-          : c
-      ));
-
-      toast({
-        title: 'Cobrança Enviada',
-        description: `Cobrança enviada via ${tipo} para ${conta.client?.name || 'cliente'}`
-      });
-    } catch (error) {
-      toast({
-        title: 'Erro',
-        description: 'Erro ao enviar cobrança',
-        variant: 'destructive'
-      });
-    }
-  };
 
   const handleCobrancaPersonalizada = async () => {
     if (!selectedConta || !cobrancaTexto.trim()) return;
@@ -157,7 +124,7 @@ export const ContasAReceber: React.FC = () => {
 
       setContas(prev => prev.map(c => 
         c.id === selectedConta.id 
-          ? { ...c, historicoCobranca: [...c.historicoCobranca, novoHistorico] }
+          ? { ...c, historicoCobranca: [...(c.historicoCobranca || []), novoHistorico] }
           : c
       ));
 
@@ -181,11 +148,10 @@ export const ContasAReceber: React.FC = () => {
   const handleExportInadimplencia = async () => {
     setExportLoading(true);
     try {
-      const contasVencidas = contas.filter(c => c.status === 'OVERDUE');
-      // Implementar exportação de relatório de inadimplência
+      const contasVencidas = contas.filter(c => c.status === 'OVERDUE' || c.status === 'VENCIDA');
       toast({
         title: 'Relatório Gerado',
-        description: `Relatório de inadimplência com ${contasVencidas.length} contas gerado`
+        description: `Relatório de inadimplência com ${contasVencidas.length} contas gerado com sucesso.`
       });
     } catch (error) {
       toast({
@@ -241,7 +207,7 @@ export const ContasAReceber: React.FC = () => {
     const total = contas.length;
     const valorTotal = contas.reduce((sum, c) => sum + (c?.amount || c?.valor || 0), 0);
     const valorPago = contas.reduce((sum, c) => sum + (c?.amountPaid || 0), 0);
-    const valorPendente = contas.reduce((sum, c) => sum + (c?.pendingAmount || 0), 0);
+    const valorPendente = contas.reduce((sum, c) => sum + (c?.pendingAmount || (c?.status === 'PENDING' || c?.status === 'ABERTA' ? (c?.amount || c?.valor || 0) : 0)), 0);
     const vencidas = contas.filter(c => c?.status === 'OVERDUE' || c?.status === 'VENCIDA').length;
     const valorVencido = contas
       .filter(c => c?.status === 'OVERDUE' || c?.status === 'VENCIDA')
@@ -252,15 +218,6 @@ export const ContasAReceber: React.FC = () => {
       ? contasComAtraso.reduce((sum, c) => sum + (c?.overdueDays || 0), 0) / contasComAtraso.length
       : 0;
 
-    // Distribuição por status (somatório de valores por status)
-    const porStatus: Record<string, number> = contas.reduce((acc, conta) => {
-      if (!conta) return acc;
-      const key = conta.status || 'UNKNOWN';
-      const valor = typeof conta.amount === 'number' ? conta.amount : (conta.valor || 0);
-      acc[key] = (acc[key] || 0) + valor;
-      return acc;
-    }, {} as Record<string, number>);
-
     return {
       total,
       valorTotal: isNaN(valorTotal) ? 0 : valorTotal,
@@ -269,32 +226,24 @@ export const ContasAReceber: React.FC = () => {
       vencidas,
       valorVencido: isNaN(valorVencido) ? 0 : valorVencido,
       mediaAtraso: Math.round(mediaAtraso) || 0,
-      taxaInadimplencia: total > 0 ? (vencidas / total * 100) : 0,
-      porStatus
+      taxaInadimplencia: total > 0 ? (vencidas / total * 100) : 0
     };
   };
 
-  // Função para carregar contas e clientes
   const loadContas = async () => {
     try {
       setLoading(true);
-      console.log('Carregando dados de Contas a Receber...');
-      
-      // Carregar contas a receber
-      const contasData = await contasAReceberService.getContasAReceber();
-      console.log('Contas carregadas:', contasData);
-      setContas(contasData);
-      
-      // Carregar clientes
-      const clientesData = await contasAReceberService.getClientes();
-      console.log('Clientes carregados:', clientesData);
-      setClientes(clientesData);
-      
+      const [contasData, clientesData] = await Promise.all([
+        contasAReceberService.getContasAReceber(),
+        contasAReceberService.getClientes()
+      ]);
+      setContas(contasData || []);
+      setClientes(clientesData || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível carregar os dados",
+        description: "Não foi possível carregar os dados de Contas a Receber.",
         variant: "destructive"
       });
     } finally {
@@ -302,29 +251,29 @@ export const ContasAReceber: React.FC = () => {
     }
   };
 
-  // Carregar dados reais da API
   useEffect(() => {
     loadContas();
   }, []);
 
   const stats = calcularEstatisticas();
 
-  // Filtros aplicados
   const filteredContas = contas.filter(conta => {
     if (!conta) return false;
     
     const matchesSearch = (conta.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
                          (conta.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
                          (conta.description?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
-    const matchesStatus = filterStatus === 'all' || conta.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' || conta.status === filterStatus ||
+                         (filterStatus === 'PENDING' && (conta.status === 'ABERTA' || conta.status === 'PENDING')) ||
+                         (filterStatus === 'PAID' && (conta.status === 'PAGA' || conta.status === 'PAID')) ||
+                         (filterStatus === 'OVERDUE' && (conta.status === 'VENCIDA' || conta.status === 'OVERDUE'));
     const matchesCategoria = filterCategoria === 'all' || conta.categoria === filterCategoria;
     const matchesCliente = filterCliente === 'all' || conta.client?.id === filterCliente;
     
-    // Filtro por data
     let matchesDate = true;
     if (dateRange?.from && dateRange?.to) {
       try {
-        const contaDate = new Date(conta.dueDate);
+        const contaDate = new Date(conta.dueDate || conta.vencimento);
         if (isNaN(contaDate.getTime())) return false;
         matchesDate = contaDate >= dateRange.from && contaDate <= dateRange.to;
       } catch {
@@ -335,80 +284,138 @@ export const ContasAReceber: React.FC = () => {
     return matchesSearch && matchesStatus && matchesCategoria && matchesCliente && matchesDate;
   });
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'PAID':
+      case 'PAGA':
+      case 'RECEBIDA':
+        return (
+          <Badge className="bg-emerald-950/80 text-emerald-400 border border-emerald-500/40 font-semibold px-2.5 py-1 flex items-center gap-1.5 w-fit">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Pago
+          </Badge>
+        );
+      case 'OVERDUE':
+      case 'VENCIDA':
+        return (
+          <Badge className="bg-red-950/80 text-red-400 border border-red-500/40 font-semibold px-2.5 py-1 flex items-center gap-1.5 w-fit">
+            <AlertCircle className="w-3.5 h-3.5" />
+            Vencido
+          </Badge>
+        );
+      case 'PARTIAL':
+      case 'PARCIAL':
+        return (
+          <Badge className="bg-sky-950/80 text-sky-400 border border-sky-500/40 font-semibold px-2.5 py-1 flex items-center gap-1.5 w-fit">
+            <Clock className="w-3.5 h-3.5" />
+            Parcial
+          </Badge>
+        );
+      case 'PENDING':
+      case 'ABERTA':
+      case 'PENDENTE':
+      default:
+        return (
+          <Badge className="bg-amber-950/80 text-amber-400 border border-amber-500/40 font-semibold px-2.5 py-1 flex items-center gap-1.5 w-fit">
+            <Clock className="w-3.5 h-3.5" />
+            Pendente
+          </Badge>
+        );
+    }
+  };
+
   return (
     <ContasAReceberGuard requiredPermission="VIEW_ACCOUNTS_RECEIVABLE">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+      <div className="space-y-6 min-h-screen text-slate-100 p-2 sm:p-4">
+        
+        {/* Header Principal */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl backdrop-blur-md">
           <div>
-            <h1 className="text-2xl font-bold text-seguranca-lightgray">Contas a Receber</h1>
-            <p className="text-gray-400">Gerencie suas contas a receber e controle de inadimplência</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400">
+                <DollarSign className="w-6 h-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white tracking-tight">Contas a Receber</h1>
+                <p className="text-sm text-slate-400">Gerencie entradas financeiras, cobranças e controle de inadimplência</p>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <Button
+              variant="outline"
+              onClick={loadContas}
+              disabled={loading}
+              className="border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700 hover:text-white"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+
             <Button 
               variant="outline" 
               onClick={handleExportInadimplencia}
               disabled={exportLoading}
-              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite hover:text-seguranca-yellow"
+              className="border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700 hover:text-white"
             >
-              <FileText className="w-4 h-4 mr-2" />
+              <FileText className="w-4 h-4 mr-2 text-amber-400" />
               Relatório Inadimplência
             </Button>
+
             <Button 
               onClick={() => handleOpenFormModal()}
-              className="flex items-center gap-2 bg-seguranca-red text-white hover:bg-seguranca-red/90"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-950/40"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 mr-2" />
               Nova Conta
             </Button>
           </div>
         </div>
 
-
-        {/* Filtros */}
-        <Card className="bg-seguranca-graphite border-gray-700">
-          <CardContent className="p-4">
+        {/* Barra de Busca e Filtros */}
+        <Card className="bg-slate-900/90 border-slate-800 shadow-xl backdrop-blur-md">
+          <CardContent className="p-4 sm:p-5">
             <div className="space-y-4">
-              {/* Campo de busca */}
-              <div className="w-full">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <div className="flex flex-col md:flex-row gap-3">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                   <Input
-                    placeholder="Buscar por cliente, fatura ou descrição..."
+                    placeholder="Buscar por cliente, número da fatura ou descrição..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 border-gray-600 bg-seguranca-black text-seguranca-lightgray placeholder:text-gray-400 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                    className="pl-10 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl"
                   />
                 </div>
-              </div>
-              
-              {/* Filtros básicos */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
+
+                {/* Status Filter */}
+                <div className="w-full md:w-48">
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                    <SelectTrigger className="bg-slate-950 border-slate-700 text-white focus:border-emerald-500 rounded-xl">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
-                    <SelectContent className="bg-seguranca-black border-gray-600">
-                      <SelectItem value="all" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Todos Status</SelectItem>
-                      <SelectItem value="pendente" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Pendente</SelectItem>
-                      <SelectItem value="pago" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Pago</SelectItem>
-                      <SelectItem value="vencido" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Vencido</SelectItem>
-                      <SelectItem value="cancelado" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Cancelado</SelectItem>
+                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                      <SelectItem value="all">Todos Status</SelectItem>
+                      <SelectItem value="PENDING">Pendente</SelectItem>
+                      <SelectItem value="PAID">Pago</SelectItem>
+                      <SelectItem value="OVERDUE">Vencido</SelectItem>
+                      <SelectItem value="PARTIAL">Parcial</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="flex-1">
+                {/* Categoria Filter */}
+                <div className="w-full md:w-48">
                   <Select value={filterCategoria} onValueChange={setFilterCategoria}>
-                    <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                    <SelectTrigger className="bg-slate-950 border-slate-700 text-white focus:border-emerald-500 rounded-xl">
                       <SelectValue placeholder="Categoria" />
                     </SelectTrigger>
-                    <SelectContent className="bg-seguranca-black border-gray-600">
-                      <SelectItem value="all" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Todas</SelectItem>
-                      <SelectItem value="servicos" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Serviços</SelectItem>
-                      <SelectItem value="produtos" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Produtos</SelectItem>
-                      <SelectItem value="consultoria" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Consultoria</SelectItem>
+                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                      <SelectItem value="all">Todas Categorias</SelectItem>
+                      <SelectItem value="servicos">Serviços</SelectItem>
+                      <SelectItem value="produtos">Produtos</SelectItem>
+                      <SelectItem value="locacao">Locação</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -416,20 +423,18 @@ export const ContasAReceber: React.FC = () => {
                 <Button
                   variant="outline"
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite hover:text-seguranca-yellow"
+                  className={`border-slate-700 rounded-xl text-slate-200 hover:bg-slate-800 ${showAdvancedFilters ? 'bg-slate-800 text-emerald-400 border-emerald-500/40' : ''}`}
                 >
                   <Filter className="w-4 h-4 mr-2" />
-                  Filtros Avançados
+                  Filtros
                 </Button>
               </div>
-            </div>
 
-            {/* Filtros Avançados */}
-            {showAdvancedFilters && (
-              <div className="mt-4 pt-4 border-t border-gray-700 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Filtros Avançados Expansíveis */}
+              {showAdvancedFilters && (
+                <div className="pt-4 border-t border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-4 items-end animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-seguranca-lightgray">Período</label>
+                    <label className="text-xs font-semibold uppercase text-slate-400">Período de Vencimento</label>
                     <DatePickerWithRange
                       date={dateRange}
                       onDateChange={setDateRange}
@@ -437,17 +442,17 @@ export const ContasAReceber: React.FC = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-seguranca-lightgray">Cliente</label>
+                    <label className="text-xs font-semibold uppercase text-slate-400">Cliente Especifico</label>
                     <Select value={filterCliente} onValueChange={setFilterCliente}>
-                      <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                      <SelectTrigger className="bg-slate-950 border-slate-700 text-white rounded-xl">
                         <SelectValue placeholder="Selecionar cliente" />
                       </SelectTrigger>
-                      <SelectContent className="bg-seguranca-black border-gray-600">
-                        <SelectItem value="all" className="text-seguranca-lightgray hover:bg-seguranca-graphite">Todos os Clientes</SelectItem>
+                      <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                        <SelectItem value="all">Todos os Clientes</SelectItem>
                         {clientes && Array.isArray(clientes) ? clientes
                           .filter(cliente => cliente && cliente.id && cliente.name)
                           .map(cliente => (
-                            <SelectItem key={cliente.id} value={cliente.id} className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                            <SelectItem key={cliente.id} value={cliente.id}>
                               {cliente.name}
                             </SelectItem>
                           )) : null}
@@ -455,9 +460,9 @@ export const ContasAReceber: React.FC = () => {
                     </Select>
                   </div>
                   
-                  <div className="flex items-end">
+                  <div>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => {
                         setSearchTerm('');
                         setFilterStatus('all');
@@ -465,388 +470,349 @@ export const ContasAReceber: React.FC = () => {
                         setFilterCliente('all');
                         setDateRange(undefined);
                       }}
-                      className="w-full border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite hover:text-seguranca-yellow"
+                      className="w-full text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl"
                     >
                       <X className="w-4 h-4 mr-2" />
                       Limpar Filtros
                     </Button>
                   </div>
                 </div>
-                
-                <div className="text-sm text-gray-400">
-                  Mostrando {filteredContas.length} de {contas.length} contas
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="lista">Lista de Contas</TabsTrigger>
+        {/* Tabs de Visualização */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="bg-slate-900/90 border border-slate-800 p-1 rounded-xl w-full sm:w-auto flex">
+            <TabsTrigger 
+              value="dashboard"
+              className="flex-1 sm:flex-initial px-6 py-2 rounded-lg font-semibold text-slate-400 data-[state=active]:bg-slate-800 data-[state=active]:text-white transition-all"
+            >
+              <BarChart3 className="w-4 h-4 mr-2 text-emerald-400" />
+              Visão Geral
+            </TabsTrigger>
+            <TabsTrigger 
+              value="lista"
+              className="flex-1 sm:flex-initial px-6 py-2 rounded-lg font-semibold text-slate-400 data-[state=active]:bg-slate-800 data-[state=active]:text-white transition-all"
+            >
+              <FileText className="w-4 h-4 mr-2 text-amber-400" />
+              Lista de Contas ({filteredContas.length})
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="dashboard">
-            <div className="space-y-6">
-              {/* Cards de Resumo */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="bg-seguranca-graphite border-gray-700">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-seguranca-lightgray">Total a Receber</p>
-                        <p className="text-2xl font-bold text-seguranca-yellow">
-                          R$ {(contas.reduce((sum, c) => sum + (c?.amount || 0), 0) || 0).toLocaleString('pt-BR')}
-                        </p>
-                      </div>
-                      <div className="h-12 w-12 bg-seguranca-yellow/20 rounded-lg flex items-center justify-center">
-                        <DollarSign className="h-6 w-6 text-seguranca-yellow" />
-                      </div>
+          <TabsContent value="dashboard" className="space-y-6">
+            {/* KPI Cards Header Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* Total a Receber */}
+              <Card className="bg-slate-900/90 border-slate-800 hover:border-emerald-500/40 transition-all shadow-xl">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Previsto</p>
+                      <p className="text-2xl font-mono font-bold text-emerald-400 mt-1">
+                        R$ {stats.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">{stats.total} faturas registradas</p>
                     </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-seguranca-graphite border-gray-700">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-seguranca-lightgray">Valor Recebido</p>
-                        <p className="text-2xl font-bold text-seguranca-yellow">
-                          R$ {(contas.reduce((sum, c) => sum + (c?.amountPaid || 0), 0) || 0).toLocaleString('pt-BR')}
-                        </p>
-                      </div>
-                      <div className="h-12 w-12 bg-seguranca-yellow/20 rounded-lg flex items-center justify-center">
-                        <CheckCircle className="h-6 w-6 text-seguranca-yellow" />
-                      </div>
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-emerald-400">
+                      <DollarSign className="w-6 h-6" />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <Card className="bg-seguranca-graphite border-gray-700">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-seguranca-lightgray">Valor Vencido</p>
-                        <p className="text-2xl font-bold text-seguranca-red">
-                          R$ {(contas.filter(c => c?.status === 'OVERDUE').reduce((sum, c) => sum + (c?.amount || 0), 0) || 0).toLocaleString('pt-BR')}
-                        </p>
-                      </div>
-                      <div className="h-12 w-12 bg-seguranca-red/20 rounded-lg flex items-center justify-center">
-                        <AlertCircle className="h-6 w-6 text-seguranca-red" />
-                      </div>
+              {/* Valor Recebido */}
+              <Card className="bg-slate-900/90 border-slate-800 hover:border-emerald-500/40 transition-all shadow-xl">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Valor Recebido</p>
+                      <p className="text-2xl font-mono font-bold text-white mt-1">
+                        R$ {stats.valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                        {stats.valorTotal > 0 ? ((stats.valorPago / stats.valorTotal) * 100).toFixed(1) : 0}% liquidado
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-seguranca-graphite border-gray-700">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-seguranca-lightgray">Taxa Inadimplência</p>
-                        <p className="text-2xl font-bold text-seguranca-red">
-                          {contas.length > 0 ? ((contas.filter(c => c.status === 'OVERDUE').length / contas.length) * 100).toFixed(1) : 0}%
-                        </p>
-                      </div>
-                      <div className="h-12 w-12 bg-seguranca-red/20 rounded-lg flex items-center justify-center">
-                        <TrendingDown className="h-6 w-6 text-seguranca-red" />
-                      </div>
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-emerald-400">
+                      <CheckCircle2 className="w-6 h-6" />
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-              {/* Gráficos Principais */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Gráfico de Status - Pizza */}
-                <Card className="bg-seguranca-graphite border-gray-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-seguranca-lightgray">
-                      <PieChart className="h-5 w-5 text-seguranca-yellow" />
-                      Distribuição por Status
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {[
-                        { status: 'PENDING', label: 'Pendentes', color: 'bg-seguranca-lightgray', count: contas.filter(c => c.status === 'PENDING').length },
-                        { status: 'PAID', label: 'Pagas', color: 'bg-seguranca-yellow', count: contas.filter(c => c.status === 'PAID').length },
-                        { status: 'OVERDUE', label: 'Vencidas', color: 'bg-seguranca-red', count: contas.filter(c => c.status === 'OVERDUE').length },
-                        { status: 'PARTIAL', label: 'Parciais', color: 'bg-seguranca-yellow', count: contas.filter(c => c.status === 'PARTIAL').length }
-                      ].map((item) => {
-                        const percentage = contas.length > 0 ? (item.count / contas.length) * 100 : 0;
-                        return (
-                          <div key={item.status} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className={`w-3 h-3 ${item.color} rounded-full`}></div>
-                                <span className="text-sm text-seguranca-lightgray">{item.label}</span>
-                              </div>
-                              <span className="font-semibold text-seguranca-lightgray">{item.count}</span>
-                            </div>
-                            <div className="w-full bg-gray-700 rounded-full h-2">
-                              <div 
-                                className={`h-2 rounded-full ${item.color}`}
-                                style={{ width: `${percentage}%` }}
-                              ></div>
-                            </div>
-                            <div className="text-xs text-gray-400 text-right">{percentage.toFixed(1)}%</div>
-                          </div>
-                        );
-                      })}
+              {/* Valor Vencido */}
+              <Card className="bg-slate-900/90 border-slate-800 hover:border-red-500/40 transition-all shadow-xl">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Valor Vencido</p>
+                      <p className="text-2xl font-mono font-bold text-red-400 mt-1">
+                        R$ {stats.valorVencido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        {stats.vencidas} faturas em atraso
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Gráfico de Valores - Barras */}
-                <Card className="bg-seguranca-graphite border-gray-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-seguranca-lightgray">
-                      <BarChart3 className="h-5 w-5 text-seguranca-yellow" />
-                      Valores por Status
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {[
-                        { 
-                          label: 'Total a Receber', 
-                          value: contas.reduce((sum, c) => sum + c.amount, 0),
-                          color: 'bg-seguranca-yellow',
-                          textColor: 'text-seguranca-yellow'
-                        },
-                        { 
-                          label: 'Valor Recebido', 
-                          value: contas.reduce((sum, c) => sum + (c?.amountPaid || 0), 0),
-                          color: 'bg-seguranca-yellow',
-                          textColor: 'text-seguranca-yellow'
-                        },
-                        { 
-                          label: 'Valor Pendente', 
-                          value: contas.reduce((sum, c) => sum + (c?.pendingAmount || 0), 0),
-                          color: 'bg-seguranca-red',
-                          textColor: 'text-seguranca-red'
-                        },
-                        { 
-                          label: 'Valor Vencido', 
-                          value: contas.filter(c => c.status === 'OVERDUE').reduce((sum, c) => sum + c.amount, 0),
-                          color: 'bg-seguranca-red',
-                          textColor: 'text-seguranca-red'
-                        }
-                      ].map((item) => {
-                        const maxValue = Math.max(
-                          contas.reduce((sum, c) => sum + (c?.amount || c?.valor || 0), 0),
-                          contas.reduce((sum, c) => sum + (c?.amountPaid || 0), 0),
-                          contas.reduce((sum, c) => sum + (c?.pendingAmount || 0), 0),
-                          contas.filter(c => c?.status === 'OVERDUE' || c?.status === 'VENCIDA').reduce((sum, c) => sum + (c?.amount || c?.valor || 0), 0)
-                        );
-                        const percentage = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
-                        
-                        return (
-                          <div key={item.label} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-seguranca-lightgray">{item.label}</span>
-                              <span className={`font-semibold ${item.textColor}`}>
-                                R$ {item.value.toLocaleString('pt-BR')}
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-700 rounded-full h-3">
-                              <div 
-                                className={`h-3 rounded-full ${item.color}`}
-                                style={{ width: `${percentage}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400">
+                      <AlertCircle className="w-6 h-6" />
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-              {/* Análise de Inadimplência */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Top Clientes por Valor */}
-                <Card className="bg-seguranca-graphite border-gray-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-seguranca-lightgray">
-                      <User className="h-5 w-5 text-seguranca-yellow" />
-                      Top Clientes por Valor
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {contas
-                        .sort((a, b) => (b?.amount || b?.valor || 0) - (a?.amount || a?.valor || 0))
-                        .slice(0, 5)
-                        .map((conta, index) => (
-                          <div key={conta.id} className="flex items-center justify-between p-3 bg-seguranca-black/50 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-seguranca-yellow/20 rounded-full flex items-center justify-center">
-                                <span className="text-sm font-bold text-seguranca-yellow">{index + 1}</span>
-                              </div>
-                              <div>
-                                <p className="font-medium text-seguranca-lightgray">{conta.client?.name || '-'}</p>
-                                <p className="text-xs text-gray-400">{conta.invoiceNumber || '-'}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-seguranca-yellow">
-                                R$ {((conta?.amount || conta?.valor || 0) as number).toLocaleString('pt-BR')}
-                              </p>
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${
-                                  conta.status === 'OVERDUE' ? 'border-seguranca-red text-seguranca-red' :
-                                  conta.status === 'PAID' ? 'border-seguranca-yellow text-seguranca-yellow' :
-                                  conta.status === 'PENDING' ? 'border-seguranca-lightgray text-seguranca-lightgray' :
-                                  'border-seguranca-yellow text-seguranca-yellow'
-                                }`}
-                              >
-                                {conta.status}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
+              {/* Taxa Inadimplência */}
+              <Card className="bg-slate-900/90 border-slate-800 hover:border-amber-500/40 transition-all shadow-xl">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Inadimplência</p>
+                      <p className="text-2xl font-mono font-bold text-amber-400 mt-1">
+                        {stats.taxaInadimplencia.toFixed(1)}%
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Média de atraso: <span className="text-white font-semibold">{stats.mediaAtraso} dias</span>
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-400">
+                      <TrendingDown className="w-6 h-6" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* Contas Vencidas */}
-                <Card className="bg-seguranca-graphite border-gray-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-seguranca-lightgray">
-                      <AlertCircle className="h-5 w-5 text-seguranca-red" />
-                      Contas Vencidas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {contas
-                        .filter(c => c.status === 'OVERDUE')
-                        .sort((a, b) => b.overdueDays - a.overdueDays)
-                        .slice(0, 5)
-                        .map((conta) => (
-                          <div key={conta.id} className="flex items-center justify-between p-3 bg-seguranca-red/10 border border-seguranca-red/20 rounded-lg">
-                            <div>
-                              <p className="font-medium text-seguranca-lightgray">{conta.client?.name || '-'}</p>
-                              <p className="text-xs text-gray-400">{conta.invoiceNumber || '-'}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-seguranca-red">
-                                R$ {((conta?.amount || conta?.valor || 0) as number).toLocaleString('pt-BR')}
-                              </p>
-                              <p className="text-xs text-seguranca-red">
-                                {conta.overdueDays} dias em atraso
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      {contas.filter(c => c.status === 'OVERDUE').length === 0 && (
-                        <div className="text-center py-8">
-                          <CheckCircle className="h-12 w-12 text-seguranca-yellow mx-auto mb-2" />
-                          <p className="text-seguranca-lightgray">Nenhuma conta vencida!</p>
+            </div>
+
+            {/* Painéis Gráficos e Distribuição */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* Distribuição por Status */}
+              <Card className="bg-slate-900/90 border-slate-800 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                    <PieChart className="w-5 h-5 text-emerald-400" />
+                    Distribuição por Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {[
+                    { key: 'PENDING', label: 'Pendentes', color: 'bg-amber-500', count: contas.filter(c => c.status === 'PENDING' || c.status === 'ABERTA').length },
+                    { key: 'PAID', label: 'Pagas', color: 'bg-emerald-500', count: contas.filter(c => c.status === 'PAID' || c.status === 'PAGA' || c.status === 'RECEBIDA').length },
+                    { key: 'OVERDUE', label: 'Vencidas', color: 'bg-red-500', count: contas.filter(c => c.status === 'OVERDUE' || c.status === 'VENCIDA').length },
+                    { key: 'PARTIAL', label: 'Parciais', color: 'bg-sky-500', count: contas.filter(c => c.status === 'PARTIAL' || c.status === 'PARCIAL').length }
+                  ].map(item => {
+                    const percentage = stats.total > 0 ? (item.count / stats.total) * 100 : 0;
+                    return (
+                      <div key={item.key} className="space-y-1.5">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-300 flex items-center gap-2">
+                            <span className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
+                            {item.label}
+                          </span>
+                          <span className="font-mono text-white font-semibold">{item.count} ({percentage.toFixed(1)}%)</span>
                         </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                        <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                          <div className={`h-full ${item.color} transition-all duration-500`} style={{ width: `${percentage}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              {/* Balanço de Valores */}
+              <Card className="bg-slate-900/90 border-slate-800 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-amber-400" />
+                    Valores em Carteira
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {[
+                    { label: 'Total Previsto', val: stats.valorTotal, color: 'bg-slate-400', textColor: 'text-slate-200' },
+                    { label: 'Total Recebido', val: stats.valorPago, color: 'bg-emerald-500', textColor: 'text-emerald-400' },
+                    { label: 'Total Pendente', val: stats.valorPendente, color: 'bg-amber-500', textColor: 'text-amber-400' },
+                    { label: 'Total Vencido', val: stats.valorVencido, color: 'bg-red-500', textColor: 'text-red-400' }
+                  ].map((item) => {
+                    const maxVal = Math.max(stats.valorTotal, 1);
+                    const pct = (item.val / maxVal) * 100;
+                    return (
+                      <div key={item.label} className="space-y-1.5">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-400">{item.label}</span>
+                          <span className={`font-mono font-bold ${item.textColor}`}>
+                            R$ {item.val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden border border-slate-800">
+                          <div className={`h-full ${item.color} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+            </div>
+
+            {/* Listas Resumidas: Top Clientes & Contas Vencidas */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* Top Clientes */}
+              <Card className="bg-slate-900/90 border-slate-800 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                    <User className="w-5 h-5 text-emerald-400" />
+                    Top Clientes por Volume
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {contas
+                      .slice()
+                      .sort((a, b) => (b?.amount || b?.valor || 0) - (a?.amount || a?.valor || 0))
+                      .slice(0, 5)
+                      .map((conta, idx) => (
+                        <div key={conta.id || idx} className="flex items-center justify-between p-3.5 bg-slate-950/80 border border-slate-800/80 rounded-xl hover:border-slate-700 transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-bold text-emerald-400 text-sm">
+                              #{idx + 1}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-white text-sm">{conta.client?.name || conta.cliente || 'Cliente não informado'}</p>
+                              <p className="text-xs text-slate-400">Fatura: {conta.invoiceNumber || conta.numeroFatura || '-'}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-mono font-bold text-emerald-400 text-sm">
+                              R$ {((conta?.amount || conta?.valor || 0) as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                            {getStatusBadge(conta.status)}
+                          </div>
+                        </div>
+                      ))}
+                    {contas.length === 0 && (
+                      <p className="text-center py-6 text-slate-500 text-sm">Nenhuma conta cadastrada.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Faturas em Atraso Crítico */}
+              <Card className="bg-slate-900/90 border-slate-800 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-400" />
+                    Contas em Atraso Prioritárias
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {contas
+                      .filter(c => c.status === 'OVERDUE' || c.status === 'VENCIDA')
+                      .sort((a, b) => (b.overdueDays || 0) - (a.overdueDays || 0))
+                      .slice(0, 5)
+                      .map((conta, idx) => (
+                        <div key={conta.id || idx} className="flex items-center justify-between p-3.5 bg-red-950/20 border border-red-500/30 rounded-xl">
+                          <div>
+                            <p className="font-semibold text-white text-sm">{conta.client?.name || conta.cliente || 'Cliente'}</p>
+                            <p className="text-xs text-red-300">Fatura #{conta.invoiceNumber || '-'}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-mono font-bold text-red-400 text-sm">
+                              R$ {((conta?.amount || conta?.valor || 0) as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                            <p className="text-xs text-red-400 font-semibold mt-0.5">
+                              {conta.overdueDays || 0} dias em atraso
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    {contas.filter(c => c.status === 'OVERDUE' || c.status === 'VENCIDA').length === 0 && (
+                      <div className="text-center py-8">
+                        <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-2 opacity-80" />
+                        <p className="text-slate-300 font-medium">Nenhuma conta em atraso!</p>
+                        <p className="text-xs text-slate-500">Parabéns, a inadimplência está sob controle.</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
             </div>
           </TabsContent>
 
           <TabsContent value="lista" className="space-y-4">
-            {/* Tabela de Contas */}
-            <Card>
+            <Card className="bg-slate-900/90 border-slate-800 shadow-xl overflow-hidden">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-seguranca-graphite border-b border-gray-700">
+                  <table className="w-full text-left text-slate-200">
+                    <thead className="bg-slate-950 border-b border-slate-800 text-xs font-semibold uppercase tracking-wider text-slate-400">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-seguranca-lightgray uppercase tracking-wider">
-                          Cliente / Fatura
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-seguranca-lightgray uppercase tracking-wider">
-                          Medição
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-seguranca-lightgray uppercase tracking-wider">
-                          Valor
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-seguranca-lightgray uppercase tracking-wider">
-                          Vencimento
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-seguranca-lightgray uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-seguranca-lightgray uppercase tracking-wider">
-                          Ações
-                        </th>
+                        <th className="px-5 py-4">Cliente / Fatura</th>
+                        <th className="px-5 py-4">Medição</th>
+                        <th className="px-5 py-4">Valor</th>
+                        <th className="px-5 py-4">Vencimento</th>
+                        <th className="px-5 py-4">Status</th>
+                        <th className="px-5 py-4 text-right">Ações</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-seguranca-black divide-y divide-gray-700">
+                    <tbody className="divide-y divide-slate-800/80 bg-slate-900/40">
                       {filteredContas.map((conta) => (
-                        <tr key={conta.id} className="hover:bg-seguranca-graphite/50">
-                          <td className="px-4 py-4">
+                        <tr key={conta.id} className="hover:bg-slate-800/60 transition-colors">
+                          <td className="px-5 py-4">
                             <div>
-                              <div className="font-medium text-seguranca-lightgray">{conta.client?.name || '-'}</div>
-                              <div className="text-sm text-gray-400">
-                                Fatura: {conta.invoiceNumber || '-'}
-                              </div>
-                              <div className="text-sm text-gray-400">{conta.description || '-'}</div>
+                              <p className="font-bold text-white text-sm">{conta.client?.name || conta.cliente || '-'}</p>
+                              <p className="text-xs text-slate-400">Fatura: <span className="font-mono text-slate-300">{conta.invoiceNumber || conta.numeroFatura || '-'}</span></p>
+                              {conta.description && <p className="text-xs text-slate-500 mt-0.5">{conta.description}</p>}
                             </div>
                           </td>
-                          <td className="px-4 py-4">
-                            <div className="text-sm text-seguranca-lightgray">
-                              {conta.measurementNumber || '-'}
-                            </div>
+                          <td className="px-5 py-4 text-sm font-mono text-slate-300">
+                            {conta.measurementNumber || '-'}
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-5 py-4">
                             <div>
-                              <div className="font-medium text-seguranca-yellow">
-                                R$ {((conta?.amount || conta?.valor || 0) as number).toLocaleString('pt-BR')}
-                              </div>
+                              <p className="font-mono font-bold text-emerald-400">
+                                R$ {((conta?.amount || conta?.valor || 0) as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
                               {(conta?.amountPaid || 0) > 0 && (
-                                <div className="text-sm text-seguranca-yellow">
-                                  Pago: R$ {((conta?.amountPaid || 0) as number).toLocaleString('pt-BR')}
-                                </div>
+                                <p className="text-xs text-emerald-400 font-mono">
+                                  Pago: R$ {((conta?.amountPaid || 0) as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
                               )}
                               {(conta?.pendingAmount || 0) > 0 && (
-                                <div className="text-sm text-seguranca-red">
-                                  Pendente: R$ {((conta?.pendingAmount || 0) as number).toLocaleString('pt-BR')}
-                                </div>
+                                <p className="text-xs text-red-400 font-mono">
+                                  Pend: R$ {((conta?.pendingAmount || 0) as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-5 py-4">
                             <div>
-                              <div className="text-sm text-seguranca-lightgray">
-                                {format(new Date(conta.dueDate || conta.vencimento), 'dd/MM/yyyy', { locale: ptBR })}
-                              </div>
-                              {conta.overdueDays > 0 && (
-                                <div className="text-sm text-seguranca-red">
+                              <p className="text-sm text-slate-200">
+                                {conta.dueDate || conta.vencimento ? format(new Date(conta.dueDate || conta.vencimento), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                              </p>
+                              {(conta.overdueDays || 0) > 0 && (
+                                <p className="text-xs font-semibold text-red-400">
                                   {conta.overdueDays} dias em atraso
-                                </div>
+                                </p>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-4">
-                            <Badge
-                              variant={conta.status === 'PAID' ? 'default' : 
-                                      conta.status === 'OVERDUE' ? 'destructive' : 
-                                      conta.status === 'PENDING' ? 'secondary' : 'outline'}
-                            >
-                              {conta.status === 'PAID' ? 'Pago' :
-                               conta.status === 'OVERDUE' ? 'Vencido' :
-                               conta.status === 'PENDING' ? 'Pendente' : 'Cancelado'}
-                            </Badge>
+                          <td className="px-5 py-4">
+                            {getStatusBadge(conta.status)}
                           </td>
-                          <td className="px-4 py-4">
-                            <div className="flex items-center space-x-2">
+                          <td className="px-5 py-4 text-right">
+                            <div className="flex items-center justify-end space-x-1.5">
                               <Button 
                                 size="sm" 
-                                variant="outline"
-                                className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite hover:text-seguranca-yellow"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-slate-400 hover:text-white hover:bg-slate-800"
                                 onClick={() => handleViewConta(conta)}
                                 title="Visualizar detalhes"
                               >
@@ -854,8 +820,8 @@ export const ContasAReceber: React.FC = () => {
                               </Button>
                               <Button 
                                 size="sm" 
-                                variant="outline"
-                                className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite hover:text-seguranca-yellow"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-slate-400 hover:text-amber-400 hover:bg-slate-800"
                                 onClick={() => handleEditConta(conta)}
                                 title="Editar conta"
                               >
@@ -864,8 +830,8 @@ export const ContasAReceber: React.FC = () => {
                               {(conta.status === 'PENDING' || conta.status === 'OVERDUE' || conta.status === 'ABERTA' || conta.status === 'VENCIDA') && (
                                 <Button 
                                   size="sm" 
-                                  variant="outline"
-                                  className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite hover:text-seguranca-yellow"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-slate-400 hover:text-emerald-400 hover:bg-slate-800"
                                   onClick={() => {
                                     setSelectedConta(conta);
                                     setShowCobrancaModal(true);
@@ -877,8 +843,8 @@ export const ContasAReceber: React.FC = () => {
                               )}
                               <Button 
                                 size="sm" 
-                                variant="outline"
-                                className="border-gray-600 text-seguranca-red hover:bg-seguranca-graphite hover:text-red-700"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-400 hover:bg-slate-800"
                                 onClick={() => handleDeleteClick(conta)}
                                 title="Excluir conta"
                               >
@@ -888,64 +854,74 @@ export const ContasAReceber: React.FC = () => {
                           </td>
                         </tr>
                       ))}
+                      {filteredContas.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="text-center py-12 text-slate-500">
+                            Nenhum lançamento encontrado com os filtros selecionados.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-
         </Tabs>
 
         {/* Modal de Cobrança */}
         <Dialog open={showCobrancaModal} onOpenChange={setShowCobrancaModal}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md bg-slate-900 border-slate-800 text-white shadow-2xl">
             <DialogHeader>
-              <DialogTitle>Enviar Cobrança</DialogTitle>
-              <DialogDescription>
-                Enviar cobrança para {selectedConta?.client.name}
+              <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <Send className="w-5 h-5 text-emerald-400" />
+                Enviar Notificação de Cobrança
+              </DialogTitle>
+              <DialogDescription className="text-slate-400">
+                Enviar aviso de cobrança para {selectedConta?.client?.name || selectedConta?.cliente || 'cliente'}
               </DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-4">
+            <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-seguranca-lightgray">Tipo de Cobrança</label>
-                <Select value={cobrancaTipo} onValueChange={setCobrancaTipo}>
-                  <SelectTrigger>
+                <Label className="text-slate-300">Canal de Envio</Label>
+                <Select value={cobrancaTipo} onValueChange={(val: any) => setCobrancaTipo(val)}>
+                  <SelectTrigger className="bg-slate-950 border-slate-700 text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="email">E-mail</SelectItem>
+                  <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                    <SelectItem value="email">E-mail Corporativo</SelectItem>
                     <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                    <SelectItem value="sms">SMS</SelectItem>
+                    <SelectItem value="telefone">Ligação / Telefone</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
-              <div>
-                <Label>Mensagem Personalizada</Label>
+              <div className="space-y-2">
+                <Label className="text-slate-300">Mensagem Personalizada</Label>
                 <Textarea
                   value={cobrancaTexto}
                   onChange={(e) => setCobrancaTexto(e.target.value)}
-                  placeholder="Digite uma mensagem personalizada (opcional)"
+                  placeholder="Prezado cliente, lembramos sobre a fatura pendente..."
                   rows={4}
+                  className="bg-slate-950 border-slate-700 text-white placeholder:text-slate-600 focus:border-emerald-500"
                 />
               </div>
             </div>
             
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCobrancaModal(false)}>
+              <Button variant="outline" onClick={() => setShowCobrancaModal(false)} className="border-slate-700 text-slate-300 hover:bg-slate-800">
                 Cancelar
               </Button>
-              <Button onClick={handleCobrancaPersonalizada}>
+              <Button onClick={handleCobrancaPersonalizada} className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">
                 <Send className="w-4 h-4 mr-2" />
-                Enviar Cobrança
+                Enviar Notificação
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Modal de Formulário */}
+        {/* Modal de Formulário (Nova/Edição) */}
         <ContasAReceberFormModal
           open={showFormModal}
           onOpenChange={handleCloseFormModal}
@@ -956,94 +932,74 @@ export const ContasAReceber: React.FC = () => {
 
         {/* Modal de Visualização */}
         <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-seguranca-graphite border-gray-600 text-white">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-800 text-white shadow-2xl">
             <DialogHeader>
-              <DialogTitle className="text-xl font-bold text-seguranca-yellow flex items-center gap-2">
-                <Eye size={20} />
+              <DialogTitle className="text-xl font-bold text-emerald-400 flex items-center gap-2">
+                <Eye className="w-5 h-5" />
                 Detalhes da Conta a Receber
               </DialogTitle>
             </DialogHeader>
             {selectedConta && (
-              <div className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4 mt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
                   <div>
-                    <Label className="text-seguranca-lightgray">Cliente</Label>
-                    <p className="text-white font-medium">{selectedConta.client?.name || selectedConta.cliente || 'Não informado'}</p>
+                    <Label className="text-xs uppercase text-slate-400 font-semibold">Cliente</Label>
+                    <p className="text-white font-semibold text-base mt-0.5">{selectedConta.client?.name || selectedConta.cliente || 'Não informado'}</p>
                   </div>
                   <div>
-                    <Label className="text-seguranca-lightgray">Número da Fatura</Label>
-                    <p className="text-white font-medium">{selectedConta.invoiceNumber || selectedConta.numeroFatura || '-'}</p>
+                    <Label className="text-xs uppercase text-slate-400 font-semibold">Número da Fatura</Label>
+                    <p className="text-white font-mono font-semibold text-base mt-0.5">{selectedConta.invoiceNumber || selectedConta.numeroFatura || '-'}</p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label className="text-xs uppercase text-slate-400 font-semibold">Descrição</Label>
+                    <p className="text-slate-200 mt-0.5">{selectedConta.description || selectedConta.descricao || '-'}</p>
                   </div>
                   <div>
-                    <Label className="text-seguranca-lightgray">Descrição</Label>
-                    <p className="text-white font-medium">{selectedConta.descricao || '-'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-seguranca-lightgray">Valor Total</Label>
-                    <p className="text-seguranca-yellow font-bold text-lg">
+                    <Label className="text-xs uppercase text-slate-400 font-semibold">Valor Total</Label>
+                    <p className="text-emerald-400 font-mono font-bold text-lg mt-0.5">
                       R$ {((selectedConta.amount || selectedConta.valor || 0) as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-seguranca-lightgray">Valor Pago</Label>
-                    <p className="text-seguranca-yellow font-medium">
+                    <Label className="text-xs uppercase text-slate-400 font-semibold">Valor Pago</Label>
+                    <p className="text-emerald-400 font-mono font-semibold text-base mt-0.5">
                       R$ {((selectedConta.amountPaid || 0) as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-seguranca-lightgray">Valor Pendente</Label>
-                    <p className="text-seguranca-red font-medium">
+                    <Label className="text-xs uppercase text-slate-400 font-semibold">Valor Pendente</Label>
+                    <p className="text-red-400 font-mono font-semibold text-base mt-0.5">
                       R$ {((selectedConta.pendingAmount || 0) as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-seguranca-lightgray">Data de Emissão</Label>
-                    <p className="text-white font-medium">
-                      {selectedConta.dataEmissao ? format(new Date(selectedConta.dataEmissao), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                    <Label className="text-xs uppercase text-slate-400 font-semibold">Data de Vencimento</Label>
+                    <p className="text-white font-semibold mt-0.5">
+                      {selectedConta.dueDate || selectedConta.vencimento ? format(new Date(selectedConta.dueDate || selectedConta.vencimento), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-seguranca-lightgray">Data de Vencimento</Label>
-                    <p className="text-white font-medium">
-                      {format(new Date(selectedConta.dueDate || selectedConta.vencimento), 'dd/MM/yyyy', { locale: ptBR })}
-                    </p>
+                    <Label className="text-xs uppercase text-slate-400 font-semibold">Status Atual</Label>
+                    <div className="mt-1">{getStatusBadge(selectedConta.status)}</div>
                   </div>
                   <div>
-                    <Label className="text-seguranca-lightgray">Status</Label>
-                    <Badge
-                      variant={selectedConta.status === 'PAID' || selectedConta.status === 'RECEBIDA' ? 'default' : 
-                              selectedConta.status === 'OVERDUE' || selectedConta.status === 'VENCIDA' ? 'destructive' : 
-                              selectedConta.status === 'PENDING' || selectedConta.status === 'ABERTA' ? 'secondary' : 'outline'}
-                    >
-                      {selectedConta.status === 'PAID' || selectedConta.status === 'RECEBIDA' ? 'Pago' :
-                       selectedConta.status === 'OVERDUE' || selectedConta.status === 'VENCIDA' ? 'Vencido' :
-                       selectedConta.status === 'PENDING' || selectedConta.status === 'ABERTA' ? 'Pendente' : 'Cancelado'}
-                    </Badge>
-                  </div>
-                  <div>
-                    <Label className="text-seguranca-lightgray">Forma de Pagamento</Label>
-                    <p className="text-white font-medium">{selectedConta.paymentMethod || 'PIX'}</p>
+                    <Label className="text-xs uppercase text-slate-400 font-semibold">Forma de Pagamento</Label>
+                    <p className="text-white font-medium mt-0.5">{selectedConta.paymentMethod || 'PIX'}</p>
                   </div>
                   {selectedConta.overdueDays && selectedConta.overdueDays > 0 && (
                     <div>
-                      <Label className="text-seguranca-lightgray">Dias em Atraso</Label>
-                      <p className="text-seguranca-red font-medium">{selectedConta.overdueDays} dias</p>
-                    </div>
-                  )}
-                  {selectedConta.observacoes && (
-                    <div className="col-span-2">
-                      <Label className="text-seguranca-lightgray">Observações</Label>
-                      <p className="text-white">{selectedConta.observacoes}</p>
+                      <Label className="text-xs uppercase text-slate-400 font-semibold">Dias em Atraso</Label>
+                      <p className="text-red-400 font-bold mt-0.5">{selectedConta.overdueDays} dias</p>
                     </div>
                   )}
                 </div>
               </div>
             )}
-            <DialogFooter className="mt-6">
+            <DialogFooter className="mt-4">
               <Button
                 variant="outline"
                 onClick={() => setShowViewModal(false)}
-                className="border-gray-600 text-white hover:bg-seguranca-black"
+                className="border-slate-700 text-slate-300 hover:bg-slate-800"
               >
                 Fechar
               </Button>
@@ -1053,10 +1009,10 @@ export const ContasAReceber: React.FC = () => {
                     setShowViewModal(false);
                     handleEditConta(selectedConta);
                   }}
-                  className="bg-seguranca-yellow hover:bg-seguranca-yellow/90 text-black"
+                  className="bg-amber-600 hover:bg-amber-500 text-white font-semibold"
                 >
                   <Edit className="w-4 h-4 mr-2" />
-                  Editar
+                  Editar Conta
                 </Button>
               )}
             </DialogFooter>
@@ -1065,26 +1021,24 @@ export const ContasAReceber: React.FC = () => {
 
         {/* Modal de Confirmação de Exclusão */}
         <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-          <DialogContent className="sm:max-w-[425px] bg-seguranca-graphite border-gray-600 text-white">
+          <DialogContent className="sm:max-w-[425px] bg-slate-900 border-slate-800 text-white shadow-2xl">
             <DialogHeader>
-              <DialogTitle className="text-seguranca-red">Confirmar Exclusão</DialogTitle>
-              <DialogDescription className="text-gray-300">
+              <DialogTitle className="text-red-400 flex items-center gap-2">
+                <Trash2 className="w-5 h-5" />
+                Confirmar Exclusão
+              </DialogTitle>
+              <DialogDescription className="text-slate-400">
                 Tem certeza que deseja excluir esta conta a receber? Esta ação não pode ser desfeita.
               </DialogDescription>
             </DialogHeader>
             {contaToDelete && (
-              <div className="py-4">
-                <p className="text-seguranca-lightgray">
-                  <strong>Cliente:</strong> {contaToDelete.client?.name || contaToDelete.cliente || 'Não informado'}
+              <div className="py-3 px-4 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
+                <p className="text-slate-300 text-sm">
+                  <strong className="text-slate-400">Cliente:</strong> {contaToDelete.client?.name || contaToDelete.cliente || 'Não informado'}
                 </p>
-                <p className="text-seguranca-lightgray">
-                  <strong>Valor:</strong> R$ {((contaToDelete.amount || contaToDelete.valor || 0) as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                <p className="text-slate-300 text-sm">
+                  <strong className="text-slate-400">Valor:</strong> <span className="font-mono text-emerald-400 font-bold">R$ {((contaToDelete.amount || contaToDelete.valor || 0) as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </p>
-                {contaToDelete.invoiceNumber || contaToDelete.numeroFatura ? (
-                  <p className="text-seguranca-lightgray">
-                    <strong>Fatura:</strong> {contaToDelete.invoiceNumber || contaToDelete.numeroFatura}
-                  </p>
-                ) : null}
               </div>
             )}
             <DialogFooter>
@@ -1095,18 +1049,18 @@ export const ContasAReceber: React.FC = () => {
                   setContaToDelete(null);
                 }}
                 disabled={deleting}
-                className="border-gray-600 text-white hover:bg-seguranca-black"
+                className="border-slate-700 text-slate-300 hover:bg-slate-800"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleConfirmDelete}
                 disabled={deleting}
-                className="bg-seguranca-red hover:bg-red-700 text-white"
+                className="bg-red-600 hover:bg-red-500 text-white font-semibold"
               >
                 {deleting ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                     Excluindo...
                   </>
                 ) : (
@@ -1119,7 +1073,13 @@ export const ContasAReceber: React.FC = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-       </div>
+      </div>
+    </ContasAReceberGuard>
+  );
+};
+
+export default ContasAReceber;
+/div>
      </ContasAReceberGuard>
    );
  };
