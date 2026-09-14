@@ -393,7 +393,10 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
               </TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold">Data</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold">Veículo</TableHead>
+              <TableHead className="text-seguranca-lightgray font-semibold">Cliente / Obra</TableHead>
+              <TableHead className="text-seguranca-lightgray font-semibold">Contrato</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold">Motorista</TableHead>
+              <TableHead className="text-seguranca-lightgray font-semibold">KM (Ant / Atual)</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold">Combustível</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold text-center">Litros</TableHead>
               <TableHead className="text-seguranca-lightgray font-semibold text-center">Valor/Litro</TableHead>
@@ -437,6 +440,17 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
                   </div>
                 </TableCell>
                 <TableCell className="text-seguranca-lightgray">
+                  <div className="flex flex-col">
+                    <span className="font-medium text-white">{abastecimento.clientName || '-'}</span>
+                    {abastecimento.obraName && (
+                      <span className="text-xs text-gray-400">{abastecimento.obraName}</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-seguranca-lightgray font-mono text-xs">
+                  {abastecimento.contractNumber || '-'}
+                </TableCell>
+                <TableCell className="text-seguranca-lightgray">
                   {abastecimento.driver ? (
                     <div className="flex flex-col">
                       <span className="font-medium">{abastecimento.driver.name}</span>
@@ -444,6 +458,16 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
                     </div>
                   ) : (
                     <span className="text-gray-400 italic">Não informado</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-seguranca-lightgray font-mono text-xs">
+                  {abastecimento.initialMileage !== undefined && abastecimento.initialMileage !== null ? (
+                    <div className="flex flex-col">
+                      <span className="text-gray-400">Ant: {abastecimento.initialMileage.toLocaleString('pt-BR')}</span>
+                      <span className="text-yellow-400 font-semibold">Atual: {abastecimento.mileage?.toLocaleString('pt-BR')}</span>
+                    </div>
+                  ) : (
+                    <span>{abastecimento.mileage?.toLocaleString('pt-BR') || '-'}</span>
                   )}
                 </TableCell>
                 <TableCell className="text-seguranca-lightgray">

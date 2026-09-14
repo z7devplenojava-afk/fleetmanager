@@ -38,6 +38,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.z7design.fleet_manager.repository.ClientRepository;
+import com.z7design.fleet_manager.repository.WorkPostRepository;
+import com.z7design.fleet_manager.repository.ContractRepository;
+import com.z7design.fleet_manager.repository.SupplierRepository;
+
 @RestController
 @RequestMapping("/api/fuel-records")
 @RequiredArgsConstructor
@@ -50,6 +55,10 @@ public class FuelRecordController {
     private final DriverRepository driverRepository;
     private final FuelRecordReportService fuelRecordReportService;
     private final FuelStationRepository fuelStationRepository;
+    private final ClientRepository clientRepository;
+    private final WorkPostRepository workPostRepository;
+    private final ContractRepository contractRepository;
+    private final SupplierRepository supplierRepository;
 
     @Qualifier("receiptStorageService")
     private final FileStorageService receiptStorageService;
@@ -341,7 +350,33 @@ public class FuelRecordController {
             fuelRecord.setNotes(createFuelRecordDTO.getNotes());
             fuelRecord.setCostCenter(createFuelRecordDTO.getCostCenter());
 
-            log.info("Salvando registro de combustÃ­vel...");
+            if (createFuelRecordDTO.getPricePerLiter() != null) {
+                fuelRecord.setPricePerLiter(BigDecimal.valueOf(createFuelRecordDTO.getPricePerLiter()));
+            }
+            fuelRecord.setClientName(createFuelRecordDTO.getClientName());
+            fuelRecord.setObraName(createFuelRecordDTO.getObraName());
+            fuelRecord.setContractNumber(createFuelRecordDTO.getContractNumber());
+
+            if (createFuelRecordDTO.getClientId() != null) {
+                clientRepository.findById(createFuelRecordDTO.getClientId()).ifPresent(fuelRecord::setClient);
+            }
+            if (createFuelRecordDTO.getWorkPostId() != null) {
+                workPostRepository.findById(createFuelRecordDTO.getWorkPostId()).ifPresent(fuelRecord::setWorkPost);
+            }
+            if (createFuelRecordDTO.getContractId() != null) {
+                contractRepository.findById(createFuelRecordDTO.getContractId()).ifPresent(fuelRecord::setContract);
+            }
+            if (createFuelRecordDTO.getSupplierId() != null) {
+                supplierRepository.findById(createFuelRecordDTO.getSupplierId()).ifPresent(fuelRecord::setSupplier);
+            }
+
+            // Atualizar KM atual do veículo se o novo KM for maior
+            if (createFuelRecordDTO.getMileage() != null && (vehicle.getCurrentMileage() == null || createFuelRecordDTO.getMileage() > vehicle.getCurrentMileage())) {
+                vehicle.setCurrentMileage(createFuelRecordDTO.getMileage());
+                vehicleRepository.save(vehicle);
+            }
+
+            log.info("Salvando registro de combustível...");
             FuelRecord savedFuelRecord = fuelRecordRepository.save(fuelRecord);
             log.info("Registro salvo com sucesso: {}", savedFuelRecord.getId());
 
@@ -356,7 +391,7 @@ public class FuelRecordController {
             }
 
         } catch (Exception e) {
-            log.error("Erro ao criar registro de combustÃ­vel: {}", e.getMessage(), e);
+            log.error("Erro ao criar registro de combustível: {}", e.getMessage(), e);
             throw e;
         }
     }
@@ -367,20 +402,20 @@ public class FuelRecordController {
             @RequestPart("fuelRecord") @Valid CreateFuelRecordDTO updateFuelRecordDTO,
             @RequestPart(name = "receipt", required = false) MultipartFile receipt) throws IOException {
         try {
-            log.info("PUT /api/fuel-records/{} - Iniciando atualizaÃ§Ã£o", id);
+            log.info("PUT /api/fuel-records/{} - Iniciando atualização", id);
             log.info("Dados recebidos: {}", updateFuelRecordDTO);
 
             FuelRecord fuelRecord = fuelRecordRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Registro de abastecimento nÃ£o encontrado com ID: " + id));
+                            "Registro de abastecimento não encontrado com ID: " + id));
 
             log.info("Registro encontrado: {}", fuelRecord.getId());
 
             Vehicle vehicle = vehicleRepository.findById(updateFuelRecordDTO.getVehicleId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "VeÃ­culo nÃ£o encontrado com ID: " + updateFuelRecordDTO.getVehicleId()));
+                            "Veículo não encontrado com ID: " + updateFuelRecordDTO.getVehicleId()));
 
-            log.info("VeÃ­culo encontrado: {}", vehicle.getId());
+            log.info("Veículo encontrado: {}", vehicle.getId());
 
             fuelRecord.setVehicle(vehicle);
             fuelRecord.setDate(updateFuelRecordDTO.getDate());
@@ -388,18 +423,53 @@ public class FuelRecordController {
             fuelRecord.setQuantity(BigDecimal.valueOf(updateFuelRecordDTO.getQuantity()));
             fuelRecord.setCost(BigDecimal.valueOf(updateFuelRecordDTO.getCost()));
             fuelRecord.setMileage(updateFuelRecordDTO.getMileage());
+            fuelRecord.setInitialMileage(updateFuelRecordDTO.getInitialMileage());
+            fuelRecord.setFinalMileage(updateFuelRecordDTO.getFinalMileage());
             fuelRecord.setStation(updateFuelRecordDTO.getStation());
 
             Driver updateDriver = null;
             if (updateFuelRecordDTO.getDriverId() != null) {
                 updateDriver = driverRepository.findById(updateFuelRecordDTO.getDriverId())
                         .orElseThrow(() -> new ResourceNotFoundException(
-                                "Motorista nÃ£o encontrado com ID: " + updateFuelRecordDTO.getDriverId()));
+                                "Motorista não encontrado com ID: " + updateFuelRecordDTO.getDriverId()));
                 log.info("Motorista encontrado: {}", updateDriver.getId());
             }
             fuelRecord.setDriver(updateDriver);
             fuelRecord.setNotes(updateFuelRecordDTO.getNotes());
             fuelRecord.setCostCenter(updateFuelRecordDTO.getCostCenter());
+
+            if (updateFuelRecordDTO.getPricePerLiter() != null) {
+                fuelRecord.setPricePerLiter(BigDecimal.valueOf(updateFuelRecordDTO.getPricePerLiter()));
+            }
+            fuelRecord.setClientName(updateFuelRecordDTO.getClientName());
+            fuelRecord.setObraName(updateFuelRecordDTO.getObraName());
+            fuelRecord.setContractNumber(updateFuelRecordDTO.getContractNumber());
+
+            if (updateFuelRecordDTO.getClientId() != null) {
+                clientRepository.findById(updateFuelRecordDTO.getClientId()).ifPresent(fuelRecord::setClient);
+            } else {
+                fuelRecord.setClient(null);
+            }
+            if (updateFuelRecordDTO.getWorkPostId() != null) {
+                workPostRepository.findById(updateFuelRecordDTO.getWorkPostId()).ifPresent(fuelRecord::setWorkPost);
+            } else {
+                fuelRecord.setWorkPost(null);
+            }
+            if (updateFuelRecordDTO.getContractId() != null) {
+                contractRepository.findById(updateFuelRecordDTO.getContractId()).ifPresent(fuelRecord::setContract);
+            } else {
+                fuelRecord.setContract(null);
+            }
+            if (updateFuelRecordDTO.getSupplierId() != null) {
+                supplierRepository.findById(updateFuelRecordDTO.getSupplierId()).ifPresent(fuelRecord::setSupplier);
+            } else {
+                fuelRecord.setSupplier(null);
+            }
+
+            if (updateFuelRecordDTO.getMileage() != null && (vehicle.getCurrentMileage() == null || updateFuelRecordDTO.getMileage() > vehicle.getCurrentMileage())) {
+                vehicle.setCurrentMileage(updateFuelRecordDTO.getMileage());
+                vehicleRepository.save(vehicle);
+            }
 
             // Tratar arquivo de recibo se fornecido
             if (receipt != null && !receipt.isEmpty()) {
