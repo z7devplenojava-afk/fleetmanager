@@ -18,6 +18,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.z7design.fleet_manager.model.WorkPost;
+import com.z7design.fleet_manager.repository.WorkPostRepository;
+import com.z7design.fleet_manager.repository.VehicleRepository;
+
 @Service
 @Transactional
 @Slf4j
@@ -25,6 +29,12 @@ public class ClientService {
     
     @Autowired
     private ClientRepository clientRepository;
+
+    @Autowired
+    private WorkPostRepository workPostRepository;
+
+    @Autowired
+    private VehicleRepository vehicleRepository;
     
     public ClientDTO createClient(ClientDTO clientDTO) {
         try {
@@ -190,18 +200,49 @@ public class ClientService {
     
     public void deleteClient(UUID id) {
         Client client = clientRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente nÃ£o encontrado com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com ID: " + id));
         
-        // Verificar se o cliente tem unidades ou contratos ativos
-        if (!client.getUnits().isEmpty()) {
-            throw new BusinessException("NÃ£o Ã© possÃ­vel excluir o cliente pois existem unidades vinculadas");
+        log.info("🗑️ Excluindo cliente {} ({})", client.getName(), id);
+
+        // 1. Desvincular veículos alocados às obras/postos deste cliente ou com nome deste cliente
+        try {
+            List<WorkPost> workPosts = workPostRepository.findByClientId(id);
+            if (!workPosts.isEmpty()) {
+                List<UUID> wpIds = workPosts.stream().map(WorkPost::getId).collect(Collectors.toList());
+                vehicleRepository.clearWorkPostAllocation(wpIds);
+            }
+            if (client.getName() != null) {
+                vehicleRepository.clearClientNameAllocation(client.getName());
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao desvincular veículos do cliente {}: {}", id, e.getMessage());
         }
-        
-        if (!client.getContracts().isEmpty()) {
-            throw new BusinessException("NÃ£o Ã© possÃ­vel excluir o cliente pois existem contratos vinculados");
+
+        // 2. Excluir postos de trabalho (obras) do cliente
+        try {
+            List<WorkPost> workPosts = workPostRepository.findByClientId(id);
+            if (!workPosts.isEmpty()) {
+                workPostRepository.deleteAll(workPosts);
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao excluir postos do cliente {}: {}", id, e.getMessage());
         }
-        
+
+        // 3. Limpar unidades e contratos do cliente (serão removidos via orphanRemoval)
+        try {
+            if (client.getUnits() != null) {
+                client.getUnits().clear();
+            }
+            if (client.getContracts() != null) {
+                client.getContracts().clear();
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao limpar unidades e contratos do cliente {}: {}", id, e.getMessage());
+        }
+
+        // 4. Excluir o registro do cliente
         clientRepository.delete(client);
+        log.info("✅ Cliente {} ({}) excluído com sucesso!", client.getName(), id);
     }
     
     public void updateClientStatus(UUID id, ClientStatus status) {

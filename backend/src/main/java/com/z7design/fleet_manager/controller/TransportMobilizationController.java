@@ -54,7 +54,12 @@ public class TransportMobilizationController {
             }
         }
 
-        return ResponseEntity.ok(service.findByFilters(companyUuid, vehicleUuid, type, dateFrom, dateTo));
+        try {
+            return ResponseEntity.ok(service.findByFilters(companyUuid, vehicleUuid, type, dateFrom, dateTo));
+        } catch (Exception e) {
+            log.error("Erro ao listar mobilizações de transporte: ", e);
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
     }
 
     @GetMapping("/{id}")

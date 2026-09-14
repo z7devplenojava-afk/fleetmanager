@@ -27,8 +27,10 @@ public class DriverHourController {
 
     @GetMapping("/by-period")
     public ResponseEntity<java.util.List<DriverWorkHour>> getJornadaByPeriod(
-            @RequestParam(value = "DATE") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate start,
-            @RequestParam(value = "DATE") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate end) {
+            @RequestParam(value = "start", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate start,
+            @RequestParam(value = "end", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate end) {
+        if (start == null) start = java.time.LocalDate.now().withDayOfMonth(1);
+        if (end == null) end = java.time.LocalDate.now();
         return ResponseEntity.ok(driverHourService.findByPeriod(start, end));
     }
 

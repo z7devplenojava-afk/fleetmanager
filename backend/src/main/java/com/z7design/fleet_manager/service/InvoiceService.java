@@ -8,7 +8,9 @@ import com.z7design.fleet_manager.repository.InvoiceRepository;
 import com.z7design.fleet_manager.repository.SupplierRepository;
 import com.z7design.fleet_manager.repository.ClientRepository;
 import com.z7design.fleet_manager.repository.ContractRepository;
+import com.z7design.fleet_manager.repository.WorkPostRepository;
 import com.z7design.fleet_manager.repository.UnitRepository;
+import com.z7design.fleet_manager.model.WorkPost;
 import com.z7design.fleet_manager.model.Client;
 import com.z7design.fleet_manager.model.Supplier;
 import com.z7design.fleet_manager.model.Contract;
@@ -36,6 +38,7 @@ public class InvoiceService {
     private final SupplierRepository supplierRepository;
     private final ClientRepository clientRepository;
     private final ContractRepository contractRepository;
+    private final WorkPostRepository workPostRepository;
     private final UnitRepository unitRepository;
     
     @Transactional(readOnly = true)
@@ -230,19 +233,29 @@ public class InvoiceService {
         // Inicializar Contract
         if (invoice.getContract() != null) {
             try {
-                invoice.getContract().getContractNumber(); // ForÃ§a inicializaÃ§Ã£o
+                invoice.getContract().getContractNumber(); // Força inicialização
             } catch (org.hibernate.LazyInitializationException | jakarta.persistence.EntityNotFoundException e) {
-                // Contract foi deletado ou nÃ£o pode ser inicializado, definir como null
+                // Contract foi deletado ou não pode ser inicializado, definir como null
                 invoice.setContract(null);
+            }
+        }
+
+        // Inicializar WorkPost (Obra)
+        if (invoice.getWorkPost() != null) {
+            try {
+                invoice.getWorkPost().getName(); // Força inicialização
+            } catch (org.hibernate.LazyInitializationException | jakarta.persistence.EntityNotFoundException e) {
+                // WorkPost foi deletado ou não pode ser inicializado, definir como null
+                invoice.setWorkPost(null);
             }
         }
         
         // Inicializar Unit
         if (invoice.getUnit() != null) {
             try {
-                invoice.getUnit().getName(); // ForÃ§a inicializaÃ§Ã£o
+                invoice.getUnit().getName(); // Força inicialização
             } catch (org.hibernate.LazyInitializationException | jakarta.persistence.EntityNotFoundException e) {
-                // Unit foi deletado ou nÃ£o pode ser inicializado, definir como null
+                // Unit foi deletado ou não pode ser inicializado, definir como null
                 invoice.setUnit(null);
             }
         }
@@ -480,9 +493,17 @@ public class InvoiceService {
             if (dto.getContractId() != null) {
                 log.debug("Processando contrato: {}", dto.getContractId());
                 Contract contract = contractRepository.findById(dto.getContractId())
-                        .orElseThrow(() -> new RuntimeException("Contrato nÃ£o encontrado: " + dto.getContractId()));
+                        .orElseThrow(() -> new RuntimeException("Contrato não encontrado: " + dto.getContractId()));
                 invoice.setContract(contract);
                 log.debug("Contrato definido: {}", contract.getContractNumber());
+            }
+
+            if (dto.getWorkPostId() != null) {
+                log.debug("Processando obra/posto: {}", dto.getWorkPostId());
+                WorkPost workPost = workPostRepository.findById(dto.getWorkPostId())
+                        .orElseThrow(() -> new RuntimeException("Obra/Posto não encontrado: " + dto.getWorkPostId()));
+                invoice.setWorkPost(workPost);
+                log.debug("Obra/Posto definido: {}", workPost.getName());
             }
 
             if (dto.getUnitId() != null) {

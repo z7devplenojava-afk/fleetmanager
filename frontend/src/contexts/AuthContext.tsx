@@ -5,6 +5,7 @@ import api from '@/lib/axios';
 import { User, AuthContextType, UserGroupData, UserRole, EmpresaInfo } from '@/types/user';
 import { generatePermissions, generatePermissionsFromGroups, combinePermissions } from '@/utils/permissions';
 import { groupService } from '@/services/groupService';
+import { companyService } from '@/services/companyService';
 import { getApiUrl } from '@/config/environment';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -86,6 +87,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (empresaData) {
             console.log('🔍 AuthContext: Empresa carregada do localStorage:', empresaData);
             setEmpresa(empresaData);
+          } else if (userData.companyId) {
+            companyService.getCompanyById(userData.companyId)
+              .then((comp) => {
+                if (comp) {
+                  const fetchedEmpresa: EmpresaInfo = {
+                    id: comp.id || userData.companyId,
+                    nome: comp.name || comp.nome || '',
+                    logoUrl: comp.logoUrl,
+                    temaCor: comp.temaCor,
+                    branchName: comp.branchName,
+                    unitName: comp.unitName,
+                    enabledFeatures: comp.enabledFeatures || []
+                  };
+                  setEmpresa(fetchedEmpresa);
+                  localStorage.setItem('empresa', JSON.stringify(fetchedEmpresa));
+                  console.log('✅ AuthContext: Empresa obtida do backend:', fetchedEmpresa);
+                }
+              })
+              .catch((err) => {
+                console.warn('⚠️ AuthContext: Não foi possível obter dados da empresa do backend:', err);
+              });
           } else {
             // Se não houver empresa no localStorage, mas o usuário for um papel administrativo forte, apenas informa
             if (userData.role === 'SUPER_ADMIN' || userData.role === 'FLEX_ADMIN') {

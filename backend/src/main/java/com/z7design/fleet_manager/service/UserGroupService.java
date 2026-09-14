@@ -336,8 +336,8 @@ public class UserGroupService {
         dto.setGroupName(group.getGroupName() != null ? group.getGroupName().name() : null);
         dto.setDisplayName(group.getDisplayName());
         dto.setDescription(group.getDescription());
-        dto.setPermissions(group.getPermissions());
-        dto.setUserCount(null); // NÃ£o calcular contagem para evitar ciclo
+        dto.setPermissions(group.getPermissions() != null ? new HashSet<>(group.getPermissions()) : new HashSet<>());
+        dto.setUserCount(null); // Não calcular contagem para evitar ciclo
         return dto;
     }
     

@@ -53,6 +53,24 @@ public class Contract {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
     
+    @Column(name = "obra_name")
+    private String obraName;
+
+    @Column(name = "vehicle_quantity")
+    private Integer vehicleQuantity;
+
+    @Column(name = "unit_vehicle_value", precision = 15, scale = 2)
+    private BigDecimal unitVehicleValue;
+
+    @Column(name = "service_type")
+    private String serviceType;
+
+    @Column(name = "vehicle_description")
+    private String vehicleDescription;
+
+    @Column(name = "vigencia_text", columnDefinition = "TEXT")
+    private String vigenciaText;
+    
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -171,5 +189,53 @@ public class Contract {
     
     public void setClient(Client client) {
         this.client = client;
+    }
+
+    public String getObraName() {
+        return obraName;
+    }
+
+    public void setObraName(String obraName) {
+        this.obraName = obraName;
+    }
+
+    public Integer getVehicleQuantity() {
+        return vehicleQuantity;
+    }
+
+    public void setVehicleQuantity(Integer vehicleQuantity) {
+        this.vehicleQuantity = vehicleQuantity;
+    }
+
+    public BigDecimal getUnitVehicleValue() {
+        return unitVehicleValue;
+    }
+
+    public void setUnitVehicleValue(BigDecimal unitVehicleValue) {
+        this.unitVehicleValue = unitVehicleValue;
+    }
+
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
+    }
+
+    public String getVehicleDescription() {
+        return vehicleDescription;
+    }
+
+    public void setVehicleDescription(String vehicleDescription) {
+        this.vehicleDescription = vehicleDescription;
+    }
+
+    public String getVigenciaText() {
+        return vigenciaText;
+    }
+
+    public void setVigenciaText(String vigenciaText) {
+        this.vigenciaText = vigenciaText;
     }
 } 

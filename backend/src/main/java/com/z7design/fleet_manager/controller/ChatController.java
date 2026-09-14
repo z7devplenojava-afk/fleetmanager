@@ -281,18 +281,21 @@ public class ChatController {
     @GetMapping("/stats")
     public ResponseEntity<java.util.Map<String, Long>> getChatStats(Authentication authentication) {
         try {
+            if (authentication == null || authentication.getName() == null) {
+                return ResponseEntity.ok(java.util.Map.of("total", 0L, "unread", 0L, "open", 0L));
+            }
             String username = authentication.getName();
             UUID userId = getUserIdFromUsername(username);
 
             if (userId == null) {
-                log.error("UsuÃ¡rio nÃ£o encontrado para username: {}", username);
-                return ResponseEntity.badRequest().build();
+                log.warn("Usuário não encontrado para username: {}", username);
+                return ResponseEntity.ok(java.util.Map.of("total", 0L, "unread", 0L, "open", 0L));
             }
 
             return ResponseEntity.ok(chatService.getChatStats(userId));
         } catch (Exception e) {
-            log.error("Erro ao buscar estatÃ­sticas do chat: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
+            log.error("Erro ao buscar estatísticas do chat: {}", e.getMessage(), e);
+            return ResponseEntity.ok(java.util.Map.of("total", 0L, "unread", 0L, "open", 0L));
         }
     }
 

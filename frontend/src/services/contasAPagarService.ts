@@ -7,6 +7,9 @@ export interface CreateContaAPagarRequest {
   invoiceNumber?: string;
   description: string;
   supplierId: string | null;
+  clientId?: string | null;
+  contractId?: string | null;
+  workPostId?: string | null;
   unitId: string;
   amount: number;
   type: 'FIXA' | 'VARIAVEL';
@@ -238,6 +241,12 @@ export const contasAPagarService = {
         empresa: invoice.companyName || (invoice.company && invoice.company.name) || undefined,
         empresaId: invoice.companyId || (invoice.company && invoice.company.id) || undefined,
         companySigla: invoice.companySigla || (invoice.company && invoice.company.sigla) || undefined,
+        cliente: invoice.clientName,
+        clienteId: invoice.clientId,
+        contrato: invoice.contractNumber,
+        contratoId: invoice.contractId,
+        obra: invoice.workPostName,
+        obraId: invoice.workPostId,
         descricao: invoice.description,
         tipo: invoice.type || 'VARIAVEL',
         valor: parseFloat(invoice.amount),
@@ -277,6 +286,8 @@ export const contasAPagarService = {
       clienteId: invoice.clientId,
       contrato: invoice.contractNumber,
       contratoId: invoice.contractId,
+      obra: invoice.workPostName,
+      obraId: invoice.workPostId,
       descricao: invoice.description,
       tipo: invoice.type || 'VARIAVEL',
       valor: parseFloat(invoice.amount),
@@ -307,6 +318,9 @@ export const contasAPagarService = {
     const requestData: CreateContaAPagarRequest = {
       description: conta.descricao,
       supplierId: conta.fornecedorId || null, // Enviar null ao invés de string vazia
+      clientId: conta.clienteId || null,
+      contractId: conta.contratoId || null,
+      workPostId: conta.obraId || null,
       unitId: unitId,
       amount: Number(conta.valor) || 0, // Garantir que seja um número
       type: conta.tipo,
@@ -341,6 +355,9 @@ export const contasAPagarService = {
     
     if (conta.descricao) requestData.description = conta.descricao;
     if (conta.fornecedorId) requestData.supplierId = conta.fornecedorId;
+    if (conta.clienteId !== undefined) requestData.clientId = conta.clienteId || null;
+    if (conta.contratoId !== undefined) requestData.contractId = conta.contratoId || null;
+    if (conta.obraId !== undefined) requestData.workPostId = conta.obraId || null;
     if (conta.valor !== undefined) requestData.amount = conta.valor;
     if (conta.tipo) requestData.type = conta.tipo;
     if (conta.status) requestData.status = mapFrontendStatusToBackend(conta.status) as any;

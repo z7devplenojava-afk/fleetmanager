@@ -18,7 +18,7 @@ import { contractService, Contract } from '@/services/contractService';
 import { unitService } from '@/services/unitService';
 import { employeeService } from '@/services/employeeService';
 import { workPostService, WorkPost } from '@/services/workPostService';
-import { parteDiariaService } from '@/services/parteDiariaService';
+import { parteDiariaService, ParteDiaria } from '@/services/parteDiariaService';
 import { MeasurementBulletin, MeasurementItem, CalculationMemory, MeasurementStatus, MeasurementType, MeasurementCategory } from '@/types/measurement';
 import { Client } from '@/types/client';
 import { Unit } from '@/services/trainingService';
@@ -152,6 +152,10 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
   const [filteredContracts, setFilteredContracts] = useState<Contract[]>([]);
   const [filteredWorkPosts, setFilteredWorkPosts] = useState<WorkPost[]>([]);
 
+  // Estado para partes diárias lançadas no período
+  const [periodPartesDiarias, setPeriodPartesDiarias] = useState<ParteDiaria[]>([]);
+  const [loadingPeriodPartes, setLoadingPeriodPartes] = useState(false);
+
   // Estados para novo item
   const [newItem, setNewItem] = useState<MeasurementItemForm>({
     itemNumber: 1,
@@ -202,6 +206,26 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
     }
     // Não resetar quando fecha - isso pode interferir com o carregamento
   }, [open, bulletin]);
+
+  // Carregar partes diárias automaticamente ao alterar o período
+  useEffect(() => {
+    if (open) {
+      fetchPeriodPartesDiarias();
+    }
+  }, [open, formData.periodStart, formData.periodEnd]);
+
+  const fetchPeriodPartesDiarias = async () => {
+    try {
+      setLoadingPeriodPartes(true);
+      const list = await parteDiariaService.getPartesDiarias(formData.periodStart, formData.periodEnd);
+      setPeriodPartesDiarias(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error('Erro ao carregar Partes Diárias no modal de medição:', err);
+      setPeriodPartesDiarias([]);
+    } finally {
+      setLoadingPeriodPartes(false);
+    }
+  };
 
   const loadBulletinFromBackend = async (bulletinId: string) => {
     try {
@@ -1147,6 +1171,123 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
                   rows={4}
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Painel de Partes Diárias Lançadas no Período */}
+          <Card className="bg-gradient-to-r from-seguranca-black via-seguranca-graphite to-seguranca-black border-amber-500/30">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <CardTitle className="text-lg text-white flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-amber-400" />
+                    Partes Diárias Operacionais Registradas no Período
+                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 ml-2">
+                      {periodPartesDiarias.length} {periodPartesDiarias.length === 1 ? 'encontrada' : 'encontradas'}
+                    </Badge>
+                  </CardTitle>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Lançamentos feitos pelo Operacional no período de {formData.periodStart ? formData.periodStart.split('-').reverse().join('/') : 'Início'} até {formData.periodEnd ? formData.periodEnd.split('-').reverse().join('/') : 'Fim'}.
+                  </p>
+                </div>
+
+                {periodPartesDiarias.length > 0 && (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      const imported: MeasurementItemForm[] = periodPartesDiarias.map((pd, index) => ({
+                        itemNumber: items.length + index + 1,
+                        code: pd.number || `PD-${13100 + index}`,
+                        description: `Parte Diária ${pd.number || ''} — ${pd.driverName || 'Motorista'} (${pd.vehiclePlate || ''})`,
+                        unit: 'VB/DIA',
+                        quantity: 1,
+                        unitPrice: 1050.00,
+                        costCenterId: '1',
+                        costCenterName: 'Operacional',
+                        vehiclePlate: pd.vehiclePlate || '',
+                        tripCount: 1,
+                        isExtraTrip: false,
+                        baseValue: 1050.00,
+                        workingDays: 1,
+                        category: MeasurementCategory.LEASE,
+                        initialKm: pd.startKm || 0,
+                        finalKm: pd.endKm || 0,
+                        disregardedKm: pd.disregardedKm || 0,
+                        diaria: 1050.00,
+                        tripDate: pd.date || '',
+                        route: pd.atividades?.[0]?.description || 'Linha Operacional',
+                        vehicleType: pd.vehicleModel || 'MICRO'
+                      }));
+                      setItems(prev => [...prev, ...imported]);
+                      toast({
+                        title: 'Partes Diárias Importadas!',
+                        description: `${imported.length} Parte(s) Diária(s) vinculada(s) como item da medição.`
+                      });
+                    }}
+                    className="bg-amber-500 hover:bg-amber-600 text-seguranca-black font-extrabold text-xs"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Vincular Todas ({periodPartesDiarias.length}) na Medição
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingPeriodPartes ? (
+                <div className="flex items-center justify-center py-6 text-gray-400 gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
+                  <span className="text-xs">Buscando partes diárias do período...</span>
+                </div>
+              ) : periodPartesDiarias.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-gray-700 rounded-lg">
+                  <p className="text-xs text-gray-400">
+                    Nenhuma Parte Diária foi encontrada para o período selecionado ({formData.periodStart || 'S/D'} a {formData.periodEnd || 'S/D'}).
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Você pode lançar uma Parte Diária pelo menu de Medições ou digitar os itens manualmente abaixo.
+                  </p>
+                </div>
+              ) : (
+                <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                  {periodPartesDiarias.map((pd, index) => {
+                    const kmDriven = pd.drivenKm || ((pd.endKm || 0) - (pd.startKm || 0));
+                    return (
+                      <div
+                        key={pd.id || index}
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-lg bg-seguranca-graphite/90 border border-gray-700/80 gap-2 text-xs"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Badge className="bg-amber-500/20 text-amber-400 font-mono">
+                            {pd.number || `PD-${13100 + index}`}
+                          </Badge>
+                          <div>
+                            <span className="text-white font-semibold block">
+                              {pd.driverName || 'Motorista'} • <span className="font-mono text-amber-300">{pd.vehiclePlate || 'Sem Placa'}</span>
+                            </span>
+                            <span className="text-[11px] text-gray-400">
+                              Data: {pd.date || 'N/A'} {pd.obraName ? `• Obra: ${pd.obraName}` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <span className="text-emerald-400 font-bold font-mono block">
+                              {kmDriven} km rodados
+                            </span>
+                            <span className="text-[10px] text-gray-400">
+                              KM: {pd.startKm || 0} → {pd.endKm || 0}
+                            </span>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400">
+                            {pd.status || 'LANÇADA'}
+                          </Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 

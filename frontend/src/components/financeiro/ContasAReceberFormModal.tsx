@@ -11,6 +11,9 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
 import { formatDateForBackend, parseDateFromBackend, DEFAULT_DATE_PICKER_PROPS } from '@/utils/dateUtils';
 import { contasAReceberService, Client } from '@/services/contasAReceberService';
+import { workPostService, WorkPost } from '@/services/workPostService';
+import { contractService, Contract } from '@/services/contractService';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface ContaAReceber {
   id?: string;
@@ -19,6 +22,10 @@ export interface ContaAReceber {
   vencimento: Date;
   cliente: string;
   clienteId?: string;
+  obra?: string;
+  obraId?: string;
+  contrato?: string;
+  contratoId?: string;
   empresa?: string;
   empresaId?: string;
   descricao: string;
@@ -52,9 +59,44 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
   initialData = null
 }) => {
   const { toast } = useToast();
+  const { user, empresa: currentEmpresa } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
   const [loading, setLoading] = useState(false);
   const [clientes, setClientes] = useState<Client[]>([]);
   const [empresas, setEmpresas] = useState<any[]>([]);
+  const [obras, setObras] = useState<WorkPost[]>([]);
+  const [contratos, setContratos] = useState<Contract[]>([]);
+
+  // Filtrar empresas visíveis (se não for SUPER_ADMIN, vê apenas a própria empresa)
+  const displayEmpresas = React.useMemo(() => {
+    if (isSuperAdmin) {
+      return empresas;
+    }
+    const userCompanyId = user?.companyId || currentEmpresa?.id;
+    const userCompanyName = (user?.companyName || currentEmpresa?.nome || '').toLowerCase();
+
+    const filtered = empresas.filter((e: any) => {
+      if (userCompanyId && String(e.id) === String(userCompanyId)) return true;
+      if (userCompanyName) {
+        const eName = (e.name || '').toLowerCase();
+        const eSigla = (e.sigla || '').toLowerCase();
+        if (eName && (eName === userCompanyName || userCompanyName.includes(eName) || eName.includes(userCompanyName))) return true;
+        if (eSigla && (eSigla === userCompanyName || userCompanyName.includes(eSigla))) return true;
+      }
+      return false;
+    });
+
+    if (filtered.length === 0 && (userCompanyId || userCompanyName)) {
+      return [{
+        id: userCompanyId || 'user-empresa',
+        name: user?.companyName || currentEmpresa?.nome || 'Minha Empresa',
+        sigla: currentEmpresa?.sigla || user?.companyName || currentEmpresa?.nome || 'EMP'
+      }];
+    }
+
+    return filtered;
+  }, [empresas, isSuperAdmin, user, currentEmpresa]);
   
   const [formData, setFormData] = useState<ContaAReceber>({
     numeroFatura: '',
@@ -80,6 +122,20 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
   const [costCenters, setCostCenters] = useState<string[]>([]);
   const [newCategoryModalOpen, setNewCategoryModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Auto-selecionar empresa do usuário se não for super admin
+  useEffect(() => {
+    if (open && !editMode && !isSuperAdmin && displayEmpresas.length > 0) {
+      if (!formData.empresaId || !displayEmpresas.some(e => String(e.id) === String(formData.empresaId))) {
+        const selected = displayEmpresas[0];
+        setFormData(prev => ({
+          ...prev,
+          empresaId: String(selected.id),
+          empresa: selected.sigla || selected.name
+        }));
+      }
+    }
+  }, [open, editMode, isSuperAdmin, displayEmpresas, formData.empresaId]);
 
   // Carregar dados quando o modal abrir
   useEffect(() => {
@@ -117,6 +173,15 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
 
       // Não precisamos mais carregar categorias via API, usando valores fixos do enum
       // setCategories(['INVOICE', 'NOTE', 'ADVANCE', 'SERVICE', 'PRODUCT', 'OTHER']);
+
+      // Carregar obras e contratos
+      workPostService.getAllWorkPosts()
+        .then(data => setObras(Array.isArray(data) ? data : []))
+        .catch(err => console.error('Erro ao carregar obras:', err));
+
+      contractService.getContracts()
+        .then(data => setContratos(Array.isArray(data) ? data : []))
+        .catch(err => console.error('Erro ao carregar contratos:', err));
 
       // Carregar centros de custo
       contasAReceberService.getCostCenters()
@@ -157,6 +222,10 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
         const cliente = initialData.client?.name || initialData.cliente || '';
         const empresaId = initialData.empresaId || initialData.unitId || '';
         const empresa = initialData.empresa || initialData.unitSigla || initialData.unitName || '';
+        const obraId = initialData.obraId || '';
+        const obra = initialData.obra || '';
+        const contratoId = initialData.contratoId || '';
+        const contrato = initialData.contrato || '';
         
         // Mapear categoria corretamente (pode vir como enum do backend: INVOICE, NOTE, etc)
         let categoriaMapeada = undefined;
@@ -178,6 +247,10 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
           vencimento: vencimento instanceof Date ? vencimento : new Date(vencimento),
           cliente: cliente,
           clienteId: clienteId,
+          obra: obra,
+          obraId: obraId,
+          contrato: contrato,
+          contratoId: contratoId,
           empresa: empresa,
           empresaId: empresaId,
           descricao: initialData.descricao || '',
@@ -528,11 +601,11 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
             </div>
           </div>
 
-          {/* Seção 3: Cliente e Empresa */}
+          {/* Seção 3: Cliente, Obra, Contrato e Empresa */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-seguranca-yellow flex items-center gap-2">
               <Users size={18} />
-              Cliente e Empresa
+              Cliente, Obra e Contrato
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Cliente */}
@@ -547,6 +620,10 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                     const cliente = clientes.find(c => c.id === value);
                     handleInputChange('clienteId', value);
                     handleInputChange('cliente', cliente?.name || '');
+                    handleInputChange('obraId', '');
+                    handleInputChange('obra', '');
+                    handleInputChange('contratoId', '');
+                    handleInputChange('contrato', '');
                   }}
                   required
                 >
@@ -569,6 +646,84 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                 </Select>
               </div>
 
+              {/* Obra / Setor de Trabalho */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
+                  <Building2 size={14} />
+                  Obra / Setor de Trabalho
+                </label>
+                <Select
+                  value={formData.obraId || 'NONE'}
+                  onValueChange={(value) => {
+                    if (value === 'NONE') {
+                      handleInputChange('obraId', '');
+                      handleInputChange('obra', '');
+                    } else {
+                      const obra = obras.find(o => o.id === value);
+                      handleInputChange('obraId', value);
+                      handleInputChange('obra', obra?.name || '');
+                    }
+                  }}
+                >
+                  <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                    <SelectValue placeholder="Selecione uma obra/setor" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-black border-gray-600">
+                    <SelectItem value="NONE" className="text-gray-400">Nenhuma</SelectItem>
+                    {obras
+                      .filter(o => !formData.clienteId || o.clientId === formData.clienteId)
+                      .map((obra) => (
+                        <SelectItem
+                          key={obra.id}
+                          value={obra.id}
+                          className="text-seguranca-lightgray hover:bg-seguranca-graphite"
+                        >
+                          {obra.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Contrato */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
+                  <FileText size={14} />
+                  Contrato
+                </label>
+                <Select
+                  value={formData.contratoId || 'NONE'}
+                  onValueChange={(value) => {
+                    if (value === 'NONE') {
+                      handleInputChange('contratoId', '');
+                      handleInputChange('contrato', '');
+                    } else {
+                      const c = contratos.find(item => item.id === value);
+                      handleInputChange('contratoId', value);
+                      handleInputChange('contrato', c?.contractNumber || '');
+                    }
+                  }}
+                >
+                  <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                    <SelectValue placeholder="Selecione um contrato" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-black border-gray-600">
+                    <SelectItem value="NONE" className="text-gray-400">Nenhum</SelectItem>
+                    {contratos
+                      .filter(c => !formData.clienteId || c.clientId === formData.clienteId)
+                      .map((contrato) => (
+                        <SelectItem
+                          key={contrato.id}
+                          value={contrato.id}
+                          className="text-seguranca-lightgray hover:bg-seguranca-graphite"
+                        >
+                          {contrato.contractNumber} {contrato.description ? `- ${contrato.description}` : ''}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Empresa */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
@@ -578,25 +733,26 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                 <Select
                   value={formData.empresaId}
                   onValueChange={(value) => {
-                    const empresa = empresas.find(e => e.id === value);
+                    const empresa = displayEmpresas.find(e => String(e.id) === String(value));
                     handleInputChange('empresaId', value);
                     handleInputChange('empresa', empresa?.sigla || empresa?.name || '');
                   }}
+                  disabled={!isSuperAdmin && displayEmpresas.length <= 1}
                   required
                 >
                   <SelectTrigger className="border-gray-600 bg-white text-black focus:border-seguranca-yellow focus:ring-seguranca-yellow">
                     <SelectValue placeholder="Selecione uma empresa" />
                   </SelectTrigger>
                   <SelectContent className="bg-seguranca-black border-gray-600">
-                    {empresas.length === 0 ? (
+                    {displayEmpresas.length === 0 ? (
                       <SelectItem value="no-data" disabled className="text-gray-500">
                         Carregando empresas...
                       </SelectItem>
                     ) : (
-                      empresas.map((empresa) => (
+                      displayEmpresas.map((empresa) => (
                         <SelectItem 
                           key={empresa.id} 
-                          value={empresa.id}
+                          value={String(empresa.id)}
                           className="text-seguranca-lightgray hover:bg-seguranca-graphite"
                         >
                           {empresa.sigla || empresa.name}

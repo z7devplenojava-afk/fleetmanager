@@ -71,21 +71,23 @@ public class InvoiceDTO {
     @Size(max = 255, message = "CÃ³digo de barras deve ter no mÃ¡ximo 255 caracteres")
     private String barcode;
     
-    @Schema(description = "ObservaÃ§Ãµes sobre a fatura")
-    @Size(max = 1000, message = "ObservaÃ§Ãµes deve ter no mÃ¡ximo 1000 caracteres")
+    @Schema(description = "Observações sobre a fatura")
+    @Size(max = 1000, message = "Observações deve ter no máximo 1000 caracteres")
     private String notes;
-    
+
     @Schema(description = "Sigla da empresa associada", example = "ADM")
     private String companySigla;
 
     private java.util.UUID supplierId;
     private java.util.UUID clientId;
     private java.util.UUID contractId;
+    private java.util.UUID workPostId;
     private java.util.UUID unitId;
     
     private String supplierName;
     private String clientName;
     private String contractNumber;
+    private String workPostName;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -116,6 +118,20 @@ public class InvoiceDTO {
     }
     public void setContractId(java.util.UUID contractId) {
         this.contractId = contractId;
+    }
+
+    public java.util.UUID getWorkPostId() {
+        return workPostId;
+    }
+    public void setWorkPostId(java.util.UUID workPostId) {
+        this.workPostId = workPostId;
+    }
+
+    public String getWorkPostName() {
+        return workPostName;
+    }
+    public void setWorkPostName(String workPostName) {
+        this.workPostName = workPostName;
     }
 
     public java.util.UUID getUnitId() {
@@ -150,7 +166,7 @@ public class InvoiceDTO {
                 dto.setSupplierId(invoice.getSupplier() != null ? invoice.getSupplier().getId() : null);
                 dto.setSupplierName(invoice.getSupplier() != null ? invoice.getSupplier().getName() : null);
             } catch (Exception e) {
-                System.err.println("âš ï¸ Erro ao acessar supplier da invoice " + invoice.getId() + ": " + e.getMessage());
+                System.err.println("⚠️ Erro ao acessar supplier da invoice " + invoice.getId() + ": " + e.getMessage());
                 dto.setSupplierId(null);
                 dto.setSupplierName(null);
             }
@@ -159,7 +175,7 @@ public class InvoiceDTO {
                 dto.setClientId(invoice.getClient() != null ? invoice.getClient().getId() : null);
                 dto.setClientName(invoice.getClient() != null ? invoice.getClient().getName() : null);
             } catch (Exception e) {
-                System.err.println("âš ï¸ Erro ao acessar client da invoice " + invoice.getId() + ": " + e.getMessage());
+                System.err.println("⚠️ Erro ao acessar client da invoice " + invoice.getId() + ": " + e.getMessage());
                 dto.setClientId(null);
                 dto.setClientName(null);
             }
@@ -168,15 +184,24 @@ public class InvoiceDTO {
                 dto.setContractId(invoice.getContract() != null ? invoice.getContract().getId() : null);
                 dto.setContractNumber(invoice.getContract() != null ? invoice.getContract().getContractNumber() : null);
             } catch (Exception e) {
-                System.err.println("âš ï¸ Erro ao acessar contract da invoice " + invoice.getId() + ": " + e.getMessage());
+                System.err.println("⚠️ Erro ao acessar contract da invoice " + invoice.getId() + ": " + e.getMessage());
                 dto.setContractId(null);
                 dto.setContractNumber(null);
+            }
+
+            try {
+                dto.setWorkPostId(invoice.getWorkPost() != null ? invoice.getWorkPost().getId() : null);
+                dto.setWorkPostName(invoice.getWorkPost() != null ? invoice.getWorkPost().getName() : null);
+            } catch (Exception e) {
+                System.err.println("⚠️ Erro ao acessar workPost da invoice " + invoice.getId() + ": " + e.getMessage());
+                dto.setWorkPostId(null);
+                dto.setWorkPostName(null);
             }
             
             try {
                 dto.setUnitId(invoice.getUnit() != null ? invoice.getUnit().getId() : null);
             } catch (Exception e) {
-                System.err.println("âš ï¸ Erro ao acessar unit da invoice " + invoice.getId() + ": " + e.getMessage());
+                System.err.println("⚠️ Erro ao acessar unit da invoice " + invoice.getId() + ": " + e.getMessage());
                 dto.setUnitId(null);
             }
             

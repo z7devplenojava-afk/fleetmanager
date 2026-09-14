@@ -30,12 +30,24 @@ const Header: React.FC = () => {
         {/* Logo e Nome - empresa ou padrão */}
         {logoSrc ? (
           <div className="flex items-center gap-3 group cursor-pointer active:scale-95 transition-all" data-animate="fadeRight">
-            <div className="p-1 rounded-xl bg-white/5 border border-white/10 group-hover:scale-105 transition-transform shadow-lg shadow-white/5">
+            <div className="p-1.5 rounded-xl bg-white/5 border border-white/10 group-hover:scale-105 transition-transform shadow-lg shadow-white/5 flex items-center gap-3">
               <img
                 src={logoSrc}
                 alt={empresa?.nome || 'Empresa'}
-                className="h-12 w-auto object-contain min-w-[40px]"
+                className="h-10 md:h-12 w-auto object-contain min-w-[36px] max-h-12"
               />
+              {empresa?.nome && (
+                <div className="flex flex-col -space-y-1">
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-widest opacity-70">
+                    {empresa.branchName ? (empresa.unitName ? 'Empresa / Filial / Unidade' : 'Empresa / Filial') : 'Empresa'}
+                  </span>
+                  <h2 className="text-lg md:text-xl font-black tracking-tighter text-foreground truncate max-w-[350px] drop-shadow-sm">
+                    {empresa.nome}
+                    {empresa.branchName && <span className="text-muted-foreground font-normal text-sm"> / {empresa.branchName}</span>}
+                    {empresa.unitName && <span className="text-seguranca-yellow font-normal text-sm"> ({empresa.unitName})</span>}
+                  </h2>
+                </div>
+              )}
             </div>
           </div>
         ) : empresa?.nome ? (

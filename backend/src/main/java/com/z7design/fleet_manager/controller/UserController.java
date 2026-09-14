@@ -22,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -427,14 +428,15 @@ public class UserController {
     }
 
     @GetMapping("/profile")
-    @Operation(summary = "Buscar prÃ³prio perfil", description = "Retorna as informaÃ§Ãµes do perfil do usuÃ¡rio logado")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Buscar próprio perfil", description = "Retorna as informações do perfil do usuário logado")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Perfil encontrado com sucesso"),
-            @ApiResponse(responseCode = "401", description = "NÃ£o autenticado"),
-            @ApiResponse(responseCode = "404", description = "UsuÃ¡rio nÃ£o encontrado")
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
+            @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
     })
     public ResponseEntity<ProfileResponse> getProfile() {
-        // Obter o usuÃ¡rio atual do contexto de seguranÃ§a
+        // Obter o usuário atual do contexto de segurança
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
@@ -442,7 +444,13 @@ public class UserController {
 
         String username = authentication.getName();
         User currentUser = userService.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado"));
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        List<String> roleNames = currentUser.getRoles() != null ? currentUser.getRoles().stream()
+                .filter(Objects::nonNull)
+                .map(role -> role.getName())
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toList()) : java.util.Collections.emptyList();
 
         // Construir resposta
         ProfileResponse response = ProfileResponse.builder()
@@ -452,24 +460,23 @@ public class UserController {
                 .email(currentUser.getEmail())
                 .whatsapp(currentUser.getWhatsapp())
                 .active(currentUser.isActive())
-                .roles(currentUser.getRoles().stream()
-                        .map(role -> role.getName())
-                        .collect(java.util.stream.Collectors.toList()))
+                .roles(roleNames)
                 .build();
 
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/profile")
-    @Operation(summary = "Atualizar prÃ³prio perfil", description = "Permite ao usuÃ¡rio atualizar suas prÃ³prias informaÃ§Ãµes")
+    @Transactional
+    @Operation(summary = "Atualizar próprio perfil", description = "Permite ao usuário atualizar suas próprias informações")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Perfil atualizado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados invÃ¡lidos"),
-            @ApiResponse(responseCode = "401", description = "NÃ£o autenticado"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<ProfileResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
-        // Obter o usuÃ¡rio atual do contexto de seguranÃ§a
+        // Obter o usuário atual do contexto de segurança
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
@@ -477,10 +484,16 @@ public class UserController {
 
         String username = authentication.getName();
         User currentUser = userService.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado"));
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
         // Atualizar o perfil
         User updatedUser = userService.updateProfile(currentUser.getId(), request);
+
+        List<String> roleNames = updatedUser.getRoles() != null ? updatedUser.getRoles().stream()
+                .filter(Objects::nonNull)
+                .map(role -> role.getName())
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toList()) : java.util.Collections.emptyList();
 
         // Construir resposta
         ProfileResponse response = ProfileResponse.builder()
@@ -490,9 +503,7 @@ public class UserController {
                 .email(updatedUser.getEmail())
                 .whatsapp(updatedUser.getWhatsapp())
                 .active(updatedUser.isActive())
-                .roles(updatedUser.getRoles().stream()
-                        .map(role -> role.getName())
-                        .collect(java.util.stream.Collectors.toList()))
+                .roles(roleNames)
                 .build();
 
         return ResponseEntity.ok(response);

@@ -110,6 +110,10 @@ public class Invoice implements TenantAware {
     private Contract contract;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_post_id")
+    private WorkPost workPost;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "unit_id", nullable = false)
     private Unit unit;
 

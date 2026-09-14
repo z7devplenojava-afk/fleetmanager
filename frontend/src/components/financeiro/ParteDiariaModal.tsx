@@ -6,11 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Truck, Plus, Trash2, CheckCircle2, Clock, MapPin, User, Hash, FileText, Loader2, Save } from 'lucide-react';
+import { Truck, Plus, Trash2, CheckCircle2, Clock, User, FileText, Loader2, Save, Search, Sparkles } from 'lucide-react';
 import { clientService, Client } from '@/services/clientService';
 import { fleetService } from '@/services/fleetService';
 import { parteDiariaService, ParteDiaria, ParteDiariaAtividade } from '@/services/parteDiariaService';
 import driverService, { Driver } from '@/services/driverService';
+import { employeeService, Employee } from '@/services/employeeService';
 import { contractService } from '@/services/contractService';
 
 interface ParteDiariaModalProps {
@@ -29,32 +30,38 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [motoristasFuncionarios, setMotoristasFuncionarios] = useState<{ id: string; name: string; cargo: string }[]>([]);
 
-  // Dados do Cabeçalho da Parte Diária (Baseado no Documento Físico)
-  const [docNumber, setDocNumber] = useState<string>(`PD-${Math.floor(10000 + Math.random() * 90000)}`);
-  const [docDate, setDocDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  // Dados do Cabeçalho da Parte Diária (Preenchido com base na Ficha Física Nº 13103 da Viação São Silvestre)
+  const [docNumber, setDocNumber] = useState<string>('13103');
+  const [docDate, setDocDate] = useState<string>('2025-12-13');
   const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const [contractNumber, setContractNumber] = useState<string>('');
-  const [obraName, setObraName] = useState<string>('');
+  const [clientName, setClientName] = useState<string>('FM2C');
+  const [contractNumber, setContractNumber] = useState<string>('CT-2025/FM2C');
+  const [obraName, setObraName] = useState<string>('FM2C IBIRITÉ');
   const [vehicleType, setVehicleType] = useState<string>('MICRO'); // CARRO, ONIBUS, MICRO, VAN
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
-  const [vehiclePlate, setVehiclePlate] = useState<string>('');
-  const [driverName, setDriverName] = useState<string>('');
+  const [vehiclePlate, setVehiclePlate] = useState<string>('QMR-2F82');
+  const [driverName, setDriverName] = useState<string>('João da Silva (Motorista)');
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
-  const [dpSignature, setDpSignature] = useState<string>('CONFERIDO / DP');
+  const [dpSignature, setDpSignature] = useState<string>('José Mário Ramos (DP)');
 
-  // Atividades do dia
+  // Atividades do dia com KM de início/fim por trajeto conforme ficha física
   const [activities, setActivities] = useState<ParteDiariaAtividade[]>([
-    { startTime: '07:00', endTime: '12:00', description: 'Linha Regular - Transporte de Passageiros', activityType: 'REGULAR' },
-    { startTime: '13:00', endTime: '18:00', description: 'Atendimento Operacional / Trajeto Especial', activityType: 'EXTRA' }
+    { startTime: '05:20', endTime: '06:59', description: 'Ibirite FM2C', startKm: 404014, endKm: 404058, activityType: 'REGULAR' },
+    { startTime: '07:00', endTime: '08:05', description: 'FM2C Ibirite', startKm: 404058, endKm: 404085, activityType: 'REGULAR' }
   ]);
 
   // Hodômetro e KM
-  const [startKm, setStartKm] = useState<number>(403834);
-  const [endKm, setEndKm] = useState<number>(404017);
+  const [startKm, setStartKm] = useState<number>(404014);
+  const [endKm, setEndKm] = useState<number>(404085);
   const [disregardedKm, setDisregardedKm] = useState<number>(0);
   const [disregardReason, setDisregardReason] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
+  const [notes, setNotes] = useState<string>('Operação realizada com sucesso conforme parte diária física.');
+
+  // Controle de filtro no motorista
+  const [driverSearchFilter, setDriverSearchFilter] = useState('');
+  const [showDriverDropdown, setShowDriverDropdown] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -65,26 +72,50 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const loadInitialData = async () => {
     try {
       setIsLoading(true);
-      const [rawClients, rawVehicles, rawDrivers] = await Promise.all([
+      const [rawClients, rawVehicles, rawDrivers, rawEmployees] = await Promise.all([
         clientService.getAllClients().catch(() => []),
         fleetService.getVehicles().catch(() => []),
-        driverService.getDrivers().catch(() => [])
+        driverService.getDrivers().catch(() => []),
+        employeeService.getAllEmployees().catch(() => [])
       ]);
-      setClients(Array.isArray(rawClients) ? rawClients : (rawClients as any)?.content || []);
+
+      const clientList = Array.isArray(rawClients) ? rawClients : (rawClients as any)?.content || [];
+      setClients(clientList);
+
       const vehicleList = Array.isArray(rawVehicles) ? rawVehicles : (rawVehicles as any)?.content || [];
       setVehicles(vehicleList);
+
       const driverList = Array.isArray(rawDrivers) ? rawDrivers : (rawDrivers as any)?.content || [];
       setDrivers(driverList);
 
-      if (vehicleList.length > 0) {
-        const first = vehicleList[0];
-        setSelectedVehicleId(first.id);
-        setVehiclePlate(first.placa || first.plate || '');
+      const employeeList = Array.isArray(rawEmployees) ? rawEmployees : (rawEmployees as any)?.content || [];
+
+      // Filtrar funcionários que têm cargo/função de Motorista
+      const motoristasEmp = employeeList
+        .filter((e: any) => {
+          const cargo = (e.position || e.cargo || e.jobTitle || '').toLowerCase();
+          return cargo.includes('motorista') || cargo.includes('condutor') || cargo.includes('driver');
+        })
+        .map((e: any) => ({
+          id: e.id,
+          name: e.name || e.nome || 'Funcionário Motorista',
+          cargo: e.position || e.cargo || 'Motorista'
+        }));
+
+      setMotoristasFuncionarios(motoristasEmp);
+
+      // Se houver veículo cadastrado com placa QMR-2F82, selecionar
+      const qmrVehicle = vehicleList.find((v: any) => (v.placa || v.plate || '').toUpperCase().includes('QMR'));
+      if (qmrVehicle) {
+        setSelectedVehicleId(qmrVehicle.id);
+        setVehiclePlate(qmrVehicle.placa || qmrVehicle.plate);
       }
 
-      if (driverList.length > 0) {
-        setSelectedDriverId(driverList[0].id || '');
-        setDriverName(driverList[0].name || '');
+      // Se houver cliente FM2C cadastrado, selecionar
+      const fm2cClient = clientList.find((c: any) => (c.name || '').toUpperCase().includes('FM2C'));
+      if (fm2cClient) {
+        setSelectedClientId(fm2cClient.id);
+        setClientName(fm2cClient.name);
       }
     } catch (err) {
       console.error('Erro ao carregar dados do formulário:', err);
@@ -95,30 +126,20 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
   const handleClientChange = async (clientId: string) => {
     setSelectedClientId(clientId);
+    const selected = clients.find(c => c.id === clientId);
+    if (selected) {
+      setClientName(selected.name);
+    }
     try {
       const rawContracts = await contractService.getContracts({ clientId }).catch(() => []);
       const contractsList = Array.isArray(rawContracts) ? rawContracts : (rawContracts as any)?.content || [];
       if (contractsList.length > 0) {
         const firstContract = contractsList[0];
-        setContractNumber(firstContract.contractNumber || 'CT-2024/001');
-        setObraName(firstContract.description || firstContract.unitName || 'OBRA TALUDE');
-      } else {
-        const selectedClient = clients.find(c => c.id === clientId);
-        setContractNumber(`CT-2024/${selectedClient?.name?.substring(0, 6).toUpperCase() || 'FM2C'}`);
-        setObraName('OBRA TALUDE / OPERACIONAL');
+        setContractNumber(firstContract.contractNumber || `CT-2025/${selected?.name?.substring(0, 6).toUpperCase() || 'FM2C'}`);
+        setObraName(firstContract.description || firstContract.obraName || 'FM2C IBIRITÉ');
       }
     } catch (err) {
       console.warn('Erro ao carregar contratos do cliente:', err);
-    }
-  };
-
-  const handleDriverChange = (driverIdOrName: string) => {
-    const found = drivers.find(d => d.id === driverIdOrName || d.name === driverIdOrName);
-    if (found) {
-      setSelectedDriverId(found.id || '');
-      setDriverName(found.name || '');
-    } else {
-      setDriverName(driverIdOrName);
     }
   };
 
@@ -131,9 +152,11 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   };
 
   const handleAddActivity = () => {
+    const last = activities[activities.length - 1];
+    const newStartKm = last?.endKm || startKm;
     setActivities([
       ...activities,
-      { startTime: '08:00', endTime: '12:00', description: '', activityType: 'REGULAR' }
+      { startTime: '08:10', endTime: '12:00', description: '', startKm: newStartKm, endKm: newStartKm + 10, activityType: 'REGULAR' }
     ]);
   };
 
@@ -141,15 +164,58 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     setActivities(activities.filter((_, i) => i !== index));
   };
 
-  const handleActivityChange = (index: number, field: keyof ParteDiariaAtividade, value: string) => {
+  const handleActivityChange = (index: number, field: keyof ParteDiariaAtividade, value: any) => {
     const updated = [...activities];
     updated[index] = { ...updated[index], [field]: value };
     setActivities(updated);
+
+    // Se alterou KM na primeira ou última atividade, atualizar o hodômetro geral
+    if (index === 0 && field === 'startKm') {
+      setStartKm(Number(value) || 0);
+    }
+    if (index === updated.length - 1 && field === 'endKm') {
+      setEndKm(Number(value) || 0);
+    }
+  };
+
+  // Preencher com dados reais da Ficha Física da Viação São Silvestre (Image 3)
+  const handleFillSampleData = () => {
+    setDocNumber('13103');
+    setDocDate('2025-12-13');
+    setClientName('FM2C');
+    setContractNumber('CT-2025/FM2C');
+    setObraName('FM2C IBIRITÉ');
+    setVehicleType('MICRO');
+    setVehiclePlate('QMR-2F82');
+    setDriverName('João da Silva (Motorista)');
+    setStartKm(404014);
+    setEndKm(404085);
+    setDisregardedKm(0);
+    setDpSignature('José Mário Ramos (DP)');
+    setNotes('Operação de transporte regular executada conforme apontamentos de campo na Parte Diária Nº 13103.');
+    setActivities([
+      { startTime: '05:20', endTime: '06:59', description: 'Ibirite FM2C', startKm: 404014, endKm: 404058, activityType: 'REGULAR' },
+      { startTime: '07:00', endTime: '08:05', description: 'FM2C Ibirite', startKm: 404058, endKm: 404085, activityType: 'REGULAR' }
+    ]);
+    toast({
+      title: 'Dados da Ficha Carregados!',
+      description: 'Campos preenchidos com os dados da Parte Diária Nº 13103 da Viação São Silvestre.',
+    });
   };
 
   // Cálculos Automáticos de KM
   const drivenKm = Math.max(0, (endKm || 0) - (startKm || 0));
   const consideredKm = Math.max(0, drivenKm - (disregardedKm || 0));
+
+  // Lista unificada de motoristas sugeridos (Funcionários com cargo Motorista + Motoristas Cadastrados)
+  const combinedMotoristas = [
+    ...motoristasFuncionarios.map(m => ({ id: m.id, name: m.name, sub: `Funcionário — ${m.cargo}` })),
+    ...drivers.map(d => ({ id: d.id, name: d.name, sub: d.licenseNumber ? `CNH: ${d.licenseNumber}` : 'Motorista Cadastrado' }))
+  ];
+
+  const filteredMotoristas = combinedMotoristas.filter(m => 
+    !driverSearchFilter || m.name.toLowerCase().includes(driverSearchFilter.toLowerCase())
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,19 +230,20 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
     try {
       setIsLoading(true);
-      const selectedClient = clients.find(c => c.id === selectedClientId);
 
       const payload: ParteDiaria = {
         number: docNumber,
         date: docDate,
         clientId: selectedClientId || undefined,
-        clientName: selectedClient?.name || 'Cliente Geral',
+        clientName: clientName || 'FM2C',
+        contractNumber: contractNumber || 'CT-2025/FM2C',
+        obraName: obraName || 'FM2C IBIRITÉ',
         vehicleId: selectedVehicleId || undefined,
         vehiclePlate: vehiclePlate || 'QMR-2F82',
         vehicleModel: vehicleType,
-        driverName: driverName || 'Motorista Operacional',
-        startTime: activities[0]?.startTime || '07:00',
-        endTime: activities[activities.length - 1]?.endTime || '18:00',
+        driverName: driverName || 'João da Silva (Motorista)',
+        startTime: activities[0]?.startTime || '05:20',
+        endTime: activities[activities.length - 1]?.endTime || '08:05',
         startKm,
         endKm,
         drivenKm,
@@ -185,15 +252,15 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
         disregardReason: disregardedKm > 0 ? disregardReason : undefined,
         status: 'VALIDADA',
         notes,
-        createdBy: 'Operação Frotas',
+        createdBy: dpSignature || 'José Mário Ramos (DP)',
         atividades: activities
       };
 
       await parteDiariaService.createParteDiaria(payload);
 
       toast({
-        title: 'Parte Diária Lançada!',
-        description: `Parte Diária ${docNumber} registrada com sucesso. KM Considerado: ${consideredKm} km.`,
+        title: 'Parte Diária Registrada!',
+        description: `Parte Diária Nº ${docNumber} (${vehiclePlate}) salva com sucesso. KM Considerado: ${consideredKm} km.`,
       });
 
       onSuccess();
@@ -214,11 +281,12 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl bg-seguranca-graphite border-gray-600 text-seguranca-lightgray max-h-[92vh] overflow-y-auto p-0 rounded-2xl shadow-2xl">
         <DialogHeader className="sr-only">
-          <DialogTitle>Parte Diária de Veículos</DialogTitle>
-          <DialogDescription>Lançamento de horários, motorista, contrato e hodômetro</DialogDescription>
+          <DialogTitle>Parte Diária de Veículos — Viação São Silvestre</DialogTitle>
+          <DialogDescription>Lançamento completo de horários, motorista, cliente e hodômetro</DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit}>
-          {/* Cabeçalho que Imita a Ficha Física Real */}
+          {/* Cabeçalho Ficha Física Real */}
           <div className="bg-gradient-to-r from-seguranca-black via-gray-900 to-seguranca-black p-6 border-b border-gray-700/80 rounded-t-2xl">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex items-center gap-4">
@@ -228,7 +296,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-amber-400 tracking-wider uppercase">VIAÇÃO SÃO SILVESTRE</span>
-                    <Badge className="bg-gray-800 text-gray-300 border-gray-600 text-[10px]">Modelo Padrão Universal</Badge>
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-[10px]">Formulário Oficial de Campo</Badge>
                   </div>
                   <h2 className="text-xl font-extrabold text-white tracking-tight flex items-center gap-2 mt-0.5">
                     PARTE DIÁRIA DE VEÍCULOS
@@ -236,17 +304,28 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleFillSampleData}
+                  className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-xs h-8"
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  Preencher Exemplo (Ficha 13103)
+                </Button>
+
                 <div className="text-right">
-                  <span className="text-xs text-gray-400 font-semibold block">NÚMERO DO DOCUMENTO</span>
+                  <span className="text-[11px] text-gray-400 font-semibold block">Nº DA PARTE DIÁRIA</span>
                   <Input
                     value={docNumber}
                     onChange={(e) => setDocNumber(e.target.value)}
-                    className="w-32 bg-seguranca-black border-amber-500/40 text-amber-400 font-bold text-center h-8 text-sm"
+                    className="w-28 bg-seguranca-black border-amber-500/50 text-amber-400 font-mono font-extrabold text-center h-8 text-sm"
                   />
                 </div>
+
                 <div className="text-right">
-                  <span className="text-xs text-gray-400 font-semibold block">DATA DO APONTAMENTO</span>
+                  <span className="text-[11px] text-gray-400 font-semibold block">DATA DO APONTAMENTO</span>
                   <Input
                     type="date"
                     value={docDate}
@@ -259,20 +338,29 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
           </div>
 
           <div className="p-6 space-y-6">
-            {/* Seção 1: Dados do Cliente, Contrato, Obra, Veículo e Motorista */}
+            {/* Seção 1: Cliente, Contrato, Obra, Tipo Veículo, Placa e Motorista */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-seguranca-black/60 p-4 rounded-xl border border-gray-700/60">
               <div>
                 <Label className="text-xs text-gray-300 font-semibold">CLIENTE</Label>
-                <Select value={selectedClientId} onValueChange={handleClientChange}>
-                  <SelectTrigger className="bg-seguranca-black border-gray-600 text-white h-9 mt-1">
-                    <SelectValue placeholder="Selecione o cliente..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-seguranca-black border-gray-600 text-white">
-                    {(Array.isArray(clients) ? clients : []).map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {clients.length > 0 ? (
+                  <Select value={selectedClientId} onValueChange={handleClientChange}>
+                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-white h-9 mt-1">
+                      <SelectValue placeholder="Selecione o cliente..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-black border-gray-600 text-white">
+                      {clients.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    placeholder="Ex: FM2C"
+                    className="bg-seguranca-black border-gray-600 text-white font-bold h-9 mt-1"
+                  />
+                )}
               </div>
 
               <div>
@@ -280,7 +368,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 <Input
                   value={contractNumber}
                   onChange={(e) => setContractNumber(e.target.value)}
-                  placeholder="Auto-preenchido ou Ex: CT-2024/001"
+                  placeholder="Ex: CT-2025/FM2C"
                   className="bg-seguranca-black border-gray-600 text-amber-400 font-bold h-9 mt-1"
                 />
               </div>
@@ -290,22 +378,23 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 <Input
                   value={obraName}
                   onChange={(e) => setObraName(e.target.value)}
-                  placeholder="Auto-preenchido ou Ex: OBRA TALUDE"
+                  placeholder="Ex: FM2C IBIRITÉ"
                   className="bg-seguranca-black border-gray-600 text-white font-semibold h-9 mt-1"
                 />
               </div>
 
+              {/* Seleção do Tipo de Veículo (Conforme a Ficha Física) */}
               <div>
                 <Label className="text-xs text-gray-300 font-semibold">TIPO DE VEÍCULO</Label>
-                <div className="flex gap-2 mt-1.5">
+                <div className="grid grid-cols-4 gap-1.5 mt-1">
                   {['CARRO', 'ÔNIBUS', 'MICRO', 'VAN'].map(type => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => setVehicleType(type)}
-                      className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${
+                      className={`py-1.5 px-1 rounded-lg text-[11px] font-extrabold transition-all border ${
                         vehicleType === type
-                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/60'
+                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/70 shadow-sm'
                           : 'bg-seguranca-black text-gray-400 border-gray-700 hover:border-gray-500'
                       }`}
                     >
@@ -319,7 +408,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 <Label className="text-xs text-gray-300 font-semibold">PLACA DO VEÍCULO</Label>
                 {vehicles.length > 0 ? (
                   <Select value={selectedVehicleId} onValueChange={handleVehicleChange}>
-                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-white h-9 mt-1">
+                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-white font-mono font-bold h-9 mt-1">
                       <SelectValue placeholder="Selecione a placa..." />
                     </SelectTrigger>
                     <SelectContent className="bg-seguranca-black border-gray-600 text-white">
@@ -335,43 +424,76 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                     value={vehiclePlate}
                     onChange={(e) => setVehiclePlate(e.target.value)}
                     placeholder="Ex: QMR-2F82"
-                    className="bg-seguranca-black border-gray-600 text-white h-9 mt-1"
+                    className="bg-seguranca-black border-gray-600 text-white font-mono font-bold h-9 mt-1"
                   />
                 )}
               </div>
 
-              <div>
-                <Label className="text-xs text-gray-300 font-semibold">MOTORISTA RESPONSÁVEL</Label>
-                {drivers.length > 0 ? (
-                  <Select value={selectedDriverId || driverName} onValueChange={handleDriverChange}>
-                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-white h-9 mt-1">
-                      <SelectValue placeholder="Selecione o motorista..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-seguranca-black border-gray-600 text-white">
-                      {drivers.map((d: any) => (
-                        <SelectItem key={d.id || d.name} value={d.id || d.name}>
-                          {d.name} {d.licenseNumber ? `(CNH: ${d.licenseNumber})` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
+              {/* MOTORISTA RESPONSÁVEL — Lançamento Manual + Busca na Tabela de Funcionários Cargo Motorista */}
+              <div className="relative">
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs text-amber-300 font-bold">MOTORISTA RESPONSÁVEL</Label>
+                  <span className="text-[10px] text-gray-400">Digitável ou Selecionável</span>
+                </div>
+
+                <div className="relative mt-1">
                   <Input
                     value={driverName}
-                    onChange={(e) => setDriverName(e.target.value)}
-                    placeholder="Nome completo do motorista..."
-                    className="bg-seguranca-black border-gray-600 text-white h-9 mt-1"
+                    onChange={(e) => {
+                      setDriverName(e.target.value);
+                      setDriverSearchFilter(e.target.value);
+                      setShowDriverDropdown(true);
+                    }}
+                    onFocus={() => setShowDriverDropdown(true)}
+                    placeholder="Digite o nome do motorista ou selecione da lista..."
+                    className="bg-seguranca-black border-gray-600 text-white font-semibold h-9 pr-8"
                   />
-                )}
+                  <User className="absolute right-2.5 top-2.5 h-4 w-4 text-gray-400 pointer-events-none" />
+
+                  {/* Dropdown com os Funcionários com cargo Motorista + Motoristas do Sistema */}
+                  {showDriverDropdown && combinedMotoristas.length > 0 && (
+                    <div className="absolute z-50 left-0 right-0 top-10 bg-seguranca-black border border-gray-600 rounded-lg shadow-2xl max-h-48 overflow-y-auto p-1">
+                      <div className="px-2 py-1 border-b border-gray-800 text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                        Funcionários Cargo Motorista ({combinedMotoristas.length})
+                      </div>
+                      {filteredMotoristas.length === 0 ? (
+                        <div className="p-2 text-xs text-gray-400 text-center">
+                          Nenhum motorista encontrado. Pressione Enter para usar o nome digitado: <strong className="text-white">"{driverName}"</strong>
+                        </div>
+                      ) : (
+                        filteredMotoristas.map((m, idx) => (
+                          <div
+                            key={m.id || idx}
+                            onClick={() => {
+                              setDriverName(m.name);
+                              setSelectedDriverId(m.id);
+                              setShowDriverDropdown(false);
+                            }}
+                            className="p-2 hover:bg-amber-500/20 rounded cursor-pointer transition-colors flex items-center justify-between text-xs"
+                          >
+                            <span className="text-white font-semibold">{m.name}</span>
+                            <span className="text-[10px] text-gray-400">{m.sub}</span>
+                          </div>
+                        ))
+                      )}
+                      <div
+                        onClick={() => setShowDriverDropdown(false)}
+                        className="p-1.5 border-t border-gray-800 text-center text-[11px] text-amber-400 font-bold hover:underline cursor-pointer"
+                      >
+                        ✓ Confirmar Nome Digitado Manualmente
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Seção 2: Tabela de Atividades (Conforme Ficha Física) */}
+            {/* Seção 2: Tabela de Atividades com Horas, Descrição e KM de Início/Término */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                   <Clock className="h-4 w-4 text-amber-400" />
-                  Descrição das Atividades e Horários
+                  Descrição das Atividades, Horários e Hodômetro
                 </h3>
                 <Button
                   type="button"
@@ -380,7 +502,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                   variant="outline"
                   className="border-gray-600 text-amber-400 hover:bg-amber-500/10 text-xs h-8"
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Atividade
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Trajeto / Linha
                 </Button>
               </div>
 
@@ -388,10 +510,12 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 <table className="w-full text-xs text-left text-gray-300">
                   <thead className="bg-gray-800/90 text-gray-300 font-bold uppercase tracking-wider border-b border-gray-700">
                     <tr>
-                      <th className="p-3 w-28 text-center">Início</th>
-                      <th className="p-3 w-28 text-center">Término</th>
-                      <th className="p-3">Descrição das Atividades</th>
-                      <th className="p-3 w-16 text-center">Ação</th>
+                      <th className="p-2.5 w-24 text-center">Início</th>
+                      <th className="p-2.5 w-24 text-center">Término</th>
+                      <th className="p-2.5">Descrição das Atividades (Linha / Trajeto)</th>
+                      <th className="p-2.5 w-28 text-center">KM Início</th>
+                      <th className="p-2.5 w-28 text-center">KM Fim</th>
+                      <th className="p-2.5 w-12 text-center">Ação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
@@ -402,7 +526,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                             type="time"
                             value={act.startTime || ''}
                             onChange={(e) => handleActivityChange(idx, 'startTime', e.target.value)}
-                            className="bg-seguranca-black border-gray-700 text-white text-center h-8"
+                            className="bg-seguranca-black border-gray-700 text-white text-center h-8 text-xs font-mono font-bold"
                           />
                         </td>
                         <td className="p-2">
@@ -410,15 +534,33 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                             type="time"
                             value={act.endTime || ''}
                             onChange={(e) => handleActivityChange(idx, 'endTime', e.target.value)}
-                            className="bg-seguranca-black border-gray-700 text-white text-center h-8"
+                            className="bg-seguranca-black border-gray-700 text-white text-center h-8 text-xs font-mono font-bold"
                           />
                         </td>
                         <td className="p-2">
                           <Input
                             value={act.description || ''}
                             onChange={(e) => handleActivityChange(idx, 'description', e.target.value)}
-                            placeholder="Descreva o serviço / trajeto executado..."
-                            className="bg-seguranca-black border-gray-700 text-white h-8"
+                            placeholder="Ex: Ibirite FM2C"
+                            className="bg-seguranca-black border-gray-700 text-white h-8 text-xs font-semibold"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <Input
+                            type="number"
+                            value={act.startKm ?? ''}
+                            onChange={(e) => handleActivityChange(idx, 'startKm', Number(e.target.value))}
+                            placeholder="Ex: 404014"
+                            className="bg-seguranca-black border-gray-700 text-white text-center font-mono font-bold h-8 text-xs"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <Input
+                            type="number"
+                            value={act.endKm ?? ''}
+                            onChange={(e) => handleActivityChange(idx, 'endKm', Number(e.target.value))}
+                            placeholder="Ex: 404058"
+                            className="bg-seguranca-black border-gray-700 text-white text-center font-mono font-bold h-8 text-xs"
                           />
                         </td>
                         <td className="p-2 text-center">
@@ -441,10 +583,10 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
               </div>
             </div>
 
-            {/* Seção 3: Medição de Hodômetro e KM */}
+            {/* Seção 3: Medição de Hodômetro e KM Totais */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gradient-to-br from-amber-950/20 via-seguranca-black to-seguranca-graphite/40 p-4 rounded-xl border border-amber-500/30">
               <div>
-                <Label className="text-xs text-amber-300 font-bold uppercase">KM INÍCIO</Label>
+                <Label className="text-xs text-amber-300 font-bold uppercase">KM INÍCIO (HODÔMETRO)</Label>
                 <Input
                   type="number"
                   value={startKm}
@@ -454,7 +596,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
               </div>
 
               <div>
-                <Label className="text-xs text-amber-300 font-bold uppercase">KM FIM</Label>
+                <Label className="text-xs text-amber-300 font-bold uppercase">KM FIM (HODÔMETRO)</Label>
                 <Input
                   type="number"
                   value={endKm}
@@ -494,7 +636,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 <Input
                   value={disregardReason}
                   onChange={(e) => setDisregardReason(e.target.value)}
-                  placeholder="Ex: Deslocamento para garagem / Manutenção"
+                  placeholder="Ex: Deslocamento garagem / Manutenção"
                   className="bg-seguranca-black border-gray-600 text-white mt-1 h-9"
                 />
               </div>
@@ -525,11 +667,11 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                     />
                   </div>
                   <div>
-                    <span className="text-gray-400 block text-[11px]">ASS. MOTORISTA</span>
+                    <span className="text-gray-400 block text-[11px]">ASS. MOTORISTA RESPONSÁVEL</span>
                     <Input
-                      value={driverName ? `Assinado por: ${driverName}` : 'Assinatura digital'}
-                      disabled
-                      className="bg-seguranca-black border-gray-800 text-gray-400 h-8 mt-1 text-xs"
+                      value={driverName || 'Motorista Operacional'}
+                      onChange={(e) => setDriverName(e.target.value)}
+                      className="bg-seguranca-black border-gray-700 text-amber-400 font-semibold h-8 mt-1 text-xs"
                     />
                   </div>
                 </div>
@@ -557,7 +699,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4 mr-2" /> Lançar Parte Diária
+                  <Save className="h-4 w-4 mr-2" /> Salvar Parte Diária
                 </>
               )}
             </Button>

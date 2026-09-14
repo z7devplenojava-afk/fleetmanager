@@ -5,6 +5,10 @@ import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.model.ParteDiaria;
 import com.z7design.fleet_manager.model.ParteDiariaAtividade;
 import com.z7design.fleet_manager.repository.ParteDiariaRepository;
+import com.z7design.fleet_manager.repository.ClientRepository;
+import com.z7design.fleet_manager.repository.VehicleRepository;
+import com.z7design.fleet_manager.repository.DriverRepository;
+import com.z7design.fleet_manager.repository.MeasurementContractRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -46,6 +50,15 @@ public class ParteDiariaService {
         pd.setStatus(dto.getStatus() != null ? dto.getStatus() : "LANÇADA");
         pd.setNotes(dto.getNotes());
         pd.setCreatedBy(dto.getCreatedBy() != null ? dto.getCreatedBy() : "Operacional");
+
+        if (dto.getCompanyId() != null) {
+            pd.setCompanyId(dto.getCompanyId());
+        } else {
+            UUID tenantCompanyId = com.z7design.fleet_manager.tenant.TenantContext.get();
+            if (tenantCompanyId != null) {
+                pd.setCompanyId(tenantCompanyId);
+            }
+        }
 
         if (dto.getClientId() != null) {
             clientRepository.findById(dto.getClientId()).ifPresent(pd::setClient);

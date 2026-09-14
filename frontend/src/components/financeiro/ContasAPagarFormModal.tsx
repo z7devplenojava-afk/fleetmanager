@@ -12,7 +12,11 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
 import { formatDateForBackend, parseDateFromBackend, DEFAULT_DATE_PICKER_PROPS } from '@/utils/dateUtils';
 import { contasAPagarService, Supplier } from '@/services/contasAPagarService';
+import { clientService, Client } from '@/services/clientService';
+import { workPostService, WorkPost } from '@/services/workPostService';
+import { contractService, Contract } from '@/services/contractService';
 import SupplierFormModal from '@/components/estoque/SupplierFormModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface ContaAPagar {
   id?: string;
@@ -21,9 +25,14 @@ export interface ContaAPagar {
   companySigla?: string;
   fornecedor: string;
   fornecedorId?: string;
+  cliente?: string;
+  clienteId?: string;
+  obra?: string;
+  obraId?: string;
+  contrato?: string;
+  contratoId?: string;
   empresa?: string;
   empresaId?: string;
-  companySigla?: string;
   descricao: string;
   tipo: 'FIXA' | 'VARIAVEL';
   valor: number;
@@ -54,10 +63,46 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
   initialData = null
 }) => {
   const { toast } = useToast();
+  const { user, empresa: currentEmpresa } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
   const [loading, setLoading] = useState(false);
   const [fornecedores, setFornecedores] = useState<Supplier[]>([]);
   const [empresas, setEmpresas] = useState<any[]>([]);
   const [siglas, setSiglas] = useState<string[]>([]);
+  const [clientes, setClientes] = useState<Client[]>([]);
+  const [obras, setObras] = useState<WorkPost[]>([]);
+  const [contratos, setContratos] = useState<Contract[]>([]);
+
+  // Filtrar empresas visíveis (se não for SUPER_ADMIN, vê apenas a própria empresa)
+  const displayEmpresas = React.useMemo(() => {
+    if (isSuperAdmin) {
+      return empresas;
+    }
+    const userCompanyId = user?.companyId || currentEmpresa?.id;
+    const userCompanyName = (user?.companyName || currentEmpresa?.nome || '').toLowerCase();
+
+    const filtered = empresas.filter((e: any) => {
+      if (userCompanyId && String(e.id) === String(userCompanyId)) return true;
+      if (userCompanyName) {
+        const eName = (e.name || '').toLowerCase();
+        const eSigla = (e.sigla || '').toLowerCase();
+        if (eName && (eName === userCompanyName || userCompanyName.includes(eName) || eName.includes(userCompanyName))) return true;
+        if (eSigla && (eSigla === userCompanyName || userCompanyName.includes(eSigla))) return true;
+      }
+      return false;
+    });
+
+    if (filtered.length === 0 && (userCompanyId || userCompanyName)) {
+      return [{
+        id: userCompanyId || 'user-empresa',
+        name: user?.companyName || currentEmpresa?.nome || 'Minha Empresa',
+        sigla: currentEmpresa?.sigla || user?.companyName || currentEmpresa?.nome || 'EMP'
+      }];
+    }
+
+    return filtered;
+  }, [empresas, isSuperAdmin, user, currentEmpresa]);
   
   const [formData, setFormData] = useState<ContaAPagar>({
     dataEmissao: new Date(),
@@ -85,6 +130,21 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
   const [newCategoryModalOpen, setNewCategoryModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [paymentConfirmDate, setPaymentConfirmDate] = useState<Date | null>(new Date());
+
+  // Auto-selecionar empresa do usuário se não for super admin
+  useEffect(() => {
+    if (open && !editMode && !isSuperAdmin && displayEmpresas.length > 0) {
+      if (!formData.empresaId || !displayEmpresas.some(e => String(e.id) === String(formData.empresaId))) {
+        const selected = displayEmpresas[0];
+        setFormData(prev => ({
+          ...prev,
+          empresaId: String(selected.id),
+          empresa: selected.name,
+          companySigla: selected.sigla || selected.name
+        }));
+      }
+    }
+  }, [open, editMode, isSuperAdmin, displayEmpresas, formData.empresaId]);
 
   // Helpers para moeda BRL com 2 casas decimais
   const formatToBRL = (raw: string | number): string => {
@@ -212,13 +272,26 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
           ]);
         });
 
+      // Carregar clientes, obras e contratos
+      clientService.getAllClients()
+        .then(data => setClientes(Array.isArray(data) ? data : []))
+        .catch(err => console.error('Erro ao carregar clientes:', err));
+
+      workPostService.getAllWorkPosts()
+        .then(data => setObras(Array.isArray(data) ? data : []))
+        .catch(err => console.error('Erro ao carregar obras:', err));
+
+      contractService.getContracts()
+        .then(data => setContratos(Array.isArray(data) ? data : []))
+        .catch(err => console.error('Erro ao carregar contratos:', err));
+
       // Carregar centros de custo
       contasAPagarService.getCostCenters()
         .then(data => {
           const centrosArray = (Array.isArray(data) ? data : []).map(v => (v ?? '').toString().trim()).filter(v => v.length > 0);
           setCostCenters(centrosArray);
           if (editMode && initialData?.centroCusto) {
-            setFormData(prev => ({ ...prev, centroCusto: initialData!.centroCusto }));
+            setFormData(prev => ({ ...prev, centroCusto: initialData!.categoria }));
           }
         })
         .catch(error => {
@@ -259,31 +332,44 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
           vencimento: (typeof initialData.vencimento === 'string' ? parseDateFromBackend(initialData.vencimento) : initialData.vencimento) || new Date(),
           fornecedor: initialData.fornecedor || '',
           fornecedorId: fornecedorIdStr, // Usar string convertida
+          cliente: initialData.cliente || '',
+          clienteId: initialData.clienteId || '',
+          obra: initialData.obra || '',
+          obraId: initialData.obraId || '',
+          contrato: initialData.contrato || '',
+          contratoId: initialData.contratoId || '',
           empresa: initialData.empresa || '',
           empresaId: initialData.empresaId ? (typeof initialData.empresaId === 'string' ? initialData.empresaId : String(initialData.empresaId)) : '',
           companySigla: initialData.companySigla || '',
           descricao: initialData.descricao || '',
           tipo: initialData.tipo || 'VARIAVEL',
-          valor: initialData.valor ?? 0,
+          valor: initialData.valor || 0,
           codigoBarras: initialData.codigoBarras || '',
           status: initialData.status || 'ABERTA',
           baixa: initialData.baixa || false,
           dataPagamento: (typeof initialData.dataPagamento === 'string' ? parseDateFromBackend(initialData.dataPagamento) : initialData.dataPagamento) || undefined,
           observacoes: initialData.observacoes || '',
-          categoria: initialData.categoria || '',
-          centroCusto: initialData.centroCusto || ''
+          categoria: initialData.categoria || undefined,
+          centroCusto: initialData.centroCusto || undefined
         });
-        setValorDisplay(formatToBRL(initialData.valor ?? 0));
+        setValorDisplay(formatToBRL(initialData.valor || 0));
         setPaymentConfirmDate((typeof initialData.dataPagamento === 'string' ? parseDateFromBackend(initialData.dataPagamento) : initialData.dataPagamento) || new Date());
       } else {
-        // Resetar formulário para modo de criação
+        // Resetar formulário
         setFormData({
           dataEmissao: new Date(),
           vencimento: new Date(),
           fornecedor: '',
           fornecedorId: '',
+          cliente: '',
+          clienteId: '',
+          obra: '',
+          obraId: '',
+          contrato: '',
+          contratoId: '',
           empresa: '',
           empresaId: '',
+          companySigla: '',
           descricao: '',
           tipo: 'VARIAVEL',
           valor: 0,
@@ -498,26 +584,129 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
               <Select
                 value={formData.empresaId}
                 onValueChange={(value) => {
-                  const empresa = empresas.find(e => e.id === value);
+                  const empresa = displayEmpresas.find(e => String(e.id) === String(value));
                   handleInputChange('empresaId', value);
                   handleInputChange('empresa', empresa?.name || '');
                   handleInputChange('companySigla', empresa?.sigla || empresa?.name || '');
                 }}
+                disabled={!isSuperAdmin && displayEmpresas.length <= 1}
                 required
               >
                 <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
                   <SelectValue placeholder="Selecione uma empresa" />
                 </SelectTrigger>
                 <SelectContent className="bg-seguranca-black border-gray-600">
-                  {empresas.map((empresa) => (
+                  {displayEmpresas.map((empresa) => (
                     <SelectItem 
                       key={empresa.id} 
-                      value={empresa.id}
+                      value={String(empresa.id)}
                       className="text-seguranca-lightgray hover:bg-seguranca-graphite"
                     >
                       {(empresa.sigla ? empresa.sigla : empresa.name)}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Cliente */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-seguranca-lightgray">Cliente</label>
+              <Select
+                value={formData.clienteId || 'NONE'}
+                onValueChange={(value) => {
+                  if (value === 'NONE') {
+                    handleInputChange('clienteId', '');
+                    handleInputChange('cliente', '');
+                    handleInputChange('obraId', '');
+                    handleInputChange('obra', '');
+                    handleInputChange('contratoId', '');
+                    handleInputChange('contrato', '');
+                  } else {
+                    const c = clientes.find(item => item.id === value);
+                    handleInputChange('clienteId', value);
+                    handleInputChange('cliente', c?.name || '');
+                    handleInputChange('obraId', '');
+                    handleInputChange('obra', '');
+                    handleInputChange('contratoId', '');
+                    handleInputChange('contrato', '');
+                  }
+                }}
+              >
+                <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                  <SelectValue placeholder="Selecione um cliente" />
+                </SelectTrigger>
+                <SelectContent className="bg-seguranca-black border-gray-600">
+                  <SelectItem value="NONE" className="text-gray-400">Nenhum</SelectItem>
+                  {clientes.map((c) => (
+                    <SelectItem key={c.id} value={c.id} className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Obra / Setor de Trabalho */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-seguranca-lightgray">Obra / Setor de Trabalho</label>
+              <Select
+                value={formData.obraId || 'NONE'}
+                onValueChange={(value) => {
+                  if (value === 'NONE') {
+                    handleInputChange('obraId', '');
+                    handleInputChange('obra', '');
+                  } else {
+                    const o = obras.find(item => item.id === value);
+                    handleInputChange('obraId', value);
+                    handleInputChange('obra', o?.name || '');
+                  }
+                }}
+              >
+                <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                  <SelectValue placeholder="Selecione uma obra/setor" />
+                </SelectTrigger>
+                <SelectContent className="bg-seguranca-black border-gray-600">
+                  <SelectItem value="NONE" className="text-gray-400">Nenhuma</SelectItem>
+                  {obras
+                    .filter(o => !formData.clienteId || o.clientId === formData.clienteId)
+                    .map((o) => (
+                      <SelectItem key={o.id} value={o.id} className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                        {o.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Contrato */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-seguranca-lightgray">Contrato</label>
+              <Select
+                value={formData.contratoId || 'NONE'}
+                onValueChange={(value) => {
+                  if (value === 'NONE') {
+                    handleInputChange('contratoId', '');
+                    handleInputChange('contrato', '');
+                  } else {
+                    const c = contratos.find(item => item.id === value);
+                    handleInputChange('contratoId', value);
+                    handleInputChange('contrato', c?.contractNumber || '');
+                  }
+                }}
+              >
+                <SelectTrigger className="border-gray-600 bg-seguranca-black text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow">
+                  <SelectValue placeholder="Selecione um contrato" />
+                </SelectTrigger>
+                <SelectContent className="bg-seguranca-black border-gray-600">
+                  <SelectItem value="NONE" className="text-gray-400">Nenhum</SelectItem>
+                  {contratos
+                    .filter(c => !formData.clienteId || c.clientId === formData.clienteId)
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id} className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                        {c.contractNumber} {c.description ? `- ${c.description}` : ''}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

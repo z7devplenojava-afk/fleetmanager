@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { useToast } from '@/hooks/use-toast';
 import { useGSAP } from '@/hooks/use-gsap';
-import { Search, Plus, RefreshCw, Building2, Users, CheckCircle2, Clock, XCircle, AlertCircle, FileText, FileSpreadsheet } from 'lucide-react';
+import { Search, Plus, RefreshCw, Building2, Users, CheckCircle2, Clock, XCircle, AlertCircle, FileText, FileSpreadsheet, Trash2 } from 'lucide-react';
 import { clientService } from '@/services/clientService';
 import { notificationService } from '@/services/notificationService';
 import { Client, ClientStatus, ClientSearchParams } from '@/types/client';
@@ -31,6 +31,25 @@ const Clientes: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<Client | undefined>();
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isImportObraModalOpen, setIsImportObraModalOpen] = useState(false);
+  const [showReportFilters, setShowReportFilters] = useState(false);
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+
+  const handleSelectClient = (clientId: string, selected: boolean) => {
+    if (selected) {
+      setSelectedClientIds(prev => (prev.includes(clientId) ? prev : [...prev, clientId]));
+    } else {
+      setSelectedClientIds(prev => prev.filter(id => id !== clientId));
+    }
+  };
+
+  const handleSelectAllClients = (selected: boolean) => {
+    if (selected) {
+      setSelectedClientIds(clients.map(c => c.id));
+    } else {
+      setSelectedClientIds([]);
+    }
+  };
 
   const { toast } = useToast();
   useGSAP();
@@ -165,6 +184,7 @@ const Clientes: React.FC = () => {
         title: "Cliente excluído",
         description: "Cliente excluído com sucesso!",
       });
+      setSelectedClientIds(prev => prev.filter(id => id !== client.id));
       loadClients();
     } catch (error: any) {
       toast({
@@ -172,6 +192,32 @@ const Clientes: React.FC = () => {
         description: error.response?.data?.message || "Erro ao excluir cliente",
         variant: "destructive",
       });
+    }
+  };
+
+  // Handle bulk delete clients
+  const handleBulkDelete = async () => {
+    if (selectedClientIds.length === 0) return;
+    const count = selectedClientIds.length;
+    if (confirm(`Tem certeza que deseja excluir os ${count} clientes selecionados? Esta ação não poderá ser desfeita.`)) {
+      setIsDeletingBulk(true);
+      try {
+        await clientService.deleteClientsBulk(selectedClientIds);
+        toast({
+          title: "Clientes excluídos em massa",
+          description: `${count} clientes foram excluídos com sucesso!`,
+        });
+        setSelectedClientIds([]);
+        loadClients();
+      } catch (error: any) {
+        toast({
+          title: "Erro na exclusão em massa",
+          description: error.response?.data?.message || "Erro ao excluir clientes selecionados",
+          variant: "destructive",
+        });
+      } finally {
+        setIsDeletingBulk(false);
+      }
     }
   };
 
@@ -300,56 +346,81 @@ const Clientes: React.FC = () => {
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" data-animate="fadeDown">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             <Button 
               variant="outline" 
               onClick={handleRefresh}
               disabled={isLoading}
-              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite hover:border-seguranca-red/50"
+              className="border-gray-600/60 text-gray-300 hover:bg-seguranca-graphite hover:border-gray-400 hover:text-white rounded-xl shadow-sm transition-all duration-200 font-medium"
             >
-              <RefreshCw size={20} className={`mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw size={18} className={`mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
             <Button 
-              className="bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red shadow-lg shadow-seguranca-red/20"
+              className="bg-gradient-to-r from-seguranca-red via-red-600 to-seguranca-darkred hover:from-red-600 hover:to-seguranca-red text-white font-bold shadow-lg shadow-seguranca-red/30 border border-red-500/30 rounded-xl transition-all duration-300"
               onClick={handleNewClient}
             >
-              <Plus size={20} className="mr-2" />
+              <Plus size={18} className="mr-2" />
               Novo Cliente
             </Button>
             <Button 
               variant="outline"
               onClick={() => setIsImportObraModalOpen(true)}
-              className="border-seguranca-yellow/50 text-seguranca-yellow hover:bg-seguranca-yellow/10 hover:border-seguranca-yellow"
+              className="border-amber-500/50 text-amber-300 hover:bg-amber-500/10 hover:border-amber-400 font-semibold shadow-lg shadow-amber-500/10 rounded-xl transition-all duration-300"
             >
-              <FileSpreadsheet size={20} className="mr-2" />
+              <FileSpreadsheet size={18} className="mr-2" />
               Importar Quadro de Obras
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => setShowReportFilters(!showReportFilters)}
+              className="border-blue-500/50 text-blue-300 hover:bg-blue-500/10 hover:border-blue-400 font-semibold shadow-lg shadow-blue-500/10 rounded-xl transition-all duration-300"
+            >
+              <FileText size={18} className="mr-2" />
+              {showReportFilters ? 'Ocultar Relatórios' : 'Relatórios Avançados'}
             </Button>
           </div>
         </div>
 
-        {/* Report Filters */}
-        <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-8 shadow-2xl backdrop-blur-sm" data-animate="fadeUp">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-500/30 shadow-lg shadow-blue-500/10">
-              <FileText className="h-6 w-6 text-blue-400" />
+        {/* Bulk Actions Floating Bar */}
+        {selectedClientIds.length > 0 && (
+          <Card className="bg-gradient-to-r from-seguranca-black via-seguranca-graphite to-seguranca-black border-red-500/40 p-4 shadow-2xl backdrop-blur-md mt-4 rounded-xl flex flex-wrap items-center justify-between gap-4 border-l-4 border-l-seguranca-red">
+            <div className="flex items-center gap-3">
+              <span className="flex h-3 w-3 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              </span>
+              <span className="text-white font-bold text-sm">
+                {selectedClientIds.length} {selectedClientIds.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
+              </span>
             </div>
-            <div>
-              <h3 className="font-bold text-xl text-white mb-1">Relatórios Avançados</h3>
-              <p className="text-sm text-gray-400">Gere relatórios personalizados em PDF ou Excel</p>
+
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedClientIds([])}
+                className="text-gray-400 hover:text-white hover:bg-seguranca-graphite text-xs rounded-lg"
+              >
+                Limpar Seleção
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleBulkDelete}
+                disabled={isDeletingBulk}
+                className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-700 hover:to-rose-800 text-white font-bold shadow-lg shadow-red-600/30 border border-red-500/40 text-xs px-4 py-2 rounded-lg"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {isDeletingBulk ? 'Excluindo...' : `Excluir Selecionados (${selectedClientIds.length})`}
+              </Button>
             </div>
-          </div>
-          
-          <ClientReportFilters 
-            onGenerate={handleGenerateReport}
-            isLoading={isGeneratingReport}
-          />
-        </Card>
+          </Card>
+        )}
 
         {/* Search Section */}
-        <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-8 shadow-2xl backdrop-blur-sm mt-6" data-animate="fadeUp">
+        <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-4 sm:p-6 shadow-2xl backdrop-blur-sm mt-6" data-animate="fadeUp">
           {/* Search Header */}
-          <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center gap-4 mb-6">
             <div className="p-3 rounded-xl bg-gradient-to-br from-seguranca-red/20 to-seguranca-red/10 border border-seguranca-red/30 shadow-lg shadow-seguranca-red/10">
               <Search className="h-6 w-6 text-seguranca-red" />
             </div>
@@ -360,7 +431,7 @@ const Clientes: React.FC = () => {
           </div>
 
           {/* Search Filters */}
-          <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <Input
@@ -373,7 +444,7 @@ const Clientes: React.FC = () => {
             </div>
             
             <Select value={statusFilter} onValueChange={handleStatusFilter}>
-              <SelectTrigger className="lg:w-[220px] py-3 bg-seguranca-black/50 border-gray-600/30 text-white focus:border-seguranca-red/50 focus:ring-seguranca-red/20 rounded-xl">
+              <SelectTrigger className="sm:w-[200px] py-3 bg-seguranca-black/50 border-gray-600/30 text-white focus:border-seguranca-red/50 focus:ring-seguranca-red/20 rounded-xl">
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent className="bg-seguranca-black border-gray-600/30">
@@ -398,7 +469,7 @@ const Clientes: React.FC = () => {
             <Button 
               onClick={handleSearch}
               disabled={isLoading}
-              className="px-6 py-3 bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red shadow-lg shadow-seguranca-red/20 lg:w-auto w-full rounded-xl font-semibold"
+              className="px-6 py-3 bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red shadow-lg shadow-seguranca-red/20 sm:w-auto w-full rounded-xl font-semibold"
             >
               <Search size={20} className="mr-2" />
               Buscar
@@ -407,9 +478,12 @@ const Clientes: React.FC = () => {
         </Card>
 
         {/* Clients Table */}
-        <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-8 shadow-2xl backdrop-blur-sm mt-6" data-animate="fadeUp">
+        <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-3 sm:p-6 shadow-2xl backdrop-blur-sm mt-6" data-animate="fadeUp">
           <ClientsTable
             clients={clients}
+            selectedClientIds={selectedClientIds}
+            onSelectClient={handleSelectClient}
+            onSelectAllClients={handleSelectAllClients}
             onEdit={handleEditClient}
             onDelete={handleDeleteClient}
             onView={handleViewClient}
@@ -454,6 +528,26 @@ const Clientes: React.FC = () => {
             </div>
           )}
         </Card>
+
+        {/* Report Filters */}
+        {showReportFilters && (
+          <Card className="bg-gradient-to-br from-seguranca-graphite/80 to-seguranca-black/60 border-gray-600/30 p-8 shadow-2xl backdrop-blur-sm mt-6" data-animate="fadeUp">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-500/30 shadow-lg shadow-blue-500/10">
+                <FileText className="h-6 w-6 text-blue-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-xl text-white mb-1">Relatórios Avançados</h3>
+                <p className="text-sm text-gray-400">Gere relatórios personalizados em PDF ou Excel</p>
+              </div>
+            </div>
+            
+            <ClientReportFilters 
+              onGenerate={handleGenerateReport}
+              isLoading={isGeneratingReport}
+            />
+          </Card>
+        )}
       </div>
 
       {/* Form Modal */}

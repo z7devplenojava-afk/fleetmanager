@@ -409,6 +409,50 @@ const ContasAPagarTab: React.FC = () => {
             }
           };
           break;
+        case 'dataPagamento':
+          const dataPagamentoGroups = contasParaRelatorio.reduce((acc, conta) => {
+            const dtStr = conta.dataPagamento ? format(new Date(conta.dataPagamento), 'dd/MM/yyyy') : 'Não Pagas';
+            if (!acc[dtStr]) {
+              acc[dtStr] = { count: 0, valor: 0 };
+            }
+            acc[dtStr].count++;
+            acc[dtStr].valor += conta.valor;
+            return acc;
+          }, {} as any);
+          
+          reportData = {
+            ...reportData,
+            title: 'Relatório por Data de Pagamento - Contas a Pagar',
+            subtitle: 'Agrupamento das contas por data de pagamento/liquidação',
+            summary: {
+              dataPagamentoGroups: dataPagamentoGroups,
+              totalContas: contasParaRelatorio.length,
+              valorTotal: contasParaRelatorio.reduce((sum, c) => sum + c.valor, 0)
+            }
+          };
+          break;
+        case 'obra':
+          const obrasGroups = contasParaRelatorio.reduce((acc, conta) => {
+            const obraKey = conta.obra || conta.cliente || 'Sem Obra/Setor';
+            if (!acc[obraKey]) {
+              acc[obraKey] = { count: 0, valor: 0 };
+            }
+            acc[obraKey].count++;
+            acc[obraKey].valor += conta.valor;
+            return acc;
+          }, {} as any);
+          
+          reportData = {
+            ...reportData,
+            title: 'Relatório por Obra / Setor de Trabalho - Contas a Pagar',
+            subtitle: 'Agrupamento e alocação de despesas por Obra/Setor de Trabalho',
+            summary: {
+              obrasGroups: obrasGroups,
+              totalContas: contasParaRelatorio.length,
+              valorTotal: contasParaRelatorio.reduce((sum, c) => sum + c.valor, 0)
+            }
+          };
+          break;
         case 'empresa':
           const empresas = contasParaRelatorio.reduce((acc, conta) => {
             const empresa = conta.empresa || conta.companySigla || 'Não informado';
@@ -1240,7 +1284,7 @@ const ContasAPagarTab: React.FC = () => {
           </Card>
 
           {/* Tipos de Relatórios */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card className="bg-gradient-to-br from-blue-900/30 to-blue-800/30 border border-blue-500/30 hover:border-blue-400/50 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 cursor-pointer group" onClick={() => generateReport('resumo')}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -1259,8 +1303,8 @@ const ContasAPagarTab: React.FC = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-white text-lg group-hover:text-green-300 transition-colors">Por Período</h3>
-                    <p className="text-sm text-gray-400 mt-1">Detalhamento temporal</p>
+                    <h3 className="font-semibold text-white text-lg group-hover:text-green-300 transition-colors">Por Vencimento</h3>
+                    <p className="text-sm text-gray-400 mt-1">Filtrado por data vencimento</p>
                   </div>
                   <div className="p-4 bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-xl group-hover:from-green-500/30 group-hover:to-green-600/30 transition-all duration-300">
                     <Calendar className="h-7 w-7 text-green-400 group-hover:text-green-300 transition-colors" />
@@ -1292,6 +1336,34 @@ const ContasAPagarTab: React.FC = () => {
                   </div>
                   <div className="p-4 bg-gradient-to-br from-orange-500/20 to-orange-600/20 rounded-xl group-hover:from-orange-500/30 group-hover:to-orange-600/30 transition-all duration-300">
                     <CheckCircle className="h-7 w-7 text-orange-400 group-hover:text-orange-300 transition-colors" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-amber-900/30 to-amber-800/30 border border-amber-500/30 hover:border-amber-400/50 hover:shadow-xl hover:shadow-amber-500/20 transition-all duration-300 cursor-pointer group" onClick={() => generateReport('dataPagamento')}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-white text-lg group-hover:text-amber-300 transition-colors">Por Dt. Pagamento</h3>
+                    <p className="text-sm text-gray-400 mt-1">Agrupamento por data de pagamento</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-br from-amber-500/20 to-amber-600/20 rounded-xl group-hover:from-amber-500/30 group-hover:to-amber-600/30 transition-all duration-300">
+                    <Calendar className="h-7 w-7 text-amber-400 group-hover:text-amber-300 transition-colors" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 border border-cyan-500/30 hover:border-cyan-400/50 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 cursor-pointer group" onClick={() => generateReport('obra')}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-white text-lg group-hover:text-cyan-300 transition-colors">Por Obra / Setor</h3>
+                    <p className="text-sm text-gray-400 mt-1">Alocação por cliente e obra</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 rounded-xl group-hover:from-cyan-500/30 group-hover:to-cyan-600/30 transition-all duration-300">
+                    <Building className="h-7 w-7 text-cyan-400 group-hover:text-cyan-300 transition-colors" />
                   </div>
                 </div>
               </CardContent>

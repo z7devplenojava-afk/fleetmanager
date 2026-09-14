@@ -41,6 +41,16 @@ public class AccountsReceivable implements TenantAware {
     @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     private MeasurementBulletin measurement;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contract_id", nullable = true)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    private Contract contract;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_post_id", nullable = true)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    private WorkPost workPost;
+
     @Size(max = 100, message = "Centro de custo deve ter no mÃ¡ximo 100 caracteres")
     @Column(name = "centro_custo", length = 100)
     private String centroCusto;
@@ -153,6 +163,22 @@ public class AccountsReceivable implements TenantAware {
 
     public void setUnit(Unit unit) {
         this.unit = unit;
+    }
+
+    public Contract getContract() {
+        return contract;
+    }
+
+    public void setContract(Contract contract) {
+        this.contract = contract;
+    }
+
+    public WorkPost getWorkPost() {
+        return workPost;
+    }
+
+    public void setWorkPost(WorkPost workPost) {
+        this.workPost = workPost;
     }
 
     public String getCentroCusto() {
