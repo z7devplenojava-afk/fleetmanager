@@ -353,7 +353,7 @@ export const FluxoCaixa: React.FC = () => {
         description: "Não foi possível gerar o PDF do fluxo de caixa.",
         variant: "destructive"
       });
-    } fontally {
+    } finally {
       setExportLoading(false);
     }
   };
@@ -372,7 +372,7 @@ export const FluxoCaixa: React.FC = () => {
         description: "Não foi possível exportar a planilha.",
         variant: "destructive"
       });
-    } fontally {
+    } finally {
       setExportLoading(false);
     }
   };
