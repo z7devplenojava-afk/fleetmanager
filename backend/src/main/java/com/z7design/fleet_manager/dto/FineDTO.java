@@ -30,12 +30,21 @@ public class FineDTO {
     private LocalDate dueDate;
     private LocalDate paymentDate;
     private Integer points; // Pontos na CNH
+    private String infractionNumber;
+    private String infractionCode;
+    private String issuingAuthority;
+    private String infractionTime;
+    private String situation;
+    private UUID parteDiariaId;
+    private String parteDiariaNumber;
+    private String suggestedDriverName;
+    private String queryOrigin;
     private LocalDateTime createdAt;
     
     public static FineDTO fromEntity(Fine fine) {
         FineDTO dto = new FineDTO();
         dto.setId(fine.getId());
-        // InformaÃ§Ãµes do veÃ­culo (proteger contra nulos/lazy)
+        // Informações do veículo (proteger contra nulos/lazy)
         if (fine.getVehicle() != null) {
             try {
                 dto.setVehicleId(fine.getVehicle().getId());
@@ -47,7 +56,7 @@ public class FineDTO {
             }
         }
         
-        // InformaÃ§Ãµes do motorista
+        // Informações do motorista
         if (fine.getDriver() != null) {
             dto.setDriverId(fine.getDriver().getId());
             dto.setDriverName(fine.getDriver().getName());
@@ -63,6 +72,15 @@ public class FineDTO {
         dto.setDueDate(fine.getDueDate());
         dto.setPaymentDate(fine.getPaymentDate());
         dto.setPoints(fine.getPoints());
+        dto.setInfractionNumber(fine.getInfractionNumber());
+        dto.setInfractionCode(fine.getInfractionCode());
+        dto.setIssuingAuthority(fine.getIssuingAuthority());
+        dto.setInfractionTime(fine.getInfractionTime());
+        dto.setSituation(fine.getSituation());
+        dto.setParteDiariaId(fine.getParteDiariaId());
+        dto.setParteDiariaNumber(fine.getParteDiariaNumber());
+        dto.setSuggestedDriverName(fine.getSuggestedDriverName());
+        dto.setQueryOrigin(fine.getQueryOrigin());
         dto.setCreatedAt(fine.getCreatedAt());
         return dto;
     }

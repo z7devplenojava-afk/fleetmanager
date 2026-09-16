@@ -12,6 +12,7 @@ import AgregadosDashboard from '@/components/frota/AgregadosDashboard';
 import AgregadosFormModal from '@/components/frota/AgregadosFormModal';
 import AbastecimentosTable from '@/components/frota/AbastecimentosTable';
 import MultasTable from '@/components/frota/MultasTable';
+import { VehicleFineQueryModal } from '@/components/frota/VehicleFineQueryModal';
 import BateriasTable from '@/components/frota/BateriasTable';
 import VehicleDocumentsTable from '@/components/frota/VehicleDocumentsTable';
 import MobilizationPanel from '@/components/frota/MobilizationPanel';
@@ -212,6 +213,12 @@ const Frota: React.FC = () => {
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null);
   const [selectedKmControl, setSelectedKmControl] = useState<KmControl | null>(null);
+
+  // Estados para consulta veicular de multas (Detran/Senatran & Parte Diária)
+  const [isFineQueryModalOpen, setIsFineQueryModalOpen] = useState(false);
+  const [fineQueryPlate, setFineQueryPlate] = useState('');
+  const [fineQueryRenavam, setFineQueryRenavam] = useState('');
+  const [fineQueryUf, setFineQueryUf] = useState('MG');
 
   // Estados para relatórios
   const [showMultaSelection, setShowMultaSelection] = useState(false);
@@ -1838,14 +1845,26 @@ const Frota: React.FC = () => {
                     {showMultaSelection ? 'Desativar Seleção' : 'Ativar Seleção'}
                   </Button>
                 </div>
-                <Button
-                  onClick={() => setIsMultaModalOpen(true)}
-                  className="bg-seguranca-red hover:bg-seguranca-darkred"
-                >
-                  <Plus size={16} className="mr-2" />
-                  Nova Multa
-                </Button>
-              </div>
+                  <Button
+                    onClick={() => {
+                      setFineQueryPlate('');
+                      setFineQueryRenavam('');
+                      setFineQueryUf('MG');
+                      setIsFineQueryModalOpen(true);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Search size={16} />
+                    Consultar Multas & Restrições (Governo/Brokers)
+                  </Button>
+                  <Button
+                    onClick={() => setIsMultaModalOpen(true)}
+                    className="bg-seguranca-red hover:bg-seguranca-darkred"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Nova Multa
+                  </Button>
+                </div>
 
               <div className="bg-seguranca-black border border-gray-600 rounded-lg overflow-hidden">
                 <MultasTable
@@ -2106,6 +2125,17 @@ const Frota: React.FC = () => {
           onOpenChange={setIsVehicleImportModalOpen}
           onSuccess={() => {
             refetchVehicles();
+          }}
+        />
+
+        <VehicleFineQueryModal
+          isOpen={isFineQueryModalOpen}
+          onClose={() => setIsFineQueryModalOpen(false)}
+          initialPlate={fineQueryPlate}
+          initialRenavam={fineQueryRenavam}
+          initialUf={fineQueryUf}
+          onFinesUpdated={() => {
+            refetchFines();
           }}
         />
 
