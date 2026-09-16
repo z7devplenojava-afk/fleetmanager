@@ -62,6 +62,33 @@ public class Fine {
     @Column(name = "overdue_reminder_sent")
     private Boolean overdueReminderSent = false; // Evita reenvio do alerta de multa vencida
     
+    @Column(name = "infraction_number", length = 100)
+    private String infractionNumber; // Auto de infração (ex: R1029384)
+    
+    @Column(name = "infraction_code", length = 50)
+    private String infractionCode; // Código da infração (ex: 7455-0)
+    
+    @Column(name = "issuing_authority", length = 100)
+    private String issuingAuthority; // Órgão autuador (ex: DER-MG, PRF, DETRAN)
+    
+    @Column(name = "infraction_time", length = 20)
+    private String infractionTime; // Horário da infração (ex: 14:22)
+    
+    @Column(name = "situation", length = 100)
+    private String situation; // Situação (ex: AGUARDANDO PAGAMENTO, EM RECURSO)
+    
+    @Column(name = "parte_diaria_id")
+    private UUID parteDiariaId;
+    
+    @Column(name = "parte_diaria_number", length = 50)
+    private String parteDiariaNumber;
+    
+    @Column(name = "suggested_driver_name", length = 200)
+    private String suggestedDriverName;
+    
+    @Column(name = "query_origin", length = 50)
+    private String queryOrigin = "MANUAL"; // MANUAL, API_LIVE, CACHE
+    
     @Column(nullable = false)
     private LocalDateTime createdAt;
     
