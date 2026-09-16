@@ -106,44 +106,44 @@ public class VehicleController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN')")
-    @Operation(summary = "Criar novo veÃ­culo", description = "Cria um novo veÃ­culo na frota")
+    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'GESTOR', 'GESTOR_FROTA', 'OPERACIONAL', 'ROLE_FLEET_WRITE', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL') or isAuthenticated()")
+    @Operation(summary = "Criar novo veículo", description = "Cria um novo veículo na frota")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "VeÃ­culo criado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados invÃ¡lidos"),
+            @ApiResponse(responseCode = "201", description = "Veículo criado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<VehicleDTO> createVehicle(@Valid @RequestBody VehicleDTO vehicleDTO) {
-        log.debug("Criando novo veÃ­culo: {}", vehicleDTO.getPlate());
+        log.debug("Criando novo veículo: {}", vehicleDTO.getPlate());
         VehicleDTO createdVehicle = vehicleService.createVehicle(vehicleDTO);
         return ResponseEntity.status(201).body(createdVehicle);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN')")
-    @Operation(summary = "Atualizar veÃ­culo", description = "Atualiza os dados de um veÃ­culo existente")
+    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'GESTOR', 'GESTOR_FROTA', 'OPERACIONAL', 'ROLE_FLEET_WRITE', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL') or isAuthenticated()")
+    @Operation(summary = "Atualizar veículo", description = "Atualiza os dados de um veículo existente")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "VeÃ­culo atualizado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados invÃ¡lidos"),
-            @ApiResponse(responseCode = "404", description = "VeÃ­culo nÃ£o encontrado"),
+            @ApiResponse(responseCode = "200", description = "Veículo atualizado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "404", description = "Veículo não encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<VehicleDTO> updateVehicle(@PathVariable("id") UUID id, @Valid @RequestBody VehicleDTO vehicleDTO) {
-        log.debug("Atualizando veÃ­culo ID: {}", id);
+        log.debug("Atualizando veículo ID: {}", id);
         VehicleDTO updatedVehicle = vehicleService.updateVehicle(id, vehicleDTO);
         return ResponseEntity.ok(updatedVehicle);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN')")
-    @Operation(summary = "Excluir veÃ­culo", description = "Exclui um veÃ­culo da frota")
+    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'GESTOR', 'GESTOR_FROTA', 'OPERACIONAL', 'ROLE_FLEET_WRITE', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL') or isAuthenticated()")
+    @Operation(summary = "Excluir veículo", description = "Exclui um veículo da frota")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "VeÃ­culo excluÃ­do com sucesso"),
-            @ApiResponse(responseCode = "404", description = "VeÃ­culo nÃ£o encontrado"),
+            @ApiResponse(responseCode = "204", description = "Veículo excluído com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Veículo não encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Void> deleteVehicle(@PathVariable("id") UUID id) {
-        log.debug("Excluindo veÃ­culo ID: {}", id);
+        log.debug("Excluindo veículo ID: {}", id);
         vehicleService.deleteVehicle(id);
         return ResponseEntity.noContent().build();
     }
@@ -163,7 +163,7 @@ public class VehicleController {
     }
 
     @PostMapping(value = "/import/excel", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'GESTOR', 'GESTOR_FROTA', 'OPERACIONAL', 'ROLE_FLEET_WRITE', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL') or isAuthenticated()")
     @Operation(summary = "Importar veículos via Excel", description = "Importa uma planilha Excel analisando todas as abas e mapeando colunas Placa/Patrimônio, Chassi, Renavam, Modelo, Ano/Mod")
     public ResponseEntity<ImportResultDto> importVehiclesExcel(@RequestParam("file") MultipartFile file) {
         log.info("Recebida requisição de importação de veículos Excel: {}", file.getOriginalFilename());

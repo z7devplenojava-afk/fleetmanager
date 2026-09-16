@@ -49,6 +49,18 @@ public class CompanyController {
         }
     }
 
+    @GetMapping({"/public", "/v1/companies/public"})
+    @Operation(summary = "Listar empresas públicas", description = "Retorna lista básica de empresas públicas para login")
+    public ResponseEntity<List<CompanyDTO>> getPublicCompanies() {
+        try {
+            List<CompanyDTO> companies = companyService.getAllCompanies();
+            return ResponseEntity.ok(companies);
+        } catch (Exception e) {
+            log.error("Erro ao buscar empresas públicas", e);
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
+    }
+
     @GetMapping("/search")
     @PreAuthorize("hasAnyAuthority('HR_READ', 'EMPLOYEES_READ', 'EMPLOYEES_WRITE', 'EMPLOYEES_CREATE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'COMPANY_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'ROLE_COMPANY_ADMIN')")
     @Operation(summary = "Buscar empresas", description = "Busca empresas por nome com filtro dinâmico")
