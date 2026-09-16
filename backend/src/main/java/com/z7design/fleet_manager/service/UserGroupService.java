@@ -52,10 +52,21 @@ public class UserGroupService {
     
     @Transactional(readOnly = true)
     public List<UserGroupDTO> getGroupsByUserId(UUID userId) {
-        // Sem contagem de usuários (evita query extra e ciclos); suficiente para o AuthContext
-        return userGroupRepository.findByUserId(userId).stream()
-                .map(this::convertToDTOWithoutUsers)
-                .collect(Collectors.toList());
+        if (userId == null) {
+            return Collections.emptyList();
+        }
+        try {
+            List<UserGroupEntity> list = userGroupRepository.findByUserId(userId);
+            if (list == null || list.isEmpty()) {
+                return Collections.emptyList();
+            }
+            return list.stream()
+                    .filter(Objects::nonNull)
+                    .map(this::convertToDTOWithoutUsers)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
     
     public Set<String> getUserPermissions(UUID userId) {
