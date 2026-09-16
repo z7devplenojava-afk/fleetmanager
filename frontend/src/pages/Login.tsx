@@ -61,7 +61,7 @@ const Login = () => {
     const fetchCompanies = async () => {
       setLoadingCompanies(true);
       try {
-        const response = await publicApi.get('/v1/companies/public').catch(() => null);
+        const response = await publicApi.get('/companies/public').catch(() => publicApi.get('/v1/companies/public').catch(() => null));
         if (response && response.data) {
           const data = Array.isArray(response.data) ? response.data : [];
           setCompanies(data.map((c: any) => ({ id: c.id, name: c.name })));
