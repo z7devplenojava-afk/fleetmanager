@@ -37,17 +37,22 @@ public class MatcherWorker {
     
     @PostConstruct
     public void init() {
-        log.info("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-        log.info("ðŸ”µ MATCHER WORKER: Iniciando inicializaÃ§Ã£o...");
-        log.info("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-        try {
-            redisTemplate.opsForStream().createGroup(STREAM_VALIDATED, ReadOffset.from("0"), CONSUMER_GROUP);
-            log.info("âœ… MATCHER WORKER: Consumer group '{}' criado/verificado", CONSUMER_GROUP);
-        } catch (Exception e) {
-            log.info("â„¹ï¸ MATCHER WORKER: Consumer group '{}' jÃ¡ existe ou erro: {}", CONSUMER_GROUP, e.getMessage());
-        }
-        log.info("âœ… MATCHER WORKER: InicializaÃ§Ã£o concluÃ­da - Worker pronto!");
-        log.info("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
+        log.info("════════════════════════════════════════════════════════════");
+        log.info("🔵 MATCHER WORKER: Iniciando inicialização...");
+        log.info("════════════════════════════════════════════════════════════");
+
+        // Inicialização assíncrona para não bloquear o startup do Spring se o Redis estiver ocupado ou lento
+        new Thread(() -> {
+            try {
+                redisTemplate.opsForStream().createGroup(STREAM_VALIDATED, ReadOffset.from("0"), CONSUMER_GROUP);
+                log.info("✅ MATCHER WORKER: Consumer group '{}' criado/verificado", CONSUMER_GROUP);
+            } catch (Exception e) {
+                log.info("ℹ️ MATCHER WORKER: Consumer group '{}' já existe ou erro: {}", CONSUMER_GROUP, e.getMessage());
+            }
+            log.info("✅ MATCHER WORKER: Inicialização concluída - Worker pronto!");
+        }).start();
+
+        log.info("🔵 MATCHER WORKER: Inicialização agendada em background.");
     }
     
     @Scheduled(fixedDelay = 2000) // Processa a cada 2 segundos (permite acumular pÃ¡ginas do mesmo job)
