@@ -44,18 +44,28 @@ public class VehicleExcelImportService {
         try (InputStream is = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(is)) {
 
-            // 1. Pré-carregar todos os veículos existentes para busca O(1) em memória
+            // 1. Pré-carregar todos os veículos existentes (incluindo deletados e outros tenants) para busca O(1) em memória
             Map<String, Vehicle> existingMap = new HashMap<>();
             try {
-                List<Vehicle> allVehicles = vehicleRepository.findAll();
+                List<Vehicle> allVehicles = vehicleRepository.findAllRawIncludingDeletedAndTenants();
                 for (Vehicle v : allVehicles) {
-                    if (v.getPlate() != null) {
-                        existingMap.put(v.getPlate().toUpperCase(), v);
+                    if (v.getPlate() != null && !v.getPlate().isBlank()) {
+                        existingMap.put(cleanPlate(v.getPlate()), v);
                     }
                 }
-                log.info("Pré-carregados {} veículos existentes em memória.", existingMap.size());
+                log.info("Pré-carregados {} veículos existentes em memória (via query nativa).", existingMap.size());
             } catch (Exception e) {
-                log.warn("Não foi possível pré-carregar veículos: {}", e.getMessage());
+                log.warn("Falha ao pré-carregar via query nativa, tentando findAll(): {}", e.getMessage());
+                try {
+                    List<Vehicle> allVehicles = vehicleRepository.findAll();
+                    for (Vehicle v : allVehicles) {
+                        if (v.getPlate() != null && !v.getPlate().isBlank()) {
+                            existingMap.put(cleanPlate(v.getPlate()), v);
+                        }
+                    }
+                } catch (Exception ex) {
+                    log.warn("Não foi possível pré-carregar veículos: {}", ex.getMessage());
+                }
             }
 
             Set<String> processedPlatesInFile = new HashSet<>();
@@ -77,22 +87,68 @@ public class VehicleExcelImportService {
                 processSheet(sheet, sheetName, result, existingMap, processedPlatesInFile, toInsert, toUpdate);
             }
 
-            // 2. Persistir em lote em uma única transação otimizada
-            if (!toInsert.isEmpty() || !toUpdate.isEmpty()) {
-                log.info("Persistindo lote: {} a inserir, {} a atualizar", toInsert.size(), toUpdate.size());
-                TransactionTemplate tt = new TransactionTemplate(transactionManager);
-                tt.execute(status -> {
-                    if (!toInsert.isEmpty()) {
-                        vehicleRepository.saveAll(toInsert);
+            // 2. Persistir com resiliência: tenta em lote e faz fallback individual para garantir sucesso
+            int insertedCount = 0;
+            int updatedCount = 0;
+
+            TransactionTemplate tt = new TransactionTemplate(transactionManager);
+
+            // Inserções
+            for (Vehicle v : toInsert) {
+                try {
+                    tt.execute(status -> {
+                        vehicleRepository.save(v);
+                        return null;
+                    });
+                    insertedCount++;
+                } catch (Exception e) {
+                    log.warn("Erro ao inserir veículo {}: {}. Tentando recuperar por busca direta...", v.getPlate(), e.getMessage());
+                    try {
+                        Optional<Vehicle> rawOpt = vehicleRepository.findByPlateRaw(v.getPlate());
+                        if (rawOpt.isPresent()) {
+                            Vehicle existing = rawOpt.get();
+                            existing.setDeletedAt(null);
+                            if (v.getModel() != null) existing.setModel(v.getModel());
+                            if (v.getBrand() != null) existing.setBrand(v.getBrand());
+                            if (v.getYear() != null) existing.setYear(v.getYear());
+                            if (v.getChassisNumber() != null) existing.setChassisNumber(v.getChassisNumber());
+                            if (v.getRenavan() != null) existing.setRenavan(v.getRenavan());
+                            if (v.getFleetNumber() != null) existing.setFleetNumber(v.getFleetNumber());
+                            if (v.getColor() != null) existing.setColor(v.getColor());
+                            if (v.getCompanyId() != null) existing.setCompanyId(v.getCompanyId());
+                            if (existing.getStatus() == null) existing.setStatus(VehicleStatus.ACTIVE);
+                            tt.execute(status -> {
+                                vehicleRepository.save(existing);
+                                return null;
+                            });
+                            updatedCount++;
+                            continue;
+                        }
+                    } catch (Exception ex2) {
+                        log.error("Falha no fallback de veículo {}: {}", v.getPlate(), ex2.getMessage());
                     }
-                    if (!toUpdate.isEmpty()) {
-                        vehicleRepository.saveAll(toUpdate);
-                    }
-                    return null;
-                });
-                result.setInserted(toInsert.size());
-                result.setUpdated(toUpdate.size());
+                    result.setSkipped(result.getSkipped() + 1);
+                    result.getErrors().add(String.format("Veículo placa %s não inserido: %s", v.getPlate(), e.getMessage()));
+                }
             }
+
+            // Atualizações
+            for (Vehicle v : toUpdate) {
+                try {
+                    tt.execute(status -> {
+                        vehicleRepository.save(v);
+                        return null;
+                    });
+                    updatedCount++;
+                } catch (Exception e) {
+                    log.warn("Erro ao atualizar veículo {}: {}", v.getPlate(), e.getMessage());
+                    result.setSkipped(result.getSkipped() + 1);
+                    result.getErrors().add(String.format("Veículo placa %s não atualizado: %s", v.getPlate(), e.getMessage()));
+                }
+            }
+
+            result.setInserted(insertedCount);
+            result.setUpdated(updatedCount);
 
         } catch (Exception e) {
             log.error("Erro crítico ao ler o arquivo Excel de veículos: ", e);
@@ -363,12 +419,30 @@ public class VehicleExcelImportService {
         String finalModel = (modelValue != null && !modelValue.isBlank()) ? modelValue : "Modelo Não Especificado";
         String finalBrand = (brandValue != null && !brandValue.isBlank()) ? brandValue : extractBrandFromModel(finalModel);
         VehicleType parsedVehicleType = parseVehicleType(vehicleTypeValue);
-
-        Vehicle vehicle = existingMap.get(finalPlate);
+        String cleanedPlateKey = cleanPlate(finalPlate);
+        Vehicle vehicle = existingMap.get(cleanedPlateKey);
+        if (vehicle == null) {
+            try {
+                Optional<Vehicle> opt = vehicleRepository.findByPlateRaw(finalPlate);
+                if (opt.isPresent()) {
+                    vehicle = opt.get();
+                    existingMap.put(cleanedPlateKey, vehicle);
+                }
+            } catch (Exception ignored) {}
+        }
         UUID currentCompanyId = TenantContext.get();
 
         if (vehicle != null) {
             boolean updated = false;
+
+            if (vehicle.getDeletedAt() != null) {
+                vehicle.setDeletedAt(null);
+                updated = true;
+            }
+            if (vehicle.getStatus() == null) {
+                vehicle.setStatus(VehicleStatus.ACTIVE);
+                updated = true;
+            }
 
             if (finalChassis != null && !finalChassis.equalsIgnoreCase(vehicle.getChassisNumber())) {
                 vehicle.setChassisNumber(truncateString(finalChassis, 50));

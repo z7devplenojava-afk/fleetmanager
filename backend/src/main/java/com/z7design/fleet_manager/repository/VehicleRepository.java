@@ -22,6 +22,16 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
     @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL")
     List<Vehicle> findAll();
 
+    /**
+     * Retorna todos os veículos brutos do banco de dados (ignorando soft delete e filtros de tenant).
+     * Usado para sincronização, importação de planilhas e evitar violação de unicidade de placa.
+     */
+    @Query(value = "SELECT * FROM vehicles", nativeQuery = true)
+    List<Vehicle> findAllRawIncludingDeletedAndTenants();
+
+    @Query(value = "SELECT * FROM vehicles WHERE UPPER(REPLACE(REPLACE(plate, '-', ''), ' ', '')) = UPPER(REPLACE(REPLACE(:plate, '-', ''), ' ', '')) LIMIT 1", nativeQuery = true)
+    Optional<Vehicle> findByPlateRaw(@Param("plate") String plate);
+
     Optional<Vehicle> findByPlate(String plate);
 
     List<Vehicle> findByStatus(Vehicle.VehicleStatus status);
