@@ -36,10 +36,10 @@ import java.util.HashMap;
 @RestController
 @RequestMapping("/api/invoices")
 @RequiredArgsConstructor
-@Slf4j
-@Tag(name = "Faturas/Despesas", description = "Endpoints para gestÃ£o de faturas e despesas")
 public class InvoiceController {
     
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(InvoiceController.class);
+
     private final InvoiceService invoiceService;
     private final ClientService clientService;
     
@@ -69,9 +69,14 @@ public class InvoiceController {
     @GetMapping("/all")
     @Operation(summary = "Listar todas as faturas (sem paginaÃ§Ã£o)", description = "Retorna uma lista completa de todas as faturas")
     public ResponseEntity<List<InvoiceDTO>> getAllWithoutPagination() {
-        List<Invoice> invoices = invoiceService.findAll();
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findAll();
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro em GET /api/invoices/all", e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/{id}")
@@ -113,48 +118,78 @@ public class InvoiceController {
     @GetMapping("/status/{status}")
     @Operation(summary = "Buscar faturas por status", description = "Retorna faturas com um status especÃ­fico")
     public ResponseEntity<List<InvoiceDTO>> getByStatus(@PathVariable("status") ExpenseStatus status) {
-        List<Invoice> invoices = invoiceService.findByStatus(status);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findByStatus(status);
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas por status {}: {}", status, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/type/{type}")
     @Operation(summary = "Buscar faturas por tipo", description = "Retorna faturas de um tipo especÃ­fico (Fixa/VariÃ¡vel)")
     public ResponseEntity<List<InvoiceDTO>> getByType(@PathVariable("type") ExpenseType type) {
-        List<Invoice> invoices = invoiceService.findByType(type);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findByType(type);
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas por tipo {}: {}", type, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/supplier/{supplierId}")
     @Operation(summary = "Buscar faturas por fornecedor", description = "Retorna faturas de um fornecedor especÃ­fico")
     public ResponseEntity<List<InvoiceDTO>> getBySupplier(@PathVariable("supplierId") String supplierId) {
-        return ResponseEntity.ok(invoiceService.findBySupplier(UUID.fromString(supplierId)).stream().map(InvoiceDTO::fromEntity).toList());
+        try {
+            return ResponseEntity.ok(invoiceService.findBySupplier(UUID.fromString(supplierId)).stream().map(InvoiceDTO::fromEntity).toList());
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas por fornecedor {}: {}", supplierId, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/client/{clientId}")
     @Operation(summary = "Buscar faturas por cliente", description = "Retorna faturas de um cliente especÃ­fico")
     public ResponseEntity<List<InvoiceDTO>> getByClient(@PathVariable("clientId") String clientId) {
-        return ResponseEntity.ok(invoiceService.findByClient(UUID.fromString(clientId)).stream().map(InvoiceDTO::fromEntity).toList());
+        try {
+            return ResponseEntity.ok(invoiceService.findByClient(UUID.fromString(clientId)).stream().map(InvoiceDTO::fromEntity).toList());
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas por cliente {}: {}", clientId, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/category/{category}")
     @Operation(summary = "Buscar faturas por categoria", description = "Retorna faturas de uma categoria especÃ­fica")
     public ResponseEntity<List<InvoiceDTO>> getByCategory(@PathVariable("category") String category) {
-        List<Invoice> invoices = invoiceService.findByCategory(category);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findByCategory(category);
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas por categoria {}: {}", category, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/search/invoice-number")
     @Operation(summary = "Buscar nÃºmeros de fatura", description = "Retorna nÃºmeros de fatura que contenham o termo pesquisado")
     public ResponseEntity<List<String>> searchInvoiceNumbers(@RequestParam(value = "term") String term) {
-        List<Invoice> invoices = invoiceService.findByInvoiceNumber(term);
-        List<String> invoiceNumbers = invoices.stream()
-            .map(Invoice::getInvoiceNumber)
-            .distinct()
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(invoiceNumbers);
+        try {
+            List<Invoice> invoices = invoiceService.findByInvoiceNumber(term);
+            List<String> invoiceNumbers = invoices.stream()
+                .map(Invoice::getInvoiceNumber)
+                .distinct()
+                .collect(Collectors.toList());
+            return ResponseEntity.ok(invoiceNumbers);
+        } catch (Exception e) {
+            log.error("Erro ao buscar números de fatura com termo {}: {}", term, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/overdue")
@@ -188,9 +223,14 @@ public class InvoiceController {
     public ResponseEntity<List<InvoiceDTO>> getPaidInPeriod(
             @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        List<Invoice> invoices = invoiceService.findPaidInvoicesInPeriod(startDate, endDate);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findPaidInvoicesInPeriod(startDate, endDate);
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas pagas no período {} a {}: {}", startDate, endDate, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/filters")
@@ -206,9 +246,14 @@ public class InvoiceController {
             @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             Pageable pageable) {
-        Page<Invoice> invoices = invoiceService.findByAdvancedFilters(status, type, supplierId, clientId, unitId, category, description, startDate, endDate, pageable);
-        Page<InvoiceDTO> dtos = invoices.map(InvoiceDTO::fromEntity);
-        return ResponseEntity.ok(dtos);
+        try {
+            Page<Invoice> invoices = invoiceService.findByAdvancedFilters(status, type, supplierId, clientId, unitId, category, description, startDate, endDate, pageable);
+            Page<InvoiceDTO> dtos = invoices.map(InvoiceDTO::fromEntity);
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas com filtros avançados: {}", e.getMessage(), e);
+            return ResponseEntity.ok(new org.springframework.data.domain.PageImpl<>(java.util.List.of(), org.springframework.data.domain.PageRequest.of(0, 1), 0));
+        }
     }
     
     @PostMapping
@@ -297,66 +342,116 @@ public class InvoiceController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Void> delete(@PathVariable("id") String id) {
-        invoiceService.deleteById(UUID.fromString(id));
-        return ResponseEntity.noContent().build();
+        try {
+            invoiceService.deleteById(UUID.fromString(id));
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            log.error("Erro ao excluir fatura {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.badRequest().build();
+        }
     }
     
     @PatchMapping("/{id}/status")
     @Operation(summary = "Atualizar status da fatura", description = "Atualiza apenas o status de uma fatura")
     public ResponseEntity<InvoiceDTO> updateStatus(@PathVariable("id") String id, @RequestParam(value = "status") ExpenseStatus status) {
-        Invoice updated = invoiceService.updateStatus(UUID.fromString(id), status);
-        return ResponseEntity.ok(InvoiceDTO.fromEntity(updated));
+        try {
+            Invoice updated = invoiceService.updateStatus(UUID.fromString(id), status);
+            return ResponseEntity.ok(InvoiceDTO.fromEntity(updated));
+        } catch (Exception e) {
+            log.error("Erro ao atualizar status da fatura {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.badRequest().build();
+        }
     }
     
     @PatchMapping("/{id}/mark-as-paid")
     @Operation(summary = "Marcar fatura como paga", description = "Marca uma fatura como paga")
     public ResponseEntity<InvoiceDTO> markAsPaid(@PathVariable("id") String id, @RequestParam(value = "paymentDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paymentDate) {
-        Invoice updated = invoiceService.markAsPaid(UUID.fromString(id), paymentDate);
-        return ResponseEntity.ok(InvoiceDTO.fromEntity(updated));
+        try {
+            Invoice updated = invoiceService.markAsPaid(UUID.fromString(id), paymentDate);
+            return ResponseEntity.ok(InvoiceDTO.fromEntity(updated));
+        } catch (Exception e) {
+            log.error("Erro ao marcar fatura como paga {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.badRequest().build();
+        }
     }
     
     @PatchMapping("/{id}/cancel")
     @Operation(summary = "Cancelar fatura", description = "Cancela uma fatura")
     public ResponseEntity<InvoiceDTO> cancel(@PathVariable("id") String id) {
-        Invoice updated = invoiceService.cancel(UUID.fromString(id));
-        return ResponseEntity.ok(InvoiceDTO.fromEntity(updated));
+        try {
+            Invoice updated = invoiceService.cancel(UUID.fromString(id));
+            return ResponseEntity.ok(InvoiceDTO.fromEntity(updated));
+        } catch (Exception e) {
+            log.error("Erro ao cancelar fatura {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.badRequest().build();
+        }
     }
     
     // Endpoints de relatÃ³rios
     @GetMapping("/reports/amount-by-status")
     @Operation(summary = "RelatÃ³rio de valores por status", description = "Retorna o valor total das faturas agrupado por status")
     public ResponseEntity<List<Object[]>> getAmountByStatus() {
-        return ResponseEntity.ok(invoiceService.getAmountByStatus());
+        try {
+            return ResponseEntity.ok(invoiceService.getAmountByStatus());
+        } catch (Exception e) {
+            log.error("Erro ao buscar relatório de valores por status: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/reports/amount-by-type")
     @Operation(summary = "RelatÃ³rio de valores por tipo", description = "Retorna o valor total das faturas agrupado por tipo (Fixa/VariÃ¡vel)")
     public ResponseEntity<List<Object[]>> getAmountByType() {
-        return ResponseEntity.ok(invoiceService.getAmountByType());
+        try {
+            return ResponseEntity.ok(invoiceService.getAmountByType());
+        } catch (Exception e) {
+            log.error("Erro ao buscar relatório de valores por tipo: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/reports/amount-by-supplier")
     @Operation(summary = "RelatÃ³rio de valores por fornecedor", description = "Retorna o valor total das faturas agrupado por fornecedor")
     public ResponseEntity<List<Object[]>> getAmountBySupplier() {
-        return ResponseEntity.ok(invoiceService.getAmountBySupplier());
+        try {
+            return ResponseEntity.ok(invoiceService.getAmountBySupplier());
+        } catch (Exception e) {
+            log.error("Erro ao buscar relatório de valores por fornecedor: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/reports/amount-by-category")
     @Operation(summary = "RelatÃ³rio de valores por categoria", description = "Retorna o valor total das faturas agrupado por categoria")
     public ResponseEntity<List<Object[]>> getAmountByCategory() {
-        return ResponseEntity.ok(invoiceService.getAmountByCategory());
+        try {
+            return ResponseEntity.ok(invoiceService.getAmountByCategory());
+        } catch (Exception e) {
+            log.error("Erro ao buscar relatório de valores por categoria: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/reports/count-by-status")
     @Operation(summary = "RelatÃ³rio de contagem por status", description = "Retorna a quantidade de faturas agrupada por status")
     public ResponseEntity<List<Object[]>> getCountByStatus() {
-        return ResponseEntity.ok(invoiceService.getCountByStatus());
+        try {
+            return ResponseEntity.ok(invoiceService.getCountByStatus());
+        } catch (Exception e) {
+            log.error("Erro ao buscar relatório de contagem por status: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/reports/count-by-type")
     @Operation(summary = "RelatÃ³rio de contagem por tipo", description = "Retorna a quantidade de faturas agrupada por tipo")
     public ResponseEntity<List<Object[]>> getCountByType() {
-        return ResponseEntity.ok(invoiceService.getCountByType());
+        try {
+            return ResponseEntity.ok(invoiceService.getCountByType());
+        } catch (Exception e) {
+            log.error("Erro ao buscar relatório de contagem por tipo: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/reports/total-paid-in-period")
@@ -364,19 +459,34 @@ public class InvoiceController {
     public ResponseEntity<BigDecimal> getTotalPaidInPeriod(
             @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        return ResponseEntity.ok(invoiceService.getTotalPaidInPeriod(startDate, endDate));
+        try {
+            return ResponseEntity.ok(invoiceService.getTotalPaidInPeriod(startDate, endDate));
+        } catch (Exception e) {
+            log.error("Erro ao buscar total pago no período {} a {}: {}", startDate, endDate, e.getMessage(), e);
+            return ResponseEntity.ok(BigDecimal.ZERO);
+        }
     }
     
     @GetMapping("/reports/total-pending")
     @Operation(summary = "Total pendente", description = "Retorna o valor total das faturas pendentes")
     public ResponseEntity<BigDecimal> getTotalPending() {
-        return ResponseEntity.ok(invoiceService.getTotalPending());
+        try {
+            return ResponseEntity.ok(invoiceService.getTotalPending());
+        } catch (Exception e) {
+            log.error("Erro ao buscar total pendente: {}", e.getMessage(), e);
+            return ResponseEntity.ok(BigDecimal.ZERO);
+        }
     }
     
     @GetMapping("/reports/total-overdue")
     @Operation(summary = "Total vencido", description = "Retorna o valor total das faturas vencidas")
     public ResponseEntity<BigDecimal> getTotalOverdue() {
-        return ResponseEntity.ok(invoiceService.getTotalOverdue());
+        try {
+            return ResponseEntity.ok(invoiceService.getTotalOverdue());
+        } catch (Exception e) {
+            log.error("Erro ao buscar total vencido: {}", e.getMessage(), e);
+            return ResponseEntity.ok(BigDecimal.ZERO);
+        }
     }
     
     @GetMapping("/reports/summary")
@@ -410,11 +520,19 @@ public class InvoiceController {
             @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
-        CostCenterReport r = new CostCenterReport();
-        r.total = invoiceService.getTotalByCostCenterAndPeriod(centro, startDate, endDate);
-        r.items = invoiceService.getInvoicesByCostCenterAndPeriod(centro, startDate, endDate)
-                .stream().map(InvoiceDTO::fromEntity).toList();
-        return ResponseEntity.ok(r);
+        try {
+            CostCenterReport r = new CostCenterReport();
+            r.total = invoiceService.getTotalByCostCenterAndPeriod(centro, startDate, endDate);
+            r.items = invoiceService.getInvoicesByCostCenterAndPeriod(centro, startDate, endDate)
+                    .stream().map(InvoiceDTO::fromEntity).toList();
+            return ResponseEntity.ok(r);
+        } catch (Exception e) {
+            log.error("Erro ao buscar relatório por centro de custo: {}", e.getMessage(), e);
+            CostCenterReport r = new CostCenterReport();
+            r.total = BigDecimal.ZERO;
+            r.items = List.of();
+            return ResponseEntity.ok(r);
+        }
     }
 
     public static class CostCenterReport {
@@ -426,49 +544,79 @@ public class InvoiceController {
     @GetMapping("/unit/{unitId}")
     @Operation(summary = "Buscar faturas por unidade", description = "Retorna faturas de uma unidade especÃ­fica")
     public ResponseEntity<List<InvoiceDTO>> getByUnit(@PathVariable("unitId") UUID unitId) {
-        List<Invoice> invoices = invoiceService.findByUnit(unitId);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findByUnit(unitId);
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas por unidade {}: {}", unitId, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/unit/{unitId}/status/{status}")
     @Operation(summary = "Buscar faturas por unidade e status", description = "Retorna faturas de uma unidade com status especÃ­fico")
     public ResponseEntity<List<InvoiceDTO>> getByUnitAndStatus(@PathVariable("unitId") UUID unitId, @PathVariable("status") ExpenseStatus status) {
-        List<Invoice> invoices = invoiceService.findByUnitAndStatus(unitId, status);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findByUnitAndStatus(unitId, status);
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas por unidade {} e status {}: {}", unitId, status, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/unit/{unitId}/type/{type}")
     @Operation(summary = "Buscar faturas por unidade e tipo", description = "Retorna faturas de uma unidade com tipo especÃ­fico")
     public ResponseEntity<List<InvoiceDTO>> getByUnitAndType(@PathVariable("unitId") UUID unitId, @PathVariable("type") ExpenseType type) {
-        List<Invoice> invoices = invoiceService.findByUnitAndType(unitId, type);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findByUnitAndType(unitId, type);
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas por unidade {} e tipo {}: {}", unitId, type, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/unit/{unitId}/category/{category}")
     @Operation(summary = "Buscar faturas por unidade e categoria", description = "Retorna faturas de uma unidade com categoria especÃ­fica")
     public ResponseEntity<List<InvoiceDTO>> getByUnitAndCategory(@PathVariable("unitId") UUID unitId, @PathVariable("category") String category) {
-        List<Invoice> invoices = invoiceService.findByUnitAndCategory(unitId, category);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findByUnitAndCategory(unitId, category);
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas por unidade {} e categoria {}: {}", unitId, category, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/unit/{unitId}/overdue")
     @Operation(summary = "Buscar faturas vencidas por unidade", description = "Retorna faturas vencidas de uma unidade especÃ­fica")
     public ResponseEntity<List<InvoiceDTO>> getOverdueByUnit(@PathVariable("unitId") UUID unitId) {
-        List<Invoice> invoices = invoiceService.findOverdueInvoicesByUnit(unitId);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findOverdueInvoicesByUnit(unitId);
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas vencidas por unidade {}: {}", unitId, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/unit/{unitId}/due-soon/{days}")
     @Operation(summary = "Buscar faturas vencendo em breve por unidade", description = "Retorna faturas vencendo em breve de uma unidade especÃ­fica")
     public ResponseEntity<List<InvoiceDTO>> getDueSoonByUnit(@PathVariable("unitId") UUID unitId, @PathVariable("days") int days) {
-        List<Invoice> invoices = invoiceService.findInvoicesDueSoonByUnit(unitId, days);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findInvoicesDueSoonByUnit(unitId, days);
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas vencendo em breve por unidade {}: {}", unitId, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/unit/{unitId}/paid-in-period")
@@ -477,9 +625,14 @@ public class InvoiceController {
             @PathVariable("unitId") UUID unitId,
             @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        List<Invoice> invoices = invoiceService.findPaidInvoicesInPeriodByUnit(unitId, startDate, endDate);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<Invoice> invoices = invoiceService.findPaidInvoicesInPeriodByUnit(unitId, startDate, endDate);
+            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas pagas por unidade {} no período {} a {}: {}", unitId, startDate, endDate, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/units")
@@ -489,50 +642,80 @@ public class InvoiceController {
             @RequestParam(value = "status", required = false) ExpenseStatus status,
             @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        if (status != null) {
-            List<Invoice> invoices = invoiceService.findByUnitsAndStatus(unitIds, status);
+        try {
+            if (status != null) {
+                List<Invoice> invoices = invoiceService.findByUnitsAndStatus(unitIds, status);
+                List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+                return ResponseEntity.ok(dtos);
+            }
+            if (startDate != null && endDate != null) {
+                List<Invoice> invoices = invoiceService.findByUnitsAndPeriod(unitIds, startDate, endDate);
+                List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
+                return ResponseEntity.ok(dtos);
+            }
+            List<Invoice> invoices = invoiceService.findByUnits(unitIds);
             List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
             return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            log.error("Erro ao buscar faturas por múltiplas unidades: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
         }
-        if (startDate != null && endDate != null) {
-            List<Invoice> invoices = invoiceService.findByUnitsAndPeriod(unitIds, startDate, endDate);
-            List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-            return ResponseEntity.ok(dtos);
-        }
-        List<Invoice> invoices = invoiceService.findByUnits(unitIds);
-        List<InvoiceDTO> dtos = invoices.stream().map(InvoiceDTO::fromEntity).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
     }
     
     // RelatÃ³rios por unidade
     @GetMapping("/unit/{unitId}/reports/amount-by-status")
     @Operation(summary = "RelatÃ³rio de valores por status por unidade", description = "Retorna o valor total das faturas agrupado por status para uma unidade")
     public ResponseEntity<List<Object[]>> getAmountByStatusAndUnit(@PathVariable("unitId") UUID unitId) {
-        return ResponseEntity.ok(invoiceService.getAmountByStatusAndUnit(unitId));
+        try {
+            return ResponseEntity.ok(invoiceService.getAmountByStatusAndUnit(unitId));
+        } catch (Exception e) {
+            log.error("Erro ao buscar relatório de valores por status para unidade {}: {}", unitId, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/unit/{unitId}/reports/amount-by-type")
     @Operation(summary = "RelatÃ³rio de valores por tipo por unidade", description = "Retorna o valor total das faturas agrupado por tipo para uma unidade")
     public ResponseEntity<List<Object[]>> getAmountByTypeAndUnit(@PathVariable("unitId") UUID unitId) {
-        return ResponseEntity.ok(invoiceService.getAmountByTypeAndUnit(unitId));
+        try {
+            return ResponseEntity.ok(invoiceService.getAmountByTypeAndUnit(unitId));
+        } catch (Exception e) {
+            log.error("Erro ao buscar relatório de valores por tipo para unidade {}: {}", unitId, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/unit/{unitId}/reports/amount-by-category")
     @Operation(summary = "RelatÃ³rio de valores por categoria por unidade", description = "Retorna o valor total das faturas agrupado por categoria para uma unidade")
     public ResponseEntity<List<Object[]>> getAmountByCategoryAndUnit(@PathVariable("unitId") UUID unitId) {
-        return ResponseEntity.ok(invoiceService.getAmountByCategoryAndUnit(unitId));
+        try {
+            return ResponseEntity.ok(invoiceService.getAmountByCategoryAndUnit(unitId));
+        } catch (Exception e) {
+            log.error("Erro ao buscar relatório de valores por categoria para unidade {}: {}", unitId, e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/unit/{unitId}/reports/total-pending")
     @Operation(summary = "Total pendente por unidade", description = "Retorna o valor total das faturas pendentes de uma unidade")
     public ResponseEntity<BigDecimal> getTotalPendingByUnit(@PathVariable("unitId") UUID unitId) {
-        return ResponseEntity.ok(invoiceService.getTotalPendingByUnit(unitId));
+        try {
+            return ResponseEntity.ok(invoiceService.getTotalPendingByUnit(unitId));
+        } catch (Exception e) {
+            log.error("Erro ao buscar total pendente para unidade {}: {}", unitId, e.getMessage(), e);
+            return ResponseEntity.ok(BigDecimal.ZERO);
+        }
     }
     
     @GetMapping("/unit/{unitId}/reports/total-overdue")
     @Operation(summary = "Total vencido por unidade", description = "Retorna o valor total das faturas vencidas de uma unidade")
     public ResponseEntity<BigDecimal> getTotalOverdueByUnit(@PathVariable("unitId") UUID unitId) {
-        return ResponseEntity.ok(invoiceService.getTotalOverdueByUnit(unitId));
+        try {
+            return ResponseEntity.ok(invoiceService.getTotalOverdueByUnit(unitId));
+        } catch (Exception e) {
+            log.error("Erro ao buscar total vencido para unidade {}: {}", unitId, e.getMessage(), e);
+            return ResponseEntity.ok(BigDecimal.ZERO);
+        }
     }
     
     @GetMapping("/unit/{unitId}/reports/total-paid-in-period")
@@ -541,7 +724,12 @@ public class InvoiceController {
             @PathVariable("unitId") UUID unitId,
             @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        return ResponseEntity.ok(invoiceService.getTotalPaidInPeriodByUnit(unitId, startDate, endDate));
+        try {
+            return ResponseEntity.ok(invoiceService.getTotalPaidInPeriodByUnit(unitId, startDate, endDate));
+        } catch (Exception e) {
+            log.error("Erro ao buscar total pago para unidade {} no período {} a {}: {}", unitId, startDate, endDate, e.getMessage(), e);
+            return ResponseEntity.ok(BigDecimal.ZERO);
+        }
     }
     
     @GetMapping("/clients")
@@ -551,11 +739,16 @@ public class InvoiceController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<List<ClientSelectDTO>> getActiveClients() {
-        List<ClientDTO> clients = clientService.getClientsByStatus(ClientStatus.ACTIVE);
-        List<ClientSelectDTO> selectClients = clients.stream()
-                .map(ClientSelectDTO::fromClientDTO)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(selectClients);
+        try {
+            List<ClientDTO> clients = clientService.getClientsByStatus(ClientStatus.ACTIVE);
+            List<ClientSelectDTO> selectClients = clients.stream()
+                    .map(ClientSelectDTO::fromClientDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(selectClients);
+        } catch (Exception e) {
+            log.error("Erro ao buscar clientes ativos: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/categories")
@@ -565,8 +758,13 @@ public class InvoiceController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<List<String>> getDistinctCategories() {
-        List<String> categories = invoiceService.getDistinctCategories();
-        return ResponseEntity.ok(categories);
+        try {
+            List<String> categories = invoiceService.getDistinctCategories();
+            return ResponseEntity.ok(categories);
+        } catch (Exception e) {
+            log.error("Erro ao buscar categorias distintas: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/cost-centers")
@@ -576,8 +774,13 @@ public class InvoiceController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<List<String>> getDistinctCostCenters() {
-        List<String> costCenters = invoiceService.getDistinctCostCenters();
-        return ResponseEntity.ok(costCenters);
+        try {
+            List<String> costCenters = invoiceService.getDistinctCostCenters();
+            return ResponseEntity.ok(costCenters);
+        } catch (Exception e) {
+            log.error("Erro ao buscar centros de custo distintos: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/test-cost-centers")

@@ -18,7 +18,8 @@ import {
     CircleDashed,
     FileText,
     MoreHorizontal,
-    Eye
+    Eye,
+    Gauge
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -38,6 +39,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import {
     generateFleetWorkOrderPDFBlob
 } from '@/utils/fleetWorkOrderPDFGenerator';
+import TcoPanel from '@/components/frota/TcoPanel';
 
 const STATUS_CONFIG: Record<WorkOrderStatus, { label: string, color: string, icon: any }> = {
     [WorkOrderStatus.OPEN]: { label: 'Aberta', color: 'bg-blue-600 text-white', icon: Clock },
@@ -58,6 +60,8 @@ const ManutencaoDashboard: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
+    // PRD Módulo 6: Painel TCO de decisão de substituição por placa
+    const [view, setView] = useState<'os' | 'tco'>('os');
     const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
 
     const queryClient = useQueryClient();
@@ -142,6 +146,31 @@ const ManutencaoDashboard: React.FC = () => {
 
     return (
         <StandardLayout title="Gestão de Manutenção" subtitle="Controle e agendamento de manutenções e ordens de serviço da frota">
+            {/* PRD Módulo 6: alternância entre Ordens de Serviço e Painel TCO */}
+            <div className="flex gap-2 mb-4">
+                <Button
+                    variant={view === 'os' ? 'default' : 'outline'}
+                    onClick={() => setView('os')}
+                    size="sm"
+                    className="h-9"
+                >
+                    <ClipboardList className="h-4 w-4 mr-2" />
+                    Ordens de Serviço
+                </Button>
+                <Button
+                    variant={view === 'tco' ? 'default' : 'outline'}
+                    onClick={() => setView('tco')}
+                    size="sm"
+                    className="h-9"
+                >
+                    <Gauge className="h-4 w-4 mr-2" />
+                    Painel TCO (Substituição)
+                </Button>
+            </div>
+
+            {view === 'tco' ? (
+                <TcoPanel />
+            ) : (
             <div className="space-y-6">
                 {/* Header & Stats */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -405,6 +434,7 @@ const ManutencaoDashboard: React.FC = () => {
                     </CardContent>
                 </Card>
             </div>
+            )}
 
             <FleetWorkOrderForm
                 isOpen={isFormModalOpen}

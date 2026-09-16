@@ -7,7 +7,7 @@ import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.repository.CorrectiveActionRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,14 +20,23 @@ import java.util.UUID;
  * ServiÃ§o para gerenciamento de aÃ§Ãµes corretivas
  */
 @Service
-@RequiredArgsConstructor
-@Slf4j
 @Transactional
 public class CorrectiveActionService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CorrectiveActionService.class);
 
     private final CorrectiveActionRepository actionRepository;
     private final UserRepository userRepository;
     private final AuthenticationService authenticationService;
+
+    @Autowired
+    public CorrectiveActionService(CorrectiveActionRepository actionRepository,
+                                  UserRepository userRepository,
+                                  AuthenticationService authenticationService) {
+        this.actionRepository = actionRepository;
+        this.userRepository = userRepository;
+        this.authenticationService = authenticationService;
+    }
 
     /**
      * Cria uma nova aÃ§Ã£o corretiva
@@ -159,26 +168,57 @@ public class CorrectiveActionService {
      * Converte entidade para DTO
      */
     public CorrectiveActionDTO toDTO(CorrectiveAction action) {
-        return CorrectiveActionDTO.builder()
+        CorrectiveActionDTO.CorrectiveActionDTOBuilder builder = CorrectiveActionDTO.builder()
                 .id(action.getId())
                 .title(action.getTitle())
                 .description(action.getDescription())
                 .origin(action.getOrigin())
                 .priority(action.getPriority())
                 .status(action.getStatus())
-                .responsibleUserId(action.getResponsibleUser() != null ? action.getResponsibleUser().getId() : null)
                 .responsibleName(action.getResponsibleName())
                 .dueDate(action.getDueDate())
                 .completionDate(action.getCompletionDate())
                 .department(action.getDepartment())
                 .notes(action.getNotes())
-                .relatedInspectionId(action.getRelatedInspection() != null ? action.getRelatedInspection().getId() : null)
-                .relatedAccidentId(action.getRelatedAccident() != null ? action.getRelatedAccident().getId() : null)
-                .relatedNonConformityId(action.getRelatedNonConformity() != null ? action.getRelatedNonConformity().getId() : null)
-                .createdByUserId(action.getCreatedByUser() != null ? action.getCreatedByUser().getId() : null)
                 .createdAt(action.getCreatedAt())
-                .updatedAt(action.getUpdatedAt())
-                .build();
+                .updatedAt(action.getUpdatedAt());
+
+        try {
+            builder.responsibleUserId(action.getResponsibleUser() != null ? action.getResponsibleUser().getId() : null);
+        } catch (Exception e) {
+            log.debug("Erro ao acessar responsibleUser da ação {}: {}", action.getId(), e.getMessage());
+            builder.responsibleUserId(null);
+        }
+
+        try {
+            builder.relatedInspectionId(action.getRelatedInspection() != null ? action.getRelatedInspection().getId() : null);
+        } catch (Exception e) {
+            log.debug("Erro ao acessar relatedInspection da ação {}: {}", action.getId(), e.getMessage());
+            builder.relatedInspectionId(null);
+        }
+
+        try {
+            builder.relatedAccidentId(action.getRelatedAccident() != null ? action.getRelatedAccident().getId() : null);
+        } catch (Exception e) {
+            log.debug("Erro ao acessar relatedAccident da ação {}: {}", action.getId(), e.getMessage());
+            builder.relatedAccidentId(null);
+        }
+
+        try {
+            builder.relatedNonConformityId(action.getRelatedNonConformity() != null ? action.getRelatedNonConformity().getId() : null);
+        } catch (Exception e) {
+            log.debug("Erro ao acessar relatedNonConformity da ação {}: {}", action.getId(), e.getMessage());
+            builder.relatedNonConformityId(null);
+        }
+
+        try {
+            builder.createdByUserId(action.getCreatedByUser() != null ? action.getCreatedByUser().getId() : null);
+        } catch (Exception e) {
+            log.debug("Erro ao acessar createdByUser da ação {}: {}", action.getId(), e.getMessage());
+            builder.createdByUserId(null);
+        }
+
+        return builder.build();
     }
 }
 

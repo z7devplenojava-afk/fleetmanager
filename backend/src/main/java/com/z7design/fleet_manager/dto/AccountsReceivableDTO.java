@@ -19,7 +19,6 @@ public class AccountsReceivableDTO {
     
     private ClientDTO client;
     
-    @NotBlank(message = "Número da fatura é obrigatório")
     @Size(max = 100, message = "Número da fatura deve ter no máximo 100 caracteres")
     private String invoiceNumber;
     

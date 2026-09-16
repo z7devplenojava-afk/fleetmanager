@@ -155,6 +155,19 @@ public class FleetWorkOrder implements TenantAware {
     @Column(name = "odometer_out")
     private Integer odometerOut;
 
+    // ── Carro reserva (M7/RF-07.1 — RF-03.4) ──────────────────
+    /** Veículo reserva que cobriu a rota durante a parada de manutenção */
+    @Column(name = "reserve_vehicle_id")
+    private UUID reserveVehicleId;
+
+    /** Indica se a parada foi coberta por carro reserva (isenta de corte no BM) */
+    @Column(name = "reserve_covered", nullable = false)
+    private Boolean reserveCovered = false;
+
+    /** Tempo de resposta do carro reserva em minutos (KPI ≤ 4h do PRD) */
+    @Column(name = "reserve_response_minutes")
+    private Integer reserveResponseMinutes;
+
     // ── Motivo da parada ─────────────────────────────────────
     /** Descrição do motivo pelo qual o veículo foi parado */
     @Column(name = "stop_reason", columnDefinition = "TEXT")

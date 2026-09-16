@@ -49,7 +49,15 @@ public class ProposalDTO {
     private java.util.UUID assignedToId;
     
     private String assignedToName;
-    
+
+    /** PRD Módulo 2: simulação de custos (Módulo 1) que originou os valores. */
+    private java.util.UUID costSimulationId;
+    private java.math.BigDecimal monthlyPrice;
+    private java.math.BigDecimal dailyRate;
+    private java.math.BigDecimal franchiseKm;
+    private java.math.BigDecimal excessKmRate;
+    private java.math.BigDecimal extraTripRate;
+
     private List<ProposalItemDTO> items;
     
     private LocalDateTime createdAt;
@@ -194,6 +202,54 @@ public class ProposalDTO {
         this.assignedToId = assignedToId;
     }
     
+    public java.util.UUID getCostSimulationId() {
+        return costSimulationId;
+    }
+
+    public void setCostSimulationId(java.util.UUID costSimulationId) {
+        this.costSimulationId = costSimulationId;
+    }
+
+    public java.math.BigDecimal getMonthlyPrice() {
+        return monthlyPrice;
+    }
+
+    public void setMonthlyPrice(java.math.BigDecimal monthlyPrice) {
+        this.monthlyPrice = monthlyPrice;
+    }
+
+    public java.math.BigDecimal getDailyRate() {
+        return dailyRate;
+    }
+
+    public void setDailyRate(java.math.BigDecimal dailyRate) {
+        this.dailyRate = dailyRate;
+    }
+
+    public java.math.BigDecimal getFranchiseKm() {
+        return franchiseKm;
+    }
+
+    public void setFranchiseKm(java.math.BigDecimal franchiseKm) {
+        this.franchiseKm = franchiseKm;
+    }
+
+    public java.math.BigDecimal getExcessKmRate() {
+        return excessKmRate;
+    }
+
+    public void setExcessKmRate(java.math.BigDecimal excessKmRate) {
+        this.excessKmRate = excessKmRate;
+    }
+
+    public java.math.BigDecimal getExtraTripRate() {
+        return extraTripRate;
+    }
+
+    public void setExtraTripRate(java.math.BigDecimal extraTripRate) {
+        this.extraTripRate = extraTripRate;
+    }
+
     public String getAssignedToName() {
         return assignedToName;
     }

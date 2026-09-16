@@ -1054,7 +1054,7 @@ export function DynamicSidebar() {
         ['empresas', 'filiais', 'clientes', 'fornecedores'].includes(item.id)
       ),
       comercial: filteredItems.filter(item =>
-        ['leads', 'propostas', 'orcamentos', 'contratos', 'crm', 'prospeccao'].includes(item.id)
+        ['leads', 'propostas', 'orcamentos', 'contratos', 'crm', 'prospeccao', 'retencoes', 'precificacao', 'dre'].includes(item.id)
       ),
       compras: filteredItems.filter(item =>
         ['compras', 'compras-solicitacoes', 'compras-aprovacoes', 'compras-cotacoes', 'compras-relatorios'].includes(item.id)

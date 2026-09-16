@@ -47,13 +47,13 @@ public class AccountsReceivableService {
      */
     @Transactional(readOnly = true)
     public Page<AccountsReceivableDTO> getAllAccountsReceivable(Pageable pageable) {
-        log.info("Buscando todas as contas a receber com paginaÃ§Ã£o");
-        Page<AccountsReceivable> accounts = accountsReceivableRepository.findAllOrderByDueDate(pageable);
+        log.info("Buscando todas as contas a receber com paginação");
+        Page<AccountsReceivable> accounts = accountsReceivableRepository.findAll(pageable);
         return accounts.map(AccountsReceivableDTO::fromEntity);
     }
     
     /**
-     * Buscar todas as contas a receber sem paginaÃ§Ã£o
+     * Buscar todas as contas a receber sem paginação
      */
     @Transactional(readOnly = true)
     public List<AccountsReceivableDTO> getAllAccountsReceivable() {
@@ -71,7 +71,7 @@ public class AccountsReceivableService {
     public AccountsReceivableDTO getAccountsReceivableById(UUID id) {
         log.info("Buscando conta a receber por ID: {}", id);
         AccountsReceivable account = accountsReceivableRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Conta a receber nÃ£o encontrada com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Conta a receber não encontrada com ID: " + id));
         return AccountsReceivableDTO.fromEntity(account);
     }
     
@@ -83,12 +83,16 @@ public class AccountsReceivableService {
         
         // Buscar cliente
         Client client = clientRepository.findById(dto.getClientId())
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente nÃ£o encontrado com ID: " + dto.getClientId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com ID: " + dto.getClientId()));
         
         // Criar entidade
         AccountsReceivable account = new AccountsReceivable();
         account.setClient(client);
-        account.setInvoiceNumber(dto.getInvoiceNumber());
+        if (dto.getInvoiceNumber() == null || dto.getInvoiceNumber().isBlank()) {
+            account.setInvoiceNumber("FAT-" + (System.currentTimeMillis() % 1000000));
+        } else {
+            account.setInvoiceNumber(dto.getInvoiceNumber());
+        }
         // Se measurementId for enviado, preferir preencher measurementNumber com o id (ou buscar nÃºmero posteriormente)
         if (dto.getMeasurementId() != null && (dto.getMeasurementNumber() == null || dto.getMeasurementNumber().isBlank())) {
             account.setMeasurementNumber(dto.getMeasurementId().toString());

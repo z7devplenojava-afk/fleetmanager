@@ -16,7 +16,6 @@ import RelatoriosTab from '@/components/financeiro/RelatoriosTab';
 import CentroCustosTab from '@/components/financeiro/CentroCustosTab';
 import FaturasTab from '@/components/financeiro/FaturasTab';
 import MedicoesTab from '@/components/financeiro/MedicoesTab';
-import { ContractRetentionTab } from '@/components/financeiro/ContractRetentionTab';
 
 const FinanceiroSimple: React.FC = () => {
   const { toast } = useToast();
@@ -70,7 +69,7 @@ const FinanceiroSimple: React.FC = () => {
         <div className="space-y-6">
           <Tabs defaultValue="dashboard" className="w-full">
             {/* Tabs - Padrão SST Simplificado */}
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-9 bg-seguranca-graphite border-gray-600">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-9 bg-seguranca-graphite border-gray-600">
               <TabsTrigger value="dashboard" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-red text-xs sm:text-sm">
                 Dashboard
               </TabsTrigger>
@@ -97,9 +96,6 @@ const FinanceiroSimple: React.FC = () => {
               </TabsTrigger>
               <TabsTrigger value="medicoes" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-red text-xs sm:text-sm">
                 Medições
-              </TabsTrigger>
-              <TabsTrigger value="retencoes" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-red text-xs sm:text-sm">
-                Retenções
               </TabsTrigger>
             </TabsList>
 
@@ -146,10 +142,6 @@ const FinanceiroSimple: React.FC = () => {
 
           <TabsContent value="medicoes">
             <MedicoesTab />
-          </TabsContent>
-
-          <TabsContent value="retencoes">
-            <ContractRetentionTab />
           </TabsContent>
           </Tabs>
         </div>

@@ -42,6 +42,9 @@ public class ProposalService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private com.z7design.fleet_manager.repository.CostSimulationRepository costSimulationRepository;
+
     public List<Proposal> findAll() {
         List<Proposal> proposals = proposalRepository.findAll();
         
@@ -158,6 +161,27 @@ public class ProposalService {
                     .orElseThrow(() -> new ResourceNotFoundException("UsuÃ¡rio responsÃ¡vel nÃ£o encontrado")));
         }
 
+        // PRD MÃ³dulo 2 (M1âM2): vincula a simulaÃ§Ã£o de custos aprovada e copia os valores econÃ´micos
+        if (proposalDTO.getCostSimulationId() != null) {
+            com.z7design.fleet_manager.model.CostSimulation simulation = costSimulationRepository
+                    .findById(proposalDTO.getCostSimulationId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "SimulaÃ§Ã£o de custos nÃ£o encontrada com ID: " + proposalDTO.getCostSimulationId()));
+            if (simulation.getStatus() != com.z7design.fleet_manager.model.enums.CostSimulationStatus.APPROVED) {
+                throw new IllegalArgumentException(
+                        "Somente simulaÃ§Ãµes APROVADAS podem alimentar propostas. Status atual: " + simulation.getStatus());
+            }
+            proposal.setCostSimulation(simulation);
+            if (proposalDTO.getTotalValue() == null) {
+                proposal.setTotalValue(simulation.getMonthlyPrice());
+            }
+            proposalDTO.setMonthlyPrice(simulation.getMonthlyPrice());
+            proposalDTO.setDailyRate(simulation.getDailyRate());
+            proposalDTO.setFranchiseKm(simulation.getFranchiseKm());
+            proposalDTO.setExcessKmRate(simulation.getExcessKmRate());
+            proposalDTO.setExtraTripRate(simulation.getExtraTripRate());
+        }
+
         proposal = proposalRepository.save(proposal);
 
         // Salvar itens da proposta
@@ -202,6 +226,19 @@ public class ProposalService {
                     .orElseThrow(() -> new ResourceNotFoundException("UsuÃ¡rio responsÃ¡vel nÃ£o encontrado")));
         } else {
             proposal.setAssignedTo(null);
+        }
+
+        // PRD MÃ³dulo 2 (M1âM2): atualiza vÃ­nculo com a simulaÃ§Ã£o aprovada
+        if (proposalDTO.getCostSimulationId() != null) {
+            com.z7design.fleet_manager.model.CostSimulation simulation = costSimulationRepository
+                    .findById(proposalDTO.getCostSimulationId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "SimulaÃ§Ã£o de custos nÃ£o encontrada com ID: " + proposalDTO.getCostSimulationId()));
+            if (simulation.getStatus() != com.z7design.fleet_manager.model.enums.CostSimulationStatus.APPROVED) {
+                throw new IllegalArgumentException(
+                        "Somente simulaÃ§Ãµes APROVADAS podem alimentar propostas. Status atual: " + simulation.getStatus());
+            }
+            proposal.setCostSimulation(simulation);
         }
 
         return proposalRepository.save(proposal);

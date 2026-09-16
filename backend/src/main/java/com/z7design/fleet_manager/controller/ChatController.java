@@ -33,9 +33,10 @@ import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/chat")
-@Slf4j
 public class ChatController {
     
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ChatController.class);
+
     @Autowired
     private ChatService chatService;
     
@@ -620,7 +621,7 @@ public class ChatController {
                 .map(User::getId)
                 .orElse(null);
         } catch (Exception e) {
-            log.error("Erro ao buscar usuÃ¡rio por username: {}", username, e);
+            log.error("Erro ao buscar usuário por username: {}", username, e);
             return null;
         }
     }

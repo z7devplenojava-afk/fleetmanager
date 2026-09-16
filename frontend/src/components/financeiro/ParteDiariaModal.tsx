@@ -90,16 +90,27 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
       const employeeList = Array.isArray(rawEmployees) ? rawEmployees : (rawEmployees as any)?.content || [];
 
+      // Helper para extrair o cargo em formato texto com segurança
+      const getCargoText = (e: any): string => {
+        if (!e) return '';
+        const rawPos = e.position || e.cargo || e.jobTitle;
+        if (typeof rawPos === 'string') return rawPos;
+        if (rawPos && typeof rawPos === 'object') {
+          return rawPos.name || rawPos.title || rawPos.cargo || rawPos.description || '';
+        }
+        return '';
+      };
+
       // Filtrar funcionários que têm cargo/função de Motorista
       const motoristasEmp = employeeList
         .filter((e: any) => {
-          const cargo = (e.position || e.cargo || e.jobTitle || '').toLowerCase();
+          const cargo = getCargoText(e).toLowerCase();
           return cargo.includes('motorista') || cargo.includes('condutor') || cargo.includes('driver');
         })
         .map((e: any) => ({
           id: e.id,
           name: e.name || e.nome || 'Funcionário Motorista',
-          cargo: e.position || e.cargo || 'Motorista'
+          cargo: getCargoText(e) || 'Motorista'
         }));
 
       setMotoristasFuncionarios(motoristasEmp);
@@ -330,7 +341,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                     type="date"
                     value={docDate}
                     onChange={(e) => setDocDate(e.target.value)}
-                    className="w-36 bg-slate-900 border-slate-700 text-white font-bold h-8 text-xs rounded-lg"
+                    className="w-36 bg-slate-900 border-slate-700 text-white font-bold h-8 text-xs rounded-lg [color-scheme:dark]"
                   />
                 </div>
               </div>
@@ -411,8 +422,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                     <SelectTrigger className="bg-slate-900 border-slate-700 text-white font-mono font-bold h-9 mt-1 rounded-xl">
                       <SelectValue placeholder="Selecione a placa..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                      {vehicles.map((v: any) => (
+                    <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-60 overflow-y-auto">
+                      {vehicles.slice(0, 100).map((v: any) => (
                         <SelectItem key={v.id} value={v.id}>
                           {v.placa || v.plate} — {v.modelo || v.model || 'Veículo'}
                         </SelectItem>
@@ -459,7 +470,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                           Usar digitado: <strong className="text-white">"{driverName}"</strong>
                         </div>
                       ) : (
-                        filteredMotoristas.map((m, idx) => (
+                        filteredMotoristas.slice(0, 50).map((m, idx) => (
                           <div
                             key={m.id || idx}
                             onClick={() => {
@@ -704,6 +715,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
           </DialogFooter>
         </form>
       </DialogContent>
+    </Dialog>
   );
 };
 

@@ -128,23 +128,23 @@ const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center text-gray-900 flex items-center justify-center gap-2">
-            <PlayCircle className="h-7 w-7 text-red-600" />
-            Solicitar Demonstração
+      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto bg-slate-900 text-slate-100 border-slate-800 shadow-2xl">
+        <DialogHeader className="pt-2">
+          <DialogTitle className="text-2xl sm:text-3xl font-bold text-center text-white flex items-center justify-center gap-2">
+            <PlayCircle className="h-7 w-7 text-red-500 animate-pulse" />
+            Solicitar Demonstração Gratuita
           </DialogTitle>
-          <p className="text-center text-gray-600 mt-2">
-            Preencha os dados e escolha os módulos que deseja conhecer. Agendaremos uma demonstração personalizada.
+          <p className="text-center text-slate-400 mt-2 text-sm sm:text-base">
+            Conheça o Fluxbus em ação. Preencha seus dados para agendarmos uma apresentação rápida e sem compromisso.
           </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5 mt-2">
           {/* Dados Pessoais */}
           <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="flex items-center gap-2 text-slate-300 font-medium text-sm">
+                <User className="h-4 w-4 text-cyan-400" />
                 Nome Completo *
               </Label>
               <Input
@@ -152,123 +152,141 @@ const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose }) => {
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="Seu nome completo"
+                className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
                 required
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="email" className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                Email *
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="flex items-center gap-2 text-slate-300 font-medium text-sm">
+                <Mail className="h-4 w-4 text-cyan-400" />
+                E-mail Corporativo *
               </Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="seu@email.com"
+                placeholder="seu@empresa.com.br"
+                className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
                 required
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                Telefone *
+            <div className="space-y-1.5">
+              <Label htmlFor="phone" className="flex items-center gap-2 text-slate-300 font-medium text-sm">
+                <Phone className="h-4 w-4 text-cyan-400" />
+                WhatsApp / Telefone *
               </Label>
               <Input
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
-                placeholder="(00) 00000-0000"
+                placeholder="(00) 90000-0000"
+                className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
                 required
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="company" className="flex items-center gap-2">
-                <Building className="h-4 w-4" />
-                Empresa
+            <div className="space-y-1.5">
+              <Label htmlFor="company" className="flex items-center gap-2 text-slate-300 font-medium text-sm">
+                <Building className="h-4 w-4 text-cyan-400" />
+                Nome da Empresa
               </Label>
               <Input
                 id="company"
                 value={formData.company}
                 onChange={(e) => handleInputChange('company', e.target.value)}
-                placeholder="Nome da empresa (opcional)"
+                placeholder="Ex: Viacão Expresso SP"
+                className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
               />
             </div>
           </div>
 
           {/* Seleção de Módulos */}
-          <div className="space-y-4">
-            <Label className="text-lg font-semibold">Módulos de Interesse</Label>
-            <p className="text-sm text-gray-500 -mt-2">Selecione os módulos que deseja ver na demonstração</p>
-            <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-3 pt-2">
+            <Label className="text-base font-semibold text-slate-200 block">
+              Módulos de Maior Interesse (opcional)
+            </Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {services.map((service) => {
                 const IconComponent = service.icon;
+                const isChecked = formData.services.includes(service.id);
                 return (
-                  <Card key={service.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start space-x-3">
-                        <Checkbox
-                          id={service.id}
-                          checked={formData.services.includes(service.id)}
-                          onCheckedChange={(checked) => 
-                            handleServiceChange(service.id, checked as boolean)
-                          }
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <IconComponent className="h-5 w-5 text-red-600" />
-                            <Label 
-                              htmlFor={service.id} 
-                              className="font-semibold cursor-pointer"
-                            >
-                              {service.title}
-                            </Label>
-                          </div>
-                          <p className="text-sm text-gray-600">{service.description}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <div 
+                    key={service.id}
+                    onClick={() => handleServiceChange(service.id, !isChecked)}
+                    className={`p-3 rounded-lg border transition-all cursor-pointer flex items-center gap-3 ${
+                      isChecked 
+                        ? 'bg-slate-800/90 border-cyan-500 shadow-md shadow-cyan-950/40' 
+                        : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <Checkbox
+                      id={service.id}
+                      checked={isChecked}
+                      onCheckedChange={(checked) => 
+                        handleServiceChange(service.id, checked as boolean)
+                      }
+                      className="border-slate-700 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                    />
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <IconComponent className={`h-4 w-4 flex-shrink-0 ${isChecked ? 'text-cyan-400' : 'text-slate-400'}`} />
+                      <span className="text-xs font-medium text-slate-200 truncate">{service.title}</span>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Mensagem Adicional */}
-          <div className="space-y-2">
-            <Label htmlFor="message" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Observações
+          {/* Observações */}
+          <div className="space-y-1.5 pt-1">
+            <Label htmlFor="message" className="flex items-center gap-2 text-slate-300 font-medium text-sm">
+              <MessageSquare className="h-4 w-4 text-cyan-400" />
+              Tamanho da Frota / Detalhes (opcional)
             </Label>
             <Textarea
               id="message"
               value={formData.message}
               onChange={(e) => handleInputChange('message', e.target.value)}
-              placeholder="Conte-nos um pouco sobre sua operação e suas necessidades (opcional)"
-              rows={4}
+              placeholder="Ex: Possuímos 15 ônibus de fretamento contínuo e 5 de turismo..."
+              className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
+              rows={2}
             />
           </div>
 
+          {/* Selos de Confiança */}
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-400 py-2 border-y border-slate-800/80 bg-slate-950/40 rounded-lg">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+              Resposta em &lt; 15 min
+            </span>
+            <span className="flex items-center gap-1.5">
+              🔒 100% Seguro (LGPD)
+            </span>
+            <span className="flex items-center gap-1.5">
+              ✨ Sem Necessidade de Instalação
+            </span>
+          </div>
+
           {/* Botões */}
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="flex-1"
+              className="w-1/3 border-slate-700 bg-slate-950 hover:bg-slate-800 text-slate-300"
               disabled={isSubmitting}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-red-600 hover:bg-red-700"
+              className="w-2/3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-600 text-white font-semibold shadow-lg shadow-red-900/30 py-2.5"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Enviando...' : 'Agendar Demonstração'}
+              {isSubmitting ? 'Enviando Solicitação...' : 'Confirmar e Agendar Demonstração'}
             </Button>
           </div>
         </form>

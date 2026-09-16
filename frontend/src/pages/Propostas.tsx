@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,22 +42,43 @@ import {
   Calendar,
   DollarSign,
   User,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Lock,
+  Calculator,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { proposalService, Proposal, CreateProposalRequest, UpdateProposalRequest } from '@/services/proposalService';
 import { clientService, Client } from '@/services/clientService';
 import leadService from '@/services/leadService';
-import { ClientFormModal } from '@/components/clientes/ClientFormModal';
-import PropostaAcordo from '@/components/comercial/PropostaAcordo';
-import { AgreementProposalsList } from '@/components/comercial/AgreementProposalsList';
+import ContractGenerationModal from '@/components/comercial/ContractGenerationModal';
+import ProposalDocumentModal from '@/components/comercial/ProposalDocumentModal';
+import { ContractRetentionTab } from '@/components/financeiro/ContractRetentionTab';
+import CostSimulationTab, { SelectedSimulationFleetItem } from '@/components/financeiro/CostSimulationTab';
+import { ProposalFleetItem } from '@/services/proposalService';
+import { DrePanel } from '@/components/financeiro/DrePanel';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Loader2, Plus as PlusIcon, Link as LinkIcon } from 'lucide-react';
 
 const Propostas = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'precificacao';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setSearchParams({ tab: value });
+  };
+
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [filteredProposals, setFilteredProposals] = useState<Proposal[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,19 +93,125 @@ const Propostas = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  // PRD Módulo 2: geração de minuta contratual a partir da precificação aprovada (M1)
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  // PRD Módulo 2: visualização e impressão da proposta comercial oficial em PDF
+  const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+  const [documentProposal, setDocumentProposal] = useState<Proposal | null>(null);
   const [leads, setLeads] = useState<any[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(false);
 
   // Form state
-  const [formData, setFormData] = useState<CreateProposalRequest & { clientId?: number | string; leadId?: number | string }>({
+  const [formData, setFormData] = useState<CreateProposalRequest & { clientId?: number | string; leadId?: number | string; costSimulationId?: string }>({
     title: '',
     clientId: undefined,
     leadId: undefined,
     totalValue: 0,
     validUntil: undefined,
     description: '',
-    status: 'DRAFT'
+    status: 'DRAFT',
+    costSimulationId: undefined
   });
+
+  // Handler para gerar proposta a partir de uma simulação de custos do Módulo 1 (individual)
+  const handleGenerateProposalFromSimulation = (sim: any) => {
+    const desc = [
+      `Ficha Paramétrica de Custos (PRD Módulo 1):`,
+      `• Categoria do Veículo: ${sim.vehicleCategory || 'Ônibus'}`,
+      `• Regime Operacional: ${sim.driverCount || 1} motorista(s) / turno`,
+      `• Dias Operacionais: ${sim.operatingDays || 22} dias/mês`,
+      `• Franquia Mensal: ${sim.franchiseKm ? sim.franchiseKm.toLocaleString('pt-BR') : 0} km (com 10% técnico vazios/garagem)`,
+      `• Valor da Diária: ${sim.dailyRate ? sim.dailyRate.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}`,
+      `• Tarifa KM Excedente: ${sim.excessKmRate ? sim.excessKmRate.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}/km`,
+      `• Cotação Base Diesel: R$ ${sim.dieselPrice || 0}/L`,
+      `• Margem de Lucro Alvo: ${sim.profitMarginPct ? (sim.profitMarginPct * 100).toFixed(1) : '10'}%`,
+      `• Adicional de Viagem Extra: 15% sobre a diária`
+    ].join('\n');
+
+    const totalMonth = (sim.dailyRate || 0) * (sim.operatingDays || 22);
+
+    const generatedProposal: Proposal = {
+      id: sim.id,
+      proposalNumber: `PROP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      title: `Proposta Comercial - ${sim.name || 'Operação de Fretamento'}`,
+      clientName: sim.clientName || 'Cliente em Negociação',
+      description: desc,
+      totalValue: totalMonth,
+      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+      status: 'SENT',
+      costSimulation: sim,
+    };
+
+    setDocumentProposal(generatedProposal);
+    setIsDocumentModalOpen(true);
+    toast({
+      title: "Proposta Comercial Gerada",
+      description: "A proposta comercial oficial foi gerada com sucesso a partir dos parâmetros de precificação.",
+    });
+  };
+
+  // Handler para gerar proposta consolidada de múltiplos veículos / composição de frota
+  const handleGenerateMultiProposal = (items: SelectedSimulationFleetItem[]) => {
+    if (!items || items.length === 0) return;
+
+    const totalVehicles = items.reduce((sum, it) => sum + it.quantity, 0);
+    const totalDaily = items.reduce((sum, it) => sum + ((it.simulation.dailyRate || 0) * it.quantity), 0);
+    const totalMonthly = items.reduce((sum, it) => {
+      const days = it.simulation.operatingDays || 22;
+      return sum + ((it.simulation.dailyRate || 0) * days * it.quantity);
+    }, 0);
+    const totalKm = items.reduce((sum, it) => sum + ((it.simulation.franchiseKm || 0) * it.quantity), 0);
+
+    const firstClient = items.find(it => it.simulation.clientName)?.simulation.clientName;
+
+    const desc = [
+      `Composição de Frota & Ficha Paramétrica Consolidada (${totalVehicles} veículos):`,
+      ...items.map((it, idx) => 
+        `Item ${idx + 1}: ${it.quantity}x ${it.simulation.name} (${it.simulation.vehicleCategory || 'Ônibus'}) - Diária Unit: ${it.simulation.dailyRate?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} | Franquia: ${it.simulation.franchiseKm?.toLocaleString('pt-BR')} km/veíc.`
+      ),
+      `• Franquia Global Consolidada: ${totalKm.toLocaleString('pt-BR')} km/mês`,
+      `• Diária Consolidada da Frota: ${totalDaily.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
+      `• Faturamento Mensal Estimado: ${totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
+      `• Adicional de Viagem Extra: 15% sobre a diária respectiva`,
+      `• Gatilho do Diesel: Reajuste automático para variações superiores a 5%`
+    ].join('\n');
+
+    const fleetItems: ProposalFleetItem[] = items.map(it => ({
+      id: it.simulation.id,
+      name: it.simulation.name,
+      vehicleCategory: it.simulation.vehicleCategory,
+      quantity: it.quantity,
+      franchiseKm: it.simulation.franchiseKm,
+      dailyRate: it.simulation.dailyRate,
+      excessKmRate: it.simulation.excessKmRate,
+      operatingDays: it.simulation.operatingDays || 22,
+      dieselPrice: it.simulation.dieselPrice,
+      totalDaily: (it.simulation.dailyRate || 0) * it.quantity,
+      totalMonthly: (it.simulation.dailyRate || 0) * (it.simulation.operatingDays || 22) * it.quantity
+    }));
+
+    const generatedProposal: Proposal = {
+      id: items[0].simulation.id || 'FLEET',
+      proposalNumber: `PROP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      title: `Proposta Comercial - Composição de Frota (${totalVehicles} Veículos)`,
+      clientName: firstClient || 'Cliente em Negociação',
+      description: desc,
+      totalValue: totalMonthly,
+      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+      status: 'SENT',
+      fleetItems: fleetItems,
+      costSimulation: items[0].simulation,
+    };
+
+    setDocumentProposal(generatedProposal);
+    setIsDocumentModalOpen(true);
+    toast({
+      title: "Proposta de Frota Gerada",
+      description: `Proposta comercial com ${totalVehicles} veículo(s) gerada com sucesso.`,
+    });
+  };
 
   // Load proposals from backend
   const loadProposals = async () => {
@@ -442,752 +570,68 @@ const Propostas = () => {
 
   return (
     <StandardLayout>
-      <Tabs defaultValue="lista" className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="lista">Propostas Comerciais</TabsTrigger>
-          <TabsTrigger value="acordo">Proposta de Acordo</TabsTrigger>
+      <ContractGenerationModal
+        open={isContractModalOpen}
+        onOpenChange={setIsContractModalOpen}
+        proposal={
+          selectedProposal
+            ? {
+                id: String(selectedProposal.id),
+                title: selectedProposal.title,
+                clientId: (selectedProposal.client?.id ?? (selectedProposal as any).clientId) as string | undefined,
+                clientName: selectedProposal.clientName,
+                totalValue: selectedProposal.totalValue,
+              }
+            : undefined
+        }
+      />
+      <ProposalDocumentModal
+        open={isDocumentModalOpen}
+        onOpenChange={setIsDocumentModalOpen}
+        proposal={documentProposal}
+        onGenerateContract={(p) => {
+          setSelectedProposal(p);
+          setIsContractModalOpen(true);
+        }}
+      />
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full space-y-6">
+        <TabsList className="flex flex-wrap md:flex-nowrap w-full p-1.5 bg-card/80 backdrop-blur-md border border-border/60 rounded-2xl gap-1.5 h-auto shadow-lg">
+          <TabsTrigger
+            value="precificacao"
+            className="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold tracking-wide transition-all duration-200 data-[state='active']:bg-red-600 data-[state='active']:text-white data-[state='active']:shadow-md data-[state='active']:shadow-red-600/20 text-muted-foreground hover:text-foreground hover:bg-accent/50 flex items-center justify-center gap-2"
+          >
+            <Calculator className="h-4 w-4" />
+            <span>Precificação</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="retencoes"
+            className="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold tracking-wide transition-all duration-200 data-[state='active']:bg-red-600 data-[state='active']:text-white data-[state='active']:shadow-md data-[state='active']:shadow-red-600/20 text-muted-foreground hover:text-foreground hover:bg-accent/50 flex items-center justify-center gap-2"
+          >
+            <Lock className="h-4 w-4" />
+            <span>Retenções</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="dre"
+            className="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold tracking-wide transition-all duration-200 data-[state='active']:bg-red-600 data-[state='active']:text-white data-[state='active']:shadow-md data-[state='active']:shadow-red-600/20 text-muted-foreground hover:text-foreground hover:bg-accent/50 flex items-center justify-center gap-2"
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>DRE por Placa</span>
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="lista">
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-seguranca-lightgray">Propostas</h1>
-                <p className="text-gray-400 mt-1">Gestão de propostas comerciais</p>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button 
-                  className="bg-seguranca-red hover:bg-seguranca-darkred"
-                  onClick={() => setIsCreateModalOpen(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Proposta
-                </Button>
-              </div>
-            </div>
 
-            {/* Filtros */}
-            <Card className="bg-seguranca-graphite border-gray-600">
-              <CardHeader>
-                <CardTitle className="text-seguranca-lightgray flex items-center">
-                  <Filter className="h-5 w-5 mr-2" />
-                  Filtros
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <Label htmlFor="search" className="text-seguranca-lightgray">Buscar</Label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="search"
-                        placeholder="Título, número ou cliente..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="status" className="text-seguranca-lightgray">Status</Label>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                        <SelectValue placeholder="Todos os status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos os status</SelectItem>
-                        <SelectItem value="DRAFT">Rascunho</SelectItem>
-                        <SelectItem value="SENT">Enviada</SelectItem>
-                        <SelectItem value="UNDER_REVIEW">Em Análise</SelectItem>
-                        <SelectItem value="APPROVED">Aprovada</SelectItem>
-                        <SelectItem value="REJECTED">Rejeitada</SelectItem>
-                        <SelectItem value="EXPIRED">Expirada</SelectItem>
-                        <SelectItem value="CONVERTED">Convertida</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="client" className="text-seguranca-lightgray">Cliente</Label>
-                    <Select value={clientFilter} onValueChange={setClientFilter}>
-                      <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                        <SelectValue placeholder="Todos os clientes" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos os clientes</SelectItem>
-                        {getUniqueClients().map(client => (
-                          <SelectItem key={client} value={client}>{client}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="flex items-end">
-                    <Button 
-                      variant="outline" 
-                      className="w-full bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                      onClick={() => {
-                        setSearchTerm('');
-                        setStatusFilter('all');
-                        setClientFilter('all');
-                      }}
-                    >
-                      Limpar Filtros
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Estatísticas */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="bg-seguranca-graphite border-gray-600">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Total de Propostas</p>
-                      <p className="text-2xl font-bold text-seguranca-lightgray">{proposals.length}</p>
-                    </div>
-                    <FileText className="h-8 w-8 text-seguranca-red" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-seguranca-graphite border-gray-600">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Em Análise</p>
-                      <p className="text-2xl font-bold text-yellow-500">
-                        {proposals.filter(p => p.status === 'UNDER_REVIEW').length}
-                      </p>
-                    </div>
-                    <div className="h-8 w-8 bg-yellow-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-bold">A</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-seguranca-graphite border-gray-600">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Aprovadas</p>
-                      <p className="text-2xl font-bold text-green-500">
-                        {proposals.filter(p => p.status === 'APPROVED').length}
-                      </p>
-                    </div>
-                    <div className="h-8 w-8 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-bold">✓</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-seguranca-graphite border-gray-600">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Valor Total</p>
-                      <p className="text-2xl font-bold text-green-500">
-                        {formatCurrency(proposals.reduce((sum, proposal) => sum + proposal.totalValue, 0))}
-                      </p>
-                    </div>
-                    <DollarSign className="h-8 w-8 text-green-500" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Tabela de Propostas */}
-            <Card className="bg-seguranca-graphite border-gray-600">
-              <CardHeader>
-                <CardTitle className="text-seguranca-lightgray">Lista de Propostas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-seguranca-yellow" />
-                  </div>
-                ) : filteredProposals.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
-                    Nenhuma proposta encontrada.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-gray-600">
-                          <TableHead className="text-seguranca-lightgray">Número</TableHead>
-                          <TableHead className="text-seguranca-lightgray">Título</TableHead>
-                          <TableHead className="text-seguranca-lightgray">Cliente</TableHead>
-                          <TableHead className="text-seguranca-lightgray">Status</TableHead>
-                          <TableHead className="text-seguranca-lightgray">Valor</TableHead>
-                          <TableHead className="text-seguranca-lightgray">Válida Até</TableHead>
-                          <TableHead className="text-seguranca-lightgray">Responsável</TableHead>
-                          <TableHead className="text-seguranca-lightgray text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredProposals.map((proposal) => (
-                          <TableRow key={proposal.id} className="border-gray-600">
-                            <TableCell className="text-seguranca-lightgray font-medium">
-                              {proposal.proposalNumber || '-'}
-                            </TableCell>
-                            <TableCell className="text-seguranca-lightgray">
-                              <div>
-                                <div className="font-medium">{proposal.title}</div>
-                                <div className="text-sm text-gray-400">{proposal.description || ''}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-seguranca-lightgray">
-                              <div>
-                                <div className="font-medium">{proposal.clientName}</div>
-                                {proposal.leadName && (
-                                  <div className="text-sm text-gray-400">Lead: {proposal.leadName}</div>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>{getStatusBadge(proposal.status)}</TableCell>
-                            <TableCell className="text-seguranca-lightgray font-medium">
-                              {proposal.totalValue ? formatCurrency(proposal.totalValue) : '-'}
-                            </TableCell>
-                            <TableCell className="text-seguranca-lightgray">
-                              {proposal.validUntil ? formatDate(proposal.validUntil) : '-'}
-                            </TableCell>
-                            <TableCell className="text-seguranca-lightgray">
-                              {proposal.assignedToName}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                                  onClick={() => {
-                                    setSelectedProposal(proposal);
-                                    setIsViewModalOpen(true);
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                                  onClick={() => handleEdit(proposal)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="bg-seguranca-black border-gray-600 text-red-400 hover:text-red-300"
-                                  onClick={() => handleDeleteProposal(proposal.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Modal de Visualização */}
-            <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-              <DialogContent className="bg-seguranca-graphite border-gray-600 max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle className="text-seguranca-lightgray">Detalhes da Proposta</DialogTitle>
-                  <DialogDescription className="text-gray-400">
-                    Visualize os detalhes completos da proposta selecionada
-                  </DialogDescription>
-                </DialogHeader>
-                {selectedProposal && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-gray-400">Número da Proposta</Label>
-                        <p className="text-seguranca-lightgray font-medium">{selectedProposal.proposalNumber}</p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Status</Label>
-                        <div className="mt-1">{getStatusBadge(selectedProposal.status)}</div>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Título</Label>
-                        <p className="text-seguranca-lightgray">{selectedProposal.title}</p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Cliente</Label>
-                        <p className="text-seguranca-lightgray">{selectedProposal.clientName}</p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Lead</Label>
-                        <p className="text-seguranca-lightgray">{selectedProposal.leadName}</p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Valor Total</Label>
-                        <p className="text-seguranca-lightgray font-medium">
-                          {formatCurrency(selectedProposal.totalValue)}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Válida Até</Label>
-                        <p className="text-seguranca-lightgray">{formatDate(selectedProposal.validUntil)}</p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Responsável</Label>
-                        <p className="text-seguranca-lightgray">{selectedProposal.assignedToName}</p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Criado Por</Label>
-                        <p className="text-seguranca-lightgray">{selectedProposal.createdByName}</p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Data de Criação</Label>
-                        <p className="text-seguranca-lightgray">{formatDate(selectedProposal.createdAt)}</p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Última Atualização</Label>
-                        <p className="text-seguranca-lightgray">{formatDate(selectedProposal.updatedAt)}</p>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-gray-400">Descrição</Label>
-                      <p className="text-seguranca-lightgray mt-1">{selectedProposal.description}</p>
-                    </div>
-                    
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                        onClick={() => setIsViewModalOpen(false)}
-                      >
-                        Fechar
-                      </Button>
-                      <Button 
-                        className="bg-seguranca-red hover:bg-seguranca-darkred"
-                        onClick={() => {
-                          if (selectedProposal) {
-                            setIsViewModalOpen(false);
-                            handleEdit(selectedProposal);
-                          }
-                        }}
-                      >
-                        Editar Proposta
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </DialogContent>
-            </Dialog>
-
-            {/* Modal de Criação */}
-            <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-              <DialogContent className="bg-seguranca-graphite border-gray-600 max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle className="text-seguranca-lightgray">Nova Proposta</DialogTitle>
-                  <DialogDescription className="text-gray-400">
-                    Preencha os dados para criar uma nova proposta comercial
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="title" className="text-seguranca-lightgray">Título *</Label>
-                      <Input
-                        id="title"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                        placeholder="Título da proposta"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="client" className="text-seguranca-lightgray">Cliente *</Label>
-                      <div className="flex gap-2">
-                        <div className="flex-1 relative">
-                          <Select
-                            value={formData.clientId ? String(formData.clientId) : ''}
-                            onValueChange={(value) => {
-                              console.log('🔵 Cliente selecionado:', value);
-                              setFormData({ ...formData, clientId: value ? (isNaN(Number(value)) ? value : Number(value)) : undefined });
-                            }}
-                            disabled={loadingClients}
-                          >
-                            <SelectTrigger 
-                              className="bg-seguranca-black border-gray-600 text-white [&>span[data-placeholder]]:text-gray-400 [&>span[data-placeholder]]:opacity-70"
-                            >
-                              <SelectValue 
-                                placeholder={loadingClients ? "Carregando clientes..." : clients.length === 0 ? "Nenhum cliente cadastrado" : "Selecione o cliente"}
-                              />
-                            </SelectTrigger>
-                            <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[300px]">
-                              {loadingClients ? (
-                                <SelectItem value="loading" disabled className="text-gray-400">
-                                  Carregando clientes...
-                                </SelectItem>
-                              ) : clients.length === 0 ? (
-                                <SelectItem value="no-clients" disabled className="text-gray-400">
-                                  Nenhum cliente encontrado
-                                </SelectItem>
-                              ) : (
-                                clients.map((client) => (
-                                  <SelectItem 
-                                    key={client.id} 
-                                    value={String(client.id)}
-                                    className="text-seguranca-lightgray hover:bg-seguranca-red/20 focus:bg-seguranca-black focus:text-seguranca-lightgray"
-                                  >
-                                    {client.name} {client.cnpj ? `- ${client.cnpj}` : ''}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setIsClientModalOpen(true)}
-                          className="bg-seguranca-black border-gray-600 text-seguranca-yellow hover:text-yellow-400 hover:border-yellow-400 shrink-0"
-                          title="Criar novo cliente"
-                        >
-                          <PlusIcon className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {clients.length === 0 && !loadingClients && (
-                        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                          <span>Nenhum cliente cadastrado.</span>
-                          <button
-                            type="button"
-                            onClick={() => setIsClientModalOpen(true)}
-                            className="text-seguranca-yellow hover:text-yellow-400 underline"
-                          >
-                            Clique aqui para criar um novo cliente
-                          </button>
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="lead" className="text-seguranca-lightgray">Lead</Label>
-                      <Select
-                        value={formData.leadId ? String(formData.leadId) : '__NONE__'}
-                        onValueChange={(value) => {
-                          console.log('🔵 Lead selecionado:', value);
-                          setFormData({ ...formData, leadId: value === '__NONE__' ? undefined : (isNaN(Number(value)) ? value : Number(value)) });
-                        }}
-                        disabled={loadingLeads}
-                      >
-                        <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray [&>span[data-placeholder]]:text-gray-400 [&>span:not([data-placeholder])]:text-seguranca-lightgray">
-                          <SelectValue placeholder={loadingLeads ? "Carregando leads..." : "Selecione o lead (opcional)"} />
-                        </SelectTrigger>
-                        <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[300px]">
-                          <SelectItem value="__NONE__" className="text-seguranca-lightgray hover:bg-seguranca-red/20 focus:bg-seguranca-black focus:text-seguranca-lightgray">Nenhum</SelectItem>
-                          {loadingLeads ? (
-                            <SelectItem value="loading" disabled className="text-gray-400">
-                              Carregando leads...
-                            </SelectItem>
-                          ) : leads.length === 0 ? (
-                            <SelectItem value="no-leads" disabled className="text-gray-400">
-                              Nenhum lead encontrado
-                            </SelectItem>
-                          ) : (
-                            leads.map((lead) => (
-                              <SelectItem 
-                                key={lead.id} 
-                                value={String(lead.id)}
-                                className="text-seguranca-lightgray hover:bg-seguranca-red/20 focus:bg-seguranca-black focus:text-seguranca-lightgray"
-                              >
-                                {lead.name} {lead.company ? `- ${lead.company}` : ''}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="totalValue" className="text-seguranca-lightgray">Valor Total *</Label>
-                      <Input
-                        id="totalValue"
-                        type="number"
-                        step="0.01"
-                        value={formData.totalValue || ''}
-                        onChange={(e) => setFormData({ ...formData, totalValue: parseFloat(e.target.value) || 0 })}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                        placeholder="0,00"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="validUntil" className="text-seguranca-lightgray">Válida Até</Label>
-                      <Input
-                        id="validUntil"
-                        type="date"
-                        value={formData.validUntil || ''}
-                        onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="status" className="text-seguranca-lightgray">Status</Label>
-                      <Select
-                        value={formData.status || 'DRAFT'}
-                        onValueChange={(value) => setFormData({ ...formData, status: value as any })}
-                      >
-                        <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray [&>span[data-placeholder]]:text-gray-400 [&>span:not([data-placeholder])]:text-seguranca-lightgray">
-                          <SelectValue placeholder="Selecione o status" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-seguranca-graphite border-gray-600">
-                          <SelectItem value="DRAFT" className="text-seguranca-lightgray focus:bg-seguranca-black focus:text-seguranca-lightgray">Rascunho</SelectItem>
-                          <SelectItem value="SENT" className="text-seguranca-lightgray focus:bg-seguranca-black focus:text-seguranca-lightgray">Enviada</SelectItem>
-                          <SelectItem value="UNDER_REVIEW" className="text-seguranca-lightgray focus:bg-seguranca-black focus:text-seguranca-lightgray">Em Análise</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="description" className="text-seguranca-lightgray">Descrição</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description || ''}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                      placeholder="Descrição detalhada da proposta..."
-                      rows={3}
-                    />
-                  </div>
-                  
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                      onClick={() => {
-                        setIsCreateModalOpen(false);
-                        resetForm();
-                      }}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button 
-                      className="bg-seguranca-red hover:bg-seguranca-darkred"
-                      onClick={handleCreateProposal}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Criando...
-                        </>
-                      ) : (
-                        'Criar Proposta'
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-
-            {/* Modal de Edição */}
-            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-              <DialogContent className="bg-seguranca-graphite border-gray-600 max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle className="text-seguranca-lightgray">Editar Proposta</DialogTitle>
-                  <DialogDescription className="text-gray-400">
-                    Atualize os dados da proposta comercial
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="edit-title" className="text-seguranca-lightgray">Título *</Label>
-                      <Input
-                        id="edit-title"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                        placeholder="Título da proposta"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-client" className="text-seguranca-lightgray">Cliente</Label>
-                      <Select
-                        value={formData.clientId ? String(formData.clientId) : ''}
-                        onValueChange={(value) => {
-                          setFormData({ ...formData, clientId: value ? (isNaN(Number(value)) ? value : Number(value)) : undefined });
-                        }}
-                        disabled={loadingClients}
-                      >
-                        <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                          <SelectValue placeholder={loadingClients ? "Carregando..." : "Selecione o cliente"} />
-                        </SelectTrigger>
-                        <SelectContent className="bg-seguranca-graphite border-gray-600 max-h-[300px]">
-                          {clients.map((client) => (
-                            <SelectItem 
-                              key={client.id} 
-                              value={String(client.id)}
-                              className="text-seguranca-lightgray hover:bg-seguranca-red/20"
-                            >
-                              {client.name} {client.cnpj ? `- ${client.cnpj}` : ''}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-totalValue" className="text-seguranca-lightgray">Valor Total *</Label>
-                      <Input
-                        id="edit-totalValue"
-                        type="number"
-                        step="0.01"
-                        value={formData.totalValue || ''}
-                        onChange={(e) => setFormData({ ...formData, totalValue: parseFloat(e.target.value) || 0 })}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                        placeholder="0,00"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-validUntil" className="text-seguranca-lightgray">Válida Até</Label>
-                      <Input
-                        id="edit-validUntil"
-                        type="date"
-                        value={formData.validUntil || ''}
-                        onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
-                        className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-status" className="text-seguranca-lightgray">Status</Label>
-                      <Select
-                        value={formData.status || selectedProposal?.status || 'DRAFT'}
-                        onValueChange={(value) => setFormData({ ...formData, status: value as any })}
-                      >
-                        <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                          <SelectValue placeholder="Selecione o status" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-seguranca-graphite border-gray-600">
-                          <SelectItem value="DRAFT" className="text-seguranca-lightgray">Rascunho</SelectItem>
-                          <SelectItem value="SENT" className="text-seguranca-lightgray">Enviada</SelectItem>
-                          <SelectItem value="UNDER_REVIEW" className="text-seguranca-lightgray">Em Análise</SelectItem>
-                          <SelectItem value="APPROVED" className="text-seguranca-lightgray">Aprovada</SelectItem>
-                          <SelectItem value="REJECTED" className="text-seguranca-lightgray">Rejeitada</SelectItem>
-                          <SelectItem value="EXPIRED" className="text-seguranca-lightgray">Expirada</SelectItem>
-                          <SelectItem value="CONVERTED" className="text-seguranca-lightgray">Convertida</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="edit-description" className="text-seguranca-lightgray">Descrição</Label>
-                    <Textarea
-                      id="edit-description"
-                      value={formData.description || ''}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                      placeholder="Descrição detalhada da proposta..."
-                      rows={3}
-                    />
-                  </div>
-                  
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                      onClick={() => {
-                        setIsEditModalOpen(false);
-                        resetForm();
-                      }}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button 
-                      className="bg-seguranca-red hover:bg-seguranca-darkred"
-                      onClick={handleUpdateProposal}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Atualizando...
-                        </>
-                      ) : (
-                        'Atualizar Proposta'
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-
-            {/* Modal de Criação de Cliente */}
-            <ClientFormModal
-              isOpen={isClientModalOpen}
-              onClose={() => setIsClientModalOpen(false)}
-              onSuccess={handleClientCreated}
-            />
-          </div>
+        <TabsContent value="precificacao" className="mt-4">
+          <CostSimulationTab
+            onGenerateProposal={handleGenerateProposalFromSimulation}
+            onGenerateMultiProposal={handleGenerateMultiProposal}
+          />
         </TabsContent>
-        <TabsContent value="acordo">
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-seguranca-lightgray">Propostas de Acordo</h1>
-                <p className="text-gray-400 mt-1">Simulação e gestão de propostas de acordo comercial</p>
-              </div>
-            </div>
 
-            {/* Tabs internas para Simulação e Lista */}
-            <Tabs defaultValue="simulacao" className="w-full">
-              <TabsList className="mb-6">
-                <TabsTrigger value="simulacao">Simulação</TabsTrigger>
-                <TabsTrigger value="lista">Lista de Propostas de Acordo</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="simulacao">
-                <PropostaAcordo 
-                  onSaveProposal={async (proposalData: any) => {
-                    try {
-                      // Salvar como proposta no backend
-                      const savedProposal = await proposalService.createProposal({
-                        title: `Proposta de Acordo - ${new Date().toLocaleDateString('pt-BR')}`,
-                        description: proposalData.descricaoServico || 'Proposta de Acordo Comercial',
-                        totalValue: proposalData.resultado.valorMensal,
-                        validUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                        status: 'DRAFT',
-                        items: []
-                      });
-                      toast({
-                        title: "Sucesso",
-                        description: "Proposta de acordo salva com sucesso!",
-                      });
-                      // Recarregar lista de propostas
-                      await loadProposals();
-                    } catch (error: any) {
-                      console.error('Erro ao salvar proposta de acordo:', error);
-                      toast({
-                        title: "Erro",
-                        description: error.response?.data?.message || "Não foi possível salvar a proposta de acordo.",
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                />
-              </TabsContent>
-              
-              <TabsContent value="lista">
-                <AgreementProposalsList />
-              </TabsContent>
-            </Tabs>
-          </div>
+        <TabsContent value="retencoes" className="mt-4">
+          <ContractRetentionTab />
+        </TabsContent>
+
+        <TabsContent value="dre" className="mt-4">
+          <DrePanel />
         </TabsContent>
       </Tabs>
     </StandardLayout>

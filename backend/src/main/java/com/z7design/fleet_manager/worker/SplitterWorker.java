@@ -44,16 +44,16 @@ public class SplitterWorker {
     public void init() {
         // Log imediato para confirmar que o mÃ©todo foi chamado
         System.out.println(
-                "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
+                "â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â•â• â• â• â• â• â• â• â• â• â• â• â• â• ");
         System.out.println("ðŸŸ¢ SPLITTER WORKER: @PostConstruct CHAMADO!");
         System.out.println(
-                "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
+                "â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â•â• â• â• â• â• â• â• â• â• â• â• â• â• ");
 
         log.info(
-                "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
+                "â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â•â• â• â• â•â• â• â• â• â• â• â• â• â• â• â• â• â• â• ");
         log.info("ðŸŸ¢ SPLITTER WORKER: Iniciando inicializaÃ§Ã£o...");
         log.info(
-                "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
+                "â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â•â• â•â• â• â• â• â•â• â• â•â• â• â• â• â• â• ");
 
         // InicializaÃ§Ã£o assÃ­ncrona para nÃ£o bloquear o startup do Spring se o Redis
         // estiver fora
@@ -61,17 +61,8 @@ public class SplitterWorker {
             try {
                 // Verificar se as dependÃªncias estÃ£o injetadas
                 if (redisTemplate == null) {
-                    log.error("âŒ SPLITTER WORKER: StringRedisTemplate NÃƒO FOI INJETADO!");
+                    log.error("â Œ SPLITTER WORKER: StringRedisTemplate NÃƒO FOI INJETADO!");
                     return;
-                }
-
-                // Verificar conexÃ£o com Redis (ping nÃ£o deve bloquear infinitamente)
-                log.info("ðŸŸ¢ SPLITTER WORKER: Verificando conexÃ£o com Redis...");
-                if (!isRedisAvailable()) {
-                    log.warn(
-                            "âš ï¸ SPLITTER WORKER: Redis nÃ£o estÃ¡ disponÃ­vel na inicializaÃ§Ã£o, continuarÃ¡ tentando em background.");
-                } else {
-                    log.info("âœ… SPLITTER WORKER: Redis estÃ¡ disponÃ­vel!");
                 }
 
                 // Criar consumer group se nÃ£o existir
@@ -80,42 +71,26 @@ public class SplitterWorker {
                     redisTemplate.opsForStream().createGroup(STREAM_JOBS, ReadOffset.from("0"), CONSUMER_GROUP);
                     log.info("âœ… SPLITTER WORKER: Consumer group '{}' criado/verificado", CONSUMER_GROUP);
                 } catch (Exception e) {
-                    log.info("â„¹ï¸ SPLITTER WORKER: Consumer group '{}' jÃ¡ existe ou erro: {}", CONSUMER_GROUP,
+                    log.info("â„¹ï¸  SPLITTER WORKER: Consumer group '{}' jÃ¡ existe ou erro: {}", CONSUMER_GROUP,
                             e.getMessage());
                 }
             } catch (Exception e) {
-                log.error("âŒ SPLITTER WORKER: Erro durante inicializaÃ§Ã£o assÃ­ncrona: {}", e.getMessage(), e);
+                log.error("â Œ SPLITTER WORKER: Erro durante inicializaÃ§Ã£o assÃ­ncrona: {}", e.getMessage(), e);
             }
             log.info("âœ… SPLITTER WORKER: InicializaÃ§Ã£o concluÃ­da - Worker pronto!");
         }).start();
 
         log.info("ðŸŸ¢ SPLITTER WORKER: InicializaÃ§Ã£o agendada em background.");
         log.info(
-                "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
+                "â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â•â•â• â• â• â• â• â• â• â• â• â• â• â• â• â• ");
     }
 
-    private boolean isRedisAvailable() {
-        try {
-            String result = redisTemplate.getConnectionFactory().getConnection().ping();
-            log.debug("ðŸŸ¢ Redis ping retornou: {}", result);
-            return true;
-        } catch (Exception e) {
-            log.warn("âš ï¸ Redis ping falhou: {}", e.getMessage());
-            return false;
-        }
-    }
 
-    @Scheduled(fixedDelay = 500) // Processa a cada 500ms (mais rÃ¡pido)
+
+    @Scheduled(fixedDelay = 2000) // Processa a cada 2 segundos
     public void processJobs() {
         try {
-            // Verificar conexÃ£o com Redis
-            if (!isRedisAvailable()) {
-                // Log apenas a cada 10 segundos para nÃ£o poluir os logs
-                if (System.currentTimeMillis() % 10000 < 500) {
-                    log.warn("âš ï¸ SplitterWorker: Redis nÃ£o estÃ¡ disponÃ­vel! Tentando reconectar...");
-                }
-                return;
-            }
+            // Tentar ler mensagens do stream
 
             // Log periÃ³dico para debug (a cada 5 segundos)
             long currentTime = System.currentTimeMillis();

@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Edit, Trash2, Plus, FileText, RefreshCw, Loader2, Gauge, Truck, Calendar, MapPin, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Edit, Trash2, Plus, FileText, RefreshCw, Loader2, Gauge, Truck, Calendar, MapPin, AlertCircle, CheckCircle2, FileSignature } from "lucide-react";
 import { DailyLog } from '@/services/dailyLogService';
 import { format } from 'date-fns';
 
@@ -22,6 +22,8 @@ interface DailyLogTableProps {
     onCreate?: () => void;
     onRefresh?: () => void;
     onExportPDF?: () => void;
+    /** PRD Módulo 5: auditoria (assinatura fiscal + telemetria + viagem extra). */
+    onAudit?: (log: DailyLog) => void;
 }
 
 const DailyLogTable: React.FC<DailyLogTableProps> = ({
@@ -30,6 +32,7 @@ const DailyLogTable: React.FC<DailyLogTableProps> = ({
     onEdit,
     onDelete,
     onCreate,
+    onAudit,
     onRefresh,
     onExportPDF
 }) => {
@@ -207,6 +210,16 @@ const DailyLogTable: React.FC<DailyLogTableProps> = ({
                                         </div>
 
                                         <div className="flex justify-end gap-2 pt-1">
+                                            {onAudit && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+                                                    onClick={() => onAudit(log)}
+                                                >
+                                                    <FileSignature className="h-3.5 w-3.5 mr-1" /> Auditar
+                                                </Button>
+                                            )}
                                             <Button
                                                 variant="outline"
                                                 size="sm"
@@ -285,6 +298,17 @@ const DailyLogTable: React.FC<DailyLogTableProps> = ({
                                                 </TableCell>
                                                 <TableCell className="px-5 py-4 text-right">
                                                     <div className="flex justify-end gap-1.5">
+                                                        {onAudit && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0 text-slate-400 hover:text-purple-400 hover:bg-slate-800"
+                                                                onClick={() => onAudit(log)}
+                                                                title="Auditar (assinatura, telemetria, viagem extra)"
+                                                            >
+                                                                <FileSignature className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"

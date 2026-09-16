@@ -51,6 +51,9 @@ import DailyLogTable from '@/components/operacional/DailyLogTable';
 import DailyLogFormModal from '@/components/operacional/DailyLogFormModal';
 
 import dailyLogService, { DailyLog } from '@/services/dailyLogService';
+import DailyLogAuditModal from '@/components/operacional/DailyLogAuditModal';
+import SstCompliancePanel from '@/components/operacional/SstCompliancePanel';
+import { ShieldCheck } from 'lucide-react';
 import { scheduleService, Schedule, CreateScheduleDTO, UpdateScheduleDTO, ScheduleStatus } from '@/services/scheduleService';
 
 // Interface para o formulário de escala
@@ -114,6 +117,9 @@ const Operacional: React.FC = () => {
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [isLoadingDailyLogs, setIsLoadingDailyLogs] = useState(false);
+  // PRD Módulo 5: auditoria da Parte Diária (assinatura fiscal, telemetria, viagem extra)
+  const [auditLog, setAuditLog] = useState<DailyLog | null>(null);
+  const [showAuditModal, setShowAuditModal] = useState(false);
   const [showDailyLogModal, setShowDailyLogModal] = useState(false);
   const [selectedDailyLog, setSelectedDailyLog] = useState<DailyLog | null>(null);
   const [showDailyLogViewModal, setShowDailyLogViewModal] = useState(false);
@@ -1018,6 +1024,23 @@ const Operacional: React.FC = () => {
                     </TooltipContent>
                   </Tooltip>
 
+                  {/* PRD Módulo 4: SST & Conformidade */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger
+                        value="sst-conformidade"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                      >
+                        <ShieldCheck className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
+                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">SST</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="bg-seguranca-graphite text-white border-seguranca-red">
+                      <p className="font-semibold">SST & Conformidade</p>
+                      <p className="text-xs text-gray-400">Fumaça preta, ASO e dossiê do BM</p>
+                    </TooltipContent>
+                  </Tooltip>
+
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <TabsTrigger
@@ -1270,6 +1293,11 @@ const Operacional: React.FC = () => {
               <ServiceRatingManagement />
             </TabsContent>
 
+            {/* PRD Módulo 4: SST & Conformidade (fumaça preta + dossiê) */}
+            <TabsContent value="sst-conformidade" className="mt-6">
+              <SstCompliancePanel />
+            </TabsContent>
+
             <TabsContent value="parte-diaria" className="mt-6">
               <DailyLogTable
                 data={dailyLogs}
@@ -1278,11 +1306,28 @@ const Operacional: React.FC = () => {
                 onRefresh={handleDailyLogsRefresh}
                 onEdit={handleEditDailyLog}
                 onDelete={handleDeleteDailyLog}
+                onAudit={(log) => {
+                  setAuditLog(log);
+                  setShowAuditModal(true);
+                }}
                 onExportPDF={() => toast({ title: 'Em breve', description: 'Exportação PDF em desenvolvimento' })}
               />
             </TabsContent>
           </Tabs>
         </div> {/* Fecha container mx-auto */}
+
+        {/* PRD Módulo 5: Auditoria da Parte Diária */}
+        <DailyLogAuditModal
+          open={showAuditModal}
+          onOpenChange={(open) => {
+            setShowAuditModal(open);
+            if (!open) {
+              setAuditLog(null);
+              handleDailyLogsRefresh();
+            }
+          }}
+          dailyLog={auditLog}
+        />
 
         {/* Modal de Visualização de Ocorrência */}
         <OcorrenciaViewModal

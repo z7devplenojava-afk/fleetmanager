@@ -14,6 +14,7 @@ import AbastecimentosTable from '@/components/frota/AbastecimentosTable';
 import MultasTable from '@/components/frota/MultasTable';
 import BateriasTable from '@/components/frota/BateriasTable';
 import VehicleDocumentsTable from '@/components/frota/VehicleDocumentsTable';
+import MobilizationPanel from '@/components/frota/MobilizationPanel';
 import VeiculoFormModal from '@/components/frota/VeiculoFormModal';
 import VeiculoEditModal from '@/components/frota/VeiculoEditModal';
 import AbastecimentoFormModal from '@/components/frota/AbastecimentoFormModal';
@@ -1392,6 +1393,9 @@ const Frota: React.FC = () => {
             <TabsTrigger value="agregados" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               👥 Agregados
             </TabsTrigger>
+            <TabsTrigger value="mobilizacao" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
+              Mobilização (PRD)
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="veiculos" className="mt-6 space-y-4">
@@ -1894,6 +1898,11 @@ const Frota: React.FC = () => {
                 setIsAgregadoModalOpen(true);
               }}
             />
+          </TabsContent>
+
+          {/* PRD Módulo 3: Elegibilidade, Vistorias de Mobilização e Talões */}
+          <TabsContent value="mobilizacao" className="mt-6">
+            <MobilizationPanel />
           </TabsContent>
         </Tabs>
 

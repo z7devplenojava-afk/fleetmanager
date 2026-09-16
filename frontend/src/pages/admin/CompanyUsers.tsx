@@ -314,6 +314,7 @@ const CompanyUsers: React.FC = () => {
                                         <TableRow className="border-gray-600 hover:bg-transparent">
                                             <TableHead className="text-seguranca-lightgray">Usuário</TableHead>
                                             <TableHead className="text-seguranca-lightgray">Email</TableHead>
+                                            <TableHead className="text-seguranca-lightgray">Empresa</TableHead>
                                             <TableHead className="text-seguranca-lightgray">Cargo</TableHead>
                                             <TableHead className="text-seguranca-lightgray">Status</TableHead>
                                             <TableHead className="text-seguranca-lightgray text-right">Ações</TableHead>
@@ -327,14 +328,13 @@ const CompanyUsers: React.FC = () => {
                                                         <div className="w-10 h-10 bg-seguranca-red rounded-full flex items-center justify-center relative">
                                                             <UserIcon className="text-white" size={20} />
                                                             <span
-                                                                className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-seguranca-graphite ${user.isOnline ? 'bg-emerald-500' : 'bg-gray-500'
+                                                                className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-seguranca-graphite ${user.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-500'
                                                                     }`}
                                                                 title={user.isOnline ? 'Online' : 'Offline'}
                                                             />
                                                         </div>
                                                         <div>
-                                                            <div className="font-medium text-seguranca-lightgray">{user.name}</div>
-                                                            {/* <div className="text-sm text-gray-400">ID: {user.id}</div> */}
+                                                            <div className="font-semibold text-seguranca-lightgray">{user.name}</div>
                                                         </div>
                                                     </div>
                                                 </TableCell>
@@ -345,13 +345,21 @@ const CompanyUsers: React.FC = () => {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
+                                                    <div className="flex items-center space-x-2">
+                                                        <Building size={16} className="text-emerald-400 shrink-0" />
+                                                        <span className="text-seguranca-lightgray font-medium">
+                                                            {user.companyName || (user.companyId ? 'Empresa Vinculada' : company?.name || 'FluxBus')}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
                                                     {extractRoleNames(user.roles).map((role: string) => (
                                                         <Badge key={role} className={`mr-1 ${getRoleColor(role)}`}>{getRoleDisplayName(role)}</Badge>
                                                     ))}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge className={user.isOnline ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'}>
-                                                        {user.isOnline ? 'Online' : 'Offline'}
+                                                    <Badge className={user.isOnline ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-semibold' : 'bg-gray-800 text-gray-400'}>
+                                                        {user.isOnline ? '● Online' : 'Offline'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">

@@ -193,6 +193,16 @@ public class Vehicle implements TenantAware {
     @Column(name = "has_accessibility")
     private Boolean hasAccessibility;
 
+    // PRD Módulo 3 (RF-03.1): critérios de elegibilidade por contrato
+    @Column(name = "has_retarder")
+    private Boolean hasRetarder;
+
+    @Column(name = "has_telemetry")
+    private Boolean hasTelemetry;
+
+    @Column(name = "has_seat_belts_all")
+    private Boolean hasSeatBeltsAll;
+
     @Column(name = "has_air_conditioning")
     private Boolean hasAirConditioning;
 

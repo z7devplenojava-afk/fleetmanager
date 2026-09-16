@@ -178,27 +178,15 @@ const KmControlFormModal: React.FC<KmControlFormModalProps> = ({
     const initial = parseInt(formData.initialKm) || 0;
     const final = parseInt(formData.finalKm) || 0;
 
-    // Log para debug
-    console.log('🔍 Calculando KM Total:');
-    console.log('KM Inicial:', formData.initialKm, '->', initial);
-    console.log('KM Final:', formData.finalKm, '->', final);
-    console.log('Justificativa Inicial:', formData.initialKmJustification);
-    console.log('Justificativa Final:', formData.finalKmJustification);
-
     // Lógica de cálculo baseada no backend
     if (initial === 0 && final > 0 && formData.initialKmJustification) {
-      console.log('Caso: KM inicial = 0 com justificativa -> Total =', final);
       return final;
     } else if (final === 0 && initial > 0 && formData.finalKmJustification) {
-      console.log('Caso: KM final = 0 com justificativa -> Total =', initial);
       return initial;
     } else if (initial === 0 && final === 0 && formData.initialKmJustification && formData.finalKmJustification) {
-      console.log('Caso: Ambos = 0 com justificativas -> Total = 0');
       return 0;
     } else {
-      const total = Math.max(0, final - initial);
-      console.log('Caso: Normal -> Total =', total);
-      return total;
+      return Math.max(0, final - initial);
     }
   };
 

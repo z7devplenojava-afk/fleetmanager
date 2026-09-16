@@ -69,26 +69,9 @@ public class ParserWorker {
         log.info("ðŸŸ£ PARSER WORKER: InicializaÃ§Ã£o agendada em background.");
     }
 
-    private boolean isRedisAvailable() {
-        try {
-            String result = redisTemplate.getConnectionFactory().getConnection().ping();
-            log.debug("ðŸŸ¢ Redis ping retornou: {}", result);
-            return true;
-        } catch (Exception e) {
-            log.warn("âš ï¸ Redis ping falhou: {}", e.getMessage());
-            return false;
-        }
-    }
-
-    @Scheduled(fixedDelay = 500)
+    @Scheduled(fixedDelay = 2000)
     public void processParsedPages() {
         try {
-            if (!isRedisAvailable()) {
-                if (System.currentTimeMillis() % 10000 < 500) {
-                    log.warn("âš ï¸ ParserWorker: Redis nÃ£o estÃ¡ disponÃ­vel! Tentando reconectar...");
-                }
-                return;
-            }
 
             StreamOperations<String, Object, Object> streamOps = redisTemplate.opsForStream();
             Consumer consumer = Consumer.from(CONSUMER_GROUP, CONSUMER_NAME);
