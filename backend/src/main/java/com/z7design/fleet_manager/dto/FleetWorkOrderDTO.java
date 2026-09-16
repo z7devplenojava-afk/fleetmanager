@@ -118,6 +118,41 @@ public class FleetWorkOrderDTO {
                 clientName = entity.getVehicle().getWorkPostEntity().getClient().getName();
             }
         }
+        if (clientId == null && entity.getVehicle() != null && entity.getVehicle().getClientId() != null) {
+            clientId = entity.getVehicle().getClientId();
+        }
+        if (clientName == null && entity.getVehicle() != null) {
+            if (entity.getVehicle().getClientName() != null && !entity.getVehicle().getClientName().isBlank()) {
+                clientName = entity.getVehicle().getClientName();
+            } else if (entity.getVehicle().getClientEntity() != null) {
+                clientName = entity.getVehicle().getClientEntity().getName();
+            }
+        }
+
+        String mechanicName = entity.getMechanicName();
+        if ((mechanicName == null || mechanicName.isBlank()) && entity.getVehicle() != null) {
+            if (entity.getVehicle().getResponsibleEmployee() != null) {
+                mechanicName = entity.getVehicle().getResponsibleEmployee().getName();
+            } else if (entity.getVehicle().getAssignedDriver() != null && !entity.getVehicle().getAssignedDriver().isBlank()) {
+                mechanicName = entity.getVehicle().getAssignedDriver();
+            }
+        }
+
+        java.time.LocalDate stopDate = entity.getStopDate();
+        if (stopDate == null) {
+            if (entity.getStartDate() != null) {
+                stopDate = entity.getStartDate().toLocalDate();
+            } else if (entity.getPlannedDate() != null) {
+                stopDate = entity.getPlannedDate();
+            } else if (entity.getCreatedAt() != null) {
+                stopDate = entity.getCreatedAt().toLocalDate();
+            }
+        }
+
+        Integer odometerIn = entity.getOdometerIn();
+        if (odometerIn == null && entity.getVehicle() != null) {
+            odometerIn = entity.getVehicle().getCurrentMileage();
+        }
 
         return FleetWorkOrderDTO.builder()
                 .id(entity.getId())
@@ -131,13 +166,13 @@ public class FleetWorkOrderDTO {
                 .status(entity.getStatus())
                 .priority(entity.getPriority())
                 .mechanicId(entity.getMechanicId())
-                .mechanicName(entity.getMechanicName())
+                .mechanicName(mechanicName)
                 .laborType(entity.getLaborType())
                 .plannedDate(entity.getPlannedDate())
                 .actualDate(entity.getActualDate())
                 .startDate(entity.getStartDate())
                 .completionDate(entity.getCompletionDate())
-                .stopDate(entity.getStopDate())
+                .stopDate(stopDate)
                 .stopTime(entity.getStopTime())
                 .exitDate(entity.getExitDate())
                 .exitTime(entity.getExitTime())
@@ -157,7 +192,7 @@ public class FleetWorkOrderDTO {
                 .responsibleSignatureDate(entity.getResponsibleSignatureDate())
                 .supervisorSignature(entity.getSupervisorSignature())
                 .supervisorSignatureDate(entity.getSupervisorSignatureDate())
-                .odometerIn(entity.getOdometerIn())
+                .odometerIn(odometerIn)
                 .odometerOut(entity.getOdometerOut())
                 .stopReason(entity.getStopReason())
                 .laborCost(entity.getLaborCost())

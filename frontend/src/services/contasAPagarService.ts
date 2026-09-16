@@ -73,6 +73,14 @@ export type UpdateSupplierRequest = Partial<CreateSupplierRequest> & {
   isActive?: boolean;
 };
 
+export interface ImportResultDto {
+  inserted: number;
+  updated: number;
+  skipped: number;
+  totalRows: number;
+  errors: string[];
+}
+
 export interface ContasAPagarReport {
   totalContas: number;
   totalValor: number;
@@ -565,6 +573,16 @@ export const contasAPagarService = {
   // Buscar fornecedor por ID
   async getFornecedorById(id: string): Promise<Supplier> {
     const response = await api.get(`/api/suppliers/${id}`);
+    return response.data;
+  },
+
+  // Importar fornecedores via planilha Excel
+  async importarFornecedoresExcel(file: File): Promise<ImportResultDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<ImportResultDto>('/api/suppliers/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 

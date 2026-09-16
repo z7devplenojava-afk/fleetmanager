@@ -141,7 +141,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 variant="ghost"
                 size="icon"
                 onClick={toggleSidebar}
-                className="text-muted-foreground hover:text-white hover:bg-white/5 h-8 w-8 transition-all hidden md:flex shrink-0"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 w-8 transition-all hidden md:flex shrink-0"
               >
                 {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
               </Button>
@@ -154,8 +154,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
             {/* Centro: Data do dia formatada */}
             <div className="hidden sm:flex items-center gap-2 min-w-0">
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900/90 border border-zinc-800 text-[11px] text-zinc-300 font-medium shadow-inner shrink-0">
-                <CalendarDays className="h-3.5 w-3.5 text-red-500 shrink-0" />
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/80 border border-border text-[11px] text-foreground font-medium shadow-sm shrink-0">
+                <CalendarDays className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
                 <span>{formattedDate}</span>
               </div>
             </div>
@@ -168,27 +168,27 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 </div>
               )}
 
-              {/* Botão de Ajuda e Suporte (Novo) */}
+              {/* Botão de Ajuda e Suporte */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsHelpModalOpen(true)}
-                className="relative text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-cyan-500/20 hover:border-cyan-500/40 h-8 px-2 sm:px-2.5 rounded-lg transition-all flex items-center gap-1.5"
+                className="relative text-cyan-700 dark:text-cyan-300 hover:text-cyan-800 dark:hover:text-cyan-200 hover:bg-cyan-500/10 border border-cyan-500/30 h-8 px-2 sm:px-2.5 rounded-lg transition-all flex items-center gap-1.5"
                 title="Central de Ajuda, Tutoriais e Suporte"
               >
-                <HelpCircle className="h-4 w-4" />
+                <HelpCircle className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                 <span className="text-[11px] font-medium hidden md:inline">Ajuda</span>
               </Button>
 
-              {/* Botão de Gestão de Atendimento & WhatsApp (Melhorado) */}
+              {/* Botão de Gestão de Atendimento & WhatsApp */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/gestao-atendimento/whatsapp')}
-                className="relative text-purple-300 hover:text-purple-200 hover:bg-purple-500/10 border border-purple-500/20 hover:border-purple-500/40 h-8 px-2 sm:px-2.5 rounded-lg transition-all flex items-center gap-1.5"
+                className="relative text-purple-700 dark:text-purple-300 hover:text-purple-800 dark:hover:text-purple-200 hover:bg-purple-500/10 border border-purple-500/30 h-8 px-2 sm:px-2.5 rounded-lg transition-all flex items-center gap-1.5"
                 title="Gestão de Atendimento, Chatbot e WhatsApp"
               >
-                <Headphones className="h-4 w-4 text-purple-400" />
+                <Headphones className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 <span className="text-[11px] font-medium hidden md:inline">Atendimento</span>
                 {unreadChats > 0 && (
                   <Badge
@@ -202,21 +202,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
               {/* Perfil do Usuário */}
               <div
-                className="flex items-center space-x-2 cursor-pointer p-1 rounded-lg hover:bg-white/5 transition-all"
+                className="flex items-center space-x-2 cursor-pointer p-1 rounded-lg hover:bg-accent/60 transition-all"
                 onClick={handleProfileClick}
                 title="Ver meu perfil"
               >
                 <div className="hidden sm:block text-right">
-                  <p className="text-xs font-medium text-white leading-none mb-0.5 truncate max-w-[130px]">
+                  <p className="text-xs font-semibold text-foreground leading-none mb-0.5 truncate max-w-[130px]">
                     {user.name}
                   </p>
                   <div className="flex items-center justify-end gap-1">
                     {companyName && (
-                      <span className="text-[9px] text-zinc-400 font-medium truncate max-w-[80px]">
+                      <span className="text-[9px] text-muted-foreground font-medium truncate max-w-[80px]">
                         {companyName}
                       </span>
                     )}
-                    <Badge className="bg-primary/20 text-primary text-[8px] h-3.5 font-bold uppercase border-none rounded-sm px-1 italic">
+                    <Badge className="bg-primary/15 text-primary text-[8px] h-3.5 font-bold uppercase border-none rounded-sm px-1 italic">
                       {getRoleDisplayName(user.role)}
                     </Badge>
                   </div>
@@ -234,7 +234,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={logout}
-                className="text-muted-foreground hover:text-white hover:bg-white/5 h-8 px-2 sm:px-3 rounded-lg text-xs border border-white/10 transition-all"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-3 rounded-lg text-xs border border-border transition-all"
                 title="Encerrar Sessão"
               >
                 <LogOut className="h-3.5 w-3.5 sm:mr-1.5" />
@@ -255,7 +255,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           {(title || subtitle) && (
             <div className="mb-6">
               {title && (
-                <h1 className="text-2xl font-bold text-white mb-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1 tracking-tight">
                   {title}
                 </h1>
               )}
@@ -267,11 +267,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             </div>
           )}
 
-          {/* Conteúdo principal - Solid Box Layering */}
-          <div className="bg-card border border-border rounded-lg p-4 sm:p-6 w-full shadow-sm">
-            <div className="min-w-0 w-full">
-              {children}
-            </div>
+          {/* Conteúdo principal */}
+          <div className="w-full min-w-0">
+            {children}
           </div>
         </main>
       </div>

@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, RefreshCw, Search, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, RefreshCw, Search, Edit2, Trash2, ToggleLeft, ToggleRight, Upload, FileSpreadsheet } from 'lucide-react';
 import { contasAPagarService, Supplier, CreateSupplierRequest, UpdateSupplierRequest } from '@/services/contasAPagarService';
 import { useToast } from '@/hooks/use-toast';
 
@@ -14,7 +14,9 @@ const UFS = [
 
 export default function Fornecedores() {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -112,21 +114,77 @@ export default function Fornecedores() {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setImporting(true);
+      toast({ title: 'Importando...', description: 'Processando planilha de fornecedores...' });
+      const res = await contasAPagarService.importarFornecedoresExcel(file);
+      
+      const totalSuccess = (res.inserted || 0) + (res.updated || 0);
+      if (totalSuccess > 0) {
+        toast({
+          title: 'Importação Concluída!',
+          description: `${res.inserted || 0} fornecedor(es) inserido(s), ${res.updated || 0} atualizado(s).`,
+        });
+        await load();
+      } else if (res.errors && res.errors.length > 0) {
+        toast({
+          title: 'Atenção na Importação',
+          description: res.errors.slice(0, 2).join(' | '),
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Nenhum registro importado',
+          description: 'Verifique se a planilha possui colunas de Nome/Razão Social e CNPJ.',
+        });
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Falha ao importar planilha de fornecedores.';
+      toast({ title: 'Erro na importação', description: msg, variant: 'destructive' });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <StandardLayout title="Fornecedores">
       <div className="space-y-4">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept=".xlsx,.xls"
+          className="hidden"
+        />
+
         <Card className="p-4 bg-seguranca-graphite border-gray-700">
           <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
             <div className="flex items-center gap-2 text-seguranca-lightgray">
               <Search size={16} />
               <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome, CNPJ, cidade ou UF" className="form-input w-72" />
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={load} disabled={loading}>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={load} disabled={loading || importing} title="Atualizar lista">
                 <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                className="border-emerald-600/60 text-emerald-400 hover:bg-emerald-600/20"
+              >
+                <FileSpreadsheet size={16} className={`mr-1 ${importing ? 'animate-bounce' : ''}`} />
+                {importing ? 'Importando...' : 'Importar Planilha'}
+              </Button>
               <Button onClick={openCreate} className="bg-seguranca-red hover:bg-seguranca-darkred">
-                <Plus size={16} className="mr-1" /> Novo
+                <Plus size={16} className="mr-1" /> Novo Fornecedor
               </Button>
             </div>
           </div>

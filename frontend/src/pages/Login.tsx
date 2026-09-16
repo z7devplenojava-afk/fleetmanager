@@ -5,6 +5,7 @@ import SEO from '@/components/SEO';
 import Logo from '../components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApiUrl } from '@/config/environment';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -33,9 +34,7 @@ const Login = () => {
 
   // Monta URL da logo da empresa
   const empresaLogoSrc = useMemo(() => {
-    if (!lastEmpresa?.logoUrl) return null;
-    if (lastEmpresa.logoUrl.startsWith('http')) return lastEmpresa.logoUrl;
-    return `${getApiUrl().replace(/\/api\/?$/, '')}${lastEmpresa.logoUrl.startsWith('/') ? '' : '/'}${lastEmpresa.logoUrl}`;
+    return resolveCompanyLogoUrl(lastEmpresa?.logoUrl);
   }, [lastEmpresa]);
 
   const [username, setUsername] = useState('');
@@ -207,6 +206,7 @@ const Login = () => {
                   <Input
                     id="username"
                     type="text"
+                    autoComplete="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="h-14 bg-black/40 border-white/10 focus:border-primary/50 focus:ring-primary/20 rounded-2xl pl-12 transition-all placeholder:text-white/20 font-medium text-white !bg-black/40 !text-white"
@@ -224,6 +224,7 @@ const Login = () => {
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="h-14 bg-black/40 border-white/10 focus:border-primary/50 focus:ring-primary/20 rounded-2xl pl-12 pr-12 transition-all placeholder:text-white/20 font-medium text-white !bg-black/40 !text-white"
@@ -265,14 +266,14 @@ const Login = () => {
               )}
 
               <div className="flex items-center justify-between text-xs px-1">
-                <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setRememberMe(!rememberMe)}>
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="remember"
                     checked={rememberMe}
                     onCheckedChange={(checked) => setRememberMe(checked === true)}
-                    className="h-5 w-5 rounded-lg border-white/20 data-[state=checked]:bg-primary !border-white/20"
+                    className="h-5 w-5 rounded-lg border-white/20 data-[state=checked]:bg-primary !border-white/20 cursor-pointer"
                   />
-                  <Label htmlFor="remember" className="font-bold tracking-tight text-white/80 group-hover:text-white cursor-pointer transition-colors">
+                  <Label htmlFor="remember" className="font-bold tracking-tight text-white/80 hover:text-white cursor-pointer transition-colors select-none">
                     Lembrar-me
                   </Label>
                 </div>

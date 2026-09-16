@@ -3,6 +3,7 @@ package com.z7design.fleet_manager.service;
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.model.User;
+import com.z7design.fleet_manager.repository.CompanyRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Resolve a empresa do usuário: diretamente (user.company) ou via Employee.
+ * Resolve a empresa do usuário: diretamente (user.companyId / user.company) ou via Employee.
  */
 @Service
 @RequiredArgsConstructor
@@ -20,33 +21,95 @@ import java.util.UUID;
 public class UserCompanyResolver {
 
     private final EmployeeRepository employeeRepository;
+    private final CompanyRepository companyRepository;
+    private final com.z7design.fleet_manager.repository.UserRepository userRepository;
 
     /**
-     * Retorna a Company do usuário. Primeiro tenta user.getCompany(),
-     * depois Employee -> Company.
+     * Resolve o ID da empresa do contexto atual (TenantContext) ou do usuário logado via SecurityContextHolder.
+     */
+    public UUID resolveCurrentCompanyId() {
+        UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        if (tenantId != null) {
+            return tenantId;
+        }
+        try {
+            org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+                String username = auth.getName();
+                if (username != null && userRepository != null) {
+                    User user = userRepository.findByUsername(username)
+                            .or(() -> userRepository.findByEmail(username)).orElse(null);
+                    if (user != null) {
+                        return resolveCompanyId(user);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ Erro ao resolver empresa do usuário atual: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Resolve a entidade Company do contexto atual ou usuário logado.
+     */
+    public Optional<Company> resolveCurrentCompany() {
+        UUID companyId = resolveCurrentCompanyId();
+        if (companyId != null) {
+            try {
+                return companyRepository.findById(companyId);
+            } catch (Exception ignored) {}
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Retorna a Company do usuário. Primeiro tenta user.getCompanyId(),
+     * depois user.getCompany(), depois Employee -> Company.
      */
     public Optional<Company> resolveCompany(User user) {
         if (user == null)
             return Optional.empty();
+
+        // 1. Tentar por companyId direto
+        if (user.getCompanyId() != null) {
+            try {
+                Optional<Company> direct = companyRepository.findById(user.getCompanyId());
+                if (direct.isPresent()) {
+                    return direct;
+                }
+            } catch (Exception e) {
+                log.debug("Erro ao buscar company por companyId: {}", e.getMessage());
+            }
+        }
+
+        // 2. Tentar por relacionamento company
         try {
             if (user.getCompany() != null && user.getCompany().getId() != null) {
                 return Optional.of(user.getCompany());
             }
         } catch (Exception ignored) {}
+
+        // 3. Tentar por Employee
         try {
-            return employeeRepository.findByUserId(user.getId())
-                    .map(Employee::getCompany)
-                    .filter(c -> c != null && c.getId() != null);
+            if (user.getId() != null) {
+                return employeeRepository.findByUserId(user.getId())
+                        .map(Employee::getCompany)
+                        .filter(c -> c != null && c.getId() != null);
+            }
         } catch (Exception e) {
             log.warn("⚠️ Erro ao resolver empresa por Employee: {}", e.getMessage());
-            return Optional.empty();
         }
+
+        return Optional.empty();
     }
 
     /**
      * Retorna o empresaId do usuário (UUID ou null).
      */
     public UUID resolveCompanyId(User user) {
+        if (user == null) return null;
+        if (user.getCompanyId() != null) return user.getCompanyId();
         return resolveCompany(user).map(Company::getId).orElse(null);
     }
 
@@ -59,14 +122,15 @@ public class UserCompanyResolver {
             return Optional.empty();
 
         try {
-            // Verifica se é a empresa principal do usuário
-            if (user.getCompany() != null && companyId.equals(user.getCompany().getId())) {
-                return Optional.of(user.getCompany());
+            // Tenta buscar diretamente pelo ID
+            Optional<Company> comp = companyRepository.findById(companyId);
+            if (comp.isPresent()) {
+                return comp;
             }
         } catch (Exception ignored) {}
 
         try {
-            // Busca nos registros de Employee (onde o usuário pode ter acesso a múltiplas empresas)
+            // Busca nos registros de Employee
             return employeeRepository.findByUser(user).stream()
                     .filter(emp -> emp != null && companyId.equals(emp.getCompanyId()))
                     .map(Employee::getCompany)

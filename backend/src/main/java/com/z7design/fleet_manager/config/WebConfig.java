@@ -28,54 +28,84 @@ public class WebConfig implements WebMvcConfigurer {
         log.info("ðŸ”§ Configurando ResourceHandlers para arquivos estÃ¡ticos");
         log.info("ðŸ“ uploadDir configurado: {}", uploadDir);
         
-        // Servir arquivos de upload estaticamente
-        registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:uploads/")
+        // Servir arquivos de upload estaticamente (com e sem prefixo /api)
+        java.nio.file.Path basePath = Paths.get(uploadDir).toAbsolutePath().normalize();
+        String baseUploadPath = basePath.toString().replace("\\", "/") + "/";
+        java.nio.file.Path parentBasePath = Paths.get("..", "uploads").toAbsolutePath().normalize();
+        String parentUploadPath = parentBasePath.toString().replace("\\", "/") + "/";
+
+        registry.addResourceHandler("/uploads/**", "/api/uploads/**")
+                .addResourceLocations(
+                    "file:" + baseUploadPath,
+                    "file:" + parentUploadPath,
+                    "file:uploads/",
+                    "file:../uploads/",
+                    "file:/app/uploads/",
+                    "file:/var/www/secured_guard/ci/uploads/"
+                )
                 .setCachePeriod(3600); // Cache por 1 hora
                 
-        // Servir arquivos de manutenÃ§Ã£o especificamente
-        registry.addResourceHandler("/uploads/maintenance/**")
-                .addResourceLocations("file:uploads/maintenance/")
+        // Servir arquivos de manutenção especificamente
+        registry.addResourceHandler("/uploads/maintenance/**", "/api/uploads/maintenance/**")
+                .addResourceLocations(
+                    "file:" + baseUploadPath + "maintenance/",
+                    "file:" + parentUploadPath + "maintenance/",
+                    "file:uploads/maintenance/",
+                    "file:../uploads/maintenance/"
+                )
                 .setCachePeriod(3600);
                 
         // Servir arquivos de holerites
-        registry.addResourceHandler("/holerites/**")
-                .addResourceLocations("file:holerites/")
+        registry.addResourceHandler("/holerites/**", "/api/holerites/**")
+                .addResourceLocations("file:holerites/", "file:../holerites/")
                 .setCachePeriod(3600);
                 
-        // Servir logos de empresas estaticamente (sem autenticaÃ§Ã£o)
-        // IMPORTANTE: Usar o mesmo caminho que FileUploadController para garantir consistÃªncia
+        // Servir logos de empresas estaticamente (sem autenticação)
         try {
-            // Usar o mesmo cÃ¡lculo de caminho que FileUploadController
             java.nio.file.Path logoDir = Paths.get(uploadDir, "companies", "logos").toAbsolutePath().normalize();
             String logoPath = logoDir.toString().replace("\\", "/");
-            
-            // Garantir que termine com /
             if (!logoPath.endsWith("/")) {
                 logoPath += "/";
             }
             
-            log.info("ðŸ“ Caminho dos logos (absoluto): {}", logoPath);
-            
-            // Verificar se o diretÃ³rio existe, se nÃ£o, criar
-            if (!Files.exists(logoDir)) {
-                Files.createDirectories(logoDir);
-                log.info("âœ… DiretÃ³rio de logos criado: {}", logoDir);
-            } else {
-                log.info("âœ… DiretÃ³rio de logos jÃ¡ existe: {}", logoDir);
+            java.nio.file.Path parentLogoDir = Paths.get("..", "uploads", "companies", "logos").toAbsolutePath().normalize();
+            String parentLogoPath = parentLogoDir.toString().replace("\\", "/");
+            if (!parentLogoPath.endsWith("/")) {
+                parentLogoPath += "/";
             }
             
-            registry.addResourceHandler("/api/uploads/companies/logos/**")
-                    .addResourceLocations("file:" + logoPath)
-                    .setCachePeriod(3600); // Cache por 1 hora
+            log.info("📁 Caminho dos logos (absoluto): {}", logoPath);
             
-            log.info("âœ… ResourceHandler configurado para logos: /api/uploads/companies/logos/** -> file:{}", logoPath);
+            if (!Files.exists(logoDir)) {
+                Files.createDirectories(logoDir);
+                log.info("✅ Diretório de logos criado: {}", logoDir);
+            }
+            
+            registry.addResourceHandler(
+                    "/api/uploads/companies/logos/**",
+                    "/uploads/companies/logos/**",
+                    "/companies/logos/**"
+                )
+                .addResourceLocations(
+                    "file:" + logoPath,
+                    "file:" + parentLogoPath,
+                    "file:uploads/companies/logos/",
+                    "file:../uploads/companies/logos/",
+                    "file:/app/uploads/companies/logos/",
+                    "file:/var/www/secured_guard/ci/uploads/companies/logos/"
+                )
+                .setCachePeriod(3600);
+            
+            log.info("✅ ResourceHandler configurado para logos com múltiplos caminhos");
         } catch (Exception e) {
-            log.error("âŒ Erro ao configurar ResourceHandler para logos, usando fallback: {}", e.getMessage(), e);
-            // Fallback: usar caminho relativo
-            registry.addResourceHandler("/api/uploads/companies/logos/**")
-                    .addResourceLocations("file:" + uploadDir + "/companies/logos/")
-                    .setCachePeriod(3600); // Cache por 1 hora
+            log.error("❌ Erro ao configurar ResourceHandler para logos, usando fallback: {}", e.getMessage(), e);
+            registry.addResourceHandler("/api/uploads/companies/logos/**", "/uploads/companies/logos/**")
+                    .addResourceLocations(
+                        "file:" + uploadDir + "/companies/logos/",
+                        "file:../uploads/companies/logos/",
+                        "file:uploads/companies/logos/"
+                    )
+                    .setCachePeriod(3600);
         }
     }
     

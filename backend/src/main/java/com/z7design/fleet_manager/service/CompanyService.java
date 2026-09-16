@@ -161,37 +161,37 @@ public class CompanyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Empresa nao encontrada com ID: " + id));
 
         // Validar sigla unica (exceto para a propria empresa)
-        if (!existingCompany.getSigla().equals(dto.getSigla()) &&
+        if (dto.getSigla() != null && !dto.getSigla().trim().isEmpty() &&
+                !existingCompany.getSigla().equalsIgnoreCase(dto.getSigla()) &&
                 companyRepository.existsBySigla(dto.getSigla())) {
             throw new BusinessException("Ja existe uma empresa com a sigla: " + dto.getSigla());
         }
 
         // Validar CNPJ unico (se fornecido)
-        if (dto.getCnpj() != null && !dto.getCnpj().trim().isEmpty()) {
-            if (!existingCompany.getCnpj().equals(dto.getCnpj()) &&
-                    companyRepository.existsByCnpj(dto.getCnpj())) {
-                throw new BusinessException("Ja existe uma empresa com o CNPJ: " + dto.getCnpj());
-            }
+        if (dto.getCnpj() != null && !dto.getCnpj().trim().isEmpty() &&
+                (existingCompany.getCnpj() == null || !existingCompany.getCnpj().equals(dto.getCnpj())) &&
+                companyRepository.existsByCnpj(dto.getCnpj())) {
+            throw new BusinessException("Ja existe uma empresa com o CNPJ: " + dto.getCnpj());
         }
 
-        // Atualizar campos
-        existingCompany.setName(dto.getName());
-        existingCompany.setSigla(dto.getSigla());
-        existingCompany.setDescription(dto.getDescription());
-        existingCompany.setCnpj(dto.getCnpj());
-        existingCompany.setAddress(dto.getAddress());
-        existingCompany.setEnderecoRua(dto.getEnderecoRua());
-        existingCompany.setEnderecoNumero(dto.getEnderecoNumero());
-        existingCompany.setEnderecoComplemento(dto.getEnderecoComplemento());
-        existingCompany.setEnderecoBairro(dto.getEnderecoBairro());
-        existingCompany.setCity(dto.getCity());
-        existingCompany.setState(dto.getState());
-        existingCompany.setZipCode(dto.getZipCode());
-        existingCompany.setPhone(dto.getPhone());
-        existingCompany.setEmail(dto.getEmail());
-        existingCompany.setWebsite(dto.getWebsite());
-        existingCompany.setLogoUrl(dto.getLogoUrl());
-        existingCompany.setStatus(dto.getStatus());
+        // Atualizar campos apenas se fornecidos
+        if (dto.getName() != null && !dto.getName().trim().isEmpty()) existingCompany.setName(dto.getName());
+        if (dto.getSigla() != null && !dto.getSigla().trim().isEmpty()) existingCompany.setSigla(dto.getSigla());
+        if (dto.getDescription() != null) existingCompany.setDescription(dto.getDescription());
+        if (dto.getCnpj() != null) existingCompany.setCnpj(dto.getCnpj());
+        if (dto.getAddress() != null) existingCompany.setAddress(dto.getAddress());
+        if (dto.getEnderecoRua() != null) existingCompany.setEnderecoRua(dto.getEnderecoRua());
+        if (dto.getEnderecoNumero() != null) existingCompany.setEnderecoNumero(dto.getEnderecoNumero());
+        if (dto.getEnderecoComplemento() != null) existingCompany.setEnderecoComplemento(dto.getEnderecoComplemento());
+        if (dto.getEnderecoBairro() != null) existingCompany.setEnderecoBairro(dto.getEnderecoBairro());
+        if (dto.getCity() != null) existingCompany.setCity(dto.getCity());
+        if (dto.getState() != null) existingCompany.setState(dto.getState());
+        if (dto.getZipCode() != null) existingCompany.setZipCode(dto.getZipCode());
+        if (dto.getPhone() != null) existingCompany.setPhone(dto.getPhone());
+        if (dto.getEmail() != null) existingCompany.setEmail(dto.getEmail());
+        if (dto.getWebsite() != null) existingCompany.setWebsite(dto.getWebsite());
+        if (dto.getLogoUrl() != null) existingCompany.setLogoUrl(dto.getLogoUrl());
+        if (dto.getStatus() != null) existingCompany.setStatus(dto.getStatus());
 
         existingCompany = companyRepository.save(existingCompany);
 
@@ -226,20 +226,62 @@ public class CompanyService {
     public void deleteCompany(UUID id) {
         log.info("Excluindo empresa ID: {}", id);
 
-        if (!companyRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Empresa nao encontrada com ID: " + id);
-        }
-
-        // Verificar se ha funcionarios associados
         Company company = companyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Empresa nao encontrada com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada com ID: " + id));
 
-        if (company.getEmployees() != null && !company.getEmployees().isEmpty()) {
-            throw new BusinessException("Nao e possivel excluir a empresa pois ha funcionarios associados a ela");
+        // Verificar se há funcionários associados
+        long empCount = 0;
+        try {
+            empCount = employeeRepository.countByCompanyId(id);
+        } catch (Exception e) {
+            log.warn("Aviso ao contar funcionários da empresa {}: {}", id, e.getMessage());
         }
 
-        companyRepository.deleteById(id);
-        log.info("Empresa excluida com sucesso - ID: {}", id);
+        if (empCount > 0) {
+            throw new BusinessException(String.format(
+                "Não é possível excluir a empresa '%s' pois existem %d funcionário(s) associado(s). Para preservar o histórico trabalhista e relatórios, utilize a opção 'Desativar Empresa'.",
+                company.getName(), empCount
+            ));
+        }
+
+        // Remover EPIs padrão vinculados à empresa antes de excluir
+        try {
+            companyDefaultEPIRepository.deleteByCompanyId(id);
+        } catch (Exception e) {
+            log.warn("Aviso ao excluir EPIs padrão da empresa {}: {}", id, e.getMessage());
+        }
+
+        try {
+            companyRepository.delete(company);
+            companyRepository.flush();
+            log.info("Empresa excluída com sucesso - ID: {}", id);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            log.warn("Violação de integridade referencial ao excluir empresa {}: {}", id, ex.getMessage());
+            throw new BusinessException(String.format(
+                "A empresa '%s' não pode ser excluída permanentemente pois possui registros vinculados (usuários, veículos, contratos ou movimentações). Utilize a opção 'Desativar Empresa' para inativá-la com segurança.",
+                company.getName()
+            ));
+        } catch (Exception ex) {
+            log.error("Erro ao excluir empresa {}: {}", id, ex.getMessage(), ex);
+            throw new BusinessException(String.format(
+                "Não foi possível excluir a empresa '%s': %s",
+                company.getName(), ex.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Alternar status ativo/inativo da empresa
+     */
+    public CompanyDTO toggleCompanyStatus(UUID id) {
+        log.info("Alternando status da empresa ID: {}", id);
+        Company company = companyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada com ID: " + id));
+        CompanyStatus newStatus = company.getStatus() == CompanyStatus.ACTIVE ? CompanyStatus.INACTIVE : CompanyStatus.ACTIVE;
+        company.setStatus(newStatus);
+        company = companyRepository.save(company);
+        log.info("Status da empresa {} alterado para: {}", id, newStatus);
+        return CompanyDTO.fromEntity(company);
     }
 
     /**

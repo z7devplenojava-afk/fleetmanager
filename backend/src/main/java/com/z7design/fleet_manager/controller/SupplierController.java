@@ -164,16 +164,10 @@ public class SupplierController {
         return ResponseEntity.ok(List.of());
     }
     
-    @GetMapping("/stats/count")
-    @Operation(summary = "EstatÃ­sticas de fornecedores", description = "Retorna contadores de fornecedores ativos e inativos")
-    public ResponseEntity<Object> getStats() {
-        long activeCount = supplierService.countActiveSuppliers();
-        long inactiveCount = supplierService.countInactiveSuppliers();
-        
-        return ResponseEntity.ok(new Object() {
-            public final long active = activeCount;
-            public final long inactive = inactiveCount;
-            public final long total = activeCount + inactiveCount;
-        });
+    @PostMapping(value = "/import", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Importar fornecedores via planilha Excel", description = "Importa fornecedores a partir de arquivo .xlsx ou .xls")
+    public ResponseEntity<com.z7design.fleet_manager.dto.ImportResultDto> importSuppliersExcel(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(supplierService.importExcel(file));
     }
 } 

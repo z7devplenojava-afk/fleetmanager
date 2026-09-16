@@ -68,8 +68,18 @@ public class UserController {
         }
 
         String username = authentication.getName();
-        User currentUser = userService.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        User currentUser = null;
+        if (authentication.getPrincipal() instanceof User) {
+            currentUser = (User) authentication.getPrincipal();
+        } else {
+            currentUser = userService.findByUsername(username)
+                    .or(() -> userService.findByEmail(username))
+                    .orElse(null);
+        }
+
+        if (currentUser == null) {
+            return ResponseEntity.status(404).build();
+        }
 
         List<String> roleNames = currentUser.getRoles() != null ? currentUser.getRoles().stream()
                 .filter(Objects::nonNull)
@@ -109,8 +119,18 @@ public class UserController {
         }
 
         String username = authentication.getName();
-        User currentUser = userService.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        User currentUser = null;
+        if (authentication.getPrincipal() instanceof User) {
+            currentUser = (User) authentication.getPrincipal();
+        } else {
+            currentUser = userService.findByUsername(username)
+                    .or(() -> userService.findByEmail(username))
+                    .orElse(null);
+        }
+
+        if (currentUser == null) {
+            return ResponseEntity.status(404).build();
+        }
 
         // Atualizar o perfil
         User updatedUser = userService.updateProfile(currentUser.getId(), request);

@@ -30,6 +30,7 @@ public class VehicleExcelImportService {
 
     private final VehicleRepository vehicleRepository;
     private final PlatformTransactionManager transactionManager;
+    private final UserCompanyResolver userCompanyResolver;
 
     private static final Pattern YEAR_PATTERN = Pattern.compile("(19\\d{2}|20\\d{2})");
 
@@ -39,7 +40,9 @@ public class VehicleExcelImportService {
         }
 
         ImportResultDto result = ImportResultDto.empty();
-        log.info("Iniciando importação otimizada de veículos a partir do arquivo Excel: {}", file.getOriginalFilename());
+        UUID currentCompanyId = userCompanyResolver.resolveCurrentCompanyId();
+        log.info("Iniciando importação otimizada de veículos a partir do arquivo Excel: {} (CompanyId: {})",
+                file.getOriginalFilename(), currentCompanyId);
 
         try (InputStream is = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(is)) {
@@ -84,7 +87,7 @@ public class VehicleExcelImportService {
                 }
 
                 log.info("Processando aba '{}' ({}/{})", sheetName, s + 1, numberOfSheets);
-                processSheet(sheet, sheetName, result, existingMap, processedPlatesInFile, toInsert, toUpdate);
+                processSheet(sheet, sheetName, result, existingMap, processedPlatesInFile, toInsert, toUpdate, currentCompanyId);
             }
 
             // 2. Persistir com resiliência: tenta em lote e faz fallback individual para garantir sucesso
@@ -163,7 +166,7 @@ public class VehicleExcelImportService {
 
     private void processSheet(Sheet sheet, String sheetName, ImportResultDto result,
                               Map<String, Vehicle> existingMap, Set<String> processedPlatesInFile,
-                              List<Vehicle> toInsert, List<Vehicle> toUpdate) {
+                              List<Vehicle> toInsert, List<Vehicle> toUpdate, UUID currentCompanyId) {
         int firstRowNum = sheet.getFirstRowNum();
         int lastRowNum = sheet.getLastRowNum();
 
@@ -216,7 +219,7 @@ public class VehicleExcelImportService {
             result.setTotalRows(result.getTotalRows() + 1);
 
             try {
-                processRow(row, r + 1, sheetName, columnMap, result, existingMap, processedPlatesInFile, toInsert, toUpdate);
+                processRow(row, r + 1, sheetName, columnMap, result, existingMap, processedPlatesInFile, toInsert, toUpdate, currentCompanyId);
             } catch (Exception e) {
                 log.error("Erro na aba '{}', linha {}: ", sheetName, r + 1, e);
                 result.setSkipped(result.getSkipped() + 1);
@@ -276,7 +279,8 @@ public class VehicleExcelImportService {
 
     private void processRow(Row row, int rowNum, String sheetName, Map<Integer, String> columnMap,
                             ImportResultDto result, Map<String, Vehicle> existingMap,
-                            Set<String> processedPlatesInFile, List<Vehicle> toInsert, List<Vehicle> toUpdate) {
+                            Set<String> processedPlatesInFile, List<Vehicle> toInsert, List<Vehicle> toUpdate,
+                            UUID currentCompanyId) {
         String plateValue = null;
         String patrimonioValue = null;
         String fleetNumberValue = null;
@@ -430,7 +434,6 @@ public class VehicleExcelImportService {
                 }
             } catch (Exception ignored) {}
         }
-        UUID currentCompanyId = TenantContext.get();
 
         if (vehicle != null) {
             boolean updated = false;

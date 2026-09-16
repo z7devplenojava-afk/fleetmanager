@@ -109,6 +109,20 @@ export interface VehicleFormData {
     // Diferença financeira
     financialDifference: number;
 
+    // Controle de Troca de Óleo, Filtros, Correias e Garantias
+    vehicleId?: string;
+    lastOilChangeKm?: number;
+    oilChangeIntervalKm?: number;
+    lastOilChangeDate?: string;
+    lastOilFilterChangeKm?: number;
+    lastAirFilterChangeKm?: number;
+    lastFuelFilterChangeKm?: number;
+    lastCabinFilterChangeKm?: number;
+    lastTimingBeltChangeKm?: number;
+    timingBeltIntervalKm?: number;
+    warrantyExpiryDate?: string;
+    warrantyLimitKm?: number;
+
     // Misc
     observacoes: string;
     fotos: FileList | null;

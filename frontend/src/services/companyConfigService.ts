@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from '@/lib/axios';
 
 const API_BASE_URL = '/company-config';
 
@@ -29,7 +29,7 @@ class CompanyConfigService {
   async getActiveConfig(): Promise<CompanyConfig | null> {
     try {
       console.log('🏢 Buscando configuração ativa da empresa...');
-      const response = await axios.get(`${API_BASE_URL}/active`);
+      const response = await api.get(`${API_BASE_URL}/active`);
       
       if (response.status === 204) {
         console.log('📝 Nenhuma configuração encontrada');
@@ -50,7 +50,7 @@ class CompanyConfigService {
   async hasActiveConfig(): Promise<boolean> {
     try {
       console.log('🔍 Verificando se existe configuração da empresa...');
-      const response = await axios.get(`${API_BASE_URL}/exists`);
+      const response = await api.get(`${API_BASE_URL}/exists`);
       console.log('📊 Existe configuração:', response.data);
       return response.data;
     } catch (error) {
@@ -65,7 +65,7 @@ class CompanyConfigService {
   async saveConfig(config: CompanyConfig): Promise<CompanyConfig> {
     try {
       console.log('💾 Salvando configuração da empresa:', config);
-      const response = await axios.post(API_BASE_URL, config);
+      const response = await api.post(API_BASE_URL, config);
       console.log('✅ Configuração salva com sucesso:', response.data);
       return response.data;
     } catch (error) {
@@ -83,7 +83,7 @@ class CompanyConfigService {
   async getConfigById(id: string): Promise<CompanyConfig | null> {
     try {
       console.log('🔍 Buscando configuração por ID:', id);
-      const response = await axios.get(`${API_BASE_URL}/${id}`);
+      const response = await api.get(`${API_BASE_URL}/${id}`);
       console.log('✅ Configuração encontrada:', response.data);
       return response.data;
     } catch (error) {
@@ -98,7 +98,7 @@ class CompanyConfigService {
   async deactivateConfig(id: string): Promise<void> {
     try {
       console.log('🗑️ Desativando configuração:', id);
-      await axios.delete(`${API_BASE_URL}/${id}`);
+      await api.delete(`${API_BASE_URL}/${id}`);
       console.log('✅ Configuração desativada com sucesso');
     } catch (error) {
       console.error('❌ Erro ao desativar configuração:', error);
@@ -115,7 +115,7 @@ class CompanyConfigService {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await axios.post(`${API_BASE_URL}/${id}/logo`, formData, {
+      const response = await api.post(`${API_BASE_URL}/${id}/logo`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -131,3 +131,4 @@ class CompanyConfigService {
 }
 
 export const companyConfigService = new CompanyConfigService();
+

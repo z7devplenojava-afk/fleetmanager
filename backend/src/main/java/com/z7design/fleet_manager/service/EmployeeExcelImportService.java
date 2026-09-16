@@ -27,6 +27,7 @@ public class EmployeeExcelImportService {
     private final EmployeeService employeeService;
     private final CompanyRepository companyRepository;
     private final com.z7design.fleet_manager.repository.EmployeeRepository employeeRepository;
+    private final UserCompanyResolver userCompanyResolver;
 
     // Mapeamento de colunas possíveis da planilha para campos da entidade
     private static final Map<String, String> COLUMN_MAPPING = new HashMap<>();
@@ -212,59 +213,84 @@ public class EmployeeExcelImportService {
                 }
             }
 
-            // Validar se encontrou CNPJ da empresa
+            // Validar se encontrou CNPJ da empresa ou se deve usar a empresa do usuário logado
+            Optional<Company> currentTenantCompany = userCompanyResolver.resolveCurrentCompany();
+            Company company = null;
+
             if (companyCnpjColumnIndex == -1) {
                 fixedCompanyCnpj = findCompanyCnpjInSheet(sheet, headerRowIndex);
-                if (fixedCompanyCnpj == null || fixedCompanyCnpj.isEmpty()) {
+                if (fixedCompanyCnpj != null && !fixedCompanyCnpj.isEmpty()) {
+                    log.info("📋 CNPJ da empresa encontrado no cabeçalho: {}", fixedCompanyCnpj);
+                } else if (currentTenantCompany.isPresent()) {
+                    company = currentTenantCompany.get();
+                    log.info("📋 Utilizando empresa do usuário logado: {} (ID: {}, Sigla: {})",
+                            company.getName(), company.getId(), company.getSigla());
+                } else {
                     result.addError(
-                            "Coluna 'CNPJ Empresa' não encontrada na planilha. É necessário uma coluna contendo o CNPJ da empresa.");
+                            "Coluna 'CNPJ Empresa' não encontrada na planilha. É necessário uma coluna contendo o CNPJ da empresa ou estar autenticado em uma empresa.");
                     workbook.close();
                     return result;
                 }
-                log.info("📋 CNPJ da empresa encontrado no cabeçalho: {}", fixedCompanyCnpj);
             }
 
-            // Buscar empresa do primeiro registro (todos devem ser da mesma empresa)
-            Row firstDataRow = sheet.getRow(headerRowIndex + 1);
-            if (firstDataRow == null) {
-                result.addError("Nenhum dado encontrado na planilha");
-                workbook.close();
-                return result;
+            // Buscar empresa do primeiro registro (caso não tenha sido resolvida pelo tenant)
+            if (company == null) {
+                Row firstDataRow = sheet.getRow(headerRowIndex + 1);
+                if (firstDataRow == null) {
+                    result.addError("Nenhum dado encontrado na planilha");
+                    workbook.close();
+                    return result;
+                }
+
+                String companyCnpj;
+                if (fixedCompanyCnpj != null) {
+                    companyCnpj = fixedCompanyCnpj;
+                } else {
+                    Cell cnpjCell = firstDataRow.getCell(companyCnpjColumnIndex);
+                    companyCnpj = getCellValueAsString(cnpjCell);
+                }
+
+                if (companyCnpj == null || companyCnpj.trim().isEmpty()) {
+                    if (currentTenantCompany.isPresent()) {
+                        company = currentTenantCompany.get();
+                        log.info("📋 CNPJ não preenchido na linha, utilizando empresa do usuário: {} ({})",
+                                company.getName(), company.getId());
+                    } else {
+                        result.addError("CNPJ da empresa não encontrado na primeira linha de dados");
+                        workbook.close();
+                        return result;
+                    }
+                } else {
+                    // Normalizar CNPJ (remover caracteres não numéricos)
+                    String normalizedCnpj = companyCnpj.replaceAll("[^0-9]", "");
+                    log.info("🔎 Buscando empresa com CNPJ normalizado: {}", normalizedCnpj);
+
+                    // Buscar empresa no banco
+                    List<Company> companies = companyRepository.findByNormalizedCnpj(normalizedCnpj);
+                    if (companies.isEmpty()) {
+                        if (currentTenantCompany.isPresent()) {
+                            company = currentTenantCompany.get();
+                            log.warn("⚠️ Empresa não encontrada pelo CNPJ da planilha, usando empresa do usuário logado: {} ({})",
+                                    company.getName(), company.getId());
+                        } else {
+                            log.error("❌ Empresa não encontrada. CNPJ Original: '{}', CNPJ Normalizado: '{}'", companyCnpj,
+                                    normalizedCnpj);
+                            result.addError("Empresa não encontrada no banco de dados com o CNPJ: " + companyCnpj +
+                                    " (Normalizado: " + normalizedCnpj
+                                    + "). Certifique-se de que a empresa está cadastrada no sistema antes de importar.");
+                            workbook.close();
+                            return result;
+                        }
+                    } else {
+                        company = companies.get(0);
+                    }
+                }
             }
 
-            String companyCnpj;
-            if (fixedCompanyCnpj != null) {
-                companyCnpj = fixedCompanyCnpj;
-            } else {
-                Cell cnpjCell = firstDataRow.getCell(companyCnpjColumnIndex);
-                companyCnpj = getCellValueAsString(cnpjCell);
-            }
-
-            if (companyCnpj == null || companyCnpj.trim().isEmpty()) {
-                result.addError("CNPJ da empresa não encontrado na primeira linha de dados");
-                workbook.close();
-                return result;
-            }
-
-            // Normalizar CNPJ (remover caracteres não numéricos)
-            String normalizedCnpj = companyCnpj.replaceAll("[^0-9]", "");
-            log.info("🔎 Buscando empresa com CNPJ normalizado: {}", normalizedCnpj);
-
-            // Buscar empresa no banco
-            List<Company> companies = companyRepository.findByNormalizedCnpj(normalizedCnpj);
-            if (companies.isEmpty()) {
-                log.error("❌ Empresa não encontrada. CNPJ Original: '{}', CNPJ Normalizado: '{}'", companyCnpj,
-                        normalizedCnpj);
-                result.addError("Empresa não encontrada no banco de dados com o CNPJ: " + companyCnpj +
-                        " (Normalizado: " + normalizedCnpj
-                        + "). Certifique-se de que a empresa está cadastrada no sistema antes de importar.");
-                workbook.close();
-                return result;
-            }
-
-            Company company = companies.get(0);
-            log.info("✅ Empresa encontrada: {} (ID: {}, Sigla: {})",
+            log.info("✅ Empresa selecionada para importação: {} (ID: {}, Sigla: {})",
                     company.getName(), company.getId(), company.getSigla());
+
+            String normalizedCnpj = (company.getCnpj() != null) ? company.getCnpj().replaceAll("[^0-9]", "") : "";
 
             // Processar linhas de dados
             int totalRows = sheet.getPhysicalNumberOfRows();

@@ -125,4 +125,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
                         "AND UPPER(TRIM(name)) = UPPER(TRIM(:name)) LIMIT 1",
                         nativeQuery = true)
         Optional<Employee> findByNameExactAndCompanyId(@Param("name") String name, @Param("companyId") UUID companyId);
+
+        long countByCompanyId(UUID companyId);
 }

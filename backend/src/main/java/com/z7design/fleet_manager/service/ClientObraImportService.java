@@ -57,6 +57,7 @@ public class ClientObraImportService {
     private final ContractRepository contractRepository;
     private final WorkPostRepository workPostRepository;
     private final PlatformTransactionManager transactionManager;
+    private final UserCompanyResolver userCompanyResolver;
     private static final int BATCH_SIZE = 100;
     private final AtomicInteger plateSeq = new AtomicInteger(1000);
     private final AtomicInteger cnpjSeq = new AtomicInteger(10000);
@@ -312,7 +313,7 @@ public class ClientObraImportService {
         String obraName = parsed[1];
 
         String normalizedClientName = normalizeText(clientName);
-        UUID companyId = TenantContext.get();
+        UUID companyId = userCompanyResolver.resolveCurrentCompanyId();
 
         // 2. Criar ou reutilizar Cliente
         Client client = existingClientsByName.get(normalizedClientName);
@@ -329,8 +330,16 @@ public class ClientObraImportService {
             clientsToInsert.add(client);
             existingClientsByName.put(normalizedClientName, client);
         } else {
+            boolean updated = false;
+            if (client.getCompanyId() == null && companyId != null) {
+                client.setCompanyId(companyId);
+                updated = true;
+            }
             if (tipoServico != null && client.getNotes() == null) {
                 client.setNotes("Serviços: " + truncateString(tipoServico, 500));
+                updated = true;
+            }
+            if (updated) {
                 clientsToUpdate.add(client);
             }
         }

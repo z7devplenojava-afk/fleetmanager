@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, MapPin, Phone, Mail, Globe, FileText, Calendar } from 'lucide-react';
 import { Company } from '@/types/company';
-import { getApiUrl } from '@/config/environment';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 
 interface CompanyViewModalProps {
   open: boolean;
@@ -14,28 +14,7 @@ interface CompanyViewModalProps {
 export const CompanyViewModal: React.FC<CompanyViewModalProps> = ({ open, onOpenChange, company }) => {
   if (!company) return null;
 
-  // Construir URL do logo
-  const getLogoUrl = () => {
-    if (!company.logoUrl) return null;
-    
-    const baseUrl = getApiUrl().replace('/api', '');
-    let logoUrl = company.logoUrl;
-    const normalizedLogo = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
-    
-    if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
-      return logoUrl;
-    } else if (normalizedLogo.startsWith('/api/uploads/')) {
-      return `${baseUrl}${normalizedLogo}`;
-    } else if (normalizedLogo.startsWith('/uploads/')) {
-      return `${baseUrl}/api${normalizedLogo}`;
-    } else if (normalizedLogo.includes('/uploads/companies/logos/')) {
-      return `${baseUrl}/api${normalizedLogo}`;
-    } else {
-      return `${baseUrl}/api/uploads/companies/logos/${logoUrl}`;
-    }
-  };
-
-  const logoUrl = getLogoUrl();
+  const logoUrl = resolveCompanyLogoUrl(company.logoUrl);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

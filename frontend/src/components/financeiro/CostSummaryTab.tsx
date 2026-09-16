@@ -202,6 +202,8 @@ export const CostSummaryTab: React.FC<CostSummaryTabProps> = ({
   const handleExportExcel = () => {
     const data = filteredSimulations.map((s, idx) => ({
       'IT.': s.itemNumber || idx + 1,
+      'PROPOSTA / OPERAÇÃO': s.name,
+      'CLIENTE / LEAD': s.clientName || 'Não vinculado',
       'VEÍCULO': s.vehicleTypeLabel || (s.vehicleCategory === 'BUS' ? 'ÔNIBUS' : s.vehicleCategory === 'MICRO_BUS' ? 'MICRO' : 'VAN'),
       'TURNO': s.shift || `${s.driverCount} turno(s)`,
       'ESCALA': s.scale || 'SEG Á SAB',
@@ -443,6 +445,8 @@ export const CostSummaryTab: React.FC<CostSummaryTabProps> = ({
                     </th>
                     <th className="py-3 px-2 w-16 text-center">Qtd</th>
                     <th className="py-3 px-3 w-10 text-center">IT.</th>
+                    <th className="py-3 px-3 min-w-[200px]">Proposta / Operação</th>
+                    <th className="py-3 px-3 min-w-[150px]">Cliente / Lead</th>
                     <th className="py-3 px-3">Veículo</th>
                     <th className="py-3 px-3">Turno / Horários</th>
                     <th className="py-3 px-3">Escala</th>
@@ -513,6 +517,23 @@ export const CostSummaryTab: React.FC<CostSummaryTabProps> = ({
                         </td>
                         <td className="py-3 px-3 text-center font-bold text-muted-foreground">
                           {itemNum}
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-foreground max-w-[240px]" title={s.name}>
+                          <div className="flex items-center gap-1.5 truncate">
+                            <FileText className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                            <span className="truncate font-bold text-foreground">{s.name || `Proposta #${itemNum}`}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 max-w-[180px]" title={s.clientName || 'Cliente / Lead'}>
+                          {s.clientName ? (
+                            <div className="flex items-center gap-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-500/10 border border-red-500/20 text-red-400 truncate">
+                                {s.clientName}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground/50 text-[11px] italic">—</span>
+                          )}
                         </td>
                         <td className="py-3 px-3 font-semibold text-foreground whitespace-nowrap">
                           <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider">

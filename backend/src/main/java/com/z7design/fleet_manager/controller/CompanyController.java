@@ -162,15 +162,25 @@ public class CompanyController {
     @PreAuthorize("hasAnyAuthority('HR_DELETE','SUPER_ADMIN','ROLE_SUPER_ADMIN','ADMIN','ROLE_ADMIN','COMPANY_ADMIN','ROLE_COMPANY_ADMIN')")
     @Operation(summary = "Excluir empresa", description = "Exclui uma empresa")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Empresa excluÃ­da com sucesso"),
-            @ApiResponse(responseCode = "404", description = "Empresa nÃ£o encontrada"),
-            @ApiResponse(responseCode = "400", description = "NÃ£o Ã© possÃ­vel excluir empresa com funcionÃ¡rios associados"),
+            @ApiResponse(responseCode = "204", description = "Empresa excluída com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Empresa não encontrada"),
+            @ApiResponse(responseCode = "400", description = "Não é possível excluir empresa com funcionários associados"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Void> deleteCompany(
             @Parameter(description = "ID da empresa") @PathVariable("id") UUID id) {
-        log.debug("Recebida requisiÃ§Ã£o para excluir empresa ID: {}", id);
+        log.debug("Recebida requisição para excluir empresa ID: {}", id);
         companyService.deleteCompany(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/toggle-status")
+    @PreAuthorize("hasAnyAuthority('HR_WRITE','SUPER_ADMIN','ROLE_SUPER_ADMIN','ADMIN','ROLE_ADMIN','COMPANY_ADMIN','ROLE_COMPANY_ADMIN')")
+    @Operation(summary = "Alternar status da empresa", description = "Alterna o status da empresa entre ACTIVE e INACTIVE")
+    public ResponseEntity<CompanyDTO> toggleCompanyStatus(
+            @Parameter(description = "ID da empresa") @PathVariable("id") UUID id) {
+        log.debug("Recebida requisição para alternar status da empresa ID: {}", id);
+        CompanyDTO updatedCompany = companyService.toggleCompanyStatus(id);
+        return ResponseEntity.ok(updatedCompany);
     }
 }

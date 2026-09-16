@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import { 
   Card, 
   CardContent, 
@@ -735,7 +736,7 @@ const Configuracoes = () => {
                     <div className="flex items-start gap-4 p-4 bg-seguranca-black/50 rounded-lg border border-gray-700">
                       <div className="flex-shrink-0">
                         <img 
-                          src={empresaForm.logoUrl} 
+                          src={resolveCompanyLogoUrl(empresaForm.logoUrl) || empresaForm.logoUrl} 
                           alt={`Logo ${empresaForm.name || 'Empresa'}`}
                           className="max-h-32 max-w-32 object-contain rounded border border-gray-600"
                           onError={(e) => {
