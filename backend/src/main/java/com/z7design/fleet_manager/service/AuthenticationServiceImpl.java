@@ -135,8 +135,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
 
-            User user = userRepository.findByUsername(request.getUsername())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+            String target = request.getUsername() != null ? request.getUsername().trim() : "";
+            User user = userRepository.findByUsername(target)
+                    .or(() -> userRepository.findByEmail(target))
+                    .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuário não encontrado: " + target));
 
             log.info("✅ Usuário encontrado: {} (ID: {})", user.getUsername(), user.getId());
             log.info("🔐 DEBUG LOGIN - Stored Hash: {}", user.getPassword());
@@ -149,18 +151,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             String jwtToken = jwtService.generateToken(user);
             String refreshToken = jwtService.generateRefreshToken(user);
 
-            log.info("ðŸ”‘ Tokens gerados com sucesso");
+            log.info("🔑 Tokens gerados com sucesso");
 
-            // Buscar permissÃµes customizadas (com tratamento de erro)
+            // Buscar permissões customizadas (com tratamento de erro)
             java.util.List<String> customPermissions = java.util.Collections.emptyList();
             try {
                 customPermissions = customPermissionService.getActivePermissions(user.getId());
-                log.info("âœ… PermissÃµes customizadas carregadas: {}", customPermissions.size());
+                log.info("✅ Permissões customizadas carregadas: {}", customPermissions.size());
             } catch (Exception e) {
-                log.error("âš ï¸ Erro ao buscar permissÃµes customizadas (usando lista vazia): {}", e.getMessage());
+                log.error("⚠️ Erro ao buscar permissões customizadas (usando lista vazia): {}", e.getMessage());
             }
 
-            // Buscar roles (com verificaÃ§Ã£o de null)
+            // Buscar roles (com verificação de null)
             java.util.List<String> roles = java.util.Collections.emptyList();
             try {
                 if (user.getRoles() != null && !user.getRoles().isEmpty()) {
@@ -170,42 +172,42 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                                 try {
                                     return role.getName();
                                 } catch (Exception e) {
-                                    log.warn("âš ï¸ Erro ao obter nome da role: {}", e.getMessage());
+                                    log.warn("⚠️ Erro ao obter nome da role: {}", e.getMessage());
                                     return null;
                                 }
                             })
                             .filter(name -> name != null) // Filtrar nomes nulos
                             .collect(Collectors.toList());
-                    log.info("âœ… Roles do usuÃ¡rio: {}", roles);
+                    log.info("✅ Roles do usuário: {}", roles);
                 } else {
-                    log.warn("âš ï¸ UsuÃ¡rio {} nÃ£o possui roles cadastradas (roles Ã© null ou vazio)",
+                    log.warn("⚠️ Usuário {} não possui roles cadastradas (roles é null ou vazio)",
                             user.getUsername());
                 }
             } catch (Exception e) {
-                log.error("âš ï¸ Erro ao buscar roles (usando lista vazia): {}", e.getMessage(), e);
+                log.error("⚠️ Erro ao buscar roles (usando lista vazia): {}", e.getMessage(), e);
             }
 
-            // Verificar status de LGPD e seguranÃ§a (com tratamento de erro)
+            // Verificar status de LGPD e segurança (com tratamento de erro)
             boolean requiresLgpdConsent = false;
             try {
                 requiresLgpdConsent = !lgpdConsentService.hasAcceptedAllRequiredConsents(user.getId());
-                log.info("âœ… Status LGPD verificado: requiresConsent={}", requiresLgpdConsent);
+                log.info("✅ Status LGPD verificado: requiresConsent={}", requiresLgpdConsent);
             } catch (Exception e) {
-                log.error("âš ï¸ Erro ao verificar consentimento LGPD (assumindo false): {}", e.getMessage());
+                log.error("⚠️ Erro ao verificar consentimento LGPD (assumindo false): {}", e.getMessage());
             }
 
             boolean requires2FA = false;
             try {
                 requires2FA = twoFactorAuthService.is2FAEnabled(user.getId());
-                log.info("âœ… Status 2FA verificado: enabled={}", requires2FA);
+                log.info("✅ Status 2FA verificado: enabled={}", requires2FA);
             } catch (Exception e) {
-                log.error("âš ï¸ Erro ao verificar 2FA (assumindo false): {}", e.getMessage());
+                log.error("⚠️ Erro ao verificar 2FA (assumindo false): {}", e.getMessage());
             }
 
             boolean requiresPasswordChange = user.getRequirePasswordChange() != null && user.getRequirePasswordChange();
             boolean firstAccessCompleted = user.getFirstAccessCompleted() != null && user.getFirstAccessCompleted();
 
-            log.info("âœ… AutenticaÃ§Ã£o concluÃ­da com sucesso para usuÃ¡rio: {}", user.getUsername());
+            log.info("✅ Autenticação concluída com sucesso para usuário: {}", user.getUsername());
 
             return AuthenticationResponse.builder()
                     .token(jwtToken)
@@ -225,11 +227,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     .firstAccessCompleted(firstAccessCompleted)
                     .build();
         } catch (org.springframework.security.core.AuthenticationException e) {
-            log.warn("âŒ Falha na autenticaÃ§Ã£o para usuÃ¡rio {}: {}", request.getUsername(), e.getMessage());
+            log.warn("❌ Falha na autenticação para usuário {}: {}", request.getUsername(), e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("ðŸ’¥ ERRO CRÃTICO NO LOGIN para usuÃ¡rio {}: {}", request.getUsername(), e.getMessage(), e);
-            throw new RuntimeException("Erro ao processar autenticaÃ§Ã£o: " + e.getMessage(), e);
+            log.error("💥 ERRO CRÍTICO NO LOGIN para usuário {}: {}", request.getUsername(), e.getMessage(), e);
+            throw new RuntimeException("Erro ao processar autenticação: " + e.getMessage(), e);
         }
     }
 
@@ -245,7 +247,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 String accessToken = jwtService.generateToken(user);
                 String newRefreshToken = jwtService.generateRefreshToken(user);
 
-                // Buscar permissÃµes customizadas
+                // Buscar permissões customizadas
                 java.util.List<String> customPermissions = customPermissionService.getActivePermissions(user.getId());
 
                 return AuthenticationResponse.builder()
@@ -284,11 +286,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     private void validateUserCompanyAccess(User user, UUID requestedCompanyId) {
-        // 1. Se for Flex Admin, Super Admin ou TI Suporte, permitir acesso direto
-        // (Bypass)
+        // 1. Se for Flex Admin, Super Admin, Admin ou TI Suporte, permitir acesso direto (Bypass)
         boolean isPrivileged = user.getRoles() != null && user.getRoles().stream()
-                .anyMatch(role -> "FLEX_ADMIN".equals(role.getName()) || "SUPER_ADMIN".equals(role.getName())
-                        || "TI_SUPORTE".equals(role.getName()));
+                .anyMatch(role -> role != null && role.getName() != null && (
+                        "FLEX_ADMIN".equalsIgnoreCase(role.getName()) ||
+                        "SUPER_ADMIN".equalsIgnoreCase(role.getName()) ||
+                        "TI_SUPORTE".equalsIgnoreCase(role.getName()) ||
+                        "ADMIN".equalsIgnoreCase(role.getName()) ||
+                        "ROLE_SUPER_ADMIN".equalsIgnoreCase(role.getName()) ||
+                        "ROLE_ADMIN".equalsIgnoreCase(role.getName()) ||
+                        "ROLE_FLEX_ADMIN".equalsIgnoreCase(role.getName()) ||
+                        "ROLE_TI_SUPORTE".equalsIgnoreCase(role.getName())
+                ));
 
         if (isPrivileged) {
             log.info("ℹ️ Login permitido por regra de privilégio para usuário: {}", user.getUsername());
@@ -297,8 +306,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         // 2. Se uma empresa específica foi solicitada, validar o acesso
         if (requestedCompanyId != null) {
-            boolean hasAccess = employeeRepository.findByUser(user).stream()
-                    .anyMatch(emp -> requestedCompanyId.equals(emp.getCompanyId()));
+            boolean hasAccess = false;
+            try {
+                hasAccess = employeeRepository.findByUser(user).stream()
+                        .anyMatch(emp -> emp != null && requestedCompanyId.equals(emp.getCompanyId()));
+            } catch (Exception e) {
+                log.warn("⚠️ Erro ao verificar employee por usuário: {}", e.getMessage());
+            }
 
             if (!hasAccess) {
                 log.warn("⛔ Bloqueio de Segurança: Usuário {} tentou logar na empresa {} sem permissão.",
@@ -310,8 +324,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             return;
         }
 
-        // 3. Se nenhuma empresa foi solicitada (legado ou erro), tentar resolver via
-        // resolver
+        // 3. Se nenhuma empresa foi solicitada (legado ou erro), tentar resolver via resolver
         UUID resolvedCompanyId = userCompanyResolver.resolveCompanyId(user);
         if (resolvedCompanyId == null) {
             log.warn("⛔ Bloqueio de Login: Usuário {} tentou logar sem empresa vinculada.",
@@ -322,42 +335,50 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     private EmpresaResponse buildEmpresaResponse(User user, UUID requestedCompanyId) {
-        Optional<Company> companyOpt = requestedCompanyId != null
-                ? userCompanyResolver.resolveSpecificCompany(user, requestedCompanyId)
-                : userCompanyResolver.resolveCompany(user);
+        try {
+            Optional<Company> companyOpt = requestedCompanyId != null
+                    ? userCompanyResolver.resolveSpecificCompany(user, requestedCompanyId)
+                    : userCompanyResolver.resolveCompany(user);
 
-        return companyOpt.map(c -> {
-            // Definir funcionalidades habilitadas (por enquanto, todas habilitadas)
-            java.util.List<String> enabledFeatures = java.util.List.of(
-                    "dashboard",
-                    "operacional",
-                    "manutencao",
-                    "financeiro",
-                    "rotas",
-                    "relatorios");
+            return companyOpt.map(c -> {
+                // Definir funcionalidades habilitadas (por enquanto, todas habilitadas)
+                java.util.List<String> enabledFeatures = java.util.List.of(
+                        "dashboard",
+                        "operacional",
+                        "manutencao",
+                        "financeiro",
+                        "rotas",
+                        "relatorios");
 
-            EmpresaResponse.EmpresaResponseBuilder builder = EmpresaResponse.builder()
-                    .id(c.getId() != null ? c.getId().toString() : null)
-                    .nome(c.getName())
-                    .logoUrl(c.getLogoUrl())
-                    .temaCor(c.getTemaCor() != null ? c.getTemaCor() : "dark")
-                    .enabledFeatures(enabledFeatures);
+                EmpresaResponse.EmpresaResponseBuilder builder = EmpresaResponse.builder()
+                        .id(c.getId() != null ? c.getId().toString() : null)
+                        .nome(c.getName())
+                        .logoUrl(c.getLogoUrl())
+                        .temaCor(c.getTemaCor() != null ? c.getTemaCor() : "dark")
+                        .enabledFeatures(enabledFeatures);
 
-            // Tentar encontrar o vínculo hierárquico (Filial/Unidade) do usuário
-            // findByUser retorna uma List, então usamos stream para pegar o primeiro que
-            // tenha unidade
-            employeeRepository.findByUser(user).stream()
-                    .filter(emp -> emp.getUnit() != null)
-                    .findFirst()
-                    .ifPresent(emp -> {
-                        builder.unitName(emp.getUnit().getName());
-                        if (emp.getUnit().getBranch() != null) {
-                            builder.branchName(emp.getUnit().getBranch().getName());
-                        }
-                    });
+                try {
+                    employeeRepository.findByUser(user).stream()
+                            .filter(emp -> emp != null && emp.getUnit() != null)
+                            .findFirst()
+                            .ifPresent(emp -> {
+                                try {
+                                    builder.unitName(emp.getUnit().getName());
+                                    if (emp.getUnit().getBranch() != null) {
+                                        builder.branchName(emp.getUnit().getBranch().getName());
+                                    }
+                                } catch (Exception ignored) {}
+                            });
+                } catch (Exception e) {
+                    log.warn("⚠️ Não foi possível obter detalhes hierárquicos do funcionário: {}", e.getMessage());
+                }
 
-            return builder.build();
-        })
-                .orElse(null);
+                return builder.build();
+            }).orElse(null);
+        } catch (Exception e) {
+            log.warn("⚠️ Erro ao montar dados da empresa no login (prosseguindo sem empresa): {}", e.getMessage());
+            return null;
+        }
     }
 }
+
