@@ -21,9 +21,10 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/banks")
 @RequiredArgsConstructor
-@Slf4j
 @Tag(name = "Bancos", description = "Endpoints para gestÃ£o de bancos")
 public class BankController {
+    
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BankController.class);
     
     private final BankService bankService;
     
@@ -36,16 +37,21 @@ public class BankController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Page<BankDTO>> getAllBanks(
-            @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
-        log.info("GET /api/banks - Buscando bancos com paginaÃ§Ã£o");
+            @Parameter(description = "Parâmetros de paginação") Pageable pageable) {
+        log.info("GET /api/banks - Buscando bancos com paginação");
         return ResponseEntity.ok(bankService.getAllBanks(pageable));
     }
     
     @GetMapping("/all")
     @Operation(summary = "Listar todos os bancos", description = "Retorna uma lista completa de bancos")
     public ResponseEntity<List<BankDTO>> getAllBanksWithoutPagination() {
-        log.info("GET /api/banks/all - Buscando todos os bancos");
-        return ResponseEntity.ok(bankService.getAllBanks());
+        try {
+            log.info("GET /api/banks/all - Buscando todos os bancos");
+            return ResponseEntity.ok(bankService.getAllBanks());
+        } catch (Exception e) {
+            log.error("Erro ao buscar bancos: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/{id}")

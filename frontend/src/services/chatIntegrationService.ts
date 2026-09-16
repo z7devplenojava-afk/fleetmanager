@@ -171,7 +171,7 @@ export const chatIntegrationService = {
    */
   async getStats(): Promise<{ total: number; unread: number; open: number }> {
     try {
-      const response = await api.get('/api/v1/chat/stats');
+      const response = await api.get('/v1/chat/stats');
       return response.data;
     } catch (error) {
       const conversations = this.getLocalConversations();

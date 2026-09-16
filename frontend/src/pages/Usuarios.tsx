@@ -81,7 +81,11 @@ const Usuarios: React.FC = () => {
     try {
       setIsLoading(true);
       const usersData = await userService.getAllUsers();
-      setUsers(usersData);
+      const normalizedUsers = (usersData || []).map((u) => ({
+        ...u,
+        isOnline: u.isOnline || (currentUser && String(u.id) === String(currentUser.id)) || false,
+      }));
+      setUsers(normalizedUsers);
     } catch (error: any) {
       console.error('Erro ao carregar usuários:', error);
 
@@ -114,6 +118,11 @@ const Usuarios: React.FC = () => {
   const filterUsers = () => {
     let filtered = users;
 
+    // Filtro por tab online
+    if (activeTab === 'online') {
+      filtered = filtered.filter((user) => Boolean(user.isOnline) || (currentUser && String(user.id) === String(currentUser.id)));
+    }
+
     // Filtro por busca
     if (searchTerm) {
       const normalizedTerm = searchTerm.toLowerCase();
@@ -121,6 +130,7 @@ const Usuarios: React.FC = () => {
         (user.name && user.name.toLowerCase().includes(normalizedTerm)) ||
         (user.email && user.email.toLowerCase().includes(normalizedTerm)) ||
         (user.username && user.username.toLowerCase().includes(normalizedTerm)) ||
+        (user.companyName && user.companyName.toLowerCase().includes(normalizedTerm)) ||
         extractRoleNames(user.roles).some((r: string) => r.toLowerCase().includes(normalizedTerm))
       );
     }
@@ -258,7 +268,7 @@ const Usuarios: React.FC = () => {
   };
 
   const roles = Array.from(new Set(users.flatMap(user => extractRoleNames(user.roles))));
-  const onlineCount = users.filter(user => Boolean(user.isOnline)).length;
+  const onlineCount = users.filter(user => Boolean(user.isOnline) || (currentUser && String(user.id) === String(currentUser.id))).length;
 
   useWebSocket({
     token: localStorage.getItem('token') || '',
@@ -409,68 +419,98 @@ const Usuarios: React.FC = () => {
               </div>
             ) : activeTab === 'online' ? (
               <div className="w-full overflow-x-auto">
-                <Table className="min-w-[900px]">
+                <Table className="min-w-[1000px]">
                   <TableHeader>
-                    <TableRow className="border-gray-600">
+                    <TableRow className="border-gray-600 bg-emerald-950/20">
                       <TableHead className="text-seguranca-lightgray">Usuário</TableHead>
                       <TableHead className="text-seguranca-lightgray">Email</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Cargo</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Ações</TableHead>
+                      <TableHead className="text-seguranca-lightgray">Empresa Pertencente</TableHead>
+                      <TableHead className="text-seguranca-lightgray">Cargo / Função</TableHead>
+                      <TableHead className="text-seguranca-lightgray text-center">Status</TableHead>
+                      <TableHead className="text-seguranca-lightgray text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredUsers.map((user) => (
-                      <TableRow key={user.id} className="border-gray-600">
+                      <TableRow key={user.id} className="border-gray-600 hover:bg-emerald-950/10 transition-colors">
                         <TableCell>
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center">
-                              <UserIcon className="text-white" size={20} />
+                            <div className="w-10 h-10 bg-emerald-600/20 border border-emerald-500/40 rounded-full flex items-center justify-center relative">
+                              <UserIcon className="text-emerald-400" size={20} />
+                              <span
+                                className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-seguranca-graphite animate-pulse"
+                                title="Usuário Online"
+                              />
                             </div>
                             <div>
-                              <div className="font-medium text-seguranca-lightgray">{user.name}</div>
-                              {/* ID oculto conforme solicitado */}
+                              <div className="font-semibold text-white flex items-center gap-2">
+                                <span>{user.name}</span>
+                                {currentUser && String(user.id) === String(currentUser.id) && (
+                                  <Badge className="bg-emerald-600 text-white text-[10px] px-1.5 py-0">Você</Badge>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-400">ID: {user.id}</div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="max-w-[260px]">
+                        <TableCell className="max-w-[240px]">
                           <div className="flex items-center space-x-2">
-                            <Mail size={16} className="text-gray-400" />
+                            <Mail size={16} className="text-gray-400 shrink-0" />
                             <span className="text-seguranca-lightgray truncate">{user.email}</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          {extractRoleNames(user.roles).map((role: string) => (
-                            <Badge key={role} className={getRoleColor(role)}>{getRoleDisplayName(role)}</Badge>
-                          ))}
+                          <div className="flex items-center space-x-2">
+                            <Building size={16} className="text-emerald-400 shrink-0" />
+                            <span className="text-white font-medium">
+                              {user.companyName || (user.companyId ? 'Empresa Vinculada' : 'FluxBus (Matriz)')}
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1">
+                            {extractRoleNames(user.roles).length > 0 ? (
+                              extractRoleNames(user.roles).map((role: string) => (
+                                <Badge key={role} className={getRoleColor(role)}>
+                                  {getRoleDisplayName(role)}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge className="bg-slate-800 text-slate-300">
+                                {user.role ? getRoleDisplayName(user.role) : 'Colaborador'}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-semibold px-2.5 py-0.5">
+                            ● Online
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1.5">
                             <Button
                               size="sm"
                               variant="outline"
-                              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+                              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black h-8 px-2.5 text-xs"
                               onClick={() => navigate(`/chat-interno?user=${user.id}`)}
+                              title="Abrir Chat"
                             >
-                              <MessageCircle className="h-4 w-4 mr-1.5" />
-                              Chat Interno
+                              <MessageCircle className="h-3.5 w-3.5 mr-1 text-emerald-400" />
+                              Chat
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
-                              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
-                              onClick={() => navigate(`/mensagens?user=${user.id}`)}
+                              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black h-8 px-2.5 text-xs"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsViewModalOpen(true);
+                              }}
+                              title="Ver Detalhes do Usuário"
                             >
-                              <Send className="h-4 w-4 mr-1.5" />
-                              Enviar Mensagem
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
-                              onClick={() => navigate(`/gestao-mensagens/notificacoes?user=${user.id}`)}
-                            >
-                              <Bell className="h-4 w-4 mr-1.5" />
-                              Notificações
+                              <Eye className="h-3.5 w-3.5 mr-1" />
+                              Ver
                             </Button>
                           </div>
                         </TableCell>

@@ -53,6 +53,8 @@ export const exportToXLSX = async (data: any[], filename: string): Promise<void>
   }
 };
 
+export const exportToExcel = exportToXLSX;
+
 export const exportToPDF = async (data: any[], filename: string, title: string): Promise<void> => {
   try {
     // Dynamic import to reduce bundle size

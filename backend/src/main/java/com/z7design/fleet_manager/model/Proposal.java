@@ -67,6 +67,12 @@ public class Proposal {
     @JoinColumn(name = "assigned_to_id")
     private User assignedTo;
     
+    /** PRD Módulo 2: simulação de custos (Módulo 1) que originou os valores da proposta. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cost_simulation_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    private com.z7design.fleet_manager.model.CostSimulation costSimulation;
+    
     @OneToMany(mappedBy = "proposal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<ProposalItem> items = new ArrayList<>();
     
@@ -225,6 +231,14 @@ public class Proposal {
     
     public void setItems(List<ProposalItem> items) {
         this.items = items;
+    }
+
+    public com.z7design.fleet_manager.model.CostSimulation getCostSimulation() {
+        return costSimulation;
+    }
+
+    public void setCostSimulation(com.z7design.fleet_manager.model.CostSimulation costSimulation) {
+        this.costSimulation = costSimulation;
     }
     
     public LocalDateTime getCreatedAt() {

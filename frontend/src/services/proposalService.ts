@@ -8,6 +8,20 @@ export interface ProposalItem {
   totalPrice: number;
 }
 
+export interface ProposalFleetItem {
+  id?: string;
+  name: string;
+  vehicleCategory?: string;
+  quantity: number;
+  franchiseKm?: number;
+  dailyRate?: number;
+  excessKmRate?: number;
+  operatingDays?: number;
+  dieselPrice?: number;
+  totalDaily?: number;
+  totalMonthly?: number;
+}
+
 export interface Proposal {
   id: number | string; // Pode ser UUID (string) ou number
   title: string;
@@ -20,6 +34,8 @@ export interface Proposal {
     id: number | string;
     name: string;
   };
+  clientName?: string;
+  leadName?: string;
   status: string;
   totalValue: number;
   validUntil: string;
@@ -28,13 +44,17 @@ export interface Proposal {
     id: number | string;
     name: string;
   };
-  createdBy: {
+  assignedToName?: string;
+  createdBy?: {
     id: number | string;
     name: string;
   };
-  createdAt: string;
-  updatedAt: string;
+  createdByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
   items?: ProposalItem[];
+  fleetItems?: ProposalFleetItem[];
+  costSimulation?: any;
 }
 
 export interface CreateProposalRequest {

@@ -14,6 +14,7 @@ import { useGSAP } from '@/hooks/use-gsap';
 import { useToast } from '@/hooks/use-toast';
 import { EmpresaInfo } from '@/types/user';
 import api from '@/lib/axios';
+import publicApi from '@/lib/publicApi';
 
 const Login = () => {
   useGSAP();
@@ -61,11 +62,13 @@ const Login = () => {
     const fetchCompanies = async () => {
       setLoadingCompanies(true);
       try {
-        const response = await api.get('/api/companies');
-        const data = Array.isArray(response.data) ? response.data : [];
-        setCompanies(data.map((c: any) => ({ id: c.id, name: c.name })));
-      } catch (err) {
-        console.warn('Não foi possível carregar empresas:', err);
+        const response = await publicApi.get('/v1/companies/public').catch(() => null);
+        if (response && response.data) {
+          const data = Array.isArray(response.data) ? response.data : [];
+          setCompanies(data.map((c: any) => ({ id: c.id, name: c.name })));
+        }
+      } catch (_) {
+        setCompanies([]);
       } finally {
         setLoadingCompanies(false);
       }
@@ -168,7 +171,7 @@ const Login = () => {
               <span className="text-xl font-bold text-white/90 tracking-tight">{lastEmpresa.nome}</span>
             </div>
           ) : (
-            <Logo size="xl" className="filter brightness-125" />
+            <Logo size="lg" />
           )}
         </div>
 

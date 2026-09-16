@@ -18,6 +18,8 @@ import java.util.regex.Pattern;
 @Slf4j
 public class EmployeeFormProcessingService {
 
+    private final com.z7design.fleet_manager.repository.CompanyRepository companyRepository;
+
     public Map<String, Object> processEmployeeForm(MultipartFile file) throws IOException {
         validatePdf(file);
         String text = extractText(file);
@@ -31,7 +33,7 @@ public class EmployeeFormProcessingService {
             throw new IllegalArgumentException("O arquivo deve ser um PDF");
         }
         if (file.getSize() > 10 * 1024 * 1024) {
-            throw new IllegalArgumentException("Arquivo muito grande. MÃ¡ximo 10MB");
+            throw new IllegalArgumentException("Arquivo muito grande. Máximo 10MB");
         }
     }
 
@@ -55,10 +57,18 @@ public class EmployeeFormProcessingService {
             }
         };
 
-        // Empresa (cabeÃ§alho)
-        grab.accept("empresaNome", "Da\\s+firma[:\\s]+([^\\n\\r]+)");
-        grab.accept("empresaEndereco", "Endere[Ã§c]o[:\\s]+([^\\n\\r]+)");
-        grab.accept("empresaCnpj", "CNPJ\\s*(/|\\/|)\\s*CEI?\\s*[:\\s]+([^\\n\\r]+)");
+        // Empresa (cabeçalho)
+        grab.accept("empresaNome", "(?:Da\\s+firma|Empresa|Razão\\s*Social|Empregador)[:\\s]+([^\\n\\r]+)");
+        grab.accept("empresaEndereco", "Endere[çc]o[:\\s]+([^\\n\\r]+)");
+        grab.accept("empresaCnpj", "(?:CNPJ(?:\\s*/\\s*(?:CEI|MF))?|C\\.?N\\.?P\\.?J\\.?(?:\\s*/\\s*(?:CEI|MF))?|CEI|Inscrição\\s*(?:Federal|do\\s*Empregador))\\s*[:\\s]+([\\d./-]+)");
+
+        // Fallback para CNPJ caso não encontre por rótulo
+        if (!out.containsKey("empresaCnpj") || out.get("empresaCnpj") == null || ((String) out.get("empresaCnpj")).replaceAll("[^0-9]", "").length() < 11) {
+            Matcher cnpjM = Pattern.compile("(\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2})").matcher(text);
+            if (cnpjM.find()) {
+                out.put("empresaCnpj", cnpjM.group(1));
+            }
+        }
 
         // IdentificaÃ§Ã£o
         grab.accept("name", "Nome[:\\s]+([^\\n\\r]+)");
@@ -133,6 +143,44 @@ public class EmployeeFormProcessingService {
         employer.put("cnpj", out.get("empresaCnpj"));
         employer.put("address", out.get("empresaEndereco"));
         employer.put("recordNumber", out.get("fichaNumero"));
+
+        // Identificar e associar Empresa do Banco de Dados a partir do CNPJ da ficha
+        String cnpjStr = (String) out.get("empresaCnpj");
+        String nomeEmpresaStr = (String) out.get("empresaNome");
+        if (cnpjStr != null) {
+            String sanitizedCnpj = cnpjStr.replaceAll("[^0-9]", "");
+            if (sanitizedCnpj.length() == 14 || sanitizedCnpj.length() == 11) {
+                var found = companyRepository.findByNormalizedCnpj(sanitizedCnpj);
+                if (!found.isEmpty()) {
+                    var comp = found.get(0);
+                    employer.put("companyId", comp.getId());
+                    employer.put("companyName", comp.getName());
+                    employer.put("cnpj", comp.getCnpj() != null ? comp.getCnpj() : cnpjStr);
+                    out.put("companyId", comp.getId());
+                } else {
+                    var optComp = companyRepository.findByCnpj(cnpjStr);
+                    if (optComp.isEmpty()) {
+                        optComp = companyRepository.findByCnpj(sanitizedCnpj);
+                    }
+                    if (optComp.isPresent()) {
+                        var comp = optComp.get();
+                        employer.put("companyId", comp.getId());
+                        employer.put("companyName", comp.getName());
+                        employer.put("cnpj", comp.getCnpj() != null ? comp.getCnpj() : cnpjStr);
+                        out.put("companyId", comp.getId());
+                    }
+                }
+            }
+        }
+        if (!employer.containsKey("companyId") && nomeEmpresaStr != null && !nomeEmpresaStr.isBlank()) {
+            var optComp = companyRepository.findByNormalizedName(nomeEmpresaStr.trim());
+            if (optComp.isPresent()) {
+                var comp = optComp.get();
+                employer.put("companyId", comp.getId());
+                employer.put("companyName", comp.getName());
+                out.put("companyId", comp.getId());
+            }
+        }
 
         Map<String, Object> employee = new HashMap<>();
         employee.put("name", out.get("name"));

@@ -178,33 +178,104 @@ public class EmployeePdfImportService {
     @Transactional
     public EmployeeSavedStatus parseAndSaveSingleEmployeeBlock(String text) {
         // 1. Extração de Dados do Empregador (Empresa)
-        String empresaRazaoSocial = extractValue(text, "(?:Empresa|Razão\\s*Social|Empregador)\\s*:\\s*([^\\n\\r]+?)(?=\\s*Nº|\\s*CNPJ|$)");
-        String cnpjCei = extractValue(text, "(?:CNPJ(?:/CEI)?|CEI)\\s*:\\s*([\\d./-]+)");
+        String empresaRazaoSocial = extractValue(text, "(?:Empresa|Razão\\s*Social|Empregador|Da\\s+firma)\\s*:\\s*([^\\n\\r]+?)(?=\\s*Nº|\\s*CNPJ|\\s*C\\.N\\.P\\.J|$)");
+        if (empresaRazaoSocial == null || empresaRazaoSocial.isBlank()) {
+            empresaRazaoSocial = extractValue(text, "(?:Da\\s+firma|Empregador|Razão\\s*Social|Empresa)[:\\s]+([^\\n\\r]+)");
+        }
+
+        String cnpjCei = extractValue(text, "(?:CNPJ(?:\\s*/\\s*(?:CEI|MF))?|C\\.?N\\.?P\\.?J\\.?(?:\\s*/\\s*(?:CEI|MF))?|CEI|Inscrição\\s*(?:Federal|do\\s*Empregador))\\s*[:\\s]+([\\d./-]+)");
+        if (cnpjCei == null || cnpjCei.isBlank() || cnpjCei.replaceAll("[^0-9]", "").length() < 11) {
+            Pattern cnpjPattern = Pattern.compile("(\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2})");
+            Matcher cnpjMatcher = cnpjPattern.matcher(text);
+            if (cnpjMatcher.find()) {
+                cnpjCei = cnpjMatcher.group(1);
+            }
+        }
+
         String ativFederal = extractValue(text, "Ativ\\s*Federal\\s*:\\s*([\\d.-/]+)");
         String empresaEndereco = extractValue(text, "(?:Empresa\\s*)?Endereço\\s*:\\s*([^\\n\\r]+?)(?=\\s*Bairro|$)");
         String empresaBairro = extractValue(text, "Bairro\\s*:\\s*([^\\n\\r]+?)(?=\\s*Município|$)");
         String empresaMunicipio = extractValue(text, "Município\\s*:\\s*([^\\n\\r]+)");
 
-        // 2. Reconhecimento Automático da Empresa no Banco por CNPJ ou Razão Social
+        // 2. Reconhecimento e Vinculação Automática da Empresa pelo CNPJ da Ficha
         Company company = null;
-        if (cnpjCei != null && !cnpjCei.isBlank()) {
-            String sanitizedCnpj = cnpjCei.replaceAll("[^0-9]", "");
+        String sanitizedCnpj = (cnpjCei != null) ? cnpjCei.replaceAll("[^0-9]", "") : null;
+
+        if (sanitizedCnpj != null && (sanitizedCnpj.length() == 14 || sanitizedCnpj.length() == 11)) {
+            // 2.1. Busca por CNPJ normalizado (somente dígitos)
             List<Company> foundCompanies = companyRepository.findByNormalizedCnpj(sanitizedCnpj);
             if (!foundCompanies.isEmpty()) {
                 company = foundCompanies.get(0);
+                log.info("🏢 Empresa identificada por CNPJ normalizado: {} (CNPJ: {})", company.getName(), company.getCnpj());
             } else {
+                // 2.2. Busca por CNPJ com ou sem máscara
                 Optional<Company> optCompany = companyRepository.findByCnpj(cnpjCei);
+                if (optCompany.isEmpty()) {
+                    optCompany = companyRepository.findByCnpj(sanitizedCnpj);
+                }
                 if (optCompany.isPresent()) {
                     company = optCompany.get();
+                    log.info("🏢 Empresa identificada por findByCnpj: {} (CNPJ: {})", company.getName(), company.getCnpj());
+                } else {
+                    // 2.3. Varredura comparando dígitos com todas as empresas do banco
+                    List<Company> allCompanies = companyRepository.findAll();
+                    for (Company c : allCompanies) {
+                        if (c.getCnpj() != null && c.getCnpj().replaceAll("[^0-9]", "").equals(sanitizedCnpj)) {
+                            company = c;
+                            log.info("🏢 Empresa identificada por varredura de dígitos: {} (CNPJ: {})", company.getName(), company.getCnpj());
+                            break;
+                        }
+                    }
                 }
             }
         }
+
+        // 2.4. Se não achou por CNPJ mas temos a Razão Social da ficha, busca por nome
         if (company == null && empresaRazaoSocial != null && !empresaRazaoSocial.isBlank()) {
             Optional<Company> optCompany = companyRepository.findByNormalizedName(empresaRazaoSocial.trim());
             if (optCompany.isPresent()) {
                 company = optCompany.get();
+                log.info("🏢 Empresa identificada por Razão Social normalizada: {}", company.getName());
+            } else {
+                List<Company> foundByName = companyRepository.searchCompanies(empresaRazaoSocial.trim());
+                if (!foundByName.isEmpty()) {
+                    company = foundByName.get(0);
+                    log.info("🏢 Empresa identificada por busca textual de nome: {}", company.getName());
+                }
             }
         }
+
+        // 2.5. Se o CNPJ da ficha não existe no banco, cadastra a empresa para associar o funcionário
+        if (company == null && sanitizedCnpj != null && sanitizedCnpj.length() == 14) {
+            try {
+                company = new Company();
+                String compName = (empresaRazaoSocial != null && !empresaRazaoSocial.isBlank()) ? empresaRazaoSocial.trim() : "Empresa CNPJ " + cnpjCei;
+                company.setName(truncate(compName, 100));
+                
+                // Gerar sigla a partir do nome ou CNPJ
+                String cleanName = compName.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+                String sigla = cleanName.length() >= 3 ? cleanName.substring(0, Math.min(cleanName.length(), 6)) : ("EMP" + sanitizedCnpj.substring(8, 12));
+                // Garantir sigla única
+                int counter = 1;
+                String finalSigla = sigla;
+                while (companyRepository.existsBySigla(finalSigla)) {
+                    finalSigla = (sigla.length() > 4 ? sigla.substring(0, 4) : sigla) + counter;
+                    counter++;
+                }
+                company.setSigla(finalSigla);
+                company.setCnpj(cnpjCei);
+                company.setStatus(CompanyStatus.ACTIVE);
+                if (empresaEndereco != null) company.setAddress(truncate(empresaEndereco, 255));
+                if (empresaBairro != null) company.setEnderecoBairro(truncate(empresaBairro, 100));
+                if (empresaMunicipio != null) company.setCity(truncate(empresaMunicipio, 100));
+                company = companyRepository.save(company);
+                log.info("🏢 Nova empresa cadastrada automaticamente a partir do CNPJ da ficha: {} (Sigla: {}, CNPJ: {})", company.getName(), company.getSigla(), company.getCnpj());
+            } catch (Exception compErr) {
+                log.warn("Não foi possível salvar nova empresa automaticamente para CNPJ {}: {}", cnpjCei, compErr.getMessage());
+            }
+        }
+
+        // 2.6. Fallback para o tenant logado apenas se não foi possível identificar nem criar a empresa
         if (company == null) {
             UUID currentTenantCompanyId = com.z7design.fleet_manager.tenant.TenantContext.getCurrentTenant();
             if (currentTenantCompanyId != null) {
@@ -212,17 +283,6 @@ public class EmployeePdfImportService {
                 if (optComp.isPresent()) {
                     company = optComp.get();
                 }
-            }
-        }
-        if (company == null && ((empresaRazaoSocial != null && !empresaRazaoSocial.isBlank()) || (cnpjCei != null && !cnpjCei.isBlank()))) {
-            try {
-                company = new Company();
-                company.setName(empresaRazaoSocial != null ? empresaRazaoSocial.trim() : "Empresa PDF Importada");
-                company.setCnpj(cnpjCei);
-                company.setStatus(CompanyStatus.ACTIVE);
-                company = companyRepository.save(company);
-            } catch (Exception compErr) {
-                log.warn("Não foi possível salvar nova empresa automaticamente: {}", compErr.getMessage());
             }
         }
 
@@ -321,18 +381,33 @@ public class EmployeePdfImportService {
             spouseBirthDate = parseDate(familyMatcher.group(3));
         }
 
-        // 6. Verificar se o funcionário já existe por CPF ou abre novo registro
+        // 6. Verificar se o funcionário já existe por CPF (na empresa ou no sistema) ou abre novo registro
         Employee employee = null;
         boolean isNew = false;
         if (cpf != null && !cpf.isBlank()) {
             String sanitizedCpf = cpf.replaceAll("[^0-9]", "");
-            Optional<Employee> existingOpt = employeeRepository.findByDocument(sanitizedCpf);
-            if (existingOpt.isEmpty()) {
-                existingOpt = employeeRepository.findByDocument(cpf);
+            if (company != null && company.getId() != null) {
+                Optional<Employee> existingInCompany = employeeRepository.findByCpfAndCompanyId(sanitizedCpf, company.getId());
+                if (existingInCompany.isPresent()) {
+                    employee = existingInCompany.get();
+                }
             }
-            if (existingOpt.isPresent()) {
-                employee = existingOpt.get();
-                log.info("Atualizando funcionário existente ID: {}, CPF: {}", employee.getId(), cpf);
+
+            if (employee == null) {
+                Optional<Employee> existingOpt = employeeRepository.findByCpf(sanitizedCpf);
+                if (existingOpt.isEmpty()) {
+                    existingOpt = employeeRepository.findByDocument(sanitizedCpf);
+                }
+                if (existingOpt.isEmpty()) {
+                    existingOpt = employeeRepository.findByDocument(cpf);
+                }
+                if (existingOpt.isPresent()) {
+                    employee = existingOpt.get();
+                }
+            }
+
+            if (employee != null) {
+                log.info("Atualizando funcionário existente ID: {}, CPF: {}, Empresa: {}", employee.getId(), cpf, company != null ? company.getName() : "N/A");
             }
         }
 
@@ -340,14 +415,17 @@ public class EmployeePdfImportService {
             employee = new Employee();
             employee.setStatus(EmploymentStatus.ACTIVE);
             isNew = true;
-            log.info("Criando novo funcionário. Nome: {}, CPF: {}", nome, cpf);
+            log.info("Criando novo funcionário. Nome: {}, CPF: {}, Empresa: {}", nome, cpf, company != null ? company.getName() : "N/A");
         }
 
-        // Preenchimento dos dados do Empregador
+        // Preenchimento e Vinculação dos dados do Empregador/Empresa
         if (company != null) {
             employee.setCompanyId(company.getId());
             if (company.getName() != null) employee.setEmpresaNome(truncate(company.getName(), 255));
             if (company.getCnpj() != null) employee.setEmpresaCnpj(truncate(company.getCnpj(), 30));
+        } else {
+            if (empresaRazaoSocial != null) employee.setEmpresaNome(truncate(empresaRazaoSocial, 255));
+            if (cnpjCei != null) employee.setEmpresaCnpj(truncate(cnpjCei, 30));
         }
         if (employee.getEmpresaNome() == null && empresaRazaoSocial != null) employee.setEmpresaNome(truncate(empresaRazaoSocial, 255));
         if (employee.getEmpresaCnpj() == null && cnpjCei != null) employee.setEmpresaCnpj(truncate(cnpjCei, 30));

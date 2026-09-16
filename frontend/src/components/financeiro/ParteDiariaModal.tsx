@@ -90,16 +90,27 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
       const employeeList = Array.isArray(rawEmployees) ? rawEmployees : (rawEmployees as any)?.content || [];
 
+      // Helper para extrair o cargo em formato texto com segurança
+      const getCargoText = (e: any): string => {
+        if (!e) return '';
+        const rawPos = e.position || e.cargo || e.jobTitle;
+        if (typeof rawPos === 'string') return rawPos;
+        if (rawPos && typeof rawPos === 'object') {
+          return rawPos.name || rawPos.title || rawPos.cargo || rawPos.description || '';
+        }
+        return '';
+      };
+
       // Filtrar funcionários que têm cargo/função de Motorista
       const motoristasEmp = employeeList
         .filter((e: any) => {
-          const cargo = (e.position || e.cargo || e.jobTitle || '').toLowerCase();
+          const cargo = getCargoText(e).toLowerCase();
           return cargo.includes('motorista') || cargo.includes('condutor') || cargo.includes('driver');
         })
         .map((e: any) => ({
           id: e.id,
           name: e.name || e.nome || 'Funcionário Motorista',
-          cargo: e.position || e.cargo || 'Motorista'
+          cargo: getCargoText(e) || 'Motorista'
         }));
 
       setMotoristasFuncionarios(motoristasEmp);
@@ -279,7 +290,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl bg-seguranca-graphite border-gray-600 text-seguranca-lightgray max-h-[92vh] overflow-y-auto p-0 rounded-2xl shadow-2xl">
+      <DialogContent className="max-w-4xl bg-slate-900 border-slate-800 text-slate-100 max-h-[92vh] overflow-y-auto p-0 rounded-2xl shadow-2xl">
         <DialogHeader className="sr-only">
           <DialogTitle>Parte Diária de Veículos — Viação São Silvestre</DialogTitle>
           <DialogDescription>Lançamento completo de horários, motorista, cliente e hodômetro</DialogDescription>
@@ -287,67 +298,67 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
         <form onSubmit={handleSubmit}>
           {/* Cabeçalho Ficha Física Real */}
-          <div className="bg-gradient-to-r from-seguranca-black via-gray-900 to-seguranca-black p-6 border-b border-gray-700/80 rounded-t-2xl">
+          <div className="bg-slate-950 p-5 sm:p-6 border-b border-slate-800 rounded-t-2xl">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black text-xl shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black text-xl shadow-lg">
                   <Truck className="h-6 w-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-amber-400 tracking-wider uppercase">VIAÇÃO SÃO SILVESTRE</span>
-                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-[10px]">Formulário Oficial de Campo</Badge>
+                    <Badge className="bg-emerald-950/80 text-emerald-400 border-emerald-500/40 text-[10px]">Formulário Oficial de Campo</Badge>
                   </div>
-                  <h2 className="text-xl font-extrabold text-white tracking-tight flex items-center gap-2 mt-0.5">
+                  <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2 mt-0.5">
                     PARTE DIÁRIA DE VEÍCULOS
                   </h2>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleFillSampleData}
-                  className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-xs h-8"
+                  className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-xs h-8 rounded-xl"
                 >
                   <Sparkles className="h-3.5 w-3.5 mr-1" />
-                  Preencher Exemplo (Ficha 13103)
+                  Exemplo (Ficha 13103)
                 </Button>
 
                 <div className="text-right">
-                  <span className="text-[11px] text-gray-400 font-semibold block">Nº DA PARTE DIÁRIA</span>
+                  <span className="text-[11px] text-slate-400 font-semibold block">Nº PARTE DIÁRIA</span>
                   <Input
                     value={docNumber}
                     onChange={(e) => setDocNumber(e.target.value)}
-                    className="w-28 bg-seguranca-black border-amber-500/50 text-amber-400 font-mono font-extrabold text-center h-8 text-sm"
+                    className="w-28 bg-slate-900 border-amber-500/50 text-amber-400 font-mono font-bold text-center h-8 text-sm rounded-lg"
                   />
                 </div>
 
                 <div className="text-right">
-                  <span className="text-[11px] text-gray-400 font-semibold block">DATA DO APONTAMENTO</span>
+                  <span className="text-[11px] text-slate-400 font-semibold block">DATA DO APONTAMENTO</span>
                   <Input
                     type="date"
                     value={docDate}
                     onChange={(e) => setDocDate(e.target.value)}
-                    className="w-36 bg-seguranca-black border-gray-600 text-white font-bold h-8 text-xs"
+                    className="w-36 bg-slate-900 border-slate-700 text-white font-bold h-8 text-xs rounded-lg [color-scheme:dark]"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-6">
             {/* Seção 1: Cliente, Contrato, Obra, Tipo Veículo, Placa e Motorista */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-seguranca-black/60 p-4 rounded-xl border border-gray-700/60">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-950/80 p-4 rounded-xl border border-slate-800">
               <div>
-                <Label className="text-xs text-gray-300 font-semibold">CLIENTE</Label>
+                <Label className="text-xs text-slate-400 font-semibold uppercase">CLIENTE</Label>
                 {clients.length > 0 ? (
                   <Select value={selectedClientId} onValueChange={handleClientChange}>
-                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-white h-9 mt-1">
+                    <SelectTrigger className="bg-slate-900 border-slate-700 text-white h-9 mt-1 rounded-xl">
                       <SelectValue placeholder="Selecione o cliente..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-seguranca-black border-gray-600 text-white">
+                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
                       {clients.map(c => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
@@ -358,34 +369,34 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
                     placeholder="Ex: FM2C"
-                    className="bg-seguranca-black border-gray-600 text-white font-bold h-9 mt-1"
+                    className="bg-slate-900 border-slate-700 text-white font-bold h-9 mt-1 rounded-xl"
                   />
                 )}
               </div>
 
               <div>
-                <Label className="text-xs text-gray-300 font-semibold">NÚMERO DO CONTRATO</Label>
+                <Label className="text-xs text-slate-400 font-semibold uppercase">NÚMERO DO CONTRATO</Label>
                 <Input
                   value={contractNumber}
                   onChange={(e) => setContractNumber(e.target.value)}
                   placeholder="Ex: CT-2025/FM2C"
-                  className="bg-seguranca-black border-gray-600 text-amber-400 font-bold h-9 mt-1"
+                  className="bg-slate-900 border-slate-700 text-amber-400 font-bold h-9 mt-1 rounded-xl"
                 />
               </div>
 
               <div>
-                <Label className="text-xs text-gray-300 font-semibold">OBRA / SETOR DE TRABALHO</Label>
+                <Label className="text-xs text-slate-400 font-semibold uppercase">OBRA / SETOR DE TRABALHO</Label>
                 <Input
                   value={obraName}
                   onChange={(e) => setObraName(e.target.value)}
                   placeholder="Ex: FM2C IBIRITÉ"
-                  className="bg-seguranca-black border-gray-600 text-white font-semibold h-9 mt-1"
+                  className="bg-slate-900 border-slate-700 text-white font-semibold h-9 mt-1 rounded-xl"
                 />
               </div>
 
-              {/* Seleção do Tipo de Veículo (Conforme a Ficha Física) */}
+              {/* Seleção do Tipo de Veículo */}
               <div>
-                <Label className="text-xs text-gray-300 font-semibold">TIPO DE VEÍCULO</Label>
+                <Label className="text-xs text-slate-400 font-semibold uppercase">TIPO DE VEÍCULO</Label>
                 <div className="grid grid-cols-4 gap-1.5 mt-1">
                   {['CARRO', 'ÔNIBUS', 'MICRO', 'VAN'].map(type => (
                     <button
@@ -395,7 +406,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                       className={`py-1.5 px-1 rounded-lg text-[11px] font-extrabold transition-all border ${
                         vehicleType === type
                           ? 'bg-amber-500/20 text-amber-400 border-amber-500/70 shadow-sm'
-                          : 'bg-seguranca-black text-gray-400 border-gray-700 hover:border-gray-500'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700'
                       }`}
                     >
                       ({vehicleType === type ? 'X' : ' '}) {type}
@@ -405,14 +416,14 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
               </div>
 
               <div>
-                <Label className="text-xs text-gray-300 font-semibold">PLACA DO VEÍCULO</Label>
+                <Label className="text-xs text-slate-400 font-semibold uppercase">PLACA DO VEÍCULO</Label>
                 {vehicles.length > 0 ? (
                   <Select value={selectedVehicleId} onValueChange={handleVehicleChange}>
-                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-white font-mono font-bold h-9 mt-1">
+                    <SelectTrigger className="bg-slate-900 border-slate-700 text-white font-mono font-bold h-9 mt-1 rounded-xl">
                       <SelectValue placeholder="Selecione a placa..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-seguranca-black border-gray-600 text-white">
-                      {vehicles.map((v: any) => (
+                    <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-60 overflow-y-auto">
+                      {vehicles.slice(0, 100).map((v: any) => (
                         <SelectItem key={v.id} value={v.id}>
                           {v.placa || v.plate} — {v.modelo || v.model || 'Veículo'}
                         </SelectItem>
@@ -424,16 +435,15 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                     value={vehiclePlate}
                     onChange={(e) => setVehiclePlate(e.target.value)}
                     placeholder="Ex: QMR-2F82"
-                    className="bg-seguranca-black border-gray-600 text-white font-mono font-bold h-9 mt-1"
+                    className="bg-slate-900 border-slate-700 text-white font-mono font-bold h-9 mt-1 rounded-xl"
                   />
                 )}
               </div>
 
-              {/* MOTORISTA RESPONSÁVEL — Lançamento Manual + Busca na Tabela de Funcionários Cargo Motorista */}
+              {/* MOTORISTA RESPONSÁVEL */}
               <div className="relative">
                 <div className="flex justify-between items-center">
-                  <Label className="text-xs text-amber-300 font-bold">MOTORISTA RESPONSÁVEL</Label>
-                  <span className="text-[10px] text-gray-400">Digitável ou Selecionável</span>
+                  <Label className="text-xs text-amber-400 font-bold uppercase">MOTORISTA RESPONSÁVEL</Label>
                 </div>
 
                 <div className="relative mt-1">
@@ -445,23 +455,22 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                       setShowDriverDropdown(true);
                     }}
                     onFocus={() => setShowDriverDropdown(true)}
-                    placeholder="Digite o nome do motorista ou selecione da lista..."
-                    className="bg-seguranca-black border-gray-600 text-white font-semibold h-9 pr-8"
+                    placeholder="Nome do motorista..."
+                    className="bg-slate-900 border-slate-700 text-white font-semibold h-9 pr-8 rounded-xl"
                   />
-                  <User className="absolute right-2.5 top-2.5 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <User className="absolute right-2.5 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
 
-                  {/* Dropdown com os Funcionários com cargo Motorista + Motoristas do Sistema */}
                   {showDriverDropdown && combinedMotoristas.length > 0 && (
-                    <div className="absolute z-50 left-0 right-0 top-10 bg-seguranca-black border border-gray-600 rounded-lg shadow-2xl max-h-48 overflow-y-auto p-1">
-                      <div className="px-2 py-1 border-b border-gray-800 text-[10px] text-amber-400 font-bold uppercase tracking-wider">
-                        Funcionários Cargo Motorista ({combinedMotoristas.length})
+                    <div className="absolute z-50 left-0 right-0 top-10 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-48 overflow-y-auto p-1">
+                      <div className="px-2 py-1 border-b border-slate-800 text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                        Motoristas Cadastrados ({combinedMotoristas.length})
                       </div>
                       {filteredMotoristas.length === 0 ? (
-                        <div className="p-2 text-xs text-gray-400 text-center">
-                          Nenhum motorista encontrado. Pressione Enter para usar o nome digitado: <strong className="text-white">"{driverName}"</strong>
+                        <div className="p-2 text-xs text-slate-400 text-center">
+                          Usar digitado: <strong className="text-white">"{driverName}"</strong>
                         </div>
                       ) : (
-                        filteredMotoristas.map((m, idx) => (
+                        filteredMotoristas.slice(0, 50).map((m, idx) => (
                           <div
                             key={m.id || idx}
                             onClick={() => {
@@ -469,16 +478,16 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                               setSelectedDriverId(m.id);
                               setShowDriverDropdown(false);
                             }}
-                            className="p-2 hover:bg-amber-500/20 rounded cursor-pointer transition-colors flex items-center justify-between text-xs"
+                            className="p-2 hover:bg-amber-500/20 rounded-lg cursor-pointer transition-colors flex items-center justify-between text-xs"
                           >
                             <span className="text-white font-semibold">{m.name}</span>
-                            <span className="text-[10px] text-gray-400">{m.sub}</span>
+                            <span className="text-[10px] text-slate-400">{m.sub}</span>
                           </div>
                         ))
                       )}
                       <div
                         onClick={() => setShowDriverDropdown(false)}
-                        className="p-1.5 border-t border-gray-800 text-center text-[11px] text-amber-400 font-bold hover:underline cursor-pointer"
+                        className="p-1.5 border-t border-slate-800 text-center text-[11px] text-amber-400 font-bold hover:underline cursor-pointer"
                       >
                         ✓ Confirmar Nome Digitado Manualmente
                       </div>
@@ -488,9 +497,9 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
               </div>
             </div>
 
-            {/* Seção 2: Tabela de Atividades com Horas, Descrição e KM de Início/Término */}
+            {/* Seção 2: Tabela de Atividades */}
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                   <Clock className="h-4 w-4 text-amber-400" />
                   Descrição das Atividades, Horários e Hodômetro
@@ -500,33 +509,33 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                   onClick={handleAddActivity}
                   size="sm"
                   variant="outline"
-                  className="border-gray-600 text-amber-400 hover:bg-amber-500/10 text-xs h-8"
+                  className="border-slate-700 text-amber-400 hover:bg-amber-500/10 text-xs h-8 rounded-xl"
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Trajeto / Linha
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Linha / Trajeto
                 </Button>
               </div>
 
-              <div className="border border-gray-700/80 rounded-xl overflow-hidden bg-seguranca-black/80">
-                <table className="w-full text-xs text-left text-gray-300">
-                  <thead className="bg-gray-800/90 text-gray-300 font-bold uppercase tracking-wider border-b border-gray-700">
+              <div className="border border-slate-800 rounded-xl overflow-x-auto bg-slate-950">
+                <table className="w-full text-xs text-left text-slate-300 min-w-[600px]">
+                  <thead className="bg-slate-900 text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-800">
                     <tr>
                       <th className="p-2.5 w-24 text-center">Início</th>
                       <th className="p-2.5 w-24 text-center">Término</th>
-                      <th className="p-2.5">Descrição das Atividades (Linha / Trajeto)</th>
+                      <th className="p-2.5">Descrição das Atividades (Trajeto)</th>
                       <th className="p-2.5 w-28 text-center">KM Início</th>
                       <th className="p-2.5 w-28 text-center">KM Fim</th>
                       <th className="p-2.5 w-12 text-center">Ação</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-800">
+                  <tbody className="divide-y divide-slate-800">
                     {activities.map((act, idx) => (
-                      <tr key={idx} className="hover:bg-gray-800/40 transition-colors">
+                      <tr key={idx} className="hover:bg-slate-900/60 transition-colors">
                         <td className="p-2">
                           <Input
                             type="time"
                             value={act.startTime || ''}
                             onChange={(e) => handleActivityChange(idx, 'startTime', e.target.value)}
-                            className="bg-seguranca-black border-gray-700 text-white text-center h-8 text-xs font-mono font-bold"
+                            className="bg-slate-900 border-slate-700 text-white text-center h-8 text-xs font-mono font-bold rounded-lg"
                           />
                         </td>
                         <td className="p-2">
@@ -534,15 +543,15 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                             type="time"
                             value={act.endTime || ''}
                             onChange={(e) => handleActivityChange(idx, 'endTime', e.target.value)}
-                            className="bg-seguranca-black border-gray-700 text-white text-center h-8 text-xs font-mono font-bold"
+                            className="bg-slate-900 border-slate-700 text-white text-center h-8 text-xs font-mono font-bold rounded-lg"
                           />
                         </td>
                         <td className="p-2">
                           <Input
                             value={act.description || ''}
                             onChange={(e) => handleActivityChange(idx, 'description', e.target.value)}
-                            placeholder="Ex: Ibirite FM2C"
-                            className="bg-seguranca-black border-gray-700 text-white h-8 text-xs font-semibold"
+                            placeholder="Ex: Ibirité FM2C"
+                            className="bg-slate-900 border-slate-700 text-white h-8 text-xs font-semibold rounded-lg"
                           />
                         </td>
                         <td className="p-2">
@@ -551,7 +560,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                             value={act.startKm ?? ''}
                             onChange={(e) => handleActivityChange(idx, 'startKm', Number(e.target.value))}
                             placeholder="Ex: 404014"
-                            className="bg-seguranca-black border-gray-700 text-white text-center font-mono font-bold h-8 text-xs"
+                            className="bg-slate-900 border-slate-700 text-white text-center font-mono font-bold h-8 text-xs rounded-lg"
                           />
                         </td>
                         <td className="p-2">
@@ -560,7 +569,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                             value={act.endKm ?? ''}
                             onChange={(e) => handleActivityChange(idx, 'endKm', Number(e.target.value))}
                             placeholder="Ex: 404058"
-                            className="bg-seguranca-black border-gray-700 text-white text-center font-mono font-bold h-8 text-xs"
+                            className="bg-slate-900 border-slate-700 text-white text-center font-mono font-bold h-8 text-xs rounded-lg"
                           />
                         </td>
                         <td className="p-2 text-center">
@@ -584,94 +593,94 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
             </div>
 
             {/* Seção 3: Medição de Hodômetro e KM Totais */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gradient-to-br from-amber-950/20 via-seguranca-black to-seguranca-graphite/40 p-4 rounded-xl border border-amber-500/30">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
               <div>
-                <Label className="text-xs text-amber-300 font-bold uppercase">KM INÍCIO (HODÔMETRO)</Label>
+                <Label className="text-xs text-slate-400 font-semibold uppercase">KM INÍCIO (HODÔMETRO)</Label>
                 <Input
                   type="number"
                   value={startKm}
                   onChange={(e) => setStartKm(Number(e.target.value))}
-                  className="bg-seguranca-black border-gray-600 text-white font-mono font-bold mt-1 h-9"
+                  className="bg-slate-900 border-slate-700 text-white font-mono font-bold mt-1 h-9 rounded-xl"
                 />
               </div>
 
               <div>
-                <Label className="text-xs text-amber-300 font-bold uppercase">KM FIM (HODÔMETRO)</Label>
+                <Label className="text-xs text-slate-400 font-semibold uppercase">KM FIM (HODÔMETRO)</Label>
                 <Input
                   type="number"
                   value={endKm}
                   onChange={(e) => setEndKm(Number(e.target.value))}
-                  className="bg-seguranca-black border-gray-600 text-white font-mono font-bold mt-1 h-9"
+                  className="bg-slate-900 border-slate-700 text-white font-mono font-bold mt-1 h-9 rounded-xl"
                 />
               </div>
 
               <div>
-                <Label className="text-xs text-blue-300 font-bold uppercase">KM RODADO (CALCULADO)</Label>
-                <div className="bg-seguranca-black/80 border border-blue-500/40 rounded-lg p-2 mt-1 text-center font-mono font-extrabold text-blue-400 text-lg">
+                <Label className="text-xs text-slate-400 font-semibold uppercase">KM RODADO (CALCULADO)</Label>
+                <div className="bg-slate-900 border border-slate-700 rounded-xl p-2 mt-1 text-center font-mono font-bold text-sky-400 text-lg">
                   {drivenKm} km
                 </div>
               </div>
 
               <div>
-                <Label className="text-xs text-emerald-300 font-bold uppercase">KM CONSIDERADO</Label>
-                <div className="bg-seguranca-black/80 border border-emerald-500/40 rounded-lg p-2 mt-1 text-center font-mono font-extrabold text-emerald-400 text-lg">
+                <Label className="text-xs text-slate-400 font-semibold uppercase">KM CONSIDERADO</Label>
+                <div className="bg-slate-900 border border-emerald-500/40 rounded-xl p-2 mt-1 text-center font-mono font-bold text-emerald-400 text-lg">
                   {consideredKm} km
                 </div>
               </div>
 
               {/* KM Desconsiderado se houver */}
-              <div className="md:col-span-2">
-                <Label className="text-xs text-rose-300 font-semibold">KM DESCONSIDERADO (ABATIMENTO)</Label>
+              <div className="sm:col-span-2">
+                <Label className="text-xs text-slate-400 font-semibold uppercase">KM DESCONSIDERADO (ABATIMENTO)</Label>
                 <Input
                   type="number"
                   value={disregardedKm}
                   onChange={(e) => setDisregardedKm(Number(e.target.value))}
                   placeholder="0"
-                  className="bg-seguranca-black border-gray-600 text-white font-mono mt-1 h-9"
+                  className="bg-slate-900 border-slate-700 text-white font-mono mt-1 h-9 rounded-xl"
                 />
               </div>
 
-              <div className="md:col-span-2">
-                <Label className="text-xs text-gray-300 font-semibold">MOTIVO DA DESCONSIDERAÇÃO</Label>
+              <div className="sm:col-span-2">
+                <Label className="text-xs text-slate-400 font-semibold uppercase">MOTIVO DA DESCONSIDERAÇÃO</Label>
                 <Input
                   value={disregardReason}
                   onChange={(e) => setDisregardReason(e.target.value)}
                   placeholder="Ex: Deslocamento garagem / Manutenção"
-                  className="bg-seguranca-black border-gray-600 text-white mt-1 h-9"
+                  className="bg-slate-900 border-slate-700 text-white mt-1 h-9 rounded-xl"
                 />
               </div>
             </div>
 
             {/* Seção 4: Observações e Assinaturas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label className="text-xs text-gray-300 font-semibold">OBSERVAÇÕES OPERACIONAIS</Label>
+                <Label className="text-xs text-slate-400 font-semibold uppercase">OBSERVAÇÕES OPERACIONAIS</Label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
-                  placeholder="Adicione observações da viagem, apontamentos ou ocorrências..."
-                  className="w-full bg-seguranca-black border border-gray-600 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500"
+                  placeholder="Adicione observações da viagem..."
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
-              <div className="space-y-3 bg-seguranca-black/60 p-4 rounded-xl border border-gray-700/60">
-                <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">Assinaturas e Conferência</h4>
-                <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Assinaturas e Conferência</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div>
-                    <span className="text-gray-400 block text-[11px]">ASS. DP / CONFERÊNCIA</span>
+                    <span className="text-slate-400 block text-[11px]">ASS. DP / CONFERÊNCIA</span>
                     <Input
                       value={dpSignature}
                       onChange={(e) => setDpSignature(e.target.value)}
-                      className="bg-seguranca-black border-gray-700 text-emerald-400 font-semibold h-8 mt-1 text-xs"
+                      className="bg-slate-900 border-slate-700 text-emerald-400 font-semibold h-8 mt-1 text-xs rounded-lg"
                     />
                   </div>
                   <div>
-                    <span className="text-gray-400 block text-[11px]">ASS. MOTORISTA RESPONSÁVEL</span>
+                    <span className="text-slate-400 block text-[11px]">ASS. MOTORISTA RESPONSÁVEL</span>
                     <Input
                       value={driverName || 'Motorista Operacional'}
                       onChange={(e) => setDriverName(e.target.value)}
-                      className="bg-seguranca-black border-gray-700 text-amber-400 font-semibold h-8 mt-1 text-xs"
+                      className="bg-slate-900 border-slate-700 text-amber-400 font-semibold h-8 mt-1 text-xs rounded-lg"
                     />
                   </div>
                 </div>
@@ -679,19 +688,19 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
             </div>
           </div>
 
-          <DialogFooter className="bg-seguranca-black p-4 border-t border-gray-700/80 rounded-b-2xl gap-3">
+          <DialogFooter className="bg-slate-950 p-4 border-t border-slate-800 rounded-b-2xl gap-3">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="border-gray-600 text-gray-300 hover:bg-gray-800"
+              className="border-slate-700 text-slate-300 hover:bg-slate-800"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isLoading}
-              className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-seguranca-black font-extrabold hover:brightness-110 shadow-lg shadow-amber-500/20 px-6"
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-6"
             >
               {isLoading ? (
                 <>
@@ -709,3 +718,5 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     </Dialog>
   );
 };
+
+export default ParteDiariaModal;

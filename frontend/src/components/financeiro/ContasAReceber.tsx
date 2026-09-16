@@ -38,7 +38,10 @@ import {
   RefreshCw,
   ArrowUpRight,
   ArrowDownRight,
-  Sparkles
+  Sparkles,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { ContasAReceberGuard } from './FinanceiroPermissionGuard';
 import { ContasAReceberFormModal } from './ContasAReceberFormModal';
@@ -257,6 +260,18 @@ export const ContasAReceber: React.FC = () => {
 
   const stats = calcularEstatisticas();
 
+  const [sortField, setSortField] = useState<string>('vencimento');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   const filteredContas = contas.filter(conta => {
     if (!conta) return false;
     
@@ -283,6 +298,43 @@ export const ContasAReceber: React.FC = () => {
     
     return matchesSearch && matchesStatus && matchesCategoria && matchesCliente && matchesDate;
   });
+
+  const sortedContas = React.useMemo(() => {
+    return [...filteredContas].sort((a, b) => {
+      let valA: any = '';
+      let valB: any = '';
+
+      switch (sortField) {
+        case 'cliente':
+          valA = (a.client?.name || a.cliente || '').toLowerCase();
+          valB = (b.client?.name || b.cliente || '').toLowerCase();
+          break;
+        case 'medicao':
+          valA = (a.measurementNumber || '').toLowerCase();
+          valB = (b.measurementNumber || '').toLowerCase();
+          break;
+        case 'valor':
+          valA = Number(a.amount || a.valor || 0);
+          valB = Number(b.amount || b.valor || 0);
+          break;
+        case 'vencimento':
+          valA = new Date(a.dueDate || a.vencimento || 0).getTime();
+          valB = new Date(b.dueDate || b.vencimento || 0).getTime();
+          break;
+        case 'status':
+          valA = (a.status || '').toLowerCase();
+          valB = (b.status || '').toLowerCase();
+          break;
+        default:
+          valA = 0;
+          valB = 0;
+      }
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredContas, sortField, sortDirection]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -754,16 +806,61 @@ export const ContasAReceber: React.FC = () => {
                   <table className="w-full text-left text-slate-200">
                     <thead className="bg-slate-950 border-b border-slate-800 text-xs font-semibold uppercase tracking-wider text-slate-400">
                       <tr>
-                        <th className="px-5 py-4">Cliente / Fatura</th>
-                        <th className="px-5 py-4">Medição</th>
-                        <th className="px-5 py-4">Valor</th>
-                        <th className="px-5 py-4">Vencimento</th>
-                        <th className="px-5 py-4">Status</th>
+                        <th className="px-5 py-4 cursor-pointer hover:bg-slate-900 transition-colors select-none" onClick={() => handleSort('cliente')}>
+                          <div className="flex items-center gap-1.5">
+                            <span>Cliente / Fatura</span>
+                            {sortField === 'cliente' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-emerald-400 font-bold" /> : <ArrowDown className="w-3.5 h-3.5 text-emerald-400 font-bold" />
+                            ) : (
+                              <ArrowUpDown className="w-3.5 h-3.5 opacity-40 hover:opacity-100" />
+                            )}
+                          </div>
+                        </th>
+                        <th className="px-5 py-4 cursor-pointer hover:bg-slate-900 transition-colors select-none" onClick={() => handleSort('medicao')}>
+                          <div className="flex items-center gap-1.5">
+                            <span>Medição</span>
+                            {sortField === 'medicao' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-emerald-400 font-bold" /> : <ArrowDown className="w-3.5 h-3.5 text-emerald-400 font-bold" />
+                            ) : (
+                              <ArrowUpDown className="w-3.5 h-3.5 opacity-40 hover:opacity-100" />
+                            )}
+                          </div>
+                        </th>
+                        <th className="px-5 py-4 cursor-pointer hover:bg-slate-900 transition-colors select-none" onClick={() => handleSort('valor')}>
+                          <div className="flex items-center gap-1.5">
+                            <span>Valor</span>
+                            {sortField === 'valor' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-emerald-400 font-bold" /> : <ArrowDown className="w-3.5 h-3.5 text-emerald-400 font-bold" />
+                            ) : (
+                              <ArrowUpDown className="w-3.5 h-3.5 opacity-40 hover:opacity-100" />
+                            )}
+                          </div>
+                        </th>
+                        <th className="px-5 py-4 cursor-pointer hover:bg-slate-900 transition-colors select-none" onClick={() => handleSort('vencimento')}>
+                          <div className="flex items-center gap-1.5">
+                            <span>Vencimento</span>
+                            {sortField === 'vencimento' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-emerald-400 font-bold" /> : <ArrowDown className="w-3.5 h-3.5 text-emerald-400 font-bold" />
+                            ) : (
+                              <ArrowUpDown className="w-3.5 h-3.5 opacity-40 hover:opacity-100" />
+                            )}
+                          </div>
+                        </th>
+                        <th className="px-5 py-4 cursor-pointer hover:bg-slate-900 transition-colors select-none" onClick={() => handleSort('status')}>
+                          <div className="flex items-center gap-1.5">
+                            <span>Status</span>
+                            {sortField === 'status' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-emerald-400 font-bold" /> : <ArrowDown className="w-3.5 h-3.5 text-emerald-400 font-bold" />
+                            ) : (
+                              <ArrowUpDown className="w-3.5 h-3.5 opacity-40 hover:opacity-100" />
+                            )}
+                          </div>
+                        </th>
                         <th className="px-5 py-4 text-right">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/80 bg-slate-900/40">
-                      {filteredContas.map((conta) => (
+                      {sortedContas.map((conta) => (
                         <tr key={conta.id} className="hover:bg-slate-800/60 transition-colors">
                           <td className="px-5 py-4">
                             <div>
@@ -1077,11 +1174,5 @@ export const ContasAReceber: React.FC = () => {
     </ContasAReceberGuard>
   );
 };
-
-export default ContasAReceber;
-/div>
-     </ContasAReceberGuard>
-   );
- };
 
 export default ContasAReceber;

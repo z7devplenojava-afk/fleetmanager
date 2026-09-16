@@ -5,6 +5,7 @@ import { useScrollPreservation } from '@/hooks/useScrollPreservation';
 import { Button } from '@/components/ui/button';
 import { ScrollPreservingLink } from './ScrollPreservingLink';
 import UserProfileModal from './UserProfileModal';
+import Logo from './Logo';
 import { UserRole } from '@/types/user';
 import {
   BarChart3,
@@ -33,6 +34,7 @@ import {
   X,
   UserCog,
   UserCheck,
+  Lock,
   Upload,
   Award,
   MapPin,
@@ -46,6 +48,7 @@ import {
   Package,
   Layers,
   Headphones,
+  Bot,
   Send,
   Phone,
   Clock,
@@ -235,6 +238,9 @@ const comercialMenuItems = [
   { icon: FileText, text: 'Contratos', to: '/contratos', id: 'contratos' },
   { icon: Kanban, text: 'CRM Comercial', to: '/crm', id: 'crm' },
   { icon: Sparkles, text: 'Prospecção', to: '/prospeccao', id: 'prospeccao' },
+  { icon: Lock, text: 'Retenções', to: '/propostas?tab=retencoes', id: 'retencoes' },
+  { icon: Calculator, text: 'Precificação', to: '/propostas?tab=precificacao', id: 'precificacao' },
+  { icon: BarChart3, text: 'DRE por Placa', to: '/propostas?tab=dre', id: 'dre' },
 ];
 
 // Módulo Estoque Simplificado
@@ -268,12 +274,12 @@ const comunicacaoInternaMenuItems = [
 
 // ===== NOVO: MÓDULO DE ATENDIMENTO =====
 const atendimentoMenuItems = [
-  { icon: Phone, text: 'Dashboard de Atendimento', to: '/gestao-atendimento/dashboard', id: 'gestao-atendimento-dashboard' },
-  { icon: MessageCircle, text: 'Tickets', to: '/gestao-atendimento/tickets', id: 'gestao-atendimento-tickets' },
+  { icon: Headphones, text: 'Gestão de Atendimento', to: '/gestao-atendimento/dashboard', id: 'gestao-atendimento-dashboard' },
+  { icon: MessageCircle, text: 'Tickets & Ocorrências', to: '/gestao-atendimento/tickets', id: 'gestao-atendimento-tickets' },
   { icon: Clock, text: 'Histórico de Conversas', to: '/gestao-atendimento/historico', id: 'gestao-atendimento-historico' },
   { icon: UserCog, text: 'Gerenciar Agentes', to: '/gestao-atendimento/agentes', id: 'gestao-atendimento-agentes' },
-  { icon: BarChart3, text: 'Métricas', to: '/gestao-atendimento/metricas', id: 'gestao-atendimento-metricas' },
-  { icon: Settings, text: 'Chatbot', to: '/gestao-atendimento/chatbot', id: 'gestao-atendimento-chatbot' },
+  { icon: BarChart3, text: 'Métricas de Atendimento', to: '/gestao-atendimento/metricas', id: 'gestao-atendimento-metricas' },
+  { icon: Bot, text: 'Chatbot & WhatsApp', to: '/gestao-atendimento/chatbot', id: 'gestao-atendimento-chatbot' },
 ];
 
 // ===== MÓDULO FINANCEIRO COMPLETO =====
@@ -799,17 +805,18 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
         `}
       >
         {/* Header com Logo - Exact Reference Style */}
-        <div className="p-4 border-b border-sidebar-border flex items-center h-[64px] bg-sidebar-background">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center">
-              <Bus size={20} className="text-white" />
-            </div>
-            {!collapsed && (
-              <span className="text-lg font-bold text-white uppercase italic">
-                Flux<span className="text-white not-italic">bus</span>
-              </span>
+        <div className="p-4 border-b border-sidebar-border flex items-center justify-center h-[64px] bg-sidebar-background">
+          <ScrollPreservingLink to="/" className="flex items-center space-x-3 overflow-hidden">
+            {collapsed ? (
+              <img
+                src="/favicon.png"
+                alt="FluxBus Icon"
+                className="h-8 w-8 object-contain drop-shadow-md transition-transform hover:scale-105"
+              />
+            ) : (
+              <Logo size="md" className="max-w-[170px]" />
             )}
-          </div>
+          </ScrollPreservingLink>
         </div>
 
         {/* Conteúdo da navegação */}

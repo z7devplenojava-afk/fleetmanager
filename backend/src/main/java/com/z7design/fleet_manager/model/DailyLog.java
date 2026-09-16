@@ -67,6 +67,82 @@ public class DailyLog {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    // PRD Módulo 3 (RF-03.5): vínculo da Parte Diária com a folha do talão
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "book_id")
+    private com.z7design.fleet_manager.model.DailyLogBook book;
+
+    @Column(name = "book_sequential_number")
+    private Integer bookSequentialNumber;
+
+    // ===== PRD Módulo 5 (RF-05.1): estrutura obrigatória da Parte Diária =====
+    /** Nome do motorista que realizou o percurso. */
+    @Column(name = "driver_name", length = 255)
+    private String driverName;
+
+    /** Horário de início do percurso. */
+    @Column(name = "start_time")
+    private LocalDateTime startTime;
+
+    /** Horário de término do percurso. */
+    @Column(name = "end_time")
+    private LocalDateTime endTime;
+
+    /** Descrição detalhada da atividade (ex.: Ibirité x FM2C, Retorno Almoço). */
+    @Column(name = "activity_description", columnDefinition = "TEXT")
+    private String activityDescription;
+
+    /** Assinatura do motorista. */
+    @Column(name = "driver_signature", columnDefinition = "TEXT")
+    private String driverSignature;
+
+    @Column(name = "driver_signed_at")
+    private LocalDateTime driverSignedAt;
+
+    /** Assinatura do Representante/Fiscal da Contratante. */
+    @Column(name = "inspector_signature", columnDefinition = "TEXT")
+    private String inspectorSignature;
+
+    @Column(name = "inspector_name", length = 255)
+    private String inspectorName;
+
+    @Column(name = "inspector_signed_at")
+    private LocalDateTime inspectorSignedAt;
+
+    // ===== PRD Módulo 5 (RF-05.2): conciliação com rastreamento satelital =====
+    /** KM reportado pela telemetria/rastreador via satélite. */
+    @Column(name = "telemetry_km")
+    private Integer telemetryKm;
+
+    @Column(name = "telemetry_diff_km")
+    private Integer telemetryDiffKm;
+
+    /** Divergência percentual (0.07 = 7%). */
+    @Column(name = "telemetry_diff_pct", precision = 6, scale = 4)
+    private java.math.BigDecimal telemetryDiffPct;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "telemetry_status", length = 30)
+    private com.z7design.fleet_manager.model.enums.TelemetryReconciliationStatus telemetryStatus =
+            com.z7design.fleet_manager.model.enums.TelemetryReconciliationStatus.NOT_RECONCILED;
+
+    @Column(name = "telemetry_imported_at")
+    private LocalDateTime telemetryImportedAt;
+
+    @Column(name = "telemetry_source", length = 100)
+    private String telemetrySource;
+
+    // ===== PRD Módulo 5 (RF-05.3): classificação automática de viagens extras =====
+    @Column(name = "extra_trip", nullable = false)
+    private Boolean extraTrip = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "extra_trip_reason", length = 50)
+    private com.z7design.fleet_manager.model.enums.ExtraTripReason extraTripReason;
+
+    @Column(name = "extra_trip_auto_classified", nullable = false)
+    private Boolean extraTripAutoClassified = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

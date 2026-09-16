@@ -26,23 +26,28 @@ public class UserActivityInterceptor implements HandlerInterceptor {
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
             @NonNull Object handler) throws Exception {
         try {
+            String method = request.getMethod();
+            // Ignorar consultas (GET, OPTIONS, HEAD) para garantir altíssima performance de navegação
+            if ("GET".equalsIgnoreCase(method) || "OPTIONS".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method)) {
+                return true;
+            }
+
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication != null && authentication.isAuthenticated() &&
                     !"anonymousUser".equals(authentication.getName())) {
 
                 String username = authentication.getName();
                 String action = getActionFromRequest(request);
-                String module = getModuleFromRequest(request);
                 String details = getDetailsFromRequest(request);
                 String ipAddress = getClientIpAddress(request);
                 String userAgent = request.getHeader("User-Agent");
-                String sessionId = request.getSession().getId();
+                String sessionId = null;
+                try {
+                    sessionId = request.getSession(false) != null ? request.getSession(false).getId() : "no-session";
+                } catch (Exception ignored) {}
 
-                // Registra a atividade usando o LogService existente
+                // Registra a atividade de forma assíncrona usando o LogService
                 logService.logUserActivity(username, action, details, ipAddress, userAgent, sessionId);
-
-                System.out.println(
-                        "Atividade registrada: " + username + " - " + action + " - " + module + " - IP: " + ipAddress);
             }
         } catch (Exception e) {
             log.error("Erro ao registrar atividade: {}", e.getMessage(), e);

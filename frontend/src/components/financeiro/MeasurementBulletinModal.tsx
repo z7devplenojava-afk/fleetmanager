@@ -1399,7 +1399,7 @@ export const MeasurementBulletinModal: React.FC<MeasurementBulletinModalProps> =
                         {vehicles.length === 0 ? (
                           <div className="p-2 text-xs text-gray-400">Nenhum veículo cadastrado</div>
                         ) : (
-                          vehicles.map((v) => (
+                          vehicles.slice(0, 100).map((v) => (
                             <SelectItem key={v.id || v.plate} value={v.plate} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
                               <span className="font-mono text-seguranca-yellow font-bold mr-2">{v.plate}</span>
                               {v.brand ? `- ${v.brand} ${v.model || ''}` : ''}

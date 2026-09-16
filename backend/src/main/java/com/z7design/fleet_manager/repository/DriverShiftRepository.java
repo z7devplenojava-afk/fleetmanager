@@ -48,6 +48,9 @@ public interface DriverShiftRepository extends JpaRepository<DriverShift, UUID> 
     /** Turnos de um motorista em um período */
     List<DriverShift> findByDriverIdAndShiftDateBetween(UUID driverId, LocalDate startDate, LocalDate endDate);
 
+    // M7 (RF-07.5): alocações de motoristas por veículo no período — insumo do DRE de folha
+    List<DriverShift> findByVehicleIdAndShiftDateBetween(UUID vehicleId, LocalDate startDate, LocalDate endDate);
+
     /** Turnos em andamento */
     List<DriverShift> findByStatus(DriverShift.DriverShiftStatus status);
 }

@@ -112,6 +112,19 @@ public class AccountsReceivable implements TenantAware {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    // ── Boleto Bancário registrado (M7 / RF-07.4) ──────────────
+    @Column(name = "boleto_url", length = 500)
+    private String boletoUrl;
+
+    @Column(name = "boleto_bar_code", length = 100)
+    private String boletoBarCode;
+
+    @Column(name = "boleto_digitable_line", length = 60)
+    private String boletoDigitableLine;
+
+    @Column(name = "boleto_generation_date")
+    private LocalDateTime boletoGenerationDate;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -348,6 +361,39 @@ public class AccountsReceivable implements TenantAware {
         } else {
             this.overdueDays = 0;
         }
+    }
+
+    // ── Getters/Setters Boleto (M7 / RF-07.4) ─────────────────
+    public String getBoletoUrl() {
+        return boletoUrl;
+    }
+
+    public void setBoletoUrl(String boletoUrl) {
+        this.boletoUrl = boletoUrl;
+    }
+
+    public String getBoletoBarCode() {
+        return boletoBarCode;
+    }
+
+    public void setBoletoBarCode(String boletoBarCode) {
+        this.boletoBarCode = boletoBarCode;
+    }
+
+    public String getBoletoDigitableLine() {
+        return boletoDigitableLine;
+    }
+
+    public void setBoletoDigitableLine(String boletoDigitableLine) {
+        this.boletoDigitableLine = boletoDigitableLine;
+    }
+
+    public LocalDateTime getBoletoGenerationDate() {
+        return boletoGenerationDate;
+    }
+
+    public void setBoletoGenerationDate(LocalDateTime boletoGenerationDate) {
+        this.boletoGenerationDate = boletoGenerationDate;
     }
 
     @Override

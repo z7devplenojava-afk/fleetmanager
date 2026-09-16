@@ -503,13 +503,13 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
     updateFuelRecordMutation.mutate(data);
   };
 
-  const veiculosAtivos = veiculos.filter(v =>
-    v.status.toLowerCase() === 'active' ||
-    v.status.toLowerCase() === 'ativo' ||
-    v.status.toLowerCase() === 'activo'
-  );
-
-  console.log('Status dos veículos:', veiculos.map(v => ({ id: v.id, placa: v.placa, status: v.status })));
+  const veiculosAtivos = useMemo(() => {
+    if (!isOpen || !Array.isArray(veiculos)) return [];
+    return veiculos.filter(v => {
+      const st = (v.status || '').toLowerCase();
+      return st === 'active' || st === 'ativo' || st === 'activo';
+    });
+  }, [isOpen, veiculos]);
 
   const footer = (
     <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 w-full">
@@ -1006,11 +1006,6 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
       </div>
     </form>
   );
-
-  console.log('Modal renderizando - isOpen:', isOpen, 'abastecimento:', abastecimento);
-  console.log('Veículos recebidos:', veiculos);
-  console.log('Veículos ativos filtrados:', veiculosAtivos);
-  console.log('Status dos veículos:', veiculos.map(v => ({ id: v.id, placa: v.placa, status: v.status })));
 
   return (
     <>

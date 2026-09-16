@@ -94,6 +94,14 @@ public class MaintenancePlanService {
         }
     }
 
+    /**
+     * PRD Módulo 6: expõe o cálculo de próxima execução para outros serviços
+     * (ex.: OdometerService ao semear planos padrão de PMP).
+     */
+    public void calculateNextDuePublic(MaintenancePlan plan) {
+        calculateNextDue(plan);
+    }
+
     @Transactional
     public void markAsExecuted(UUID planId, Integer executionKm, LocalDate executionDate) {
         MaintenancePlan plan = repository.findById(planId)

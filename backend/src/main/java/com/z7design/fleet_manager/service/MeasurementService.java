@@ -66,6 +66,9 @@ import java.util.ArrayList;
 @Transactional
 public class MeasurementService {
 
+    /** M7 (RF-07.4): caução técnica automática na validação do BM. */
+    private final com.z7design.fleet_manager.service.FinancialClosingService financialClosingService;
+
     private final MeasurementBulletinRepository bulletinRepository;
     private final MeasurementItemRepository itemRepository;
     private final CalculationMemoryRepository memoryRepository;
@@ -641,6 +644,14 @@ public class MeasurementService {
         bulletin.setStatus(MeasurementStatus.VALIDATED);
 
         bulletin = bulletinRepository.save(bulletin);
+
+        // M7 (RF-07.4): registra a retenção de caução técnica automaticamente na validação
+        try {
+            financialClosingService.registerRetentionOnValidation(bulletin);
+        } catch (Exception retentionEx) {
+            log.error("Erro ao registrar caução técnica na validação do BM {}: {}",
+                    id, retentionEx.getMessage(), retentionEx);
+        }
 
         // Gerar automaticamente o título a receber no financeiro
         try {
