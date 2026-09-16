@@ -41,7 +41,7 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Listar usuÃ¡rios", description = "Retorna uma lista de todos os usuÃ¡rios. Permite acesso para usuÃ¡rios autenticados (necessÃ¡rio para chat)")
+    @Operation(summary = "Listar usuários", description = "Retorna uma lista de todos os usuários. Permite acesso para usuários autenticados (necessário para chat)")
     public ResponseEntity<List<UserListResponseDTO>> getAllUsers() {
         List<User> users = userService.findAll();
         List<UserListResponseDTO> dtos = users.stream()
@@ -49,6 +49,90 @@ public class UserController {
                 .filter(dto -> dto != null)
                 .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtos);
+    }
+
+    @GetMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Buscar próprio perfil", description = "Retorna as informações do perfil do usuário logado")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Perfil encontrado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
+            @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
+    })
+    public ResponseEntity<ProfileResponse> getProfile() {
+        // Obter o usuário atual do contexto de segurança
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+
+        String username = authentication.getName();
+        User currentUser = userService.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        List<String> roleNames = currentUser.getRoles() != null ? currentUser.getRoles().stream()
+                .filter(Objects::nonNull)
+                .map(role -> role.getName())
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toList()) : java.util.Collections.emptyList();
+
+        // Construir resposta
+        ProfileResponse response = ProfileResponse.builder()
+                .id(currentUser.getId())
+                .username(currentUser.getUsername())
+                .name(currentUser.getName())
+                .email(currentUser.getEmail())
+                .whatsapp(currentUser.getWhatsapp())
+                .active(currentUser.isActive())
+                .roles(roleNames)
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    @Transactional
+    @Operation(summary = "Atualizar próprio perfil", description = "Permite ao usuário atualizar suas próprias informações")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Perfil atualizado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado")
+    })
+    public ResponseEntity<ProfileResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
+        // Obter o usuário atual do contexto de segurança
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+
+        String username = authentication.getName();
+        User currentUser = userService.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        // Atualizar o perfil
+        User updatedUser = userService.updateProfile(currentUser.getId(), request);
+
+        List<String> roleNames = updatedUser.getRoles() != null ? updatedUser.getRoles().stream()
+                .filter(Objects::nonNull)
+                .map(role -> role.getName())
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toList()) : java.util.Collections.emptyList();
+
+        // Construir resposta
+        ProfileResponse response = ProfileResponse.builder()
+                .id(updatedUser.getId())
+                .username(updatedUser.getUsername())
+                .name(updatedUser.getName())
+                .email(updatedUser.getEmail())
+                .whatsapp(updatedUser.getWhatsapp())
+                .active(updatedUser.isActive())
+                .roles(roleNames)
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
@@ -426,86 +510,5 @@ public class UserController {
         Map<String, Object> result = userService.deleteBulk(uuidList, currentUsername);
         return ResponseEntity.ok(result);
     }
-
-    @GetMapping("/profile")
-    @Transactional(readOnly = true)
-    @Operation(summary = "Buscar próprio perfil", description = "Retorna as informações do perfil do usuário logado")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Perfil encontrado com sucesso"),
-            @ApiResponse(responseCode = "401", description = "Não autenticado"),
-            @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
-    })
-    public ResponseEntity<ProfileResponse> getProfile() {
-        // Obter o usuário atual do contexto de segurança
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).build();
-        }
-
-        String username = authentication.getName();
-        User currentUser = userService.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-
-        List<String> roleNames = currentUser.getRoles() != null ? currentUser.getRoles().stream()
-                .filter(Objects::nonNull)
-                .map(role -> role.getName())
-                .filter(Objects::nonNull)
-                .collect(java.util.stream.Collectors.toList()) : java.util.Collections.emptyList();
-
-        // Construir resposta
-        ProfileResponse response = ProfileResponse.builder()
-                .id(currentUser.getId())
-                .username(currentUser.getUsername())
-                .name(currentUser.getName())
-                .email(currentUser.getEmail())
-                .whatsapp(currentUser.getWhatsapp())
-                .active(currentUser.isActive())
-                .roles(roleNames)
-                .build();
-
-        return ResponseEntity.ok(response);
-    }
-
-    @PutMapping("/profile")
-    @Transactional
-    @Operation(summary = "Atualizar próprio perfil", description = "Permite ao usuário atualizar suas próprias informações")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Perfil atualizado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
-            @ApiResponse(responseCode = "401", description = "Não autenticado"),
-            @ApiResponse(responseCode = "403", description = "Acesso negado")
-    })
-    public ResponseEntity<ProfileResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
-        // Obter o usuário atual do contexto de segurança
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).build();
-        }
-
-        String username = authentication.getName();
-        User currentUser = userService.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-
-        // Atualizar o perfil
-        User updatedUser = userService.updateProfile(currentUser.getId(), request);
-
-        List<String> roleNames = updatedUser.getRoles() != null ? updatedUser.getRoles().stream()
-                .filter(Objects::nonNull)
-                .map(role -> role.getName())
-                .filter(Objects::nonNull)
-                .collect(java.util.stream.Collectors.toList()) : java.util.Collections.emptyList();
-
-        // Construir resposta
-        ProfileResponse response = ProfileResponse.builder()
-                .id(updatedUser.getId())
-                .username(updatedUser.getUsername())
-                .name(updatedUser.getName())
-                .email(updatedUser.getEmail())
-                .whatsapp(updatedUser.getWhatsapp())
-                .active(updatedUser.isActive())
-                .roles(roleNames)
-                .build();
-
-        return ResponseEntity.ok(response);
-    }
 }
+
