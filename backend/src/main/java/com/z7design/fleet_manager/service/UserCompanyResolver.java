@@ -28,12 +28,19 @@ public class UserCompanyResolver {
     public Optional<Company> resolveCompany(User user) {
         if (user == null)
             return Optional.empty();
-        if (user.getCompany() != null && user.getCompany().getId() != null) {
-            return Optional.of(user.getCompany());
+        try {
+            if (user.getCompany() != null && user.getCompany().getId() != null) {
+                return Optional.of(user.getCompany());
+            }
+        } catch (Exception ignored) {}
+        try {
+            return employeeRepository.findByUserId(user.getId())
+                    .map(Employee::getCompany)
+                    .filter(c -> c != null && c.getId() != null);
+        } catch (Exception e) {
+            log.warn("⚠️ Erro ao resolver empresa por Employee: {}", e.getMessage());
+            return Optional.empty();
         }
-        return employeeRepository.findByUserId(user.getId())
-                .map(Employee::getCompany)
-                .filter(c -> c != null && c.getId() != null);
     }
 
     /**
@@ -51,16 +58,23 @@ public class UserCompanyResolver {
         if (user == null || companyId == null)
             return Optional.empty();
 
-        // Verifica se é a empresa principal do usuário
-        if (user.getCompany() != null && companyId.equals(user.getCompany().getId())) {
-            return Optional.of(user.getCompany());
-        }
+        try {
+            // Verifica se é a empresa principal do usuário
+            if (user.getCompany() != null && companyId.equals(user.getCompany().getId())) {
+                return Optional.of(user.getCompany());
+            }
+        } catch (Exception ignored) {}
 
-        // Busca nos registros de Employee (onde o usuário pode ter acesso a múltiplas
-        // empresas)
-        return employeeRepository.findByUser(user).stream()
-                .filter(emp -> companyId.equals(emp.getCompanyId()))
-                .map(Employee::getCompany)
-                .findFirst();
+        try {
+            // Busca nos registros de Employee (onde o usuário pode ter acesso a múltiplas empresas)
+            return employeeRepository.findByUser(user).stream()
+                    .filter(emp -> emp != null && companyId.equals(emp.getCompanyId()))
+                    .map(Employee::getCompany)
+                    .filter(c -> c != null)
+                    .findFirst();
+        } catch (Exception e) {
+            log.warn("⚠️ Erro ao resolver empresa específica: {}", e.getMessage());
+            return Optional.empty();
+        }
     }
 }
