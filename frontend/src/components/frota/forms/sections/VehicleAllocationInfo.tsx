@@ -4,7 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Building, Settings, User } from 'lucide-react';
 import { VehicleFormSectionProps } from '../types';
 import { workPostService, WorkPost } from '@/services/workPostService';
-import { companyService } from '@/services/companyService';
+import { clientService } from '@/services/clientService';
+import { contractService } from '@/services/contractService';
 import { departmentService, Department } from '@/services/departmentService';
 import { employeeService } from '@/services/employeeService';
 import { useQuery } from '@tanstack/react-query';
@@ -12,9 +13,9 @@ import { useQuery } from '@tanstack/react-query';
 export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formData, handleInputChange }) => {
 
     // Queries
-    const { data: companies, isLoading: companiesLoading } = useQuery({
-        queryKey: ['companies'],
-        queryFn: () => companyService.getAllCompanies(),
+    const { data: clients, isLoading: clientsLoading } = useQuery({
+        queryKey: ['clients-for-allocation'],
+        queryFn: () => clientService.getAllClients(),
         retry: 2
     });
 
@@ -36,30 +37,73 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
         retry: 2
     });
 
+    // Obras filtradas pelo cliente/empresa selecionada
+    const currentClientId = formData.clientId || formData.empresaId;
+    const filteredWorkPosts = React.useMemo(() => {
+        if (!workPosts || workPosts.length === 0) return [];
+        if (!currentClientId) return workPosts;
+        const matching = workPosts.filter((wp: any) => wp.clientId === currentClientId);
+        return matching.length > 0 ? matching : workPosts;
+    }, [workPosts, currentClientId]);
+
+    const handleClientChange = async (selectedId: string) => {
+        const selectedClient = clients?.find(c => c.id === selectedId);
+        const name = selectedClient?.name || '';
+        handleInputChange('empresaId', selectedId);
+        handleInputChange('empresa', name);
+        handleInputChange('clientId', selectedId);
+        handleInputChange('clientName', name);
+
+        // Se o posto atual não pertencer ao novo cliente, limpa
+        if (formData.postoDeTrabalho) {
+            const currentWp = workPosts?.find(w => w.id === formData.postoDeTrabalho);
+            if (currentWp && currentWp.clientId && currentWp.clientId !== selectedId) {
+                handleInputChange('postoDeTrabalho', '');
+            }
+        }
+
+        // Buscar contratos associados ao cliente para preenchimento automático
+        try {
+            const contracts = await contractService.getContracts({ clientId: selectedId });
+            if (contracts && contracts.length > 0) {
+                const activeContract = contracts.find((c: any) => c.status === 'ACTIVE') || contracts[0];
+                if (activeContract) {
+                    if (activeContract.contractNumber || (activeContract as any).number) {
+                        handleInputChange('allocationContractNumber', activeContract.contractNumber || (activeContract as any).number);
+                    }
+                    if (activeContract.startDate) {
+                        handleInputChange('allocationStartDate', activeContract.startDate.split('T')[0]);
+                    }
+                    if (activeContract.endDate) {
+                        handleInputChange('allocationEndDate', activeContract.endDate.split('T')[0]);
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Não foi possível carregar contratos do cliente:', error);
+        }
+    };
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-            {/* Empresa */}
+            {/* Empresa / Cliente */}
             <div className="space-y-2">
-                <Label htmlFor="empresa" className="text-gray-300 font-medium">Empresa</Label>
+                <Label htmlFor="empresa" className="text-gray-300 font-medium">Empresa / Cliente</Label>
                 <div className="relative">
                     <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Select
-                        value={formData.empresaId}
-                        onValueChange={(value) => {
-                            const selectedCompany = companies?.find(c => c.id === value);
-                            handleInputChange('empresaId', value);
-                            handleInputChange('empresa', selectedCompany?.name || '');
-                        }}
-                        disabled={companiesLoading}
+                        value={formData.clientId || formData.empresaId || ''}
+                        onValueChange={handleClientChange}
+                        disabled={clientsLoading}
                     >
                         <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white pl-10 focus:border-purple-500 focus:ring-purple-500/20 transition-all duration-200">
-                            <SelectValue placeholder="Selecione uma empresa" />
+                            <SelectValue placeholder="Selecione um cliente / empresa" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-gray-600">
-                            {companies?.map((company) => (
-                                <SelectItem key={company.id} value={company.id} className="text-white hover:bg-gray-700">
-                                    {company.name}
+                        <SelectContent className="bg-gray-900 border-gray-600 z-[10060]">
+                            {clients?.map((client) => (
+                                <SelectItem key={client.id} value={client.id} className="text-white hover:bg-gray-700">
+                                    {client.name} {client.cnpj ? `(${client.cnpj})` : ''}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -67,25 +111,37 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
                 </div>
             </div>
 
-            {/* Posto */}
+            {/* Posto de Trabalho / Obra */}
             <div className="space-y-2">
-                <Label htmlFor="postoDeTrabalho" className="text-gray-300 font-medium">Posto de Trabalho</Label>
+                <Label htmlFor="postoDeTrabalho" className="text-gray-300 font-medium">Posto de Trabalho / Obra</Label>
                 <div className="relative">
                     <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Select
-                        value={formData.postoDeTrabalho}
-                        onValueChange={(value) => handleInputChange('postoDeTrabalho', value)}
+                        value={formData.postoDeTrabalho || ''}
+                        onValueChange={(value) => {
+                            const wp = workPosts?.find(w => w.id === value);
+                            handleInputChange('postoDeTrabalho', value);
+                            if (wp && wp.clientId && !formData.clientId) {
+                                handleClientChange(wp.clientId);
+                            }
+                        }}
                         disabled={workPostsLoading}
                     >
                         <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white pl-10 focus:border-purple-500 focus:ring-purple-500/20 transition-all duration-200">
-                            <SelectValue placeholder="Selecione um posto" />
+                            <SelectValue placeholder={currentClientId ? "Selecione o posto da empresa…" : "Selecione um posto / obra"} />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-gray-600">
-                            {workPosts?.map((wp: WorkPost) => (
-                                <SelectItem key={wp.id} value={wp.id} className="text-white hover:bg-gray-700">
-                                    {wp.name}
+                        <SelectContent className="bg-gray-900 border-gray-600 z-[10060]">
+                            {filteredWorkPosts.length > 0 ? (
+                                filteredWorkPosts.map((wp: WorkPost) => (
+                                    <SelectItem key={wp.id} value={wp.id} className="text-white hover:bg-gray-700">
+                                        {wp.name} {wp.postCode ? `(${wp.postCode})` : ''} {!currentClientId && wp.clientName ? `— ${wp.clientName}` : ''}
+                                    </SelectItem>
+                                ))
+                            ) : (
+                                <SelectItem value="none" disabled>
+                                    Nenhum posto cadastrado para esta empresa
                                 </SelectItem>
-                            ))}
+                            )}
                         </SelectContent>
                     </Select>
                 </div>

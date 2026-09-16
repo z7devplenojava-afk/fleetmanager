@@ -46,7 +46,7 @@ export function detectEnvironment(): AppEnvironment {
     cachedEnvironment = 'dev';
   } else if (hostname.includes('test.z7botsolutions.com.br') || hostname.includes('testing.z7botsolutions.com.br')) {
     cachedEnvironment = 'test';
-  } else if (hostname.includes('z7botsolutions.com.br') && !hostname.includes('ci.') && !hostname.includes('dev.') && !hostname.includes('test.')) {
+  } else if (hostname.includes('fluxbus.com.br') || (hostname.includes('z7botsolutions.com.br') && !hostname.includes('ci.') && !hostname.includes('dev.') && !hostname.includes('test.'))) {
     cachedEnvironment = 'prod';
   } else if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
     cachedEnvironment = 'local';
@@ -84,8 +84,8 @@ function getBackendHost(): string {
 const environments: Record<string, EnvironmentConfig> = {
   local: {
     name: 'Desenvolvimento Local',
-    apiUrl: `http://${getBackendHost()}:8083/api`,
-    wsUrl: `ws://${getBackendHost()}:8083/ws`,
+    apiUrl: `http://${getBackendHost()}:8081/api`,
+    wsUrl: `ws://${getBackendHost()}:8081/ws`,
     debug: true,
     features: {
       notifications: true,
@@ -128,8 +128,8 @@ const environments: Record<string, EnvironmentConfig> = {
   },
   prod: {
     name: 'Produção',
-    apiUrl: 'https://app.z7botsolutions.com.br/api',
-    wsUrl: 'wss://app.z7botsolutions.com.br/ws',
+    apiUrl: 'https://fluxbus.com.br/api',
+    wsUrl: 'wss://fluxbus.com.br/ws',
     debug: false,
     features: {
       notifications: true,

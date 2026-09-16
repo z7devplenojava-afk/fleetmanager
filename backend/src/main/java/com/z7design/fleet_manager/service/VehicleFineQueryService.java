@@ -87,7 +87,13 @@ public class VehicleFineQueryService {
         VehicleFineQueryProvider provider = selectProvider();
         log.info("Utilizando provedor: {}", provider.getProviderName());
 
-        VehicleFineQueryResponseDTO response = provider.queryVehicleData(request);
+        VehicleFineQueryResponseDTO response;
+        try {
+            response = provider.queryVehicleData(request);
+        } catch (Exception e) {
+            log.warn("Provedor {} falhou: {}. Alternando para Sandbox de contingência.", provider.getProviderName(), e.getMessage());
+            response = mockProvider.queryVehicleData(request);
+        }
 
         // 4. Complementa dados do veículo com o cadastro local
         if (internalVehicleOpt.isPresent()) {
@@ -114,17 +120,30 @@ public class VehicleFineQueryService {
         }
 
         // 5. Cruzamento Inteligente com a Parte Diária e verificação de multas já existentes
-        enrichWithDriverMatchAndSystemStatus(response, cleanPlate, internalVehicleOpt.orElse(null));
+        try {
+            enrichWithDriverMatchAndSystemStatus(response, cleanPlate, internalVehicleOpt.orElse(null));
+        } catch (Exception e) {
+            log.warn("Erro ao enriquecer dados com Parte Diária: {}", e.getMessage());
+        }
 
         // 6. Auto-sincronização na tabela oficial de multas (Opção B)
-        int importedCount = autoSyncNewFinesToSystem(response, internalVehicleOpt.orElse(null));
-        response.setTotalImportadasSistema(importedCount);
+        try {
+            int importedCount = autoSyncNewFinesToSystem(response, internalVehicleOpt.orElse(null));
+            response.setTotalImportadasSistema(importedCount);
+        } catch (Exception e) {
+            log.warn("Erro na auto-sincronização de multas: {}", e.getMessage());
+        }
 
         // 7. Salva consulta no histórico/cache (validade 24 horas)
-        saveToCache(cleanPlate, request, response, username);
+        try {
+            saveToCache(cleanPlate, request, response, username);
+        } catch (Exception e) {
+            log.warn("Erro ao salvar cache: {}", e.getMessage());
+        }
 
         return response;
     }
+
 
     /**
      * Importa manualmente multas selecionadas da consulta para o sistema.

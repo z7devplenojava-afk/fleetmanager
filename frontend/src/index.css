@@ -6,15 +6,13 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  .white,
+  .light {
     --radius: 0.5rem;
     --sidebar-width: 16rem;
     --sidebar-width-mobile: 18rem;
-  }
 
-  /* Tema FluxBus Light - Clean / Premium */
-  .white,
-  .light {
     --background: 210 20% 98.5%;
     --foreground: 222.2 47% 11.2%;
     --card: 0 0% 100%;
@@ -23,27 +21,27 @@
     --popover-foreground: 222.2 47% 11.2%;
     --primary: 0 84% 44%;
     /* FluxBus Crimson */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 30% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 25% 95%;
+    --muted-foreground: 215 16% 40%;
     --accent: 31 100% 50%;
     /* Fleet Orange */
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214.3 25% 88%;
+    --input: 214.3 25% 88%;
     --ring: 0 84% 44%;
 
     --sidebar-background: 0 0% 99%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 0 84% 44%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 210 40% 96.1%;
+    --sidebar-accent: 210 30% 95%;
     --sidebar-accent-foreground: 0 84% 44%;
-    --sidebar-border: 220 13% 94%;
+    --sidebar-border: 220 13% 90%;
     --sidebar-ring: 0 84% 44%;
   }
 

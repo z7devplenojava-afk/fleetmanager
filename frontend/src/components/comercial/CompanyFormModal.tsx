@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { companyService, CreateCompanyRequest } from '@/services/companyService';
 import api from '@/lib/axios';
 import { getApiUrl } from '@/config/environment';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 
 interface CompanyFormModalProps {
@@ -46,53 +47,17 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
 
   React.useEffect(() => {
     if (open && initialData) {
-      const normalizedLogoUrl = (() => {
-        if (!initialData.logoUrl) return '';
-        if (initialData.logoUrl.startsWith('http://') || initialData.logoUrl.startsWith('https://')) {
-          try {
-            const url = new URL(initialData.logoUrl);
-            return url.pathname;
-          } catch {
-            return initialData.logoUrl;
-          }
-        }
-        return initialData.logoUrl;
-      })();
-
+      const initialLogo = initialData.logoUrl || '';
       setForm(prev => ({
         ...prev,
         ...initialData,
-        logoUrl: normalizedLogoUrl
+        logoUrl: initialLogo
       } as CreateCompanyRequest));
-      if (initialData.logoUrl) {
-        // Se for uma URL relativa, construir URL completa
-        const baseUrl = getApiUrl().replace('/api', '');
-        let logoUrl = normalizedLogoUrl || initialData.logoUrl;
-        let finalUrl = '';
-        
-        // Se já for URL completa (http/https), usar como está
-        if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
-          finalUrl = logoUrl;
-        } 
-        // Se começar com /api/uploads, usar diretamente com baseUrl
-        else if (logoUrl.startsWith('/api/uploads/')) {
-          finalUrl = `${baseUrl}${logoUrl}`;
-        }
-        // Se começar com /uploads, adicionar /api
-        else if (logoUrl.startsWith('/uploads/')) {
-          finalUrl = `${baseUrl}/api${logoUrl}`;
-        }
-        // Se não começar com /, assumir que é relativo ao endpoint de uploads
-        else {
-          finalUrl = `${baseUrl}/api/uploads/companies/logos/${logoUrl}`;
-        }
-        
-        console.log('🔍 Construindo URL do logo:', { 
-          original: logoUrl, 
-          baseUrl, 
-          finalUrl 
-        });
-        setLogoPreview(finalUrl);
+      setLogoFile(null);
+      if (initialLogo) {
+        setLogoPreview(resolveCompanyLogoUrl(initialLogo));
+      } else {
+        setLogoPreview(null);
       }
     } else if (open) {
       // Reset form when opening for new company
@@ -227,32 +192,8 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
 
       // Backend retorna: /api/uploads/companies/logos/{filename}
       const logoUrl = response.data.url;
-      
-      // Construir URL completa apenas para preview
-      const baseUrl = getApiUrl().replace('/api', '');
-      let fullLogoUrl = logoUrl;
-      
-      // Se já for URL completa (http/https), usar como está
-      if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
-        fullLogoUrl = logoUrl;
-      } 
-      // Se começar com /api/uploads, usar diretamente com baseUrl
-      else if (logoUrl.startsWith('/api/uploads/')) {
-        fullLogoUrl = `${baseUrl}${logoUrl}`;
-      }
-      // Se começar com /uploads, adicionar /api
-      else if (logoUrl.startsWith('/uploads/')) {
-        fullLogoUrl = `${baseUrl}/api${logoUrl}`;
-      }
-      // Se não começar com /, assumir que é relativo ao endpoint de uploads
-      else {
-        fullLogoUrl = `${baseUrl}/api/uploads/companies/logos/${logoUrl}`;
-      }
-      
-      // IMPORTANTE: Salvar apenas o caminho relativo no banco (/api/uploads/companies/logos/{filename})
-      // A URL completa será construída quando necessário (exibição)
-      setForm(prev => ({ ...prev, logoUrl: logoUrl }));
-      setLogoPreview(fullLogoUrl);
+      setForm(prev => ({ ...prev, logoUrl }));
+      setLogoPreview(resolveCompanyLogoUrl(logoUrl));
       toast({
         title: 'Logo enviado',
         description: 'Logo enviado com sucesso.'
@@ -265,13 +206,19 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
         variant: 'destructive'
       });
       setLogoFile(null);
-      setLogoPreview(null);
+      // Se já existia logo salvo no banco, restaura o preview da logo original
+      if (form.logoUrl) {
+        setLogoPreview(resolveCompanyLogoUrl(form.logoUrl));
+      } else {
+        setLogoPreview(null);
+      }
     } finally {
       setUploadingLogo(false);
     }
   };
 
-  const removeLogo = () => {
+  const removeLogo = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setLogoFile(null);
     setLogoPreview(null);
     setForm(prev => ({ ...prev, logoUrl: '' }));
@@ -486,30 +433,42 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
               <Label className="text-xs sm:text-sm font-medium text-seguranca-lightgray">Logo da Empresa</Label>
               <div className="space-y-2">
                 {logoPreview ? (
-                  <div className="relative inline-block">
-                    <img
-                      src={logoPreview}
-                      alt="Logo preview"
-                      className="w-24 h-24 sm:w-32 sm:h-32 object-contain border border-gray-600 rounded-md bg-white p-2"
-                      onError={(e) => {
-                        console.error('Erro ao carregar imagem do logo:', logoPreview);
-                        // Se falhar ao carregar, limpar o preview e mostrar área de upload
-                        setLogoPreview(null);
-                        setForm(prev => ({ ...prev, logoUrl: '' }));
-                        toast({
-                          title: 'Erro ao carregar logo',
-                          description: 'Não foi possível carregar a imagem. Por favor, faça upload novamente.',
-                          variant: 'destructive'
-                        });
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={removeLogo}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                    >
-                      <X className="h-3 w-3 sm:h-4 sm:w-4" />
-                    </button>
+                  <div className="flex items-center gap-4 p-3 bg-gray-800/80 border border-gray-600 rounded-lg">
+                    <div className="relative inline-block flex-shrink-0">
+                      <img
+                        src={logoPreview}
+                        alt="Logo preview"
+                        className="w-20 h-20 sm:w-24 sm:h-24 object-contain border border-gray-600 rounded-md bg-white p-2"
+                        onError={() => {
+                          console.warn('⚠️ Não foi possível renderizar imagem do logo no preview:', logoPreview);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={removeLogo}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-md transition-colors"
+                        title="Remover logo"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        Logomarca salva / carregada
+                      </span>
+                      <label className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white bg-gray-700 hover:bg-gray-600 border border-gray-500 rounded-md cursor-pointer transition-colors w-fit">
+                        <span>Alterar logomarca</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".png,.jpg,.jpeg"
+                          onChange={handleLogoChange}
+                          disabled={uploadingLogo}
+                        />
+                      </label>
+                      <p className="text-[11px] text-gray-400">PNG, JPG ou JPEG (máx. 5MB)</p>
+                    </div>
                   </div>
                 ) : (
                   <label className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-800 hover:bg-gray-700 transition-colors">
@@ -530,7 +489,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
                   </label>
                 )}
                 {uploadingLogo && (
-                  <p className="text-xs text-gray-400">Enviando logo...</p>
+                  <p className="text-xs text-seguranca-yellow font-medium animate-pulse">Enviando logomarca...</p>
                 )}
               </div>
             </div>

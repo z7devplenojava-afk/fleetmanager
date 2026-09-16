@@ -37,15 +37,60 @@ export const exportToCSV = (data: any[], filename: string): void => {
   document.body.removeChild(link);
 };
 
-export const exportToXLSX = async (data: any[], filename: string): Promise<void> => {
+export const getActiveCompanyInfo = () => {
+  try {
+    const rawEmpresa = localStorage.getItem('empresa');
+    if (rawEmpresa) {
+      const parsed = JSON.parse(rawEmpresa);
+      return {
+        nome: parsed.nome || parsed.name || '',
+        cnpj: parsed.cnpj || '',
+        sigla: parsed.sigla || '',
+        logoUrl: parsed.logoUrl || null
+      };
+    }
+    const rawUser = localStorage.getItem('user');
+    if (rawUser) {
+      const parsed = JSON.parse(rawUser);
+      return {
+        nome: parsed.companyName || parsed.company?.name || '',
+        cnpj: parsed.company?.cnpj || '',
+        sigla: parsed.company?.sigla || '',
+        logoUrl: parsed.companyLogo || parsed.company?.logoUrl || null
+      };
+    }
+  } catch {}
+  return { nome: 'FluxBus Gestão', cnpj: '', sigla: '', logoUrl: null };
+};
+
+export const exportToXLSX = async (
+  data: any[],
+  filename: string,
+  title?: string,
+  customCompany?: { nome?: string; cnpj?: string }
+): Promise<void> => {
   try {
     // Dynamic import to reduce bundle size
     const XLSX = await import('xlsx');
-    
-    const worksheet = XLSX.utils.json_to_sheet(data);
+    const company = customCompany || getActiveCompanyInfo();
+
+    // Criar cabeçalho institucional para o Excel
+    const headerRows = [
+      [company.nome || 'FluxBus'],
+      [`${company.cnpj ? `CNPJ: ${company.cnpj} | ` : ''}Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`],
+      [title ? `Relatório: ${title}` : `Arquivo: ${filename}`],
+      [] // Linha em branco
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(headerRows);
+
+    if (data && data.length > 0) {
+      XLSX.utils.sheet_add_json(worksheet, data, { origin: 'A5' });
+    }
+
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-    
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatório');
+
     XLSX.writeFile(workbook, `${filename}.xlsx`);
   } catch (error) {
     console.error('Error exporting to XLSX:', error);
@@ -55,49 +100,83 @@ export const exportToXLSX = async (data: any[], filename: string): Promise<void>
 
 export const exportToExcel = exportToXLSX;
 
-export const exportToPDF = async (data: any[], filename: string, title: string): Promise<void> => {
+export const exportToPDF = async (
+  data: any[],
+  filename: string,
+  title: string,
+  customCompany?: { nome?: string; cnpj?: string; logoUrl?: string }
+): Promise<void> => {
   try {
     // Dynamic import to reduce bundle size
     const jsPDF = await import('jspdf');
     const autoTable = await import('jspdf-autotable');
-    
+
     const doc = new jsPDF.default();
-    
-    // Add title
-    doc.setFontSize(16);
-    doc.text(title, 14, 22);
-    
-    // Add date
-    doc.setFontSize(10);
-    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
-    
-    // Prepare table data
-    const headers = Object.keys(data[0]).map(key => 
-      key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')
-    );
-    
-    const tableData = data.map(row => 
-      Object.values(row).map(value => 
-        typeof value === 'object' ? JSON.stringify(value) : String(value || '')
-      )
-    );
-    
-    // Add table
-    autoTable.default(doc, {
-      head: [headers],
-      body: tableData,
-      startY: 40,
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-      },
-      headStyles: {
-        fillColor: [220, 53, 69], // seguranca-red
-        textColor: 255,
-        fontStyle: 'bold',
-      },
-    });
-    
+    const company = customCompany || getActiveCompanyInfo();
+
+    // Cabeçalho Corporativo Institucional
+    doc.setFillColor(24, 24, 27);
+    doc.rect(0, 0, 210, 24, 'F');
+
+    // Linha de Destaque Vermelha / Primária
+    doc.setFillColor(220, 53, 69);
+    doc.rect(0, 24, 210, 2, 'F');
+
+    // Nome da Empresa
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.text(company.nome || 'FluxBus', 14, 11);
+
+    // CNPJ e Data de Emissão
+    doc.setFontSize(8);
+    doc.setTextColor(210, 210, 210);
+    doc.setFont('helvetica', 'normal');
+    const metaText = `${company.cnpj ? `CNPJ: ${company.cnpj}  |  ` : ''}Emissão: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    doc.text(metaText, 14, 18);
+
+    // Título do Relatório
+    doc.setFontSize(12);
+    doc.setTextColor(33, 37, 41);
+    doc.setFont('helvetica', 'bold');
+    doc.text(title, 14, 34);
+
+    // Linha divisória
+    doc.setDrawColor(220, 220, 220);
+    doc.line(14, 37, 196, 37);
+
+    if (data && data.length > 0) {
+      // Prepare table data
+      const headers = Object.keys(data[0]).map(key =>
+        key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')
+      );
+
+      const tableData = data.map(row =>
+        Object.values(row).map(value =>
+          typeof value === 'object' ? (value ? JSON.stringify(value) : '') : String(value ?? '')
+        )
+      );
+
+      // Add table
+      autoTable.default(doc, {
+        head: [headers],
+        body: tableData,
+        startY: 41,
+        styles: {
+          fontSize: 8,
+          cellPadding: 2.5,
+        },
+        headStyles: {
+          fillColor: [220, 53, 69], // seguranca-red
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+          fillColor: [248, 249, 250],
+        },
+      });
+    }
+
     doc.save(`${filename}.pdf`);
   } catch (error) {
     console.error('Error exporting to PDF:', error);

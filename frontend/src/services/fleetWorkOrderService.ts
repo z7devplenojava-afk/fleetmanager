@@ -236,4 +236,5 @@ class FleetWorkOrderService {
     }
 }
 
-export default new FleetWorkOrderService();
+export const fleetWorkOrderService = new FleetWorkOrderService();
+export default fleetWorkOrderService;

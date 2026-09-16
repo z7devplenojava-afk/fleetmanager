@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Car, Building, DollarSign, Wrench, Save, Loader2, FileText, ImageIcon, X, Trash2, RefreshCw, Shield, Users, UserCheck, AlertTriangle } from 'lucide-react';
+import { Car, Building, DollarSign, Wrench, Save, Loader2, FileText, ImageIcon, X, Trash2, RefreshCw, Shield, Users, UserCheck, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { VehicleFormData } from './types';
 import { VehicleGeneralInfo } from './sections/VehicleGeneralInfo';
 import { VehicleAllocationInfo } from './sections/VehicleAllocationInfo';
@@ -14,6 +14,8 @@ import { VehicleFinancingSection } from './sections/VehicleFinancingSection';
 import { VehicleInsuranceSection } from './sections/VehicleInsuranceSection';
 import { VehicleClientSection } from './sections/VehicleClientSection';
 import { VehicleAgregadoSection } from './sections/VehicleAgregadoSection';
+import { VehicleFinesSection } from './sections/VehicleFinesSection';
+import { VehicleWearAndWarrantySection } from './sections/VehicleWearAndWarrantySection';
 import { useVehicleValidation, ValidationError } from './hooks/useVehicleValidation';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -173,6 +175,36 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
         onSubmit(formData);
     };
 
+    const [newPhotoPreviews, setNewPhotoPreviews] = useState<{ file: File; url: string }[]>([]);
+
+    // Preview de novas fotos selecionadas
+    useEffect(() => {
+        if (!formData.fotos || formData.fotos.length === 0) {
+            setNewPhotoPreviews([]);
+            return;
+        }
+        const previews = Array.from(formData.fotos).map(file => ({
+            file,
+            url: URL.createObjectURL(file)
+        }));
+        setNewPhotoPreviews(previews);
+
+        return () => {
+            previews.forEach(p => URL.revokeObjectURL(p.url));
+        };
+    }, [formData.fotos]);
+
+    const handleRemoveNewPhoto = (indexToRemove: number) => {
+        if (!formData.fotos) return;
+        const dt = new DataTransfer();
+        Array.from(formData.fotos).forEach((file, index) => {
+            if (index !== indexToRemove) {
+                dt.items.add(file);
+            }
+        });
+        handleInputChange('fotos', dt.files.length > 0 ? dt.files : null);
+    };
+
     // Photo handlers for Edit Mode
     const handleDeleteExistingPhoto = (photoName: string) => {
         if (!formData.photosToDelete) return;
@@ -196,7 +228,7 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto px-6 py-4">
                 <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-7 mb-4 bg-gray-800/50 p-1 flex-none">
+                    <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 mb-4 bg-gray-800/50 p-1 flex-none gap-1">
                         <TabsTrigger value="general" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
                             <Car className="h-3 w-3" />
                             <span className="hidden lg:inline">Geral</span>
@@ -221,9 +253,13 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                             <UserCheck className="h-3 w-3" />
                             <span className="hidden lg:inline">Agregado</span>
                         </TabsTrigger>
-                        <TabsTrigger value="maintenance" className="data-[state=active]:bg-red-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
+                        <TabsTrigger value="maintenance" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
                             <Wrench className="h-3 w-3" />
                             <span className="hidden lg:inline">Manutenção</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="fines" className="data-[state=active]:bg-rose-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
+                            <AlertTriangle className="h-3 w-3" />
+                            <span className="hidden lg:inline">Multas</span>
                         </TabsTrigger>
                     </TabsList>
 
@@ -236,6 +272,9 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                                 <h3 className="text-lg font-semibold text-white">Informações do Veículo</h3>
                             </div>
                             <VehicleGeneralInfo formData={formData} handleInputChange={handleInputChange} />
+
+                            {/* Controles de Desgaste, Troca de Óleo, Filtros, Correias e Garantia */}
+                            <VehicleWearAndWarrantySection formData={formData} handleInputChange={handleInputChange} />
 
                             {/* Campos de Ônibus (condicional) */}
                             <VehicleBusInfo formData={formData} handleInputChange={handleInputChange} />
@@ -279,44 +318,80 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                                         >
                                             Selecionar Arquivos
                                         </Button>
-
-                                        {formData.fotos && formData.fotos.length > 0 && (
-                                            <div className="mt-4 w-full">
-                                                <p className="text-xs text-green-400 font-medium mb-2 text-left">
-                                                    {formData.fotos.length} arquivo(s) selecionado(s):
-                                                </p>
-                                                <ul className="text-xs text-gray-300 text-left space-y-1 bg-gray-800/50 p-2 rounded">
-                                                    {Array.from(formData.fotos).map((file, idx) => (
-                                                        <li key={idx} className="flex items-center gap-2">
-                                                            <FileText className="h-3 w-3" />
-                                                            {file.name}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
                                     </div>
+
+                                    {/* Grid de Novas Fotos Selecionadas com Preview Real */}
+                                    {newPhotoPreviews.length > 0 && (
+                                        <div className="space-y-2">
+                                            <p className="text-xs text-green-400 font-medium text-left">
+                                                {newPhotoPreviews.length} foto(s) nova(s) selecionada(s):
+                                            </p>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                                {newPhotoPreviews.map((item, idx) => (
+                                                    <div key={idx} className="relative group rounded-lg overflow-hidden border border-gray-700 bg-gray-900/80 shadow">
+                                                        <div className="aspect-video w-full overflow-hidden bg-gray-950 flex items-center justify-center">
+                                                            <img
+                                                                src={item.url}
+                                                                alt={item.file.name}
+                                                                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-200"
+                                                            />
+                                                        </div>
+                                                        <div className="p-1.5 bg-gray-900/90 text-left">
+                                                            <p className="text-[11px] text-gray-200 truncate font-medium">{item.file.name}</p>
+                                                            <p className="text-[10px] text-gray-400">{(item.file.size / 1024).toFixed(1)} KB</p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveNewPhoto(idx)}
+                                                            className="absolute top-1 right-1 p-1 bg-red-600/90 hover:bg-red-700 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            title="Remover foto"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Fotos existentes (Modo Edição) */}
                                     {isEditMode && formData.existingPhotos && formData.existingPhotos.length > 0 && (
                                         <div className="space-y-2">
                                             <Label className="text-gray-300 font-medium text-xs uppercase tracking-wider">
-                                                Fotos Cadastradas
+                                                Fotos Cadastradas ({formData.existingPhotos.length})
                                             </Label>
-                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                                 {formData.existingPhotos.map((photo, index) => {
                                                     const isDeleted = formData.photosToDelete?.has(photo);
+                                                    const photoSrc = photo.startsWith('http') || photo.startsWith('data:') || photo.startsWith('/')
+                                                        ? photo
+                                                        : `/api/vehicles/photos/${photo}`;
+
                                                     return (
                                                         <div
                                                             key={index}
-                                                            className={`relative group rounded-lg overflow-hidden border ${isDeleted ? 'border-red-500 opacity-60' : 'border-gray-700'}`}
+                                                            className={`relative group rounded-lg overflow-hidden border ${isDeleted ? 'border-red-500 opacity-60' : 'border-gray-700 bg-gray-900/80'}`}
                                                         >
-                                                            <div className="aspect-video bg-gray-900 flex items-center justify-center">
-                                                                {/* Simulação de preview já que não temos URL real aqui facilmente sem o backend configurado para servir static files corretamente mapeados */}
-                                                                <div className="flex flex-col items-center">
-                                                                    <ImageIcon className="h-6 w-6 text-gray-500 mb-1" />
-                                                                    <span className="text-[10px] text-gray-400 max-w-[90%] truncate px-1">{photo}</span>
-                                                                </div>
+                                                            <div className="aspect-video bg-gray-950 flex items-center justify-center overflow-hidden">
+                                                                <img
+                                                                    src={photoSrc}
+                                                                    alt={photo}
+                                                                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-200"
+                                                                    onError={(e) => {
+                                                                        const target = e.currentTarget;
+                                                                        target.style.display = 'none';
+                                                                        const parent = target.parentElement;
+                                                                        if (parent && !parent.querySelector('.img-fallback')) {
+                                                                            const fallback = document.createElement('div');
+                                                                            fallback.className = 'img-fallback flex flex-col items-center justify-center p-2 text-center text-gray-500';
+                                                                            fallback.innerHTML = `<svg class="h-6 w-6 mb-1 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><span class="text-[10px] text-gray-400 truncate max-w-[100px]">${photo}</span>`;
+                                                                            parent.appendChild(fallback);
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <div className="p-1.5 bg-gray-900/90 text-left">
+                                                                <p className="text-[11px] text-gray-300 truncate">{photo}</p>
                                                             </div>
 
                                                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -326,10 +401,10 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                                                                         variant="ghost"
                                                                         size="sm"
                                                                         onClick={() => handleRestorePhoto(photo)}
-                                                                        className="text-white hover:text-green-400 hover:bg-transparent"
+                                                                        className="text-white hover:text-green-400 hover:bg-transparent flex items-center gap-1 text-xs"
                                                                         title="Restaurar foto"
                                                                     >
-                                                                        <RefreshCw className="h-5 w-5" />
+                                                                        <RefreshCw className="h-4 w-4" /> Restaurar
                                                                     </Button>
                                                                 ) : (
                                                                     <Button
@@ -337,10 +412,10 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                                                                         variant="ghost"
                                                                         size="sm"
                                                                         onClick={() => handleDeleteExistingPhoto(photo)}
-                                                                        className="text-white hover:text-red-400 hover:bg-transparent"
+                                                                        className="text-white hover:text-red-400 hover:bg-transparent flex items-center gap-1 text-xs"
                                                                         title="Remover foto"
                                                                     >
-                                                                        <Trash2 className="h-5 w-5" />
+                                                                        <Trash2 className="h-4 w-4" /> Excluir
                                                                     </Button>
                                                                 )}
                                                             </div>
@@ -407,6 +482,18 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                                 <h3 className="text-lg font-semibold text-white">Manutenção e Documentação</h3>
                             </div>
                             <VehicleMaintenanceInfo formData={formData} handleInputChange={handleInputChange} />
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="fines" className="mt-0 focus-visible:ring-0 space-y-6">
+                        <div>
+                            <div className="flex items-center gap-2 mb-6">
+                                <div className="p-2 bg-rose-500/20 rounded-lg">
+                                    <ShieldAlert className="h-5 w-5 text-rose-400" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-white">Histórico de Multas e Infrações</h3>
+                            </div>
+                            <VehicleFinesSection formData={formData} handleInputChange={handleInputChange} />
                         </div>
                     </TabsContent>
                 </Tabs>

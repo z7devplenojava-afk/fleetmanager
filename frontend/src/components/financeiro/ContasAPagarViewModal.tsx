@@ -11,10 +11,12 @@ import {
   Tag, 
   Clock, 
   CheckCircle, 
-  AlertTriangle,
+  AlertTriangle, 
   XCircle,
   Download,
-  Edit
+  Edit,
+  Layers,
+  FileSpreadsheet
 } from 'lucide-react';
 import { ContaAPagar } from './ContasAPagarFormModal';
 import { format } from 'date-fns';
@@ -41,143 +43,177 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(value);
+    }).format(value || 0);
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PAGA':
-        return <Badge className="bg-green-600 text-white flex items-center gap-1">
-          <CheckCircle size={12} />
-          Paga
-        </Badge>;
+        return (
+          <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1.5 px-3 py-1 text-xs">
+            <CheckCircle size={13} className="text-emerald-400" />
+            Paga
+          </Badge>
+        );
       case 'ABERTA':
-        return <Badge className="bg-seguranca-lightgray text-seguranca-black flex items-center gap-1">
-          <Clock size={12} />
-          Aberta
-        </Badge>;
+        return (
+          <Badge className="bg-sky-500/20 text-sky-300 border border-sky-500/40 font-bold flex items-center gap-1.5 px-3 py-1 text-xs">
+            <Clock size={13} className="text-sky-400" />
+            Aberta
+          </Badge>
+        );
       case 'VENCIDA':
-        return <Badge className="bg-seguranca-red text-white flex items-center gap-1">
-          <AlertTriangle size={12} />
-          Vencida
-        </Badge>;
+      case 'ATRASADA':
+        return (
+          <Badge className="bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold flex items-center gap-1.5 px-3 py-1 text-xs">
+            <AlertTriangle size={13} className="text-rose-400" />
+            {status === 'VENCIDA' ? 'Vencida' : 'Atrasada'}
+          </Badge>
+        );
       case 'CANCELADA':
-        return <Badge className="bg-seguranca-graphite text-seguranca-lightgray border border-gray-600 flex items-center gap-1">
-          <XCircle size={12} />
-          Cancelada
-        </Badge>;
+        return (
+          <Badge className="bg-zinc-800 text-zinc-400 border border-zinc-700 font-medium flex items-center gap-1.5 px-3 py-1 text-xs">
+            <XCircle size={13} />
+            Cancelada
+          </Badge>
+        );
       default:
-        return <Badge className="bg-seguranca-lightgray text-seguranca-black">{status}</Badge>;
+        return <Badge className="bg-zinc-800 text-zinc-300 border border-zinc-700 px-3 py-1 text-xs">{status}</Badge>;
     }
   };
 
   const getTipoBadge = (tipo: string) => {
     return tipo === 'FIXA' 
-      ? <Badge className="bg-seguranca-yellow text-seguranca-black">Fixa</Badge>
-      : <Badge className="bg-seguranca-graphite text-seguranca-lightgray">Variável</Badge>;
+      ? <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold text-xs px-2.5 py-0.5">Despesa Fixa</Badge>
+      : <Badge className="bg-zinc-800 text-zinc-300 border border-zinc-700 text-xs px-2.5 py-0.5">Despesa Variável</Badge>;
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-seguranca-graphite border-gray-700">
-        <DialogHeader>
-          <DialogTitle className="text-seguranca-lightgray flex items-center gap-2">
-            <FileText className="w-5 h-5" />
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-800 text-zinc-100 p-6 rounded-2xl shadow-2xl">
+        <DialogHeader className="border-b border-zinc-800 pb-4">
+          <DialogTitle className="text-white text-xl font-bold flex items-center gap-2.5">
+            <div className="h-9 w-9 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center">
+              <FileText className="w-5 h-5 text-emerald-400" />
+            </div>
             Detalhes da Conta a Pagar
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-5 pt-2">
           {/* Informações Principais */}
-          <Card className="bg-seguranca-black border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-                <Building2 className="w-4 h-4" />
-                Informações Principais
+          <Card className="bg-zinc-950/80 border-zinc-800 rounded-xl overflow-hidden shadow-lg">
+            <CardHeader className="py-3 px-4 bg-zinc-900/60 border-b border-zinc-800/80">
+              <CardTitle className="text-zinc-200 text-sm font-bold flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-emerald-400" />
+                Informações do Fornecedor & Classificação
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-seguranca-lightgray">Descrição</label>
-                  <p className="text-seguranca-lightgray mt-1">{conta.descricao}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-seguranca-lightgray">Fornecedor</label>
-                  <p className="text-seguranca-lightgray mt-1">{conta.fornecedor}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-seguranca-lightgray">Tipo</label>
-                  <div className="mt-1">{getTipoBadge(conta.tipo)}</div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-seguranca-lightgray">Status</label>
-                  <div className="mt-1">{getStatusBadge(conta.status)}</div>
-                </div>
+            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Fornecedor</label>
+                <p className="text-white font-bold text-sm mt-0.5">{conta.fornecedor || 'Não Informado'}</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Empresa (Sigla)</label>
+                <p className="text-zinc-200 font-semibold text-sm mt-0.5">{conta.companySigla || conta.empresa || '-'}</p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Descrição</label>
+                <p className="text-zinc-200 text-sm mt-0.5 font-medium">{conta.descricao || '-'}</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Tipo de Despesa</label>
+                <div className="mt-1">{getTipoBadge(conta.tipo)}</div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Status Atual</label>
+                <div className="mt-1">{getStatusBadge(conta.status)}</div>
               </div>
             </CardContent>
           </Card>
 
           {/* Valores e Datas */}
-          <Card className="bg-seguranca-black border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />
-                Valores e Datas
+          <Card className="bg-zinc-950/80 border-zinc-800 rounded-xl overflow-hidden shadow-lg">
+            <CardHeader className="py-3 px-4 bg-zinc-900/60 border-b border-zinc-800/80">
+              <CardTitle className="text-zinc-200 text-sm font-bold flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-emerald-400" />
+                Valores e Prazos
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-seguranca-lightgray">Valor</label>
-                  <p className="text-seguranca-lightgray mt-1 font-semibold text-lg">{formatCurrency(conta.valor)}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-seguranca-lightgray">Data de Vencimento</label>
-                  <p className="text-seguranca-lightgray mt-1 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    {format(conta.vencimento, 'dd/MM/yyyy', { locale: ptBR })}
-                  </p>
-                </div>
-                {conta.dataPagamento && (
-                  <div>
-                    <label className="text-sm font-medium text-seguranca-lightgray">Data de Pagamento</label>
-                    <p className="text-seguranca-lightgray mt-1 flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      {format(conta.dataPagamento, 'dd/MM/yyyy', { locale: ptBR })}
-                    </p>
-                  </div>
-                )}
-                {conta.centroCusto && (
-                  <div>
-                    <label className="text-sm font-medium text-seguranca-lightgray">Centro de Custo</label>
-                    <p className="text-seguranca-lightgray mt-1">{conta.centroCusto}</p>
-                  </div>
-                )}
+            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Valor do Documento</label>
+                <p className="text-emerald-400 font-black text-xl font-mono mt-0.5">{formatCurrency(conta.valor)}</p>
               </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Data de Vencimento</label>
+                <p className="text-white font-bold text-sm mt-0.5 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-amber-400" />
+                  {conta.vencimento ? format(new Date(conta.vencimento), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Data de Pagamento</label>
+                <p className="text-zinc-300 font-medium text-sm mt-0.5 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-sky-400" />
+                  {conta.dataPagamento ? format(new Date(conta.dataPagamento), 'dd/MM/yyyy', { locale: ptBR }) : 'Pendente'}
+                </p>
+              </div>
+
+              {conta.obra && (
+                <div>
+                  <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Obra / Setor</label>
+                  <p className="text-sky-300 font-semibold text-sm mt-0.5">{conta.obra}</p>
+                </div>
+              )}
+
+              {conta.categoria && (
+                <div>
+                  <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Plano de Contas</label>
+                  <p className="text-zinc-200 font-medium text-sm mt-0.5">{conta.categoria}</p>
+                </div>
+              )}
+
+              {conta.centroCusto && (
+                <div>
+                  <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Centro de Custo</label>
+                  <p className="text-purple-300 font-semibold text-sm mt-0.5">{conta.centroCusto}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Informações Adicionais */}
           {(conta.codigoBarras || conta.observacoes) && (
-            <Card className="bg-seguranca-black border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-                  <Tag className="w-4 h-4" />
-                  Informações Adicionais
+            <Card className="bg-zinc-950/80 border-zinc-800 rounded-xl overflow-hidden shadow-lg">
+              <CardHeader className="py-3 px-4 bg-zinc-900/60 border-b border-zinc-800/80">
+                <CardTitle className="text-zinc-200 text-sm font-bold flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-sky-400" />
+                  Código de Barras e Observações
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 space-y-3">
                 {conta.codigoBarras && (
                   <div>
-                    <label className="text-sm font-medium text-seguranca-lightgray">Código de Barras</label>
-                    <p className="text-seguranca-lightgray mt-1 font-mono">{conta.codigoBarras}</p>
+                    <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Código de Barras / Linha Digitável</label>
+                    <p className="text-zinc-100 mt-1 font-mono text-xs bg-zinc-900 p-2.5 rounded-lg border border-zinc-800 select-all">
+                      {conta.codigoBarras}
+                    </p>
                   </div>
                 )}
                 {conta.observacoes && (
                   <div>
-                    <label className="text-sm font-medium text-seguranca-lightgray">Observações</label>
-                    <p className="text-seguranca-lightgray mt-1 whitespace-pre-wrap">{conta.observacoes}</p>
+                    <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Observações</label>
+                    <p className="text-zinc-300 mt-1 text-sm bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800 whitespace-pre-wrap">
+                      {conta.observacoes}
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -185,44 +221,24 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
           )}
 
           {/* Botões de Ação */}
-          <div className="flex justify-between items-center pt-4 border-t border-gray-700">
-            <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t border-zinc-800">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               {onEdit && (
                 <Button 
                   variant="outline" 
                   onClick={() => onEdit(conta)}
-                  className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow"
+                  className="bg-zinc-800 border-zinc-700 text-zinc-200 hover:bg-zinc-700 hover:text-white text-xs font-semibold h-9"
                 >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Editar
+                  <Edit className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+                  Editar Conta
                 </Button>
               )}
             </div>
 
-            <div className="flex space-x-2">
-              {onGenerateReport && (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => onGenerateReport('pdf')}
-                    className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Relatório PDF
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => onGenerateReport('excel')}
-                    className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Relatório Excel
-                  </Button>
-                </>
-              )}
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
               <Button 
                 onClick={onClose}
-                className="bg-seguranca-yellow text-seguranca-black hover:bg-seguranca-yellow/90"
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-semibold h-9 px-4 border border-zinc-700"
               >
                 Fechar
               </Button>
@@ -233,3 +249,5 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
     </Dialog>
   );
 };
+
+

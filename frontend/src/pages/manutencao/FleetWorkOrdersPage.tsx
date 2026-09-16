@@ -56,6 +56,14 @@ const STATUS_CONFIG: Record<WorkOrderStatus, { label: string, color: string, ico
     [WorkOrderStatus.CANCELLED]: { label: 'Cancelada', color: 'bg-red-600 text-white', icon: AlertTriangle },
 };
 
+const formatDisplayDate = (d?: string) => {
+    if (!d) return '—';
+    const clean = d.split('T')[0];
+    const parts = clean.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return d;
+};
+
 const FleetWorkOrdersPage: React.FC = () => {
     const { toast } = useToast();
     const queryClient = useQueryClient();
@@ -362,7 +370,7 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                     {order.workPostName && <div className="text-xs text-gray-400">{order.workPostName}</div>}
                                                 </td>
                                                 <td className="p-4 text-gray-300">
-                                                    {order.stopDate ? new Date(order.stopDate + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                                                    {formatDisplayDate(order.stopDate)}
                                                     {order.stopTime && <span className="text-xs text-gray-500 ml-1">({order.stopTime})</span>}
                                                 </td>
                                                 <td className="p-4 text-gray-300 font-mono">

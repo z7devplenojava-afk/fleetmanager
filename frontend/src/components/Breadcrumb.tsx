@@ -101,24 +101,38 @@ export const Breadcrumb: React.FC = () => {
   ];
 
   return (
-    <nav className="flex items-center space-x-1 text-sm text-muted-foreground mb-4">
-      {breadcrumbs.map((item, index) => (
-        <React.Fragment key={`${item.path}-${index}`}>
-          {index > 0 && (
-            <ChevronRight size={14} className="text-muted-foreground/40" />
-          )}
-          <Link
-            to={item.path}
-            className={`
-              flex items-center space-x-1 hover:text-yellow-500 transition-all active:scale-95
-              ${index === breadcrumbs.length - 1 ? 'text-yellow-500 font-bold' : ''}
-            `}
-          >
-            {item.icon && <item.icon size={14} className={index === breadcrumbs.length - 1 ? 'text-accent' : 'text-muted-foreground/60'} />}
-            <span className="tracking-tight">{item.label}</span>
-          </Link>
-        </React.Fragment>
-      ))}
+    <nav className="flex items-center space-x-1.5 text-xs text-muted-foreground mb-4">
+      {breadcrumbs.map((item, index) => {
+        const isLast = index === breadcrumbs.length - 1;
+        return (
+          <React.Fragment key={`${item.path}-${index}`}>
+            {index > 0 && (
+              <ChevronRight size={13} className="text-muted-foreground/50 shrink-0" />
+            )}
+            <Link
+              to={item.path}
+              className={`
+                flex items-center space-x-1 transition-colors rounded-md px-1 py-0.5
+                ${
+                  isLast
+                    ? 'text-red-600 dark:text-red-400 font-semibold hover:text-red-700'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }
+              `}
+            >
+              {item.icon && (
+                <item.icon
+                  size={13}
+                  className={`shrink-0 ${
+                    isLast ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground/70'
+                  }`}
+                />
+              )}
+              <span className="tracking-tight">{item.label}</span>
+            </Link>
+          </React.Fragment>
+        );
+      })}
     </nav>
   );
 }; 

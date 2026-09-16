@@ -11,42 +11,12 @@ import { useToast } from '@/components/ui/use-toast';
 import fleetService from '@/services/fleetService';
 import { VehicleForm } from './forms/VehicleForm';
 import { VehicleFormData } from './forms/types';
-import { parseDateFromBackend } from '@/utils/dateUtils';
-
-// Definindo o tipo VeiculoComponent localmente para evitar import circular
-interface VeiculoComponent {
-  id: string; // UUID
-  placa: string;
-  marca: string;
-  modelo: string;
-  ano: number;
-  cor?: string;
-  combustivel: string;
-  quilometragem?: number;
-  quilometragemInicial?: number;
-  status: string;
-  capacidade?: number; // Adicionado campo capacidade
-  data_aquisicao?: string;
-  valor_aquisicao?: number;
-  photos?: string; // URLs das fotos separadas por vírgula
-  observacoes?: string; // Adicionado campo observações
-  // Campos adicionais para edição
-  workPostId?: string;
-  companyId?: string;
-  departmentId?: string;
-  department?: string;
-  responsibleEmployeeId?: string;
-  lastMaintenanceDate?: string;
-  nextMaintenanceDate?: string;
-  insuranceExpiryDate?: string;
-  documentationExpiryDate?: string;
-}
 
 interface VeiculoEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  veiculo: any | null; // Usando any para facilitar compatibilidade, mas idealmente seria o tipo correto
+  veiculo: any | null;
 }
 
 const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
@@ -63,11 +33,17 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
   const toDate = (dateVal: string | Date | undefined | null): Date | null => {
     if (!dateVal) return null;
     if (typeof dateVal === 'string') {
-      // Tenta parsear datas do backend
       if (dateVal.includes('T')) return new Date(dateVal);
-      return new Date(dateVal + 'T12:00:00'); // Adiciona hora para evitar problemas de fuso
+      return new Date(dateVal + 'T12:00:00');
     }
     return dateVal;
+  };
+
+  const toDateStr = (dateVal: any): string => {
+    if (!dateVal) return '';
+    if (typeof dateVal === 'string') return dateVal.split('T')[0];
+    if (dateVal instanceof Date) return dateVal.toISOString().split('T')[0];
+    return '';
   };
 
   // Mapear dados do veículo para o formato do formulário
@@ -75,21 +51,49 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
     if (!v) return {};
 
     return {
-      placa: v.placa || '',
-      marca: v.marca || '',
-      modelo: v.modelo || '',
-      ano: v.ano || new Date().getFullYear(),
-      cor: v.cor || '',
-      combustivel: (v.combustivel?.toUpperCase() || 'FLEX') as any,
-      quilometragem: v.quilometragem || 0,
+      vehicleId: v.id || '',
+      placa: v.plate || v.placa || '',
+      chassi: v.chassisNumber || v.chassi || '',
+      renavan: v.renavan || '',
+      marca: v.brand || v.marca || '',
+      modelo: v.model || v.modelo || '',
+      ano: v.year || v.ano || new Date().getFullYear(),
+      cor: v.color || v.cor || '',
+      combustivel: (v.fuelType?.toUpperCase() || v.combustivel?.toUpperCase() || 'FLEX') as any,
+      quilometragem: v.currentMileage ?? v.quilometragem ?? 0,
       status: (v.status?.toUpperCase() || 'ACTIVE') as any,
-      capacidade: v.capacidade || 5,
+      capacidade: v.capacity ?? v.capacidade ?? 5,
+      vehicleType: v.vehicleType || '',
+
+      // Ônibus
+      busType: v.busType || '',
+      passengerCapacity: v.passengerCapacity ?? 0,
+      standingCapacity: v.standingCapacity ?? 0,
+      totalDoors: v.totalDoors ?? 2,
+      hasAccessibility: Boolean(v.hasAccessibility),
+      hasAirConditioning: Boolean(v.hasAirConditioning),
+      hasWiFi: Boolean(v.hasWiFi),
+      hasCamera: Boolean(v.hasCamera),
+      hasCctv: Boolean(v.hasCctv),
+      busBodyType: v.busBodyType || '',
+      chassisBrand: v.chassisBrand || '',
+      bodyBuilder: v.bodyBuilder || '',
+      engineModel: v.engineModel || '',
+      enginePowerHp: v.enginePowerHp ?? 0,
+      transmissionType: v.transmissionType || '',
+      axleCount: v.axleCount ?? 2,
+      totalWeightKg: v.totalWeightKg ?? 0,
+      payloadKg: v.payloadKg ?? 0,
+      fuelTankCapacityLiters: v.fuelTankCapacityLiters ?? 0,
+      routeNumber: v.routeNumber || '',
+      routeName: v.routeName || '',
 
       // Allocations
       postoDeTrabalho: v.workPostId || '',
       departamento: v.department || '',
       departmentId: v.departmentId || '',
-      empresaId: v.companyId || '',
+      empresa: v.companyName || v.clientName || '',
+      empresaId: v.companyId || v.clientId || '',
       responsavel: v.responsibleEmployeeId || '',
 
       // Maintenance
@@ -99,11 +103,57 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
       vencimentoDocumentacao: toDate(v.documentationExpiryDate),
 
       // Financial
-      data_aquisicao: toDate(v.data_aquisicao),
-      valor_aquisicao: v.valor_aquisicao || 0,
+      data_aquisicao: toDate(v.acquisitionDate || v.data_aquisicao),
+      valor_aquisicao: v.acquisitionValue ?? v.valor_aquisicao ?? 0,
+
+      // Financiamento
+      financingStatus: v.financingStatus || '',
+      financingInstallmentValue: v.financingInstallmentValue ?? 0,
+      financingRemainingInstallments: v.financingRemainingInstallments ?? 0,
+      financingPayoffBalance: v.financingPayoffBalance ?? 0,
+      financingBankOrInstitution: v.financingBankOrInstitution || '',
+      financingContractNumber: v.financingContractNumber || '',
+      financingStartDate: toDateStr(v.financingStartDate),
+      financingEndDate: toDateStr(v.financingEndDate),
+
+      // Valor de mercado
+      marketValue: v.marketValue ?? 0,
+
+      // Seguros
+      insurancePolicyNumber: v.insurancePolicyNumber || '',
+      insuranceCompany: v.insuranceCompany || '',
+      insurancePremiumValue: v.insurancePremiumValue ?? 0,
+      insuranceCoverageType: v.insuranceCoverageType || '',
+      insuranceSecondPolicyNumber: v.insuranceSecondPolicyNumber || '',
+      insuranceSecondCompany: v.insuranceSecondCompany || '',
+      insuranceSecondPremiumValue: v.insuranceSecondPremiumValue ?? 0,
+      insuranceSecondExpiryDate: toDateStr(v.insuranceSecondExpiryDate),
+
+      // Cliente / Alocação
+      clientName: v.clientName || '',
+      clientId: v.clientId || '',
+      allocationContractNumber: v.allocationContractNumber || '',
+      allocationStartDate: toDateStr(v.allocationStartDate),
+      allocationEndDate: toDateStr(v.allocationEndDate),
+
+      // Agregado
+      isAggregated: Boolean(v.isAggregated),
+      aggregatedOwnerName: v.aggregatedOwnerName || '',
+      aggregatedOwnerCpfCnpj: v.aggregatedOwnerCpfCnpj || '',
+      aggregatedOwnerPhone: v.aggregatedOwnerPhone || '',
+      aggregatedOwnerEmail: v.aggregatedOwnerEmail || '',
+      aggregatedDailyRate: v.aggregatedDailyRate ?? 0,
+      aggregatedMonthlyRate: v.aggregatedMonthlyRate ?? 0,
+      aggregatedPaymentType: v.aggregatedPaymentType || '',
+      aggregatedContractStartDate: toDateStr(v.aggregatedContractStartDate),
+      aggregatedContractEndDate: toDateStr(v.aggregatedContractEndDate),
+      aggregatedNotes: v.aggregatedNotes || '',
+
+      // Diferença financeira
+      financialDifference: v.financialDifference ?? 0,
 
       // Misc
-      observacoes: v.observacoes || '',
+      observacoes: v.notes || v.observacoes || '',
       existingPhotos: v.photos ? v.photos.split(',').map((p: string) => p.trim()).filter((p: string) => p) : []
     };
   };
@@ -117,10 +167,7 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
         description: "Veículo atualizado com sucesso!"
       });
 
-      // Invalidar e refetch da query de veículos
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
-
-      // Chamar callback de sucesso
       onSuccess();
     },
     onError: (error: any) => {
@@ -140,10 +187,7 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
     setIsLoading(true);
 
     try {
-      // Mapear dados do formulário para o formato da API
-      // Nota: A lógica de mapeamento é similar à criação, mas pode precisar lidar com photosToDelete
-
-      const vehicleData = {
+      const vehicleData: Record<string, any> = {
         plate: formData.placa.toUpperCase(),
         brand: formData.marca,
         model: formData.modelo,
@@ -153,10 +197,50 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
         currentMileage: Number(formData.quilometragem) || 0,
         status: formData.status.toUpperCase() as 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE',
         capacity: Number(formData.capacidade) || 5,
+        vehicleType: formData.vehicleType || undefined,
+
+        // Documentais
+        chassisNumber: formData.chassi || undefined,
+        renavan: formData.renavan || undefined,
+
+        // Ônibus
+        busType: formData.busType || undefined,
+        passengerCapacity: formData.passengerCapacity || undefined,
+        standingCapacity: formData.standingCapacity || undefined,
+        totalDoors: formData.totalDoors || undefined,
+        hasAccessibility: formData.hasAccessibility,
+        hasAirConditioning: formData.hasAirConditioning,
+        hasWiFi: formData.hasWiFi,
+        hasCamera: formData.hasCamera,
+        hasCctv: formData.hasCctv,
+        busBodyType: formData.busBodyType || undefined,
+        chassisBrand: formData.chassisBrand || undefined,
+        bodyBuilder: formData.bodyBuilder || undefined,
+        engineModel: formData.engineModel || undefined,
+        enginePowerHp: formData.enginePowerHp || undefined,
+        transmissionType: formData.transmissionType || undefined,
+        axleCount: formData.axleCount || undefined,
+        totalWeightKg: formData.totalWeightKg || undefined,
+        payloadKg: formData.payloadKg || undefined,
+        fuelTankCapacityLiters: formData.fuelTankCapacityLiters || undefined,
+        routeNumber: formData.routeNumber || undefined,
+        routeName: formData.routeName || undefined,
+
+        // Alocações
         department: formData.departamento || undefined,
         departmentId: formData.departmentId || undefined,
-        companyId: formData.empresaId || undefined,
-        workPostId: formData.postoDeTrabalho || undefined, // Adicionado
+        companyId: formData.empresaId || formData.clientId || undefined,
+        workPostId: formData.postoDeTrabalho || undefined,
+        responsibleEmployeeId: formData.responsavel && formData.responsavel.trim() !== '' ? formData.responsavel : undefined,
+
+        // Cliente / Alocação
+        clientId: formData.clientId || formData.empresaId || undefined,
+        clientName: formData.clientName || formData.empresa || undefined,
+        allocationContractNumber: formData.allocationContractNumber || undefined,
+        allocationStartDate: formData.allocationStartDate || undefined,
+        allocationEndDate: formData.allocationEndDate || undefined,
+
+        // Manutenção e Datas
         lastMaintenanceDate: formData.dataManutencao ? formData.dataManutencao.toISOString().split('T')[0] : undefined,
         nextMaintenanceDate: formData.proximaManutencao ? formData.proximaManutencao.toISOString().split('T')[0] : undefined,
         insuranceExpiryDate: formData.vencimentoSeguro ? formData.vencimentoSeguro.toISOString().split('T')[0] : undefined,
@@ -164,17 +248,50 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
         acquisitionDate: formData.data_aquisicao ? formData.data_aquisicao.toISOString().split('T')[0] : undefined,
         acquisitionValue: formData.valor_aquisicao > 0 ? formData.valor_aquisicao : undefined,
         notes: formData.observacoes || undefined,
-        responsibleEmployeeId: formData.responsavel && formData.responsavel.trim() !== '' ? formData.responsavel : undefined,
+
+        // Financiamento
+        financingStatus: formData.financingStatus || undefined,
+        financingInstallmentValue: formData.financingInstallmentValue || undefined,
+        financingRemainingInstallments: formData.financingRemainingInstallments || undefined,
+        financingPayoffBalance: formData.financingPayoffBalance || undefined,
+        financingBankOrInstitution: formData.financingBankOrInstitution || undefined,
+        financingContractNumber: formData.financingContractNumber || undefined,
+        financingStartDate: formData.financingStartDate || undefined,
+        financingEndDate: formData.financingEndDate || undefined,
+
+        // Valor de mercado
+        marketValue: formData.marketValue || undefined,
+
+        // Seguros
+        insurancePolicyNumber: formData.insurancePolicyNumber || undefined,
+        insuranceCompany: formData.insuranceCompany || undefined,
+        insurancePremiumValue: formData.insurancePremiumValue || undefined,
+        insuranceCoverageType: formData.insuranceCoverageType || undefined,
+        insuranceSecondPolicyNumber: formData.insuranceSecondPolicyNumber || undefined,
+        insuranceSecondCompany: formData.insuranceSecondCompany || undefined,
+        insuranceSecondPremiumValue: formData.insuranceSecondPremiumValue || undefined,
+        insuranceSecondExpiryDate: formData.insuranceSecondExpiryDate || undefined,
+
+        // Agregado
+        isAggregated: formData.isAggregated,
+        aggregatedOwnerName: formData.aggregatedOwnerName || undefined,
+        aggregatedOwnerCpfCnpj: formData.aggregatedOwnerCpfCnpj || undefined,
+        aggregatedOwnerPhone: formData.aggregatedOwnerPhone || undefined,
+        aggregatedOwnerEmail: formData.aggregatedOwnerEmail || undefined,
+        aggregatedDailyRate: formData.aggregatedDailyRate || undefined,
+        aggregatedMonthlyRate: formData.aggregatedMonthlyRate || undefined,
+        aggregatedPaymentType: formData.aggregatedPaymentType || undefined,
+        aggregatedContractStartDate: formData.aggregatedContractStartDate || undefined,
+        aggregatedContractEndDate: formData.aggregatedContractEndDate || undefined,
+        aggregatedNotes: formData.aggregatedNotes || undefined,
+
+        // Diferença financeira
+        financialDifference: formData.financialDifference || undefined,
+
         photos: (() => {
-          // Processar fotos existentes (removendo as marcadas para exclusão)
           const remainingPhotos = formData.existingPhotos?.filter(photo => !formData.photosToDelete?.has(photo)) || [];
-
-          // Adicionar novas fotos
           const newPhotos = formData.fotos ? Array.from(formData.fotos).map(file => file.name) : [];
-
-          // Combinar fotos restantes com novas fotos
           const allPhotos = [...remainingPhotos, ...newPhotos];
-
           return allPhotos.length > 0 ? allPhotos.join(',') : undefined;
         })()
       };
@@ -219,7 +336,6 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
           <VehicleForm
             initialData={initialValues}
             onSubmit={handleSubmit}
-            onCancel={onClose}
             isLoading={isLoading}
             isEditMode={true}
           />
@@ -227,6 +343,6 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
       </DialogContent>
     </Dialog>
   );
-}
+};
 
 export default VeiculoEditModal;

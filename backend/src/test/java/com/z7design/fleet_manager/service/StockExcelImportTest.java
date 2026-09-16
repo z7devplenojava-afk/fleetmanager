@@ -64,6 +64,9 @@ class StockExcelImportTest {
     @Mock
     private CompanyRepository companyRepository;
 
+    @Mock
+    private UserCompanyResolver userCompanyResolver;
+
     @InjectMocks
     private StockService stockService;
 
@@ -217,5 +220,57 @@ class StockExcelImportTest {
         assertTrue(result.getErrors().get(0).contains("não encontrada no sistema"));
 
         verify(stockItemRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve importar com sucesso relatório de Almoxarifado ERP com títulos e formatação brasileira")
+    void shouldImportAlmoxarifadoReportWithHeadersAndPtBrNumbers() throws IOException {
+        TenantContext.set(companySaoSilvestreId);
+
+        when(stockItemRepository.findByCompanyIdAndCode(eq(companySaoSilvestreId), eq("00142")))
+                .thenReturn(Optional.empty());
+        when(stockItemRepository.findByCompanyIdAndCode(eq(companySaoSilvestreId), eq("00143")))
+                .thenReturn(Optional.empty());
+
+        String[][] data = {
+                {"EMPRESA: VIAÇÃO SÃO SILVESTRE LTDA", "", "", "", "", ""},
+                {"RELATÓRIO DE ESTOQUE - ALMOXARIFADO CENTRAL", "", "", "", "", ""},
+                {"EMISSÃO: 16/09/2026", "", "", "", "", ""},
+                {"Cód. Prod.", "Descrição do Material", "Grupo", "Saldo Atual", "Valor Unitário", "Valor Total"},
+                {"00142", "Luva de Proteção Pigmentada", "EPI / Segurança", "150 UN", "R$ 4,50", "R$ 675,00"},
+                {"00143", "Bota de Segurança Nobuck Tam 41", "Calçados", "1.200", "125,90", "151.080,00"},
+                {"TOTAL DO GRUPO:", "", "", "1.350", "", "151.755,00"},
+                {"TOTAL GERAL:", "", "", "1.350", "", "151.755,00"}
+        };
+
+        byte[] bytes = createTestWorkbookBytes(data);
+        MockMultipartFile file = new MockMultipartFile("file", "Relatorio Estoque Almoxarifado.xls",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes);
+
+        ImportResultDto result = stockService.importExcel(file);
+
+        assertEquals(2, result.getTotalRows());
+        assertEquals(2, result.getInserted());
+        assertEquals(0, result.getSkipped());
+        assertTrue(result.getErrors().isEmpty());
+
+        ArgumentCaptor<StockItem> captor = ArgumentCaptor.forClass(StockItem.class);
+        verify(stockItemRepository, times(2)).save(captor.capture());
+
+        StockItem item1 = captor.getAllValues().get(0);
+        assertEquals("00142", item1.getCode());
+        assertEquals("Luva de Proteção Pigmentada", item1.getName());
+        assertEquals(150, item1.getCurrentQuantity());
+        assertEquals(new BigDecimal("4.50"), item1.getUnitCost());
+        assertEquals(new BigDecimal("675.00"), item1.getAverageCost());
+        assertEquals(StockCategory.EPI, item1.getCategory());
+
+        StockItem item2 = captor.getAllValues().get(1);
+        assertEquals("00143", item2.getCode());
+        assertEquals("Bota de Segurança Nobuck Tam 41", item2.getName());
+        assertEquals(1200, item2.getCurrentQuantity());
+        assertEquals(new BigDecimal("125.90"), item2.getUnitCost());
+        assertEquals(new BigDecimal("151080.00"), item2.getAverageCost());
+        assertEquals(StockCategory.CALCADOS, item2.getCategory());
     }
 }

@@ -18,6 +18,8 @@ import com.z7design.fleet_manager.repository.FleetWorkOrderRepository;
 import com.z7design.fleet_manager.repository.MaintenancePlanRepository;
 import com.z7design.fleet_manager.repository.VehicleRepository;
 import com.z7design.fleet_manager.repository.ChecklistItemRepository;
+import com.z7design.fleet_manager.repository.ClientRepository;
+import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.WorkPostRepository;
 import com.z7design.fleet_manager.repository.FleetWorkOrderChecklistRepository;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
@@ -48,20 +50,101 @@ public class FleetWorkOrderService {
     private final ChecklistItemRepository checklistItemRepository;
     private final FleetWorkOrderChecklistRepository checklistRepository;
     private final WorkPostRepository workPostRepository;
+    private final ClientRepository clientRepository;
+    private final EmployeeRepository employeeRepository;
+
+    private FleetWorkOrderDTO toDTO(FleetWorkOrder entity) {
+        FleetWorkOrderDTO dto = FleetWorkOrderDTO.fromEntity(entity);
+        if (dto == null) return null;
+
+        // Completa clientName se ainda estiver nulo
+        if (dto.getClientName() == null || dto.getClientName().isBlank()) {
+            if (dto.getClientId() != null) {
+                clientRepository.findById(dto.getClientId())
+                        .ifPresent(c -> dto.setClientName(c.getName()));
+            } else if (entity.getVehicle() != null && entity.getVehicle().getClientId() != null) {
+                clientRepository.findById(entity.getVehicle().getClientId())
+                        .ifPresent(c -> {
+                            dto.setClientId(c.getId());
+                            dto.setClientName(c.getName());
+                        });
+            }
+        }
+
+        // Completa workPostName se ainda estiver nulo
+        if (dto.getWorkPostName() == null || dto.getWorkPostName().isBlank()) {
+            if (dto.getWorkPostId() != null) {
+                workPostRepository.findById(dto.getWorkPostId())
+                        .ifPresent(wp -> dto.setWorkPostName(wp.getName()));
+            } else if (dto.getSectorId() != null) {
+                workPostRepository.findById(dto.getSectorId())
+                        .ifPresent(wp -> {
+                            dto.setWorkPostId(wp.getId());
+                            dto.setWorkPostName(wp.getName());
+                            if (dto.getClientName() == null && wp.getClient() != null) {
+                                dto.setClientId(wp.getClient().getId());
+                                dto.setClientName(wp.getClient().getName());
+                            }
+                        });
+            } else if (entity.getVehicle() != null && entity.getVehicle().getWorkPostId() != null) {
+                workPostRepository.findById(entity.getVehicle().getWorkPostId())
+                        .ifPresent(wp -> {
+                            dto.setWorkPostId(wp.getId());
+                            dto.setWorkPostName(wp.getName());
+                            if (dto.getClientName() == null && wp.getClient() != null) {
+                                dto.setClientId(wp.getClient().getId());
+                                dto.setClientName(wp.getClient().getName());
+                            }
+                        });
+            }
+        }
+
+        // Completa mechanicName se ainda estiver nulo
+        if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
+            if (dto.getMechanicId() != null) {
+                employeeRepository.findById(dto.getMechanicId())
+                        .ifPresent(emp -> dto.setMechanicName(emp.getName()));
+            } else if (dto.getResponsibleId() != null) {
+                employeeRepository.findById(dto.getResponsibleId())
+                        .ifPresent(emp -> dto.setMechanicName(emp.getName()));
+            } else if (entity.getVehicle() != null && entity.getVehicle().getResponsibleEmployeeId() != null) {
+                employeeRepository.findById(entity.getVehicle().getResponsibleEmployeeId())
+                        .ifPresent(emp -> dto.setMechanicName(emp.getName()));
+            }
+        }
+
+        // Completa stopDate se nulo
+        if (dto.getStopDate() == null) {
+            if (entity.getStartDate() != null) {
+                dto.setStopDate(entity.getStartDate().toLocalDate());
+            } else if (entity.getPlannedDate() != null) {
+                dto.setStopDate(entity.getPlannedDate());
+            } else if (entity.getCreatedAt() != null) {
+                dto.setStopDate(entity.getCreatedAt().toLocalDate());
+            }
+        }
+
+        // Completa odometerIn se nulo
+        if (dto.getOdometerIn() == null && entity.getVehicle() != null) {
+            dto.setOdometerIn(entity.getVehicle().getCurrentMileage());
+        }
+
+        return dto;
+    }
 
     // ── Consultas ─────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public List<FleetWorkOrderDTO> getAll() {
         return repository.findAll().stream()
-                .map(FleetWorkOrderDTO::fromEntity)
+                .map(this::toDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public FleetWorkOrderDTO getById(UUID id) {
         return repository.findById(id)
-                .map(FleetWorkOrderDTO::fromEntity)
+                .map(this::toDTO)
                 .orElseThrow(() -> new ResourceNotFoundException("FleetWorkOrder not found: " + id));
     }
 
@@ -111,6 +194,8 @@ public class FleetWorkOrderService {
         WorkPost workPost = null;
         if (dto.getWorkPostId() != null) {
             workPost = workPostRepository.findById(dto.getWorkPostId()).orElse(null);
+        } else if (dto.getSectorId() != null) {
+            workPost = workPostRepository.findById(dto.getSectorId()).orElse(null);
         } else if (vehicle.getWorkPostId() != null) {
             workPost = workPostRepository.findById(vehicle.getWorkPostId()).orElse(null);
         }
@@ -202,7 +287,7 @@ public class FleetWorkOrderService {
         addHistory(saved.getId(), "CREATED", "Ordem de Serviço (" + saved.getMaintenanceType() + ") criada com status: "
                 + saved.getStatus().name(), dto.getMechanicName(), null, saved.getStatus().name());
 
-        return FleetWorkOrderDTO.fromEntity(saved);
+        return toDTO(saved);
     }
 
     // ── Atualização completa ──────────────────────────────────────────────────
@@ -242,6 +327,11 @@ public class FleetWorkOrderService {
             if (entity.getWorkPost() != null && entity.getWorkPost().getClient() != null) {
                 entity.setClientId(entity.getWorkPost().getClient().getId());
             }
+        } else if (dto.getSectorId() != null) {
+            entity.setWorkPost(workPostRepository.findById(dto.getSectorId()).orElse(null));
+            if (entity.getWorkPost() != null && entity.getWorkPost().getClient() != null) {
+                entity.setClientId(entity.getWorkPost().getClient().getId());
+            }
         } else if (dto.getClientId() != null) {
             entity.setClientId(dto.getClientId());
         } else if (entity.getVehicle() != null && entity.getVehicle().getWorkPostId() != null
@@ -249,8 +339,8 @@ public class FleetWorkOrderService {
             entity.setWorkPost(workPostRepository.findById(entity.getVehicle().getWorkPostId()).orElse(null));
             if (entity.getWorkPost() != null && entity.getWorkPost().getClient() != null) {
                 entity.setClientId(entity.getWorkPost().getClient().getId());
-    }
-}
+            }
+        }
         if (dto.getSectorId() != null) entity.setSectorId(dto.getSectorId());
         if (dto.getRequesterId() != null) entity.setRequesterId(dto.getRequesterId());
         if (dto.getResponsibleId() != null) entity.setResponsibleId(dto.getResponsibleId());
@@ -323,7 +413,7 @@ public class FleetWorkOrderService {
         addHistory(saved.getId(), "UPDATED", "OS atualizada pelo usuário.",
                 dto.getMechanicName(), null, null);
 
-        return FleetWorkOrderDTO.fromEntity(saved);
+        return toDTO(saved);
     }
 
     // ── Mudança de status ─────────────────────────────────────────────────────
@@ -368,7 +458,7 @@ public class FleetWorkOrderService {
                 "Status alterado de " + oldStatus.name() + " para " + newStatus.name(),
                 null, oldStatus.name(), newStatus.name());
 
-        return FleetWorkOrderDTO.fromEntity(saved);
+        return toDTO(saved);
     }
 
     // RN07 e RN06 — Validação de Conclusão da OS
@@ -596,7 +686,7 @@ public class FleetWorkOrderService {
         addHistory(saved.getId(), "CREATED",
                 "OS criada por duplicação da " + source.getOsNumber(), null, null, null);
 
-        return FleetWorkOrderDTO.fromEntity(saved);
+        return toDTO(saved);
     }
 
     // ── Helpers privados ──────────────────────────────────────────────────────

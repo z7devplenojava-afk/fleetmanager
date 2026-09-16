@@ -54,6 +54,18 @@ export const companyService = {
 
   async deleteCompany(id: string) {
     await api.delete(`/api/companies/${id}`);
+  },
+
+  async toggleCompanyStatus(id: string, currentStatus?: string) {
+    try {
+      const response = await api.patch(`/api/companies/${id}/toggle-status`);
+      return response.data;
+    } catch (err: any) {
+      // Fallback via PUT caso o endpoint PATCH não esteja carregado
+      const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+      const response = await api.put(`/api/companies/${id}`, { status: newStatus });
+      return response.data;
+    }
   }
 };
 

@@ -155,126 +155,141 @@ export const ContasAPagarDashboard: React.FC<DashboardProps> = ({ contas, refres
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center p-8 bg-seguranca-graphite rounded-lg border border-gray-600">
+      <div className="flex justify-center items-center p-12 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-seguranca-yellow mx-auto mb-2"></div>
-          <p className="text-seguranca-lightgray">Carregando dashboard...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400 mx-auto mb-3"></div>
+          <p className="text-zinc-400 text-sm font-medium">Carregando indicadores e gráficos...</p>
         </div>
       </div>
     );
   }
 
-  console.log('🎨 Renderizando dashboard com dados:', dadosGraficos);
+  const hasData = contas && contas.length > 0;
+
+  if (!hasData) {
+    return (
+      <Card className="bg-zinc-900 border-zinc-800 rounded-2xl shadow-xl p-8 text-center">
+        <DollarSign className="h-10 w-10 text-zinc-600 mx-auto mb-2" />
+        <p className="text-white font-bold text-base">Nenhum dado financeiro para exibir no momento</p>
+        <p className="text-zinc-400 text-xs mt-1">Cadastre novas contas ou importe faturas para visualizar os gráficos.</p>
+      </Card>
+    );
+  }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
       {/* Gráfico: Despesas por Tipo */}
-      <Card className="bg-seguranca-graphite border-gray-600">
-        <CardHeader>
-          <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-            <DollarSign size={20} className="text-seguranca-yellow" />
-            Despesas por Tipo
+      <Card className="bg-zinc-900 border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
+        <CardHeader className="py-4 px-5 bg-zinc-950/60 border-b border-zinc-800">
+          <CardTitle className="text-white text-sm font-bold flex items-center gap-2">
+            <DollarSign size={18} className="text-emerald-400" />
+            Despesas Fixas vs. Variáveis
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={250}>
+        <CardContent className="p-4">
+          <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
                 data={dadosGraficos.porTipo}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
-                outerRadius={100}
-                paddingAngle={5}
+                outerRadius={95}
+                paddingAngle={4}
                 dataKey="valor"
               >
                 {dadosGraficos.porTipo.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                  <Cell key={`cell-${index}`} fill={entry.fill} stroke="#18181b" strokeWidth={2} />
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number) => [formatarMoeda(value), 'Valor']}
+                formatter={(value: number) => [formatarMoeda(value), 'Total']}
                 contentStyle={{ 
-                  backgroundColor: '#333', 
-                  border: '1px solid #555',
-                  borderRadius: '4px',
-                  color: '#ccc'
+                  backgroundColor: '#18181b', 
+                  border: '1px solid #3f3f46',
+                  borderRadius: '12px',
+                  color: '#f4f4f5',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
                 }}
               />
-              <Legend />
+              <Legend 
+                wrapperStyle={{ color: '#d4d4d8', fontSize: '12px', fontWeight: 600 }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
       {/* Gráfico: Status das Contas */}
-      <Card className="bg-seguranca-graphite border-gray-600">
-        <CardHeader>
-          <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-            <AlertTriangle size={20} className="text-seguranca-yellow" />
-            Status das Contas
+      <Card className="bg-zinc-900 border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
+        <CardHeader className="py-4 px-5 bg-zinc-950/60 border-b border-zinc-800">
+          <CardTitle className="text-white text-sm font-bold flex items-center gap-2">
+            <AlertTriangle size={18} className="text-amber-400" />
+            Distribuição por Status
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={250}>
+        <CardContent className="p-4">
+          <ResponsiveContainer width="100%" height={260}>
             <BarChart data={dadosGraficos.porStatus}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-              <XAxis dataKey="name" stroke="#999" />
-              <YAxis stroke="#999" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+              <XAxis dataKey="name" stroke="#a1a1aa" fontSize={11} tickLine={false} />
+              <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} />
               <Tooltip 
                 formatter={(value: number) => [formatarMoeda(value), 'Valor']}
                 contentStyle={{ 
-                  backgroundColor: '#333', 
-                  border: '1px solid #555',
-                  borderRadius: '4px',
-                  color: '#ccc'
+                  backgroundColor: '#18181b', 
+                  border: '1px solid #3f3f46',
+                  borderRadius: '12px',
+                  color: '#f4f4f5',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
                 }}
               />
-              <Bar dataKey="valor" fill="#ffd700" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="valor" fill="#10b981" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
       {/* Gráfico: Evolução Mensal */}
-      <Card className="bg-seguranca-graphite border-gray-600 lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-            <TrendingUp size={20} className="text-seguranca-yellow" />
-            Evolução Mensal das Despesas
+      <Card className="bg-zinc-900 border-zinc-800 rounded-2xl shadow-xl overflow-hidden lg:col-span-2">
+        <CardHeader className="py-4 px-5 bg-zinc-950/60 border-b border-zinc-800">
+          <CardTitle className="text-white text-sm font-bold flex items-center gap-2">
+            <TrendingUp size={18} className="text-sky-400" />
+            Evolução Mensal das Despesas (Últimos 6 Meses)
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
+        <CardContent className="p-4">
+          <ResponsiveContainer width="100%" height={280}>
             <LineChart data={dadosGraficos.evolucaoMensal}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-              <XAxis dataKey="mes" stroke="#999" />
-              <YAxis stroke="#999" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+              <XAxis dataKey="mes" stroke="#a1a1aa" fontSize={12} tickLine={false} />
+              <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} />
               <Tooltip 
                 formatter={(value: number) => [formatarMoeda(value), '']}
                 contentStyle={{ 
-                  backgroundColor: '#333', 
-                  border: '1px solid #555',
-                  borderRadius: '4px',
-                  color: '#ccc'
+                  backgroundColor: '#18181b', 
+                  border: '1px solid #3f3f46',
+                  borderRadius: '12px',
+                  color: '#f4f4f5',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
                 }}
               />
-              <Legend />
+              <Legend wrapperStyle={{ color: '#d4d4d8', fontSize: '12px', fontWeight: 600 }} />
               <Line 
                 type="monotone" 
                 dataKey="fixas" 
-                stroke={CORES.FIXA} 
+                stroke="#f59e0b" 
                 strokeWidth={3}
                 name="Fixas"
-                dot={{ fill: CORES.FIXA, strokeWidth: 2, r: 4 }}
+                dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
               />
               <Line 
                 type="monotone" 
                 dataKey="variaveis" 
-                stroke={CORES.VARIAVEL} 
+                stroke="#38bdf8" 
                 strokeWidth={3}
                 name="Variáveis"
-                dot={{ fill: CORES.VARIAVEL, strokeWidth: 2, r: 4 }}
+                dot={{ fill: '#38bdf8', strokeWidth: 2, r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -282,60 +297,62 @@ export const ContasAPagarDashboard: React.FC<DashboardProps> = ({ contas, refres
       </Card>
 
       {/* Gráfico: Top Fornecedores */}
-      <Card className="bg-seguranca-graphite border-gray-600">
-        <CardHeader>
-          <CardTitle className="text-seguranca-lightgray">
-            Top 5 Fornecedores
+      <Card className="bg-zinc-900 border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
+        <CardHeader className="py-4 px-5 bg-zinc-950/60 border-b border-zinc-800">
+          <CardTitle className="text-white text-sm font-bold">
+            Top 5 Fornecedores por Volume Financeiro
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={dadosGraficos.porFornecedor} layout="horizontal">
-              <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-              <XAxis type="number" stroke="#999" />
-              <YAxis dataKey="name" type="category" stroke="#999" width={100} />
+        <CardContent className="p-4">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={dadosGraficos.porFornecedor} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+              <XAxis type="number" stroke="#a1a1aa" fontSize={10} tickLine={false} />
+              <YAxis dataKey="name" type="category" stroke="#d4d4d8" width={110} fontSize={11} tickLine={false} />
               <Tooltip 
                 formatter={(value: number) => [formatarMoeda(value), 'Valor']}
                 contentStyle={{ 
-                  backgroundColor: '#333', 
-                  border: '1px solid #555',
-                  borderRadius: '4px',
-                  color: '#ccc'
+                  backgroundColor: '#18181b', 
+                  border: '1px solid #3f3f46',
+                  borderRadius: '12px',
+                  color: '#f4f4f5',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
                 }}
               />
-              <Bar dataKey="valor" fill="#10b981" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="valor" fill="#10b981" radius={[0, 6, 6, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
       {/* Gráfico: Centro de Custo */}
-      <Card className="bg-seguranca-graphite border-gray-600">
-        <CardHeader>
-          <CardTitle className="text-seguranca-lightgray">
+      <Card className="bg-zinc-900 border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
+        <CardHeader className="py-4 px-5 bg-zinc-950/60 border-b border-zinc-800">
+          <CardTitle className="text-white text-sm font-bold">
             Despesas por Centro de Custo
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={250}>
+        <CardContent className="p-4">
+          <ResponsiveContainer width="100%" height={260}>
             <BarChart data={dadosGraficos.porCentroCusto}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-              <XAxis dataKey="name" stroke="#999" />
-              <YAxis stroke="#999" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+              <XAxis dataKey="name" stroke="#a1a1aa" fontSize={11} tickLine={false} />
+              <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} />
               <Tooltip 
                 formatter={(value: number) => [formatarMoeda(value), 'Valor']}
                 contentStyle={{ 
-                  backgroundColor: '#333', 
-                  border: '1px solid #555',
-                  borderRadius: '4px',
-                  color: '#ccc'
+                  backgroundColor: '#18181b', 
+                  border: '1px solid #3f3f46',
+                  borderRadius: '12px',
+                  color: '#f4f4f5',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
                 }}
               />
-              <Bar dataKey="valor" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="valor" fill="#a855f7" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
     </div>
   );
-};
+};

@@ -97,8 +97,12 @@ export const CostDrilldownModal: React.FC<CostDrilldownModalProps> = ({
   const handleExportExcel = () => {
     const data = [
       {
-        'Parâmetro / Centro de Custo': 'Nome da Rota',
+        'Parâmetro / Centro de Custo': 'Nome da Rota / Proposta',
         'Valor / Detalhe': simulation.name,
+      },
+      {
+        'Parâmetro / Centro de Custo': 'Cliente / Lead',
+        'Valor / Detalhe': simulation.clientName || 'Não vinculado',
       },
       {
         'Parâmetro / Centro de Custo': 'Veículo / Categoria',
@@ -171,8 +175,13 @@ export const CostDrilldownModal: React.FC<CostDrilldownModalProps> = ({
                 <Bus className="h-6 w-6" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
+                <DialogTitle className="text-xl font-bold flex flex-wrap items-center gap-2 text-foreground">
                   <span>{simulation.name}</span>
+                  {simulation.clientName && (
+                    <Badge variant="secondary" className="text-xs bg-red-500/10 text-red-400 border border-red-500/20 font-semibold">
+                      {simulation.clientName}
+                    </Badge>
+                  )}
                   {simulation.status && (
                     <Badge variant="outline" className="text-xs bg-muted/40 font-medium">
                       {STATUS_LABELS[simulation.status]}

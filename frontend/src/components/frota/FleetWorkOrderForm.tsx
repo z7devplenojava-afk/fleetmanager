@@ -24,6 +24,7 @@ import fleetService from '@/services/fleetService';
 import { clientService } from '@/services/clientService';
 import { departmentService } from '@/services/departmentService';
 import { employeeService } from '@/services/employeeService';
+import { workPostService, WorkPost } from '@/services/workPostService';
 import { Vehicle } from '@/types/fleet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -88,10 +89,15 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         fleetService.getVehicles().then(setVehicles).catch(() => {});
     }, []);
 
-    // Clientes, Setores, Requerentes (PRD §6, §20, §21, §22)
+    // Clientes, Obras/Postos, Setores, Requerentes (PRD §6, §20, §21, §22)
     const { data: clients = [] } = useQuery({
         queryKey: ['clients-for-select'],
         queryFn: () => clientService.getClientsForSelect(),
+        staleTime: 60_000,
+    });
+    const { data: allWorkPosts = [] } = useQuery<WorkPost[]>({
+        queryKey: ['work-posts-all'],
+        queryFn: () => workPostService.getAllWorkPosts(),
         staleTime: 60_000,
     });
     const { data: departments = [] } = useQuery({
@@ -104,6 +110,14 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         queryFn: () => employeeService.getAllEmployees(),
         staleTime: 60_000,
     });
+
+    // Obras filtradas pelo cliente selecionado
+    const obrasForClient = React.useMemo(() => {
+        if (!allWorkPosts || allWorkPosts.length === 0) return [];
+        if (!formData.clientId) return allWorkPosts;
+        const matching = allWorkPosts.filter((wp: any) => wp.clientId === formData.clientId);
+        return matching.length > 0 ? matching : allWorkPosts;
+    }, [allWorkPosts, formData.clientId]);
 
     // Lista de Mecânicos / Manutenção (filtrada por cargo ou fallback para todos)
     const mechanicsList = React.useMemo(() => {
@@ -355,9 +369,24 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             </Select>
                         </Field>
                         <Field label="Equipamento / Veículo *">
-                            <Select value={formData.vehicleId} onValueChange={v => setFormData(p => ({ ...p, vehicleId: v }))}>
+                            <Select
+                                value={formData.vehicleId || ''}
+                                onValueChange={v => {
+                                    const selectedVeh = vehicles.find(veh => veh.id === v);
+                                    setFormData(p => ({
+                                        ...p,
+                                        vehicleId: v,
+                                        clientId: selectedVeh?.clientId || p.clientId,
+                                        sectorId: selectedVeh?.workPostId || p.sectorId,
+                                        workPostId: selectedVeh?.workPostId || p.workPostId,
+                                        odometerIn: (selectedVeh?.currentMileage !== undefined && selectedVeh?.currentMileage !== null)
+                                            ? selectedVeh.currentMileage
+                                            : p.odometerIn
+                                    }));
+                                }}
+                            >
                                 <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600">
+                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
                                     {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.plate} — {v.model} ({v.brand || 'N/A'})</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -365,7 +394,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         <Field label="Prioridade">
                             <Select value={formData.priority} onValueChange={v => setFormData(p => ({ ...p, priority: v as WorkOrderPriority }))}>
                                 <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue /></SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600">
+                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
                                     {Object.entries(PRIORITY_CONFIG).map(([k, c]) => (
                                         <SelectItem key={k} value={k}><span className={`inline-block w-2 h-2 rounded-full ${c.color} mr-2`} />{c.label}</SelectItem>
                                     ))}
@@ -399,7 +428,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         <Field label="Tipo de Mão de Obra">
                             <Select value={formData.laborType} onValueChange={v => setFormData(p => ({ ...p, laborType: v as LaborType }))}>
                                 <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue /></SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600">
+                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
                                     <SelectItem value={LaborType.INTERNAL}>Interna (Própria)</SelectItem>
                                     <SelectItem value={LaborType.EXTERNAL}>Externa (Terceiros)</SelectItem>
                                 </SelectContent>
@@ -409,27 +438,66 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             <Input value={formData.aggregateInfo || ''} onChange={e => setFormData(p => ({ ...p, aggregateInfo: e.target.value }))} placeholder="Ex: Carreta 02 / Reboque" className="bg-seguranca-black border-gray-600" />
                         </Field>
 
-                        {/* PRD §6 §20 §21 §22 — Cliente, Setor, Requerente */}
+                        {/* PRD §6 §20 §21 §22 — Cliente, Setor (Obra do Cliente), Requerente */}
                         <Field label="Cliente *">
-                            <Select value={formData.clientId || ''} onValueChange={v => setFormData(p => ({ ...p, clientId: v }))}>
+                            <Select
+                                value={formData.clientId || ''}
+                                onValueChange={v => {
+                                    setFormData(p => {
+                                        const currentWp = allWorkPosts.find((w: any) => w.id === (p.sectorId || p.workPostId));
+                                        const isCurrentWpValid = currentWp && currentWp.clientId === v;
+                                        return {
+                                            ...p,
+                                            clientId: v,
+                                            sectorId: isCurrentWpValid ? p.sectorId : undefined,
+                                            workPostId: isCurrentWpValid ? p.workPostId : undefined,
+                                            workPostName: isCurrentWpValid ? p.workPostName : undefined
+                                        };
+                                    });
+                                }}
+                            >
                                 <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione o cliente…" /></SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600">
+                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
                                     {clients.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </Field>
-                        <Field label="Setor *">
-                            <Select value={formData.sectorId || ''} onValueChange={v => setFormData(p => ({ ...p, sectorId: v }))}>
-                                <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione o setor…" /></SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600">
-                                    {departments.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                        <Field label="Setor / Obra *">
+                            <Select
+                                value={formData.sectorId || formData.workPostId || ''}
+                                onValueChange={v => {
+                                    const selectedWp = allWorkPosts.find((w: any) => w.id === v);
+                                    setFormData(p => ({
+                                        ...p,
+                                        sectorId: v,
+                                        workPostId: v,
+                                        workPostName: selectedWp ? selectedWp.name : p.workPostName,
+                                        clientId: (selectedWp && selectedWp.clientId) ? selectedWp.clientId : p.clientId
+                                    }));
+                                }}
+                            >
+                                <SelectTrigger className="bg-seguranca-black border-gray-600">
+                                    <SelectValue placeholder={formData.clientId ? "Selecione a obra do cliente…" : "Selecione o setor / obra…"} />
+                                </SelectTrigger>
+                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
+                                    {obrasForClient.length > 0 ? (
+                                        obrasForClient.map((wp: any) => (
+                                            <SelectItem key={wp.id} value={wp.id}>
+                                                {wp.name} {wp.postCode ? `(${wp.postCode})` : ''} {!formData.clientId && wp.clientName ? `— ${wp.clientName}` : ''}
+                                            </SelectItem>
+                                        ))
+                                    ) : (
+                                        <div className="p-2 text-sm text-gray-400 text-center">
+                                            Nenhuma obra cadastrada para este cliente
+                                        </div>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </Field>
                         <Field label="Requerente *">
                             <Select value={formData.requesterId || ''} onValueChange={v => setFormData(p => ({ ...p, requesterId: v }))}>
                                 <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione o requerente…" /></SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600">
+                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
                                     {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.name || e.fullName}</SelectItem>)}
                                 </SelectContent>
                             </Select>
