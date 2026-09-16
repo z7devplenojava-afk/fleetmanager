@@ -51,21 +51,18 @@ const ContasAPagar: React.FC = () => {
   const [alertasVencimento, setAlertasVencimento] = useState<ContaAPagar[]>([]);
   const [showDashboard, setShowDashboard] = useState(false);
 
-  // Estados para filtros
-  const [anoSelecionado, setAnoSelecionado] = useState<number>(new Date().getFullYear());
-  const [mesSelecionado, setMesSelecionado] = useState<number>(new Date().getMonth() + 1);
+  // Estados para filtros de período
+  const [anoSelecionado, setAnoSelecionado] = useState<number | 'TODOS'>('TODOS');
+  const [mesSelecionado, setMesSelecionado] = useState<number | 'TODOS'>('TODOS');
   const [contasFiltradas, setContasFiltradas] = useState<ContaAPagar[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('TODOS');
-  const [tipoFilter, setTipoFilter] = useState<string>('TODOS');
   
   // Estados para relatórios
   const [activeTab, setActiveTab] = useState<'contas' | 'relatorios'>('contas');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportData, setReportData] = useState<any>(null);
   const [reportFilters, setReportFilters] = useState({
-    startDate: new Date(new Date().getFullYear(), 0, 1), // 1º de janeiro do ano atual
-    endDate: new Date(new Date().getFullYear(), 11, 31), // 31 de dezembro do ano atual
+    startDate: new Date(new Date().getFullYear(), 0, 1),
+    endDate: new Date(new Date().getFullYear(), 11, 31),
     status: 'TODOS',
     tipo: 'TODOS',
     fornecedor: 'TODOS'
@@ -94,38 +91,39 @@ const ContasAPagar: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      console.log('🔍 DEBUG: Iniciando carregamento de dados...');
-
       const [contasData, estatisticas] = await Promise.all([
         contasAPagarService.getContasAPagar(),
         contasAPagarService.getEstatisticas()
       ]);
 
-      console.log('🔍 DEBUG: Contas carregadas da API:', contasData);
-      console.log('🔍 DEBUG: Quantidade de contas:', contasData.length);
-      console.log('🔍 DEBUG: Primeiras 3 contas:', contasData.slice(0, 3));
-      console.log('🔍 DEBUG: Estatísticas carregadas:', estatisticas);
-
-      setContas(contasData);
+      setContas(contasData || []);
 
       // Calcular estatísticas
       const hoje = new Date();
-      const contasVencidas = contasData.filter(c =>
-        c.status === 'VENCIDA' || (c.status === 'ABERTA' && isBefore(new Date(c.vencimento), hoje))
-      );
-      const contasVencendoEm7Dias = contasData.filter(c =>
-        c.status === 'ABERTA' &&
-        new Date(c.vencimento) >= hoje &&
-        new Date(c.vencimento) <= addDays(hoje, 7)
-      );
+      hoje.setHours(0, 0, 0, 0);
+
+      const list = contasData || [];
+      const contasVencidas = list.filter(c => {
+        const d = c.vencimento ? new Date(c.vencimento) : null;
+        if (!d) return false;
+        d.setHours(0, 0, 0, 0);
+        return c.status === 'VENCIDA' || ((c.status === 'ABERTA' || c.status === 'ATRASADA') && isBefore(d, hoje));
+      });
+
+      const contasVencendoEm7Dias = list.filter(c => {
+        const d = c.vencimento ? new Date(c.vencimento) : null;
+        if (!d) return false;
+        d.setHours(0, 0, 0, 0);
+        return c.status === 'ABERTA' && d >= hoje && d <= addDays(hoje, 7);
+      });
 
       setStats({
-        totalContas: contasData.length,
-        contasAbertas: contasData.filter(c => c.status === 'ABERTA').length,
+        totalContas: list.length,
+        contasAbertas: list.filter(c => c.status === 'ABERTA').length,
         contasVencidas: contasVencidas.length,
-        contasPagas: contasData.filter(c => c.status === 'PAGA').length,
-        valorTotal: contasData.reduce((sum, c) => sum + c.valor, 0),
-        valorVencidas: contasVencidas.reduce((sum, c) => sum + c.valor, 0),
+        contasPagas: list.filter(c => c.status === 'PAGA').length,
+        valorTotal: list.reduce((sum, c) => sum + (Number(c.valor) || 0), 0),
+        valorVencidas: contasVencidas.reduce((sum, c) => sum + (Number(c.valor) || 0), 0),
         vencendoEm7Dias: contasVencendoEm7Dias.length
       });
 
@@ -144,35 +142,27 @@ const ContasAPagar: React.FC = () => {
     }
   };
 
-
-
-  // Função para filtrar contas com todos os filtros
+  // Função para filtrar contas por período
   const filtrarContas = (contasData: ContaAPagar[]) => {
-    const contasFiltradas = contasData.filter(conta => {
-      // Filtro por data de vencimento
+    if (!Array.isArray(contasData)) {
+      setContasFiltradas([]);
+      return;
+    }
+    const filtradas = contasData.filter(conta => {
+      if (anoSelecionado === 'TODOS' && mesSelecionado === 'TODOS') {
+        return true;
+      }
+      if (!conta.vencimento) return true;
       const dataVencimento = new Date(conta.vencimento);
       const anoConta = dataVencimento.getFullYear();
       const mesConta = dataVencimento.getMonth() + 1;
-      const filtroData = anoConta === anoSelecionado && mesConta === mesSelecionado;
-
-      // Filtro por busca
-      const filtroBusca = !searchTerm ||
-        conta.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conta.fornecedor.toLowerCase().includes(searchTerm.toLowerCase());
-
-      // Filtro por status
-      const filtroStatus = statusFilter === 'TODOS' || conta.status === statusFilter;
-
-      // Filtro por tipo
-      const filtroTipo = tipoFilter === 'TODOS' || conta.tipo === tipoFilter;
-
-      return filtroData && filtroBusca && filtroStatus && filtroTipo;
+      const matchAno = anoSelecionado === 'TODOS' || anoConta === anoSelecionado;
+      const matchMes = mesSelecionado === 'TODOS' || mesConta === mesSelecionado;
+      return matchAno && matchMes;
     });
 
-    setContasFiltradas(contasFiltradas);
+    setContasFiltradas(filtradas);
   };
-
-
 
   // Carregar dados ao montar o componente
   useEffect(() => {
@@ -181,10 +171,8 @@ const ContasAPagar: React.FC = () => {
 
   // Aplicar filtros quando os dados ou filtros mudarem
   useEffect(() => {
-    if (contas.length > 0) {
-      filtrarContas(contas);
-    }
-  }, [anoSelecionado, mesSelecionado, searchTerm, statusFilter, tipoFilter, contas]);
+    filtrarContas(contas);
+  }, [anoSelecionado, mesSelecionado, contas]);
 
   // Handlers
   const handleCreateConta = () => {
@@ -898,290 +886,271 @@ const ContasAPagar: React.FC = () => {
 
   return (
     <StandardLayout>
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-6 space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-900/90 p-5 rounded-2xl border border-zinc-800 shadow-xl backdrop-blur-sm">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <DollarSign className="text-green-600" />
+            <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2.5 tracking-tight">
+              <DollarSign className="text-emerald-400 h-8 w-8 bg-emerald-500/10 p-1.5 rounded-xl border border-emerald-500/30" />
               Contas a Pagar
             </h1>
-            <p className="text-gray-600 mt-1">
-              Gerencie o controle de contas a pagar da empresa
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1 font-medium">
+              Gestão financeira integrada de pagamentos, fornecedores e vencimentos
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
             <Button
               variant="outline"
-              onClick={() => setShowDashboard(!showDashboard)}
-              className="flex items-center gap-2"
+              size="sm"
+              onClick={loadData}
+              disabled={loading}
+              className="bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-zinc-700 h-9 px-3 text-xs gap-1.5 font-semibold"
+              title="Recarregar Dados"
             >
-              <BarChart3 size={16} />
-              {showDashboard ? 'Ocultar Gráficos' : 'Mostrar Gráficos'}
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+              Atualizar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDashboard(!showDashboard)}
+              className="bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-zinc-700 h-9 px-3 text-xs gap-1.5 font-semibold"
+            >
+              <BarChart3 size={14} className="text-sky-400" />
+              {showDashboard ? 'Ocultar Gráficos' : 'Gráficos'}
             </Button>
             <Button
               onClick={handleCreateConta}
-              className="flex items-center gap-2"
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-9 px-4 text-xs gap-1.5 shadow-lg shadow-emerald-950/50"
             >
-              <Plus size={16} />
-              Nova Conta a Pagar
+              <Plus size={15} />
+              Nova Conta
             </Button>
           </div>
         </div>
 
         {/* Abas principais */}
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'contas' | 'relatorios')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="contas" className="flex items-center gap-2">
-              <FileText size={16} />
+          <TabsList className="grid w-full grid-cols-2 bg-zinc-900 border border-zinc-800 p-1 rounded-xl">
+            <TabsTrigger value="contas" className="flex items-center gap-2 font-bold text-xs sm:text-sm data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
+              <FileText size={15} className="text-emerald-400" />
               Contas a Pagar
             </TabsTrigger>
-            <TabsTrigger value="relatorios" className="flex items-center gap-2">
-              <BarChart3 size={16} />
-              Relatórios
+            <TabsTrigger value="relatorios" className="flex items-center gap-2 font-bold text-xs sm:text-sm data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
+              <BarChart3 size={15} className="text-sky-400" />
+              Relatórios & Exportação
             </TabsTrigger>
           </TabsList>
 
           {/* Aba de Contas */}
-          <TabsContent value="contas" className="space-y-6">
+          <TabsContent value="contas" className="space-y-6 mt-4">
 
-        {/* Dashboard de Gráficos */}
-        {showDashboard && (
-          <ContasAPagarDashboard
-            contas={contas}
-            refreshData={loadData}
-          />
-        )}
+            {/* Dashboard de Gráficos */}
+            {showDashboard && (
+              <ContasAPagarDashboard
+                contas={contas}
+                refreshData={loadData}
+              />
+            )}
 
-        {/* Alertas de Vencimento */}
-        {alertasVencimento.length > 0 && (
-          <Card className="border-yellow-200 bg-yellow-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-yellow-800">
-                <Bell className="text-yellow-600" />
-                Alertas de Vencimento
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {alertasVencimento.slice(0, 3).map(conta => (
-                  <div key={conta.id} className="flex justify-between items-center p-2 bg-white rounded border">
+            {/* Alertas de Vencimento Próximo */}
+            {alertasVencimento.length > 0 && (
+              <Card className="border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-zinc-900 to-zinc-900 shadow-xl rounded-2xl overflow-hidden">
+                <CardHeader className="py-3 px-5 border-b border-amber-500/20">
+                  <CardTitle className="flex items-center gap-2 text-amber-300 text-sm font-bold">
+                    <Bell className="text-amber-400 h-4 w-4" />
+                    Alertas de Vencimento nos Próximos 7 Dias ({alertasVencimento.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {alertasVencimento.slice(0, 6).map(conta => (
+                      <div key={conta.id} className="flex justify-between items-center p-3 bg-zinc-950/80 rounded-xl border border-zinc-800 hover:border-amber-500/40 transition-colors">
+                        <div className="min-w-0 flex-1 pr-2">
+                          <p className="font-bold text-white text-xs truncate">{conta.fornecedor || 'Fornecedor'}</p>
+                          <p className="text-[11px] text-zinc-400 truncate">{conta.descricao || 'Sem descrição'}</p>
+                        </div>
+                        <div className="text-right whitespace-nowrap">
+                          <p className="font-bold text-amber-400 font-mono text-xs">{formatCurrency(conta.valor)}</p>
+                          <p className="text-[10px] text-zinc-400">Vence {format(new Date(conta.vencimento), 'dd/MM')}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Dashboard Cards (Stat Metrics) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {/* Total Geral */}
+              <Card className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-emerald-950/30 border-zinc-800 hover:border-emerald-500/40 transition-all duration-200 rounded-2xl shadow-xl">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <span className="font-medium">{conta.fornecedor}</span>
-                      <span className="text-sm text-gray-600 ml-2">{conta.descricao}</span>
+                      <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Total a Pagar</p>
+                      <p className="text-xl sm:text-2xl font-black text-emerald-400 font-mono tracking-tight mt-1">
+                        {formatCurrency(stats.valorTotal)}
+                      </p>
                     </div>
-                    <div className="text-right">
-                      <div className="font-semibold text-yellow-700">
-                        {formatCurrency(conta.valor)}
-                      </div>
-                      <div className="text-sm text-yellow-600">
-                        Vence em {format(conta.vencimento, 'dd/MM/yyyy')}
-                      </div>
+                    <div className="h-11 w-11 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center">
+                      <DollarSign className="h-6 w-6 text-emerald-400" />
                     </div>
                   </div>
-                ))}
-                {alertasVencimento.length > 3 && (
-                  <p className="text-sm text-yellow-600 text-center">
-                    E mais {alertasVencimento.length - 3} conta(s) vencendo em breve...
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                  <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex justify-between items-center text-xs">
+                    <span className="text-zinc-400">{stats.totalContas} contas cadastradas</span>
+                    <span className="text-emerald-400 font-semibold">{stats.contasAbertas} em aberto</span>
+                  </div>
+                </CardContent>
+              </Card>
 
-        {/* Dashboard Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-700">Total a Pagar</p>
-                  <p className="text-xl font-bold text-blue-800">{formatCurrency(stats.valorTotal)}</p>
-                </div>
-                <div className="h-10 w-10 bg-blue-200 rounded-lg flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-blue-700" />
-                </div>
-              </div>
-              <div className="mt-2">
-                <p className="text-xs text-blue-600">{stats.totalContas} contas</p>
-              </div>
-            </CardContent>
-          </Card>
+              {/* Vencidas */}
+              <Card className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-rose-950/30 border-zinc-800 hover:border-rose-500/40 transition-all duration-200 rounded-2xl shadow-xl">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-rose-300 uppercase tracking-wider">Contas Vencidas</p>
+                      <p className="text-xl sm:text-2xl font-black text-rose-400 font-mono tracking-tight mt-1">
+                        {formatCurrency(stats.valorVencidas)}
+                      </p>
+                    </div>
+                    <div className="h-11 w-11 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center justify-center">
+                      <AlertTriangle className="h-6 w-6 text-rose-400" />
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex justify-between items-center text-xs">
+                    <span className="text-zinc-400">Atenção requerida</span>
+                    <span className="text-rose-400 font-bold">{stats.contasVencidas} pendentes</span>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-yellow-700">Vencidas</p>
-                  <p className="text-xl font-bold text-yellow-800">{formatCurrency(stats.valorVencidas)}</p>
-                </div>
-                <div className="h-10 w-10 bg-yellow-200 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="h-5 w-5 text-yellow-700" />
-                </div>
-              </div>
-              <div className="mt-2">
-                <p className="text-xs text-yellow-600">{stats.contasVencidas} contas</p>
-              </div>
-            </CardContent>
-          </Card>
+              {/* A Vencer em 7 Dias */}
+              <Card className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-amber-950/30 border-zinc-800 hover:border-amber-500/40 transition-all duration-200 rounded-2xl shadow-xl">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-amber-300 uppercase tracking-wider">Vencem em 7 Dias</p>
+                      <p className="text-xl sm:text-2xl font-black text-amber-400 font-mono tracking-tight mt-1">
+                        {stats.vencendoEm7Dias} <span className="text-sm font-normal text-zinc-400">contas</span>
+                      </p>
+                    </div>
+                    <div className="h-11 w-11 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-center">
+                      <Clock className="h-6 w-6 text-amber-400" />
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex justify-between items-center text-xs">
+                    <span className="text-zinc-400">Fluxo semanal</span>
+                    <span className="text-amber-400 font-semibold">Próximos pagamentos</span>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-700">A Vencer (30 dias)</p>
-                  <p className="text-xl font-bold text-green-800">{stats.vencendoEm7Dias}</p>
-                </div>
-                <div className="h-10 w-10 bg-green-200 rounded-lg flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-green-700" />
-                </div>
-              </div>
-              <div className="mt-2">
-                <Badge variant="outline" className="text-xs border-green-300 text-green-700">
-                  Próximas
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Pagas no Mês</p>
-                  <p className="text-xl font-bold text-gray-800">{stats.contasPagas}</p>
-                </div>
-                <div className="h-10 w-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-gray-700" />
-                </div>
-              </div>
-              <div className="mt-2">
-                <Badge variant="outline" className="text-xs border-gray-300 text-gray-700">
-                  Quitadas
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filtros */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-lg">
-                <FileText className="text-blue-600" />
-                Filtros e Busca
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Campo de Busca */}
-              <div className="md:col-span-2">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar por descrição ou fornecedor..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Filtro por Status */}
-              <div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="TODOS">Todos os Status</option>
-                  <option value="ABERTA">Aberta</option>
-                  <option value="PAGA">Paga</option>
-                  <option value="VENCIDA">Vencida</option>
-                </select>
-              </div>
-
-              {/* Filtro por Tipo */}
-              <div>
-                <select
-                  value={tipoFilter}
-                  onChange={(e) => setTipoFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="TODOS">Todos os Tipos</option>
-                  <option value="FIXA">Fixa</option>
-                  <option value="VARIAVEL">Variável</option>
-                </select>
-              </div>
+              {/* Pagas */}
+              <Card className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-sky-950/30 border-zinc-800 hover:border-sky-500/40 transition-all duration-200 rounded-2xl shadow-xl">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-sky-300 uppercase tracking-wider">Pagas / Baixadas</p>
+                      <p className="text-xl sm:text-2xl font-black text-sky-400 font-mono tracking-tight mt-1">
+                        {stats.contasPagas} <span className="text-sm font-normal text-zinc-400">contas</span>
+                      </p>
+                    </div>
+                    <div className="h-11 w-11 bg-sky-500/10 border border-sky-500/30 rounded-xl flex items-center justify-center">
+                      <CheckCircle className="h-6 w-6 text-sky-400" />
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex justify-between items-center text-xs">
+                    <span className="text-zinc-400">Histórico quitado</span>
+                    <span className="text-sky-400 font-semibold">Regularizadas</span>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Seletor de Data */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calendar className="text-blue-600" />
-                Período de Vencimento
-              </div>
-              <div className="text-sm text-gray-600">
-                {contasFiltradas.length} conta(s) encontrada(s)
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Seletor de Ano e Mês */}
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">Ano:</span>
-                <div className="flex gap-2">
-                  {[2025, 2026].map(ano => (
+            {/* Seletor de Período de Vencimento (Ano / Mês) */}
+            <Card className="bg-zinc-900 border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
+              <CardHeader className="py-3 px-5 bg-zinc-950/70 border-b border-zinc-800 flex flex-row items-center justify-between">
+                <CardTitle className="text-white flex items-center gap-2 text-sm font-bold">
+                  <Calendar className="text-emerald-400 h-4 w-4" />
+                  Filtrar Período de Vencimento
+                </CardTitle>
+                <div className="text-xs text-zinc-400 font-medium">
+                  {contasFiltradas.length} de {contas.length} contas no período
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-5 space-y-4">
+                {/* Seletor de Ano */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider mr-1">Ano:</span>
+                  <Button
+                    variant={anoSelecionado === 'TODOS' ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAnoSelecionado('TODOS')}
+                    className={`text-xs h-8 px-3 rounded-lg font-semibold ${
+                      anoSelecionado === 'TODOS' 
+                        ? "bg-emerald-600 hover:bg-emerald-500 text-white" 
+                        : "bg-zinc-950/80 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                    }`}
+                  >
+                    Todos os Anos
+                  </Button>
+                  {[2024, 2025, 2026, 2027].map(ano => (
                     <Button
                       key={ano}
                       variant={ano === anoSelecionado ? "default" : "outline"}
                       size="sm"
                       onClick={() => setAnoSelecionado(ano)}
-                      className={`min-w-[60px] ${ano === anoSelecionado ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+                      className={`text-xs h-8 px-3 rounded-lg font-semibold ${
+                        ano === anoSelecionado 
+                          ? "bg-emerald-600 hover:bg-emerald-500 text-white" 
+                          : "bg-zinc-950/80 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                      }`}
                     >
                       {ano}
                     </Button>
                   ))}
                 </div>
-              </div>
-            </div>
 
-            {/* Seletor de Mês */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm font-medium text-gray-700">Mês:</span>
-                <span className="text-sm text-blue-600 font-medium">
-                  {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][mesSelecionado - 1]} {anoSelecionado}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                {[
-                  'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-                  'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
-                ].map((mes, index) => (
+                {/* Seletor de Mês */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-zinc-800/80">
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider mr-1">Mês:</span>
                   <Button
-                    key={index + 1}
-                    variant={index + 1 === mesSelecionado ? "default" : "outline"}
+                    variant={mesSelecionado === 'TODOS' ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setMesSelecionado(index + 1)}
-                    className={`text-xs ${index + 1 === mesSelecionado ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+                    onClick={() => setMesSelecionado('TODOS')}
+                    className={`text-xs h-7 px-2.5 rounded-lg font-semibold ${
+                      mesSelecionado === 'TODOS' 
+                        ? "bg-sky-600 hover:bg-sky-500 text-white" 
+                        : "bg-zinc-950/80 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                    }`}
                   >
-                    {mes}
+                    Todos
                   </Button>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  {[
+                    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+                    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+                  ].map((mes, index) => (
+                    <Button
+                      key={index + 1}
+                      variant={index + 1 === mesSelecionado ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setMesSelecionado(index + 1)}
+                      className={`text-xs h-7 px-2.5 rounded-lg font-semibold ${
+                        index + 1 === mesSelecionado 
+                          ? "bg-sky-600 hover:bg-sky-500 text-white" 
+                          : "bg-zinc-950/80 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                      }`}
+                    >
+                      {mes}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-            {/* Tabela de Contas */}
+            {/* Tabela & Cards de Contas */}
             <ContasAPagarTable
               contas={contasFiltradas}
               onEdit={handleEditConta}
