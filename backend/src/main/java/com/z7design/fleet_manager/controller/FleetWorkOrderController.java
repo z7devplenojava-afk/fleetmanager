@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/fleet-work-orders")
+@RequestMapping({"/api/fleet-work-orders", "/api/v1/fleet-work-orders"})
 @RequiredArgsConstructor
 public class FleetWorkOrderController {
 

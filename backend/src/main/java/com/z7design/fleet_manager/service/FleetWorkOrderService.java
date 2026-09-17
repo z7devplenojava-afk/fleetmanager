@@ -581,18 +581,40 @@ public class FleetWorkOrderService {
 
     @Transactional(readOnly = true)
     public List<VehicleMaintenanceRankingDTO> getVehicleRanking() {
-        List<Object[]> rows = repository.findVehicleRankingRaw();
+        List<FleetWorkOrder> orders = repository.findAll();
+        java.util.Map<UUID, List<FleetWorkOrder>> byVehicle = orders.stream()
+                .filter(o -> o.getVehicle() != null && o.getVehicle().getId() != null)
+                .collect(Collectors.groupingBy(o -> o.getVehicle().getId()));
+
         List<VehicleMaintenanceRankingDTO> result = new ArrayList<>();
 
-        for (Object[] row : rows) {
-            UUID vehicleId         = (UUID)   row[0];
-            String plate           = (String) row[1];
-            String model           = (String) row[2];
-            long totalOrders       = ((Number) row[3]).longValue();
-            long completedOrders   = ((Number) row[4]).longValue();
-            long cancelledOrders   = ((Number) row[5]).longValue();
-            BigDecimal totalCost   = row[6] != null ? new BigDecimal(row[6].toString()) : BigDecimal.ZERO;
-            long downtimeHours     = row[7] != null ? ((Number) row[7]).longValue() : 0L;
+        for (java.util.Map.Entry<UUID, List<FleetWorkOrder>> entry : byVehicle.entrySet()) {
+            List<FleetWorkOrder> vehicleOrders = entry.getValue();
+            FleetWorkOrder first = vehicleOrders.get(0);
+            Vehicle v = first.getVehicle();
+
+            UUID vehicleId = v.getId();
+            String plate = v.getPlate();
+            String model = v.getModel();
+
+            long totalOrders = vehicleOrders.size();
+            long completedOrders = vehicleOrders.stream()
+                    .filter(o -> o.getStatus() == FleetWorkOrder.WorkOrderStatus.COMPLETED)
+                    .count();
+            long cancelledOrders = vehicleOrders.stream()
+                    .filter(o -> o.getStatus() == FleetWorkOrder.WorkOrderStatus.CANCELLED)
+                    .count();
+
+            BigDecimal totalCost = vehicleOrders.stream()
+                    .map(o -> o.getTotalCost() != null ? o.getTotalCost() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            long downtimeHours = vehicleOrders.stream()
+                    .mapToLong(o -> {
+                        Long dh = o.getDowntimeHours();
+                        return dh != null ? dh : 0L;
+                    })
+                    .sum();
 
             double completionRate = totalOrders > 0
                     ? BigDecimal.valueOf(completedOrders * 100.0 / totalOrders)
@@ -622,6 +644,13 @@ public class FleetWorkOrderService {
                     .recommendation(recommendation)
                     .build());
         }
+
+        result.sort((a, b) -> {
+            int cmp = Long.compare(b.getTotalOrders(), a.getTotalOrders());
+            if (cmp != 0) return cmp;
+            return b.getTotalCost().compareTo(a.getTotalCost());
+        });
+
         return result;
     }
 
