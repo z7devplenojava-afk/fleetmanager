@@ -117,6 +117,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     );
   }
 
+  const isVss = useMemo(() => {
+    const raw = `${empresa?.sigla || ''} ${empresa?.nome || ''} ${empresa?.name || ''} ${empresa?.tradeName || ''} ${(user as any)?.company?.name || ''} ${(user as any)?.companyName || ''}`.toUpperCase();
+    return raw.includes('VSS') || raw.includes('SILVESTRE') || raw.includes('SAO SILVESTRE') || raw.includes('SÃO SILVESTRE');
+  }, [empresa, user]);
+
   const companyName = empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '';
 
   return (
@@ -148,7 +153,25 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
               {/* Logo Dinâmica (Logo da Empresa logada ou FluxBus) */}
               <div className="flex items-center space-x-3 shrink-0">
-                <Logo size="sm" className="h-7 md:h-8" />
+                <Logo
+                  showText={false}
+                  size="sm"
+                  className="transition-transform hover:scale-105"
+                  iconClassName="h-7 w-7 text-primary"
+                />
+                <div className="hidden sm:block">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-bold tracking-tight text-foreground">
+                      {companyName || 'FluxBus'}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] h-4 px-1.5 py-0 font-medium border-border text-muted-foreground">
+                      v2.0
+                    </Badge>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-medium truncate max-w-[180px]">
+                    Gestão Integrada de Frotas & Operações
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -160,43 +183,40 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               </div>
             </div>
 
-            {/* Lado direito: Ações + Ajuda + Atendimento + Perfil + Notificações + Sair */}
-            <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+            {/* Lado direito: Ações, Perfil e Notificações */}
+            <div className="flex items-center space-x-1 sm:space-x-2">
               {actions && (
                 <div className="hidden lg:block">
                   {actions}
                 </div>
               )}
 
-              {/* Botão de Ajuda e Suporte */}
+              {/* Botão de Ajuda / Suporte */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsHelpModalOpen(true)}
-                className="relative text-cyan-700 dark:text-cyan-300 hover:text-cyan-800 dark:hover:text-cyan-200 hover:bg-cyan-500/10 border border-cyan-500/30 h-8 px-2 sm:px-2.5 rounded-lg transition-all flex items-center gap-1.5"
-                title="Central de Ajuda, Tutoriais e Suporte"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-2.5 rounded-lg text-xs gap-1.5 transition-all"
+                title="Central de Ajuda e Suporte"
               >
-                <HelpCircle className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-                <span className="text-[11px] font-medium hidden md:inline">Ajuda</span>
+                <HelpCircle className="h-4 w-4 text-primary" />
+                <span className="hidden md:inline text-[11px] font-medium">Ajuda</span>
               </Button>
 
-              {/* Botão de Gestão de Atendimento & WhatsApp */}
+              {/* Botão de Chat Interno */}
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate('/gestao-atendimento/whatsapp')}
-                className="relative text-purple-700 dark:text-purple-300 hover:text-purple-800 dark:hover:text-purple-200 hover:bg-purple-500/10 border border-purple-500/30 h-8 px-2 sm:px-2.5 rounded-lg transition-all flex items-center gap-1.5"
-                title="Gestão de Atendimento, Chatbot e WhatsApp"
+                onClick={() => navigate('/chat-interno')}
+                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-2.5 rounded-lg text-xs gap-1.5 transition-all relative"
+                title="Chat e Mensagens Internas"
               >
-                <Headphones className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                <span className="text-[11px] font-medium hidden md:inline">Atendimento</span>
+                <Headphones className="h-4 w-4 text-primary" />
+                <span className="hidden md:inline text-[11px] font-medium">Chat</span>
                 {unreadChats > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="h-4 min-w-[16px] px-1 text-[9px] font-bold flex items-center justify-center animate-pulse"
-                  >
-                    {unreadChats > 9 ? '9+' : unreadChats}
-                  </Badge>
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full h-4 w-4 flex items-center justify-center animate-pulse">
+                    {unreadChats > 99 ? '99+' : unreadChats}
+                  </span>
                 )}
               </Button>
 
@@ -245,15 +265,33 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         </header>
 
         {/* Conteúdo da página */}
-        <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-visible bg-background">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-visible bg-background relative z-10">
+          {/* Fundo Personalizado VSS (Viação São Silvestre) */}
+          {isVss && (
+            <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none">
+              {/* Imagem de Fundo Fotográfica */}
+              <div
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700"
+                style={{
+                  backgroundImage: `url('/vss-bg.jpg')`,
+                  filter: 'blur(1.5px) brightness(0.60) saturate(0.85)',
+                  opacity: 0.16,
+                }}
+              />
+              {/* Camadas de Gradiente Suave para Máxima Legibilidade dos Textos e Métricas */}
+              <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/88 to-background/98" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background/40 to-background/95" />
+            </div>
+          )}
+
           {/* Breadcrumb */}
-          <div className="mb-4">
+          <div className="mb-4 relative z-10">
             <Breadcrumb />
           </div>
 
           {/* Título da página */}
           {(title || subtitle) && (
-            <div className="mb-6">
+            <div className="mb-6 relative z-10">
               {title && (
                 <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1 tracking-tight">
                   {title}
@@ -268,7 +306,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           )}
 
           {/* Conteúdo principal */}
-          <div className="w-full min-w-0">
+          <div className="w-full min-w-0 relative z-10">
             {children}
           </div>
         </main>

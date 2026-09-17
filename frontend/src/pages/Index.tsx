@@ -50,7 +50,7 @@ import { dashboardService, DashboardSummary } from '@/services/dashboardService'
 import { useToast } from '@/hooks/use-toast';
 
 const Index: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, empresa } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
@@ -58,6 +58,11 @@ const Index: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
+
+  const isVss = React.useMemo(() => {
+    const raw = `${empresa?.sigla || ''} ${empresa?.nome || ''} ${empresa?.name || ''} ${empresa?.tradeName || ''} ${(user as any)?.company?.name || ''} ${(user as any)?.companyName || ''}`.toUpperCase();
+    return raw.includes('VSS') || raw.includes('SILVESTRE') || raw.includes('SAO SILVESTRE') || raw.includes('SÃO SILVESTRE');
+  }, [empresa, user]);
 
   // Normalizar role para decidir comportamento de dashboard
   const rawRole = user?.role || 'COLABORADOR';
@@ -361,8 +366,13 @@ const Index: React.FC = () => {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-black text-foreground mb-2 tracking-tight">
-              Bem-vindo, <span className="text-primary italic">{user.name.split(' ')[0]}</span>!
+            <h1 className="text-3xl font-black text-foreground mb-2 tracking-tight flex flex-wrap items-center gap-2">
+              <span>Bem-vindo, <span className="text-primary italic">{user.name.split(' ')[0]}</span>!</span>
+              {isVss && (
+                <Badge className="bg-red-600/15 text-red-500 hover:bg-red-600/25 border border-red-500/30 text-xs px-2.5 py-0.5 font-bold uppercase tracking-wider rounded-md">
+                  🚍 Viação São Silvestre
+                </Badge>
+              )}
             </h1>
             <p className="text-muted-foreground text-sm sm:text-base max-w-2xl leading-relaxed">
               Acesse as funcionalidades disponíveis através do menu lateral para gerenciar sua frota.
