@@ -32,11 +32,11 @@ BEGIN
     END IF;
 
     -- 2. Obter ou criar Unidade (Unit)
-    SELECT id INTO v_unit_id FROM units WHERE company_id = v_company_id OR company_id IS NULL LIMIT 1;
+    SELECT id INTO v_unit_id FROM units LIMIT 1;
     IF v_unit_id IS NULL THEN
         v_unit_id := gen_random_uuid();
-        INSERT INTO units (id, name, code, active, company_id, created_at, updated_at)
-        VALUES (v_unit_id, 'Unidade Operacional Central', 'UOC-01', true, v_company_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+        INSERT INTO units (id, name, address, created_at, updated_at)
+        VALUES (v_unit_id, 'Unidade Operacional Central', 'Av. Amazonas, 1000 - Centro, Contagem - MG', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
     END IF;
 
     -- 3. Obter ou criar Cliente (Client)
