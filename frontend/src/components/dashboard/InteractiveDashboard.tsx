@@ -27,7 +27,10 @@ import {
   MessageSquare,
   HelpCircle,
   Smartphone,
-  Monitor
+  Monitor,
+  Sparkles,
+  Wrench,
+  Car
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +40,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { hasPermission, hasAnyPermission, getRoleDisplayName, getRoleColor } from '@/utils/permissions';
 import { UserPermissions } from '@/types/user';
+import { Company360Dashboard } from '@/components/empresa/Company360Dashboard';
 // import LiveStats from './LiveStats';
 // import NotificationCenter from './NotificationCenter';
 // import QuickActions from './QuickActions';
@@ -636,13 +640,20 @@ const InteractiveDashboard: React.FC = () => {
           </div>
         </Card>
 
-        <TabsList className="grid w-fill grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 bg-accent/20 border border-border/50 rounded-2xl p-2 h-auto">
+        <TabsList className="grid w-fill grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 bg-accent/20 border border-border/50 rounded-2xl p-2 h-auto">
           <TabsTrigger
             value="overview"
             className="flex-1 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-xs sm:text-sm font-bold rounded-xl py-3 sm:py-3 transition-all active:scale-95 shadow-sm"
           >
             <BarChart3 className="h-4 w-4 mr-2" />
             Visão Geral
+          </TabsTrigger>
+          <TabsTrigger
+            value="overview360"
+            className="flex-1 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-gradient-to-r data-[state='active']:from-orange-500 data-[state='active']:to-seguranca-yellow data-[state='active']:text-black text-xs sm:text-sm font-black rounded-xl py-3 sm:py-3 transition-all active:scale-95 shadow-sm"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Empresa 360°
           </TabsTrigger>
           <TabsTrigger
             value="modules"
@@ -669,6 +680,10 @@ const InteractiveDashboard: React.FC = () => {
 
         <TabsContent value="overview" className="mt-5">
           {renderOverview()}
+        </TabsContent>
+
+        <TabsContent value="overview360" className="mt-5">
+          <Company360Dashboard companyId={user?.companyId} companyName={user?.companyName} />
         </TabsContent>
 
         <TabsContent value="modules" className="mt-5">

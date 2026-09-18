@@ -6,6 +6,8 @@ import com.z7design.fleet_manager.model.Supplier;
 import com.z7design.fleet_manager.repository.SupplierRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -143,7 +145,161 @@ public class SupplierService {
     }
 
     /**
-     * Importa fornecedores a partir de planilha Excel (.xlsx / .xls).
+     * Importa uma lista de DTOs de fornecedores em lote (vindos de parsing frontend ou backend).
+     */
+    public ImportResultDto importBatch(List<SupplierDTO> suppliersList) {
+        ImportResultDto result = ImportResultDto.empty();
+        if (suppliersList == null || suppliersList.isEmpty()) {
+            return result;
+        }
+
+        UUID tenantCompanyId = userCompanyResolver.resolveCurrentCompanyId();
+        int inserted = 0;
+        int updated = 0;
+
+        for (int i = 0; i < suppliersList.size(); i++) {
+            SupplierDTO dto = suppliersList.get(i);
+            result.setTotalRows(result.getTotalRows() + 1);
+
+            if (dto.getName() == null || dto.getName().isBlank()) {
+                result.setSkipped(result.getSkipped() + 1);
+                continue;
+            }
+
+            try {
+                String rawDoc = dto.getCnpj() != null ? dto.getCnpj().replaceAll("\\D", "") : null;
+                String formattedDoc = formatCpfCnpj(rawDoc != null && !rawDoc.isBlank() ? rawDoc : dto.getCnpj());
+
+                Optional<Supplier> existingOpt = Optional.empty();
+                if (formattedDoc != null && !formattedDoc.isBlank()) {
+                    existingOpt = supplierRepository.findByCnpj(formattedDoc);
+                    if (existingOpt.isEmpty() && rawDoc != null && !rawDoc.isBlank()) {
+                        existingOpt = supplierRepository.findByCnpj(rawDoc);
+                    }
+                }
+                if (existingOpt.isEmpty() && dto.getName() != null) {
+                    List<Supplier> byName = supplierRepository.findByNameContainingIgnoreCase(dto.getName().trim());
+                    existingOpt = byName.stream()
+                            .filter(s -> s.getName() != null && s.getName().equalsIgnoreCase(dto.getName().trim()))
+                            .findFirst();
+                }
+
+                if (existingOpt.isPresent()) {
+                    Supplier s = existingOpt.get();
+                    if (dto.getName() != null && !dto.getName().isBlank()) s.setName(dto.getName().trim());
+                    if (dto.getTradeName() != null && !dto.getTradeName().isBlank()) s.setTradeName(dto.getTradeName().trim());
+                    if (dto.getContactName() != null && !dto.getContactName().isBlank()) s.setContactName(dto.getContactName().trim());
+                    if (dto.getRegistrationNumber() != null && !dto.getRegistrationNumber().isBlank()) s.setRegistrationNumber(dto.getRegistrationNumber().trim());
+                    if (formattedDoc != null && !formattedDoc.isBlank()) s.setCnpj(formattedDoc);
+                    if (dto.getEmail() != null && !dto.getEmail().isBlank()) s.setEmail(dto.getEmail().trim());
+                    if (dto.getPhone() != null && !dto.getPhone().isBlank()) s.setPhone(dto.getPhone().trim());
+                    if (dto.getAddress() != null && !dto.getAddress().isBlank()) s.setAddress(dto.getAddress().trim());
+                    if (dto.getCity() != null && !dto.getCity().isBlank()) s.setCity(dto.getCity().trim());
+                    if (dto.getState() != null && !dto.getState().isBlank()) s.setState(normalizeState(dto.getState()));
+                    if (dto.getZipCode() != null && !dto.getZipCode().isBlank()) s.setZipCode(dto.getZipCode().trim());
+                    if (dto.getNotes() != null && !dto.getNotes().isBlank()) s.setNotes(dto.getNotes().trim());
+                    if (s.getCompanyId() == null && tenantCompanyId != null) s.setCompanyId(tenantCompanyId);
+                    supplierRepository.save(s);
+                    updated++;
+                } else {
+                    Supplier s = new Supplier();
+                    s.setName(dto.getName().trim());
+                    s.setTradeName(dto.getTradeName() != null ? dto.getTradeName().trim() : null);
+                    s.setContactName(dto.getContactName() != null ? dto.getContactName().trim() : null);
+                    s.setRegistrationNumber(dto.getRegistrationNumber() != null ? dto.getRegistrationNumber().trim() : null);
+                    s.setCnpj(formattedDoc);
+                    s.setEmail(dto.getEmail() != null ? dto.getEmail().trim() : null);
+                    s.setPhone(dto.getPhone() != null ? dto.getPhone().trim() : null);
+                    s.setAddress(dto.getAddress() != null ? dto.getAddress().trim() : null);
+                    s.setCity(dto.getCity() != null ? dto.getCity().trim() : null);
+                    s.setState(dto.getState() != null ? normalizeState(dto.getState()) : null);
+                    s.setZipCode(dto.getZipCode() != null ? dto.getZipCode().trim() : null);
+                    s.setNotes(dto.getNotes() != null ? dto.getNotes().trim() : null);
+                    s.setIsActive(true);
+                    s.setCompanyId(tenantCompanyId);
+                    supplierRepository.save(s);
+                    inserted++;
+                }
+            } catch (Exception e) {
+                log.warn("Erro ao importar fornecedor {}: {}", dto.getName(), e.getMessage());
+                result.setSkipped(result.getSkipped() + 1);
+                result.getErrors().add(String.format("Item %d (%s): %s", i + 1, dto.getName(), e.getMessage()));
+            }
+        }
+
+        result.setInserted(inserted);
+        result.setUpdated(updated);
+        return result;
+    }
+
+    /**
+     * Importa fornecedores a partir de arquivo (PDF, Excel ou CSV).
+     */
+    public ImportResultDto importFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Arquivo vazio ou não enviado.");
+        }
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        if (filename.endsWith(".pdf")) {
+            return importPdf(file);
+        }
+        return importExcel(file);
+    }
+
+    /**
+     * Importa fornecedores a partir de arquivo PDF.
+     */
+    public ImportResultDto importPdf(MultipartFile file) {
+        ImportResultDto result = ImportResultDto.empty();
+        List<SupplierDTO> parsedList = new ArrayList<>();
+
+        try (InputStream is = file.getInputStream();
+             PDDocument document = PDDocument.load(is)) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            String text = stripper.getText(document);
+
+            String[] lines = text.split("\\r?\\n");
+            for (String rawLine : lines) {
+                String line = rawLine.trim();
+                if (line.isEmpty()) continue;
+                if (line.toUpperCase().contains("NOME") && line.toUpperCase().contains("CPFCNPJ")) continue;
+
+                // Tentar identificar padrão: Nome | CPF/CNPJ | Endereço | Telefone
+                // Exemplo: ARAXA TRUCK CENTER (KAMILA FLAVIA RODRIGUES DONADELI) 54426642000186
+                // Exemplo: 040 MOTORS CENTRO AUTOMOTIVO LTDA 66603500000126 3135813532
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.*?)\\s+([0-9]{11,14}|[0-9]{2,3}\\.[0-9]{3}\\.[0-9]{3}(?:/[0-9]{4}-[0-9]{2}|-[0-9]{2}))(?:\\s+(.*?))?(?:\\s+([0-9()\\s-]{8,20}))?$").matcher(line);
+                if (m.find()) {
+                    String name = m.group(1).trim();
+                    String doc = m.group(2).trim();
+                    String addr = m.group(3) != null ? m.group(3).trim() : null;
+                    String phone = m.group(4) != null ? m.group(4).trim() : null;
+
+                    SupplierDTO dto = new SupplierDTO();
+                    dto.setName(name);
+                    dto.setCnpj(doc);
+                    dto.setAddress(addr);
+                    dto.setPhone(phone);
+                    parsedList.add(dto);
+                } else {
+                    // Linha genérica com apenas nome
+                    if (line.length() >= 3 && !line.startsWith("---") && !line.startsWith("Página")) {
+                        SupplierDTO dto = new SupplierDTO();
+                        dto.setName(line);
+                        parsedList.add(dto);
+                    }
+                }
+            }
+
+            return importBatch(parsedList);
+        } catch (Exception e) {
+            log.error("Erro ao ler arquivo PDF de fornecedores: ", e);
+            result.getErrors().add("Falha ao ler PDF: " + e.getMessage());
+            return result;
+        }
+    }
+
+    /**
+     * Importa fornecedores a partir de planilha Excel (.xlsx / .xls / .csv).
      * Associa automaticamente à empresa do usuário logado / tenant.
      */
     public ImportResultDto importExcel(MultipartFile file) {
@@ -173,23 +329,23 @@ public class SupplierService {
 
             Row headerRow = sheet.getRow(headerRowIndex);
             Map<Integer, String> colMap = mapHeaders(headerRow);
-            if (!colMap.containsValue("NAME")) {
+            if (!colMap.containsValue("NAME") && !colMap.containsValue("TRADE_NAME")) {
                 result.getErrors().add("Coluna de Nome/Razão Social do Fornecedor não encontrada.");
                 return result;
             }
 
             int lastRow = sheet.getLastRowNum();
-            int inserted = 0;
-            int updated = 0;
+            List<SupplierDTO> listToImport = new ArrayList<>();
 
             for (int r = headerRowIndex + 1; r <= lastRow; r++) {
                 Row row = sheet.getRow(r);
                 if (row == null || isRowEmpty(row)) continue;
 
-                result.setTotalRows(result.getTotalRows() + 1);
-
                 try {
                     String name = null;
+                    String tradeName = null;
+                    String contactName = null;
+                    String regNumber = null;
                     String cnpj = null;
                     String email = null;
                     String phone = null;
@@ -207,7 +363,10 @@ public class SupplierService {
 
                         switch (entry.getValue()) {
                             case "NAME": name = val; break;
-                            case "CNPJ": cnpj = val.replaceAll("\\D", ""); break;
+                            case "TRADE_NAME": tradeName = val; break;
+                            case "CONTACT_NAME": contactName = val; break;
+                            case "REG_NUM": regNumber = val; break;
+                            case "CNPJ": cnpj = val; break;
                             case "EMAIL": email = val; break;
                             case "PHONE": phone = val; break;
                             case "ADDRESS": address = val; break;
@@ -219,72 +378,38 @@ public class SupplierService {
                     }
 
                     if (name == null || name.isBlank()) {
-                        result.setSkipped(result.getSkipped() + 1);
-                        continue;
+                        name = tradeName;
                     }
 
-                    final String finalName = name;
-                    Optional<Supplier> existingOpt = Optional.empty();
-                    if (cnpj != null && !cnpj.isBlank()) {
-                        existingOpt = supplierRepository.findByCnpj(cnpj);
-                    }
-                    if (existingOpt.isEmpty()) {
-                        List<Supplier> byName = supplierRepository.findByNameContainingIgnoreCase(finalName);
-                        if (!byName.isEmpty()) {
-                            existingOpt = byName.stream()
-                                    .filter(s -> s.getName() != null && s.getName().equalsIgnoreCase(finalName))
-                                    .findFirst();
-                        }
-                    }
-
-                    if (existingOpt.isPresent()) {
-                        Supplier s = existingOpt.get();
-                        if (name != null) s.setName(name);
-                        if (cnpj != null && !cnpj.isBlank()) s.setCnpj(cnpj);
-                        if (email != null) s.setEmail(email);
-                        if (phone != null) s.setPhone(phone);
-                        if (address != null) s.setAddress(address);
-                        if (city != null) s.setCity(city);
-                        if (state != null) s.setState(state);
-                        if (zipCode != null) s.setZipCode(zipCode);
-                        if (notes != null) s.setNotes(notes);
-                        if (s.getCompanyId() == null && tenantCompanyId != null) {
-                            s.setCompanyId(tenantCompanyId);
-                        }
-                        supplierRepository.save(s);
-                        updated++;
-                    } else {
-                        Supplier s = new Supplier();
-                        s.setName(name);
-                        s.setCnpj(cnpj != null && !cnpj.isBlank() ? cnpj : null);
-                        s.setEmail(email);
-                        s.setPhone(phone);
-                        s.setAddress(address);
-                        s.setCity(city);
-                        s.setState(state);
-                        s.setZipCode(zipCode);
-                        s.setNotes(notes);
-                        s.setIsActive(true);
-                        s.setCompanyId(tenantCompanyId);
-                        supplierRepository.save(s);
-                        inserted++;
+                    if (name != null && !name.isBlank()) {
+                        SupplierDTO dto = new SupplierDTO();
+                        dto.setName(name);
+                        dto.setTradeName(tradeName);
+                        dto.setContactName(contactName);
+                        dto.setRegistrationNumber(regNumber);
+                        dto.setCnpj(cnpj);
+                        dto.setEmail(email);
+                        dto.setPhone(phone);
+                        dto.setAddress(address);
+                        dto.setCity(city);
+                        dto.setState(state);
+                        dto.setZipCode(zipCode);
+                        dto.setNotes(notes);
+                        listToImport.add(dto);
                     }
                 } catch (Exception e) {
-                    log.warn("Erro ao processar linha {} de fornecedores: {}", r + 1, e.getMessage());
-                    result.setSkipped(result.getSkipped() + 1);
+                    log.warn("Erro ao ler linha {} de fornecedores: {}", r + 1, e.getMessage());
                     result.getErrors().add(String.format("Linha %d: %s", r + 1, e.getMessage()));
                 }
             }
 
-            result.setInserted(inserted);
-            result.setUpdated(updated);
+            return importBatch(listToImport);
 
         } catch (Exception e) {
             log.error("Erro ao ler planilha de fornecedores: ", e);
             result.getErrors().add("Falha ao ler planilha: " + e.getMessage());
+            return result;
         }
-
-        return result;
     }
 
     private int findHeaderRow(Sheet sheet) {
@@ -294,7 +419,7 @@ public class SupplierService {
             Row row = sheet.getRow(r);
             if (row == null) continue;
             Map<Integer, String> m = mapHeaders(row);
-            if (m.containsValue("NAME") || (m.containsValue("CNPJ") && m.size() >= 2)) {
+            if (m.containsValue("NAME") || m.containsValue("TRADE_NAME") || (m.containsValue("CNPJ") && m.size() >= 2)) {
                 return r;
             }
         }
@@ -308,9 +433,13 @@ public class SupplierService {
             if (val == null || val.isBlank()) continue;
             String norm = normalizeText(val);
 
-            if (norm.contains("razao") || norm.contains("fornecedor") || norm.contains("fantasia") || norm.equals("nome") || norm.startsWith("nome")) {
+            if (norm.equals("razao social") || norm.equals("razaosocial") || norm.contains("fantasia")) {
+                map.put(c.getColumnIndex(), "TRADE_NAME");
+            } else if (norm.contains("razao") || norm.contains("fornecedor") || norm.equals("nome") || norm.startsWith("nome")) {
                 map.put(c.getColumnIndex(), "NAME");
-            } else if (norm.contains("cnpj") || norm.contains("cpf/cnpj") || norm.contains("documento")) {
+            } else if (norm.contains("numcad") || norm.contains("inscricao") || norm.contains("cod_fornec") || norm.contains("codigo")) {
+                map.put(c.getColumnIndex(), "REG_NUM");
+            } else if (norm.contains("cnpj") || norm.contains("cpf") || norm.contains("documento")) {
                 map.put(c.getColumnIndex(), "CNPJ");
             } else if (norm.contains("email") || norm.contains("e-mail")) {
                 map.put(c.getColumnIndex(), "EMAIL");
@@ -371,9 +500,32 @@ public class SupplierService {
         return normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "").toLowerCase().trim();
     }
     
+    public static String formatCpfCnpj(String raw) {
+        if (raw == null) return null;
+        String digits = raw.replaceAll("\\D", "");
+        if (digits.length() == 14) {
+            return String.format("%s.%s.%s/%s-%s",
+                    digits.substring(0, 2),
+                    digits.substring(2, 5),
+                    digits.substring(5, 8),
+                    digits.substring(8, 12),
+                    digits.substring(12, 14));
+        } else if (digits.length() == 11) {
+            return String.format("%s.%s.%s-%s",
+                    digits.substring(0, 3),
+                    digits.substring(3, 6),
+                    digits.substring(6, 9),
+                    digits.substring(9, 11));
+        }
+        return raw.trim().isEmpty() ? null : raw.trim();
+    }
+    
     private void updateSupplierFromDTO(Supplier supplier, SupplierDTO dto) {
         supplier.setName(dto.getName());
-        supplier.setCnpj(dto.getCnpj());
+        supplier.setTradeName(dto.getTradeName());
+        supplier.setContactName(dto.getContactName());
+        supplier.setRegistrationNumber(dto.getRegistrationNumber());
+        supplier.setCnpj(formatCpfCnpj(dto.getCnpj()));
         supplier.setEmail(dto.getEmail());
         supplier.setPhone(dto.getPhone());
         supplier.setAddress(dto.getAddress());

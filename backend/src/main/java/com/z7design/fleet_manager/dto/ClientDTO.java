@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class ClientDTO {
     
     private java.util.UUID id;
+    private java.util.UUID companyId;
     
     @NotBlank(message = "Nome Ã© obrigatÃ³rio")
     @Size(max = 255, message = "Nome deve ter no mÃ¡ximo 255 caracteres")
@@ -202,10 +203,19 @@ public class ClientDTO {
         this.updatedAt = updatedAt;
     }
     
+    public java.util.UUID getCompanyId() {
+        return companyId;
+    }
+
+    public void setCompanyId(java.util.UUID companyId) {
+        this.companyId = companyId;
+    }
+
     // Static factory method
     public static ClientDTO fromEntity(com.z7design.fleet_manager.model.Client entity) {
         ClientDTO dto = new ClientDTO();
         dto.setId(entity.getId());
+        dto.setCompanyId(entity.getCompanyId());
         dto.setName(entity.getName());
         dto.setCnpj(entity.getCnpj());
         dto.setEmail(entity.getEmail());

@@ -32,7 +32,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -50,8 +54,11 @@ public class FleetWorkOrderService {
     private final ChecklistItemRepository checklistItemRepository;
     private final FleetWorkOrderChecklistRepository checklistRepository;
     private final WorkPostRepository workPostRepository;
+    private final GarageService garageService;
+    private final com.z7design.fleet_manager.repository.GarageRepository garageRepository;
     private final ClientRepository clientRepository;
     private final EmployeeRepository employeeRepository;
+    private final MaterialRequisitionService materialRequisitionService;
 
     private FleetWorkOrderDTO toDTO(FleetWorkOrder entity) {
         FleetWorkOrderDTO dto = FleetWorkOrderDTO.fromEntity(entity);
@@ -69,6 +76,19 @@ public class FleetWorkOrderService {
                             dto.setClientName(c.getName());
                         });
             }
+        }
+
+        // Completa garageName se ainda estiver nulo (fallback: garagem atual do veículo)
+        if (dto.getGarageId() != null && (dto.getGarageName() == null || dto.getGarageName().isBlank())) {
+            garageRepository.findById(dto.getGarageId())
+                    .ifPresent(g -> dto.setGarageName(g.getName()));
+        } else if (dto.getGarageId() == null && entity.getVehicle() != null
+                && entity.getVehicle().getGarageId() != null) {
+            garageRepository.findById(entity.getVehicle().getGarageId())
+                    .ifPresent(g -> {
+                        dto.setGarageId(g.getId());
+                        dto.setGarageName(g.getName());
+                    });
         }
 
         // Completa workPostName se ainda estiver nulo
@@ -141,6 +161,18 @@ public class FleetWorkOrderService {
                 .collect(Collectors.toList());
     }
 
+    /** Lista as OSs filtrando por garagem executora (garageId) quando informada. */
+    @Transactional(readOnly = true)
+    public List<FleetWorkOrderDTO> getAllByGarage(UUID garageId) {
+        if (garageId == null) {
+            return getAll();
+        }
+        return repository.findAll().stream()
+                .filter(o -> o.getGarage() != null && garageId.equals(o.getGarage().getId()))
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
     @Transactional(readOnly = true)
     public FleetWorkOrderDTO getById(UUID id) {
         return repository.findById(id)
@@ -202,6 +234,20 @@ public class FleetWorkOrderService {
         UUID resolvedClientId = dto.getClientId() != null ? dto.getClientId()
                 : (workPost != null && workPost.getClient() != null ? workPost.getClient().getId() : null);
 
+        // ── Garagem: onde o serviço será executado ────────────────────────
+        // Prioriza a garagem informada; fallback = garagem atual do veículo.
+        com.z7design.fleet_manager.model.Garage garage = null;
+        if (dto.getGarageId() != null) {
+            garage = garageRepository.findById(dto.getGarageId()).orElse(null);
+        }
+        if (garage == null) {
+            if (vehicle.getGarageId() != null) {
+                garage = garageRepository.findById(vehicle.getGarageId()).orElse(null);
+            } else if (vehicle.getGarageName() != null && !vehicle.getGarageName().isBlank()) {
+                garage = garageService.getOrCreateByName(vehicle.getGarageName(), companyId);
+            }
+        }
+
         // RN01 — Número da OS
         String osNumber = dto.getOsNumber();
         if (osNumber == null || osNumber.isBlank()) {
@@ -233,6 +279,7 @@ public class FleetWorkOrderService {
                 .otherDescription(dto.getOtherDescription())
                 .maintenancePerformed(dto.getMaintenancePerformed())
                 .workPost(workPost)
+                .garage(garage)
                 .clientId(resolvedClientId)
                 .sectorId(dto.getSectorId())
                 .requesterId(dto.getRequesterId())
@@ -321,6 +368,11 @@ public class FleetWorkOrderService {
         if (dto.getOtherDescription() != null) entity.setOtherDescription(dto.getOtherDescription());
         if (dto.getMaintenancePerformed() != null) entity.setMaintenancePerformed(dto.getMaintenancePerformed());
 
+        // Garagem: atualiza quando informada explicitamente
+        if (dto.getGarageId() != null) {
+            entity.setGarage(garageRepository.findById(dto.getGarageId()).orElse(null));
+        }
+
         // Alocação: Obra (Cliente) — re-resolve a partir do veículo quando alterado
         if (dto.getWorkPostId() != null) {
             entity.setWorkPost(workPostRepository.findById(dto.getWorkPostId()).orElse(null));
@@ -362,22 +414,14 @@ public class FleetWorkOrderService {
         if (dto.getLaborCost() != null) entity.setLaborCost(dto.getLaborCost());
         if (dto.getPhotoAttachments() != null) entity.setPhotoAttachments(dto.getPhotoAttachments());
 
-        // Atualiza itens de peças/serviços
+        // Atualiza itens de peças/serviços com reconciliação in-place (evita conflito de flush/constraint e duplo consumo de estoque)
         if (dto.getItems() != null) {
-            entity.getItems().clear();
-            entity.setPartsCost(BigDecimal.ZERO);
-            entity.setTotalCost(BigDecimal.ZERO);
-            for (WorkOrderItemDTO itemDto : dto.getItems()) {
-                addItemToEntity(entity, itemDto);
-            }
+            updateItems(entity, dto.getItems());
         }
 
-        // Atualiza respostas de checklist se fornecidos
+        // Atualiza respostas de checklist se fornecidos com reconciliação in-place
         if (dto.getChecklistItems() != null) {
-            entity.getChecklistItems().clear();
-            for (com.z7design.fleet_manager.dto.FleetWorkOrderChecklistDTO cDto : dto.getChecklistItems()) {
-                addChecklistItemToEntity(entity, cDto);
-            }
+            updateChecklistItems(entity, dto.getChecklistItems());
         }
 
         // Se o status fornecido for COMPLETED, executa validação RN07
@@ -743,6 +787,9 @@ public class FleetWorkOrderService {
         }
 
         vehicleRepository.save(vehicle);
+
+        // Dar baixa definitiva dos itens e peças reservadas no almoxarifado para esta OS
+        materialRequisitionService.completeWorkOrderStockDeduction(entity.getId());
     }
 
     /**
@@ -752,6 +799,98 @@ public class FleetWorkOrderService {
         int currentYear = java.time.Year.now().getValue();
         long count = repository.count() + 1;
         return String.format("OS-%d-%06d", currentYear, count);
+    }
+
+    private void updateChecklistItems(FleetWorkOrder entity, List<com.z7design.fleet_manager.dto.FleetWorkOrderChecklistDTO> dtoList) {
+        if (dtoList == null) return;
+
+        Map<UUID, com.z7design.fleet_manager.model.FleetWorkOrderChecklist> existingByMasterId = new HashMap<>();
+        for (com.z7design.fleet_manager.model.FleetWorkOrderChecklist c : entity.getChecklistItems()) {
+            if (c.getChecklistItem() != null && c.getChecklistItem().getId() != null) {
+                existingByMasterId.put(c.getChecklistItem().getId(), c);
+            }
+        }
+
+        Set<UUID> receivedMasterIds = new HashSet<>();
+
+        for (com.z7design.fleet_manager.dto.FleetWorkOrderChecklistDTO cDto : dtoList) {
+            if (cDto.getChecklistItemId() == null) continue;
+            receivedMasterIds.add(cDto.getChecklistItemId());
+
+            com.z7design.fleet_manager.model.FleetWorkOrderChecklist existing = existingByMasterId.get(cDto.getChecklistItemId());
+            if (existing != null) {
+                existing.setSituacao(cDto.getSituacao() != null ? cDto.getSituacao() : com.z7design.fleet_manager.model.FleetWorkOrderChecklist.ChecklistStatus.OK);
+                existing.setObservacao(cDto.getObservacao());
+                existing.setReparoRealizado(cDto.getReparoRealizado());
+            } else {
+                addChecklistItemToEntity(entity, cDto);
+            }
+        }
+
+        entity.getChecklistItems().removeIf(c ->
+                c.getChecklistItem() != null && !receivedMasterIds.contains(c.getChecklistItem().getId())
+        );
+    }
+
+    private void updateItems(FleetWorkOrder entity, List<WorkOrderItemDTO> dtoList) {
+        if (dtoList == null) return;
+
+        Map<UUID, WorkOrderItem> existingById = new HashMap<>();
+        for (WorkOrderItem item : entity.getItems()) {
+            if (item.getId() != null) {
+                existingById.put(item.getId(), item);
+            }
+        }
+
+        Set<UUID> keptIds = new HashSet<>();
+        BigDecimal totalParts = BigDecimal.ZERO;
+
+        for (WorkOrderItemDTO itemDto : dtoList) {
+            WorkOrderItem.ItemType itemType = itemDto.getType() != null
+                    ? itemDto.getType()
+                    : WorkOrderItem.ItemType.PART;
+
+            BigDecimal qty   = itemDto.getQuantity() != null ? itemDto.getQuantity() : BigDecimal.ONE;
+            BigDecimal price = itemDto.getUnitPrice() != null ? itemDto.getUnitPrice() : BigDecimal.ZERO;
+            BigDecimal total = price.multiply(qty);
+
+            if (itemType == WorkOrderItem.ItemType.PART) {
+                totalParts = totalParts.add(total);
+            }
+
+            if (itemDto.getId() != null && existingById.containsKey(itemDto.getId())) {
+                WorkOrderItem existing = existingById.get(itemDto.getId());
+                keptIds.add(existing.getId());
+                existing.setDescription(itemDto.getDescription());
+                existing.setType(itemType);
+                existing.setQuantity(qty);
+                existing.setUnitPrice(price);
+                existing.setTotalPrice(total);
+                existing.setProductId(itemDto.getProductId());
+                existing.setProvider(itemDto.getProvider());
+            } else {
+                if (itemDto.getProductId() != null) {
+                    productService.consumeStock(itemDto.getProductId(), qty);
+                }
+                WorkOrderItem newItem = WorkOrderItem.builder()
+                        .workOrder(entity)
+                        .description(itemDto.getDescription())
+                        .type(itemType)
+                        .quantity(qty)
+                        .unitPrice(price)
+                        .totalPrice(total)
+                        .productId(itemDto.getProductId())
+                        .provider(itemDto.getProvider())
+                        .build();
+                entity.getItems().add(newItem);
+                if (newItem.getId() != null) {
+                    keptIds.add(newItem.getId());
+                }
+            }
+        }
+
+        entity.getItems().removeIf(i -> i.getId() != null && !keptIds.contains(i.getId()));
+        entity.setPartsCost(totalParts);
     }
 
     private void addItemToEntity(FleetWorkOrder workOrder, WorkOrderItemDTO itemDto) {

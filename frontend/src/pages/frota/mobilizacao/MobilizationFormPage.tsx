@@ -35,6 +35,7 @@ import driverService from '@/services/driverService';
 import clientService from '@/services/clientService';
 import workPostService from '@/services/workPostService';
 import type { WorkPost } from '@/services/workPostService';
+import { garageService, Garage } from '@/services/garageService';
 import { useToast } from '@/hooks/use-toast';
 import type { MobilizationType, CreateTransportMobilizationDTO, ChecklistItemDetail } from '@/types/mobilization';
 
@@ -94,6 +95,8 @@ const MobilizationFormPage: React.FC = () => {
         driverId: '',
         clientId: '',
         workPostId: '',
+        garageId: '',
+        garagePurpose: '',
         kmReading: '',
         observations: '',
         descricaoAvaria: '',
@@ -121,6 +124,8 @@ const MobilizationFormPage: React.FC = () => {
                 driverId: existingMobilization.driverId || '',
                 clientId: existingMobilization.clientId || '',
                 workPostId: existingMobilization.workPostId || '',
+                garageId: existingMobilization.garageId || '',
+                garagePurpose: existingMobilization.garagePurpose || '',
                 kmReading: existingMobilization.kmReading?.toString() || '',
                 observations: existingMobilization.observations || '',
                 descricaoAvaria: '',
@@ -167,6 +172,16 @@ const MobilizationFormPage: React.FC = () => {
         queryFn: workPostService.getAllWorkPosts,
     });
 
+    const { data: garages = [] } = useQuery<Garage[]>({
+        queryKey: ['garages-for-mobilization'],
+        queryFn: () => garageService.list(),
+    });
+
+    // Garagem de destino escolhida + situação de lotação (para bloqueio/aviso)
+    const selectedGarage = garages.find(g => g.id === formData.garageId);
+    const garageFull = !!selectedGarage?.atCapacity;
+    const garageNear = !!selectedGarage?.nearCapacity && !garageFull;
+
     // Filtra postos pelo cliente selecionado
     const filteredWorkPosts = formData.clientId
         ? allWorkPosts.filter(wp => wp.clientId === formData.clientId)
@@ -210,6 +225,8 @@ const MobilizationFormPage: React.FC = () => {
             driverId: formData.driverId || undefined,
             clientId: formData.clientId || undefined,
             workPostId: formData.workPostId || undefined,
+            garageId: formData.garageId || undefined,
+            garagePurpose: formData.garagePurpose || undefined,
             type,
             kmReading: parseInt(formData.kmReading),
             checklistData: JSON.stringify(checklist),
@@ -320,6 +337,66 @@ const MobilizationFormPage: React.FC = () => {
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Garagem de Destino</Label>
+                                    <Select
+                                        value={formData.garageId}
+                                        onValueChange={(v) => {
+                                            const g = garages.find(x => x.id === v);
+                                            if (g?.atCapacity) {
+                                                toast({
+                                                    title: 'Garagem lotada',
+                                                    description: `${g.name} está com ${g.vehicleCount}/${g.capacity} vagas. Escolha outra garagem ou faça um remanejamento.`,
+                                                    variant: 'destructive',
+                                                });
+                                                return;
+                                            }
+                                            setFormData(f => ({ ...f, garageId: v }));
+                                        }}
+                                    >
+                                        <SelectTrigger className="bg-seguranca-black border-gray-600">
+                                            <SelectValue placeholder="Selecione a garagem" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {garages.filter(g => g.active !== false).map((g) => (
+                                                <SelectItem key={g.id} value={g.id} disabled={g.atCapacity}>
+                                                    {g.name}{g.capacity ? ` (${g.vehicleCount ?? 0}/${g.capacity} vagas)` : ''}
+                                                    {g.atCapacity ? ' 🚨 LOTADA' : g.nearCapacity ? ' ⚠️' : ''}
+                                                    {g.responsibleName ? ` — resp.: ${g.responsibleName}` : ''}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {garageFull && selectedGarage && (
+                                        <p className="text-xs text-red-400 flex items-center gap-1">
+                                            <AlertTriangle size={12} /> Garagem lotada ({selectedGarage.vehicleCount}/{selectedGarage.capacity} vagas) — alocação bloqueada.
+                                        </p>
+                                    )}
+                                    {garageNear && selectedGarage && (
+                                        <p className="text-xs text-amber-400 flex items-center gap-1">
+                                            <AlertTriangle size={12} /> Atenção: {selectedGarage.occupancyRate}% da capacidade ({selectedGarage.vehicleCount}/{selectedGarage.capacity} vagas).
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Motivo da Garagem</Label>
+                                    <Select
+                                        value={formData.garagePurpose}
+                                        onValueChange={(v) => setFormData(f => ({ ...f, garagePurpose: v }))}
+                                        disabled={!formData.garageId}
+                                    >
+                                        <SelectTrigger className="bg-seguranca-black border-gray-600">
+                                            <SelectValue placeholder={formData.garageId ? 'Selecione o motivo' : 'Selecione uma garagem primeiro'} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="MANUTENCAO">Manutenção</SelectItem>
+                                            <SelectItem value="LIMPEZA">Limpeza</SelectItem>
+                                            <SelectItem value="OPERACAO">Operação / Recolhimento</SelectItem>
+                                            <SelectItem value="OUTROS">Outros</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-gray-500">O veículo será realocado para a garagem escolhida.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Odômetro (KM) *</Label>

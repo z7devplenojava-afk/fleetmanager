@@ -18,6 +18,7 @@ import {
 import { PurchaseRequestFormModal } from '@/components/compras/PurchaseRequestFormModal';
 import { PurchaseRequestViewModal } from '@/components/compras/PurchaseRequestViewModal';
 import { SupplierFormModal } from '@/components/estoque/SupplierFormModal';
+import { SupplierImportModal } from '@/components/compras/SupplierImportModal';
 import { contasAPagarService, Supplier, CreateSupplierRequest } from '@/services/contasAPagarService';
 import { 
   Plus, 
@@ -38,7 +39,9 @@ import {
   Building2,
   ToggleLeft,
   ToggleRight,
-  FileDown
+  FileDown,
+  Upload,
+  Database
 } from 'lucide-react';
 import { MainLayout } from '@/components/MainLayout';
 import { PurchaseRequestReportModal } from '@/components/compras/PurchaseRequestReportModal';
@@ -132,6 +135,7 @@ export default function Compras() {
   const [filteredSuppliers, setFilteredSuppliers] = useState<Supplier[]>([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+  const [isSupplierImportModalOpen, setIsSupplierImportModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [supplierSearchTerm, setSupplierSearchTerm] = useState('');
   
@@ -578,18 +582,8 @@ export default function Compras() {
   };
 
   return (
-    <MainLayout title="Gestão de Compras" subtitle="Controle de solicitações e processos de compra">
+    <MainLayout title="Gestão de Compras" subtitle="Controle completo de solicitações e processos de compra">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Gestão de Compras</h1>
-            <p className="text-muted-foreground">
-              Controle completo de solicitações e processos de compra
-            </p>
-          </div>
-        </div>
-
         {/* Tabs principais */}
         <Tabs value={activeMainTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-seguranca-graphite border-gray-600">
@@ -946,10 +940,20 @@ export default function Compras() {
                   Cadastro e gerenciamento de fornecedores
                 </p>
               </div>
-              <Button onClick={handleCreateSupplier} className="bg-seguranca-red hover:bg-seguranca-darkred">
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Fornecedor
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsSupplierImportModalOpen(true)}
+                  className="border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 font-semibold"
+                >
+                  <Upload className="w-4 h-4 mr-2 text-amber-400" />
+                  Importar (PDF / Excel)
+                </Button>
+                <Button onClick={handleCreateSupplier} className="bg-seguranca-red hover:bg-seguranca-darkred">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Novo Fornecedor
+                </Button>
+              </div>
             </div>
 
             {/* Filtros Fornecedores */}
@@ -1093,6 +1097,13 @@ export default function Compras() {
           onClose={handleCloseSupplierModal}
           supplier={editingSupplier}
           onSave={handleSaveSupplier}
+        />
+
+        {/* Modal de Importação de Fornecedores (PDF / Excel) */}
+        <SupplierImportModal
+          isOpen={isSupplierImportModalOpen}
+          onClose={() => setIsSupplierImportModalOpen(false)}
+          onSuccess={loadSuppliers}
         />
 
         {/* Modal de Relatório */}

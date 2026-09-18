@@ -497,6 +497,56 @@ class FleetService {
 
     return response.data;
   }
+
+  // QR Code do Veículo
+  async getVehicleQRCodeData(vehicleId: string): Promise<VehicleQRCodeData> {
+    const response = await api.get(`/api/vehicles/${vehicleId}/qrcode`);
+    return response.data;
+  }
+
+  getVehicleQRCodeImageUrl(vehicleId: string, width = 350, height = 350): string {
+    return `/api/vehicles/${vehicleId}/qrcode/image?width=${width}&height=${height}`;
+  }
+}
+
+export interface VehicleQRCodeData {
+  vehicleId: string;
+  plate: string;
+  model: string;
+  brand: string;
+  year: number;
+  color?: string;
+  fuelType?: string;
+  currentMileage?: number;
+  status: string;
+
+  garageId?: string;
+  garageName?: string;
+  garageAddress?: string;
+
+  clientId?: string;
+  clientName?: string;
+  clientCnpj?: string;
+
+  workPostId?: string;
+  workPostName?: string;
+  workPostCode?: string;
+
+  driverId?: string;
+  driverName?: string;
+  driverCpf?: string;
+  driverLicenseNumber?: string;
+
+  lastWorkOrderId?: string;
+  lastWorkOrderNumber?: string;
+  lastWorkOrderDate?: string;
+  lastWorkOrderStatus?: string;
+  lastWorkOrderType?: string;
+  lastWorkOrderCost?: number;
+  lastWorkOrderDescription?: string;
+
+  qrCodeTextPayload?: string;
+  qrCodeGeneratedAt?: string;
 }
 
 export const fleetService = new FleetService();

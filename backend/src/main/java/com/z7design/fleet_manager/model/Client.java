@@ -18,7 +18,9 @@ import org.hibernate.annotations.Filter;
 import java.util.UUID;
 
 @Entity
-@Table(name = "clients")
+@Table(name = "clients", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_clients_cnpj_company", columnNames = { "cnpj", "company_id" })
+})
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 @Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class Client implements TenantAware {
@@ -27,14 +29,14 @@ public class Client implements TenantAware {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @NotBlank(message = "Nome Ã© obrigatÃ³rio")
-    @Size(max = 255, message = "Nome deve ter no mÃ¡ximo 255 caracteres")
+    @NotBlank(message = "Nome é obrigatório")
+    @Size(max = 255, message = "Nome deve ter no máximo 255 caracteres")
     @Column(name = "name", nullable = false)
     private String name;
 
-    @NotBlank(message = "CNPJ Ã© obrigatÃ³rio")
+    @NotBlank(message = "CNPJ é obrigatório")
     @Size(min = 11, max = 18, message = "CNPJ deve ter entre 11 e 18 caracteres")
-    @Column(name = "cnpj", nullable = false, unique = true)
+    @Column(name = "cnpj", nullable = false)
     private String cnpj;
 
     @Column(name = "email")

@@ -4,6 +4,7 @@ import com.z7design.fleet_manager.dto.TransportMobilizationDTO;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.model.Client;
 import com.z7design.fleet_manager.model.Driver;
+import com.z7design.fleet_manager.model.Garage;
 import com.z7design.fleet_manager.model.TransportMobilization;
 import com.z7design.fleet_manager.model.Vehicle;
 import com.z7design.fleet_manager.model.WorkPost;
@@ -40,6 +41,8 @@ public class TransportMobilizationService {
     private final DriverRepository driverRepository;
     private final ClientRepository clientRepository;
     private final WorkPostRepository workPostRepository;
+    private final GarageService garageService;
+    private final com.z7design.fleet_manager.repository.GarageRepository garageRepository;
 
     private static final String UPLOAD_DIR = "uploads/transport-mobilizations/odometer-photos/";
     private static final String VEHICLE_PHOTOS_DIR = "uploads/vehicles/";
@@ -91,6 +94,23 @@ public class TransportMobilizationService {
             if (workPost != null) workPostName = workPost.getName();
         }
 
+        // Garagem de destino da mobilização (ex.: garagem de manutenção/limpeza).
+        // Quando informada, o veículo é realocado para a garagem escolhida —
+        // bloqueado quando a garagem de destino está lotada.
+        Garage garage = null;
+        if (dto.getGarageId() != null) {
+            garage = garageRepository.findById(dto.getGarageId()).orElse(null);
+        } else if (dto.getGarageName() != null && !dto.getGarageName().isBlank()) {
+            garage = garageService.getOrCreateByName(dto.getGarageName(), dto.getCompanyId());
+        }
+        if (garage != null) {
+            // O próprio veículo não conta na lotação (está saindo da origem)
+            garageService.validateHasCapacity(garage, vehicle.getId());
+            vehicle.setGarageId(garage.getId());
+            vehicle.setGarageName(garage.getName());
+            vehicleRepository.save(vehicle);
+        }
+
         String jsonData = dto.getJsonData();
         if (jsonData == null && dto.getChecklistData() != null) {
             jsonData = dto.getChecklistData();
@@ -108,6 +128,8 @@ public class TransportMobilizationService {
                 .clientName(clientName)
                 .workPost(workPost)
                 .workPostName(workPostName)
+                .garage(garage)
+                .garagePurpose(dto.getGaragePurpose())
                 .type(dto.getType())
                 .occurredAt(dto.getOccurredAt() != null ? dto.getOccurredAt() : LocalDateTime.now())
                 .kmReading(dto.getKmReading())
@@ -157,6 +179,21 @@ public class TransportMobilizationService {
             entity.setWorkPost(workPost);
             entity.setWorkPostName(workPost != null ? workPost.getName() : null);
         }
+        if (dto.getGarageId() != null) {
+            Garage garage = garageRepository.findById(dto.getGarageId()).orElse(null);
+            if (garage != null && entity.getVehicle() != null
+                    && !garage.getId().equals(entity.getVehicle().getGarageId())) {
+                // Bloqueia mudança para garagem lotada (mesma garagem é permitida)
+                garageService.validateHasCapacity(garage, entity.getVehicle().getId());
+            }
+            entity.setGarage(garage);
+            entity.setGaragePurpose(dto.getGaragePurpose());
+            if (garage != null && entity.getVehicle() != null) {
+                entity.getVehicle().setGarageId(garage.getId());
+                entity.getVehicle().setGarageName(garage.getName());
+                vehicleRepository.save(entity.getVehicle());
+            }
+        }
 
         if (dto.getType() != null)
             entity.setType(dto.getType());
@@ -204,6 +241,9 @@ public class TransportMobilizationService {
                 .clientName(entity.getClientName())
                 .workPostId(entity.getWorkPost() != null ? entity.getWorkPost().getId() : null)
                 .workPostName(entity.getWorkPostName())
+                .garageId(entity.getGarage() != null ? entity.getGarage().getId() : null)
+                .garageName(entity.getGarage() != null ? entity.getGarage().getName() : null)
+                .garagePurpose(entity.getGaragePurpose())
                 .type(entity.getType())
                 .occurredAt(entity.getOccurredAt())
                 .kmReading(entity.getKmReading())

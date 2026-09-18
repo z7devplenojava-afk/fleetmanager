@@ -4,6 +4,7 @@ import { useToast } from '@/components/ui/use-toast';
 import api from '@/lib/axios';
 import { User, AuthContextType, UserGroupData, UserRole, EmpresaInfo } from '@/types/user';
 import { generatePermissions, generatePermissionsFromGroups, combinePermissions } from '@/utils/permissions';
+import { getDashboardRouteForRole } from '@/utils/roleRouting';
 import { groupService } from '@/services/groupService';
 import { companyService } from '@/services/companyService';
 import { getApiUrl } from '@/config/environment';
@@ -378,7 +379,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       // Definir para onde navegar
-      let destination = '/dashboard';
+      let destination = getDashboardRouteForRole(userRole);
       if (requiresPasswordChange || !firstAccessCompleted) {
         destination = '/first-access/change-password';
       } else if (requires2FA) {

@@ -25,6 +25,9 @@ public interface WorkPostRepository extends JpaRepository<WorkPost, java.util.UU
     // Buscar por status
     List<WorkPost> findByStatus(WorkPostStatus status);
     Page<WorkPost> findByStatus(WorkPostStatus status, Pageable pageable);
+
+    @Query("SELECT wp FROM WorkPost wp WHERE wp.client.companyId = :companyId")
+    List<WorkPost> findByCompanyId(@Param("companyId") UUID companyId);
     
     // Buscar por tipo
     List<WorkPost> findByType(WorkPostType type);

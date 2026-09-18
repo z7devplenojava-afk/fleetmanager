@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Filter, FileText, Calendar, DollarSign, Building2, User, AlertTriangle, Eye, Edit, Trash, FileDown } from 'lucide-react';
+import { Plus, Search, Filter, FileText, Calendar, DollarSign, Building2, User, AlertTriangle, Eye, Edit, Trash, FileDown, Sparkles, Package, Wrench, Car, Clock } from 'lucide-react';
 import { Quotation, QuotationStatus, quotationService } from '@/services/quotationService';
 import { purchaseRequestService, PurchaseRequest } from '@/services/purchaseRequestService';
+import { materialRequisitionService, MaterialRequisition } from '@/services/materialRequisitionService';
+import { TripleQuoteComparisonModal } from '@/components/almoxarifado/TripleQuoteComparisonModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import QuotationFormModal from '@/components/QuotationFormModal';
@@ -17,6 +19,10 @@ import { PurchaseRequestViewModal } from '@/components/compras/PurchaseRequestVi
 import { QuotationReportModal } from '@/components/compras/QuotationReportModal';
 import { QuotationReportViewModal } from '@/components/compras/QuotationReportViewModal';
 import { quotationReportGenerator, QuotationReportFilters } from '@/utils/quotationReportGenerator';
+import { QuotationBudgetUploadModal } from '@/components/compras/QuotationBudgetUploadModal';
+import { ParsedBudgetData } from '@/utils/quotationBudgetParser';
+import { PurchaseOrdersFinancialManager } from '@/components/financeiro/PurchaseOrdersFinancialManager';
+import { CreditCard, ShoppingCart } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +43,13 @@ interface QuotationFilters {
 }
 
 const CotacoesCompras: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'requisitions' | 'quotations' | 'orders'>('requisitions');
+  const [requisitions, setRequisitions] = useState<MaterialRequisition[]>([]);
+  const [filteredRequisitions, setFilteredRequisitions] = useState<MaterialRequisition[]>([]);
+  const [selectedRequisitionForQuotes, setSelectedRequisitionForQuotes] = useState<MaterialRequisition | null>(null);
+  const [isTripleQuoteModalOpen, setIsTripleQuoteModalOpen] = useState(false);
+  const [loadingRequisitions, setLoadingRequisitions] = useState(true);
+
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [filteredQuotations, setFilteredQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +66,8 @@ const CotacoesCompras: React.FC = () => {
   const [isReportViewModalOpen, setIsReportViewModalOpen] = useState(false);
   const [reportPdfBlob, setReportPdfBlob] = useState<Blob | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isBudgetUploadModalOpen, setIsBudgetUploadModalOpen] = useState(false);
+  const [parsedBudgetData, setParsedBudgetData] = useState<ParsedBudgetData | null>(null);
   const { toast } = useToast();
   const [filters, setFilters] = useState<QuotationFilters>({
     status: 'ALL',
@@ -130,11 +145,27 @@ const CotacoesCompras: React.FC = () => {
 
   useEffect(() => {
     loadQuotations();
+    loadRequisitions();
   }, []);
 
   useEffect(() => {
     applyFilters();
-  }, [quotations, searchTerm, filters]);
+  }, [quotations, requisitions, searchTerm, filters]);
+
+  const loadRequisitions = async () => {
+    try {
+      setLoadingRequisitions(true);
+      const data = await materialRequisitionService.listRequisitions();
+      setRequisitions(data || []);
+      setFilteredRequisitions(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar requisições de material:', error);
+      setRequisitions([]);
+      setFilteredRequisitions([]);
+    } finally {
+      setLoadingRequisitions(false);
+    }
+  };
 
   const loadQuotations = async () => {
     try {
@@ -159,23 +190,11 @@ const CotacoesCompras: React.FC = () => {
           updatedAt: q.updatedAt || new Date().toISOString(),
           status: q.status || 'DRAFT'
         };
-        
-        // Log para debug
-        if (mapped.purchaseRequestId || mapped.assignedToId) {
-          console.log('🔍 Cotação carregada com relacionamentos:', {
-            quoteNumber: mapped.quoteNumber,
-            purchaseRequestId: mapped.purchaseRequestId,
-            assignedToId: mapped.assignedToId,
-            rawData: q
-          });
-        }
-        
         return mapped;
       });
       setQuotations(mappedData);
     } catch (error) {
       console.error('Erro ao carregar cotações:', error);
-      // Fallback para array vazio em caso de erro
       setQuotations([]);
     } finally {
       setLoading(false);
@@ -183,38 +202,72 @@ const CotacoesCompras: React.FC = () => {
   };
 
   const applyFilters = () => {
-    let filtered = quotations;
-
-    // Search filter
+    // Filtrar Cotações
+    let filteredQ = quotations;
     if (searchTerm) {
-      filtered = filtered.filter(quotation =>
+      filteredQ = filteredQ.filter(quotation =>
         quotation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         quotation.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
         quotation.supplierName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         quotation.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
-    // Status filter
     if (filters.status !== 'ALL') {
-      filtered = filtered.filter(quotation => quotation.status === filters.status);
+      filteredQ = filteredQ.filter(quotation => quotation.status === filters.status);
     }
-
-    // Supplier filter
     if (filters.supplier) {
-      filtered = filtered.filter(quotation => 
+      filteredQ = filteredQ.filter(quotation => 
         quotation.supplierName?.toLowerCase().includes(filters.supplier.toLowerCase())
       );
     }
-
-    // Assigned to filter
     if (filters.assignedTo) {
-      filtered = filtered.filter(quotation => 
+      filteredQ = filteredQ.filter(quotation => 
         quotation.assignedToName?.toLowerCase().includes(filters.assignedTo.toLowerCase())
       );
     }
+    setFilteredQuotations(filteredQ);
 
-    setFilteredQuotations(filtered);
+    // Filtrar Requisições
+    let filteredR = requisitions;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filteredR = filteredR.filter(req =>
+        req.requisitionNumber?.toLowerCase().includes(term) ||
+        req.itemName?.toLowerCase().includes(term) ||
+        req.itemCode?.toLowerCase().includes(term) ||
+        req.workOrderNumber?.toLowerCase().includes(term) ||
+        req.vehiclePlate?.toLowerCase().includes(term) ||
+        req.vehicleModel?.toLowerCase().includes(term) ||
+        req.requesterName?.toLowerCase().includes(term) ||
+        req.justification?.toLowerCase().includes(term)
+      );
+    }
+    setFilteredRequisitions(filteredR);
+  };
+
+  const getRequisitionStatusBadge = (status: string) => {
+    switch (status) {
+      case 'WAITING_QUOTES':
+        return <Badge className="bg-amber-600 text-white font-medium">Aguardando 3 Cotações</Badge>;
+      case 'QUOTES_RECEIVED':
+        return <Badge className="bg-blue-600 text-white font-medium">Cotações Recebidas</Badge>;
+      case 'APPROVED_BY_MANAGER':
+        return <Badge className="bg-emerald-600 text-white font-medium">Aprovado p/ Gestor</Badge>;
+      case 'OC_GENERATED':
+        return <Badge className="bg-purple-600 text-white font-medium">OC Gerada</Badge>;
+      case 'WAITING_DELIVERY':
+        return <Badge className="bg-cyan-600 text-white font-medium">Aguardando Entrega</Badge>;
+      case 'AVAILABLE_FOR_INSTALLATION':
+        return <Badge className="bg-emerald-700 text-white font-medium">Disponível p/ Instalação</Badge>;
+      case 'INSTALLED_COMPLETED':
+        return <Badge className="bg-zinc-600 text-white font-medium">Instalado / Concluído</Badge>;
+      case 'RESERVED_STOCK':
+        return <Badge className="bg-indigo-600 text-white font-medium">Reservado no Estoque</Badge>;
+      case 'REJECTED':
+        return <Badge variant="destructive">Rejeitado</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
   };
 
   const getStatusBadge = (status: QuotationStatus) => {
@@ -268,6 +321,11 @@ const CotacoesCompras: React.FC = () => {
     setIsViewModalOpen(true);
   };
 
+  const handleOpenTripleQuotes = (req: MaterialRequisition) => {
+    setSelectedRequisitionForQuotes(req);
+    setIsTripleQuoteModalOpen(true);
+  };
+
   const handleAskDeleteQuotation = (quotation: Quotation) => {
     setDeleteTarget(quotation);
     setIsDeleteDialogOpen(true);
@@ -298,26 +356,17 @@ const CotacoesCompras: React.FC = () => {
     }
   };
 
+  const handleApplyBudgetToNewQuote = (data: ParsedBudgetData) => {
+    setParsedBudgetData(data);
+    setSelectedQuotation(null);
+    setShowModal(true);
+  };
+
   const handleModalClose = () => {
     setShowModal(false);
     setSelectedQuotation(null);
-    loadQuotations(); // Reload data after modal closes
-  };
-
-  const getUniqueSuppliers = () => {
-    const suppliers = quotations
-      .map(q => q.supplierName)
-      .filter((name, index, arr) => name && arr.indexOf(name) === index)
-      .sort();
-    return suppliers;
-  };
-
-  const getUniqueAssignees = () => {
-    const assignees = quotations
-      .map(q => q.assignedToName)
-      .filter((name, index, arr) => name && arr.indexOf(name) === index)
-      .sort();
-    return assignees;
+    setParsedBudgetData(null);
+    loadQuotations();
   };
 
   const handleGenerateReport = async (reportFilters: QuotationReportFilters) => {
@@ -343,120 +392,196 @@ const CotacoesCompras: React.FC = () => {
     }
   };
 
+  const pendingQuotesCount = requisitions.filter(
+    r => r.status === 'WAITING_QUOTES' || r.status === 'QUOTES_RECEIVED'
+  ).length;
+
   return (
     <StandardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Cotações de Compras</h1>
-            <p className="text-muted-foreground">
-              Gerencie cotações de fornecedores para solicitações de compra
+            <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
+              <Sparkles className="w-8 h-8 text-amber-400" />
+              Cotações de Compras & Requisições
+            </h1>
+            <p className="text-zinc-400 text-sm mt-1">
+              Gerencie as 3 cotações obrigatórias de peças e cotações gerais de fornecedores com rastreabilidade de OS, Solicitante e Justificativa.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsBudgetUploadModalOpen(true)}
+              className="border-blue-500/50 bg-blue-900/30 text-blue-200 hover:bg-blue-800/60 hover:text-white font-semibold"
+            >
+              <Sparkles className="mr-2 h-4 w-4 text-blue-400 animate-pulse" />
+              Analisar Orçamento Fornecedor
+            </Button>
             <Button
               variant="outline"
               onClick={() => setIsReportModalOpen(true)}
+              className="border-zinc-700 bg-zinc-800/80 text-zinc-200 hover:bg-zinc-700"
             >
               <FileDown className="mr-2 h-4 w-4" />
-              Gerar Relatório PDF
+              Relatório PDF
             </Button>
-            <Button onClick={handleCreateQuotation}>
+            <Button
+              onClick={handleCreateQuotation}
+              className="bg-amber-600 hover:bg-amber-500 text-white font-semibold"
+            >
               <Plus className="mr-2 h-4 w-4" />
-              Nova Cotação
+              Nova Cotação Geral
             </Button>
           </div>
         </div>
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Cotações</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-zinc-400">Requisições Pendentes Cotação</CardTitle>
+              <Package className="h-4 w-4 text-amber-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-400">{pendingQuotesCount}</div>
+              <p className="text-xs text-zinc-500 mt-1">Aguardando cotação de peças</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-zinc-400">Total Cotações Cadastradas</CardTitle>
+              <FileText className="h-4 w-4 text-zinc-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{quotations.length}</div>
+              <p className="text-xs text-zinc-500 mt-1">Cotações diretas de fornecedores</p>
             </CardContent>
           </Card>
-          <Card>
+
+          <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Aguardando Resposta</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-zinc-400">Cotações Aprovadas</CardTitle>
+              <DollarSign className="h-4 w-4 text-emerald-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {quotations.filter(q => q.status === 'SENT').length}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Aprovadas</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-emerald-400">
                 {quotations.filter(q => q.status === 'APPROVED').length}
               </div>
+              <p className="text-xs text-zinc-500 mt-1">Ordens de compra autorizadas</p>
             </CardContent>
           </Card>
-          <Card>
+
+          <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Expirando em Breve</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-zinc-400">Emergências na Frota</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-red-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {quotations.filter(q => isExpiringSoon(q.validUntil)).length}
+              <div className="text-2xl font-bold text-red-400">
+                {requisitions.filter(r => r.urgency === 'EMERGENCIA' && r.status !== 'INSTALLED_COMPLETED').length}
               </div>
+              <p className="text-xs text-zinc-500 mt-1">Veículos parados aguardando peça</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Filtros</CardTitle>
+        {/* Tab Selector */}
+        <div className="flex border-b border-zinc-800 space-x-2">
+          <button
+            onClick={() => setActiveTab('requisitions')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all ${
+              activeTab === 'requisitions'
+                ? 'border-amber-500 text-amber-400 bg-amber-500/10 rounded-t-lg'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+            }`}
+          >
+            <Package className="w-4 h-4" />
+            Requisições de Peças & OS (3 Cotações)
+            {pendingQuotesCount > 0 && (
+              <Badge className="ml-1.5 bg-amber-500 text-zinc-950 font-bold px-1.5 py-0.2 text-[11px]">
+                {pendingQuotesCount}
+              </Badge>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('quotations')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all ${
+              activeTab === 'quotations'
+                ? 'border-amber-500 text-amber-400 bg-amber-500/10 rounded-t-lg'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Cotações de Fornecedores Cadastradas ({quotations.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all ${
+              activeTab === 'orders'
+                ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10 rounded-t-lg'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+            }`}
+          >
+            <CreditCard className="w-4 h-4 text-emerald-400" />
+            Ordens de Compra & Programação Financeira
+          </button>
+        </div>
+
+        {/* Filter Bar (Only on Requisitions and Quotations tabs) */}
+        {activeTab !== 'orders' && (
+        <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm font-medium text-zinc-300">Pesquisa & Filtros Rápidos</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <CardContent className="py-2">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
                 <Input
-                  placeholder="Buscar cotações..."
+                  placeholder={
+                    activeTab === 'requisitions'
+                      ? "Buscar por Item, OS, Placa, Solicitante ou Motivo..."
+                      : "Buscar cotações por título, fornecedor..."
+                  }
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
+                  className="pl-9 bg-zinc-950 border-zinc-700 text-zinc-100"
                 />
               </div>
-              <Select
-                value={filters.status}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value as QuotationStatus | 'ALL' }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Todos os Status</SelectItem>
-                  <SelectItem value="DRAFT">Rascunho</SelectItem>
-                  <SelectItem value="SENT">Enviada</SelectItem>
-                  <SelectItem value="APPROVED">Aprovada</SelectItem>
-                  <SelectItem value="REJECTED">Rejeitada</SelectItem>
-                  <SelectItem value="EXPIRED">Expirada</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                placeholder="Fornecedor..."
-                value={filters.supplier}
-                onChange={(e) => setFilters(prev => ({ ...prev, supplier: e.target.value }))}
-              />
-              <Input
-                placeholder="Responsável..."
-                value={filters.assignedTo}
-                onChange={(e) => setFilters(prev => ({ ...prev, assignedTo: e.target.value }))}
-              />
+
+              {activeTab === 'quotations' && (
+                <Select
+                  value={filters.status}
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, status: value as QuotationStatus | 'ALL' }))}
+                >
+                  <SelectTrigger className="bg-zinc-950 border-zinc-700 text-zinc-100">
+                    <SelectValue placeholder="Status da Cotação" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                    <SelectItem value="ALL">Todos os Status</SelectItem>
+                    <SelectItem value="DRAFT">Rascunho</SelectItem>
+                    <SelectItem value="SENT">Enviada</SelectItem>
+                    <SelectItem value="APPROVED">Aprovada</SelectItem>
+                    <SelectItem value="REJECTED">Rejeitada</SelectItem>
+                    <SelectItem value="EXPIRED">Expirada</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+
+              {activeTab === 'quotations' && (
+                <Input
+                  placeholder="Fornecedor..."
+                  value={filters.supplier}
+                  onChange={(e) => setFilters(prev => ({ ...prev, supplier: e.target.value }))}
+                  className="bg-zinc-950 border-zinc-700 text-zinc-100"
+                />
+              )}
+
               <Button
                 variant="outline"
                 onClick={() => {
@@ -468,6 +593,7 @@ const CotacoesCompras: React.FC = () => {
                     dateRange: ''
                   });
                 }}
+                className="border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
               >
                 <Filter className="mr-2 h-4 w-4" />
                 Limpar Filtros
@@ -475,129 +601,319 @@ const CotacoesCompras: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        {/* Quotations Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Lista de Cotações</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex justify-center items-center h-32">
-                <div className="text-muted-foreground">Carregando cotações...</div>
+        {/* TAB 1: REQUISIÇÕES DE PEÇAS & OS (3 COTAÇÕES OBRIGATÓRIAS) */}
+        {activeTab === 'requisitions' && (
+          <Card className="bg-zinc-900 border-zinc-800 text-zinc-100 shadow-xl">
+            <CardHeader className="border-b border-zinc-800/80 pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+                    <Package className="w-5 h-5 text-amber-400" />
+                    Requisições de Peças com Rastreabilidade Completa
+                  </CardTitle>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Cada item informa o solicitante (quem), motivo/justificativa (por quê), veículo e OS de destino para o processo de 3 cotações.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={loadRequisitions}
+                  className="border-zinc-700 bg-zinc-800 text-xs text-zinc-300"
+                >
+                  Atualizar Lista
+                </Button>
               </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Número</TableHead>
-                    <TableHead>Título</TableHead>
-                    <TableHead>Fornecedor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Valor Total</TableHead>
-                    <TableHead>Válida Até</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredQuotations.map((quotation) => (
-                    <TableRow key={quotation.id} className="cursor-pointer hover:bg-muted/50">
-                      <TableCell className="font-medium">{quotation.quoteNumber}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{quotation.title}</div>
-                          {quotation.description && (
-                            <div className="text-sm text-muted-foreground truncate max-w-xs">
-                              {quotation.description}
+            </CardHeader>
+            <CardContent className="p-0">
+              {loadingRequisitions ? (
+                <div className="flex justify-center items-center h-40">
+                  <div className="text-zinc-400 text-sm">Carregando requisições de compra...</div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-zinc-950/60 border-b border-zinc-800">
+                      <TableRow className="border-zinc-800 hover:bg-transparent">
+                        <TableHead className="text-zinc-400 font-semibold text-xs">Nº Req & Data</TableHead>
+                        <TableHead className="text-zinc-400 font-semibold text-xs">Item & Quantidade Solicitada</TableHead>
+                        <TableHead className="text-zinc-400 font-semibold text-xs">OS & Veículo</TableHead>
+                        <TableHead className="text-zinc-400 font-semibold text-xs">Solicitado Por (Quem)</TableHead>
+                        <TableHead className="text-zinc-400 font-semibold text-xs max-w-xs">Motivo / Justificativa (Por quê)</TableHead>
+                        <TableHead className="text-zinc-400 font-semibold text-xs">Prioridade</TableHead>
+                        <TableHead className="text-zinc-400 font-semibold text-xs">Status da Cotação</TableHead>
+                        <TableHead className="text-zinc-400 font-semibold text-xs text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredRequisitions.map((req) => (
+                        <TableRow
+                          key={req.id}
+                          className="border-zinc-800/80 hover:bg-zinc-800/50 transition-colors"
+                        >
+                          <TableCell className="font-mono text-xs">
+                            <span className="font-bold text-amber-300 block">{req.requisitionNumber}</span>
+                            <span className="text-[11px] text-zinc-400">
+                              {req.createdAt ? new Date(req.createdAt).toLocaleDateString('pt-BR') : '-'}
+                            </span>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="space-y-0.5">
+                              <span className="font-semibold text-zinc-100 text-sm block">
+                                {req.itemName}
+                              </span>
+                              <div className="flex items-center gap-2 text-xs text-amber-400 font-mono">
+                                <span>Qtd: {req.quantity} {req.unit || 'un'}</span>
+                                {req.itemCode && (
+                                  <span className="text-zinc-400 text-[11px]">| Cód: {req.itemCode}</span>
+                                )}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
-                          {quotation.supplierName || 'Não informado'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getStatusBadge(quotation.status)}
-                          {isExpiringSoon(quotation.validUntil) && (
-                            <AlertTriangle className="h-4 w-4 text-orange-500" title="Expira em breve" />
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(quotation.totalValue)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                          {formatDate(quotation.validUntil)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <User className="mr-2 h-4 w-4 text-muted-foreground" />
-                          {quotation.assignedToName || 'Não atribuído'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleViewQuotation(quotation)}
-                            title="Visualizar"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditQuotation(quotation)}
-                            title="Editar"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleAskDeleteQuotation(quotation)}
-                            title="Excluir"
-                          >
-                            <Trash className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {filteredQuotations.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
-                        <div className="text-muted-foreground">
-                          {searchTerm || filters.status !== 'ALL' || filters.supplier || filters.assignedTo
-                            ? 'Nenhuma cotação encontrada com os filtros aplicados.'
-                            : 'Nenhuma cotação cadastrada ainda.'}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="space-y-0.5 text-xs">
+                              {req.workOrderNumber ? (
+                                <span className="font-semibold text-zinc-200 block">
+                                  🔧 OS: {req.workOrderNumber}
+                                </span>
+                              ) : (
+                                <span className="text-zinc-500 block">Sem OS</span>
+                              )}
+                              {req.vehiclePlate && (
+                                <span className="text-zinc-300 font-mono text-[11px] block">
+                                  🚗 {req.vehiclePlate} {req.vehicleModel ? `(${req.vehicleModel})` : ''}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="text-xs">
+                              <span className="font-medium text-zinc-200 block">
+                                👤 {req.requesterName || 'Mecânico / Solicitante'}
+                              </span>
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="max-w-xs">
+                            <p className="text-xs text-zinc-300 italic line-clamp-2" title={req.justification}>
+                              "{req.justification || 'Solicitação de compra de peça para manutenção.'}"
+                            </p>
+                          </TableCell>
+
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                req.urgency === 'EMERGENCIA'
+                                  ? 'border-red-500 text-red-400 bg-red-950/40 text-[11px] font-bold'
+                                  : 'border-zinc-700 text-zinc-300 bg-zinc-800/60 text-[11px]'
+                              }
+                            >
+                              {req.urgency === 'EMERGENCIA' ? '🚨 Emergência' : '🟢 Normal'}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell>
+                            {getRequisitionStatusBadge(req.status)}
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenTripleQuotes(req)}
+                              className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow-md gap-1.5"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              Lançar / Analisar 3 Cotações
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+
+                      {filteredRequisitions.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-10">
+                            <div className="text-zinc-400 text-sm">
+                              {searchTerm
+                                ? 'Nenhuma requisição encontrada com os filtros aplicados.'
+                                : 'Nenhuma requisição de compra cadastrada no momento.'}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* TAB 2: COTAÇÕES DE FORNECEDORES GERAIS */}
+        {activeTab === 'quotations' && (
+          <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold text-zinc-100">Lista de Cotações Cadastradas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="text-zinc-400">Carregando cotações...</div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-zinc-950/60 border-b border-zinc-800">
+                      <TableRow className="border-zinc-800">
+                        <TableHead className="text-zinc-400">Número</TableHead>
+                        <TableHead className="text-zinc-400">Título / Descrição</TableHead>
+                        <TableHead className="text-zinc-400">Fornecedor</TableHead>
+                        <TableHead className="text-zinc-400">Status</TableHead>
+                        <TableHead className="text-zinc-400">Valor Total</TableHead>
+                        <TableHead className="text-zinc-400">Válida Até</TableHead>
+                        <TableHead className="text-zinc-400">Responsável</TableHead>
+                        <TableHead className="text-zinc-400">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredQuotations.map((quotation) => (
+                        <TableRow key={quotation.id} className="border-zinc-800 hover:bg-zinc-800/50">
+                          <TableCell className="font-medium text-amber-300 font-mono text-xs">
+                            {quotation.quoteNumber}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium text-zinc-100">{quotation.title}</div>
+                              {quotation.description && (
+                                <div className="text-xs text-zinc-400 truncate max-w-xs">
+                                  {quotation.description}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center text-xs text-zinc-300">
+                              <Building2 className="mr-2 h-4 w-4 text-zinc-500" />
+                              {quotation.supplierName || 'Não informado'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getStatusBadge(quotation.status)}
+                              {isExpiringSoon(quotation.validUntil) && (
+                                <AlertTriangle className="h-4 w-4 text-orange-500" title="Expira em breve" />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-semibold text-emerald-400 font-mono text-xs">
+                            {formatCurrency(quotation.totalValue)}
+                          </TableCell>
+                          <TableCell className="text-xs text-zinc-300">
+                            <div className="flex items-center">
+                              <Calendar className="mr-2 h-3.5 w-3.5 text-zinc-500" />
+                              {formatDate(quotation.validUntil)}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-zinc-300">
+                            <div className="flex items-center">
+                              <User className="mr-2 h-3.5 w-3.5 text-zinc-500" />
+                              {quotation.assignedToName || 'Não atribuído'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleViewQuotation(quotation)}
+                                title="Visualizar"
+                                className="text-zinc-300 hover:text-white"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditQuotation(quotation)}
+                                title="Editar"
+                                className="text-zinc-300 hover:text-white"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleAskDeleteQuotation(quotation)}
+                                title="Excluir"
+                                className="text-red-400 hover:text-red-300"
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {filteredQuotations.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8">
+                            <div className="text-zinc-400">
+                              {searchTerm || filters.status !== 'ALL' || filters.supplier || filters.assignedTo
+                                ? 'Nenhuma cotação encontrada com os filtros aplicados.'
+                                : 'Nenhuma cotação cadastrada ainda.'}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* TAB 3: ORDENS DE COMPRA & PROGRAMAÇÃO FINANCEIRA */}
+        {activeTab === 'orders' && (
+          <PurchaseOrdersFinancialManager />
+        )}
       </div>
 
-      {/* Modal */}
+      {/* Modal de 3 Cotações Inteligentes */}
+      {isTripleQuoteModalOpen && selectedRequisitionForQuotes && (
+        <TripleQuoteComparisonModal
+          isOpen={isTripleQuoteModalOpen}
+          onClose={() => {
+            setIsTripleQuoteModalOpen(false);
+            setSelectedRequisitionForQuotes(null);
+          }}
+          requisition={selectedRequisitionForQuotes}
+          onApproved={() => {
+            loadRequisitions();
+            loadQuotations();
+          }}
+        />
+      )}
+
+      {/* Modal de Criação / Edição de Cotação */}
       {showModal && (
         <QuotationFormModal
           quotation={selectedQuotation}
+          initialParsedBudget={parsedBudgetData}
           onClose={handleModalClose}
         />
       )}
+
+      {/* Modal de Análise e Upload de Orçamentos do Fornecedor */}
+      <QuotationBudgetUploadModal
+        isOpen={isBudgetUploadModalOpen}
+        onClose={() => setIsBudgetUploadModalOpen(false)}
+        onApplyParsedBudget={handleApplyBudgetToNewQuote}
+      />
 
       {/* Modal de Visualização */}
       <QuotationViewModal
@@ -622,21 +938,21 @@ const CotacoesCompras: React.FC = () => {
 
       {/* Diálogo de confirmação de exclusão */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="bg-seguranca-graphite text-white border-gray-700">
+        <AlertDialogContent className="bg-zinc-900 text-zinc-100 border-zinc-800">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl">Confirmar exclusão</AlertDialogTitle>
-            <AlertDialogDescription className="text-seguranca-lightgray">
+            <AlertDialogDescription className="text-zinc-400">
               {deleteTarget
                 ? `Deseja realmente excluir a cotação ${deleteTarget.quoteNumber}?`
                 : 'Deseja realmente excluir esta cotação?'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite">
+            <AlertDialogCancel className="bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              className="bg-red-600 text-white hover:bg-red-500"
               onClick={handleConfirmDelete}
             >
               Excluir

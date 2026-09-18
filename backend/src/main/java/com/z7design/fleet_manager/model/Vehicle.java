@@ -2,6 +2,8 @@ package com.z7design.fleet_manager.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -19,6 +21,8 @@ import com.z7design.fleet_manager.tenant.TenantEntityListener;
 @Table(name = "vehicles")
 @EntityListeners(TenantEntityListener.class)
 @Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Filter(name = "tenantFilter", condition = "company_id = :companyId")
@@ -76,6 +80,31 @@ public class Vehicle implements TenantAware {
 
     @Column(name = "garage_name")
     private String garageName;
+
+    /** Garagem (pátio/base) onde o veículo está recolhido — Gestão de Garagens. */
+    @Column(name = "garage_id")
+    private UUID garageId;
+
+    /** Entidade da garagem (leitura; gravado via garageId). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "garage_id", insertable = false, updatable = false)
+    private Garage garage;
+
+    public UUID getGarageId() {
+        return this.garageId;
+    }
+
+    public void setGarageId(UUID garageId) {
+        this.garageId = garageId;
+    }
+
+    public Garage getGarage() {
+        return this.garage;
+    }
+
+    public void setGarage(Garage garage) {
+        this.garage = garage;
+    }
 
     @Column(name = "operation_entry_date")
     @JsonFormat(pattern = "yyyy-MM-dd")

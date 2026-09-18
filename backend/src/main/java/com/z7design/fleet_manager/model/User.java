@@ -136,6 +136,14 @@ public class User implements UserDetails, TenantAware {
     @JsonIgnore
     private Company company;
 
+    @Column(name = "client_id")
+    private UUID clientId;
+
+    @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+    @JoinColumn(name = "client_id", insertable = false, updatable = false)
+    @JsonIgnore
+    private Client client;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
@@ -367,6 +375,38 @@ public class User implements UserDetails, TenantAware {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public UUID getCompanyId() {
+        return companyId;
+    }
+
+    public void setCompanyId(UUID companyId) {
+        this.companyId = companyId;
+    }
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
+    }
+
+    public UUID getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(UUID clientId) {
+        this.clientId = clientId;
+    }
+
+    public Client getClient() {
+        return client;
+    }
+
+    public void setClient(Client client) {
+        this.client = client;
     }
 
 }

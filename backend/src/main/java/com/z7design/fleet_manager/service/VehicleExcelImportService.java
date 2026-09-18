@@ -47,28 +47,20 @@ public class VehicleExcelImportService {
         try (InputStream is = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(is)) {
 
-            // 1. Pré-carregar todos os veículos existentes (incluindo deletados e outros tenants) para busca O(1) em memória
+            // 1. Pré-carregar veículos existentes da empresa atual para busca O(1) em memória
             Map<String, Vehicle> existingMap = new HashMap<>();
             try {
-                List<Vehicle> allVehicles = vehicleRepository.findAllRawIncludingDeletedAndTenants();
+                List<Vehicle> allVehicles = currentCompanyId != null
+                        ? vehicleRepository.findByCompanyId(currentCompanyId)
+                        : vehicleRepository.findAll();
                 for (Vehicle v : allVehicles) {
                     if (v.getPlate() != null && !v.getPlate().isBlank()) {
                         existingMap.put(cleanPlate(v.getPlate()), v);
                     }
                 }
-                log.info("Pré-carregados {} veículos existentes em memória (via query nativa).", existingMap.size());
+                log.info("Pré-carregados {} veículos da empresa [{}] em memória.", existingMap.size(), currentCompanyId);
             } catch (Exception e) {
-                log.warn("Falha ao pré-carregar via query nativa, tentando findAll(): {}", e.getMessage());
-                try {
-                    List<Vehicle> allVehicles = vehicleRepository.findAll();
-                    for (Vehicle v : allVehicles) {
-                        if (v.getPlate() != null && !v.getPlate().isBlank()) {
-                            existingMap.put(cleanPlate(v.getPlate()), v);
-                        }
-                    }
-                } catch (Exception ex) {
-                    log.warn("Não foi possível pré-carregar veículos: {}", ex.getMessage());
-                }
+                log.warn("Falha ao pré-carregar veículos da empresa: {}", e.getMessage());
             }
 
             Set<String> processedPlatesInFile = new HashSet<>();

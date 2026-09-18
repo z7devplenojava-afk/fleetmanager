@@ -18,4 +18,9 @@ public interface VehicleCleaningOrderRepository extends JpaRepository<VehicleCle
 
     List<VehicleCleaningOrder> findByVehicleIdAndStatusOrderByCreatedAtDesc(
             UUID vehicleId, VehicleCleaningOrder.CleaningStatus status);
+
+    List<VehicleCleaningOrder> findByStatusAndDelayAlertSentFalse(VehicleCleaningOrder.CleaningStatus status);
+
+    List<VehicleCleaningOrder> findByStatusAndDelayAlertSentFalseAndCompanyId(
+            VehicleCleaningOrder.CleaningStatus status, UUID companyId);
 }

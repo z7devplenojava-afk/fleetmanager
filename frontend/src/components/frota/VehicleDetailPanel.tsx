@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,12 +9,13 @@ import {
   AlertTriangle, Loader2, MapPin, Users, Calendar, DollarSign,
   Gauge, ClipboardList, CircleDot, Hash, Plus, Bus, DoorOpen,
   Wifi, Camera, Accessibility, Thermometer, Route, Settings,
-  CreditCard, UserCheck
+  CreditCard, UserCheck, QrCode
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
 import MaintenanceAlertWidget from '@/components/frota/MaintenanceAlertWidget';
+import VehicleQRCodeModal from '@/components/frota/VehicleQRCodeModal';
 import fleetService from '@/services/fleetService';
 import fleetWorkOrderService, { FleetWorkOrder, VehicleMaintenanceRanking } from '@/services/fleetWorkOrderService';
 import tireService, { Tire } from '@/services/tireService';
@@ -196,6 +198,7 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isOsFormOpen, setIsOsFormOpen] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<VehicleDetail | null>(null);
@@ -303,10 +306,20 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
     return <Badge className="bg-green-700">{label}: {days}d</Badge>;
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/70 z-[9999] overflow-y-auto">
+  return createPortal(
+    <div 
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div className="min-h-full flex items-start justify-center p-3 sm:p-6">
-        <div className="bg-seguranca-black border border-gray-600 rounded-xl w-full max-w-6xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
+        <div 
+          className="bg-seguranca-black border border-gray-600 rounded-xl w-full max-w-6xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl relative"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* ===== HEADER ===== */}
           <div className="flex items-center justify-between gap-4 p-5 border-b border-gray-600 bg-seguranca-graphite">
             <div className="flex items-center gap-3 min-w-0">
@@ -342,6 +355,15 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsQrModalOpen(true)}
+                className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow hover:text-seguranca-black h-9 font-medium"
+                title="Ver QR Code do veículo com Garagem, Cliente, Motorista e Histórico"
+              >
+                <QrCode className="mr-1.5 h-4 w-4" /> QR Code
+              </Button>
               <Button
                 size="sm"
                 onClick={() => {
@@ -1211,6 +1233,14 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
         </div>
       </div>
 
+      {/* ===== MODAL QR CODE DO VEÍCULO ===== */}
+      <VehicleQRCodeModal
+        vehicleId={veiculo.id}
+        plateFallback={merged.placa}
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+      />
+
       {/* ===== FORMULÁRIO NOVA OS (com veículo pré-selecionado) ===== */}
       <FleetWorkOrderForm
         isOpen={isOsFormOpen}
@@ -1222,7 +1252,8 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
         }}
         initialVehicleId={veiculo.id}
       />
-    </div>
+    </div>,
+    document.body
   );
 };
 

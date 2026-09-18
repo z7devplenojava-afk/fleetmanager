@@ -34,6 +34,16 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
 
     Optional<Vehicle> findByPlate(String plate);
 
+    @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL AND v.companyId = :companyId")
+    List<Vehicle> findByCompanyId(@Param("companyId") UUID companyId);
+
+    @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL AND v.companyId = :companyId AND UPPER(REPLACE(REPLACE(v.plate, '-', ''), ' ', '')) = UPPER(REPLACE(REPLACE(:plate, '-', ''), ' ', ''))")
+    Optional<Vehicle> findByPlateAndCompanyId(@Param("plate") String plate, @Param("companyId") UUID companyId);
+
+    /** Veículos alocados em uma garagem (nova referência garage_id). */
+    @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL AND v.garageId = :garageId ORDER BY v.plate")
+    List<Vehicle> findByGarageId(@Param("garageId") UUID garageId);
+
     List<Vehicle> findByStatus(Vehicle.VehicleStatus status);
 
     List<Vehicle> findByFuelType(Vehicle.FuelType fuelType);

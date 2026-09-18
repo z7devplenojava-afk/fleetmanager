@@ -26,6 +26,7 @@ export interface Vehicle {
   operationId?: string;
   operationName?: string;
   garageName?: string;
+  garageId?: string;
   operationEntryDate?: string;
   capacity: number;
   vehicleType?: VehicleType;

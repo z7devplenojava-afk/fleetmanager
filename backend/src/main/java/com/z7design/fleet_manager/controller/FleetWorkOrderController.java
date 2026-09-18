@@ -31,10 +31,11 @@ public class FleetWorkOrderController {
     private final FleetWorkOrderPdfService pdfService;
     private final AuthenticationService authenticationService;
 
-    /** Lista todas as OSs */
+    /** Lista todas as OSs (filtro opcional por garagem executora) */
     @GetMapping
-    public ResponseEntity<List<FleetWorkOrderDTO>> getAll() {
-        return ResponseEntity.ok(service.getAll());
+    public ResponseEntity<List<FleetWorkOrderDTO>> getAll(
+            @RequestParam(value = "garageId", required = false) UUID garageId) {
+        return ResponseEntity.ok(service.getAllByGarage(garageId));
     }
 
     /** Busca uma OS pelo ID */

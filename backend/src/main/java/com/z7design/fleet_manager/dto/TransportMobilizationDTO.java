@@ -24,6 +24,9 @@ public class TransportMobilizationDTO {
     private String clientName;
     private UUID workPostId;
     private String workPostName;
+    private UUID garageId;
+    private String garageName;
+    private String garagePurpose;
     private TransportMobilization.MobilizationType type;
     private LocalDateTime occurredAt;
     private Integer kmReading;

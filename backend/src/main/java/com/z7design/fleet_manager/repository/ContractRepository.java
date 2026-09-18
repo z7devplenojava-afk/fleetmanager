@@ -20,6 +20,9 @@ public interface ContractRepository extends JpaRepository<Contract, java.util.UU
     // Buscar por status
     List<Contract> findByStatus(ContractStatus status);
     Page<Contract> findByStatus(ContractStatus status, Pageable pageable);
+
+    @Query("SELECT c FROM Contract c WHERE c.client.companyId = :companyId")
+    List<Contract> findByCompanyId(@Param("companyId") UUID companyId);
     
     // Buscar por cliente
     List<Contract> findByClientId(UUID clientId);

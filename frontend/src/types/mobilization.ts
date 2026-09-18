@@ -20,6 +20,9 @@ export interface TransportMobilization {
     clientName?: string;
     workPostId?: string;
     workPostName?: string;
+    garageId?: string;
+    garageName?: string;
+    garagePurpose?: string;
     type: MobilizationType;
     occurredAt: string;
     kmReading?: number;
@@ -41,6 +44,9 @@ export interface CreateTransportMobilizationDTO {
     driverId?: string;
     clientId?: string;
     workPostId?: string;
+    garageId?: string;
+    garageName?: string;
+    garagePurpose?: string;
     type: MobilizationType;
     occurredAt?: string;
     kmReading?: number;

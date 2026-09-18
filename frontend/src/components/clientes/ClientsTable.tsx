@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit, Trash2, Eye, Building2, Mail, Phone, MapPin, User, Sparkles, TrendingUp, Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, Eye, Building2, Mail, Phone, MapPin, User, Sparkles, TrendingUp, Users, ArrowUpDown, ArrowUp, ArrowDown, Rocket } from 'lucide-react';
 import { Client, ClientStatus } from '@/types/client';
 
 type SortField = 'name' | 'cnpj' | 'contactName' | 'status';
@@ -19,6 +19,7 @@ interface ClientsTableProps {
   onEdit: (client: Client) => void;
   onDelete: (client: Client) => void;
   onView: (client: Client) => void;
+  onMobilize?: (client: Client) => void;
   isLoading?: boolean;
 }
 
@@ -30,6 +31,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
   onEdit,
   onDelete,
   onView,
+  onMobilize,
   isLoading = false
 }) => {
   const [sortField, setSortField] = useState<SortField>('name');
@@ -317,6 +319,18 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                   </TableCell>
                   <TableCell className="py-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-2">
+                      {onMobilize && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => onMobilize(client)}
+                          className="h-8 px-2.5 text-xs font-semibold text-orange-400 border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 hover:text-orange-300 hover:border-orange-400/50 rounded-lg transition-all flex items-center gap-1 shadow-sm"
+                          title="Disparar Mobilização Multissetorial para Novo Contrato"
+                        >
+                          <Rocket className="h-3.5 w-3.5 text-orange-400 animate-pulse" />
+                          <span>Mobilizar</span>
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -465,9 +479,20 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
 
               {/* Actions */}
               <div 
-                className="flex gap-3 pt-4 border-t border-gray-600/20"
+                className="flex flex-wrap gap-2 pt-4 border-t border-gray-600/20"
                 onClick={(e) => e.stopPropagation()}
               >
+                {onMobilize && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onMobilize(client)}
+                    className="w-full border-orange-500/30 text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 hover:text-orange-300 hover:border-orange-400/50 transition-all duration-300 font-semibold mb-1"
+                  >
+                    <Rocket className="h-4 w-4 mr-2 text-orange-400 animate-pulse" />
+                    Mobilização Multissetorial
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"

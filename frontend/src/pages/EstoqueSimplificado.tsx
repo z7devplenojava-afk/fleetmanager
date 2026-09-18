@@ -9,17 +9,19 @@ import {
   TrendingUp, 
   TrendingDown, 
   AlertTriangle, 
-  BarChart3,
-  Plus,
-  Search,
-  Filter,
-  RefreshCw,
-  QrCode,
-  Users,
-  FileText,
-  Bell,
-  Loader2,
-  Upload
+  BarChart3, 
+  Plus, 
+  Search, 
+  Filter, 
+  RefreshCw, 
+  QrCode, 
+  Users, 
+  FileText, 
+  Bell, 
+  Loader2, 
+  Upload,
+  ShoppingCart,
+  HardHat
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { stockService } from '@/services/stockService';
@@ -31,6 +33,8 @@ import StockItemModal from '@/components/stock/StockItemModal';
 import StockMovementModal from '@/components/stock/StockMovementModal';
 import QrCodeScanner from '@/components/stock/QrCodeScanner';
 import StockReportsContent from '@/components/stock/StockReportsContent';
+import StockRequisitionsTab from '@/components/stock/StockRequisitionsTab';
+import StockEpiDeliveryFormsTab from '@/components/stock/StockEpiDeliveryFormsTab';
 
 const EstoqueSimplificado: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -439,6 +443,14 @@ const EstoqueSimplificado: React.FC = () => {
               <FileText className="h-4 w-4 mr-2" />
               Relatórios
             </TabsTrigger>
+            <TabsTrigger value="requisitions" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
+              <ShoppingCart className="h-4 w-4 mr-2 text-seguranca-yellow" />
+              Requisições / Compras
+            </TabsTrigger>
+            <TabsTrigger value="epi-forms" className="data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
+              <HardHat className="h-4 w-4 mr-2 text-orange-400" />
+              Fichas e EPI
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard" className="mt-6">
@@ -470,6 +482,14 @@ const EstoqueSimplificado: React.FC = () => {
 
           <TabsContent value="reports" className="mt-6">
             <StockReportsContent />
+          </TabsContent>
+
+          <TabsContent value="requisitions" className="mt-6">
+            <StockRequisitionsTab onRefreshStock={handleRefresh} />
+          </TabsContent>
+
+          <TabsContent value="epi-forms" className="mt-6">
+            <StockEpiDeliveryFormsTab />
           </TabsContent>
         </Tabs>
 

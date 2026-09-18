@@ -141,4 +141,31 @@ public class UserCompanyResolver {
             return Optional.empty();
         }
     }
+
+    /**
+     * Retorna todas as empresas às quais o usuário tem acesso legítimo.
+     */
+    public java.util.List<Company> resolveUserCompanies(User user) {
+        if (user == null) return java.util.Collections.emptyList();
+        java.util.Map<UUID, Company> companiesMap = new java.util.LinkedHashMap<>();
+
+        if (user.getCompanyId() != null) {
+            try {
+                companyRepository.findById(user.getCompanyId()).ifPresent(c -> companiesMap.put(c.getId(), c));
+            } catch (Exception ignored) {}
+        }
+        if (user.getCompany() != null && user.getCompany().getId() != null) {
+            companiesMap.put(user.getCompany().getId(), user.getCompany());
+        }
+        try {
+            employeeRepository.findByUser(user).stream()
+                    .map(Employee::getCompany)
+                    .filter(c -> c != null && c.getId() != null)
+                    .forEach(c -> companiesMap.putIfAbsent(c.getId(), c));
+        } catch (Exception e) {
+            log.warn("⚠️ Erro ao listar empresas do usuário: {}", e.getMessage());
+        }
+
+        return new java.util.ArrayList<>(companiesMap.values());
+    }
 }

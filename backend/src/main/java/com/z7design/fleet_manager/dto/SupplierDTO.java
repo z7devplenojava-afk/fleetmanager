@@ -12,13 +12,20 @@ public class SupplierDTO {
     
     private java.util.UUID id;
     
-    @NotBlank(message = "Nome Ã© obrigatÃ³rio")
-    @Schema(description = "Nome do fornecedor", example = "Empresa ABC Ltda")
+    @NotBlank(message = "Nome é obrigatório")
+    @Schema(description = "Nome / Razão Social do fornecedor", example = "Empresa ABC Ltda")
     private String name;
     
-    @NotBlank(message = "CNPJ Ã© obrigatÃ³rio")
-    @Pattern(regexp = "\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}", message = "CNPJ deve estar no formato XX.XXX.XXX/XXXX-XX")
-    @Schema(description = "CNPJ do fornecedor", example = "12.345.678/0001-90")
+    @Schema(description = "Razão Social / Nome Fantasia do fornecedor", example = "ABC Distribuidora")
+    private String tradeName;
+    
+    @Schema(description = "Nome do contato / representante", example = "Carlos Souza")
+    private String contactName;
+    
+    @Schema(description = "Número de cadastro / Inscrição", example = "376")
+    private String registrationNumber;
+    
+    @Schema(description = "CPF ou CNPJ do fornecedor (com ou sem máscara)", example = "12.345.678/0001-90")
     private String cnpj;
     
     @Email(message = "Email deve ser vÃ¡lido")

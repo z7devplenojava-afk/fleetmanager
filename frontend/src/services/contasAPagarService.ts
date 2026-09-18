@@ -576,13 +576,24 @@ export const contasAPagarService = {
     return response.data;
   },
 
-  // Importar fornecedores via planilha Excel
-  async importarFornecedoresExcel(file: File): Promise<ImportResultDto> {
+  // Importar fornecedores via planilha Excel ou PDF (upload direto de arquivo)
+  async importarFornecedoresArquivo(file: File): Promise<ImportResultDto> {
     const formData = new FormData();
     formData.append('file', file);
     const response = await api.post<ImportResultDto>('/api/suppliers/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    return response.data;
+  },
+
+  // Alias para retrocompatibilidade
+  async importarFornecedoresExcel(file: File): Promise<ImportResultDto> {
+    return this.importarFornecedoresArquivo(file);
+  },
+
+  // Importar lote estruturado de fornecedores (extraído de PDF ou Excel)
+  async importarFornecedoresBatch(suppliers: any[]): Promise<ImportResultDto> {
+    const response = await api.post<ImportResultDto>('/api/suppliers/batch', suppliers);
     return response.data;
   },
 

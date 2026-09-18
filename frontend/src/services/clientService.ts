@@ -124,6 +124,22 @@ export const clientService = {
     });
     return response.data;
   },
+
+  // Disparar Mobilização Multissetorial para Novo Cliente / Contrato
+  async triggerMobilization(data: {
+    clientId?: string;
+    clientName: string;
+    contractNumber?: string;
+    workPostCount?: number;
+    vehicleCount?: number;
+    headcount?: number;
+    targetStartDate?: string;
+    notes?: string;
+    targetSectors?: string[];
+  }): Promise<{ message: string; data: any }> {
+    const response = await api.post('/api/clients/mobilization/trigger', data);
+    return response.data;
+  },
 };
 
 export default clientService;

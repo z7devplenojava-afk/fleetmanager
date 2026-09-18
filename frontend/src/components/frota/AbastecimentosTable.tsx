@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -592,9 +593,19 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
       />
 
       {/* Modal de Visualização */}
-      {viewingAbastecimento && (
-        <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 ${isViewModalOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>
-          <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      {viewingAbastecimento && isViewModalOpen && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[99999] transition-opacity duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleViewClose();
+            }
+          }}
+        >
+          <div 
+            className="bg-seguranca-graphite border border-gray-600 rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl relative animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-600">
               <h3 className="text-xl font-semibold text-seguranca-lightgray flex items-center gap-2">
                 <Eye className="h-5 w-5 text-blue-500" />
@@ -803,7 +814,8 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Dialog de Exclusão */}

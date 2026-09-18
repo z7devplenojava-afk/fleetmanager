@@ -33,6 +33,7 @@ public class VehicleDTO {
     private UUID operationId;
     private String operationName;
     private String garageName;
+    private UUID garageId;
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate operationEntryDate;
     private Vehicle.VehicleType vehicleType;
@@ -159,6 +160,7 @@ public class VehicleDTO {
         dto.setOperationId(vehicle.getOperationId());
         dto.setOperationName(vehicle.getOperationName());
         dto.setGarageName(vehicle.getGarageName());
+        dto.setGarageId(vehicle.getGarageId());
         dto.setOperationEntryDate(vehicle.getOperationEntryDate());
         dto.setVehicleType(vehicle.getVehicleType());
         dto.setFuelType(vehicle.getFuelType());
@@ -281,6 +283,7 @@ public class VehicleDTO {
         vehicle.setOperationId(this.operationId);
         vehicle.setOperationName(this.operationName);
         vehicle.setGarageName(this.garageName);
+        vehicle.setGarageId(this.garageId);
         vehicle.setOperationEntryDate(this.operationEntryDate);
         vehicle.setVehicleType(this.vehicleType);
         vehicle.setFuelType(this.fuelType);

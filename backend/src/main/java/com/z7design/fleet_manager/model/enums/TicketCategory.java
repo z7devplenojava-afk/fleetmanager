@@ -5,13 +5,18 @@ package com.z7design.fleet_manager.model.enums;
  */
 public enum TicketCategory {
     SYSTEM_ACCESS,      // Acesso ao Sistema
-    TECHNICAL_SUPPORT,  // Suporte TÃ©cnico
-    BILLING,            // Financeiro/CobranÃ§a
-    REPORTS,            // RelatÃ³rios
-    GENERAL_INQUIRY,    // DÃºvida Geral
+    TECHNICAL_SUPPORT,  // Suporte Técnico
+    BILLING,            // Financeiro/Cobrança
+    REPORTS,            // Relatórios
+    GENERAL_INQUIRY,    // Dúvida Geral
     BUG_REPORT,         // Relato de Bug
-    FEATURE_REQUEST,    // SolicitaÃ§Ã£o de Funcionalidade
-    OTHER               // Outros
+    FEATURE_REQUEST,    // Solicitação de Funcionalidade
+    ATRASO_DESVIO_ROTA, // Atraso / Desvio de Rota
+    MANUTENCAO_HIGIENE, // Manutenção / Ar-condicionado / Higiene
+    MUDANCA_PONTO,      // Solicitação de Mudança de Ponto
+    DUVIDAS_FINANCEIRAS,// Dúvidas Financeiras / Faturamento
+    OUTROS,             // Outros
+    OTHER               // Outros (legado)
 }
 
 

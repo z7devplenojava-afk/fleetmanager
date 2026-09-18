@@ -18,10 +18,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Endpoints de gestão de limpeza interna e externa dos veículos.
+ * Endpoints de gestão de limpeza dos veículos — fluxo ponta a ponta.
  * <p>
- * Fluxo: criar ordem -> iniciar (IN_PROGRESS) -> atualizar checklist e fotos
- * por item -> finalizar (COMPLETED, notifica o motorista via sino + WhatsApp).
+ * Solicitação (setor + prioridade + deadline) -> fila por SLA -> start com previsão
+ * -> fases (externa/interna) -> inspeção de qualidade -> liberação final com vaga.
  */
 @RestController
 @RequestMapping("/api/frota/vehicle-cleanings")
@@ -35,9 +35,24 @@ public class VehicleCleaningController {
     public ResponseEntity<List<VehicleCleaningOrderDTO>> list(
             @RequestParam(value = "vehicleId", required = false) UUID vehicleId,
             @RequestParam(value = "status", required = false) VehicleCleaningOrder.CleaningStatus status,
+            @RequestParam(value = "garageId", required = false) UUID garageId,
             @AuthenticationPrincipal User user) {
         UUID companyId = user.getCompanyId();
-        return ResponseEntity.ok(service.list(vehicleId, status, companyId));
+        return ResponseEntity.ok(service.list(vehicleId, status, companyId, garageId));
+    }
+
+    /** Triagem & Fila Inteligente: pendentes ordenadas por prazo (SLA) e prioridade. */
+    @GetMapping("/queue")
+    public ResponseEntity<List<VehicleCleaningOrderDTO>> queue(
+            @RequestParam(value = "garageId", required = false) UUID garageId,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(service.getQueue(user.getCompanyId(), garageId));
+    }
+
+    /** Template do checklist rápido de inspeção de qualidade. */
+    @GetMapping("/quality-checklist-template")
+    public ResponseEntity<String> qualityChecklistTemplate() {
+        return ResponseEntity.ok(service.getDefaultQualityChecklist());
     }
 
     @GetMapping("/{id}")
@@ -54,11 +69,46 @@ public class VehicleCleaningController {
         return ResponseEntity.ok(service.create(request, user));
     }
 
+    /** Início da higienização: calcula previsão de término e notifica CCO/motorista. */
     @PostMapping("/{id}/start")
     public ResponseEntity<VehicleCleaningOrderDTO> start(
             @PathVariable("id") UUID id,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(service.start(id, user.getCompanyId()));
+    }
+
+    /** Avança a fase de execução: externa -> interna -> inspeção. */
+    @PostMapping("/{id}/phase")
+    public ResponseEntity<VehicleCleaningOrderDTO> advancePhase(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(service.advancePhase(id, user.getCompanyId()));
+    }
+
+    /** Inspeção de qualidade (checklist WC/bancos/vidros); pode já concluir a ordem. */
+    @PostMapping("/{id}/quality")
+    public ResponseEntity<VehicleCleaningOrderDTO> submitQualityInspection(
+            @PathVariable("id") UUID id,
+            @RequestBody Map<String, Object> body,
+            @AuthenticationPrincipal User user) {
+        String qualityChecklist = (String) body.get("qualityChecklist");
+        String inspectedBy = body.get("inspectedBy") instanceof String s && !s.isBlank()
+                ? s : user.getName();
+        boolean approve = Boolean.TRUE.equals(body.get("approve"));
+        boolean approveAndComplete = Boolean.TRUE.equals(body.get("approveAndComplete"));
+        return ResponseEntity.ok(service.submitQualityInspection(
+                id, qualityChecklist, inspectedBy, approve, approveAndComplete, user.getCompanyId()));
+    }
+
+    /** Liberação final: "Liberado para Viagem" + alerta imediato ao motorista/Tráfego. */
+    @PostMapping("/{id}/release")
+    public ResponseEntity<VehicleCleaningOrderDTO> release(
+            @PathVariable("id") UUID id,
+            @RequestBody(required = false) Map<String, Object> body,
+            @AuthenticationPrincipal User user) {
+        String releaseSpot = body != null && body.get("releaseSpot") instanceof String s && !s.isBlank()
+                ? s : null;
+        return ResponseEntity.ok(service.release(id, releaseSpot, user.getCompanyId()));
     }
 
     @PutMapping("/{id}/checklist")
