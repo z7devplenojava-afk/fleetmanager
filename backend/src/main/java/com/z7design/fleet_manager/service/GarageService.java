@@ -342,6 +342,31 @@ public class GarageService {
                 .toList();
     }
 
+    /**
+     * Registra uma movimentação no histórico (usado pela mobilização quando realoca
+     * o veículo para a garagem de destino).
+     */
+    @Transactional
+    public void recordMovement(Vehicle vehicle, Garage fromGarage, Garage toGarage,
+                               String reason, UUID performedBy, String performedByName, UUID companyId) {
+        if (vehicle == null || toGarage == null) return;
+        movementRepository.save(GarageMovement.builder()
+                .vehicle(vehicle)
+                .vehiclePlate(vehicle.getPlate())
+                .fromGarage(fromGarage)
+                .fromGarageName(fromGarage != null ? fromGarage.getName() : null)
+                .toGarage(toGarage)
+                .toGarageName(toGarage.getName())
+                .reason(reason)
+                .performedBy(performedBy)
+                .performedByName(performedByName)
+                .kmReading(vehicle.getCurrentMileage())
+                .companyId(companyId != null ? companyId : vehicle.getCompanyId())
+                .build());
+        log.info("Movimentação registrada: veículo {} -> {} (motivo: {})",
+                vehicle.getPlate(), toGarage.getName(), reason);
+    }
+
     // ==================== HELPERS ====================
 
     private Garage findScoped(UUID id, UUID companyId) {

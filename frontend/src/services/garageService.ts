@@ -53,6 +53,40 @@ export interface GarageInput {
   active?: boolean;
 }
 
+export interface GarageMovement {
+  id: string;
+  vehicleId: string;
+  vehiclePlate?: string;
+  fromGarageId?: string;
+  fromGarageName?: string;
+  toGarageId?: string;
+  toGarageName?: string;
+  reason?: string;
+  reasonDetail?: string;
+  performedBy?: string;
+  performedByName?: string;
+  kmReading?: number;
+  companyId?: string;
+  createdAt?: string;
+}
+
+export interface GarageTransferInput {
+  vehicleId: string;
+  toGarageId: string;
+  reason?: string;
+  reasonDetail?: string;
+  kmReading?: number;
+}
+
+export const MOVEMENT_REASON_LABELS: Record<string, string> = {
+  REMANEJAMENTO: 'Remanejamento',
+  MANUTENCAO: 'Manutenção',
+  LIMPEZA: 'Limpeza',
+  OPERACAO: 'Operação / Recolhimento',
+  ESCALA: 'Escala',
+  OUTROS: 'Outros',
+};
+
 class GarageService {
   async list(): Promise<Garage[]> {
     const response = await api.get('/garages');
@@ -101,6 +135,24 @@ class GarageService {
 
   async getVehicleGarage(vehicleId: string): Promise<Garage | null> {
     const response = await api.get(`/garages/vehicle/${vehicleId}`);
+    return response.data;
+  }
+
+  /** Remanejamento de veículo entre garagens. */
+  async transferVehicle(data: GarageTransferInput): Promise<GarageMovement> {
+    const response = await api.post('/garages/transfers', data);
+    return response.data;
+  }
+
+  /** Histórico de movimentações entre garagens (paginado). */
+  async listMovements(page = 0, size = 30): Promise<GarageMovement[]> {
+    const response = await api.get(`/garages/movements?page=${page}&size=${size}`);
+    return response.data;
+  }
+
+  /** Histórico de movimentações de um veículo. */
+  async getVehicleMovements(vehicleId: string): Promise<GarageMovement[]> {
+    const response = await api.get(`/garages/movements/vehicle/${vehicleId}`);
     return response.data;
   }
 }

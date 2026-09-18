@@ -9,6 +9,7 @@ import { useGSAP } from '@/hooks/use-gsap';
 import {
   Warehouse, Plus, Trash2, Loader2, Bus, User, Phone, Search,
   MapPin, Building2, Users, Pencil, AlertTriangle, Gauge,
+  ArrowLeftRight, History, ArrowRight,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
@@ -20,7 +21,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { garageService, Garage, GarageInput, GarageOccupancyDashboard } from '@/services/garageService';
+import {
+  garageService, Garage, GarageInput, GarageOccupancyDashboard,
+  GarageMovement, GarageTransferInput, MOVEMENT_REASON_LABELS,
+} from '@/services/garageService';
 import { employeeService, SimpleEmployee } from '@/services/employeeService';
 import fleetService from '@/services/fleetService';
 
@@ -53,6 +57,19 @@ const Garagens: React.FC = () => {
 
   // Confirmação de exclusão
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Remanejamento entre garagens
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferVehicleId, setTransferVehicleId] = useState('');
+  const [transferToGarageId, setTransferToGarageId] = useState('');
+  const [transferReason, setTransferReason] = useState('REMANEJAMENTO');
+  const [transferDetail, setTransferDetail] = useState('');
+  const [transferSaving, setTransferSaving] = useState(false);
+
+  // Histórico de movimentações
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [movements, setMovements] = useState<GarageMovement[]>([]);
+  const [movementsLoading, setMovementsLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -186,6 +203,59 @@ const Garagens: React.FC = () => {
     }
   };
 
+  const openTransfer = (vehicleId: string) => {
+    setTransferVehicleId(vehicleId);
+    setTransferToGarageId('');
+    setTransferReason('REMANEJAMENTO');
+    setTransferDetail('');
+    setTransferDialogOpen(true);
+  };
+
+  const handleTransfer = async () => {
+    if (!transferVehicleId || !transferToGarageId) return;
+    setTransferSaving(true);
+    try {
+      const payload: GarageTransferInput = {
+        vehicleId: transferVehicleId,
+        toGarageId: transferToGarageId,
+        reason: transferReason,
+        reasonDetail: transferDetail.trim() || undefined,
+      };
+      const movement = await garageService.transferVehicle(payload);
+      setTransferDialogOpen(false);
+      toast({
+        title: 'Remanejamento concluído',
+        description: `${movement.vehiclePlate} → ${movement.toGarageName}`,
+      });
+      loadData();
+      if (selectedGarage) {
+        const fresh = await garageService.getById(selectedGarage.id);
+        setSelectedGarage(fresh);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Não foi possível remanejar',
+        description: error.response?.data?.message || 'Erro ao remanejar veículo',
+        variant: 'destructive',
+      });
+    } finally {
+      setTransferSaving(false);
+    }
+  };
+
+  const openHistory = async () => {
+    setHistoryOpen(true);
+    setMovementsLoading(true);
+    try {
+      const data = await garageService.listMovements(0, 50);
+      setMovements(data);
+    } catch {
+      toast({ title: 'Erro', description: 'Erro ao carregar histórico', variant: 'destructive' });
+    } finally {
+      setMovementsLoading(false);
+    }
+  };
+
   const occupancyPercent = (g: Garage) => {
     if (!g.capacity || g.capacity <= 0) return null;
     return Math.min(100, Math.round(((g.vehicleCount || 0) / g.capacity) * 100));
@@ -205,6 +275,13 @@ const Garagens: React.FC = () => {
               className="pl-9 bg-seguranca-graphite border-gray-700 text-white"
             />
           </div>
+          <Button
+            variant="outline"
+            onClick={openHistory}
+            className="border-gray-600 text-gray-300 hover:text-white"
+          >
+            <History size={16} className="mr-1" /> Histórico
+          </Button>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={openCreate} className="bg-seguranca-yellow text-black hover:bg-yellow-500 ml-auto">
@@ -510,12 +587,123 @@ const Garagens: React.FC = () => {
                         </p>
                       </div>
                       <button
+                        onClick={() => openTransfer(v.id)}
+                        className="text-gray-400 hover:text-seguranca-yellow transition-colors p-1"
+                        title="Remanejar para outra garagem"
+                      >
+                        <ArrowLeftRight size={15} />
+                      </button>
+                      <button
                         onClick={() => handleUnassign(v.id)}
                         className="text-gray-500 hover:text-red-500 transition-colors p-1"
                         title="Remover da garagem"
                       >
                         <Trash2 size={15} />
                       </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Diálogo de remanejamento */}
+        <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+          <DialogContent className="bg-seguranca-graphite border-gray-700 text-white">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ArrowLeftRight size={18} className="text-seguranca-yellow" /> Remanejar Veículo
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="text-sm text-gray-400 mb-1 block">Garagem de Destino *</label>
+                <Select value={transferToGarageId} onValueChange={setTransferToGarageId}>
+                  <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
+                    <SelectValue placeholder="Selecione a garagem de destino" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
+                    {garages
+                      .filter(g => g.active !== false && g.id !== selectedGarage?.id)
+                      .map(g => (
+                        <SelectItem key={g.id} value={g.id} disabled={g.atCapacity}>
+                          {g.name}
+                          {g.capacity ? ` (${g.vehicleCount ?? 0}/${g.capacity})` : ''}
+                          {g.atCapacity ? ' 🚨 LOTADA' : g.nearCapacity ? ' ⚠️' : ''}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm text-gray-400 mb-1 block">Motivo</label>
+                <Select value={transferReason} onValueChange={setTransferReason}>
+                  <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
+                    {Object.entries(MOVEMENT_REASON_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm text-gray-400 mb-1 block">Detalhe (opcional)</label>
+                <Textarea
+                  value={transferDetail}
+                  onChange={e => setTransferDetail(e.target.value)}
+                  className="bg-seguranca-black border-gray-700 text-white"
+                  rows={2}
+                  placeholder="Ex.: remanejamento por escala do cliente X"
+                />
+              </div>
+              <Button
+                onClick={handleTransfer}
+                disabled={transferSaving || !transferToGarageId}
+                className="w-full bg-seguranca-yellow text-black hover:bg-yellow-500"
+              >
+                {transferSaving ? <Loader2 size={16} className="animate-spin mr-1" /> : <ArrowLeftRight size={16} className="mr-1" />}
+                Confirmar remanejamento
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Histórico de movimentações */}
+        <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+          <DialogContent className="bg-seguranca-graphite border-gray-700 text-white max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <History size={18} className="text-seguranca-yellow" /> Histórico de Movimentações
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              {movementsLoading ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="w-6 h-6 text-seguranca-yellow animate-spin" />
+                </div>
+              ) : movements.length === 0 ? (
+                <p className="text-center text-gray-500 py-10 text-sm">Nenhuma movimentação registrada</p>
+              ) : (
+                <div className="space-y-2">
+                  {movements.map(m => (
+                    <div key={m.id} className="bg-seguranca-black/50 rounded-lg p-3 border border-gray-700/50">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Bus size={14} className="text-seguranca-yellow flex-shrink-0" />
+                        <span className="text-white font-medium">{m.vehiclePlate || '—'}</span>
+                        <span className="text-gray-400 flex items-center gap-1 min-w-0">
+                          {m.fromGarageName || 'Entrada'} <ArrowRight size={12} className="flex-shrink-0" /> {m.toGarageName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-1 flex-wrap">
+                        <span>{MOVEMENT_REASON_LABELS[m.reason || ''] || m.reason || '—'}</span>
+                        {m.performedByName && <span>por {m.performedByName}</span>}
+                        {m.createdAt && <span>{new Date(m.createdAt).toLocaleString('pt-BR')}</span>}
+                        {m.kmReading != null && <span>{m.kmReading.toLocaleString('pt-BR')} km</span>}
+                      </div>
+                      {m.reasonDetail && <p className="text-xs text-gray-400 mt-1">{m.reasonDetail}</p>}
                     </div>
                   ))}
                 </div>
