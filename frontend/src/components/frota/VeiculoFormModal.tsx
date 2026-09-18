@@ -104,6 +104,8 @@ const VeiculoFormModal: React.FC<VeiculoFormModalProps> = ({ isOpen, onClose, on
 
         // Alocações
         workPostId: formData.postoDeTrabalho || undefined,
+        garageId: formData.garagem || undefined,
+        garageName: formData.garagemNome || undefined,
         department: formData.departamento || undefined,
         departmentId: formData.departmentId || undefined,
         companyId: formData.empresaId || formData.clientId || undefined,

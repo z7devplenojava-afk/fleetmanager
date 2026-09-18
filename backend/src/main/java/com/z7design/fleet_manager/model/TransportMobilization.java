@@ -39,6 +39,15 @@ public class TransportMobilization {
     @JoinColumn(name = "work_post_id")
     private WorkPost workPost;
 
+    /** Garagem de destino da mobilização (ex.: garagem de manutenção/limpeza). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "garage_id")
+    private Garage garage;
+
+    /** Motivo da mobilização para a garagem (MANUTENCAO, LIMPEZA, OPERACAO...). */
+    @Column(name = "garage_purpose", length = 30)
+    private String garagePurpose;
+
     @Column(name = "client_name")
     private String clientName;
 

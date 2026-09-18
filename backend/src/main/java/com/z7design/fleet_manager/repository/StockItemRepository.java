@@ -19,6 +19,9 @@ public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
     // Buscar por código
     Optional<StockItem> findByCode(String code);
 
+    // Buscar por nome contendo (case insensitive)
+    List<StockItem> findByNameContainingIgnoreCase(String name);
+
     // Buscar por empresa e código
     Optional<StockItem> findByCompanyIdAndCode(UUID companyId, String code);
 

@@ -190,21 +190,34 @@ export const epiDeliveryFormService = {
   },
 
   /**
-   * Gerar Excel da ficha de entrega de EPI e salvar no banco
+   * Baixar PDF de uma ficha existente
    */
-  async generateAndSaveExcel(data: CreateEPIDeliveryForm): Promise<Blob> {
+  async downloadPdf(id: string): Promise<Blob> {
     try {
-      const response = await api.post('/api/epi-delivery-forms/generate-excel', data, {
+      const response = await api.get(`/api/epi-delivery-forms/${id}/pdf`, {
         responseType: 'blob'
       });
       return response.data;
     } catch (error) {
-      console.error('Erro ao gerar Excel da ficha de entrega de EPI:', error);
+      console.error('Erro ao baixar PDF da ficha de EPI:', error);
       throw error;
     }
   },
 
-  
+  /**
+   * Baixar Excel de uma ficha existente
+   */
+  async downloadExcel(id: string): Promise<Blob> {
+    try {
+      const response = await api.get(`/api/epi-delivery-forms/${id}/excel`, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao baixar Excel da ficha de EPI:', error);
+      throw error;
+    }
+  }
 };
 
 

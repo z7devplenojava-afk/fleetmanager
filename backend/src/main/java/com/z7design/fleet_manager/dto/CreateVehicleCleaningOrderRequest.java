@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
@@ -28,4 +29,16 @@ public class CreateVehicleCleaningOrderRequest {
     private String checklistData;
 
     private String observations;
+
+    /** Setor solicitante; ausente = tratado como OPERATIONAL (pátio). */
+    private VehicleCleaningOrder.RequesterSector requesterSector;
+
+    /** Prioridade; ausente = prioridade padrão do setor. */
+    private VehicleCleaningOrder.Priority priority;
+
+    /** Horário limite de liberação (próxima saída/escala). */
+    private LocalDateTime releaseDeadline;
+
+    /** Vaga prevista no pátio para liberação (opcional). */
+    private String releaseSpot;
 }

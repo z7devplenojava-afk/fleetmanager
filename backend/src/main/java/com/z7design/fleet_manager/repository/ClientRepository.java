@@ -17,9 +17,19 @@ import java.util.Optional;
 public interface ClientRepository extends JpaRepository<Client, java.util.UUID>, JpaSpecificationExecutor<Client> {
     
     Optional<Client> findByCnpj(String cnpj);
+
+    Optional<Client> findByEmail(String email);
+
+    Optional<Client> findByCnpjAndCompanyId(String cnpj, java.util.UUID companyId);
     
     boolean existsByCnpj(String cnpj);
+
+    boolean existsByCnpjAndCompanyId(String cnpj, java.util.UUID companyId);
     
+    List<Client> findByCompanyId(java.util.UUID companyId);
+
+    Page<Client> findByCompanyId(java.util.UUID companyId, Pageable pageable);
+
     List<Client> findByStatus(ClientStatus status);
     
     Page<Client> findByStatus(ClientStatus status, Pageable pageable);

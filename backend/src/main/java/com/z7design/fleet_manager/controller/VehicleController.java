@@ -177,4 +177,22 @@ public class VehicleController {
             return ResponseEntity.ok(errorResult);
         }
     }
+
+    @GetMapping("/{id}/qrcode")
+    @Operation(summary = "Obter dados do QR Code do veículo", description = "Retorna os dados consolidados do veículo para exibição de passaporte/etiqueta QR Code (Garagem, Cliente, Última OS, Motorista, Status)")
+    public ResponseEntity<com.z7design.fleet_manager.dto.VehicleQRCodeDTO> getVehicleQRCode(@PathVariable("id") UUID id) {
+        return ResponseEntity.ok(vehicleService.getVehicleQRCodeData(id));
+    }
+
+    @GetMapping(value = "/{id}/qrcode/image", produces = org.springframework.http.MediaType.IMAGE_PNG_VALUE)
+    @Operation(summary = "Gerar imagem PNG do QR Code do veículo", description = "Gera a imagem PNG do QR Code com todas as informações consolidadas do veículo")
+    public ResponseEntity<byte[]> getVehicleQRCodeImage(
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "width", defaultValue = "350") int width,
+            @RequestParam(value = "height", defaultValue = "350") int height) {
+        byte[] imageBytes = vehicleService.generateQRCodeImage(id, width, height);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, org.springframework.http.MediaType.IMAGE_PNG_VALUE)
+                .body(imageBytes);
+    }
 }

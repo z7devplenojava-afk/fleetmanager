@@ -51,15 +51,19 @@ public class ClientService {
             if (normalizedCnpj == null || normalizedCnpj.isBlank()) {
                 throw new BusinessException("CNPJ é obrigatório");
             }
-            log.info("[DEBUG] CNPJ (normalizado): {}", normalizedCnpj);
+            UUID currentCompanyId = clientDTO.getCompanyId() != null 
+                    ? clientDTO.getCompanyId() 
+                    : userCompanyResolver.resolveCurrentCompanyId();
 
-            log.info("[DEBUG] Verificando se CNPJ já existe: {}", clientDTO.getCnpj());
-            boolean cnpjExists = clientRepository.existsByCnpj(normalizedCnpj);
+            log.info("[DEBUG] Verificando se CNPJ já existe na empresa [{}]: {}", currentCompanyId, normalizedCnpj);
+            boolean cnpjExists = currentCompanyId != null 
+                    ? clientRepository.existsByCnpjAndCompanyId(normalizedCnpj, currentCompanyId)
+                    : clientRepository.existsByCnpj(normalizedCnpj);
             log.info("[DEBUG] CNPJ existe: {}", cnpjExists);
             
             if (cnpjExists) {
-                log.error("[ERROR] CNPJ já existe: {}", normalizedCnpj);
-                throw new BusinessException("Já existe um cliente cadastrado com este CNPJ: " + normalizedCnpj);
+                log.error("[ERROR] CNPJ já existe para esta empresa: {}", normalizedCnpj);
+                throw new BusinessException("Já existe um cliente cadastrado com este CNPJ nesta empresa: " + normalizedCnpj);
             }
             
             log.info("[DEBUG] CNPJ válido, criando cliente");
@@ -67,7 +71,7 @@ public class ClientService {
             BeanUtils.copyProperties(clientDTO, client);
 
             if (client.getCompanyId() == null) {
-                client.setCompanyId(userCompanyResolver.resolveCurrentCompanyId());
+                client.setCompanyId(currentCompanyId);
             }
 
             // Forçar salvar CNPJ normalizado

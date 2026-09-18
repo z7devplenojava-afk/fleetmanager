@@ -35,13 +35,25 @@ public class Supplier implements TenantAware {
     @JoinColumn(name = "company_id", insertable = false, updatable = false)
     private Company company;
 
-    @NotBlank(message = "Nome do fornecedor Ã© obrigatÃ³rio")
-    @Size(max = 255, message = "Nome deve ter no mÃ¡ximo 255 caracteres")
+    @NotBlank(message = "Nome do fornecedor é obrigatório")
+    @Size(max = 255, message = "Nome deve ter no máximo 255 caracteres")
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Size(max = 18, message = "CNPJ deve ter no mÃ¡ximo 18 caracteres")
-    @Column(name = "cnpj", unique = true)
+    @Size(max = 255, message = "Razão social deve ter no máximo 255 caracteres")
+    @Column(name = "trade_name")
+    private String tradeName;
+
+    @Size(max = 255, message = "Nome do contato deve ter no máximo 255 caracteres")
+    @Column(name = "contact_name")
+    private String contactName;
+
+    @Size(max = 100, message = "Número de cadastro deve ter no máximo 100 caracteres")
+    @Column(name = "registration_number")
+    private String registrationNumber;
+
+    @Size(max = 20, message = "CPF/CNPJ deve ter no máximo 20 caracteres")
+    @Column(name = "cnpj")
     private String cnpj;
 
     @Email(message = "Email deve ser vÃ¡lido")

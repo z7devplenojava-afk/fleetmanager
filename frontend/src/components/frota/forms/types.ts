@@ -45,6 +45,8 @@ export interface VehicleFormData {
 
     // Allocation
     postoDeTrabalho: string;
+    garagem: string;
+    garagemNome: string;
     departamento: string;
     departmentId: string;
     empresa: string;

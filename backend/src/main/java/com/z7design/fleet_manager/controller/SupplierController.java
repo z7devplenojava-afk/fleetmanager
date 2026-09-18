@@ -164,10 +164,17 @@ public class SupplierController {
         return ResponseEntity.ok(List.of());
     }
     
+    @PostMapping("/batch")
+    @Operation(summary = "Importar lote de fornecedores", description = "Importa uma lista estruturada de fornecedores em lote (JSON)")
+    public ResponseEntity<com.z7design.fleet_manager.dto.ImportResultDto> importBatch(
+            @RequestBody List<SupplierDTO> suppliers) {
+        return ResponseEntity.ok(supplierService.importBatch(suppliers));
+    }
+    
     @PostMapping(value = "/import", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Importar fornecedores via planilha Excel", description = "Importa fornecedores a partir de arquivo .xlsx ou .xls")
-    public ResponseEntity<com.z7design.fleet_manager.dto.ImportResultDto> importSuppliersExcel(
+    @Operation(summary = "Importar fornecedores via arquivo (PDF ou Excel)", description = "Importa fornecedores a partir de arquivo PDF (.pdf) ou Excel (.xlsx, .xls, .csv)")
+    public ResponseEntity<com.z7design.fleet_manager.dto.ImportResultDto> importSuppliersFile(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
-        return ResponseEntity.ok(supplierService.importExcel(file));
+        return ResponseEntity.ok(supplierService.importFile(file));
     }
 } 

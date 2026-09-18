@@ -32,6 +32,10 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { garageService, Garage } from '@/services/garageService';
 import fleetWorkOrderService, {
     WorkOrderStatus,
     WorkOrderItemType,
@@ -74,6 +78,13 @@ const FleetWorkOrdersPage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
+    const [garageFilter, setGarageFilter] = useState<string>('ALL');
+
+    const { data: garages = [] } = useQuery({
+        queryKey: ['garages-for-os-filter'],
+        queryFn: () => garageService.list(),
+        staleTime: 60_000,
+    });
 
     const { data: orders = [], isLoading } = useQuery({
         queryKey: ['fleet-work-orders'],
@@ -178,6 +189,8 @@ const FleetWorkOrdersPage: React.FC = () => {
     const filteredOrders = orders.filter(o => {
         if (statusFilter !== 'ALL' && o.status !== statusFilter) return false;
         if (typeFilter !== 'ALL' && o.maintenanceType !== typeFilter) return false;
+        // Filtro por garagem executora da OS
+        if (garageFilter !== 'ALL' && o.garageId !== garageFilter) return false;
         // Gap 4 — Filtro por data de parada (PRD §24)
         if (dateFrom && o.stopDate && o.stopDate < dateFrom) return false;
         if (dateTo && o.stopDate && o.stopDate > dateTo) return false;
@@ -278,6 +291,17 @@ const FleetWorkOrdersPage: React.FC = () => {
                                     title="Data final"
                                 />
                             </div>
+                            <Select value={garageFilter} onValueChange={setGarageFilter}>
+                                <SelectTrigger className="bg-seguranca-black border-gray-600 text-xs h-9 w-44">
+                                    <SelectValue placeholder="Garagem" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
+                                    <SelectItem value="ALL">Todas as garagens</SelectItem>
+                                    {garages.filter(g => g.active !== false).map(g => (
+                                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             <Button
                                 variant={typeFilter === 'ALL' ? 'default' : 'outline'}
                                 onClick={() => setTypeFilter('ALL')}

@@ -117,6 +117,7 @@ const DriverDashboard = lazy(() => import('@/pages/DriverDashboard'));
 const DriverChecklist = lazy(() => import('@/pages/driver/DriverChecklist'));
 const DashboardVigilante = lazy(() => import('@/pages/DashboardVigilante'));
 const EmployeePortal = lazy(() => import('@/pages/employee/EmployeePortal'));
+const ClientPortal = lazy(() => import('@/pages/client/ClientPortal'));
 const Funcionarios = lazyWithRetry(() => import('@/pages/Funcionarios'), 'Funcionarios');
 const Usuarios = lazy(() => import('@/pages/Usuarios'));
 const Roles = lazy(() => import('@/pages/Roles'));
@@ -145,6 +146,7 @@ const GestaoPortaria = lazyWithRetry(() => import('@/pages/manutencao/GestaoPort
 const GestaoChecklistVeiculo = lazyWithRetry(() => import('@/pages/manutencao/GestaoChecklistVeiculo'), 'GestaoChecklistVeiculo');
 const GestaoChecklistCliente = lazyWithRetry(() => import('@/pages/manutencao/GestaoChecklistCliente'), 'GestaoChecklistCliente');
 const GestaoLimpezaVeiculos = lazy(() => import('@/pages/manutencao/GestaoLimpezaVeiculos'));
+const Garagens = lazy(() => import('@/pages/Garagens'));
 const Lavajato = lazy(() => import('@/pages/manutencao/Lavajato'));
 const TrafficManagementDashboard = lazy(() => import('@/pages/fretamento/TrafficManagementDashboard'));
 const RoutesAndPoints = lazy(() => import('@/pages/fretamento/RoutesAndPoints'));
@@ -220,6 +222,7 @@ const EstoqueRelatorios = lazy(() => import('@/pages/EstoqueRelatorios'));
 const Empresas = lazy(() => import('@/pages/Empresas'));
 const Compras = lazy(() => import('@/pages/Compras'));
 const CotacoesCompras = lazy(() => import('@/pages/CotacoesCompras'));
+const AlmoxarifadoRequisicoesPage = lazy(() => import('@/pages/almoxarifado/AlmoxarifadoRequisicoesPage'));
 // const Suporte = lazy(() => import('@/pages/Suporte')); // REMOVIDO - substituído por Gestão de Atendimento
 const Postos = lazy(() => import('@/pages/Postos'));
 const RemanejamentoPage = lazy(() => import('@/pages/Remanejamento'));
@@ -558,6 +561,20 @@ function App() {
                         <ProtectedRoute requiredRoles={['EMPLOYEE', 'SUPER_ADMIN', 'ADMIN']}>
                           <Suspense fallback={<LoadingSpinner />}>
                             <EmployeePortal />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/portal-cliente" element={
+                        <ProtectedRoute requiredRoles={['CLIENTE', 'CLIENT_USER', 'SUPER_ADMIN', 'ADMIN', 'GESTOR']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <ClientPortal />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/client-portal" element={
+                        <ProtectedRoute requiredRoles={['CLIENTE', 'CLIENT_USER', 'SUPER_ADMIN', 'ADMIN', 'GESTOR']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <ClientPortal />
                           </Suspense>
                         </ProtectedRoute>
                       } />
@@ -909,6 +926,13 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/frota/garagens" element={
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <Garagens />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/manutencao/lavajato" element={
                         <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -1042,6 +1066,27 @@ function App() {
                       <Route path="/compras" element={
                         <ProtectedRoute requiredPermissions={['STOCK_MANAGE']}>
                           <Compras />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/almoxarifado/requisicoes" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <AlmoxarifadoRequisicoesPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/compras/requisicoes" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <AlmoxarifadoRequisicoesPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/estoque/requisicoes" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <AlmoxarifadoRequisicoesPage />
+                          </Suspense>
                         </ProtectedRoute>
                       } />
                       <Route path="/compras/solicitacoes" element={

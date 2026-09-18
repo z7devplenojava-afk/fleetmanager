@@ -1,13 +1,14 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building, Settings, User } from 'lucide-react';
+import { Building, Settings, User, Warehouse } from 'lucide-react';
 import { VehicleFormSectionProps } from '../types';
 import { workPostService, WorkPost } from '@/services/workPostService';
 import { clientService } from '@/services/clientService';
 import { contractService } from '@/services/contractService';
 import { departmentService, Department } from '@/services/departmentService';
 import { employeeService } from '@/services/employeeService';
+import { garageService, Garage } from '@/services/garageService';
 import { useQuery } from '@tanstack/react-query';
 
 export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formData, handleInputChange }) => {
@@ -34,6 +35,12 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
     const { data: employees, isLoading: employeesLoading } = useQuery({
         queryKey: ['employees', 'ACTIVE'],
         queryFn: () => employeeService.getEmployeesByStatus('ACTIVE'),
+        retry: 2
+    });
+
+    const { data: garages, isLoading: garagesLoading } = useQuery({
+        queryKey: ['garages-for-vehicle'],
+        queryFn: () => garageService.list(),
         retry: 2
     });
 
@@ -144,6 +151,65 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
                             )}
                         </SelectContent>
                     </Select>
+                </div>
+            </div>
+
+            {/* Garagem */}
+            <div className="space-y-2">
+                <Label htmlFor="garagem" className="text-gray-300 font-medium">Garagem (pátio/base)</Label>
+                <div className="relative">
+                    <Warehouse className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Select
+                        value={formData.garagem || ''}
+                        onValueChange={(value) => {
+                            const garage = garages?.find(g => g.id === value);
+                            if (garage?.atCapacity) {
+                                return;
+                            }
+                            handleInputChange('garagem', value);
+                            if (garage) {
+                                handleInputChange('garagemNome', garage.name);
+                            }
+                        }}
+                        disabled={garagesLoading}
+                    >
+                        <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white pl-10 focus:border-purple-500 focus:ring-purple-500/20 transition-all duration-200">
+                            <SelectValue placeholder="Selecione a garagem onde o veículo fica recolhido" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-900 border-gray-600 z-[10060]">
+                            {garages && garages.filter(g => g.active !== false).length > 0 ? (
+                                garages.filter(g => g.active !== false).map((g: Garage) => (
+                                    <SelectItem key={g.id} value={g.id} disabled={g.atCapacity} className="text-white hover:bg-gray-700">
+                                        {g.name}{g.capacity ? ` (${g.vehicleCount ?? 0}/${g.capacity})` : ''}
+                                        {g.atCapacity ? ' 🚨 LOTADA' : g.nearCapacity ? ' ⚠️' : ''}
+                                        {g.responsibleName ? ` — resp.: ${g.responsibleName}` : ''}
+                                    </SelectItem>
+                                ))
+                            ) : (
+                                <SelectItem value="none" disabled>
+                                    Nenhuma garagem cadastrada
+                                </SelectItem>
+                            )}
+                        </SelectContent>
+                    </Select>
+                    {(() => {
+                        const chosen = garages?.find(g => g.id === formData.garagem);
+                        if (chosen?.atCapacity) {
+                            return (
+                                <p className="text-xs text-red-400 mt-1">
+                                    🚨 Garagem lotada ({chosen.vehicleCount}/{chosen.capacity} vagas) — escolha outra garagem.
+                                </p>
+                            );
+                        }
+                        if (chosen?.nearCapacity) {
+                            return (
+                                <p className="text-xs text-amber-400 mt-1">
+                                    ⚠️ Atenção: {chosen.occupancyRate}% da capacidade ({chosen.vehicleCount}/{chosen.capacity} vagas).
+                                </p>
+                            );
+                        }
+                        return null;
+                    })()}
                 </div>
             </div>
 

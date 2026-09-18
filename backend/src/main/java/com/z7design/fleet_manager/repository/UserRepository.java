@@ -61,6 +61,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
        List<User> findSystemMessageSenderCandidates();
 
        /**
+        * Gestores de tráfego/CCO da empresa: administradores e papéis de tráfego/escala.
+        * Usado pelas notificações de execução/liberação/atraso da Gestão de Limpeza.
+        */
+       @Query("SELECT DISTINCT u FROM User u " +
+                     "JOIN u.roles r " +
+                     "WHERE u.active = true AND (r.name IN ('SUPER_ADMIN', 'FLEX_ADMIN', 'ADMIN', 'TRAFFIC_MANAGER', 'GERENTE_TRAFEGO', 'OPERACIONAL') " +
+                     "OR UPPER(r.name) LIKE '%TRAFEGO%' OR UPPER(r.name) LIKE '%TRAFFIC%')")
+       List<User> findTrafficManagers(UUID companyId);
+
+       /**
         * Busca usuÃ¡rios por nome, email ou username
         */
        @Query("SELECT DISTINCT u FROM User u " +

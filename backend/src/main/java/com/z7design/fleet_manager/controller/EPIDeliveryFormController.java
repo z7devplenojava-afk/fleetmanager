@@ -184,11 +184,43 @@ public class EPIDeliveryFormController {
                 .header(HttpHeaders.CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 .body(excel);
         } catch (Exception e) {
-            log.error("âŒ Erro ao gerar Excel de ficha de entrega de EPI: {}", e.getMessage(), e);
+            log.error("❌ Erro ao gerar Excel de ficha de entrega de EPI: {}", e.getMessage(), e);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @Operation(summary = "Download do PDF de uma ficha existente para assinatura")
+    @GetMapping("/{id}/pdf")
+    public ResponseEntity<byte[]> getPdfById(@PathVariable("id") UUID id) {
+        try {
+            com.z7design.fleet_manager.model.EPIDeliveryForm form = epiDeliveryFormService.findByIdEntity(id);
+            byte[] pdf = epiDeliveryPdfService.generateEPIDeliveryPdfFromForm(form);
+            String fileName = "ficha-entrega-epi-" + id + ".pdf";
+            return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)
+                .body(pdf);
+        } catch (Exception e) {
+            log.error("❌ Erro ao baixar PDF da ficha de EPI: {}", e.getMessage(), e);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @Operation(summary = "Download do Excel de uma ficha existente")
+    @GetMapping("/{id}/excel")
+    public ResponseEntity<byte[]> getExcelById(@PathVariable("id") UUID id) {
+        try {
+            com.z7design.fleet_manager.model.EPIDeliveryForm form = epiDeliveryFormService.findByIdEntity(id);
+            byte[] excel = epiDeliveryPdfService.generateEPIDeliveryExcelFromForm(form);
+            String fileName = "ficha-entrega-epi-" + id + ".xlsx";
+            return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .body(excel);
+        } catch (Exception e) {
+            log.error("❌ Erro ao baixar Excel da ficha de EPI: {}", e.getMessage(), e);
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }
-
-
 

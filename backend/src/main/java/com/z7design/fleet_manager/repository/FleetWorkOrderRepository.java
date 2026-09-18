@@ -26,5 +26,7 @@ public interface FleetWorkOrderRepository extends JpaRepository<FleetWorkOrder, 
 
     List<FleetWorkOrder> findByVehicleIdAndDeletedAtIsNull(UUID vehicleId);
 
+    List<FleetWorkOrder> findByVehicleIdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID vehicleId);
+
     List<FleetWorkOrder> findByStatusAndDeletedAtIsNull(FleetWorkOrder.WorkOrderStatus status);
 }

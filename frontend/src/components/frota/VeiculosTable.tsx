@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Trash2, Eye, Download, Trash2Icon, Edit3, AlertTriangle, Clock, CheckCircle2, CalendarClock, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Eye, Download, Trash2Icon, Edit3, AlertTriangle, Clock, CheckCircle2, CalendarClock, Loader2, QrCode } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import VeiculoDeleteDialog from './VeiculoDeleteDialog';
 import VehicleDetailPanel from './VehicleDetailPanel';
+import VehicleQRCodeModal from './VehicleQRCodeModal';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import fleetService from '@/services/fleetService';
@@ -123,6 +124,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
   // Estados para visualização
   const [viewingVeiculo, setViewingVeiculo] = useState<Veiculo | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [qrModalVehicle, setQrModalVehicle] = useState<Veiculo | null>(null);
 
   const { toast } = useToast();
 
@@ -618,6 +620,15 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => setQrModalVehicle(veiculo)}
+                      className="h-8 w-8 p-0 border-yellow-500/60 text-yellow-500 hover:bg-yellow-500 hover:text-black"
+                      title="Ver QR Code do veículo"
+                    >
+                      <QrCode size={14} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleView(veiculo)}
                       className="h-8 w-8 p-0 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
                       title="Visualizar detalhes"
@@ -729,6 +740,16 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
           isOpen={isViewModalOpen}
           onClose={handleViewClose}
           onEdit={onEdit}
+        />
+      )}
+
+      {/* Modal de QR Code do Veículo */}
+      {qrModalVehicle && (
+        <VehicleQRCodeModal
+          vehicleId={qrModalVehicle.id}
+          plateFallback={qrModalVehicle.placa}
+          isOpen={!!qrModalVehicle}
+          onClose={() => setQrModalVehicle(null)}
         />
       )}
     </>

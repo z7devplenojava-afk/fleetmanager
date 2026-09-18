@@ -122,6 +122,10 @@ export interface FleetWorkOrder {
     responsibleId?: string;
     supervisorId?: string;
 
+    // Garagem executora da OS
+    garageId?: string;
+    garageName?: string;
+
     // Assinaturas PRD
     responsibleSignature?: string;
     responsibleSignatureDate?: string;

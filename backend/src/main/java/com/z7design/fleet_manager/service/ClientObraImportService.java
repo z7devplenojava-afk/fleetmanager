@@ -73,14 +73,18 @@ public class ClientObraImportService {
         ImportResultDto result = ImportResultDto.empty();
         log.info("📥 Iniciando importação otimizada de QUADRO DE OBRAS: {}", file.getOriginalFilename());
 
+        UUID currentTenantCompanyId = userCompanyResolver.resolveCurrentCompanyId();
+
         try (InputStream is = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(is)) {
 
-            // Pré-carregar clientes existentes por nome e CNPJs
+            // Pré-carregar clientes existentes por nome e CNPJs da empresa atual
             Map<String, Client> existingClientsByName = new HashMap<>();
             Set<String> usedCnpjs = new HashSet<>();
             try {
-                List<Client> allClients = clientRepository.findAll();
+                List<Client> allClients = currentTenantCompanyId != null
+                        ? clientRepository.findByCompanyId(currentTenantCompanyId)
+                        : clientRepository.findAll();
                 for (Client c : allClients) {
                     if (c.getName() != null) {
                         existingClientsByName.put(normalizeText(c.getName()), c);
@@ -93,10 +97,12 @@ public class ClientObraImportService {
                 log.warn("Aviso ao pré-carregar clientes: {}", e.getMessage());
             }
 
-            // Pré-carregar placas existentes
+            // Pré-carregar placas existentes da empresa atual
             Set<String> usedPlates = new HashSet<>();
             try {
-                List<Vehicle> allVehicles = vehicleRepository.findAll();
+                List<Vehicle> allVehicles = currentTenantCompanyId != null
+                        ? vehicleRepository.findByCompanyId(currentTenantCompanyId)
+                        : vehicleRepository.findAll();
                 for (Vehicle v : allVehicles) {
                     if (v.getPlate() != null) {
                         usedPlates.add(v.getPlate().toUpperCase().trim());
@@ -106,10 +112,12 @@ public class ClientObraImportService {
                 log.warn("Aviso ao pré-carregar veículos: {}", e.getMessage());
             }
 
-            // Pré-carregar números de contrato existentes
+            // Pré-carregar números de contrato existentes da empresa atual
             Set<String> usedContractNumbers = new HashSet<>();
             try {
-                List<Contract> allContracts = contractRepository.findAll();
+                List<Contract> allContracts = currentTenantCompanyId != null
+                        ? contractRepository.findByCompanyId(currentTenantCompanyId)
+                        : contractRepository.findAll();
                 for (Contract c : allContracts) {
                     if (c.getContractNumber() != null) {
                         usedContractNumbers.add(c.getContractNumber().toUpperCase().trim());
@@ -119,10 +127,12 @@ public class ClientObraImportService {
                 log.warn("Aviso ao pré-carregar contratos: {}", e.getMessage());
             }
 
-            // Pré-carregar códigos de postos de trabalho existentes
+            // Pré-carregar códigos de postos de trabalho existentes da empresa atual
             Set<String> usedPostCodes = new HashSet<>();
             try {
-                List<WorkPost> allWorkPosts = workPostRepository.findAll();
+                List<WorkPost> allWorkPosts = currentTenantCompanyId != null
+                        ? workPostRepository.findByCompanyId(currentTenantCompanyId)
+                        : workPostRepository.findAll();
                 for (WorkPost wp : allWorkPosts) {
                     if (wp.getPostCode() != null) {
                         usedPostCodes.add(wp.getPostCode().toUpperCase().trim());
@@ -132,8 +142,8 @@ public class ClientObraImportService {
                 log.warn("Aviso ao pré-carregar postos de trabalho: {}", e.getMessage());
             }
 
-            log.info("Pré-carregamento concluído: Clientes={}, Placas={}, CNPJs={}, Contratos={}, Postos={}",
-                    existingClientsByName.size(), usedPlates.size(), usedCnpjs.size(), usedContractNumbers.size(), usedPostCodes.size());
+            log.info("Pré-carregamento concluído para Tenant [{}]: Clientes={}, Placas={}, CNPJs={}, Contratos={}, Postos={}",
+                    currentTenantCompanyId, existingClientsByName.size(), usedPlates.size(), usedCnpjs.size(), usedContractNumbers.size(), usedPostCodes.size());
 
             List<Client> clientsToInsert = new ArrayList<>();
             List<Client> clientsToUpdate = new ArrayList<>();

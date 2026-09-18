@@ -37,14 +37,17 @@ import {
 } from '@/components/ui/dialog';
 import { CompanyFormModal } from '@/components/comercial/CompanyFormModal';
 import { CompanyViewModal } from '@/components/comercial/CompanyViewModal';
+import { Company360Dashboard } from '@/components/empresa/Company360Dashboard';
 import { companyService } from '@/services/companyService';
 import { Company } from '@/types/company';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/config/environment';
 import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
+import { Sparkles, PieChart as PieChartIcon } from 'lucide-react';
 
 export const Empresas: React.FC = () => {
   const { toast } = useToast();
+  const [mainTab, setMainTab] = useState<'empresas' | 'overview360'>('empresas');
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -183,23 +186,58 @@ export const Empresas: React.FC = () => {
 
   return (
     <StandardLayout
-      title="Empresas"
-      subtitle="Gerenciamento corporativo, matrizes, filiais e parâmetros contratuais."
+      title="Empresas & Governança Corporativa"
+      subtitle="Gerenciamento corporativo, matrizes, filiais, visão holística 360° e parâmetros contratuais."
     >
       <div className="space-y-6 pb-12">
-        {/* Top Header Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-card border-border hover:border-primary/40 transition-all shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">Total Cadastradas</p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">{stats.total}</h3>
-              </div>
-              <div className="p-3 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-500/20">
-                <Building2 className="w-5 h-5" />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Main Tab Selector */}
+        <div className="flex items-center gap-2 p-1.5 bg-seguranca-black/60 border border-gray-800 rounded-2xl w-fit backdrop-blur-md shadow-lg">
+          <Button
+            variant={mainTab === 'empresas' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setMainTab('empresas')}
+            className={`rounded-xl font-bold text-xs gap-2 transition-all ${
+              mainTab === 'empresas'
+                ? 'bg-seguranca-red text-white shadow-lg shadow-seguranca-red/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            Cadastro & Gestão de Empresas
+          </Button>
+
+          <Button
+            variant={mainTab === 'overview360' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setMainTab('overview360')}
+            className={`rounded-xl font-bold text-xs gap-2 transition-all ${
+              mainTab === 'overview360'
+                ? 'bg-gradient-to-r from-orange-500 to-seguranca-yellow text-seguranca-black font-black shadow-lg shadow-orange-500/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            Visão Executiva 360° & Governança
+          </Button>
+        </div>
+
+        {mainTab === 'overview360' ? (
+          <Company360Dashboard />
+        ) : (
+          <>
+            {/* Top Header Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-card border-border hover:border-primary/40 transition-all shadow-sm">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">Total Cadastradas</p>
+                    <h3 className="text-2xl font-bold text-foreground mt-1">{stats.total}</h3>
+                  </div>
+                  <div className="p-3 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-500/20">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                </CardContent>
+              </Card>
 
           <Card className="bg-card border-border hover:border-emerald-500/40 transition-all shadow-sm">
             <CardContent className="p-4 flex items-center justify-between">
@@ -701,6 +739,8 @@ export const Empresas: React.FC = () => {
             })}
           </div>
         )}
+      </>
+    )}
 
         {/* Modal Formulário Criar / Editar */}
         <CompanyFormModal

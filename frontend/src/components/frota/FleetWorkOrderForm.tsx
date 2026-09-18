@@ -25,6 +25,7 @@ import { clientService } from '@/services/clientService';
 import { departmentService } from '@/services/departmentService';
 import { employeeService } from '@/services/employeeService';
 import { workPostService, WorkPost } from '@/services/workPostService';
+import { garageService, Garage } from '@/services/garageService';
 import { Vehicle } from '@/types/fleet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -108,6 +109,11 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     const { data: employees = [] } = useQuery({
         queryKey: ['employees-all-select'],
         queryFn: () => employeeService.getAllEmployees(),
+        staleTime: 60_000,
+    });
+    const { data: garagesForOS = [] } = useQuery<Garage[]>({
+        queryKey: ['garages-for-os'],
+        queryFn: () => garageService.list(),
         staleTime: 60_000,
     });
 
@@ -373,12 +379,18 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 value={formData.vehicleId || ''}
                                 onValueChange={v => {
                                     const selectedVeh = vehicles.find(veh => veh.id === v);
+                                    // Sugere a garagem onde o veículo está recolhido
+                                    const vehGarage = selectedVeh?.garageId
+                                        ? garagesForOS.find((g: Garage) => g.id === selectedVeh.garageId)
+                                        : undefined;
                                     setFormData(p => ({
                                         ...p,
                                         vehicleId: v,
                                         clientId: selectedVeh?.clientId || p.clientId,
                                         sectorId: selectedVeh?.workPostId || p.sectorId,
                                         workPostId: selectedVeh?.workPostId || p.workPostId,
+                                        garageId: p.garageId || selectedVeh?.garageId || undefined,
+                                        garageName: p.garageName || vehGarage?.name || selectedVeh?.garageName || undefined,
                                         odometerIn: (selectedVeh?.currentMileage !== undefined && selectedVeh?.currentMileage !== null)
                                             ? selectedVeh.currentMileage
                                             : p.odometerIn
@@ -499,6 +511,32 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione o requerente…" /></SelectTrigger>
                                 <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
                                     {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.name || e.fullName}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                        <Field label="Garagem (onde o serviço será executado) *">
+                            <Select
+                                value={formData.garageId || ''}
+                                onValueChange={v => {
+                                    const g = garagesForOS.find((x: Garage) => x.id === v);
+                                    setFormData(p => ({ ...p, garageId: v, garageName: g ? g.name : p.garageName }));
+                                }}
+                            >
+                                <SelectTrigger className="bg-seguranca-black border-gray-600">
+                                    <SelectValue placeholder="Selecione a garagem…" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
+                                    {garagesForOS.length > 0 ? (
+                                        garagesForOS.map((g: Garage) => (
+                                            <SelectItem key={g.id} value={g.id}>
+                                                {g.name} {g.responsibleName ? `— resp.: ${g.responsibleName}` : ''}
+                                            </SelectItem>
+                                        ))
+                                    ) : (
+                                        <div className="p-2 text-sm text-gray-400 text-center">
+                                            Nenhuma garagem cadastrada
+                                        </div>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </Field>

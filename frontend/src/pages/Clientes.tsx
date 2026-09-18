@@ -17,6 +17,8 @@ import { ClientViewModal } from '@/components/clientes/ClientViewModal';
 import { ClientReportFilters, ReportFilters } from '@/components/clientes/ClientReportFilters';
 import { clientReportService } from '@/services/clientReportService';
 import { ClientObraImportModal } from '@/components/clientes/ClientObraImportModal';
+import { MobilizacaoModal } from '@/components/clientes/MobilizacaoModal';
+import { Rocket } from 'lucide-react';
 
 const Clientes: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -31,6 +33,8 @@ const Clientes: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<Client | undefined>();
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isImportObraModalOpen, setIsImportObraModalOpen] = useState(false);
+  const [isMobilizacaoModalOpen, setIsMobilizacaoModalOpen] = useState(false);
+  const [mobilizacaoClient, setMobilizacaoClient] = useState<Client | undefined>();
   const [showReportFilters, setShowReportFilters] = useState(false);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
@@ -365,6 +369,17 @@ const Clientes: React.FC = () => {
             </Button>
             <Button 
               variant="outline"
+              onClick={() => {
+                setMobilizacaoClient(undefined);
+                setIsMobilizacaoModalOpen(true);
+              }}
+              className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400 font-semibold shadow-lg shadow-orange-500/10 rounded-xl transition-all duration-300"
+            >
+              <Rocket size={18} className="mr-2 text-orange-400 animate-pulse" />
+              Mobilização Multissetorial
+            </Button>
+            <Button 
+              variant="outline"
               onClick={() => setIsImportObraModalOpen(true)}
               className="border-amber-500/50 text-amber-300 hover:bg-amber-500/10 hover:border-amber-400 font-semibold shadow-lg shadow-amber-500/10 rounded-xl transition-all duration-300"
             >
@@ -487,6 +502,10 @@ const Clientes: React.FC = () => {
             onEdit={handleEditClient}
             onDelete={handleDeleteClient}
             onView={handleViewClient}
+            onMobilize={(client) => {
+              setMobilizacaoClient(client);
+              setIsMobilizacaoModalOpen(true);
+            }}
             isLoading={isLoading}
           />
 
@@ -563,6 +582,16 @@ const Clientes: React.FC = () => {
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
         client={selectedClient}
+      />
+
+      {/* Mobilização Multissetorial Modal */}
+      <MobilizacaoModal
+        isOpen={isMobilizacaoModalOpen}
+        onClose={() => setIsMobilizacaoModalOpen(false)}
+        client={mobilizacaoClient}
+        onSuccess={() => {
+          loadClients();
+        }}
       />
 
       {/* Import Quadro de Obras Modal */}

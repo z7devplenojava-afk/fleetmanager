@@ -66,8 +66,45 @@ export const companyService = {
       const response = await api.put(`/api/companies/${id}`, { status: newStatus });
       return response.data;
     }
-  }
+  },
+
+  async getCompanyOverview(companyId?: string): Promise<CompanyOverviewDTO> {
+    const url = companyId ? `/api/company/overview?companyId=${companyId}` : '/api/company/overview';
+    const response = await api.get(url);
+    return response.data;
+  },
 };
 
+export interface CompanyOverviewDTO {
+  companyId: string;
+  companyName: string;
+  cnpj: string;
+  active: boolean;
+  totalEmployees: number;
+  activeEmployees: number;
+  onLeaveEmployees: number;
+  totalVehicles: number;
+  activeVehicles: number;
+  maintenanceVehicles: number;
+  totalClients: number;
+  activeClients: number;
+  totalWorkPosts: number;
+  totalActiveContracts: number;
+  monthlyContractValueTotal: number;
+  openServiceOrders: number;
+  inProgressServiceOrders: number;
+  completedServiceOrdersMonth: number;
+  totalStockItems: number;
+  lowStockItems: number;
+  stockTotalValue: number;
+  revenueCurrentMonth: number;
+  expensesCurrentMonth: number;
+  netResultCurrentMonth: number;
+  accountsPayablePending: number;
+  accountsReceivablePending: number;
+  headcountByDepartment: Record<string, number>;
+  fleetStatusDistribution: Record<string, number>;
+  revenueEvolutionLast6Months: Array<{ month: string; revenue: number; expenses: number }>;
+}
+
 export default companyService;
-// Removed duplicated and outdated service definitions

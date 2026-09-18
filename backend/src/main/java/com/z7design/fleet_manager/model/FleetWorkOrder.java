@@ -118,6 +118,11 @@ public class FleetWorkOrder implements TenantAware {
     @JoinColumn(name = "work_post_id")
     private WorkPost workPost;
 
+    /** Garagem responsável pela execução da OS (pátio onde o serviço será realizado). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "garage_id")
+    private Garage garage;
+
     @Column(name = "client_id")
     private UUID clientId;
 

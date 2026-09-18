@@ -52,6 +52,8 @@ public class FleetWorkOrderDTO {
     // Alocação do veículo — Obra (Cliente) onde o veículo está alocado
     private UUID workPostId;
     private String workPostName;
+    private UUID garageId;
+    private String garageName;
     private UUID clientId;
     private String clientName;
 
@@ -118,6 +120,17 @@ public class FleetWorkOrderDTO {
                 clientName = entity.getVehicle().getWorkPostEntity().getClient().getName();
             }
         }
+        // Garagem: prioriza a garagem gravada na OS; fallback = garagem atual do veículo.
+        UUID garageId = entity.getGarage() != null ? entity.getGarage().getId() : null;
+        String garageName = entity.getGarage() != null ? entity.getGarage().getName() : null;
+        if (garageId == null && entity.getVehicle() != null) {
+            garageId = entity.getVehicle().getGarageId();
+            garageName = entity.getVehicle().getGarageName();
+            if (garageName == null && entity.getVehicle().getGarage() != null) {
+                garageName = entity.getVehicle().getGarage().getName();
+                garageId = entity.getVehicle().getGarage().getId();
+            }
+        }
         if (clientId == null && entity.getVehicle() != null && entity.getVehicle().getClientId() != null) {
             clientId = entity.getVehicle().getClientId();
         }
@@ -182,6 +195,8 @@ public class FleetWorkOrderDTO {
                 .maintenancePerformed(entity.getMaintenancePerformed())
                 .workPostId(workPostId)
                 .workPostName(workPostName)
+                .garageId(garageId)
+                .garageName(garageName)
                 .clientId(clientId)
                 .clientName(clientName)
                 .sectorId(entity.getSectorId())

@@ -64,6 +64,8 @@ const DEFAULT_FORM_DATA: VehicleFormData = {
     routeName: '',
     // Alocação
     postoDeTrabalho: '',
+    garagem: '',
+    garagemNome: '',
     departamento: '',
     departmentId: '',
     empresa: '',

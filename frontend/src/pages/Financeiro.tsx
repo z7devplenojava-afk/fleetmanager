@@ -15,7 +15,8 @@ import PagamentosTab from '@/components/financeiro/PagamentosTab';
 import RelatoriosTab from '@/components/financeiro/RelatoriosTab';
 import CentroCustosTab from '@/components/financeiro/CentroCustosTab';
 import FaturasTab from '@/components/financeiro/FaturasTab';
-import MedicoesTab from '@/components/financeiro/MedicoesTab';
+import { ShoppingCart } from 'lucide-react';
+import { PurchaseOrdersFinancialManager } from '@/components/financeiro/PurchaseOrdersFinancialManager';
 
 const FinanceiroSimple: React.FC = () => {
   const { toast } = useToast();
@@ -69,9 +70,13 @@ const FinanceiroSimple: React.FC = () => {
         <div className="space-y-6">
           <Tabs defaultValue="dashboard" className="w-full">
             {/* Tabs - Padrão SST Simplificado */}
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-9 bg-seguranca-graphite border-gray-600">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-10 bg-seguranca-graphite border-gray-600">
               <TabsTrigger value="dashboard" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-red text-xs sm:text-sm">
                 Dashboard
+              </TabsTrigger>
+              <TabsTrigger value="ordens-compra" className="text-seguranca-lightgray data-[state='active']:bg-amber-600 text-xs sm:text-sm flex items-center gap-1.5 font-medium">
+                <ShoppingCart className="w-3.5 h-3.5 text-amber-400" />
+                Ordens de Compra
               </TabsTrigger>
               <TabsTrigger value="contas-pagar" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-red text-xs sm:text-sm">
                 Contas a Pagar
@@ -110,6 +115,10 @@ const FinanceiroSimple: React.FC = () => {
                 });
               }}
             />
+          </TabsContent>
+
+          <TabsContent value="ordens-compra" className="mt-6">
+            <PurchaseOrdersFinancialManager />
           </TabsContent>
 
           <TabsContent value="contas-pagar">
