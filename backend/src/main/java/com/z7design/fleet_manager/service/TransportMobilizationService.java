@@ -106,9 +106,19 @@ public class TransportMobilizationService {
         if (garage != null) {
             // O próprio veículo não conta na lotação (está saindo da origem)
             garageService.validateHasCapacity(garage, vehicle.getId());
+            Garage fromGarage = vehicle.getGarageId() != null
+                    ? garageRepository.findById(vehicle.getGarageId()).orElse(null)
+                    : null;
             vehicle.setGarageId(garage.getId());
             vehicle.setGarageName(garage.getName());
             vehicleRepository.save(vehicle);
+
+            // Registra no histórico quando o veículo veio de outra garagem
+            if (fromGarage == null || !fromGarage.getId().equals(garage.getId())) {
+                garageService.recordMovement(vehicle, fromGarage, garage,
+                        dto.getGaragePurpose() != null ? dto.getGaragePurpose() : "OPERACAO",
+                        null, null, dto.getCompanyId());
+            }
         }
 
         String jsonData = dto.getJsonData();
