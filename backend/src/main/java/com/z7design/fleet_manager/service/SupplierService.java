@@ -533,6 +533,13 @@ public class SupplierService {
         supplier.setState(normalizeState(dto.getState()));
         supplier.setZipCode(dto.getZipCode());
         supplier.setNotes(dto.getNotes());
+        supplier.setSinceDate(dto.getSinceDate());
+        if (dto.getDocumentType() != null && !dto.getDocumentType().isBlank()) {
+            supplier.setDocumentType(dto.getDocumentType().toUpperCase());
+        } else if (dto.getCnpj() != null && !dto.getCnpj().isBlank()) {
+            String digits = dto.getCnpj().replaceAll("\\D", "");
+            supplier.setDocumentType(digits.length() <= 11 ? "CPF" : "CNPJ");
+        }
         if (dto.getIsActive() != null) {
             supplier.setIsActive(dto.getIsActive());
         }

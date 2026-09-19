@@ -927,14 +927,21 @@ function App() {
                         </ProtectedRoute>
                       } />
                       <Route path="/frota/garagens" element={
-                        <ProtectedRoute requiredPermissions={['FLEET_READ']}>
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
                           <Suspense fallback={<LoadingSpinner />}>
                             <Garagens />
                           </Suspense>
                         </ProtectedRoute>
                       } />
                       <Route path="/garagens" element={
-                        <ProtectedRoute requiredPermissions={['FLEET_READ']}>
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <Garagens />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/manutencao/garagens" element={
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
                           <Suspense fallback={<LoadingSpinner />}>
                             <Garagens />
                           </Suspense>

@@ -7,8 +7,8 @@ import { useToast } from '@/hooks/use-toast';
 import { companyService, CreateCompanyRequest } from '@/services/companyService';
 import api from '@/lib/axios';
 import { getApiUrl } from '@/config/environment';
-import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { resolveCompanyLogoUrl, resolveCompanyBannerUrl } from '@/utils/logoUtils';
+import { Upload, X, Image as ImageIcon, Building2, CheckCircle2, Sparkles, Images, Trash2, ChevronLeft, ChevronRight, Plus, Loader2 } from 'lucide-react';
 
 interface CompanyFormModalProps {
   open: boolean;
@@ -23,6 +23,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingBanners, setUploadingBanners] = useState(false);
   const [loadingCep, setLoadingCep] = useState(false);
   const isEditMode = Boolean((initialData as any)?.id);
   const [form, setForm] = useState<CreateCompanyRequest>({
@@ -42,16 +43,19 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
     description: '',
     website: '',
     status: 'ACTIVE',
-    logoUrl: ''
+    logoUrl: '',
+    bannerUrls: []
   });
 
   React.useEffect(() => {
     if (open && initialData) {
       const initialLogo = initialData.logoUrl || '';
+      const initialBanners = (initialData as any).bannerUrls || [];
       setForm(prev => ({
         ...prev,
         ...initialData,
-        logoUrl: initialLogo
+        logoUrl: initialLogo,
+        bannerUrls: Array.isArray(initialBanners) ? initialBanners : []
       } as CreateCompanyRequest));
       setLogoFile(null);
       if (initialLogo) {
@@ -78,7 +82,8 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
         description: '',
         website: '',
         status: 'ACTIVE',
-        logoUrl: ''
+        logoUrl: '',
+        bannerUrls: []
       });
       setLogoFile(null);
       setLogoPreview(null);
@@ -144,12 +149,16 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset input value to allow selecting the same file again
+    e.target.value = '';
+
     // Validar tipo de arquivo
-    const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
-    if (!validTypes.includes(file.type)) {
+    const validExtensions = ['.png', '.jpg', '.jpeg', '.svg', '.webp', '.ico'];
+    const hasValidExt = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    if (!file.type.startsWith('image/') && !hasValidExt) {
       toast({
         title: 'Tipo de arquivo inválido',
-        description: 'Apenas arquivos PNG, JPG e JPEG são permitidos.',
+        description: 'Apenas arquivos de imagem (PNG, JPG, JPEG, SVG, WEBP, ICO) são permitidos.',
         variant: 'destructive'
       });
       return;
@@ -167,42 +176,34 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
 
     setLogoFile(file);
 
-    // Criar preview
+    // Criar preview local imediato
     const reader = new FileReader();
     reader.onloadend = () => {
       setLogoPreview(reader.result as string);
     };
     reader.readAsDataURL(file);
 
-    // Fazer upload do logo
+    // Fazer upload do ícone da empresa
     await uploadLogo(file);
   };
 
   const uploadLogo = async (file: File) => {
     setUploadingLogo(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await api.post('/api/uploads/companies/logo', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      // Backend retorna: /api/uploads/companies/logos/{filename}
-      const logoUrl = response.data.url;
+      const data = await companyService.uploadLogo(file);
+      const logoUrl = data.url;
       setForm(prev => ({ ...prev, logoUrl }));
       setLogoPreview(resolveCompanyLogoUrl(logoUrl));
       toast({
-        title: 'Logo enviado',
-        description: 'Logo enviado com sucesso.'
+        title: 'Ícone enviado com sucesso',
+        description: 'O ícone da empresa foi carregado e salvo.',
+        className: 'bg-emerald-600 text-white'
       });
     } catch (err: any) {
-      console.error('Erro ao fazer upload do logo:', err);
+      console.error('Erro ao fazer upload do ícone:', err);
       toast({
-        title: 'Erro ao enviar logo',
-        description: err.response?.data?.error || 'Não foi possível enviar o logo.',
+        title: 'Erro ao enviar ícone',
+        description: err.response?.data?.error || err.response?.data?.message || 'Não foi possível enviar o ícone da empresa.',
         variant: 'destructive'
       });
       setLogoFile(null);
@@ -224,6 +225,79 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
     setForm(prev => ({ ...prev, logoUrl: '' }));
   };
 
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const fileList = Array.from(files);
+    e.target.value = '';
+
+    const validExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+    const validFiles = fileList.filter(f => {
+      const hasValidExt = validExtensions.some(ext => f.name.toLowerCase().endsWith(ext));
+      const hasValidMime = f.type.startsWith('image/');
+      const hasValidSize = f.size <= 10 * 1024 * 1024;
+      return (hasValidMime || hasValidExt) && hasValidSize;
+    });
+
+    if (validFiles.length === 0) {
+      toast({
+        title: 'Arquivos inválidos',
+        description: 'Selecione imagens válidas (PNG, JPG, JPEG, WEBP) de até 10MB.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setUploadingBanners(true);
+    try {
+      const uploadedUrls: string[] = [];
+      for (const file of validFiles) {
+        const res = await companyService.uploadBanner(file);
+        if (res?.url) {
+          uploadedUrls.push(res.url);
+        }
+      }
+
+      setForm(prev => ({
+        ...prev,
+        bannerUrls: [...(prev.bannerUrls || []), ...uploadedUrls]
+      }));
+
+      toast({
+        title: `${uploadedUrls.length} banner(s) adicionado(s)`,
+        description: 'Banners carregados com sucesso. Lembre-se de salvar a empresa.',
+        className: 'bg-emerald-600 text-white'
+      });
+    } catch (err: any) {
+      console.error('Erro ao fazer upload de banners:', err);
+      toast({
+        title: 'Erro no envio dos banners',
+        description: err.response?.data?.message || 'Não foi possível enviar os banners.',
+        variant: 'destructive'
+      });
+    } finally {
+      setUploadingBanners(false);
+    }
+  };
+
+  const removeBanner = (indexToRemove: number) => {
+    setForm(prev => ({
+      ...prev,
+      bannerUrls: (prev.bannerUrls || []).filter((_, idx) => idx !== indexToRemove)
+    }));
+  };
+
+  const moveBanner = (index: number, direction: 'left' | 'right') => {
+    setForm(prev => {
+      const current = [...(prev.bannerUrls || [])];
+      const targetIndex = direction === 'left' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= current.length) return prev;
+      const [item] = current.splice(index, 1);
+      current.splice(targetIndex, 0, item);
+      return { ...prev, bannerUrls: current };
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,8 +305,8 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
       toast({ title: 'Campos obrigatórios', description: 'Preencha Nome e CNPJ.', variant: 'destructive' });
       return;
     }
-    if (uploadingLogo) {
-      toast({ title: 'Aguarde o upload', description: 'Finalize o envio da logomarca antes de salvar.', variant: 'destructive' });
+    if (uploadingLogo || uploadingBanners) {
+      toast({ title: 'Aguarde o upload', description: 'Finalize o envio das imagens antes de salvar.', variant: 'destructive' });
       return;
     }
     setLoading(true);
@@ -274,6 +348,234 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          {/* Seção: Ícone & Logomarca da Empresa */}
+          <div className="p-4 rounded-xl bg-gray-800/90 border border-gray-700 shadow-md">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+              {/* Preview Box do Ícone */}
+              <div className="relative flex-shrink-0 group">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gray-900 border-2 border-dashed border-gray-600 flex items-center justify-center overflow-hidden shadow-inner group-hover:border-seguranca-yellow transition-all p-2">
+                  {logoPreview ? (
+                    <img
+                      src={logoPreview}
+                      alt="Ícone da empresa"
+                      className="w-full h-full object-contain rounded-xl"
+                      onError={() => {
+                        console.warn('⚠️ Erro ao carregar preview do ícone');
+                      }}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-center text-gray-400 p-1">
+                      {form.sigla || form.name ? (
+                        <span className="text-xl sm:text-2xl font-black text-seguranca-yellow tracking-wider">
+                          {(form.sigla || form.name.slice(0, 3)).toUpperCase()}
+                        </span>
+                      ) : (
+                        <Building2 className="w-10 h-10 text-gray-500 mb-1" />
+                      )}
+                      <span className="text-[10px] text-gray-400 font-medium">Sem Ícone</span>
+                    </div>
+                  )}
+                </div>
+
+                {logoPreview && (
+                  <button
+                    type="button"
+                    onClick={removeLogo}
+                    className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1.5 shadow-lg transition-transform hover:scale-110"
+                    title="Remover ícone"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Upload Controls & Details */}
+              <div className="flex-1 flex flex-col justify-center space-y-2 text-center sm:text-left w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <Label className="text-sm font-semibold text-seguranca-yellow flex items-center justify-center sm:justify-start gap-1.5">
+                    <ImageIcon className="w-4 h-4" />
+                    Ícone / Logomarca da Empresa
+                  </Label>
+                  {logoPreview ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full w-fit mx-auto sm:mx-0">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      Ícone configurado
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-400/90 bg-amber-950/40 border border-amber-800/40 px-2 py-0.5 rounded-full w-fit mx-auto sm:mx-0">
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      Recomendado
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-300">
+                  O ícone será exibido na listagem de empresas, cabeçalhos de ordens de serviço, relatórios e dashboards.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1 justify-center sm:justify-start">
+                  <label className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg cursor-pointer transition-all shadow-sm ${
+                    uploadingLogo 
+                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                      : 'bg-seguranca-red hover:bg-seguranca-darkred text-white hover:shadow-md hover:shadow-red-900/30'
+                  }`}>
+                    {uploadingLogo ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
+                        <span>Enviando ícone...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{logoPreview ? 'Substituir Ícone' : 'Fazer Upload do Ícone'}</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".png,.jpg,.jpeg,.svg,.webp,.ico"
+                      onChange={handleLogoChange}
+                      disabled={uploadingLogo}
+                    />
+                  </label>
+
+                  {logoPreview && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={removeLogo}
+                      className="h-8 text-xs border-gray-600 text-gray-300 hover:text-red-400 hover:border-red-500/50 hover:bg-red-500/10"
+                    >
+                      Remover
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  Formatos aceitos: PNG, JPG, JPEG, SVG, WEBP ou ICO (máx. 5MB).
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Seção: Banners Motivacionais do Dashboard */}
+          <div className="p-4 rounded-xl bg-gray-800/90 border border-gray-700 shadow-md space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-700/80 pb-3">
+              <div>
+                <Label className="text-sm font-semibold text-seguranca-yellow flex items-center gap-1.5">
+                  <Images className="w-4 h-4 text-amber-400" />
+                  Banners Motivacionais do Dashboard
+                </Label>
+                <p className="text-xs text-gray-300 mt-0.5">
+                  Imagens que rotacionam no topo do Dashboard para engajar e motivar a equipe. Recomendado formato widescreen (16:9).
+                </p>
+              </div>
+
+              <label className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg cursor-pointer transition-all shadow-sm flex-shrink-0 ${
+                uploadingBanners
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold hover:shadow-md hover:shadow-amber-500/20 active:scale-95'
+              }`}>
+                {uploadingBanners ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+                    <span>Enviando banners...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-3.5 h-3.5 text-black" />
+                    <span>Adicionar Banners</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".png,.jpg,.jpeg,.webp"
+                  multiple
+                  onChange={handleBannerUpload}
+                  disabled={uploadingBanners}
+                />
+              </label>
+            </div>
+
+            {/* Grade de Banners */}
+            {(!form.bannerUrls || form.bannerUrls.length === 0) ? (
+              <div className="p-4 rounded-xl border border-dashed border-gray-600 bg-gray-900/40 text-center space-y-1">
+                <Images className="w-8 h-8 text-gray-500 mx-auto mb-1" />
+                <p className="text-xs text-gray-400 font-medium">Nenhum banner cadastrado para esta empresa.</p>
+                <p className="text-[11px] text-gray-500">
+                  Clique em "Adicionar Banners" para carregar imagens motivacionais da equipe.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                {form.bannerUrls.map((bannerUrl, index) => {
+                  const resolvedUrl = resolveCompanyBannerUrl(bannerUrl) || bannerUrl;
+                  return (
+                    <div 
+                      key={`${bannerUrl}-${index}`}
+                      className="group relative rounded-xl border border-gray-700 bg-gray-900/80 overflow-hidden shadow-sm hover:border-amber-500/60 transition-all flex flex-col"
+                    >
+                      {/* Imagem do Banner */}
+                      <div className="relative aspect-video w-full overflow-hidden bg-black/50">
+                        <img 
+                          src={resolvedUrl} 
+                          alt={`Banner motivacional ${index + 1}`}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.opacity = '0.4';
+                          }}
+                        />
+                        {/* Badge de Ordem */}
+                        <span className="absolute top-2 left-2 bg-black/80 backdrop-blur-sm text-amber-400 text-[11px] font-black px-2 py-0.5 rounded-md border border-amber-500/30 shadow">
+                          {index + 1}º Banner
+                        </span>
+
+                        {/* Botão Excluir */}
+                        <button
+                          type="button"
+                          onClick={() => removeBanner(index)}
+                          className="absolute top-2 right-2 bg-red-600/90 hover:bg-red-700 text-white rounded-full p-1.5 shadow transition-all hover:scale-110"
+                          title="Remover este banner"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Controles de Reordenação */}
+                      <div className="p-2 flex items-center justify-between bg-gray-950/60 border-t border-gray-800 text-xs">
+                        <span className="text-[11px] text-gray-400 font-medium">Ordem de exibição</span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={index === 0}
+                            onClick={() => moveBanner(index, 'left')}
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-white disabled:opacity-30"
+                            title="Mover para frente"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={index === form.bannerUrls!.length - 1}
+                            onClick={() => moveBanner(index, 'right')}
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-white disabled:opacity-30"
+                            title="Mover para trás"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Seção: Dados Básicos */}
           <div className="space-y-3 sm:space-y-4">
             <h3 className="text-sm sm:text-base font-semibold text-seguranca-yellow border-b border-gray-600 pb-2">Dados Básicos</h3>
@@ -303,6 +605,15 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
                   <option value="SUSPENDED">Suspensa</option>
                 </select>
               </div>
+            </div>
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label className="text-xs sm:text-sm font-medium text-seguranca-lightgray">Descrição da Empresa</Label>
+              <Input
+                value={form.description || ''}
+                onChange={e => handleChange('description', e.target.value)}
+                className="h-9 sm:h-10 text-xs sm:text-sm bg-white border-gray-300 text-black placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow"
+                placeholder="Breve descrição ou ramo de atuação"
+              />
             </div>
           </div>
 
@@ -423,75 +734,6 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
                 className="h-9 sm:h-10 text-xs sm:text-sm bg-white border-gray-300 text-black placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow" 
                 placeholder="Nome da cidade" 
               />
-            </div>
-          </div>
-
-          {/* Seção: Informações Adicionais */}
-          <div className="space-y-3 sm:space-y-4">
-            <h3 className="text-sm sm:text-base font-semibold text-seguranca-yellow border-b border-gray-600 pb-2">Informações Adicionais</h3>
-            <div className="space-y-1.5 sm:space-y-2">
-              <Label className="text-xs sm:text-sm font-medium text-seguranca-lightgray">Logo da Empresa</Label>
-              <div className="space-y-2">
-                {logoPreview ? (
-                  <div className="flex items-center gap-4 p-3 bg-gray-800/80 border border-gray-600 rounded-lg">
-                    <div className="relative inline-block flex-shrink-0">
-                      <img
-                        src={logoPreview}
-                        alt="Logo preview"
-                        className="w-20 h-20 sm:w-24 sm:h-24 object-contain border border-gray-600 rounded-md bg-white p-2"
-                        onError={() => {
-                          console.warn('⚠️ Não foi possível renderizar imagem do logo no preview:', logoPreview);
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={removeLogo}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-md transition-colors"
-                        title="Remover logo"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <span className="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        Logomarca salva / carregada
-                      </span>
-                      <label className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white bg-gray-700 hover:bg-gray-600 border border-gray-500 rounded-md cursor-pointer transition-colors w-fit">
-                        <span>Alterar logomarca</span>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept=".png,.jpg,.jpeg"
-                          onChange={handleLogoChange}
-                          disabled={uploadingLogo}
-                        />
-                      </label>
-                      <p className="text-[11px] text-gray-400">PNG, JPG ou JPEG (máx. 5MB)</p>
-                    </div>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-800 hover:bg-gray-700 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-3 sm:pt-5 pb-4 sm:pb-6">
-                      <Upload className="w-6 h-6 sm:w-8 sm:h-8 mb-1 sm:mb-2 text-gray-400" />
-                      <p className="mb-1 sm:mb-2 text-xs sm:text-sm text-gray-400">
-                        <span className="font-semibold">Clique para fazer upload</span> ou arraste e solte
-                      </p>
-                      <p className="text-xs text-gray-500">PNG, JPG ou JPEG (máx. 5MB)</p>
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".png,.jpg,.jpeg"
-                      onChange={handleLogoChange}
-                      disabled={uploadingLogo}
-                    />
-                  </label>
-                )}
-                {uploadingLogo && (
-                  <p className="text-xs text-seguranca-yellow font-medium animate-pulse">Enviando logomarca...</p>
-                )}
-              </div>
             </div>
           </div>
 

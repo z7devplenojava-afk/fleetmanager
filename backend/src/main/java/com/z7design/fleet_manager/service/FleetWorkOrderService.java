@@ -13,6 +13,7 @@ import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.WorkPost;
 import com.z7design.fleet_manager.model.Vehicle;
 import com.z7design.fleet_manager.model.WorkOrderItem;
+import com.z7design.fleet_manager.model.FleetWorkOrderChecklist;
 import com.z7design.fleet_manager.repository.FleetWorkOrderHistoryRepository;
 import com.z7design.fleet_manager.repository.FleetWorkOrderRepository;
 import com.z7design.fleet_manager.repository.MaintenancePlanRepository;
@@ -59,6 +60,8 @@ public class FleetWorkOrderService {
     private final ClientRepository clientRepository;
     private final EmployeeRepository employeeRepository;
     private final MaterialRequisitionService materialRequisitionService;
+    private final com.z7design.fleet_manager.repository.ServiceRepository serviceRepository;
+    private final com.z7design.fleet_manager.repository.StockItemRepository stockItemRepository;
 
     private FleetWorkOrderDTO toDTO(FleetWorkOrder entity) {
         FleetWorkOrderDTO dto = FleetWorkOrderDTO.fromEntity(entity);
@@ -193,6 +196,55 @@ public class FleetWorkOrderService {
         return checklistItemRepository.findByAtivoTrueOrderByOrdemAsc().stream()
                 .map(com.z7design.fleet_manager.dto.ChecklistItemDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    // ── Catálogo de Serviços de Manutenção ───────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<com.z7design.fleet_manager.dto.ServiceDTO> getServicesCatalog() {
+        return serviceRepository.findAllOrderByName().stream()
+                .map(com.z7design.fleet_manager.dto.ServiceDTO::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public com.z7design.fleet_manager.dto.ServiceDTO createQuickService(Map<String, Object> body) {
+        String name = (String) body.get("name");
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Nome do serviço é obrigatório.");
+        }
+
+        String description = (String) body.get("description");
+        String category = (String) body.getOrDefault("category", "MANUTENCAO");
+        BigDecimal unitPrice = BigDecimal.ZERO;
+        if (body.get("unitPrice") != null) {
+            try {
+                unitPrice = new BigDecimal(body.get("unitPrice").toString());
+            } catch (Exception ignored) {}
+        }
+
+        // Gerar código sequencial do serviço (ex: SRV-0012)
+        long count = serviceRepository.count();
+        String generatedCode = String.format("SRV-%04d", count + 1);
+        int attempts = 1;
+        while (serviceRepository.existsByCode(generatedCode)) {
+            attempts++;
+            generatedCode = String.format("SRV-%04d", count + attempts);
+        }
+
+        com.z7design.fleet_manager.model.Service service = com.z7design.fleet_manager.model.Service.builder()
+                .name(name.trim())
+                .description(description != null ? description.trim() : null)
+                .category(category)
+                .code(generatedCode)
+                .unitPrice(unitPrice)
+                .unit("UN")
+                .status(com.z7design.fleet_manager.model.Service.ServiceStatus.ACTIVE)
+                .isBillable(true)
+                .build();
+
+        com.z7design.fleet_manager.model.Service saved = serviceRepository.save(service);
+        return com.z7design.fleet_manager.dto.ServiceDTO.fromEntity(saved);
     }
 
     // ── Criação ───────────────────────────────────────────────────────────────
@@ -733,14 +785,15 @@ public class FleetWorkOrderService {
                 .osNumber(newOsNumber)
                 .vehicle(source.getVehicle())
                 .plan(source.getPlan())
-                .maintenanceType(source.getMaintenanceType())
+                .maintenanceType(source.getMaintenanceType() != null ? source.getMaintenanceType() : FleetWorkOrder.MaintenanceType.CORRETIVA)
                 .status(FleetWorkOrder.WorkOrderStatus.OPEN)
-                .priority(source.getPriority())
+                .priority(source.getPriority() != null ? source.getPriority() : FleetWorkOrder.WorkOrderPriority.MEDIUM)
                 .mechanicId(source.getMechanicId())
                 .mechanicName(source.getMechanicName())
                 .laborType(source.getLaborType())
                 .plannedDate(java.time.LocalDate.now())
                 .workPost(source.getWorkPost())
+                .garage(source.getGarage())
                 .clientId(source.getClientId())
                 .sectorId(source.getSectorId())
                 .requesterId(source.getRequesterId())
@@ -750,9 +803,60 @@ public class FleetWorkOrderService {
                 .anomaliesDescription(source.getAnomaliesDescription())
                 .otherDescription(source.getOtherDescription())
                 .stopReason(source.getStopReason())
+                .reserveCovered(source.getReserveCovered() != null ? source.getReserveCovered() : false)
+                .reserveVehicleId(source.getReserveVehicleId())
+                .reserveResponseMinutes(source.getReserveResponseMinutes())
                 .notes("Duplicado da OS " + source.getOsNumber())
+                .laborCost(source.getLaborCost() != null ? source.getLaborCost() : BigDecimal.ZERO)
+                .partsCost(BigDecimal.ZERO)
+                .totalCost(BigDecimal.ZERO)
+                .items(new ArrayList<>())
+                .checklistItems(new ArrayList<>())
+                .photoAttachments(new ArrayList<>())
                 .companyId(source.getCompanyId())
                 .build();
+
+        // Duplicar itens de serviço / peças
+        if (source.getItems() != null && !source.getItems().isEmpty()) {
+            for (WorkOrderItem srcItem : source.getItems()) {
+                WorkOrderItem newItem = WorkOrderItem.builder()
+                        .workOrder(copy)
+                        .description(srcItem.getDescription())
+                        .type(srcItem.getType())
+                        .quantity(srcItem.getQuantity())
+                        .unitPrice(srcItem.getUnitPrice())
+                        .totalPrice(srcItem.getTotalPrice())
+                        .productId(srcItem.getProductId())
+                        .code(srcItem.getCode())
+                        .requiresApproval(srcItem.getRequiresApproval())
+                        .approvalReason(srcItem.getApprovalReason())
+                        .approved(false) // Ao duplicar, reseta aprovação para que novo gestor aprove se necessário
+                        .approvedBy(null)
+                        .approvedAt(null)
+                        .provider(srcItem.getProvider())
+                        .build();
+                copy.getItems().add(newItem);
+                if (newItem.getTotalPrice() != null) {
+                    copy.setPartsCost(copy.getPartsCost().add(newItem.getTotalPrice()));
+                }
+            }
+        }
+
+        // Custo total = mão de obra + peças
+        copy.setTotalCost(copy.getLaborCost().add(copy.getPartsCost()));
+
+        // Duplicar checklist
+        if (source.getChecklistItems() != null && !source.getChecklistItems().isEmpty()) {
+            for (FleetWorkOrderChecklist srcCheck : source.getChecklistItems()) {
+                FleetWorkOrderChecklist newCheck = FleetWorkOrderChecklist.builder()
+                        .workOrder(copy)
+                        .checklistItem(srcCheck.getChecklistItem())
+                        .situacao(FleetWorkOrderChecklist.ChecklistStatus.OK)
+                        .observacao(srcCheck.getObservacao())
+                        .build();
+                copy.getChecklistItems().add(newCheck);
+            }
+        }
 
         FleetWorkOrder saved = repository.save(copy);
 
@@ -798,7 +902,12 @@ public class FleetWorkOrderService {
     private String generateOsNumber() {
         int currentYear = java.time.Year.now().getValue();
         long count = repository.count() + 1;
-        return String.format("OS-%d-%06d", currentYear, count);
+        String osNumber = String.format("OS-%d-%06d", currentYear, count);
+        while (repository.existsByOsNumber(osNumber)) {
+            count++;
+            osNumber = String.format("OS-%d-%06d", currentYear, count);
+        }
+        return osNumber;
     }
 
     private void updateChecklistItems(FleetWorkOrder entity, List<com.z7design.fleet_manager.dto.FleetWorkOrderChecklistDTO> dtoList) {
@@ -867,11 +976,15 @@ public class FleetWorkOrderService {
                 existing.setUnitPrice(price);
                 existing.setTotalPrice(total);
                 existing.setProductId(itemDto.getProductId());
+                existing.setCode(itemDto.getCode());
+                existing.setRequiresApproval(itemDto.getRequiresApproval() != null ? itemDto.getRequiresApproval() : false);
+                existing.setApprovalReason(itemDto.getApprovalReason());
+                existing.setApproved(itemDto.getApproved() != null ? itemDto.getApproved() : false);
+                existing.setApprovedBy(itemDto.getApprovedBy());
+                existing.setApprovedAt(itemDto.getApprovedAt());
                 existing.setProvider(itemDto.getProvider());
             } else {
-                if (itemDto.getProductId() != null) {
-                    productService.consumeStock(itemDto.getProductId(), qty);
-                }
+                consumeItemStock(itemDto.getProductId(), qty);
                 WorkOrderItem newItem = WorkOrderItem.builder()
                         .workOrder(entity)
                         .description(itemDto.getDescription())
@@ -880,6 +993,12 @@ public class FleetWorkOrderService {
                         .unitPrice(price)
                         .totalPrice(total)
                         .productId(itemDto.getProductId())
+                        .code(itemDto.getCode())
+                        .requiresApproval(itemDto.getRequiresApproval() != null ? itemDto.getRequiresApproval() : false)
+                        .approvalReason(itemDto.getApprovalReason())
+                        .approved(itemDto.getApproved() != null ? itemDto.getApproved() : false)
+                        .approvedBy(itemDto.getApprovedBy())
+                        .approvedAt(itemDto.getApprovedAt())
                         .provider(itemDto.getProvider())
                         .build();
                 entity.getItems().add(newItem);
@@ -902,9 +1021,7 @@ public class FleetWorkOrderService {
         BigDecimal price = itemDto.getUnitPrice() != null ? itemDto.getUnitPrice() : BigDecimal.ZERO;
         BigDecimal total = price.multiply(qty);
 
-        if (itemDto.getProductId() != null) {
-            productService.consumeStock(itemDto.getProductId(), qty);
-        }
+        consumeItemStock(itemDto.getProductId(), qty);
 
         WorkOrderItem item = WorkOrderItem.builder()
                 .workOrder(workOrder)
@@ -914,11 +1031,49 @@ public class FleetWorkOrderService {
                 .unitPrice(price)
                 .totalPrice(total)
                 .productId(itemDto.getProductId())
+                .code(itemDto.getCode())
+                .requiresApproval(itemDto.getRequiresApproval() != null ? itemDto.getRequiresApproval() : false)
+                .approvalReason(itemDto.getApprovalReason())
+                .approved(itemDto.getApproved() != null ? itemDto.getApproved() : false)
+                .approvedBy(itemDto.getApprovedBy())
+                .approvedAt(itemDto.getApprovedAt())
                 .provider(itemDto.getProvider())
                 .build();
 
         workOrder.getItems().add(item);
         workOrder.setPartsCost(workOrder.getPartsCost().add(total));
+    }
+
+    /**
+     * Realiza a baixa de estoque tanto para itens do Almoxarifado (StockItem - tabela principal)
+     * quanto para produtos legado (Product), evitando erros de "produto não encontrado".
+     */
+    private void consumeItemStock(UUID itemId, BigDecimal quantity) {
+        if (itemId == null || quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) return;
+
+        // 1. Tenta encontrar no Almoxarifado (StockItem)
+        try {
+            var stockItemOpt = stockItemRepository.findById(itemId);
+            if (stockItemOpt.isPresent()) {
+                var stockItem = stockItemOpt.get();
+                int currentQty = stockItem.getCurrentQuantity() != null ? stockItem.getCurrentQuantity() : 0;
+                int deduct = quantity.intValue();
+                stockItem.setCurrentQuantity(currentQty - deduct);
+                stockItemRepository.save(stockItem);
+                return;
+            }
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(FleetWorkOrderService.class)
+                    .warn("Não foi possível atualizar saldo no Almoxarifado para item {}: {}", itemId, e.getMessage());
+        }
+
+        // 2. Fallback para tabela de produtos legado (Product)
+        try {
+            productService.consumeStock(itemId, quantity);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(FleetWorkOrderService.class)
+                    .warn("Item/Produto {} não encontrado para baixa de estoque: {}", itemId, e.getMessage());
+        }
     }
 
     private FleetWorkOrderHistory addHistory(UUID workOrderId, String actionType,

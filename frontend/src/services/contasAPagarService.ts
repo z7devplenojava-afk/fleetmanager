@@ -10,6 +10,7 @@ export interface CreateContaAPagarRequest {
   clientId?: string | null;
   contractId?: string | null;
   workPostId?: string | null;
+  garageId?: string | null;
   unitId: string;
   amount: number;
   type: 'FIXA' | 'VARIAVEL';
@@ -44,6 +45,9 @@ export interface ContasAPagarFilters {
 export interface Supplier {
   id: string;
   name: string;
+  tradeName?: string;
+  contactName?: string;
+  registrationNumber?: string;
   cnpj?: string;
   email?: string;
   phone?: string;
@@ -53,12 +57,19 @@ export interface Supplier {
   zipCode?: string;
   category?: string;
   notes?: string;
+  documentType?: 'CPF' | 'CNPJ' | string;
+  sinceDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
   isActive: boolean;
 }
 
 export interface CreateSupplierRequest {
   name: string;
-  cnpj: string;
+  tradeName?: string;
+  contactName?: string;
+  registrationNumber?: string;
+  cnpj?: string;
   email?: string;
   phone?: string;
   address?: string;
@@ -67,6 +78,8 @@ export interface CreateSupplierRequest {
   zipCode?: string;
   category?: string;
   notes?: string;
+  documentType?: 'CPF' | 'CNPJ' | string;
+  sinceDate?: string;
 }
 
 export type UpdateSupplierRequest = Partial<CreateSupplierRequest> & {
@@ -296,6 +309,8 @@ export const contasAPagarService = {
       contratoId: invoice.contractId,
       obra: invoice.workPostName,
       obraId: invoice.workPostId,
+      garagem: invoice.garageName,
+      garagemId: invoice.garageId,
       descricao: invoice.description,
       tipo: invoice.type || 'VARIAVEL',
       valor: parseFloat(invoice.amount),
@@ -329,6 +344,7 @@ export const contasAPagarService = {
       clientId: conta.clienteId || null,
       contractId: conta.contratoId || null,
       workPostId: conta.obraId || null,
+      garageId: conta.garagemId || null,
       unitId: unitId,
       amount: Number(conta.valor) || 0, // Garantir que seja um número
       type: conta.tipo,
@@ -366,6 +382,7 @@ export const contasAPagarService = {
     if (conta.clienteId !== undefined) requestData.clientId = conta.clienteId || null;
     if (conta.contratoId !== undefined) requestData.contractId = conta.contratoId || null;
     if (conta.obraId !== undefined) requestData.workPostId = conta.obraId || null;
+    if (conta.garagemId !== undefined) requestData.garageId = conta.garagemId || null;
     if (conta.valor !== undefined) requestData.amount = conta.valor;
     if (conta.tipo) requestData.type = conta.tipo;
     if (conta.status) requestData.status = mapFrontendStatusToBackend(conta.status) as any;
@@ -546,6 +563,11 @@ export const contasAPagarService = {
   // Excluir fornecedor
   async deleteFornecedor(id: string): Promise<void> {
     await api.delete(`/api/suppliers/${id}`);
+  },
+
+  // Excluir múltiplos fornecedores em lote
+  async deleteFornecedoresBatch(ids: string[]): Promise<void> {
+    await api.post('/api/suppliers/batch-delete', ids);
   },
 
   // Alternar status (ativo/inativo)

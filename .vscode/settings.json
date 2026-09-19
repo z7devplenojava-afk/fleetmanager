@@ -2,14 +2,12 @@
   // JDK usado pelo Java Language Server (imports, anotações Spring, etc.)
   // Se o seu JDK 17 estiver em outro lugar, altere só esta linha.
   "java.jdt.ls.java.home": "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.18.8-hotspot",
-
   // Mesmo JDK para o importador Gradle (evita mismatch com o LS)
   "java.import.gradle.java.home": "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.18.8-hotspot",
-
   "java.import.gradle.enabled": true,
   "java.import.gradle.wrapper.enabled": true,
   "java.configuration.updateBuildConfiguration": "automatic",
   "java.compile.nullAnalysis.mode": "automatic",
   "java.debug.settings.onBuildFailureProceed": true,
-  "java.jdt.ls.vmargs": "-Dfile.encoding=UTF-8 -XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx2G -Xms100m"
+  "java.jdt.ls.vmargs": "-Dfile.encoding=UTF-8 -XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx4G -Xms100m"
 }

@@ -96,6 +96,9 @@ public class Company {
     @Column(name = "logo_url", length = 500)
     private String logoUrl;
 
+    @Column(name = "banner_urls", columnDefinition = "TEXT")
+    private String bannerUrls;
+
     @Size(max = 50, message = "Tema cor must not exceed 50 characters")
     @Column(name = "tema_cor", length = 50)
     private String temaCor;

@@ -33,3 +33,32 @@ export function resolveCompanyLogoUrl(logoUrl?: string | null): string | null {
   // Se for apenas o nome do arquivo ou caminho relativo
   return `${origin}/api/uploads/companies/logos/${trimmed.replace(/^\/+/, '')}`;
 }
+
+/**
+ * Normaliza e resolve a URL completa de banner motivacional para exibição no frontend.
+ */
+export function resolveCompanyBannerUrl(bannerUrl?: string | null): string | null {
+  if (!bannerUrl || !bannerUrl.trim()) return null;
+  const trimmed = bannerUrl.trim();
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+
+  const apiUrl = getApiUrl();
+  const origin = apiUrl.startsWith('http') ? new URL(apiUrl).origin : '';
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+
+  if (cleanPath.startsWith('/api/uploads/')) {
+    return `${origin}${cleanPath}`;
+  }
+  if (cleanPath.startsWith('/uploads/')) {
+    return `${origin}/api${cleanPath}`;
+  }
+  if (cleanPath.startsWith('/companies/banners/')) {
+    return `${origin}/api/uploads${cleanPath}`;
+  }
+
+  return `${origin}/api/uploads/companies/banners/${trimmed.replace(/^\/+/, '')}`;
+}
+

@@ -30,6 +30,7 @@ import { ContasAPagarTable } from '@/components/financeiro/ContasAPagarTable';
 import { ContasAPagarDashboard } from '@/components/financeiro/ContasAPagarDashboard';
 import { ContasAPagarViewModal } from '@/components/financeiro/ContasAPagarViewModal';
 import { contasAPagarService } from '@/services/contasAPagarService';
+import { CLASSIFICACOES_PADRAO, GRUPOS_CLASSIFICACAO, getClassificacaoStyle } from '@/constants/classificacaoContasPagar';
 import { format, addDays, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -56,6 +57,7 @@ const ContasAPagarTab: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('TODOS');
   const [tipoFilter, setTipoFilter] = useState<string>('TODOS');
+  const [classificacaoFilter, setClassificacaoFilter] = useState<string>('TODAS');
   
   // Estados para relatórios
   const [activeTab, setActiveTab] = useState<'contas' | 'relatorios'>('contas');
@@ -66,7 +68,8 @@ const ContasAPagarTab: React.FC = () => {
     endDate: new Date(new Date().getFullYear(), 11, 31),
     status: 'TODOS',
     tipo: 'TODOS',
-    fornecedor: 'TODOS'
+    fornecedor: 'TODOS',
+    classificacao: 'TODAS'
   });
   
   // Estados para filtro por empresa no relatório
@@ -160,6 +163,13 @@ const ContasAPagarTab: React.FC = () => {
       filtered = filtered.filter(conta => conta.tipo === tipoFilter);
     }
 
+    // Filtro por classificação
+    if (classificacaoFilter !== 'TODAS') {
+      filtered = filtered.filter(conta =>
+        (conta.categoria || '').toLowerCase().includes(classificacaoFilter.toLowerCase())
+      );
+    }
+
     // Filtro por ano e mês
     filtered = filtered.filter(conta => {
       const dataVencimento = new Date(conta.vencimento);
@@ -176,7 +186,7 @@ const ContasAPagarTab: React.FC = () => {
 
   useEffect(() => {
     filterContas();
-  }, [contas, searchTerm, statusFilter, tipoFilter, anoSelecionado, mesSelecionado]);
+  }, [contas, searchTerm, statusFilter, tipoFilter, classificacaoFilter, anoSelecionado, mesSelecionado]);
 
   // Handlers
   const handleCreateConta = () => {
@@ -317,8 +327,10 @@ const ContasAPagarTab: React.FC = () => {
         const filtroStatus = reportFilters.status === 'TODOS' || conta.status === reportFilters.status;
         const filtroTipo = reportFilters.tipo === 'TODOS' || conta.tipo === reportFilters.tipo;
         const filtroFornecedor = reportFilters.fornecedor === 'TODOS' || conta.fornecedor === reportFilters.fornecedor;
+        const filtroClassificacao = reportFilters.classificacao === 'TODAS' || 
+          (conta.categoria || '').toLowerCase().includes(reportFilters.classificacao.toLowerCase());
         
-        return filtroData && filtroStatus && filtroTipo && filtroFornecedor;
+        return filtroData && filtroStatus && filtroTipo && filtroFornecedor && filtroClassificacao;
       });
 
       let contasParaRelatorio = contasFiltradas;
@@ -476,6 +488,29 @@ const ContasAPagarTab: React.FC = () => {
             }
           };
           break;
+        case 'classificacao':
+          const classificacoes = contasParaRelatorio.reduce((acc, conta) => {
+            const cat = conta.categoria || 'Não classificada';
+            if (!acc[cat]) {
+              acc[cat] = { count: 0, valor: 0 };
+            }
+            acc[cat].count++;
+            acc[cat].valor += conta.valor;
+            return acc;
+          }, {} as any);
+          
+          reportData = {
+            ...reportData,
+            title: 'Relatório por Classificação - Contas a Pagar',
+            subtitle: 'Agrupamento das contas por plano e classificação contábil',
+            summary: {
+              totalClassificacoes: Object.keys(classificacoes).length,
+              classificacoes: classificacoes,
+              totalContas: contasParaRelatorio.length,
+              valorTotal: contasParaRelatorio.reduce((sum, c) => sum + c.valor, 0)
+            }
+          };
+          break;
       }
 
       setReportData(reportData);
@@ -508,7 +543,7 @@ const ContasAPagarTab: React.FC = () => {
     }
     
     try {
-      const headers = ['Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo', 'Empresa', 'Categoria'];
+      const headers = ['Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo', 'Empresa', 'Classificação'];
       const csvContent = [
         headers.join(','),
         ...filteredReportDisplayData.map((conta: ContaAPagar) => [
@@ -519,7 +554,7 @@ const ContasAPagarTab: React.FC = () => {
           getStatusDisplayName(conta.status),
           conta.tipo,
           conta.empresa || conta.companySigla || 'Não informado',
-          conta.categoria || ''
+          `"${conta.categoria || 'Não classificada'}"`
         ].join(','))
       ].join('\n');
       
@@ -564,7 +599,7 @@ const ContasAPagarTab: React.FC = () => {
     }
 
     try {
-      const headers = ['Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo', 'Empresa', 'Categoria'];
+      const headers = ['Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo', 'Empresa', 'Classificação'];
       
       let htmlContent = `
         <html>
@@ -1114,24 +1149,44 @@ const ContasAPagarTab: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             {/* Campo de Busca */}
-            <div className="md:col-span-2">
+            <div className="md:col-span-4">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por descrição ou fornecedor..."
-                className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-transparent bg-seguranca-black text-white placeholder-gray-400"
+                className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-transparent bg-seguranca-black text-white placeholder-gray-400 text-sm"
               />
             </div>
 
+            {/* Filtro por Classificação de Contas a Pagar */}
+            <div className="md:col-span-4">
+              <select
+                value={classificacaoFilter}
+                onChange={(e) => setClassificacaoFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-transparent bg-seguranca-black text-white text-sm"
+              >
+                <option value="TODAS">Todas as Classificações</option>
+                {GRUPOS_CLASSIFICACAO.map(grupo => (
+                  <optgroup key={grupo.id} label={`${grupo.id}. ${grupo.nome}`}>
+                    {CLASSIFICACOES_PADRAO.filter(item => item.grupoId === grupo.id).map(item => (
+                      <option key={item.codigo} value={item.nome}>
+                        {item.codigo} - {item.nome}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+
             {/* Filtro por Status */}
-            <div>
+            <div className="md:col-span-2">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-transparent bg-seguranca-black text-white"
+                className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-transparent bg-seguranca-black text-white text-sm"
               >
                 <option value="TODOS">Todos os Status</option>
                 <option value="ABERTA">Aberta</option>
@@ -1141,11 +1196,11 @@ const ContasAPagarTab: React.FC = () => {
             </div>
 
             {/* Filtro por Tipo */}
-            <div>
+            <div className="md:col-span-2">
               <select
                 value={tipoFilter}
                 onChange={(e) => setTipoFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-transparent bg-seguranca-black text-white"
+                className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-transparent bg-seguranca-black text-white text-sm"
               >
                 <option value="TODOS">Todos os Tipos</option>
                 <option value="FIXA">Fixa</option>
@@ -1234,7 +1289,7 @@ const ContasAPagarTab: React.FC = () => {
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <label className="text-sm font-medium text-seguranca-lightgray mb-3 block">Data Início</label>
                   <input
@@ -1252,6 +1307,25 @@ const ContasAPagarTab: React.FC = () => {
                     onChange={(e) => setReportFilters(prev => ({ ...prev, endDate: new Date(e.target.value) }))}
                     className="w-full px-4 py-3 bg-seguranca-black/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                   />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-seguranca-lightgray mb-3 block">Classificação</label>
+                  <select
+                    value={reportFilters.classificacao}
+                    onChange={(e) => setReportFilters(prev => ({ ...prev, classificacao: e.target.value }))}
+                    className="w-full px-4 py-3 bg-seguranca-black/50 border border-gray-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm"
+                  >
+                    <option value="TODAS">Todas as Classificações</option>
+                    {GRUPOS_CLASSIFICACAO.map(grupo => (
+                      <optgroup key={grupo.id} label={`${grupo.id}. ${grupo.nome}`}>
+                        {CLASSIFICACOES_PADRAO.filter(item => item.grupoId === grupo.id).map(item => (
+                          <option key={item.codigo} value={item.nome}>
+                            {item.codigo} - {item.nome}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-seguranca-lightgray mb-3 block">Status</label>
@@ -1382,6 +1456,20 @@ const ContasAPagarTab: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/30 border border-emerald-500/30 hover:border-emerald-400/50 hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300 cursor-pointer group" onClick={() => generateReport('classificacao')}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-white text-lg group-hover:text-emerald-300 transition-colors">Por Classificação</h3>
+                    <p className="text-sm text-gray-400 mt-1">Plano e grupos de despesa</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 rounded-xl group-hover:from-emerald-500/30 group-hover:to-emerald-600/30 transition-all duration-300">
+                    <FileText className="h-7 w-7 text-emerald-400 group-hover:text-emerald-300 transition-colors" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Visualização do Relatório */}
@@ -1507,6 +1595,38 @@ const ContasAPagarTab: React.FC = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Detalhamento por Classificação */}
+                    {reportData?.type === 'classificacao' && displaySummary.classificacoes && Object.keys(displaySummary.classificacoes).length > 0 && (
+                      <div className="bg-seguranca-black/30 rounded-xl border border-gray-600/30 p-6">
+                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-emerald-400" />
+                          Detalhamento por Classificação de Contas a Pagar
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {Object.entries(displaySummary.classificacoes).map(([cat, item]: [string, any]) => {
+                            const style = getClassificacaoStyle(cat);
+                            return (
+                              <div key={cat} className="p-4 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg border border-gray-600/30 hover:border-gray-500/50 transition-all duration-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border ${style.bg} ${style.text} ${style.border}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+                                    {cat}
+                                  </span>
+                                  <span className="text-[11px] text-gray-400">
+                                    {item.count} {item.count === 1 ? 'conta' : 'contas'}
+                                  </span>
+                                </div>
+                                <div className="text-center mt-2">
+                                  <p className="text-xs text-gray-400 mb-0.5">{style.grupoNome}</p>
+                                  <p className="text-lg font-bold text-white">{formatCurrency(item.valor)}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1518,6 +1638,7 @@ const ContasAPagarTab: React.FC = () => {
                         <tr className="bg-seguranca-black/70">
                           <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Empresa</th>
                           <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Descrição</th>
+                          <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Classificação</th>
                           <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Fornecedor</th>
                           <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Valor</th>
                           <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Vencimento</th>
@@ -1555,6 +1676,19 @@ const ContasAPagarTab: React.FC = () => {
                                 </div>
                               </td>
                               <td className="px-4 py-3 text-gray-300 border-b border-gray-700/30">{conta.descricao}</td>
+                              <td className="px-4 py-3 border-b border-gray-700/30">
+                                {conta.categoria ? (() => {
+                                  const style = getClassificacaoStyle(conta.categoria);
+                                  return (
+                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border ${style.bg} ${style.text} ${style.border}`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+                                      {conta.categoria}
+                                    </span>
+                                  );
+                                })() : (
+                                  <span className="text-xs text-gray-500 italic">Não classificada</span>
+                                )}
+                              </td>
                               <td className="px-4 py-3 text-gray-300 border-b border-gray-700/30">{conta.fornecedor}</td>
                               <td className="px-4 py-3 text-green-400 font-medium border-b border-gray-700/30">{formatCurrency(conta.valor)}</td>
                               <td className="px-4 py-3 text-gray-300 border-b border-gray-700/30">

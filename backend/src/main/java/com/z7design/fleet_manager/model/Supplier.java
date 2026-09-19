@@ -85,6 +85,12 @@ public class Supplier implements TenantAware {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "since_date")
+    private java.time.LocalDate sinceDate;
+
+    @Column(name = "document_type", length = 10)
+    private String documentType;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 

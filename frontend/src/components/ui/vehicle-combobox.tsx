@@ -90,7 +90,7 @@ export function VehicleCombobox({ value, onChange, clientId, className }: Vehicl
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-slate-400" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] sm:w-[400px] p-0 bg-slate-900 border-slate-700 text-slate-100 shadow-2xl rounded-xl">
+            <PopoverContent className="w-[300px] sm:w-[400px] p-0 bg-slate-900 border-slate-700 text-slate-100 shadow-2xl rounded-xl z-[10080]">
                 <Command className="bg-slate-900 text-slate-100">
                     <CommandInput
                         placeholder="Buscar placa ou modelo..."

@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings, BarChart3 } from 'lucide-react';
+import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings, BarChart3, MapPin, Sparkles } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import fleetService from '@/services/fleetService';
 import { FuelConsumptionStats } from '@/components/frota/FuelConsumptionStats';
 import { FuelConsumptionOverview } from '@/components/frota/FuelConsumptionOverview';
 import { AbastecimentosTable } from '@/components/frota/AbastecimentosTable';
-import AbastecimentoFormModal from '@/components/frota/AbastecimentoFormModal';
+import AbastecimentoInternoFormModal from '@/components/frota/AbastecimentoInternoFormModal';
 import { useToast } from '@/hooks/use-toast';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,10 +17,14 @@ import { FuelDeliveryManagement } from '@/components/abastecimento/FuelDeliveryM
 import { FuelReadingManagement } from '@/components/abastecimento/FuelReadingManagement';
 import FuelReportsDashboard from '@/components/frota/FuelReportsDashboard';
 import EfficiencyAlerts from '@/components/frota/EfficiencyAlerts';
+import AbastecimentoExternoFormModal from '@/components/frota/AbastecimentoExternoFormModal';
+import AbastecimentoExternoReport, { AbastExternoSubTab } from '@/components/frota/AbastecimentoExternoReport';
 
 const AbastecimentoDashboard: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isExternoModalOpen, setIsExternoModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('vehicles');
+    const [externoSubTab, setExternoSubTab] = useState<AbastExternoSubTab>('lancamentos');
     const queryClient = useQueryClient();
     const { toast } = useToast();
 
@@ -53,9 +57,12 @@ const AbastecimentoDashboard: React.FC = () => {
         <StandardLayout title="Controle de Abastecimento" subtitle="Gestão de consumo, estoque e infraestrutura de combustível">
             <div className="space-y-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5 gap-2 bg-seguranca-graphite border-gray-600 p-1 mb-6">
+                    <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-2 bg-seguranca-graphite border-gray-600 p-1 mb-6">
                         <TabsTrigger value="vehicles" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
                             <Fuel size={16} className="mr-2" /> Veículos
+                        </TabsTrigger>
+                        <TabsTrigger value="externo" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-green-600">
+                            <MapPin size={16} className="mr-2" /> Abast. Externo
                         </TabsTrigger>
                         <TabsTrigger value="infra" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
                             <Settings size={16} className="mr-2" /> Tanques & Bombas
@@ -114,9 +121,9 @@ const AbastecimentoDashboard: React.FC = () => {
                                     <RefreshCw size={18} className={`mr-2 ${recordsLoading ? 'animate-spin' : ''}`} />
                                     Atualizar
                                 </Button>
-                                <Button onClick={() => setIsModalOpen(true)} className="flex-1 md:flex-none bg-seguranca-red hover:bg-seguranca-darkred shadow-lg shadow-red-900/20">
+                                <Button onClick={() => setIsModalOpen(true)} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-900/20">
                                     <Plus size={18} className="mr-2" />
-                                    Novo Registro
+                                    Abastecimento Interno
                                 </Button>
                             </div>
                         </div>
@@ -145,6 +152,42 @@ const AbastecimentoDashboard: React.FC = () => {
                         </Card>
                     </TabsContent>
 
+                    <TabsContent value="externo" className="space-y-6 mt-0">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div>
+                                <h3 className="text-lg font-semibold text-seguranca-lightgray flex items-center gap-2">
+                                    <MapPin className="h-5 w-5 text-green-400" />
+                                    Abastecimento Externo - Postos de Gasolina
+                                </h3>
+                                <p className="text-sm text-gray-400 mt-1">
+                                    Registros de abastecimento realizados em postos externos, com vínculo ao cliente e contrato.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2.5 w-full md:w-auto">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setExternoSubTab('relatorio-inteligente')}
+                                    className="flex-1 md:flex-none border-amber-500/50 bg-gradient-to-r from-amber-500/10 to-emerald-500/10 text-amber-400 hover:text-amber-300 hover:bg-amber-950/30 font-semibold text-xs h-9 shadow-sm"
+                                >
+                                    <Sparkles size={16} className="mr-2 text-amber-400" />
+                                    Relatório Inteligente
+                                </Button>
+                                <Button
+                                    onClick={() => setIsExternoModalOpen(true)}
+                                    className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 shadow-lg shadow-green-900/20 text-xs h-9 font-semibold"
+                                >
+                                    <Plus size={18} className="mr-2" />
+                                    Novo Abastecimento Externo
+                                </Button>
+                            </div>
+                        </div>
+                        <AbastecimentoExternoReport
+                            fuelRecords={fuelRecords}
+                            activeSubTab={externoSubTab}
+                            onSubTabChange={setExternoSubTab}
+                        />
+                    </TabsContent>
+
                     <TabsContent value="infra" className="mt-0">
                         <FuelInfraManagement />
                     </TabsContent>
@@ -163,9 +206,16 @@ const AbastecimentoDashboard: React.FC = () => {
                 </Tabs>
             </div>
 
-            <AbastecimentoFormModal
+            <AbastecimentoInternoFormModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
+                onSuccess={handleSuccess}
+                veiculos={vehicles}
+            />
+
+            <AbastecimentoExternoFormModal
+                isOpen={isExternoModalOpen}
+                onClose={() => setIsExternoModalOpen(false)}
                 onSuccess={handleSuccess}
                 veiculos={vehicles}
             />

@@ -113,6 +113,7 @@ import {
   DoorOpen,
   UserCircle,
   Ruler,
+  Warehouse,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -152,6 +153,7 @@ const mensagensMenuItems = [
 // Módulo de Manutenção e Frota (Novo)
 const manutencaoMenuItems = [
   { icon: Wrench, text: 'Dashboard Manutenção', to: '/manutencao', id: 'manutencao' },
+  { icon: Warehouse, text: 'Gestão de Garagens', to: '/frota/garagens', id: 'garagens' },
   { icon: Activity, text: 'Manutenção V2 (HUD)', to: '/manutencao/v2', id: 'manutencao-v2' },
   { icon: ClipboardList, text: 'O.S. de Frota', to: '/frota/ordens-servico', id: 'frota-os' },
   { icon: Fuel, text: 'Abastecimento', to: '/abastecimento', id: 'abastecimento' },

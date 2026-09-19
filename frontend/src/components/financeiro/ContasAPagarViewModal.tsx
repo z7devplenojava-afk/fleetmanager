@@ -19,6 +19,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { ContaAPagar } from './ContasAPagarFormModal';
+import { getClassificacaoStyle } from '@/constants/classificacaoContasPagar';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
 
@@ -174,12 +175,23 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
                 </div>
               )}
 
-              {conta.categoria && (
-                <div>
-                  <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Plano de Contas</label>
-                  <p className="text-zinc-200 font-medium text-sm mt-0.5">{conta.categoria}</p>
-                </div>
-              )}
+              {conta.categoria && (() => {
+                const style = getClassificacaoStyle(conta.categoria);
+                return (
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Classificação de Contas</label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${style.bg} ${style.text} ${style.border}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+                        {conta.categoria}
+                      </span>
+                      <span className="text-[11px] text-zinc-500">
+                        {style.grupoNome}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {conta.centroCusto && (
                 <div>

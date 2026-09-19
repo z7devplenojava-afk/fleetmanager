@@ -50,6 +50,18 @@ public class FleetWorkOrderController {
         return ResponseEntity.ok(service.getChecklistMasterItems());
     }
 
+    /** Lista os serviços cadastrados na oficina */
+    @GetMapping("/services-catalog")
+    public ResponseEntity<List<com.z7design.fleet_manager.dto.ServiceDTO>> getServicesCatalog() {
+        return ResponseEntity.ok(service.getServicesCatalog());
+    }
+
+    /** Cadastra rapidamente um serviço na oficina com código sequencial automático */
+    @PostMapping("/quick-service")
+    public ResponseEntity<com.z7design.fleet_manager.dto.ServiceDTO> createQuickService(@RequestBody Map<String, Object> body) {
+        return ResponseEntity.ok(service.createQuickService(body));
+    }
+
     /** Cria nova OS */
     @PostMapping
     public ResponseEntity<FleetWorkOrderDTO> create(@RequestBody FleetWorkOrderDTO dto) {

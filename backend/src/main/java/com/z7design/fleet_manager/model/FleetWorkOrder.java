@@ -167,6 +167,7 @@ public class FleetWorkOrder implements TenantAware {
 
     /** Indica se a parada foi coberta por carro reserva (isenta de corte no BM) */
     @Column(name = "reserve_covered", nullable = false)
+    @Builder.Default
     private Boolean reserveCovered = false;
 
     /** Tempo de resposta do carro reserva em minutos (KPI ≤ 4h do PRD) */
@@ -204,7 +205,7 @@ public class FleetWorkOrder implements TenantAware {
 
     @ElementCollection
     @CollectionTable(name = "fleet_work_order_photos", joinColumns = @JoinColumn(name = "work_order_id"))
-    @Column(name = "photo_url")
+    @Column(name = "photo_url", columnDefinition = "TEXT")
     @Builder.Default
     private List<String> photoAttachments = new ArrayList<>();
 

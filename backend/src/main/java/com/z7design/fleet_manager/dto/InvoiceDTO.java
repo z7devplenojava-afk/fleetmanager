@@ -83,11 +83,13 @@ public class InvoiceDTO {
     private java.util.UUID contractId;
     private java.util.UUID workPostId;
     private java.util.UUID unitId;
+    private java.util.UUID garageId;
     
     private String supplierName;
     private String clientName;
     private String contractNumber;
     private String workPostName;
+    private String garageName;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -203,6 +205,15 @@ public class InvoiceDTO {
             } catch (Exception e) {
                 System.err.println("⚠️ Erro ao acessar unit da invoice " + invoice.getId() + ": " + e.getMessage());
                 dto.setUnitId(null);
+            }
+
+            try {
+                dto.setGarageId(invoice.getGarage() != null ? invoice.getGarage().getId() : null);
+                dto.setGarageName(invoice.getGarage() != null ? invoice.getGarage().getName() : null);
+            } catch (Exception e) {
+                System.err.println("⚠️ Erro ao acessar garage da invoice " + invoice.getId() + ": " + e.getMessage());
+                dto.setGarageId(null);
+                dto.setGarageName(null);
             }
             
             dto.setCreatedAt(invoice.getCreatedAt());

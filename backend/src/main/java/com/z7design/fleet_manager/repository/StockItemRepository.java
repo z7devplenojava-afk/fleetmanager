@@ -51,17 +51,19 @@ public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
     // Buscar por unidade
     List<StockItem> findByUnitId(UUID unitId);
 
-    // Busca com filtros mÃºltiplos
+    // Busca com filtros múltiplos
     @Query("SELECT si FROM StockItem si WHERE " +
            "(CAST(:category AS string) IS NULL OR si.category = :category) AND " +
            "(CAST(:active AS boolean) IS NULL OR si.active = :active) AND " +
            "(CAST(:unitId AS uuid) IS NULL OR si.unit.id = :unitId) AND " +
            "(CAST(:lowStock AS boolean) IS NULL OR CAST(:lowStock AS boolean) = false OR (CAST(:lowStock AS boolean) = true AND si.currentQuantity <= si.minimumQuantity)) AND " +
            "(CAST(:searchTerm AS string) IS NULL OR " +
-           "si.name LIKE %:searchTerm% OR " +
-           "si.code LIKE %:searchTerm% OR " +
-           "si.description LIKE %:searchTerm% OR " +
-           "si.sizeVariation LIKE %:searchTerm%)")
+           "LOWER(si.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(si.code) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(COALESCE(si.description, '')) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(COALESCE(si.sizeVariation, '')) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(COALESCE(si.notes, '')) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(COALESCE(si.barcode, '')) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
     Page<StockItem> findByFilters(
             @Param("category") StockCategory category,
             @Param("active") Boolean active,
@@ -73,10 +75,12 @@ public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
 
     // Busca por texto
     @Query("SELECT si FROM StockItem si WHERE " +
-           "si.name LIKE %:searchTerm% OR " +
-           "si.code LIKE %:searchTerm% OR " +
-           "si.description LIKE %:searchTerm% OR " +
-           "si.sizeVariation LIKE %:searchTerm%")
+           "LOWER(si.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(si.code) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(COALESCE(si.description, '')) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(COALESCE(si.sizeVariation, '')) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(COALESCE(si.notes, '')) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(COALESCE(si.barcode, '')) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
     List<StockItem> findBySearchTerm(@Param("searchTerm") String searchTerm);
 
     // EstatÃ­sticas por categoria

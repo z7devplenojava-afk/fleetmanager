@@ -96,14 +96,34 @@ public class WebConfig implements WebMvcConfigurer {
                 )
                 .setCachePeriod(3600);
             
-            log.info("✅ ResourceHandler configurado para logos com múltiplos caminhos");
+            registry.addResourceHandler(
+                    "/api/uploads/companies/banners/**",
+                    "/uploads/companies/banners/**",
+                    "/companies/banners/**"
+                )
+                .addResourceLocations(
+                    "file:" + uploadDir + "/companies/banners/",
+                    "file:../uploads/companies/banners/",
+                    "file:uploads/companies/banners/",
+                    "file:/app/uploads/companies/banners/"
+                )
+                .setCachePeriod(3600);
+            
+            log.info("✅ ResourceHandler configurado para banners");
         } catch (Exception e) {
-            log.error("❌ Erro ao configurar ResourceHandler para logos, usando fallback: {}", e.getMessage(), e);
+            log.error("❌ Erro ao configurar ResourceHandler para logos/banners, usando fallback: {}", e.getMessage(), e);
             registry.addResourceHandler("/api/uploads/companies/logos/**", "/uploads/companies/logos/**")
                     .addResourceLocations(
                         "file:" + uploadDir + "/companies/logos/",
                         "file:../uploads/companies/logos/",
                         "file:uploads/companies/logos/"
+                    )
+                    .setCachePeriod(3600);
+            registry.addResourceHandler("/api/uploads/companies/banners/**", "/uploads/companies/banners/**")
+                    .addResourceLocations(
+                        "file:" + uploadDir + "/companies/banners/",
+                        "file:../uploads/companies/banners/",
+                        "file:uploads/companies/banners/"
                     )
                     .setCachePeriod(3600);
         }
@@ -114,15 +134,14 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(new HandlerInterceptor() {
             @Override
             public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-                // Adicionar headers CORS para arquivos estÃ¡ticos
+                // Adicionar headers CORS para arquivos estáticos
                 if (request.getRequestURI().startsWith("/uploads/") || 
                     request.getRequestURI().startsWith("/holerites/") ||
-                    request.getRequestURI().startsWith("/api/uploads/companies/logos/")) {
+                    request.getRequestURI().startsWith("/api/uploads/companies/logos/") ||
+                    request.getRequestURI().startsWith("/api/uploads/companies/banners/")) {
                     response.setHeader("Access-Control-Allow-Origin", "*");
                     response.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
                     response.setHeader("Access-Control-Allow-Headers", "*");
-                    // NÃƒO definir Content-Disposition aqui - serÃ¡ definido pelo ResourceHandler ou pelo endpoint do controller
-                    // NÃ£o definir X-Frame-Options para permitir iframe
                 }
                 return true;
             }

@@ -23,6 +23,12 @@ public class WorkOrderItemDTO {
     private BigDecimal unitPrice;
     private BigDecimal totalPrice;
     private UUID productId;
+    private String code;
+    private Boolean requiresApproval;
+    private String approvalReason;
+    private Boolean approved;
+    private String approvedBy;
+    private LocalDateTime approvedAt;
     private String provider;
     private LocalDateTime createdAt;
 
@@ -37,6 +43,12 @@ public class WorkOrderItemDTO {
                 .unitPrice(entity.getUnitPrice())
                 .totalPrice(entity.getTotalPrice())
                 .productId(entity.getProductId())
+                .code(entity.getCode())
+                .requiresApproval(entity.getRequiresApproval())
+                .approvalReason(entity.getApprovalReason())
+                .approved(entity.getApproved())
+                .approvedBy(entity.getApprovedBy())
+                .approvedAt(entity.getApprovedAt())
                 .provider(entity.getProvider())
                 .createdAt(entity.getCreatedAt())
                 .build();

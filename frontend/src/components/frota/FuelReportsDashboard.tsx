@@ -45,6 +45,8 @@ import { FuelRecord, Vehicle } from '@/types/fleet';
 import fleetService from '@/services/fleetService';
 import FuelEfficiencyRanking from '@/components/frota/FuelEfficiencyRanking';
 import EfficiencyAlertsHistory from '@/components/frota/EfficiencyAlertsHistory';
+import { downloadFuelReportsPDF } from '@/utils/fuelReportsPDFGenerator';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FuelReportsDashboardProps {
   fuelRecords: FuelRecord[];
@@ -78,6 +80,8 @@ function formatLiters(value: number): string {
 }
 
 const FuelReportsDashboard: React.FC<FuelReportsDashboardProps> = ({ fuelRecords, vehicles }) => {
+  const { user } = useAuth();
+
   // Filtros
   const [reportView, setReportView] = useState<ReportView>('period');
   const [startDate, setStartDate] = useState('');
@@ -331,23 +335,37 @@ const FuelReportsDashboard: React.FC<FuelReportsDashboardProps> = ({ fuelRecords
     }));
   }, [filteredRecords]);
 
-  // Exportação PDF
+  // Exportação PDF — Padrão OS Corporativo
   const handleExportPDF = async () => {
     setIsExportingPDF(true);
     try {
-      const blob = await fleetService.exportFuelRecordsPDF({
-        vehicleId: selectedVehicleId !== 'ALL' ? selectedVehicleId : undefined,
-        driverId: selectedDriver !== 'ALL' ? selectedDriver : undefined,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        fuelType: selectedFuelType !== 'ALL' ? selectedFuelType : undefined,
+      const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
+      const reportViewForPDF = ['period', 'vehicle', 'worksite', 'garage', 'driver'].includes(reportView)
+        ? reportView as any
+        : 'all';
+
+      await downloadFuelReportsPDF({
+        reportView: reportViewForPDF,
+        fuelRecords: filteredRecords,
+        vehicles,
+        kpis,
+        filters: {
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          vehicleId: selectedVehicleId,
+          vehiclePlate: selectedVehicle?.plate,
+          driver: selectedDriver,
+          station: selectedStation,
+          costCenter: selectedCostCenter,
+          fuelType: selectedFuelType,
+        },
+        company: {
+          name: (user as any)?.companyName || (user as any)?.empresa || undefined,
+          cnpj: (user as any)?.companyCnpj || undefined,
+          logoUrl: (user as any)?.companyLogoUrl || null,
+        },
+        userName: (user as any)?.name || (user as any)?.username || undefined,
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `relatorio-abastecimento-${new Date().toISOString().split('T')[0]}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
     } finally {

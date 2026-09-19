@@ -49,16 +49,44 @@ public class GarageMovement {
     @Column(name = "from_garage_name", length = 150)
     private String fromGarageName;
 
-    /** Garagem de destino. */
+    /** Garagem de destino (null quando é saída de pátio / Check-out para operação). */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "to_garage_id", nullable = false)
+    @JoinColumn(name = "to_garage_id")
     private Garage toGarage;
 
     /** Nome da garagem de destino (desnormalizado). */
     @Column(name = "to_garage_name", length = 150)
     private String toGarageName;
 
-    /** Motivo: REMANEJAMENTO, MANUTENCAO, LIMPEZA, OPERACAO, ESCALA, OUTROS. */
+    /** Tipo de movimentação: CHECK_IN, CHECK_OUT, TRANSFER */
+    @Column(name = "movement_type", length = 20)
+    private String movementType;
+
+    /** Motorista condutor que entregou ou retirou o veículo */
+    @Column(name = "driver_name", length = 150)
+    private String driverName;
+
+    /** Cliente / Contrato alocado */
+    @Column(name = "client_name", length = 150)
+    private String clientName;
+
+    /** Horário de entrada no pátio */
+    @Column(name = "entry_time")
+    private LocalDateTime entryTime;
+
+    /** Horário de saída do pátio */
+    @Column(name = "exit_time")
+    private LocalDateTime exitTime;
+
+    /** Duração total da permanência em minutos */
+    @Column(name = "stay_duration_minutes")
+    private Long stayDurationMinutes;
+
+    /** Indica se o veículo ainda está ativamente no pátio aguardando saída */
+    @Column(name = "active_stay")
+    private Boolean activeStay;
+
+    /** Motivo: REMANEJAMENTO, MANUTENCAO, LIMPEZA, OPERACAO, ESCALA, RECOLHIMENTO, RESERVA, OUTROS. */
     @Column(name = "reason", length = 30)
     private String reason;
 
@@ -86,11 +114,15 @@ public class GarageMovement {
     private LocalDateTime createdAt;
 
     public enum Reason {
+        CHECK_IN,
+        CHECK_OUT,
         REMANEJAMENTO,
         MANUTENCAO,
         LIMPEZA,
         OPERACAO,
         ESCALA,
+        RECOLHIMENTO,
+        RESERVA,
         OUTROS
     }
 }

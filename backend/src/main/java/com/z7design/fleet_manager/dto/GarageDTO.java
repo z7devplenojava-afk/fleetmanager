@@ -65,6 +65,14 @@ public class GarageDTO {
         private String brand;
         private Integer currentMileage;
         private String status;
+        private String assignedDriver;
+        private String clientName;
+        private String vehicleType;
+        private String entryDate;
+        private String entryTime;
+        private Long stayDurationMinutes;
+        private String stayDurationFormatted;
+        private String reason;
     }
 
     public static GarageDTO fromEntity(Garage garage) {
@@ -91,14 +99,25 @@ public class GarageDTO {
         if (vehicles != null) {
             dto.setVehicleCount((long) vehicles.size());
             dto.setVehicles(vehicles.stream()
-                    .map(v -> VehicleSummary.builder()
-                            .id(v.getId())
-                            .plate(v.getPlate())
-                            .model(v.getModel())
-                            .brand(v.getBrand())
-                            .currentMileage(v.getCurrentMileage())
-                            .status(v.getStatus() != null ? v.getStatus().name() : null)
-                            .build())
+                    .map(v -> {
+                        String client = v.getProjectName() != null && !v.getProjectName().isBlank()
+                                ? v.getProjectName()
+                                : (v.getOperationName() != null && !v.getOperationName().isBlank()
+                                        ? v.getOperationName()
+                                        : (v.getWorkPostEntity() != null ? v.getWorkPostEntity().getName() : "Reserva Operacional"));
+                        return VehicleSummary.builder()
+                                .id(v.getId())
+                                .plate(v.getPlate())
+                                .model(v.getModel())
+                                .brand(v.getBrand())
+                                .currentMileage(v.getCurrentMileage())
+                                .status(v.getStatus() != null ? v.getStatus().name() : null)
+                                .assignedDriver(v.getAssignedDriver())
+                                .clientName(client)
+                                .vehicleType(v.getVehicleType() != null ? v.getVehicleType().name() : null)
+                                .entryDate(v.getOperationEntryDate() != null ? v.getOperationEntryDate().toString() : null)
+                                .build();
+                    })
                     .toList());
             dto.setStatusBreakdown(vehicles.stream()
                     .filter(v -> v.getStatus() != null)

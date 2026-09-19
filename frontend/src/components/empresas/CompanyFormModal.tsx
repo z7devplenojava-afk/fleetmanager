@@ -15,7 +15,9 @@ import {
 } from '@/components/ui/dialog';
 import { Company, CompanyStatus, CompanyStatusLabels } from '@/types/company';
 import { useToast } from '@/hooks/use-toast';
-import { X, Save, Building2, MapPin, Phone, Mail, Globe, Users, DollarSign } from 'lucide-react';
+import { X, Save, Building2, MapPin, Phone, Mail, Globe, Users, DollarSign, Upload, Image as ImageIcon, CheckCircle2, Sparkles } from 'lucide-react';
+import { companyService } from '@/services/companyService';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 
 interface CompanyFormModalProps {
   isOpen: boolean;
@@ -51,10 +53,13 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
 }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Company>>({
     name: '',
     tradeName: '',
     cnpj: '',
+    logoUrl: '',
     inscricaoEstadual: '',
     inscricaoMunicipal: '',
     address: '',
@@ -102,13 +107,16 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
         size: company.size,
         annualRevenue: company.annualRevenue,
         employeeCount: company.employeeCount,
-        notes: company.notes
+        notes: company.notes,
+        logoUrl: company.logoUrl || ''
       });
+      setLogoPreview(company.logoUrl ? resolveCompanyLogoUrl(company.logoUrl) : null);
     } else {
       setFormData({
         name: '',
         tradeName: '',
         cnpj: '',
+        logoUrl: '',
         inscricaoEstadual: '',
         inscricaoMunicipal: '',
         address: '',
@@ -130,8 +138,71 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
         employeeCount: undefined,
         notes: ''
       });
+      setLogoPreview(null);
     }
   }, [company]);
+
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const validExtensions = ['.png', '.jpg', '.jpeg', '.svg', '.webp', '.ico'];
+    const hasValidExt = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    if (!file.type.startsWith('image/') && !hasValidExt) {
+      toast({
+        title: 'Tipo de arquivo inválido',
+        description: 'Apenas arquivos de imagem (PNG, JPG, JPEG, SVG, WEBP, ICO) são permitidos.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'Arquivo muito grande',
+        description: 'O arquivo deve ter no máximo 5MB.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setUploadingLogo(true);
+    try {
+      const data = await companyService.uploadLogo(file);
+      setFormData(prev => ({ ...prev, logoUrl: data.url }));
+      setLogoPreview(resolveCompanyLogoUrl(data.url));
+      toast({
+        title: 'Ícone enviado',
+        description: 'Ícone da empresa enviado com sucesso.',
+        className: 'bg-emerald-600 text-white'
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro no envio',
+        description: err.response?.data?.error || 'Erro ao enviar ícone.',
+        variant: 'destructive'
+      });
+      if (formData.logoUrl) {
+        setLogoPreview(resolveCompanyLogoUrl(formData.logoUrl));
+      } else {
+        setLogoPreview(null);
+      }
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const removeLogo = () => {
+    setLogoPreview(null);
+    setFormData(prev => ({ ...prev, logoUrl: '' }));
+  };
 
   const handleInputChange = (field: keyof Company, value: string | number | undefined) => {
     setFormData(prev => ({
@@ -217,6 +288,110 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Seção: Ícone & Logomarca da Empresa */}
+          <div className="p-4 rounded-xl bg-seguranca-graphite border border-gray-600 shadow-md">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+              <div className="relative flex-shrink-0 group">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-seguranca-black border-2 border-dashed border-gray-600 flex items-center justify-center overflow-hidden shadow-inner group-hover:border-seguranca-yellow transition-all p-2">
+                  {logoPreview ? (
+                    <img
+                      src={logoPreview}
+                      alt="Ícone da empresa"
+                      className="w-full h-full object-contain rounded-xl"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-center text-gray-400 p-1">
+                      {formData.tradeName || formData.name ? (
+                        <span className="text-xl sm:text-2xl font-black text-seguranca-yellow tracking-wider">
+                          {(formData.tradeName || formData.name?.slice(0, 3) || '').toUpperCase()}
+                        </span>
+                      ) : (
+                        <Building2 className="w-10 h-10 text-gray-500 mb-1" />
+                      )}
+                      <span className="text-[10px] text-gray-400 font-medium">Sem Ícone</span>
+                    </div>
+                  )}
+                </div>
+
+                {logoPreview && (
+                  <button
+                    type="button"
+                    onClick={removeLogo}
+                    className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1.5 shadow-lg transition-transform hover:scale-110"
+                    title="Remover ícone"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex-1 flex flex-col justify-center space-y-2 text-center sm:text-left w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <Label className="text-sm font-semibold text-seguranca-yellow flex items-center justify-center sm:justify-start gap-1.5">
+                    <ImageIcon className="w-4 h-4" />
+                    Ícone / Logomarca da Empresa
+                  </Label>
+                  {logoPreview ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full w-fit mx-auto sm:mx-0">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      Ícone configurado
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-400/90 bg-amber-950/40 border border-amber-800/40 px-2 py-0.5 rounded-full w-fit mx-auto sm:mx-0">
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      Recomendado
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-300">
+                  O ícone será exibido na listagem de empresas, cabeçalhos de ordens de serviço, relatórios e dashboards.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1 justify-center sm:justify-start">
+                  <label className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg cursor-pointer transition-all shadow-sm ${
+                    uploadingLogo 
+                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                      : 'bg-seguranca-red hover:bg-seguranca-darkred text-white hover:shadow-md'
+                  }`}>
+                    {uploadingLogo ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
+                        <span>Enviando ícone...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{logoPreview ? 'Substituir Ícone' : 'Fazer Upload do Ícone'}</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".png,.jpg,.jpeg,.svg,.webp,.ico"
+                      onChange={handleLogoChange}
+                      disabled={uploadingLogo}
+                    />
+                  </label>
+
+                  {logoPreview && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={removeLogo}
+                      className="h-8 text-xs border-gray-600 text-gray-300 hover:text-red-400 hover:border-red-500/50 hover:bg-red-500/10"
+                    >
+                      Remover
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  Formatos aceitos: PNG, JPG, JPEG, SVG, WEBP ou ICO (máx. 5MB).
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Informações Básicas */}
           <Card className="bg-seguranca-graphite border-gray-600">
             <CardHeader>

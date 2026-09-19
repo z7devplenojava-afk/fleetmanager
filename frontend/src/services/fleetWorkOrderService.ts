@@ -51,6 +51,14 @@ export interface WorkOrderItem {
     unitPrice: number;
     totalPrice: number;
     productId?: string;
+    code?: string;
+    inStock?: number;
+    isManual?: boolean;
+    requiresApproval?: boolean;
+    approvalReason?: string;
+    approved?: boolean;
+    approvedBy?: string;
+    approvedAt?: string;
     provider?: string;
 }
 
@@ -184,6 +192,20 @@ class FleetWorkOrderService {
 
     async getChecklistMasterItems(): Promise<ChecklistItemMaster[]> {
         const { data } = await api.get('/fleet-work-orders/checklist-items');
+        return data;
+    }
+
+    async getServicesCatalog(): Promise<any[]> {
+        try {
+            const { data } = await api.get('/fleet-work-orders/services-catalog');
+            return data || [];
+        } catch {
+            return [];
+        }
+    }
+
+    async createQuickService(body: { name: string; description?: string; unitPrice?: number; category?: string }): Promise<any> {
+        const { data } = await api.post('/fleet-work-orders/quick-service', body);
         return data;
     }
 

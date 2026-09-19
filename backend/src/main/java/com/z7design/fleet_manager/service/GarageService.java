@@ -20,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -186,24 +188,42 @@ public class GarageService {
         Garage fromGarage = vehicle.getGarageId() != null
                 ? garageRepository.findById(vehicle.getGarageId()).orElse(null)
                 : null;
+
+        // Se havia uma estadia ativa anterior, encerra
+        movementRepository.findFirstByVehicleIdAndActiveStayTrueOrderByCreatedAtDesc(vehicle.getId())
+                .ifPresent(prev -> {
+                    prev.setActiveStay(false);
+                    prev.setExitTime(LocalDateTime.now());
+                    if (prev.getEntryTime() != null) {
+                        prev.setStayDurationMinutes(Math.max(0, java.time.Duration.between(prev.getEntryTime(), prev.getExitTime()).toMinutes()));
+                    }
+                    movementRepository.save(prev);
+                });
+
         vehicle.setGarageId(garage.getId());
         vehicle.setGarageName(garage.getName());
         vehicleRepository.save(vehicle);
 
-        // Registra no histórico quando o veículo vinha de outra garagem
-        if (fromGarage == null || !fromGarage.getId().equals(garage.getId())) {
-            movementRepository.save(GarageMovement.builder()
-                    .vehicle(vehicle)
-                    .vehiclePlate(vehicle.getPlate())
-                    .fromGarage(fromGarage)
-                    .fromGarageName(fromGarage != null ? fromGarage.getName() : null)
-                    .toGarage(garage)
-                    .toGarageName(garage.getName())
-                    .reason(GarageMovement.Reason.REMANEJAMENTO.name())
-                    .kmReading(vehicle.getCurrentMileage())
-                    .companyId(companyId != null ? companyId : vehicle.getCompanyId())
-                    .build());
-        }
+        String client = vehicle.getProjectName() != null && !vehicle.getProjectName().isBlank()
+                ? vehicle.getProjectName()
+                : (vehicle.getOperationName() != null ? vehicle.getOperationName() : "Reserva Operacional");
+
+        movementRepository.save(GarageMovement.builder()
+                .vehicle(vehicle)
+                .vehiclePlate(vehicle.getPlate())
+                .movementType(fromGarage != null ? "TRANSFER" : "CHECK_IN")
+                .fromGarage(fromGarage)
+                .fromGarageName(fromGarage != null ? fromGarage.getName() : null)
+                .toGarage(garage)
+                .toGarageName(garage.getName())
+                .driverName(vehicle.getAssignedDriver())
+                .clientName(client)
+                .entryTime(LocalDateTime.now())
+                .activeStay(true)
+                .reason(fromGarage != null ? GarageMovement.Reason.REMANEJAMENTO.name() : "RECOLHIMENTO")
+                .kmReading(vehicle.getCurrentMileage())
+                .companyId(companyId != null ? companyId : vehicle.getCompanyId())
+                .build());
 
         log.info("Veículo {} alocado na garagem {}", vehicle.getPlate(), garage.getName());
         return GarageDTO.fromEntity(garage, vehicleRepository.findByGarageId(garageId));
@@ -228,15 +248,183 @@ public class GarageService {
         }
     }
 
-    /** Remove o veículo da garagem. */
+    /** Remove o veículo da garagem (registra saída). */
     @Transactional
     public GarageDTO unassignVehicle(UUID garageId, UUID vehicleId, UUID companyId) {
-        findScoped(garageId, companyId);
+        Garage garage = findScoped(garageId, companyId);
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Veículo não encontrado: " + vehicleId));
+
+        LocalDateTime exit = LocalDateTime.now();
+
+        movementRepository.findFirstByVehicleIdAndActiveStayTrueOrderByCreatedAtDesc(vehicle.getId())
+                .ifPresent(active -> {
+                    active.setActiveStay(false);
+                    active.setExitTime(exit);
+                    LocalDateTime start = active.getEntryTime() != null ? active.getEntryTime() : active.getCreatedAt();
+                    if (start != null) {
+                        active.setStayDurationMinutes(Math.max(0, java.time.Duration.between(start, exit).toMinutes()));
+                    }
+                    movementRepository.save(active);
+                });
+
+        movementRepository.save(GarageMovement.builder()
+                .vehicle(vehicle)
+                .vehiclePlate(vehicle.getPlate())
+                .movementType("CHECK_OUT")
+                .fromGarage(garage)
+                .fromGarageName(garage.getName())
+                .toGarage(null)
+                .toGarageName("Saída do Pátio")
+                .driverName(vehicle.getAssignedDriver())
+                .clientName(vehicle.getProjectName())
+                .exitTime(exit)
+                .activeStay(false)
+                .reason("OPERACAO")
+                .kmReading(vehicle.getCurrentMileage())
+                .companyId(companyId != null ? companyId : vehicle.getCompanyId())
+                .build());
+
         vehicle.setGarageId(null);
+        vehicle.setGarageName(null);
         vehicleRepository.save(vehicle);
-        return GarageDTO.fromEntity(findScoped(garageId, companyId), vehicleRepository.findByGarageId(garageId));
+        return GarageDTO.fromEntity(garage, vehicleRepository.findByGarageId(garageId));
+    }
+
+    /** Check-in rápido com portaria/QR Code. */
+    @Transactional
+    public GarageMovementDTO checkInVehicle(com.z7design.fleet_manager.dto.GarageCheckInRequest request, UUID companyId, User currentUser) {
+        Vehicle vehicle = vehicleRepository.findById(request.getVehicleId())
+                .orElseThrow(() -> new ResourceNotFoundException("Veículo não encontrado: " + request.getVehicleId()));
+        Garage destGarage = findScoped(request.getGarageId(), companyId);
+        validateHasCapacity(destGarage, vehicle.getId());
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // Encerra estadia anterior se houver
+        movementRepository.findFirstByVehicleIdAndActiveStayTrueOrderByCreatedAtDesc(vehicle.getId())
+                .ifPresent(prev -> {
+                    prev.setActiveStay(false);
+                    prev.setExitTime(now);
+                    if (prev.getEntryTime() != null) {
+                        prev.setStayDurationMinutes(Math.max(0, java.time.Duration.between(prev.getEntryTime(), now).toMinutes()));
+                    }
+                    movementRepository.save(prev);
+                });
+
+        Garage fromGarage = vehicle.getGarageId() != null
+                ? garageRepository.findById(vehicle.getGarageId()).orElse(null) : null;
+
+        vehicle.setGarageId(destGarage.getId());
+        vehicle.setGarageName(destGarage.getName());
+        if (request.getKmReading() != null && request.getKmReading() > 0) {
+            vehicle.setCurrentMileage(request.getKmReading());
+        }
+        if (request.getDriverName() != null && !request.getDriverName().isBlank()) {
+            vehicle.setAssignedDriver(request.getDriverName().trim());
+        }
+        vehicleRepository.save(vehicle);
+
+        LocalDateTime entry = request.getEntryTime() != null ? request.getEntryTime() : now;
+        String reason = request.getReason() != null && !request.getReason().isBlank() ? request.getReason() : "RECOLHIMENTO";
+        String driver = request.getDriverName() != null && !request.getDriverName().isBlank()
+                ? request.getDriverName().trim() : vehicle.getAssignedDriver();
+        String client = request.getClientName() != null && !request.getClientName().isBlank()
+                ? request.getClientName().trim()
+                : (vehicle.getProjectName() != null ? vehicle.getProjectName() : "Reserva Operacional");
+
+        GarageMovement movement = GarageMovement.builder()
+                .vehicle(vehicle)
+                .vehiclePlate(vehicle.getPlate())
+                .movementType("CHECK_IN")
+                .fromGarage(fromGarage)
+                .fromGarageName(fromGarage != null ? fromGarage.getName() : null)
+                .toGarage(destGarage)
+                .toGarageName(destGarage.getName())
+                .driverName(driver)
+                .clientName(client)
+                .entryTime(entry)
+                .activeStay(true)
+                .reason(reason)
+                .reasonDetail(request.getReasonDetail())
+                .performedBy(currentUser != null ? currentUser.getId() : null)
+                .performedByName(currentUser != null ? currentUser.getName() : null)
+                .kmReading(request.getKmReading() != null ? request.getKmReading() : vehicle.getCurrentMileage())
+                .companyId(companyId != null ? companyId : vehicle.getCompanyId())
+                .build();
+        movement = movementRepository.save(movement);
+        log.info("Check-in: veículo {} na garagem {}", vehicle.getPlate(), destGarage.getName());
+        return GarageMovementDTO.fromEntity(movement);
+    }
+
+    /** Check-out rápido com portaria/QR Code. */
+    @Transactional
+    public GarageMovementDTO checkOutVehicle(com.z7design.fleet_manager.dto.GarageCheckOutRequest request, UUID companyId, User currentUser) {
+        Vehicle vehicle = vehicleRepository.findById(request.getVehicleId())
+                .orElseThrow(() -> new ResourceNotFoundException("Veículo não encontrado: " + request.getVehicleId()));
+
+        Garage fromGarage = vehicle.getGarageId() != null
+                ? garageRepository.findById(vehicle.getGarageId()).orElse(null) : null;
+        String fromGarageName = fromGarage != null ? fromGarage.getName() : vehicle.getGarageName();
+
+        LocalDateTime exit = request.getExitTime() != null ? request.getExitTime() : LocalDateTime.now();
+
+        // Encerra a estadia ativa no histórico
+        movementRepository.findFirstByVehicleIdAndActiveStayTrueOrderByCreatedAtDesc(vehicle.getId())
+                .ifPresent(active -> {
+                    active.setActiveStay(false);
+                    active.setExitTime(exit);
+                    LocalDateTime start = active.getEntryTime() != null ? active.getEntryTime() : active.getCreatedAt();
+                    if (start != null) {
+                        active.setStayDurationMinutes(Math.max(0, java.time.Duration.between(start, exit).toMinutes()));
+                    }
+                    movementRepository.save(active);
+                });
+
+        vehicle.setGarageId(null);
+        vehicle.setGarageName(null);
+        if (request.getKmReading() != null && request.getKmReading() > 0) {
+            vehicle.setCurrentMileage(request.getKmReading());
+        }
+        if (request.getDriverName() != null && !request.getDriverName().isBlank()) {
+            vehicle.setAssignedDriver(request.getDriverName().trim());
+        }
+        vehicleRepository.save(vehicle);
+
+        String driver = request.getDriverName() != null && !request.getDriverName().isBlank()
+                ? request.getDriverName().trim() : vehicle.getAssignedDriver();
+        String client = vehicle.getProjectName() != null ? vehicle.getProjectName() : "Reserva Operacional";
+
+        GarageMovement movement = GarageMovement.builder()
+                .vehicle(vehicle)
+                .vehiclePlate(vehicle.getPlate())
+                .movementType("CHECK_OUT")
+                .fromGarage(fromGarage)
+                .fromGarageName(fromGarageName != null ? fromGarageName : "Pátio")
+                .toGarage(null)
+                .toGarageName("Saída para Operação")
+                .driverName(driver)
+                .clientName(client)
+                .exitTime(exit)
+                .activeStay(false)
+                .reason(request.getReason() != null ? request.getReason() : "OPERACAO")
+                .reasonDetail(request.getReasonDetail())
+                .performedBy(currentUser != null ? currentUser.getId() : null)
+                .performedByName(currentUser != null ? currentUser.getName() : null)
+                .kmReading(request.getKmReading() != null ? request.getKmReading() : vehicle.getCurrentMileage())
+                .companyId(companyId != null ? companyId : vehicle.getCompanyId())
+                .build();
+        movement = movementRepository.save(movement);
+        log.info("Check-out: veículo {} saiu do pátio {}", vehicle.getPlate(), fromGarageName);
+        return GarageMovementDTO.fromEntity(movement);
+    }
+
+    /** Lista veículos atualmente dentro do pátio com tempo de permanência live. */
+    @Transactional(readOnly = true)
+    public List<GarageMovementDTO> listActiveStays(UUID companyId) {
+        return movementRepository.findByCompanyIdAndActiveStayTrueOrderByCreatedAtDesc(companyId).stream()
+                .map(GarageMovementDTO::fromEntity)
+                .toList();
     }
 
     /**
@@ -365,6 +553,116 @@ public class GarageService {
                 .build());
         log.info("Movimentação registrada: veículo {} -> {} (motivo: {})",
                 vehicle.getPlate(), toGarage.getName(), reason);
+    }
+
+    // ==================== SEED DE DEMONSTRAÇÃO ====================
+
+    @Transactional
+    public void seedGaragesAndVehicles(UUID companyId) {
+        log.info("Executando seed de garagens para companyId: {}", companyId);
+
+        // 1. Criar as 4 garagens se não existirem
+        Garage gCentral = garageRepository.findFirstByCompanyIdAndNameIgnoreCase(companyId, "Pátio Central - Matriz Paulínia")
+                .orElseGet(() -> garageRepository.save(Garage.builder()
+                        .name("Pátio Central - Matriz Paulínia")
+                        .address("Av. José Paulino, 2500 - Distrito Industrial, Paulínia - SP")
+                        .responsibleName("Carlos Henrique de Souza")
+                        .responsiblePhone("(11) 98765-4321")
+                        .capacity(35)
+                        .notes("Base principal com lavador automático, abastecimento próprio e portaria 24h.")
+                        .companyId(companyId)
+                        .active(true)
+                        .build()));
+
+        Garage gNorte = garageRepository.findFirstByCompanyIdAndNameIgnoreCase(companyId, "Pátio Norte - Base Mina do Sol")
+                .orElseGet(() -> garageRepository.save(Garage.builder()
+                        .name("Pátio Norte - Base Mina do Sol")
+                        .address("Rodovia BR-381, Km 420 - Trevo de Apoio, Nova Lima - MG")
+                        .responsibleName("Marcos Antônio Silveira")
+                        .responsiblePhone("(31) 99888-7711")
+                        .capacity(20)
+                        .notes("Ponto de apoio e pernoite para operações de transporte de turno da mineração.")
+                        .companyId(companyId)
+                        .active(true)
+                        .build()));
+
+        Garage gSul = garageRepository.findFirstByCompanyIdAndNameIgnoreCase(companyId, "Base de Apoio & Oficina Sul")
+                .orElseGet(() -> garageRepository.save(Garage.builder()
+                        .name("Base de Apoio & Oficina Sul")
+                        .address("Rua das Oficinas Mecânicas, 380 - Parque Industrial, Betim - MG")
+                        .responsibleName("Roberto Fernandes Lima")
+                        .responsiblePhone("(11) 97123-8899")
+                        .capacity(12)
+                        .notes("Pátio especializado em manutenção pesada, suspensão, freios e reformas.")
+                        .companyId(companyId)
+                        .active(true)
+                        .build()));
+
+        Garage gLeste = garageRepository.findFirstByCompanyIdAndNameIgnoreCase(companyId, "Garagem Expressa Leste")
+                .orElseGet(() -> garageRepository.save(Garage.builder()
+                        .name("Garagem Expressa Leste")
+                        .address("Av. Presidente Dutra, Km 182 - Pátio Logístico, Belford Roxo - RJ")
+                        .responsibleName("Fernando Dias Nogueira")
+                        .responsiblePhone("(21) 98222-3344")
+                        .capacity(8)
+                        .notes("Estacionamento de apoio para rotas interestaduais e linhas executivas.")
+                        .companyId(companyId)
+                        .active(true)
+                        .build()));
+
+        // 2. Alocar veículos existentes ou criar novos para o pátio
+        List<Vehicle> allVehicles = vehicleRepository.findAll();
+        if (allVehicles.size() >= 3) {
+            // Alocar primeiros veículos existentes
+            Vehicle v1 = allVehicles.get(0);
+            v1.setGarageId(gCentral.getId());
+            v1.setGarageName(gCentral.getName());
+            if (v1.getAssignedDriver() == null) v1.setAssignedDriver("Marcos Vinicius Santos");
+            if (v1.getProjectName() == null) v1.setProjectName("Prefeitura Municipal - Linha 304");
+            vehicleRepository.save(v1);
+
+            Vehicle v2 = allVehicles.get(1);
+            v2.setGarageId(gSul.getId());
+            v2.setGarageName(gSul.getName());
+            v2.setStatus(Vehicle.VehicleStatus.MAINTENANCE);
+            if (v2.getAssignedDriver() == null) v2.setAssignedDriver("José Roberto Ferreira");
+            if (v2.getProjectName() == null) v2.setProjectName("Petrobras Transporte Industrial");
+            vehicleRepository.save(v2);
+
+            Vehicle v3 = allVehicles.get(2);
+            v3.setGarageId(gNorte.getId());
+            v3.setGarageName(gNorte.getName());
+            if (v3.getAssignedDriver() == null) v3.setAssignedDriver("Antônio Carlos de Paula");
+            if (v3.getProjectName() == null) v3.setProjectName("Mineração Vale - Turno Especial");
+            vehicleRepository.save(v3);
+
+            // Gerar movimentações de estadia ativa
+            criarEstadiaSeNaoExistir(v1, gCentral, "Marcos Vinicius Santos", v1.getProjectName(), "RECOLHIMENTO", LocalDateTime.now().minusHours(5), companyId);
+            criarEstadiaSeNaoExistir(v2, gSul, "José Roberto Ferreira", v2.getProjectName(), "MANUTENCAO", LocalDateTime.now().minusDays(3).minusHours(6), companyId);
+            criarEstadiaSeNaoExistir(v3, gNorte, "Antônio Carlos de Paula", v3.getProjectName(), "ESCALA", LocalDateTime.now().minusHours(18), companyId);
+        }
+
+        log.info("Seed de garagens concluído com sucesso!");
+    }
+
+    private void criarEstadiaSeNaoExistir(Vehicle vehicle, Garage garage, String driver, String client, String reason, LocalDateTime entryTime, UUID companyId) {
+        if (movementRepository.findFirstByVehicleIdAndActiveStayTrueOrderByCreatedAtDesc(vehicle.getId()).isEmpty()) {
+            movementRepository.save(GarageMovement.builder()
+                    .vehicle(vehicle)
+                    .vehiclePlate(vehicle.getPlate())
+                    .movementType("CHECK_IN")
+                    .toGarage(garage)
+                    .toGarageName(garage.getName())
+                    .driverName(driver)
+                    .clientName(client)
+                    .entryTime(entryTime)
+                    .activeStay(true)
+                    .reason(reason)
+                    .kmReading(vehicle.getCurrentMileage())
+                    .companyId(companyId != null ? companyId : vehicle.getCompanyId())
+                    .createdAt(entryTime)
+                    .build());
+        }
     }
 
     // ==================== HELPERS ====================
