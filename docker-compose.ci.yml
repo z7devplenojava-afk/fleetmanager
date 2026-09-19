@@ -186,10 +186,7 @@ services:
   # EVOLUTION API CI
   # ========================================
   evolution-api-ci:
-    build:
-      context: ./evolution-api
-      dockerfile: Dockerfile
-    image: z7design/secured-guard-evolution-api:ci
+    image: atendai/evolution-api:v2.1.0
     container_name: secured-guard-evolution-ci
     environment:
       SERVER_URL: https://ci.z7botsolutions.com.br
