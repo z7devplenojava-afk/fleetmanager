@@ -48,6 +48,17 @@ import {
   ChevronsUpDown
 } from 'lucide-react';
 
+const CATEGORIES_WITH_SIZE = new Set<StockCategory>([
+  StockCategory.UNIFORME_MOTORISTA,
+  StockCategory.UNIFORME_OFICINA,
+  StockCategory.UNIFORME_ADMINISTRATIVO,
+  StockCategory.EPI,
+  StockCategory.CALCADOS,
+  StockCategory.UNIFORME_VIGILANCIA,
+  StockCategory.UNIFORME_SERVICOS,
+  StockCategory.UNIFORME_COZINHA,
+]);
+
 interface StockItemModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -73,7 +84,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
   const [formData, setFormData] = useState<CreateStockItemDTO>({
     code: '',
     name: '',
-    category: StockCategory.UNIFORME_VIGILANCIA,
+    category: StockCategory.PECAS_MECANICA,
     sizeVariation: '',
     description: '',
     currentQuantity: 0,
@@ -81,9 +92,11 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
     unitCost: 0,
     averageCost: 0,
     supplier: '',
+    invoiceNumber: '',
     barcode: '',
     notes: ''
   });
+  const hasSizeVariation = CATEGORIES_WITH_SIZE.has(formData.category) || Boolean(formData.sizeVariation);
 
   const formatCurrency = (value: string): string => {
     // Remove tudo que não é dígito
@@ -139,6 +152,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         unitCost: item.unitCost || 0,
         averageCost: item.averageCost || 0,
         supplier: item.supplier || '',
+        invoiceNumber: item.invoiceNumber || '',
         barcode: item.barcode || '',
         notes: item.notes || ''
       });
@@ -157,7 +171,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
       setFormData({
         code: '',
         name: '',
-        category: StockCategory.UNIFORME_VIGILANCIA,
+        category: StockCategory.PECAS_MECANICA,
         sizeVariation: '',
         description: '',
         currentQuantity: 0,
@@ -165,6 +179,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         unitCost: 0,
         averageCost: 0,
         supplier: '',
+        invoiceNumber: '',
         barcode: '',
         notes: ''
       });
@@ -176,69 +191,15 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
   const loadSuppliers = async () => {
     try {
       setLoadingSuppliers(true);
-      console.log('📦 StockItemModal: Carregando fornecedores...');
       const data = await contasAPagarService.getFornecedores();
-      console.log('📦 StockItemModal: Dados recebidos da API:', data);
-      console.log('📦 StockItemModal: Tipo dos dados:', typeof data, 'É array?', Array.isArray(data));
-      console.log('📦 StockItemModal: Tamanho do array:', Array.isArray(data) ? data.length : 'N/A');
-      
       if (Array.isArray(data)) {
-        console.log('📦 StockItemModal: Total de fornecedores recebidos:', data.length);
-        
-        if (data.length > 0) {
-          // Log detalhado de cada fornecedor
-          data.forEach((s, idx) => {
-            console.log(`📦 StockItemModal: Fornecedor ${idx + 1}:`, {
-              id: s?.id,
-              name: s?.name,
-              cnpj: s?.cnpj,
-              isActive: s?.isActive,
-              isActiveType: typeof s?.isActive,
-              isActiveCheck: s?.isActive !== false,
-              object: s
-            });
-          });
-          
-          // Filtrar apenas fornecedores válidos (não nulos) e que não estejam explicitamente inativos
-          // Aceitar: isActive === true, isActive === undefined, isActive === null (tratar como ativo)
-          // Remover apenas se isActive === false explicitamente
-          const filtered = data.filter(s => {
-            if (!s) {
-              console.warn('📦 StockItemModal: Fornecedor nulo encontrado, removendo');
-              return false;
-            }
-            if (!s.id || !s.name) {
-              console.warn('📦 StockItemModal: Fornecedor sem ID ou nome encontrado, removendo:', s);
-              return false;
-            }
-            // Se isActive é explicitamente false, remover. Caso contrário, incluir
-            const isIncluded = s.isActive !== false;
-            if (!isIncluded) {
-              console.log(`📦 StockItemModal: Fornecedor ${s.name} (ID: ${s.id}) removido porque isActive = ${s.isActive}`);
-            }
-            return isIncluded;
-          });
-          
-          console.log('📦 StockItemModal: Fornecedores após filtro:', filtered.length);
-          console.log('📦 StockItemModal: Fornecedores filtrados:', filtered.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })));
-          
-          setSuppliers(filtered);
-        } else {
-          console.warn('📦 StockItemModal: Array vazio recebido da API');
-          setSuppliers([]);
-        }
+        const filtered = data.filter(s => s && s.id && s.name && s.isActive !== false);
+        setSuppliers(filtered);
       } else {
-        console.warn('📦 StockItemModal: Dados não são um array, definindo lista vazia');
-        console.warn('📦 StockItemModal: Tipo:', typeof data, 'Valor:', data);
         setSuppliers([]);
       }
     } catch (error: any) {
-      console.error('❌ StockItemModal: Erro ao carregar fornecedores:', error);
-      console.error('❌ StockItemModal: Erro detalhado:', {
-        message: error?.message,
-        response: error?.response?.data,
-        status: error?.response?.status
-      });
+      console.error('Erro ao carregar fornecedores:', error);
       setSuppliers([]);
     } finally {
       setLoadingSuppliers(false);
@@ -246,19 +207,17 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
   };
 
   const filteredSuppliers = useMemo(() => {
-    console.log('📦 StockItemModal: Filtrando fornecedores. Total:', suppliers.length, 'Termo de busca:', supplierSearchTerm);
     if (!supplierSearchTerm) {
-      console.log('📦 StockItemModal: Sem termo de busca, retornando todos os', suppliers.length, 'fornecedores');
-      return suppliers;
+      return suppliers.slice(0, 50);
     }
-    const term = supplierSearchTerm.toLowerCase();
-    const filtered = suppliers.filter(s => {
+    const term = supplierSearchTerm.toLowerCase().trim();
+    const cleanDigits = term.replace(/\D/g, '');
+    return suppliers.filter(s => {
       const nameMatch = s?.name?.toLowerCase().includes(term);
-      const cnpjMatch = s?.cnpj?.toLowerCase().includes(term);
+      const sCnpjClean = s?.cnpj ? s.cnpj.replace(/\D/g, '') : '';
+      const cnpjMatch = s?.cnpj?.toLowerCase().includes(term) || (cleanDigits.length >= 2 && sCnpjClean.includes(cleanDigits));
       return nameMatch || cnpjMatch;
-    });
-    console.log('📦 StockItemModal: Após filtro por termo,', filtered.length, 'fornecedores encontrados');
-    return filtered;
+    }).slice(0, 50);
   }, [suppliers, supplierSearchTerm]);
 
   const selectedSupplier = suppliers.find(s => s.name === formData.supplier);
@@ -338,6 +297,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                   (typeof formData.averageCost === 'number' ? formData.averageCost : parseFloat(String(formData.averageCost))) : 
                   undefined,
         supplier: formData.supplier?.trim() || undefined,
+        invoiceNumber: formData.invoiceNumber?.trim() || undefined,
         barcode: formData.barcode?.trim() || undefined,
         notes: formData.notes?.trim() || undefined
       };
@@ -449,14 +409,14 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="Ex: Camisa Vigilância"
+                    placeholder="Ex: Filtro de Óleo / Pastilha de Freio"
                     required
                     className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className={`grid grid-cols-1 ${hasSizeVariation ? 'sm:grid-cols-2' : ''} gap-3 sm:gap-4`}>
                 <div className="space-y-2">
                   <Label htmlFor="category" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
                     <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
@@ -464,7 +424,13 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                   </Label>
                   <Select 
                     value={formData.category} 
-                    onValueChange={(value) => handleInputChange('category', value as StockCategory)}
+                    onValueChange={(value) => {
+                      const newCat = value as StockCategory;
+                      handleInputChange('category', newCat);
+                      if (!CATEGORIES_WITH_SIZE.has(newCat) && !item) {
+                        handleInputChange('sizeVariation', '');
+                      }
+                    }}
                   >
                     <SelectTrigger className="bg-seguranca-black/50 border-gray-600/30 text-white focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base">
                       <SelectValue placeholder="Selecione a categoria" />
@@ -479,19 +445,21 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="sizeVariation" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
-                    <Ruler className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
-                    Tamanho/Numeração
-                  </Label>
-                  <Input
-                    id="sizeVariation"
-                    value={formData.sizeVariation}
-                    onChange={(e) => handleInputChange('sizeVariation', e.target.value)}
-                    placeholder="Ex: M, G, 42, 44..."
-                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
-                  />
-                </div>
+                {hasSizeVariation && (
+                  <div className="space-y-2">
+                    <Label htmlFor="sizeVariation" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                      <Ruler className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
+                      Tamanho / Numeração (Variação)
+                    </Label>
+                    <Input
+                      id="sizeVariation"
+                      value={formData.sizeVariation || ''}
+                      onChange={(e) => handleInputChange('sizeVariation', e.target.value)}
+                      placeholder={formData.category === StockCategory.CALCADOS ? 'Ex: 38, 39, 40, 41, 42...' : 'Ex: P, M, G, GG, EXG...'}
+                      className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -645,17 +613,17 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                           align="start"
                           style={{ zIndex: 10020 }}
                         >
-                          <Command className="bg-seguranca-graphite text-white">
+                          <Command shouldFilter={false} className="bg-seguranca-graphite text-white">
                             <CommandInput 
-                              placeholder="Buscar fornecedor..." 
+                              placeholder="Buscar por nome ou CNPJ..." 
                               className="text-white"
                               value={supplierSearchTerm}
                               onValueChange={setSupplierSearchTerm}
                             />
-                            <CommandList>
+                            <CommandList className="max-h-60 overflow-y-auto">
                               <CommandEmpty className="text-gray-400 py-4 text-center text-sm">
                                 {supplierSearchTerm 
-                                  ? 'Nenhum fornecedor encontrado com o termo buscado.'
+                                  ? 'Nenhum fornecedor encontrado para este termo/CNPJ.'
                                   : 'Nenhum fornecedor disponível.'}
                               </CommandEmpty>
                               <CommandGroup>
@@ -669,7 +637,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                                         setSupplierComboboxOpen(false);
                                         setSupplierSearchTerm('');
                                       }}
-                                      className="text-white hover:bg-seguranca-black focus:bg-seguranca-black cursor-pointer"
+                                      className="text-white hover:bg-seguranca-black focus:bg-seguranca-black cursor-pointer py-2"
                                     >
                                       <Check
                                         className={`mr-2 h-4 w-4 ${
@@ -677,9 +645,9 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                                         }`}
                                       />
                                       <div className="flex flex-col">
-                                        <span>{supplier.name}</span>
+                                        <span className="font-medium">{supplier.name}</span>
                                         {supplier.cnpj && (
-                                          <span className="text-xs text-gray-400">{supplier.cnpj}</span>
+                                          <span className="text-xs text-gray-400 font-mono">CNPJ: {supplier.cnpj}</span>
                                         )}
                                       </div>
                                     </CommandItem>
@@ -690,6 +658,11 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                                   </div>
                                 )}
                               </CommandGroup>
+                              {filteredSuppliers.length >= 50 && (
+                                <div className="p-2 text-center text-xs text-gray-400 border-t border-gray-700">
+                                  Mostrando os primeiros 50 resultados. Digite para refinar por nome ou CNPJ.
+                                </div>
+                              )}
                             </CommandList>
                           </Command>
                         </PopoverContent>
@@ -709,6 +682,20 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                       </Button>
                     </div>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceNumber" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                    <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
+                    Nota Fiscal / Documento
+                  </Label>
+                  <Input
+                    id="invoiceNumber"
+                    value={formData.invoiceNumber || ''}
+                    onChange={(e) => handleInputChange('invoiceNumber', e.target.value)}
+                    placeholder="Ex: NF 12345 / DANFE"
+                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
+                  />
                 </div>
               </div>
 

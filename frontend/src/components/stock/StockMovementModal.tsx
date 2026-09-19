@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -217,11 +217,19 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
     }
   };
 
-  const filteredSuppliers = suppliers.filter(s => 
-    !supplierSearchTerm || 
-    s.name.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
-    (s.cnpj || '').toLowerCase().includes(supplierSearchTerm.toLowerCase())
-  );
+  const filteredSuppliers = useMemo(() => {
+    if (!supplierSearchTerm) {
+      return suppliers.slice(0, 50);
+    }
+    const term = supplierSearchTerm.toLowerCase().trim();
+    const cleanDigits = term.replace(/\D/g, '');
+    return suppliers.filter(s => {
+      const nameMatch = s?.name?.toLowerCase().includes(term);
+      const sCnpjClean = s?.cnpj ? s.cnpj.replace(/\D/g, '') : '';
+      const cnpjMatch = s?.cnpj?.toLowerCase().includes(term) || (cleanDigits.length >= 2 && sCnpjClean.includes(cleanDigits));
+      return nameMatch || cnpjMatch;
+    }).slice(0, 50);
+  }, [suppliers, supplierSearchTerm]);
 
   const selectedSupplier = suppliers.find(s => s.name === formData.supplier);
 
@@ -765,16 +773,18 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-seguranca-graphite border-gray-600" align="start">
-                            <Command className="bg-seguranca-graphite text-white">
+                            <Command shouldFilter={false} className="bg-seguranca-graphite text-white">
                               <CommandInput 
-                                placeholder="Buscar fornecedor..." 
+                                placeholder="Buscar por nome ou CNPJ..." 
                                 className="text-white"
                                 value={supplierSearchTerm}
                                 onValueChange={setSupplierSearchTerm}
                               />
-                              <CommandList>
+                              <CommandList className="max-h-60 overflow-y-auto">
                                 <CommandEmpty className="text-gray-400 py-4 text-center text-sm">
-                                  Nenhum fornecedor encontrado.
+                                  {supplierSearchTerm 
+                                    ? 'Nenhum fornecedor encontrado para este termo/CNPJ.'
+                                    : 'Nenhum fornecedor disponível.'}
                                 </CommandEmpty>
                                 <CommandGroup>
                                   {filteredSuppliers.map((supplier) => (
@@ -786,7 +796,7 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
                                         setSupplierComboboxOpen(false);
                                         setSupplierSearchTerm('');
                                       }}
-                                      className="text-white hover:bg-seguranca-black focus:bg-seguranca-black cursor-pointer"
+                                      className="text-white hover:bg-seguranca-black focus:bg-seguranca-black cursor-pointer py-2"
                                     >
                                       <Check
                                         className={`mr-2 h-4 w-4 ${
@@ -794,14 +804,19 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
                                         }`}
                                       />
                                       <div className="flex flex-col">
-                                        <span>{supplier.name}</span>
+                                        <span className="font-medium">{supplier.name}</span>
                                         {supplier.cnpj && (
-                                          <span className="text-xs text-gray-400">{supplier.cnpj}</span>
+                                          <span className="text-xs text-gray-400 font-mono">CNPJ: {supplier.cnpj}</span>
                                         )}
                                       </div>
                                     </CommandItem>
                                   ))}
                                 </CommandGroup>
+                                {filteredSuppliers.length >= 50 && (
+                                  <div className="p-2 text-center text-xs text-gray-400 border-t border-gray-700">
+                                    Mostrando os primeiros 50 resultados. Digite para refinar por nome ou CNPJ.
+                                  </div>
+                                )}
                               </CommandList>
                             </Command>
                           </PopoverContent>
