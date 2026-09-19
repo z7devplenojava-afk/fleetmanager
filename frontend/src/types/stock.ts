@@ -11,6 +11,7 @@ export interface StockItem {
   averageCost?: number;
   movementCount?: number;
   supplier?: string;
+  invoiceNumber?: string;
   barcode?: string;
   qrCode?: string;
   active: boolean;
@@ -68,13 +69,34 @@ export interface StockAlert {
 }
 
 export enum StockCategory {
+  // Ônibus e Frota
+  PECAS_MECANICA = 'PECAS_MECANICA',
+  PECAS_ELETRICA = 'PECAS_ELETRICA',
+  SISTEMA_FREIOS = 'SISTEMA_FREIOS',
+  PNEUS_RODAS = 'PNEUS_RODAS',
+  AR_CONDICIONADO = 'AR_CONDICIONADO',
+  CARROCERIA_VIDROS = 'CARROCERIA_VIDROS',
+  LUBRIFICANTES_FLUIDOS = 'LUBRIFICANTES_FLUIDOS',
+  ACESSORIOS_ONIBUS = 'ACESSORIOS_ONIBUS',
+  LIMPEZA_HIGIENIZACAO = 'LIMPEZA_HIGIENIZACAO',
+  FERRAMENTAS = 'FERRAMENTAS',
+
+  // Uniformes e EPIs
+  UNIFORME_MOTORISTA = 'UNIFORME_MOTORISTA',
+  UNIFORME_OFICINA = 'UNIFORME_OFICINA',
+  UNIFORME_ADMINISTRATIVO = 'UNIFORME_ADMINISTRATIVO',
+  EPI = 'EPI',
+  CALCADOS = 'CALCADOS',
+
+  // Empresa e Geral
+  MATERIAL_ESCRITORIO = 'MATERIAL_ESCRITORIO',
+  OUTROS = 'OUTROS',
+
+  // Retrocompatibilidade
   UNIFORME_VIGILANCIA = 'UNIFORME_VIGILANCIA',
   UNIFORME_SERVICOS = 'UNIFORME_SERVICOS',
-  UNIFORME_ADMINISTRATIVO = 'UNIFORME_ADMINISTRATIVO',
   UNIFORME_COZINHA = 'UNIFORME_COZINHA',
-  EPI = 'EPI',
-  ACESSORIOS = 'ACESSORIOS',
-  CALCADOS = 'CALCADOS'
+  ACESSORIOS = 'ACESSORIOS'
 }
 
 export enum MovementType {
@@ -108,6 +130,7 @@ export interface CreateStockItemDTO {
   unitCost?: number;
   averageCost?: number;
   supplier?: string;
+  invoiceNumber?: string;
   barcode?: string;
   unitId?: string;
   notes?: string;
@@ -168,13 +191,34 @@ export interface StockReport {
 
 // Labels para exibição
 export const StockCategoryLabels: Record<StockCategory, string> = {
+  // Ônibus e Frota
+  [StockCategory.PECAS_MECANICA]: 'Peças Mecânicas / Motor / Câmbio',
+  [StockCategory.PECAS_ELETRICA]: 'Elétrica e Baterias',
+  [StockCategory.SISTEMA_FREIOS]: 'Freios e Suspensão',
+  [StockCategory.PNEUS_RODAS]: 'Pneus, Câmaras e Rodas',
+  [StockCategory.AR_CONDICIONADO]: 'Ar Condicionado e Refrigeração',
+  [StockCategory.CARROCERIA_VIDROS]: 'Carroceria, Vidros e Funilaria',
+  [StockCategory.LUBRIFICANTES_FLUIDOS]: 'Óleos, Lubrificantes e Fluidos',
+  [StockCategory.ACESSORIOS_ONIBUS]: 'Acessórios de Ônibus (Bancos, Cortinas)',
+  [StockCategory.LIMPEZA_HIGIENIZACAO]: 'Limpeza e Higienização de Veículos',
+  [StockCategory.FERRAMENTAS]: 'Ferramentas e Equipamentos',
+
+  // Uniformes e EPIs
+  [StockCategory.UNIFORME_MOTORISTA]: 'Uniformes - Motoristas e Tráfego',
+  [StockCategory.UNIFORME_OFICINA]: 'Uniformes - Oficina e Mecânica',
+  [StockCategory.UNIFORME_ADMINISTRATIVO]: 'Uniformes - Administrativo',
+  [StockCategory.EPI]: 'EPI (Equipamento de Proteção Individual)',
+  [StockCategory.CALCADOS]: 'Calçados / Botinas',
+
+  // Empresa e Geral
+  [StockCategory.MATERIAL_ESCRITORIO]: 'Material de Escritório / TI',
+  [StockCategory.OUTROS]: 'Outros',
+
+  // Retrocompatibilidade
   [StockCategory.UNIFORME_VIGILANCIA]: 'Uniforme Vigilância',
   [StockCategory.UNIFORME_SERVICOS]: 'Uniforme Serviços',
-  [StockCategory.UNIFORME_ADMINISTRATIVO]: 'Uniforme Administrativo',
   [StockCategory.UNIFORME_COZINHA]: 'Uniforme Cozinha',
-  [StockCategory.EPI]: 'EPI',
-  [StockCategory.ACESSORIOS]: 'Acessórios',
-  [StockCategory.CALCADOS]: 'Calçados'
+  [StockCategory.ACESSORIOS]: 'Acessórios'
 };
 
 export const MovementTypeLabels: Record<MovementType, string> = {

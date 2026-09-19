@@ -22,6 +22,7 @@ public class StockItemDTO {
     private BigDecimal averageCost;
     private Integer movementCount;
     private String supplier;
+    private String invoiceNumber;
     private String barcode;
     private String qrCode;
     private Boolean active;
@@ -46,6 +47,7 @@ public class StockItemDTO {
         dto.setUnitCost(entity.getUnitCost());
         dto.setAverageCost(entity.getAverageCost());
         dto.setSupplier(entity.getSupplier());
+        dto.setInvoiceNumber(entity.getInvoiceNumber());
         dto.setBarcode(entity.getBarcode());
         dto.setQrCode(entity.getQrCode());
         dto.setActive(entity.getActive());
@@ -79,6 +81,7 @@ public class StockItemDTO {
         entity.setUnitCost(dto.getUnitCost());
         entity.setAverageCost(dto.getAverageCost());
         entity.setSupplier(dto.getSupplier());
+        entity.setInvoiceNumber(dto.getInvoiceNumber());
         entity.setBarcode(dto.getBarcode());
         entity.setQrCode(dto.getQrCode());
         entity.setActive(dto.getActive() != null ? dto.getActive() : Boolean.TRUE);

@@ -158,10 +158,34 @@ public class StockService {
         
         item = stockItemRepository.save(item);
         
+        // Se houver saldo inicial, registrar movimentação de entrada inicial
+        if (item.getCurrentQuantity() != null && item.getCurrentQuantity() > 0) {
+            try {
+                StockMovement initialMovement = new StockMovement();
+                initialMovement.setStockItem(item);
+                initialMovement.setMovementType(com.z7design.fleet_manager.model.enums.MovementType.ENTRADA);
+                initialMovement.setReason(com.z7design.fleet_manager.model.enums.MovementReason.COMPRA);
+                initialMovement.setQuantity(item.getCurrentQuantity());
+                initialMovement.setPreviousQuantity(0);
+                initialMovement.setNewQuantity(item.getCurrentQuantity());
+                initialMovement.setDocumentNumber(item.getInvoiceNumber());
+                initialMovement.setSupplier(item.getSupplier());
+                initialMovement.setUnitCost(item.getUnitCost() != null ? item.getUnitCost().doubleValue() : null);
+                if (item.getUnitCost() != null) {
+                    initialMovement.setTotalCost(item.getUnitCost().doubleValue() * item.getCurrentQuantity());
+                }
+                initialMovement.setMovementDate(LocalDateTime.now());
+                initialMovement.setNotes("Saldo inicial cadastrado" + (item.getInvoiceNumber() != null ? " - NF: " + item.getInvoiceNumber() : ""));
+                stockMovementRepository.save(initialMovement);
+            } catch (Exception e) {
+                log.warn("Erro ao registrar movimentação inicial de estoque para o item {}: {}", item.getCode(), e.getMessage());
+            }
+        }
+        
         // Criar alerta se quantidade inicial for baixa
         checkAndCreateLowStockAlert(item);
         
-        log.info("Item criado com sucesso - ID: {}, CÃ³digo: {}", item.getId(), item.getCode());
+        log.info("Item criado com sucesso - ID: {}, Código: {}", item.getId(), item.getCode());
         return StockItemDTO.fromEntity(item);
     }
 
@@ -191,6 +215,7 @@ public class StockService {
         }
         existingItem.setUnitCost(dto.getUnitCost());
         existingItem.setSupplier(dto.getSupplier());
+        existingItem.setInvoiceNumber(dto.getInvoiceNumber());
         existingItem.setBarcode(dto.getBarcode());
         if (dto.getActive() != null) {
             existingItem.setActive(dto.getActive());
