@@ -28,6 +28,7 @@ export interface CreateCompanyRequest {
   website?: string;
   status?: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'SUSPENDED';
   logoUrl?: string;
+  bannerUrls?: string[];
   defaultEpis?: CompanyDefaultEPI[];
 }
 
@@ -71,6 +72,28 @@ export const companyService = {
   async getCompanyOverview(companyId?: string): Promise<CompanyOverviewDTO> {
     const url = companyId ? `/api/company/overview?companyId=${companyId}` : '/api/company/overview';
     const response = await api.get(url);
+    return response.data;
+  },
+
+  async uploadLogo(file: File): Promise<{ url: string; filename: string; originalName: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/uploads/companies/logo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  },
+
+  async uploadBanner(file: File): Promise<{ url: string; filename: string; originalName: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/uploads/companies/banner-upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     return response.data;
   },
 };

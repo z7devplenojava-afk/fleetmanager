@@ -110,6 +110,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'chat-interno',
     'mechanic-dashboard',
     'frota-os',
+    'garagens',
     'gestao-portaria',
     'mobilizacao-transportes',
   ]),
@@ -119,6 +120,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'meus-holerites',
     'mensagens',
     'chat-interno',
+    'garagens',
     'gestao-portaria',
     'mobilizacao-transportes',
   ]),
@@ -1021,7 +1023,7 @@ export function DynamicSidebar() {
       text: 'Gestão de Garagens',
       to: '/frota/garagens',
       id: 'garagens',
-      requiredPermission: 'FLEET_READ'
+      requiredPermission: 'EQUIPMENTS_READ'
     },
     {
       icon: Wrench,

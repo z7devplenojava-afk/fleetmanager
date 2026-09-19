@@ -5,6 +5,7 @@ import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.FleetWorkOrder;
 import com.z7design.fleet_manager.model.WorkOrderItem;
 import com.z7design.fleet_manager.model.WorkPost;
+import com.z7design.fleet_manager.repository.ChecklistItemRepository;
 import com.z7design.fleet_manager.repository.CompanyRepository;
 import com.z7design.fleet_manager.repository.FleetWorkOrderRepository;
 import com.z7design.fleet_manager.tenant.TenantContext;
@@ -43,6 +44,7 @@ public class FleetWorkOrderPdfService {
 
     private final FleetWorkOrderRepository repository;
     private final CompanyRepository companyRepository;
+    private final ChecklistItemRepository checklistItemRepository;
     private final TemplateEngine templateEngine;
 
     @Value("${app.upload.dir:uploads}")
@@ -68,6 +70,9 @@ public class FleetWorkOrderPdfService {
             }
             if (order.getChecklistItems() != null) {
                 order.getChecklistItems().size();
+            }
+            if (order.getPhotoAttachments() != null) {
+                order.getPhotoAttachments().size();
             }
         } catch (Exception e) {
             log.warn("Aviso ao inicializar coleções da OS {}: {}", workOrderId, e.getMessage());
@@ -164,7 +169,7 @@ public class FleetWorkOrderPdfService {
         // Checklist Items (para OS Preventiva)
         List<Map<String, Object>> checklistData = new ArrayList<>();
         try {
-            if (order.getChecklistItems() != null) {
+            if (order.getChecklistItems() != null && !order.getChecklistItems().isEmpty()) {
                 for (com.z7design.fleet_manager.model.FleetWorkOrderChecklist cItem : order.getChecklistItems()) {
                     if (cItem == null) continue;
                     Map<String, Object> cMap = new HashMap<>();
@@ -181,11 +186,33 @@ public class FleetWorkOrderPdfService {
                     cMap.put("reparoRealizado", cItem.getReparoRealizado());
                     checklistData.add(cMap);
                 }
+            } else if (order.getMaintenanceType() == com.z7design.fleet_manager.model.FleetWorkOrder.MaintenanceType.PREVENTIVA && checklistItemRepository != null) {
+                var masterItems = checklistItemRepository.findByAtivoTrueOrderByOrdemAsc();
+                for (var m : masterItems) {
+                    Map<String, Object> cMap = new HashMap<>();
+                    cMap.put("itemDescricao", m.getDescricao() != null ? m.getDescricao() : "");
+                    cMap.put("categoria", m.getCategoria() != null ? m.getCategoria() : "GERAL");
+                    cMap.put("situacao", "OK");
+                    cMap.put("observacao", null);
+                    cMap.put("reparoRealizado", null);
+                    checklistData.add(cMap);
+                }
             }
         } catch (Exception e) {
             log.warn("Aviso ao mapear itens de checklist da OS {}: {}", order.getId(), e.getMessage());
         }
         data.put("checklistItems", checklistData);
+
+        // Divide o checklist em 2 colunas equilibradas para caber exatamente em 1 página
+        List<Map<String, Object>> checklistCol1 = new ArrayList<>();
+        List<Map<String, Object>> checklistCol2 = new ArrayList<>();
+        if (!checklistData.isEmpty()) {
+            int mid = (checklistData.size() + 1) / 2;
+            checklistCol1 = new ArrayList<>(checklistData.subList(0, mid));
+            checklistCol2 = new ArrayList<>(checklistData.subList(mid, checklistData.size()));
+        }
+        data.put("checklistCol1", checklistCol1);
+        data.put("checklistCol2", checklistCol2);
 
         // Itens
         List<Map<String, Object>> itens = new ArrayList<>();
@@ -194,7 +221,19 @@ public class FleetWorkOrderPdfService {
                 for (WorkOrderItem item : order.getItems()) {
                     if (item == null) continue;
                     Map<String, Object> itemMap = new HashMap<>();
-                    itemMap.put("descricao", item.getDescription());
+                    String desc = item.getDescription();
+                    if (item.getCode() != null && !item.getCode().isBlank()) {
+                        desc = "[" + item.getCode() + "] " + desc;
+                    }
+                    if (Boolean.TRUE.equals(item.getRequiresApproval())) {
+                        if (Boolean.TRUE.equals(item.getApproved())) {
+                            desc += " (Aprovado por " + (item.getApprovedBy() != null ? item.getApprovedBy() : "Gestor") + ")";
+                        } else {
+                            desc += " (Aguardando Aprovação do Gestor)";
+                        }
+                    }
+                    itemMap.put("codigo", item.getCode() != null ? item.getCode() : "-");
+                    itemMap.put("descricao", desc);
                     itemMap.put("tipo", item.getType() == WorkOrderItem.ItemType.LABOR ? "Serviço" : "Peça");
                     itemMap.put("quantidade", formatQuantity(item.getQuantity()));
                     itemMap.put("unitario", formatCurrency(item.getUnitPrice()));
@@ -214,6 +253,31 @@ public class FleetWorkOrderPdfService {
 
         // Observações
         data.put("observacoes", order.getNotes());
+
+        // Evidências Fotográficas / Fotos
+        List<String> processedPhotos = new ArrayList<>();
+        try {
+            if (order.getPhotoAttachments() != null) {
+                for (String photo : order.getPhotoAttachments()) {
+                    String uri = processPhotoAsDataUri(photo);
+                    if (uri != null && !uri.isBlank()) {
+                        processedPhotos.add(uri);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao processar fotos da OS {}: {}", order.getId(), e.getMessage());
+        }
+        boolean hasPhotos = !processedPhotos.isEmpty();
+        data.put("hasPhotos", hasPhotos);
+        data.put("photos", processedPhotos);
+
+        // Agrupar fotos em linhas de 3 para tabela no PDF
+        List<List<String>> photoRows = new ArrayList<>();
+        for (int i = 0; i < processedPhotos.size(); i += 3) {
+            photoRows.add(processedPhotos.subList(i, Math.min(i + 3, processedPhotos.size())));
+        }
+        data.put("photoRows", photoRows);
 
         // Empresa (nome/logo para o cabeçalho do PDF)
         try {
@@ -309,6 +373,63 @@ public class FleetWorkOrderPdfService {
             return Paths.get(uploadDir, logoUrl);
         } catch (Exception e) {
             log.warn("Erro ao resolver caminho do logo ({}): {}", logoUrl, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Processa fotos anexadas para formato data URI (base64) para renderização direta no PDF.
+     */
+    private String processPhotoAsDataUri(String photoUrl) {
+        if (photoUrl == null || photoUrl.isBlank()) {
+            return null;
+        }
+        String trimmed = photoUrl.trim();
+        if (trimmed.startsWith("data:image/")) {
+            return trimmed;
+        }
+        try {
+            byte[] bytes;
+            if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+                bytes = new URL(trimmed).openStream().readAllBytes();
+            } else {
+                Path photoPath = resolvePhotoPath(trimmed);
+                if (photoPath == null || !Files.exists(photoPath)) {
+                    log.warn("Foto da OS não encontrada em disco: {}", trimmed);
+                    return null;
+                }
+                bytes = Files.readAllBytes(photoPath);
+            }
+            if (bytes == null || bytes.length == 0) {
+                return null;
+            }
+
+            String lower = trimmed.toLowerCase();
+            String mime = "image/jpeg";
+            if (lower.endsWith(".png")) {
+                mime = "image/png";
+            } else if (lower.endsWith(".gif")) {
+                mime = "image/gif";
+            }
+            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
+        } catch (Exception e) {
+            log.warn("Erro ao processar foto da OS ({}): {}", photoUrl, e.getMessage());
+            return null;
+        }
+    }
+
+    private Path resolvePhotoPath(String photoUrl) {
+        try {
+            if (photoUrl.startsWith("/api/uploads/")) {
+                String relative = photoUrl.replace("/api/uploads/", "");
+                return Paths.get(uploadDir, relative);
+            }
+            if (photoUrl.startsWith("uploads/")) {
+                return Paths.get(photoUrl);
+            }
+            return Paths.get(uploadDir, photoUrl);
+        } catch (Exception e) {
+            log.warn("Erro ao resolver caminho da foto ({}): {}", photoUrl, e.getMessage());
             return null;
         }
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,7 +24,10 @@ import {
     TrendingUp,
     Car,
     ShoppingCart,
-    Package
+    Package,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -43,6 +46,15 @@ import fleetWorkOrderService, {
     MaintenanceType
 } from '@/services/fleetWorkOrderService';
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
+import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewModal';
+import { FleetWorkOrderPurchaseModal } from '@/components/frota/FleetWorkOrderPurchaseModal';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
     generateFleetWorkOrderPDFBlob,
@@ -79,6 +91,8 @@ const FleetWorkOrdersPage: React.FC = () => {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [garageFilter, setGarageFilter] = useState<string>('ALL');
+    const [sortField, setSortField] = useState<string>('osNumber');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
     const { data: garages = [] } = useQuery({
         queryKey: ['garages-for-os-filter'],
@@ -102,17 +116,14 @@ const FleetWorkOrdersPage: React.FC = () => {
         }
     };
 
+    const [viewingPdfOrder, setViewingPdfOrder] = useState<FleetWorkOrder | null>(null);
+    const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
     const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+    const [requestingPurchaseId, setRequestingPurchaseId] = useState<string | null>(null);
 
-    const handleGeneratePDF = async (order: FleetWorkOrder) => {
-        try {
-            const blob = await generateFleetWorkOrderPDFBlob(order);
-            const url = URL.createObjectURL(blob);
-            window.open(url, '_blank', 'noopener,noreferrer');
-            window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-        } catch (error) {
-            toast({ title: 'Erro', description: 'Falha ao gerar PDF da O.S.', variant: 'destructive' });
-        }
+    const handleGeneratePDF = (order: FleetWorkOrder) => {
+        setViewingPdfOrder(order);
+        setIsPdfModalOpen(true);
     };
 
     const handleDownloadPDF = async (order: FleetWorkOrder) => {
@@ -127,48 +138,36 @@ const FleetWorkOrdersPage: React.FC = () => {
         }
     };
 
-    const [requestingPurchaseId, setRequestingPurchaseId] = useState<string | null>(null);
+    const [purchaseModalOrder, setPurchaseModalOrder] = useState<FleetWorkOrder | null>(null);
+    const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
 
-    const handleRequestPurchase = async (order: FleetWorkOrder) => {
-        const parts = (order.items || []).filter(i => (i.type ?? WorkOrderItemType.PART) === WorkOrderItemType.PART);
-        const total = parts.reduce((s, i) => s + (i.totalPrice || 0), 0);
-        const ok = window.confirm(
-            `Enviar solicitação de compra ao almoxarifado?\n\n` +
-            `Peças da O.S. ${order.osNumber || '#' + order.id.slice(0, 8)}: ${parts.length}\n` +
-            `Valor estimado: ${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}\n\n` +
-            `O almoxarifado receberá a solicitação e fará as cotações.`
-        );
-        if (!ok) return;
-        setRequestingPurchaseId(order.id);
-        try {
-            const created = await fleetWorkOrderService.requestPurchase(order.id);
-            toast({
-                title: 'Solicitação enviada',
-                description: `Compra solicitada ao almoxarifado: ${created.requestNumber || ''} — aguardando cotações.`
-            });
-            queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
-        } catch (error: any) {
-            const msg = error?.response?.data?.error;
-            toast({
-                title: 'Erro',
-                description: msg || 'Falha ao solicitar compra ao almoxarifado.',
-                variant: 'destructive'
-            });
-        } finally {
-            setRequestingPurchaseId(null);
-        }
+    const handleRequestPurchase = (order: FleetWorkOrder) => {
+        setPurchaseModalOrder(order);
+        setIsPurchaseModalOpen(true);
     };
 
     // Gap 5 — Duplicar OS (PRD §25)
     const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
-    const handleDuplicate = async (order: FleetWorkOrder) => {
-        const ok = window.confirm(`Duplicar a OS ${order.osNumber || '#' + order.id.slice(0, 8)}?\nUma nova OS será criada com os mesmos dados e status ABERTA.`);
-        if (!ok) return;
-        setDuplicatingId(order.id);
+    const [duplicateModalOrder, setDuplicateModalOrder] = useState<FleetWorkOrder | null>(null);
+    const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+
+    const handleDuplicate = (order: FleetWorkOrder) => {
+        setDuplicateModalOrder(order);
+        setIsDuplicateModalOpen(true);
+    };
+
+    const confirmDuplicate = async () => {
+        if (!duplicateModalOrder?.id) return;
+        setDuplicatingId(duplicateModalOrder.id);
         try {
-            await fleetWorkOrderService.duplicate(order.id);
-            toast({ title: 'OS Duplicada', description: `Nova OS criada a partir de ${order.osNumber || order.id.slice(0, 8)}.` });
+            await fleetWorkOrderService.duplicate(duplicateModalOrder.id);
+            toast({
+                title: 'OS Duplicada',
+                description: `Nova OS criada a partir de ${duplicateModalOrder.osNumber || duplicateModalOrder.id.slice(0, 8)}.`
+            });
             queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+            setIsDuplicateModalOpen(false);
+            setDuplicateModalOrder(null);
         } catch (error: any) {
             const msg = error?.response?.data?.error || 'Falha ao duplicar OS.';
             toast({ title: 'Erro', description: msg, variant: 'destructive' });
@@ -206,6 +205,71 @@ const FleetWorkOrdersPage: React.FC = () => {
         }
         return true;
     });
+
+    const sortedOrders = useMemo(() => {
+        const arr = [...filteredOrders];
+        arr.sort((a, b) => {
+            let aVal: any;
+            let bVal: any;
+            switch (sortField) {
+                case 'osNumber':
+                    aVal = a.osNumber || '';
+                    bVal = b.osNumber || '';
+                    return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                case 'maintenanceType':
+                    aVal = a.maintenanceType || '';
+                    bVal = b.maintenanceType || '';
+                    return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                case 'status':
+                    aVal = a.status || '';
+                    bVal = b.status || '';
+                    return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                case 'vehiclePlate':
+                    aVal = a.vehiclePlate || '';
+                    bVal = b.vehiclePlate || '';
+                    return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                case 'client':
+                    aVal = a.clientName || '';
+                    bVal = b.clientName || '';
+                    return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                case 'stopDate':
+                    aVal = a.stopDate || '';
+                    bVal = b.stopDate || '';
+                    return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                case 'odometerIn':
+                    aVal = a.odometerIn || 0;
+                    bVal = b.odometerIn || 0;
+                    return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+                case 'mechanicName':
+                    aVal = a.mechanicName || '';
+                    bVal = b.mechanicName || '';
+                    return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                case 'totalCost':
+                    aVal = a.totalCost || 0;
+                    bVal = b.totalCost || 0;
+                    return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+                default:
+                    return 0;
+            }
+        });
+        return arr;
+    }, [filteredOrders, sortField, sortDir]);
+
+    const handleSort = (field: string) => {
+        if (sortField === field) {
+            setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDir('asc');
+        }
+    };
+
+    const SortIcon = ({ field }: { field: string }) => {
+        if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+        return sortDir === 'asc'
+            ? <ArrowUp className="h-3 w-3 ml-1 text-seguranca-yellow" />
+            : <ArrowDown className="h-3 w-3 ml-1 text-seguranca-yellow" />;
+    };
 
     return (
         <StandardLayout title="Gestão de Ordem de Serviço">
@@ -357,20 +421,38 @@ const FleetWorkOrdersPage: React.FC = () => {
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-seguranca-black/50 text-gray-400 uppercase text-xs">
                                         <tr>
-                                            <th className="p-4">Nº OS</th>
-                                            <th className="p-4">Tipo</th>
-                                            <th className="p-4">Status</th>
-                                            <th className="p-4">Equipamento / Placa</th>
-                                            <th className="p-4">Cliente / Obra</th>
-                                            <th className="p-4">Data Parada</th>
-                                            <th className="p-4">KM Parada</th>
-                                            <th className="p-4">Responsável</th>
-                                            <th className="p-4 text-right">Custo Total</th>
+                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('osNumber')}>
+                                                <span className="flex items-center">Nº OS <SortIcon field="osNumber" /></span>
+                                            </th>
+                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('maintenanceType')}>
+                                                <span className="flex items-center">Tipo <SortIcon field="maintenanceType" /></span>
+                                            </th>
+                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('status')}>
+                                                <span className="flex items-center">Status <SortIcon field="status" /></span>
+                                            </th>
+                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('vehiclePlate')}>
+                                                <span className="flex items-center">Equipamento / Placa <SortIcon field="vehiclePlate" /></span>
+                                            </th>
+                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('client')}>
+                                                <span className="flex items-center">Cliente / Obra <SortIcon field="client" /></span>
+                                            </th>
+                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('stopDate')}>
+                                                <span className="flex items-center">Data Parada <SortIcon field="stopDate" /></span>
+                                            </th>
+                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('odometerIn')}>
+                                                <span className="flex items-center">KM Parada <SortIcon field="odometerIn" /></span>
+                                            </th>
+                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('mechanicName')}>
+                                                <span className="flex items-center">Responsável <SortIcon field="mechanicName" /></span>
+                                            </th>
+                                            <th className="p-4 text-right cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('totalCost')}>
+                                                <span className="flex items-center justify-end">Custo Total <SortIcon field="totalCost" /></span>
+                                            </th>
                                             <th className="p-4 text-center">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-700">
-                                        {filteredOrders.map(order => (
+                                        {sortedOrders.map(order => (
                                             <tr key={order.id} className="hover:bg-seguranca-black/30 transition-colors">
                                                 <td className="p-4 font-bold text-seguranca-lightgray">
                                                     {order.osNumber || `OS-${order.id.slice(0, 8)}`}
@@ -413,11 +495,11 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                             size="sm"
                                                             onClick={() => handleGeneratePDF(order)}
                                                             disabled={generatingPdfId === order.id}
-                                                            title="Imprimir PDF da OS"
-                                                            className="border-red-500/60 text-red-400 hover:bg-red-500/10 hover:text-red-300 h-8 px-2 text-xs"
+                                                            title="Visualizar e Imprimir OS"
+                                                            className="border-red-500/60 text-red-400 hover:bg-red-500/10 hover:text-red-300 h-8 px-2.5 text-xs font-semibold"
                                                         >
                                                             <FileText className="mr-1 h-3.5 w-3.5" />
-                                                            PDF
+                                                            Visualizar OS
                                                         </Button>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
@@ -526,6 +608,71 @@ const FleetWorkOrdersPage: React.FC = () => {
                 onSuccess={() => { setIsFormOpen(false); queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] }); }}
                 order={selectedOrder}
             />
+
+            <FleetWorkOrderViewModal
+                isOpen={isPdfModalOpen}
+                onClose={() => {
+                    setIsPdfModalOpen(false);
+                    setViewingPdfOrder(null);
+                }}
+                order={viewingPdfOrder}
+            />
+
+            {/* Modal Interativo e Centralizado de Solicitação ao Almoxarifado */}
+            <FleetWorkOrderPurchaseModal
+                isOpen={isPurchaseModalOpen}
+                onClose={() => {
+                    setIsPurchaseModalOpen(false);
+                    setPurchaseModalOrder(null);
+                }}
+                order={purchaseModalOrder}
+                onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+                }}
+            />
+
+            {/* Modal de Confirmação de Duplicação */}
+            <Dialog open={isDuplicateModalOpen} onOpenChange={setIsDuplicateModalOpen}>
+                <DialogContent className="max-w-md w-[92vw] sm:w-full bg-[#0d0e12] border-gray-800 text-gray-100 shadow-2xl rounded-2xl p-5 z-[10150]">
+                    <DialogHeader className="space-y-2">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-blue-500/20 border border-blue-500/30 rounded-xl text-blue-400">
+                                <ClipboardList className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-base font-bold text-white">Duplicar Ordem de Serviço</DialogTitle>
+                                <DialogDescription className="text-xs text-gray-400">
+                                    Cópia de OS com status inicial Aberta
+                                </DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+
+                    <div className="py-3 text-xs text-gray-300">
+                        Deseja duplicar a OS <strong className="text-white font-mono">{duplicateModalOrder?.osNumber || (duplicateModalOrder?.id ? '#' + duplicateModalOrder.id.slice(0, 8) : '')}</strong>? Uma nova OS será gerada com os mesmos dados e itens cadastrados.
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-gray-800">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsDuplicateModalOpen(false)}
+                            disabled={!!duplicatingId}
+                            className="border-gray-700 text-gray-300 hover:bg-gray-800 text-xs"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            size="sm"
+                            onClick={confirmDuplicate}
+                            disabled={!!duplicatingId}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs"
+                        >
+                            {duplicatingId ? 'Duplicando...' : 'Confirmar Duplicação'}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </StandardLayout>
     );
 };

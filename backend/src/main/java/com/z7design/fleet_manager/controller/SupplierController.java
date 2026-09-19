@@ -144,6 +144,25 @@ public class SupplierController {
         return ResponseEntity.noContent().build();
     }
     
+    @PostMapping("/batch-delete")
+    @Operation(summary = "Excluir fornecedores em lote", description = "Exclui múltiplos fornecedores do sistema")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Fornecedores excluídos com sucesso"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado")
+    })
+    public ResponseEntity<Void> batchDelete(@RequestBody List<String> ids) {
+        if (ids != null && !ids.isEmpty()) {
+            for (String idStr : ids) {
+                try {
+                    supplierService.deleteById(UUID.fromString(idStr));
+                } catch (Exception e) {
+                    // ignorar erros em itens individuais (ex: se já excluído)
+                }
+            }
+        }
+        return ResponseEntity.noContent().build();
+    }
+    
     @PatchMapping("/{id}/toggle-status")
     @Operation(summary = "Alternar status do fornecedor", description = "Ativa ou desativa um fornecedor")
     public ResponseEntity<Supplier> toggleStatus(@PathVariable("id") String id) {

@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import {
     Wrench, Trash2, Plus, ClipboardList, Clock, History,
     Gauge, AlertTriangle, Send, ChevronDown, ChevronUp, CheckCircle, XCircle, MinusCircle, UserCheck,
-    Camera, UploadCloud, Image
+    Camera, UploadCloud, Image, Package, ShieldCheck, Tag, FileText, Check, AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,8 +26,13 @@ import { departmentService } from '@/services/departmentService';
 import { employeeService } from '@/services/employeeService';
 import { workPostService, WorkPost } from '@/services/workPostService';
 import { garageService, Garage } from '@/services/garageService';
+import { stockService } from '@/services/stockService';
+import { StockItem } from '@/types/stock';
 import { Vehicle } from '@/types/fleet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
+import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewModal';
+import { generateFleetWorkOrderPDFBlob } from '@/utils/fleetWorkOrderPDFGenerator';
 
 interface Props {
     isOpen: boolean;
@@ -59,9 +64,13 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     const queryClient     = useQueryClient();
     const isEdit          = !!order?.id;
 
-    const [isLoading, setIsLoading]     = useState(false);
-    const [newNote, setNewNote]         = useState('');
-    const [showHistory, setShowHistory] = useState(false);
+    const [isLoading, setIsLoading]         = useState(false);
+    const [newNote, setNewNote]             = useState('');
+    const [showHistory, setShowHistory]     = useState(false);
+    const [isPdfModalOpen, setIsPdfModalOpen]       = useState(false);
+    const [pdfPreviewOrder, setPdfPreviewOrder]     = useState<FleetWorkOrder | null>(null);
+    const [pdfPreviewBlob, setPdfPreviewBlob]       = useState<Blob | null>(null);
+    const [isGeneratingPdf, setIsGeneratingPdf]     = useState(false);
 
     const [formData, setFormData] = useState<Partial<FleetWorkOrder>>({
         vehicleId: '',
@@ -84,11 +93,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         enabled: isEdit && showHistory,
     });
 
-    // Veículos
-    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-    useEffect(() => {
-        fleetService.getVehicles().then(setVehicles).catch(() => {});
-    }, []);
+    // Veículos da frota via React Query
+    const { data: vehicles = [], isLoading: isLoadingVehicles } = useQuery<Vehicle[]>({
+        queryKey: ['fleet-vehicles-all'],
+        queryFn: () => fleetService.getVehicles(),
+        staleTime: 60_000,
+    });
 
     // Clientes, Obras/Postos, Setores, Requerentes (PRD §6, §20, §21, §22)
     const { data: clients = [] } = useQuery({
@@ -117,6 +127,28 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         staleTime: 60_000,
     });
 
+    // Itens do Almoxarifado / Estoque
+    const { data: stockItems = [] } = useQuery<StockItem[]>({
+        queryKey: ['stock-items-for-work-order'],
+        queryFn: () => stockService.getAllItems(),
+        staleTime: 30_000,
+    });
+
+    // Catálogo de Serviços de Manutenção
+    const { data: servicesCatalog = [] } = useQuery<any[]>({
+        queryKey: ['fleet-work-order-services-catalog'],
+        queryFn: () => fleetWorkOrderService.getServicesCatalog(),
+        staleTime: 30_000,
+    });
+
+    // Modal de Cadastro Rápido de Novo Serviço
+    const [isNewServiceModalOpen, setIsNewServiceModalOpen] = useState(false);
+    const [newServiceName, setNewServiceName] = useState('');
+    const [newServicePrice, setNewServicePrice] = useState<number | ''>('');
+    const [newServiceDescription, setNewServiceDescription] = useState('');
+    const [targetItemIndexForService, setTargetItemIndexForService] = useState<number | null>(null);
+    const [isSavingService, setIsSavingService] = useState(false);
+
     // Obras filtradas pelo cliente selecionado
     const obrasForClient = React.useMemo(() => {
         if (!allWorkPosts || allWorkPosts.length === 0) return [];
@@ -129,11 +161,131 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     const mechanicsList = React.useMemo(() => {
         if (!employees || employees.length === 0) return [];
         const filtered = employees.filter((e: any) => {
-            const pos = (e.position?.name || e.cargo || '').toLowerCase();
+            const pos = (e.positionDescription || e.position?.name || e.cargo || '').toLowerCase();
             return pos.includes('mecanic') || pos.includes('mecânico') || pos.includes('manuten') || pos.includes('tecnic') || pos.includes('eletric');
         });
         return filtered.length > 0 ? filtered : employees;
     }, [employees]);
+
+    // Opções pesquisáveis com autocomplete
+    const vehicleOptions = React.useMemo<SearchableOption[]>(() => {
+        return vehicles.map((v: any) => {
+            const code = v.fleetNumber || v.patrimonyNumber || v.code || v.codigo || '';
+            const plateClean = (v.plate || '').replace(/[^A-Za-z0-9]/g, '');
+            return {
+                value: v.id,
+                label: `${v.plate} — ${v.brand ? `${v.brand} ` : ''}${v.model}`,
+                subtitle: [
+                    code ? `Cód/Frota: ${code}` : null,
+                    v.currentMileage !== undefined && v.currentMileage !== null ? `${v.currentMileage} km` : null,
+                    v.garageName ? `Pátio: ${v.garageName}` : null,
+                ].filter(Boolean).join(' • '),
+                badge: code ? `#${code}` : undefined,
+                badgeColor: 'bg-amber-950/60 text-amber-300 border-amber-700/50',
+                keywords: [
+                    v.plate,
+                    plateClean,
+                    code,
+                    v.patrimonyNumber,
+                    v.fleetNumber,
+                    v.model,
+                    v.brand,
+                ].filter(Boolean) as string[],
+            };
+        });
+    }, [vehicles]);
+
+    const mechanicOptions = React.useMemo<SearchableOption[]>(() => {
+        return mechanicsList.map((emp: any) => ({
+            value: emp.id,
+            label: emp.name,
+            subtitle: emp.positionDescription || emp.position?.name || emp.cargo || undefined,
+            badge: (emp.positionDescription || emp.position?.name || emp.cargo || '').toLowerCase().includes('mecanic') ? 'Mecânico' : undefined,
+            badgeColor: 'bg-emerald-950/60 text-emerald-300 border-emerald-700/50',
+            keywords: [emp.registrationNumber, emp.cpf, emp.positionDescription].filter(Boolean),
+        }));
+    }, [mechanicsList]);
+
+    const clientOptions = React.useMemo<SearchableOption[]>(() => {
+        return clients.map((c: any) => ({
+            value: c.id,
+            label: c.name,
+            subtitle: c.cnpj ? `CNPJ: ${c.cnpj}` : undefined,
+            badge: c.cnpj ? c.cnpj : undefined,
+            badgeColor: 'bg-blue-950/60 text-blue-300 border-blue-700/50',
+            keywords: [c.cnpj, (c.cnpj || '').replace(/\D/g, '')].filter(Boolean),
+        }));
+    }, [clients]);
+
+    const requesterOptions = React.useMemo<SearchableOption[]>(() => {
+        return employees.map((e: any) => ({
+            value: e.id,
+            label: e.name || e.fullName,
+            subtitle: e.positionDescription || e.position?.name || e.cargo || undefined,
+            keywords: [e.registrationNumber, e.cpf, e.positionDescription].filter(Boolean),
+        }));
+    }, [employees]);
+
+    const garageOptions = React.useMemo<SearchableOption[]>(() => {
+        return garagesForOS.map((g: Garage) => ({
+            value: g.id,
+            label: g.name,
+            subtitle: g.responsibleName ? `Resp.: ${g.responsibleName}${g.capacity ? ` (${g.capacity} vagas)` : ''}` : (g.capacity ? `${g.capacity} vagas` : undefined),
+            badge: g.atCapacity ? 'Lotada' : undefined,
+            badgeColor: g.atCapacity ? 'bg-red-950/60 text-red-300 border-red-700/50' : undefined,
+            keywords: [g.responsibleName, g.address].filter(Boolean) as string[],
+        }));
+    }, [garagesForOS]);
+
+    // Opções do Almoxarifado para Peças
+    const stockPartOptions = React.useMemo<SearchableOption[]>(() => {
+        const manualOpt: SearchableOption = {
+            value: '__MANUAL__',
+            label: '+ Informar Peça Manualmente (Avulsa / Nova Compra)',
+            subtitle: 'Preencher código/part number e descrição livremente',
+            badge: 'Avulso',
+            badgeColor: 'bg-amber-950/70 text-amber-300 border-amber-700/60',
+            keywords: ['manual', 'novo', 'avulsa', 'comprar'],
+        };
+
+        const dbOpts: SearchableOption[] = stockItems.map((item: StockItem) => {
+            const qty = item.currentQuantity ?? 0;
+            const isZero = qty <= 0;
+            return {
+                value: item.id,
+                label: `[${item.code}] ${item.name}`,
+                subtitle: `Saldo Almoxarifado: ${qty} un ${item.unitCost ? `| Custo: R$ ${item.unitCost.toFixed(2)}` : ''}`,
+                badge: isZero ? 'Sem Estoque' : `${qty} un`,
+                badgeColor: isZero ? 'bg-red-950/70 text-red-300 border-red-700/60' : 'bg-emerald-950/70 text-emerald-300 border-emerald-700/60',
+                keywords: [item.code, item.barcode, item.category, item.supplier].filter(Boolean) as string[],
+            };
+        });
+
+        return [manualOpt, ...dbOpts];
+    }, [stockItems]);
+
+    // Opções de Serviços do Catálogo
+    const serviceCatalogOptions = React.useMemo<SearchableOption[]>(() => {
+        const newServiceOpt: SearchableOption = {
+            value: '__NEW_SERVICE__',
+            label: '+ Cadastrar Novo Serviço de Manutenção',
+            subtitle: 'Gera código sequencial automático e salva no catálogo',
+            badge: 'Novo',
+            badgeColor: 'bg-blue-950/70 text-blue-300 border-blue-700/60',
+            keywords: ['novo', 'cadastrar', 'adicionar', 'gerar'],
+        };
+
+        const dbOpts: SearchableOption[] = servicesCatalog.map((s: any) => ({
+            value: s.id,
+            label: `[${s.code || 'SRV'}] ${s.name}`,
+            subtitle: `${s.category ? `Cat: ${s.category} | ` : ''}${s.unitPrice ? `Tabela: R$ ${Number(s.unitPrice).toFixed(2)}` : 'Sem valor fixo'}${s.description ? ` - ${s.description}` : ''}`,
+            badge: s.code || 'SRV',
+            badgeColor: 'bg-indigo-950/70 text-indigo-300 border-indigo-700/60',
+            keywords: [s.code, s.category, s.description].filter(Boolean) as string[],
+        }));
+
+        return [newServiceOpt, ...dbOpts];
+    }, [servicesCatalog]);
 
     // Handlers para Upload de Fotos / Evidências
     const [newPhotoUrl, setNewPhotoUrl] = useState('');
@@ -215,11 +367,40 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         setNewNote('');
     }, [order, isOpen, initialVehicleId]);
 
+    // Limite de valor para serviço exigir aprovação obrigatória do Gestor (R$ 500,00)
+    const HIGH_VALUE_SERVICE_THRESHOLD = 500;
+
+    // Verificar se o usuário atual é Gestor / Encarregado / Admin
+    const canApproveServices = React.useMemo(() => {
+        if (!user) return false;
+        const role = (user.role || '').toUpperCase();
+        return (
+            role.includes('ADMIN') ||
+            role.includes('GESTOR') ||
+            role.includes('SUPERVISOR') ||
+            role.includes('GERENTE') ||
+            role.includes('ENCARREGADO')
+        );
+    }, [user]);
+
     // ── Items helpers ──────────────────────────────────────────────────────────
-    const handleAddItem = () => {
+    const handleAddItem = (type: WorkOrderItemType = WorkOrderItemType.PART) => {
         setFormData(p => ({
             ...p,
-            items: [...(p.items || []), { description: '', type: WorkOrderItemType.PART, quantity: 1, unitPrice: 0, totalPrice: 0 }]
+            items: [
+                ...(p.items || []),
+                {
+                    description: '',
+                    type,
+                    quantity: 1,
+                    unitPrice: 0,
+                    totalPrice: 0,
+                    code: '',
+                    isManual: false,
+                    requiresApproval: false,
+                    approved: false
+                }
+            ]
         }));
     };
 
@@ -231,6 +412,198 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         });
     };
 
+    const handleSelectStockPart = (idx: number, selectedId: string) => {
+        if (selectedId === '__MANUAL__') {
+            setFormData(p => {
+                const items = [...(p.items || [])];
+                items[idx] = {
+                    ...items[idx],
+                    isManual: true,
+                    productId: undefined,
+                    inStock: undefined,
+                };
+                return { ...p, items };
+            });
+            return;
+        }
+
+        const found = stockItems.find(s => s.id === selectedId);
+        if (!found) return;
+
+        setFormData(p => {
+            const items = [...(p.items || [])];
+            const currentQty = items[idx]?.quantity || 1;
+            const unitPrice = found.unitCost || found.averageCost || 0;
+            const totalPrice = currentQty * unitPrice;
+
+            items[idx] = {
+                ...items[idx],
+                productId: found.id,
+                code: found.code,
+                description: found.name,
+                unitPrice,
+                totalPrice,
+                inStock: found.currentQuantity ?? 0,
+                isManual: false,
+            };
+            const partsCost = items.reduce((s, it) => s + it.totalPrice, 0);
+            return { ...p, items, partsCost, totalCost: partsCost + (p.laborCost || 0) };
+        });
+    };
+
+    const handlePartCodeChange = (idx: number, newCode: string) => {
+        const clean = (newCode || '').trim().toLowerCase();
+
+        // Busca o item no almoxarifado por código ou código de barras
+        const found = clean ? stockItems.find(s => {
+            const sCode = (s.code || '').trim().toLowerCase();
+            const sBarcode = (s.barcode || '').trim().toLowerCase();
+            if (sCode === clean || sBarcode === clean) return true;
+
+            // Busca por sufixo numérico (ex: digitou "350" e o código cadastrado é "PEC-350" ou "0350")
+            const digits = clean.replace(/\D/g, '');
+            if (digits.length >= 2) {
+                const sDigits = sCode.replace(/\D/g, '');
+                if (sDigits === digits || (sDigits.length >= digits.length && sDigits.endsWith(digits))) {
+                    return true;
+                }
+            }
+            return false;
+        }) : undefined;
+
+        setFormData(p => {
+            const items = [...(p.items || [])];
+            const currentItem = items[idx] || {};
+            const currentQty = currentItem.quantity || 1;
+
+            if (found) {
+                // Item encontrado no Almoxarifado: preenche o nome e custos automaticamente
+                const unitPrice = (currentItem.unitPrice && currentItem.unitPrice > 0)
+                    ? currentItem.unitPrice
+                    : (found.unitCost || found.averageCost || 0);
+                const totalPrice = currentQty * unitPrice;
+
+                items[idx] = {
+                    ...currentItem,
+                    code: newCode,
+                    description: found.name || found.fullName || currentItem.description,
+                    productId: found.id,
+                    inStock: found.currentQuantity ?? 0,
+                    unitPrice,
+                    totalPrice,
+                    isManual: false,
+                };
+            } else {
+                // Não encontrado no Almoxarifado: mantém modo manual
+                items[idx] = {
+                    ...currentItem,
+                    code: newCode,
+                    productId: undefined,
+                    inStock: undefined,
+                    isManual: true,
+                };
+            }
+
+            const partsCost = items.reduce((s, it) => s + it.totalPrice, 0);
+            return { ...p, items, partsCost, totalCost: partsCost + (p.laborCost || 0) };
+        });
+    };
+
+    const handleSelectServiceFromCatalog = (idx: number, serviceId: string) => {
+        if (serviceId === '__NEW_SERVICE__') {
+            setTargetItemIndexForService(idx);
+            setNewServiceName('');
+            setNewServicePrice('');
+            setNewServiceDescription('');
+            setIsNewServiceModalOpen(true);
+            return;
+        }
+
+        const found = servicesCatalog.find(s => s.id === serviceId);
+        if (!found) return;
+
+        setFormData(p => {
+            const items = [...(p.items || [])];
+            const currentQty = items[idx]?.quantity || 1;
+            const unitPrice = Number(found.unitPrice) || 0;
+            const totalPrice = currentQty * unitPrice;
+            const requiresApproval = totalPrice >= HIGH_VALUE_SERVICE_THRESHOLD;
+
+            items[idx] = {
+                ...items[idx],
+                code: found.code || 'SRV',
+                description: found.name,
+                unitPrice,
+                totalPrice,
+                type: WorkOrderItemType.LABOR,
+                requiresApproval,
+                approvalReason: items[idx]?.approvalReason || '',
+                isManual: false,
+            };
+            const partsCost = items.reduce((s, it) => s + it.totalPrice, 0);
+            return { ...p, items, partsCost, totalCost: partsCost + (p.laborCost || 0) };
+        });
+    };
+
+    const handleQuickServiceSave = async () => {
+        if (!newServiceName.trim()) {
+            toast({ title: 'Aviso', description: 'Informe o nome do serviço.', variant: 'destructive' });
+            return;
+        }
+
+        try {
+            setIsSavingService(true);
+            const created = await fleetWorkOrderService.createQuickService({
+                name: newServiceName.trim(),
+                description: newServiceDescription.trim() || undefined,
+                unitPrice: typeof newServicePrice === 'number' ? newServicePrice : undefined,
+                category: 'MANUTENCAO'
+            });
+
+            toast({
+                title: 'Serviço Cadastrado!',
+                description: `Serviço cadastrado com código ${created.code}. Adicionado à OS.`,
+            });
+
+            queryClient.invalidateQueries({ queryKey: ['fleet-work-order-services-catalog'] });
+            setIsNewServiceModalOpen(false);
+
+            if (targetItemIndexForService !== null) {
+                const idx = targetItemIndexForService;
+                setFormData(p => {
+                    const items = [...(p.items || [])];
+                    const currentQty = items[idx]?.quantity || 1;
+                    const unitPrice = Number(created.unitPrice) || 0;
+                    const totalPrice = currentQty * unitPrice;
+                    const requiresApproval = totalPrice >= HIGH_VALUE_SERVICE_THRESHOLD;
+
+                    items[idx] = {
+                        ...items[idx],
+                        code: created.code,
+                        description: created.name,
+                        unitPrice,
+                        totalPrice,
+                        type: WorkOrderItemType.LABOR,
+                        requiresApproval,
+                        approvalReason: '',
+                        isManual: false,
+                    };
+                    const partsCost = items.reduce((s, it) => s + it.totalPrice, 0);
+                    return { ...p, items, partsCost, totalCost: partsCost + (p.laborCost || 0) };
+                });
+            }
+        } catch (error: any) {
+            toast({
+                title: 'Erro',
+                description: error.response?.data?.message || 'Falha ao cadastrar serviço.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsSavingService(false);
+            setTargetItemIndexForService(null);
+        }
+    };
+
     const handleItemChange = (idx: number, field: keyof WorkOrderItem, value: any) => {
         setFormData(p => {
             const items = [...(p.items || [])];
@@ -239,12 +612,37 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 item.quantity   = field === 'quantity'   ? parseFloat(value) || 0 : item.quantity;
                 item.unitPrice  = field === 'unitPrice'  ? parseFloat(value) || 0 : item.unitPrice;
                 item.totalPrice = item.quantity * item.unitPrice;
+
+                // Se for serviço e o valor for alto, marca como exigindo aprovação
+                if (item.type === WorkOrderItemType.LABOR && item.totalPrice >= HIGH_VALUE_SERVICE_THRESHOLD) {
+                    item.requiresApproval = true;
+                }
+            }
+            if (field === 'type' && value === WorkOrderItemType.LABOR && item.totalPrice >= HIGH_VALUE_SERVICE_THRESHOLD) {
+                item.requiresApproval = true;
             }
             items[idx] = item;
             const partsCost = items.reduce((s, it) => s + it.totalPrice, 0);
             return { ...p, items, partsCost, totalCost: partsCost + (p.laborCost || 0) };
         });
     };
+
+    const handleToggleApproveItem = (idx: number) => {
+        setFormData(p => {
+            const items = [...(p.items || [])];
+            const item = items[idx];
+            const isCurrentlyApproved = !!item.approved;
+
+            items[idx] = {
+                ...item,
+                approved: !isCurrentlyApproved,
+                approvedBy: !isCurrentlyApproved ? (user?.name || 'Gestor de Manutenção') : undefined,
+                approvedAt: !isCurrentlyApproved ? new Date().toISOString() : undefined,
+            };
+            return { ...p, items };
+        });
+    };
+
 
     const handleLaborChange = (val: string) => {
         const cost = parseFloat(val) || 0;
@@ -284,6 +682,20 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             return;
         }
 
+        // Validação de serviços que requerem aprovação
+        const pendingReasonItem = (formData.items || []).find(
+            it => it.type === WorkOrderItemType.LABOR && it.requiresApproval && !it.approvalReason?.trim()
+        );
+        if (pendingReasonItem) {
+            toast({
+                title: 'Motivo Obrigatório',
+                description: `O serviço "${pendingReasonItem.description || pendingReasonItem.code || 'selecionado'}" possui valor elevado e requer a justificativa/motivo da contratação para o Gestor de Manutenção.`,
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        const effectiveId = order?.id || formData.id;
         setIsLoading(true);
         try {
             const payload: Partial<FleetWorkOrder> = {
@@ -291,10 +703,11 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 status: submitStatus || formData.status || WorkOrderStatus.OPEN,
                 items: (formData.items || []).map(it => ({ ...it, type: it.type ?? WorkOrderItemType.PART })),
             };
-            if (isEdit) {
-                await fleetWorkOrderService.update(order!.id, payload);
+            if (effectiveId) {
+                await fleetWorkOrderService.update(effectiveId, payload);
             } else {
-                await fleetWorkOrderService.create(payload);
+                const created = await fleetWorkOrderService.create(payload);
+                setFormData(p => ({ ...p, id: created.id, osNumber: created.osNumber }));
             }
             toast({ title: 'Sucesso', description: 'Ordem de Serviço salva com sucesso!' });
             onSuccess();
@@ -303,6 +716,81 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             toast({ title: 'Erro', description: msg, variant: 'destructive' });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // ── Gerar e Visualizar a OS em PDF ──────────────────────────────────────────
+    const handleGenerateAndPreviewOS = async () => {
+        if (!formData.vehicleId) {
+            toast({
+                title: 'Veículo Obrigatório',
+                description: 'Selecione um equipamento/veículo antes de gerar a Ordem de Serviço.',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        if (formData.maintenanceType === MaintenanceType.CORRETIVA && !formData.anomaliesDescription?.trim()) {
+            toast({
+                title: 'Descrição Obrigatória',
+                description: 'A descrição de anomalias é obrigatória para OS Corretiva.',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        // Validação de serviços que requerem aprovação
+        const pendingReasonItem = (formData.items || []).find(
+            it => it.type === WorkOrderItemType.LABOR && it.requiresApproval && !it.approvalReason?.trim()
+        );
+        if (pendingReasonItem) {
+            toast({
+                title: 'Motivo Obrigatório',
+                description: `O serviço "${pendingReasonItem.description || pendingReasonItem.code || 'selecionado'}" possui valor elevado e requer a justificativa/motivo da contratação para o Gestor de Manutenção.`,
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        setIsGeneratingPdf(true);
+        try {
+            const payload: Partial<FleetWorkOrder> = {
+                ...formData,
+                status: formData.status || WorkOrderStatus.OPEN,
+                items: (formData.items || []).map(it => ({ ...it, type: it.type ?? WorkOrderItemType.PART })),
+            };
+
+            const effectiveId = order?.id || formData.id;
+            let savedOrder: FleetWorkOrder;
+
+            if (effectiveId) {
+                savedOrder = await fleetWorkOrderService.update(effectiveId, payload);
+            } else {
+                savedOrder = await fleetWorkOrderService.create(payload);
+                setFormData(p => ({
+                    ...p,
+                    id: savedOrder.id,
+                    osNumber: savedOrder.osNumber || p.osNumber
+                }));
+            }
+
+            // Atualiza tabela de ordens de serviço
+            onSuccess();
+
+            // Gera e carrega o Blob do PDF para visualização imediata
+            const blob = await generateFleetWorkOrderPDFBlob(savedOrder);
+            setPdfPreviewBlob(blob);
+            setPdfPreviewOrder(savedOrder);
+            setIsPdfModalOpen(true);
+            toast({
+                title: 'OS Gerada com Sucesso!',
+                description: `Ordem de Serviço #${savedOrder.osNumber || savedOrder.id.slice(0, 8)} pronta para visualização e impressão.`
+            });
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || 'Falha ao salvar e gerar documento PDF da OS.';
+            toast({ title: 'Erro ao gerar OS', description: msg, variant: 'destructive' });
+        } finally {
+            setIsGeneratingPdf(false);
         }
     };
 
@@ -323,19 +811,42 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     };
 
     const footer = (
-        <div className="flex w-full justify-between gap-3">
+        <div className="flex w-full justify-between items-center gap-3 flex-wrap">
             <Button variant="outline" onClick={onClose} className="border-gray-600 text-gray-300">Cancelar</Button>
-            <div className="flex gap-2 flex-wrap justify-end">
-                <Button variant="outline" onClick={() => handleSubmit(WorkOrderStatus.OPEN)} disabled={isLoading}
-                    className="border-blue-500 text-blue-400 hover:bg-blue-500/10">
+            <div className="flex gap-2 flex-wrap justify-end items-center">
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleGenerateAndPreviewOS}
+                    disabled={isLoading || isGeneratingPdf}
+                    className="border-red-500/80 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 font-bold"
+                >
+                    <FileText className="mr-2 h-4 w-4 text-red-400" />
+                    {isGeneratingPdf ? 'Gerando OS...' : 'Gerar e Visualizar OS'}
+                </Button>
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
+                    disabled={isLoading || isGeneratingPdf}
+                    className="border-blue-500 text-blue-400 hover:bg-blue-500/10"
+                >
                     <Clock className="mr-2 h-4 w-4" /> Salvar Rascunho / Aberta
                 </Button>
-                <Button onClick={() => handleSubmit(WorkOrderStatus.IN_PROGRESS)} disabled={isLoading}
-                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold">
+                <Button
+                    type="button"
+                    onClick={() => handleSubmit(WorkOrderStatus.IN_PROGRESS)}
+                    disabled={isLoading || isGeneratingPdf}
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
+                >
                     <Wrench className="mr-2 h-4 w-4" /> Em Andamento
                 </Button>
-                <Button onClick={() => handleSubmit(WorkOrderStatus.COMPLETED)} disabled={isLoading}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold">
+                <Button
+                    type="button"
+                    onClick={() => handleSubmit(WorkOrderStatus.COMPLETED)}
+                    disabled={isLoading || isGeneratingPdf}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold"
+                >
                     <CheckCircle className="mr-2 h-4 w-4" /> Concluir OS
                 </Button>
             </div>
@@ -350,13 +861,45 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         return acc;
     }, {});
 
+    const currentOsNumber = order?.osNumber || formData.osNumber || (order?.id ? order.id.slice(0, 8) : formData.id ? formData.id.slice(0, 8) : null);
+
     return (
         <ResponsiveDrawer isOpen={isOpen} onClose={onClose}
-            title={isEdit ? `OS ${order?.osNumber || order?.id?.slice(0, 8)} — Editar` : 'Nova Ordem de Serviço'}
+            title={currentOsNumber ? `OS #${currentOsNumber} — ${isEdit ? 'Editar' : 'Ordem de Serviço'}` : 'Nova Ordem de Serviço'}
             description="Cadastre manutenções corretivas e preventivas com controle completo de checklist e execução."
             footer={footer}
             className="sm:max-w-4xl bg-[#0a0a0b] border-gray-800/50 z-[10050]">
             <div className="space-y-6 py-2 pb-10">
+
+                {/* ── Barra Superior de Ações Rápidas ── */}
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-seguranca-black/90 border border-gray-800 rounded-xl">
+                    <div className="flex items-center gap-2">
+                        <Badge className={`${currentOsNumber ? 'bg-red-600' : 'bg-gray-700'} text-white font-mono text-xs px-2.5 py-1`}>
+                            {currentOsNumber ? `OS #${currentOsNumber}` : 'NOVA OS'}
+                        </Badge>
+                        {formData.status && (
+                            <Badge className="bg-gray-800 text-gray-300 border border-gray-700 text-xs">
+                                Status: {formData.status}
+                            </Badge>
+                        )}
+                        {formData.vehicleId && (
+                            <span className="text-xs text-gray-400 hidden sm:inline">
+                                Veículo selecionado
+                            </span>
+                        )}
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateAndPreviewOS}
+                        disabled={isLoading || isGeneratingPdf}
+                        className="border-red-500/80 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 font-bold text-xs shadow-sm transition-all"
+                    >
+                        <FileText className="mr-1.5 h-3.5 w-3.5 text-red-400" />
+                        {isGeneratingPdf ? 'Gerando OS...' : 'Gerar e Visualizar OS'}
+                    </Button>
+                </div>
 
                 {/* ── Seção 1: Tipo & Identificação ──────────────────────────── */}
                 <Section title="Identificação da OS" icon={<ClipboardList className="h-4 w-4 text-red-500" />}>
@@ -375,11 +918,10 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             </Select>
                         </Field>
                         <Field label="Equipamento / Veículo *">
-                            <Select
+                            <SearchableSelect
                                 value={formData.vehicleId || ''}
-                                onValueChange={v => {
+                                onChange={(v) => {
                                     const selectedVeh = vehicles.find(veh => veh.id === v);
-                                    // Sugere a garagem onde o veículo está recolhido
                                     const vehGarage = selectedVeh?.garageId
                                         ? garagesForOS.find((g: Garage) => g.id === selectedVeh.garageId)
                                         : undefined;
@@ -396,12 +938,13 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                             : p.odometerIn
                                     }));
                                 }}
-                            >
-                                <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
-                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.plate} — {v.model} ({v.brand || 'N/A'})</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                                options={vehicleOptions}
+                                placeholder="Selecione ou busque por placa ou código..."
+                                searchPlaceholder="Digite os 3 primeiros caracteres da placa ou código..."
+                                minSearchLength={3}
+                                minSearchHint="Digite os 3 primeiros caracteres da placa ou código para exibir os veículos..."
+                                emptyText={isLoadingVehicles ? "Carregando veículos da frota..." : "Nenhum veículo encontrado."}
+                            />
                         </Field>
                         <Field label="Prioridade">
                             <Select value={formData.priority} onValueChange={v => setFormData(p => ({ ...p, priority: v as WorkOrderPriority }))}>
@@ -414,28 +957,22 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             </Select>
                         </Field>
                         <Field label="Mecânico / Responsável *">
-                            <Select
+                            <SearchableSelect
                                 value={formData.mechanicId || ''}
-                                onValueChange={v => {
-                                    const emp = employees.find((e: any) => e.id === v);
+                                onChange={(v, opt) => {
                                     setFormData(p => ({
                                         ...p,
                                         mechanicId: v,
-                                        mechanicName: emp ? emp.name : p.mechanicName
+                                        mechanicName: opt ? opt.label : p.mechanicName
                                     }));
                                 }}
-                            >
-                                <SelectTrigger className="bg-seguranca-black border-gray-600">
-                                    <SelectValue placeholder={formData.mechanicName || "Selecione o mecânico..."} />
-                                </SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
-                                    {mechanicsList.map((emp: any) => (
-                                        <SelectItem key={emp.id} value={emp.id}>
-                                            {emp.name} {emp.position?.name ? `(${emp.position.name})` : ''}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                options={mechanicOptions}
+                                placeholder={formData.mechanicName || "Selecione o mecânico..."}
+                                searchPlaceholder="Digite o nome do mecânico (ex: 3 caracteres)..."
+                                minSearchLength={3}
+                                minSearchHint="Digite os 3 primeiros caracteres para buscar o mecânico..."
+                                emptyText="Nenhum mecânico encontrado."
+                            />
                         </Field>
                         <Field label="Tipo de Mão de Obra">
                             <Select value={formData.laborType} onValueChange={v => setFormData(p => ({ ...p, laborType: v as LaborType }))}>
@@ -452,9 +989,9 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
                         {/* PRD §6 §20 §21 §22 — Cliente, Setor (Obra do Cliente), Requerente */}
                         <Field label="Cliente *">
-                            <Select
+                            <SearchableSelect
                                 value={formData.clientId || ''}
-                                onValueChange={v => {
+                                onChange={(v) => {
                                     setFormData(p => {
                                         const currentWp = allWorkPosts.find((w: any) => w.id === (p.sectorId || p.workPostId));
                                         const isCurrentWpValid = currentWp && currentWp.clientId === v;
@@ -467,12 +1004,11 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                         };
                                     });
                                 }}
-                            >
-                                <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione o cliente…" /></SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
-                                    {clients.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                                options={clientOptions}
+                                placeholder="Selecione o cliente…"
+                                searchPlaceholder="Buscar cliente por nome ou CNPJ..."
+                                emptyText="Nenhum cliente encontrado."
+                            />
                         </Field>
                         <Field label="Setor / Obra *">
                             <Select
@@ -507,38 +1043,26 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             </Select>
                         </Field>
                         <Field label="Requerente *">
-                            <Select value={formData.requesterId || ''} onValueChange={v => setFormData(p => ({ ...p, requesterId: v }))}>
-                                <SelectTrigger className="bg-seguranca-black border-gray-600"><SelectValue placeholder="Selecione o requerente…" /></SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
-                                    {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.name || e.fullName}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <SearchableSelect
+                                value={formData.requesterId || ''}
+                                onChange={(v) => setFormData(p => ({ ...p, requesterId: v }))}
+                                options={requesterOptions}
+                                placeholder="Selecione o requerente…"
+                                searchPlaceholder="Buscar requerente por nome..."
+                                emptyText="Nenhum colaborador encontrado."
+                            />
                         </Field>
                         <Field label="Garagem (onde o serviço será executado) *">
-                            <Select
+                            <SearchableSelect
                                 value={formData.garageId || ''}
-                                onValueChange={v => {
-                                    const g = garagesForOS.find((x: Garage) => x.id === v);
-                                    setFormData(p => ({ ...p, garageId: v, garageName: g ? g.name : p.garageName }));
+                                onChange={(v, opt) => {
+                                    setFormData(p => ({ ...p, garageId: v, garageName: opt ? opt.label : p.garageName }));
                                 }}
-                            >
-                                <SelectTrigger className="bg-seguranca-black border-gray-600">
-                                    <SelectValue placeholder="Selecione a garagem…" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
-                                    {garagesForOS.length > 0 ? (
-                                        garagesForOS.map((g: Garage) => (
-                                            <SelectItem key={g.id} value={g.id}>
-                                                {g.name} {g.responsibleName ? `— resp.: ${g.responsibleName}` : ''}
-                                            </SelectItem>
-                                        ))
-                                    ) : (
-                                        <div className="p-2 text-sm text-gray-400 text-center">
-                                            Nenhuma garagem cadastrada
-                                        </div>
-                                    )}
-                                </SelectContent>
-                            </Select>
+                                options={garageOptions}
+                                placeholder="Selecione a garagem…"
+                                searchPlaceholder="Buscar garagem por nome..."
+                                emptyText="Nenhuma garagem encontrada."
+                            />
                         </Field>
                     </div>
                 </Section>
@@ -701,44 +1225,366 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 </Section>
 
                 {/* ── Seção 5: Peças e Serviços ──────────────────────────────── */}
-                <Section title="Peças e Serviços Utilizados" icon={<Wrench className="h-4 w-4 text-blue-400" />}
-                    action={<Button type="button" variant="outline" size="sm" onClick={handleAddItem} className="border-red-500 text-red-400 hover:bg-red-500/10"><Plus className="h-4 w-4 mr-1" />Item</Button>}>
-                    <div className="hidden md:block border border-gray-700 rounded-lg overflow-hidden">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-800/60 text-gray-400 uppercase text-xs">
-                                <tr>
-                                    <th className="p-3 text-left">Tipo</th>
-                                    <th className="p-3 text-left">Descrição</th>
-                                    <th className="p-3 text-center w-20">Qtd</th>
-                                    <th className="p-3 text-right w-28">Unitário</th>
-                                    <th className="p-3 text-right w-28">Total</th>
-                                    <th className="p-3 w-12" />
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-700/60">
-                                {(formData.items || []).map((item, idx) => (
-                                    <tr key={idx} className="bg-seguranca-black/20">
-                                        <td className="p-2 w-28">
-                                            <Select value={item.type || WorkOrderItemType.PART} onValueChange={v => handleItemChange(idx, 'type', v)}>
-                                                <SelectTrigger className="bg-transparent border-none h-8 text-xs"><SelectValue /></SelectTrigger>
-                                                <SelectContent className="bg-seguranca-black border-gray-600 text-xs">
-                                                    <SelectItem value={WorkOrderItemType.PART}>Peça</SelectItem>
-                                                    <SelectItem value={WorkOrderItemType.LABOR}>Serviço</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </td>
-                                        <td className="p-2"><Input value={item.description} onChange={e => handleItemChange(idx, 'description', e.target.value)} placeholder="Descrição" className="bg-transparent border-none h-8 focus:ring-0" /></td>
-                                        <td className="p-2"><Input type="number" value={item.quantity} onChange={e => handleItemChange(idx, 'quantity', e.target.value)} className="bg-transparent border-none h-8 text-center focus:ring-0" /></td>
-                                        <td className="p-2"><Input type="number" value={item.unitPrice} onChange={e => handleItemChange(idx, 'unitPrice', e.target.value)} className="bg-transparent border-none h-8 text-right focus:ring-0" /></td>
-                                        <td className="p-2 text-right font-mono text-gray-200">{item.totalPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                                        <td className="p-2 text-center"><Button variant="ghost" size="sm" onClick={() => handleRemoveItem(idx)} className="text-red-500 hover:bg-red-500/10 h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button></td>
-                                    </tr>
-                                ))}
-                                {(!formData.items?.length) && (<tr><td colSpan={6} className="p-6 text-center text-gray-500 italic text-sm">Nenhum item adicionado. Clique em "+ Item" se houver uso de peças ou mão de obra.</td></tr>)}
-                            </tbody>
-                        </table>
+                <Section
+                    title="Peças e Serviços Utilizados"
+                    icon={<Wrench className="h-4 w-4 text-blue-400" />}
+                    action={
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleAddItem(WorkOrderItemType.PART)}
+                                className="border-emerald-600/60 text-emerald-400 hover:bg-emerald-500/10 text-xs h-8"
+                            >
+                                <Package className="h-3.5 w-3.5 mr-1" />+ Peça (Almoxarifado / Avulsa)
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleAddItem(WorkOrderItemType.LABOR)}
+                                className="border-blue-600/60 text-blue-400 hover:bg-blue-500/10 text-xs h-8"
+                            >
+                                <Wrench className="h-3.5 w-3.5 mr-1" />+ Serviço (Oficina)
+                            </Button>
+                        </div>
+                    }
+                >
+                    <div className="space-y-3">
+                        <div className="text-xs text-gray-400 bg-gray-900/50 p-2.5 rounded border border-gray-800 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
+                                <span>Peças integradas ao Almoxarifado central com controle de saldo real</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-amber-400/90">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                <span>Serviços com valor ≥ R$ 500,00 exigem justificativa e aprovação do Gestor</span>
+                            </div>
+                        </div>
+
+                        {(!formData.items?.length) ? (
+                            <div className="p-8 text-center border border-dashed border-gray-800 rounded-lg bg-gray-950/40">
+                                <Package className="h-8 w-8 mx-auto text-gray-600 mb-2" />
+                                <p className="text-gray-400 text-sm font-medium">Nenhum item adicionado à Ordem de Serviço</p>
+                                <p className="text-gray-600 text-xs mt-1">
+                                    Adicione peças do Almoxarifado para requisição de compra ou serviços mecânicos contratados.
+                                </p>
+                                <div className="mt-3 flex justify-center gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleAddItem(WorkOrderItemType.PART)}
+                                        className="border-emerald-600 text-emerald-400 hover:bg-emerald-500/10 text-xs"
+                                    >
+                                        <Plus className="h-3.5 w-3.5 mr-1" />Adicionar Peça
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleAddItem(WorkOrderItemType.LABOR)}
+                                        className="border-blue-600 text-blue-400 hover:bg-blue-500/10 text-xs"
+                                    >
+                                        <Plus className="h-3.5 w-3.5 mr-1" />Adicionar Serviço
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {formData.items.map((item, idx) => {
+                                    const isPart = (item.type || WorkOrderItemType.PART) === WorkOrderItemType.PART;
+                                    const isHighValueService = !isPart && (item.totalPrice >= HIGH_VALUE_SERVICE_THRESHOLD || item.requiresApproval);
+
+                                    return (
+                                        <div
+                                            key={idx}
+                                            className={`p-3.5 rounded-lg border transition-all ${
+                                                isHighValueService
+                                                    ? 'bg-amber-950/20 border-amber-800/60'
+                                                    : 'bg-seguranca-black/40 border-gray-800 hover:border-gray-700'
+                                            }`}
+                                        >
+                                            {/* Cabeçalho do item */}
+                                            <div className="flex items-center justify-between gap-3 mb-2.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`px-2 py-0.5 rounded text-[11px] font-semibold flex items-center gap-1 ${
+                                                        isPart
+                                                            ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-800/50'
+                                                            : 'bg-blue-950/70 text-blue-400 border border-blue-800/50'
+                                                    }`}>
+                                                        {isPart ? <Package className="h-3 w-3" /> : <Wrench className="h-3 w-3" />}
+                                                        {isPart ? 'PEÇA / ITEM' : 'SERVIÇO'}
+                                                    </span>
+
+                                                    {item.code && (
+                                                        <span className="font-mono text-xs px-2 py-0.5 bg-gray-900 text-gray-300 rounded border border-gray-700">
+                                                            Cód: <strong className="text-white">{item.code}</strong>
+                                                        </span>
+                                                    )}
+
+                                                    {isPart && typeof item.inStock === 'number' && (
+                                                        <span className={`text-[11px] px-2 py-0.5 rounded border ${
+                                                            item.inStock > 0
+                                                                ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/40'
+                                                                : 'bg-red-950/40 text-red-400 border-red-800/40'
+                                                        }`}>
+                                                            📦 Almoxarifado: {item.inStock} un {item.inStock <= 0 ? '(Falta em Estoque)' : ''}
+                                                        </span>
+                                                    )}
+
+                                                    {isHighValueService && (
+                                                        <Badge variant="outline" className={`text-[10px] uppercase font-bold flex items-center gap-1 ${
+                                                            item.approved
+                                                                ? 'bg-emerald-950 text-emerald-400 border-emerald-600'
+                                                                : 'bg-amber-950 text-amber-300 border-amber-600'
+                                                        }`}>
+                                                            {item.approved ? (
+                                                                <>
+                                                                    <ShieldCheck className="h-3 w-3" />
+                                                                    Aprovado pelo Gestor
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <AlertTriangle className="h-3 w-3" />
+                                                                    Requer Aprovação do Gestor (≥ R$ 500)
+                                                                </>
+                                                            )}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    {/* Botão de aprovação direta para o Gestor / Encarregado */}
+                                                    {isHighValueService && canApproveServices && (
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleToggleApproveItem(idx)}
+                                                            className={`h-7 text-xs px-2.5 ${
+                                                                item.approved
+                                                                    ? 'border-emerald-600 bg-emerald-950/40 text-emerald-300 hover:bg-red-950/40 hover:text-red-300'
+                                                                    : 'border-amber-600 bg-amber-950/40 text-amber-300 hover:bg-emerald-950/60 hover:text-emerald-200'
+                                                            }`}
+                                                            title={item.approved ? 'Clique para desmarcar aprovação' : 'Aprovar execução deste serviço'}
+                                                        >
+                                                            {item.approved ? (
+                                                                <>
+                                                                    <Check className="h-3.5 w-3.5 mr-1" />
+                                                                    Aprovado ({item.approvedBy || user?.name})
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+                                                                    Aprovar Execução
+                                                                </>
+                                                            )}
+                                                        </Button>
+                                                    )}
+
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleRemoveItem(idx)}
+                                                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-7 w-7 p-0"
+                                                        title="Remover Item"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Campos do item */}
+                                            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                                                {/* Tipo (Peça ou Serviço) */}
+                                                <div className="md:col-span-2">
+                                                    <Label className="text-[11px] text-gray-400">Tipo de Item</Label>
+                                                    <Select
+                                                        value={item.type || WorkOrderItemType.PART}
+                                                        onValueChange={v => handleItemChange(idx, 'type', v)}
+                                                    >
+                                                        <SelectTrigger className="bg-gray-950 border-gray-700 h-9 text-xs">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="bg-seguranca-black border-gray-600 text-xs z-[10060]">
+                                                            <SelectItem value={WorkOrderItemType.PART}>Peça / Material</SelectItem>
+                                                            <SelectItem value={WorkOrderItemType.LABOR}>Serviço Oficina</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                {/* Seleção do Banco ou Manual */}
+                                                <div className="md:col-span-5">
+                                                    {isPart ? (
+                                                        <div>
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <Label className="text-[11px] text-gray-400">
+                                                                    Buscar no Almoxarifado ou Manual
+                                                                </Label>
+                                                                {item.isManual && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleSelectStockPart(idx, stockItems[0]?.id || '')}
+                                                                        className="text-[10px] text-emerald-400 hover:underline"
+                                                                    >
+                                                                        Voltar ao Almoxarifado
+                                                                    </button>
+                                                                )}
+                                                            </div>
+
+                                                            {item.isManual ? (
+                                                                <div>
+                                                                    <div className="flex gap-2">
+                                                                        <Input
+                                                                            value={item.code || ''}
+                                                                            onChange={e => handlePartCodeChange(idx, e.target.value)}
+                                                                            list={`stock-codes-list-${idx}`}
+                                                                            placeholder="Part Nº / Cód. Peça"
+                                                                            className={`w-1/3 bg-gray-950 text-xs h-9 transition-colors ${
+                                                                                item.productId ? 'border-emerald-600/70 focus:border-emerald-500' : 'border-amber-600/50'
+                                                                            }`}
+                                                                        />
+                                                                        <datalist id={`stock-codes-list-${idx}`}>
+                                                                            {stockItems.slice(0, 300).map(s => (
+                                                                                <option key={s.id} value={s.code}>
+                                                                                    {s.code} - {s.name} (Saldo: {s.currentQuantity ?? 0} un)
+                                                                                </option>
+                                                                            ))}
+                                                                        </datalist>
+                                                                        <Input
+                                                                            value={item.description || ''}
+                                                                            onChange={e => handleItemChange(idx, 'description', e.target.value)}
+                                                                            placeholder={item.productId ? "Nome da peça no almoxarifado" : "Nome / Descrição da peça avulsa..."}
+                                                                            className={`w-2/3 bg-gray-950 text-xs h-9 transition-colors ${
+                                                                                item.productId ? 'border-emerald-600/70 focus:border-emerald-500 text-emerald-200' : 'border-amber-600/50'
+                                                                            }`}
+                                                                        />
+                                                                    </div>
+                                                                    {item.productId ? (
+                                                                        <div className="flex items-center gap-1.5 mt-1 text-[10px] text-emerald-400">
+                                                                            <Check className="h-3 w-3 inline flex-shrink-0" />
+                                                                            <span>Almoxarifado vinculado: Estoque atual: <strong>{item.inStock ?? 0} un</strong></span>
+                                                                        </div>
+                                                                    ) : item.code ? (
+                                                                        <div className="flex items-center gap-1.5 mt-1 text-[10px] text-amber-400/90">
+                                                                            <AlertCircle className="h-3 w-3 inline flex-shrink-0" />
+                                                                            <span>Item manual / avulso (código não encontrado no almoxarifado)</span>
+                                                                        </div>
+                                                                    ) : null}
+                                                                </div>
+                                                            ) : (
+                                                                <SearchableSelect
+                                                                    value={item.productId || ''}
+                                                                    onChange={(v) => handleSelectStockPart(idx, v)}
+                                                                    options={stockPartOptions}
+                                                                    placeholder="Buscar peça por código ou nome no Almoxarifado..."
+                                                                    searchPlaceholder="Código, nome, código de barras..."
+                                                                    emptyText="Nenhuma peça encontrada no Almoxarifado."
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div>
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <Label className="text-[11px] text-gray-400">
+                                                                    Catálogo de Serviços da Oficina
+                                                                </Label>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setTargetItemIndexForService(idx);
+                                                                        setNewServiceName(item.description || '');
+                                                                        setNewServicePrice(item.unitPrice || '');
+                                                                        setNewServiceDescription('');
+                                                                        setIsNewServiceModalOpen(true);
+                                                                    }}
+                                                                    className="text-[10px] text-blue-400 hover:underline flex items-center gap-1"
+                                                                >
+                                                                    <Plus className="h-2.5 w-2.5" />Novo Serviço
+                                                                </button>
+                                                            </div>
+                                                            <SearchableSelect
+                                                                value={servicesCatalog.find(s => s.name === item.description || s.code === item.code)?.id || ''}
+                                                                onChange={(v) => handleSelectServiceFromCatalog(idx, v)}
+                                                                options={serviceCatalogOptions}
+                                                                placeholder="Buscar serviço por código (SRV-xxxx) ou nome..."
+                                                                searchPlaceholder="Cód (ex: SRV-0001), descrição, categoria..."
+                                                                emptyText="Nenhum serviço encontrado no catálogo."
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Quantidade */}
+                                                <div className="md:col-span-1">
+                                                    <Label className="text-[11px] text-gray-400">Qtd</Label>
+                                                    <Input
+                                                        type="number"
+                                                        step="any"
+                                                        value={item.quantity}
+                                                        onChange={e => handleItemChange(idx, 'quantity', e.target.value)}
+                                                        className="bg-gray-950 border-gray-700 text-center text-xs h-9"
+                                                    />
+                                                </div>
+
+                                                {/* Preço Unitário */}
+                                                <div className="md:col-span-2">
+                                                    <Label className="text-[11px] text-gray-400">Valor Unitário (R$)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={item.unitPrice}
+                                                        onChange={e => handleItemChange(idx, 'unitPrice', e.target.value)}
+                                                        className="bg-gray-950 border-gray-700 text-right text-xs h-9"
+                                                    />
+                                                </div>
+
+                                                {/* Total */}
+                                                <div className="md:col-span-2 text-right">
+                                                    <Label className="text-[11px] text-gray-400 block">Total do Item</Label>
+                                                    <div className="h-9 flex items-center justify-end px-3 rounded bg-gray-900 border border-gray-800 font-mono text-xs font-bold text-gray-200">
+                                                        {item.totalPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Justificativa / Motivo de Contratação para Serviços de Alto Valor */}
+                                            {isHighValueService && (
+                                                <div className="mt-3 pt-3 border-t border-amber-900/40 bg-amber-950/30 p-2.5 rounded">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <Label className="text-[11px] font-semibold text-amber-300 flex items-center gap-1.5">
+                                                            <AlertCircle className="h-3.5 w-3.5 text-amber-400" />
+                                                            Motivo / Justificativa da Execução do Serviço *
+                                                        </Label>
+                                                        <span className="text-[10px] text-amber-400/80">
+                                                            Obrigatório para o Encarregado / Gestor de Manutenção aprovar
+                                                        </span>
+                                                    </div>
+                                                    <Input
+                                                        value={item.approvalReason || ''}
+                                                        onChange={e => handleItemChange(idx, 'approvalReason', e.target.value)}
+                                                        placeholder="Ex: Retífica urgente do cabeçote devido a superaquecimento com risco de parada prolongada da frota..."
+                                                        className="bg-gray-950 border-amber-700/60 text-xs text-amber-100 placeholder:text-gray-500 h-8"
+                                                    />
+                                                    {item.approved && item.approvedBy && (
+                                                        <p className="text-[10px] text-emerald-400 mt-1 flex items-center gap-1">
+                                                            <Check className="h-3 w-3" />
+                                                            Aprovado por: <strong>{item.approvedBy}</strong> {item.approvedAt ? `em ${new Date(item.approvedAt).toLocaleString('pt-BR')}` : ''}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </Section>
+
 
                 {/* ── Seção 6: Resumo de Custos ──────────────────────────────── */}
                 <Section title="Resumo de Custos" icon={<AlertTriangle className="h-4 w-4 text-green-400" />}>
@@ -829,6 +1675,100 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     </Section>
                 )}
             </div>
+
+            {/* Modal de Cadastro Rápido de Serviço */}
+            {isNewServiceModalOpen && (
+                <div className="fixed inset-0 z-[10070] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-seguranca-black border border-gray-700 rounded-xl p-5 max-w-md w-full shadow-2xl space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-gray-800">
+                            <div className="flex items-center gap-2">
+                                <Wrench className="h-5 w-5 text-blue-400" />
+                                <h4 className="text-sm font-bold text-white uppercase tracking-wider">
+                                    Cadastrar Novo Serviço de Oficina
+                                </h4>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setIsNewServiceModalOpen(false)}
+                                className="h-7 w-7 p-0 text-gray-400 hover:text-white"
+                            >
+                                <XCircle className="h-4 w-4" />
+                            </Button>
+                        </div>
+
+                        <p className="text-xs text-gray-400">
+                            O sistema gerará automaticamente o próximo código sequencial (ex: <code>SRV-0015</code>) para que o Almoxarifado e a Manutenção padronizem a contratação.
+                        </p>
+
+                        <div className="space-y-3">
+                            <div>
+                                <Label className="text-xs text-gray-300">Nome do Serviço *</Label>
+                                <Input
+                                    value={newServiceName}
+                                    onChange={e => setNewServiceName(e.target.value)}
+                                    placeholder="Ex: Alinhamento e Balanceamento a Laser"
+                                    className="bg-gray-950 border-gray-700 mt-1 text-sm"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div>
+                                <Label className="text-xs text-gray-300">Valor Padrão Estimado (R$)</Label>
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={newServicePrice}
+                                    onChange={e => setNewServicePrice(e.target.value ? parseFloat(e.target.value) : '')}
+                                    placeholder="0,00"
+                                    className="bg-gray-950 border-gray-700 mt-1 text-sm"
+                                />
+                            </div>
+
+                            <div>
+                                <Label className="text-xs text-gray-300">Descrição / Escopo Técnico</Label>
+                                <Textarea
+                                    value={newServiceDescription}
+                                    onChange={e => setNewServiceDescription(e.target.value)}
+                                    placeholder="Detalhes sobre a execução do serviço..."
+                                    rows={3}
+                                    className="bg-gray-950 border-gray-700 mt-1 text-xs"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-3 border-t border-gray-800">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setIsNewServiceModalOpen(false)}
+                                className="text-gray-400 text-xs"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={handleQuickServiceSave}
+                                disabled={isSavingService || !newServiceName.trim()}
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
+                            >
+                                {isSavingService ? 'Salvando...' : 'Cadastrar e Inserir na OS'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Pré-visualização e Impressão da OS em PDF */}
+            <FleetWorkOrderViewModal
+                isOpen={isPdfModalOpen}
+                onClose={() => setIsPdfModalOpen(false)}
+                order={pdfPreviewOrder}
+                pdfBlob={pdfPreviewBlob}
+            />
         </ResponsiveDrawer>
     );
 };

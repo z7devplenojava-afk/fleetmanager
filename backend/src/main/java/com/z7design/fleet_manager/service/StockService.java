@@ -170,9 +170,9 @@ public class StockService {
                 initialMovement.setNewQuantity(item.getCurrentQuantity());
                 initialMovement.setDocumentNumber(item.getInvoiceNumber());
                 initialMovement.setSupplier(item.getSupplier());
-                initialMovement.setUnitCost(item.getUnitCost() != null ? item.getUnitCost().doubleValue() : null);
-                if (item.getUnitCost() != null) {
-                    initialMovement.setTotalCost(item.getUnitCost().doubleValue() * item.getCurrentQuantity());
+                initialMovement.setUnitCost(item.getUnitCost());
+                if (item.getUnitCost() != null && item.getCurrentQuantity() != null) {
+                    initialMovement.setTotalCost(item.getUnitCost().multiply(java.math.BigDecimal.valueOf(item.getCurrentQuantity())));
                 }
                 initialMovement.setMovementDate(LocalDateTime.now());
                 initialMovement.setNotes("Saldo inicial cadastrado" + (item.getInvoiceNumber() != null ? " - NF: " + item.getInvoiceNumber() : ""));

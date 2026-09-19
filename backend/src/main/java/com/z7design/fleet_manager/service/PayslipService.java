@@ -3183,8 +3183,9 @@ public class PayslipService {
      * Calcula hash do texto extraÃ­do (mÃ©todo legado - mantido para
      * compatibilidade)
      * 
-     * @deprecated Use calculatePagePdfHash para comparaÃ§Ã£o mais confiÃ¡vel
+     * @deprecated Use calculatePagePdfHash para comparação mais confiável
      */
+    @Deprecated
     private String calculatePageHash(String pageText) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

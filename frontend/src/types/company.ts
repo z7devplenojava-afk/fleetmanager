@@ -28,6 +28,7 @@ export interface Company {
   email?: string;
   website?: string;
   logoUrl?: string;
+  bannerUrls?: string[];
   defaultEpis?: CompanyDefaultEPI[];
   contactPerson?: string;
   contactPhone?: string;

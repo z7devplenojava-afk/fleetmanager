@@ -490,6 +490,7 @@ public class Vehicle implements TenantAware {
 
     public enum VehicleType {
         BUS_ROAD("Ônibus Rodoviário"),
+        BUS_INTERCITY("Ônibus Intermunicipal / Fretamento"),
         BUS_LUXURY_TOURISM("Ônibus Luxo Turismo / Double Decker"),
         MINIBUS("Micro-ônibus"),
         VAN("Van"),

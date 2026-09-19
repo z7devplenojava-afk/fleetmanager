@@ -47,6 +47,9 @@ export interface Employee {
   phone?: string;
   email?: string;
   cnhNumber?: string;
+  cnhCategory?: string;
+  cnhExpirationDate?: string;
+  positionDescription?: string;
   ctps?: string;
   cbo?: string;
   pis?: string;

@@ -82,17 +82,22 @@ public class EmailMessage {
     private String bodyHtml;
 
     @Column(name = "is_read")
+    @Builder.Default
     private Boolean read = false;
 
+    @Builder.Default
     @Column(name = "is_flagged")
     private Boolean flagged = false;
 
+    @Builder.Default
     @Column(name = "is_answered")
     private Boolean answered = false;
 
+    @Builder.Default
     @Column(name = "has_attachments")
     private Boolean hasAttachments = false;
 
+    @Builder.Default
     @Column(name = "size_bytes")
     private Long sizeBytes = 0L;
 

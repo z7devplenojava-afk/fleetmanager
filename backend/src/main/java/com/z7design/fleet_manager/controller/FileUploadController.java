@@ -359,16 +359,78 @@ public class FileUploadController {
         }
     }
 
-    // REMOVIDO: Endpoint GET removido para evitar conflito com ResourceHandler
-    // O ResourceHandler em WebConfig.java serve os arquivos estÃ¡ticos diretamente
-    // que Ã© mais eficiente e nÃ£o causa conflitos de headers
-    // Se necessÃ¡rio, este endpoint pode ser restaurado como fallback
-    
-    // @GetMapping("/companies/logos/{filename}")
-    // @Operation(summary = "Download de logo da empresa", description = "Faz download de um logo de empresa")
-    // public ResponseEntity<Resource> downloadCompanyLogo(...) { ... }
+    @PostMapping({"/companies/banner-upload", "/companies/banners", "/companies/banner"})
+    @Operation(summary = "Upload de banner da empresa", description = "Faz upload de banner motivacional da empresa (PNG, JPG, JPEG, SVG, WEBP)")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'SUPER_ADMIN', 'ADMIN', 'HR', 'HR_WRITE', 'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'GESTOR')")
+    public ResponseEntity<Map<String, String>> uploadCompanyBanner(
+            @Parameter(description = "Arquivo do banner (PNG, JPG, JPEG, SVG, WEBP)")
+            @RequestParam("file") MultipartFile file) {
+        
+        try {
+            log.info("📥 Iniciando upload de banner da empresa - Nome original: {}, Tamanho: {} bytes", 
+                    file.getOriginalFilename(), file.getSize());
+            
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Arquivo não pode estar vazio"));
+            }
 
-    // MÃ©todos auxiliares
+            String contentType = file.getContentType();
+            String originalFilename = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "banner.png");
+            
+            if (!isValidImageType(contentType) && !isAllowedImageExtension(originalFilename)) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Tipo de arquivo não permitido. Use PNG, JPG, JPEG, SVG ou WEBP"));
+            }
+
+            // Máximo 10MB para banners
+            if (file.getSize() > 10 * 1024 * 1024) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Arquivo muito grande. Máximo 10MB"));
+            }
+
+            String fileExtension = getFileExtension(originalFilename);
+            if (fileExtension.isEmpty()) {
+                fileExtension = "png";
+            }
+            String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
+            
+            Path uploadPath = Paths.get(uploadDir, "companies", "banners").toAbsolutePath().normalize();
+            Files.createDirectories(uploadPath);
+
+            Path filePath = uploadPath.resolve(uniqueFilename);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            
+            if (!Files.exists(filePath)) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Erro ao salvar banner: arquivo não encontrado após upload"));
+            }
+            
+            String relativeUrl = "/api/uploads/companies/banners/" + uniqueFilename;
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("filename", uniqueFilename);
+            response.put("originalName", originalFilename);
+            response.put("path", "companies/banners/" + uniqueFilename);
+            response.put("size", String.valueOf(file.getSize()));
+            response.put("contentType", contentType != null ? contentType : "image/" + fileExtension);
+            response.put("url", relativeUrl);
+            
+            log.info("✅ Upload de banner concluído com sucesso. URL: {}", relativeUrl);
+            return ResponseEntity.ok(response);
+
+        } catch (IOException e) {
+            log.error("❌ Erro ao salvar arquivo de banner: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Erro ao salvar banner: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("❌ Erro inesperado ao fazer upload de banner: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Erro inesperado: " + e.getMessage()));
+        }
+    }
+
+    // Métodos auxiliares
     private boolean isValidFileType(String contentType) {
         return contentType != null && (
             contentType.equals("application/pdf") ||
@@ -382,8 +444,19 @@ public class FileUploadController {
         return contentType != null && (
             contentType.equals("image/jpeg") ||
             contentType.equals("image/jpg") ||
-            contentType.equals("image/png")
+            contentType.equals("image/png") ||
+            contentType.equals("image/webp") ||
+            contentType.equals("image/svg+xml") ||
+            contentType.equals("image/x-icon") ||
+            contentType.equals("image/vnd.microsoft.icon")
         );
+    }
+
+    private boolean isAllowedImageExtension(String filename) {
+        if (filename == null) return false;
+        String ext = getFileExtension(filename).toLowerCase();
+        return ext.equals("png") || ext.equals("jpg") || ext.equals("jpeg") || 
+               ext.equals("svg") || ext.equals("webp") || ext.equals("ico");
     }
 
     private String getFileExtension(String filename) {

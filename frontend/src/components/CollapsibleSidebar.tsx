@@ -83,7 +83,8 @@ import {
   Ticket,
   Armchair,
   Truck,
-  UserCircle
+  UserCircle,
+  Warehouse
 } from 'lucide-react';
 
 interface CollapsibleSidebarProps {
@@ -107,6 +108,7 @@ const mainMenuItems = [
 const manutencaoMenuItems = [
   { icon: Wrench, text: 'Dashboard Manutenção', to: '/manutencao', id: 'manutencao' },
   { icon: Bus, text: 'Gerenciar Frota', to: '/frota', id: 'frota' },
+  { icon: Warehouse, text: 'Gestão de Garagens', to: '/frota/garagens', id: 'garagens' },
   { icon: Activity, text: 'Manutenção V2 (HUD)', to: '/manutencao/v2', id: 'manutencao-v2' },
   { icon: Wrench, text: 'Área do Mecânico', to: '/manutencao/mechanic', id: 'mechanic-dashboard' },
   { icon: ClipboardList, text: 'O.S. de Frota', to: '/frota/ordens-servico', id: 'frota-os' },
@@ -438,6 +440,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
   MECANICO: new Set([
     'dashboard',
     'manutencao',
+    'garagens',
     'mechanic-dashboard',
     'frota-os',
     'pneus',
@@ -451,6 +454,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-checklist-veiculo',
     'frota',
+    'garagens',
     'chat-interno',
     'mensagens',
     'mobilizacao-transportes',
@@ -576,6 +580,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-gestao',
     'operacional-medicao',
     'frota',
+    'garagens',
     'chat-interno',
     'mensagens',
   ]),
@@ -597,6 +602,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-gestao',
     'operacional-medicao',
     'frota',
+    'garagens',
     'chat-interno',
     'mensagens',
   ]),
@@ -611,6 +617,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-troca-plantao',
     'operacional-parte-diaria',
     'controle-rondas',
+    'garagens',
     'chat-interno',
     'mensagens',
   ]),
@@ -627,6 +634,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'dashboard',
     'manutencao',
     'frota',
+    'garagens',
     'manutencao-v2',
     'mechanic-dashboard',
     'frota-os',
@@ -642,6 +650,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'dashboard',
     'manutencao',
     'frota',
+    'garagens',
     'manutencao-v2',
     'mechanic-dashboard',
     'frota-os',
@@ -657,6 +666,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'dashboard',
     'manutencao',
     'frota',
+    'garagens',
     'mechanic-dashboard',
     'frota-os',
     'abastecimento',
@@ -709,6 +719,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'driver-trips',
     'passenger-qrcode',
     'frota',
+    'garagens',
     'mobilizacao-transportes',
     'chat-interno',
     'mensagens',
@@ -723,6 +734,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'driver-trips',
     'passenger-qrcode',
     'frota',
+    'garagens',
     'mobilizacao-transportes',
     'chat-interno',
     'mensagens',
@@ -737,6 +749,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'filiais',
     'manutencao',
     'frota',
+    'garagens',
     'manutencao-v2',
     'mechanic-dashboard',
     'frota-os',
@@ -850,6 +863,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'filiais',
     'manutencao',
     'frota',
+    'garagens',
     'manutencao-v2',
     'mechanic-dashboard',
     'frota-os',
@@ -960,6 +974,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'filiais',
     'manutencao',
     'frota',
+    'garagens',
     'frota-os',
     'operacional-dashboard',
     'operacional-servicos',
@@ -992,6 +1007,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     // Manutenção & Frota
     'manutencao',
     'frota',
+    'garagens',
     'manutencao-v2',
     'mechanic-dashboard',
     'frota-os',
@@ -1303,6 +1319,42 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 
   const isActive = useCallback((id: string) => activeId === id, [activeId]);
 
+  const renderNavItems = (items: any[]) => (
+    <nav className={`space-y-1.5 ${collapsed ? 'px-0 flex flex-col items-center' : 'px-4'}`}>
+      {items.map((item) => {
+        const active = isActive(item.id);
+        return (
+          <ScrollPreservingLink
+            key={item.id}
+            to={item.to}
+            title={collapsed ? item.text : undefined}
+            preserveScroll={true}
+            ref={active ? activeItemRef : undefined}
+            className={`
+              flex items-center rounded-lg transition-all
+              ${collapsed
+                ? 'w-10 h-10 justify-center p-0 mx-auto'
+                : 'px-4 py-2.5 text-sm font-medium w-full'
+              }
+              ${active
+                ? 'bg-red-600 text-white shadow-md'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+              }
+            `}
+          >
+            <item.icon
+              size={20}
+              className={`flex-shrink-0 ${collapsed ? '' : 'mr-3'}`}
+            />
+            {!collapsed && (
+              <span className="truncate tracking-wide">{item.text}</span>
+            )}
+          </ScrollPreservingLink>
+        );
+      })}
+    </nav>
+  );
+
   return (
     <>
       {/* Overlay para mobile */}
@@ -1323,8 +1375,8 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
         `}
       >
         {/* Header com Logo - Exact Reference Style */}
-        <div className="p-4 border-b border-sidebar-border flex items-center justify-center h-[64px] bg-sidebar-background">
-          <ScrollPreservingLink to="/" className="flex items-center space-x-3 overflow-hidden">
+        <div className={`${collapsed ? 'px-2' : 'p-4'} border-b border-sidebar-border flex items-center justify-center h-[64px] bg-sidebar-background`}>
+          <ScrollPreservingLink to="/" className="flex items-center justify-center overflow-hidden">
             {collapsed ? (
               <img
                 src="/favicon.png"
@@ -1340,709 +1392,252 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
         {/* Conteúdo da navegação */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto py-4"
+          className={`flex-1 overflow-y-auto py-4 ${collapsed ? 'scrollbar-hide' : ''}`}
         >
           {/* Menu Principal */}
-          <div className="mb-6">
+          <div className={collapsed ? "mb-3" : "mb-6"}>
             {!collapsed && (
               <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                 Menu Principal
               </div>
             )}
-            <nav className="space-y-1 px-4">
-              {filteredMainMenuItems.map((item) => (
-                <ScrollPreservingLink
-                  key={item.id}
-                  to={item.to}
-                  preserveScroll={true}
-                  ref={isActive(item.id) ? activeItemRef : undefined}
-                  className={`
-                      flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                      ${isActive(item.id)
-                      ? 'bg-red-600 text-white shadow-md'
-                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                    }
-                    `}
-                >
-                  <item.icon
-                    size={20}
-                    className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                  />
-                  {!collapsed && (
-                    <span className="truncate tracking-wide">{item.text}</span>
-                  )}
-                </ScrollPreservingLink>
-              ))}
-            </nav>
+            {renderNavItems(filteredMainMenuItems)}
           </div>
 
           {/* Módulo de Gestão de E-mails */}
           {filteredEmailItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   E-mails
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredEmailItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredEmailItems)}
             </div>
           )}
 
           {/* Módulo de Manutenção e Frota */}
           {filteredManutencaoItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Manutenção & Frota
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredManutencaoItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                      flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                      ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                    `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredManutencaoItems)}
             </div>
           )}
 
           {/* Módulo de Mobilização */}
           {filteredMobilizacaoItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Mobilização
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredMobilizacaoItems.map((item: any) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                      flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                      ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                    `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredMobilizacaoItems)}
             </div>
           )}
 
           {/* Módulo de Passagens (Ticketing) */}
           {filteredTicketingItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Gestão de Passagens
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredTicketingItems.map((item: any) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                      flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                      ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                    `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredTicketingItems)}
             </div>
           )}
 
           {/* Módulo Financeiro */}
           {shouldShowModule('FINANCIAL_READ') && filteredFinanceiroItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Módulo Financeiro
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredFinanceiroItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredFinanceiroItems)}
             </div>
           )}
 
           {/* Grupo Operacional */}
           {shouldShowModule() && filteredOperacionalItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Operacional
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredOperacionalItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredOperacionalItems)}
             </div>
           )}
 
           {/* Grupo RH */}
           {shouldShowModule('EMPLOYEES_READ') && filteredRhItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Recursos Humanos
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredRhItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredRhItems)}
             </div>
           )}
 
           {/* Grupo SST */}
           {shouldShowModule('EMPLOYEES_READ') && filteredSstItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Saúde e Segurança (SST)
+                  Segurança do Trabalho (SST)
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredSstItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredSstItems)}
             </div>
           )}
 
           {/* Departamento Pessoal */}
           {shouldShowModule('EMPLOYEES_READ') && filteredDepartamentoPessoalItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider ml-4">
+                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Departamento Pessoal
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredDepartamentoPessoalItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredDepartamentoPessoalItems)}
             </div>
           )}
 
           {/* Grupo Comercial */}
-          {shouldShowModule('LEADS_READ') && filteredComercialItems.length > 0 && (
-            <div className="mb-6">
+          {shouldShowModule('COMMERCIAL_READ') && filteredComercialItems.length > 0 && (
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Comercial
+                  Comercial & Vendas
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredComercialItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredComercialItems)}
             </div>
           )}
 
           {/* Grupo Estoque Simplificado */}
           {shouldShowModule('STOCK_READ') && filteredEstoqueItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Estoque
+                  Estoque & Almoxarifado
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredEstoqueItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredEstoqueItems)}
             </div>
           )}
 
           {/* Grupo Compras */}
-          {shouldShowModule('STOCK_MANAGE') && filteredComprasItems.length > 0 && (
-            <div className="mb-6">
+          {shouldShowModule('PURCHASE_READ') && filteredComprasItems.length > 0 && (
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Compras
+                  Compras & Suprimentos
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredComprasItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredComprasItems)}
             </div>
           )}
 
-          {/* Grupo Suporte - REMOVIDO (substituído por Gestão de Atendimento) */}
-          {/* {shouldShowModule('SUPPORT_READ') && (
-            <div className="mb-6">
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Suporte
-                </div>
-              )}
-              <nav className="space-y-1 px-4">
-                {suporteMenuItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    className={`
-                      flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                      ${isActive(item.id) 
-                        ? 'bg-seguranca-black text-seguranca-yellow' 
-                        : 'text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow'
-                      }
-                    `}
-                  >
-                    <item.icon 
-                      size={18} 
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`} 
-                    />
-                    {!collapsed && (
-                      <span className="truncate">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
-            </div>
-          )} */}
-
           {/* Grupo Comunicação Interna (Unificado) */}
-          {shouldShowModule('MESSAGES_READ') && filteredComunicacaoInternaItems.length > 0 && (
-            <div className="mb-6">
+          {filteredComunicacaoInternaItems.length > 0 && (
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Comunicação Interna
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredComunicacaoInternaItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredComunicacaoInternaItems)}
             </div>
           )}
 
           {/* Grupo Atendimento */}
           {shouldShowModule('ATTENDANCE_READ') && filteredAtendimentoItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Atendimento
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredAtendimentoItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredAtendimentoItems)}
             </div>
           )}
 
           {/* Módulo de Gestão de Tráfego */}
           {filteredTrafegoItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Gestão de Tráfego
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredTrafegoItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredTrafegoItems)}
             </div>
           )}
 
           {/* Módulo Fiscal */}
           {shouldShowModule('FINANCIAL_READ') && filteredFiscalItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Módulo Fiscal
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredFiscalItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredFiscalItems)}
             </div>
           )}
 
           {/* Módulo Sistema - SUPER_ADMIN */}
           {user?.role === 'SUPER_ADMIN' && filteredSistemaItems.length > 0 && (
-            <div className="mb-6">
+            <div className={collapsed ? "mb-3" : "mb-6"}>
               {!collapsed && (
                 <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
                   Sistema
                 </div>
               )}
-              <nav className="space-y-1 px-4">
-                {filteredSistemaItems.map((item) => (
-                  <ScrollPreservingLink
-                    key={item.id}
-                    to={item.to}
-                    preserveScroll={true}
-                    ref={isActive(item.id) ? activeItemRef : undefined}
-                    className={`
-                    flex items-center px-4 py-2.5 rounded text-sm font-medium transition-all
-                    ${isActive(item.id)
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      }
-                  `}
-                  >
-                    <item.icon
-                      size={20}
-                      className={`flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-wide">{item.text}</span>
-                    )}
-                  </ScrollPreservingLink>
-                ))}
-              </nav>
+              {renderNavItems(filteredSistemaItems)}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-[#262626]">
-          {!collapsed && user && (
-            <div
-              className="flex items-center space-x-3 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors"
-              onClick={handleProfileClick}
-            >
-              <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-                <User2 size={16} className="text-black" />
+        <div className={`border-t border-[#262626] ${collapsed ? 'p-2 flex justify-center' : 'p-4'}`}>
+          {user && (
+            collapsed ? (
+              <div
+                className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={handleProfileClick}
+                title={user?.name || 'Perfil'}
+              >
+                <User2 size={18} className="text-black" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors">
-                  {user?.name || 'Usuário'}
+            ) : (
+              <div
+                className="flex items-center space-x-3 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors"
+                onClick={handleProfileClick}
+              >
+                <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+                  <User2 size={16} className="text-black" />
                 </div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {user?.role || 'Usuário'}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors">
+                    {user?.name || 'Usuário'}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {user?.role || 'Usuário'}
+                  </div>
                 </div>
               </div>
-            </div>
+            )
           )}
         </div>
       </aside>

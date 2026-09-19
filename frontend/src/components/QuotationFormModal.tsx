@@ -11,7 +11,7 @@ import {
   Building2, DollarSign, FileText, Clock, CreditCard, Truck, ShoppingCart, Plus, 
   ExternalLink, Image as ImageIcon, Camera, Trash2, Download, Sparkles, Wrench, 
   Car, Eye, X, Paperclip, FileSpreadsheet, File, ShieldCheck, CheckCircle2, Award,
-  Search, Boxes, Check, PackageSearch, Layers
+  Search, Boxes, Check, PackageSearch, Layers, Trophy
 } from 'lucide-react';
 import { Quotation, CreateQuotationRequest, UpdateQuotationRequest, QuotationStatus, quotationService } from '@/services/quotationService';
 import { contasAPagarService, Supplier, CreateSupplierRequest } from '@/services/contasAPagarService';
@@ -27,12 +27,30 @@ import {
   QuotationRfpData 
 } from '@/utils/quotationRfpPdfGenerator';
 import { QuotationBudgetUploadModal } from '@/components/compras/QuotationBudgetUploadModal';
-import { ParsedBudgetData } from '@/utils/quotationBudgetParser';
+import { QuotationBudgetsComparisonModal } from '@/components/compras/QuotationBudgetsComparisonModal';
+import { QuotationBudgetParser, ParsedBudgetData } from '@/utils/quotationBudgetParser';
 import { SupplierFormModal } from '@/components/estoque/SupplierFormModal';
 import { userService, User } from '@/services/userService';
 import { PurchaseRequestViewModal } from '@/components/compras/PurchaseRequestViewModal';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+
+async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {
+  if (dataUrl.startsWith('data:')) {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], fileName, { type: mime });
+  }
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  return new File([blob], fileName, { type: blob.type });
+}
 
 interface QuotationFormModalProps {
   quotation?: Quotation | null;
@@ -117,6 +135,7 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
   const [previewPhoto, setPreviewPhoto] = useState<QuotationPhotoItem | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isBudgetUploadModalOpen, setIsBudgetUploadModalOpen] = useState(false);
+  const [isBudgetsComparisonModalOpen, setIsBudgetsComparisonModalOpen] = useState(false);
 
   // Busca e seleção rápida no catálogo de estoque
   const [stockSearchQuery, setStockSearchQuery] = useState('');
@@ -1373,9 +1392,22 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
                   Anexe o orçamento original, tabela ou proposta oficial enviada pelo fornecedor (PDF, Excel .xlsx, .csv).
                 </p>
               </div>
-              <Badge variant="outline" className="border-seguranca-yellow/40 text-seguranca-yellow text-xs">
-                {supplierAttachments.length} {supplierAttachments.length === 1 ? 'Arquivo Anexado' : 'Arquivos Anexados'}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="border-seguranca-yellow/40 text-seguranca-yellow text-xs">
+                  {supplierAttachments.length} {supplierAttachments.length === 1 ? 'Arquivo Anexado' : 'Arquivos Anexados'}
+                </Badge>
+                {supplierAttachments.length > 0 && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setIsBudgetsComparisonModalOpen(true)}
+                    className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-zinc-950 font-black text-xs h-7 px-3 gap-1.5 shadow"
+                  >
+                    <Trophy className="h-3.5 w-3.5 fill-current" />
+                    Analisar Melhor Proposta 🏆
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
               {/* Card de Destaque: Analisador Automático de Orçamentos (6 Blocos) */}
@@ -1434,7 +1466,36 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
               </div>
 
               {supplierAttachments.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  {/* Banner de Ação Inteligente: Comparar Orçamentos e Eleger a Melhor Proposta */}
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-amber-950/70 via-yellow-950/40 to-zinc-900 border-2 border-yellow-500/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-yellow-500/20 text-yellow-400 rounded-xl border border-yellow-500/40 shrink-0">
+                        <Trophy className="h-6 w-6 text-yellow-400 animate-bounce" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
+                          Analisador & Comparador de Propostas
+                          <Badge className="bg-yellow-500 text-zinc-950 font-black text-[10px]">
+                            {supplierAttachments.length} {supplierAttachments.length === 1 ? 'Orçamento Pronto' : 'Orçamentos Prontos'}
+                          </Badge>
+                        </h4>
+                        <p className="text-xs text-yellow-200/90 mt-0.5">
+                          Compara automaticamente preços, disponibilidade de peças, marcas, prazos de entrega e fretes para indicar qual é a <strong>melhor proposta</strong>.
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      onClick={() => setIsBudgetsComparisonModalOpen(true)}
+                      className="bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-400 hover:from-yellow-400 hover:to-amber-300 text-zinc-950 font-black text-xs h-10 px-4 gap-2 shrink-0 shadow-lg hover:shadow-yellow-500/25"
+                    >
+                      <Trophy className="h-4 w-4 fill-current" />
+                      Analisar Qual a Melhor Proposta 🏆
+                    </Button>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {supplierAttachments.map((att) => (
                       <div
@@ -1462,6 +1523,22 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
                         </div>
 
                         <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const fileObj = await dataUrlToFile(att.url, att.name);
+                                const parsed = await QuotationBudgetParser.parseFile(fileObj);
+                                handleApplyParsedBudget(parsed);
+                              } catch (err) {
+                                setIsBudgetUploadModalOpen(true);
+                              }
+                            }}
+                            className="p-1.5 bg-zinc-900 hover:bg-blue-900/60 text-blue-400 rounded"
+                            title="Extrair dados deste orçamento individualmente para a cotação"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                          </button>
                           <a
                             href={att.url}
                             download={att.name}
@@ -2031,6 +2108,20 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
         isOpen={isBudgetUploadModalOpen}
         onClose={() => setIsBudgetUploadModalOpen(false)}
         onApplyParsedBudget={handleApplyParsedBudget}
+      />
+
+      {/* Modal de Comparação e Eleição da Melhor Proposta */}
+      <QuotationBudgetsComparisonModal
+        isOpen={isBudgetsComparisonModalOpen}
+        onClose={() => setIsBudgetsComparisonModalOpen(false)}
+        attachments={supplierAttachments}
+        suppliers={suppliers}
+        onApplyBudget={(parsed, supplierId) => {
+          handleApplyParsedBudget(parsed);
+          if (supplierId) {
+            handleInputChange('supplierId', supplierId);
+          }
+        }}
       />
     </Dialog>
   );

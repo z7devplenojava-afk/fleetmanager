@@ -5,7 +5,8 @@ import { contasAPagarService } from '@/services/contasAPagarService';
 import { ContaAPagar } from './ContasAPagarFormModal';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { TrendingUp, TrendingDown, AlertTriangle, DollarSign } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Tag } from 'lucide-react';
+import { getClassificacaoStyle } from '@/constants/classificacaoContasPagar';
 
 interface DashboardProps {
   contas: ContaAPagar[];
@@ -19,7 +20,8 @@ export const ContasAPagarDashboard: React.FC<DashboardProps> = ({ contas, refres
     porStatus: [] as any[],
     evolucaoMensal: [] as any[],
     porFornecedor: [] as any[],
-    porCentroCusto: [] as any[]
+    porCentroCusto: [] as any[],
+    porClassificacao: [] as any[]
   });
 
   // Cores para os gráficos
@@ -127,12 +129,53 @@ export const ContasAPagarDashboard: React.FC<DashboardProps> = ({ contas, refres
       .map(([nome, dados]) => ({ name: nome, valor: dados.valor, quantidade: dados.quantidade }))
       .sort((a, b) => b.valor - a.valor);
 
+    // 6. Por Classificação de Contas a Pagar
+    const classificacaoMap = new Map();
+    contas.forEach(conta => {
+      const cat = conta.categoria || 'Não classificada';
+      if (!classificacaoMap.has(cat)) {
+        classificacaoMap.set(cat, { valor: 0, quantidade: 0 });
+      }
+      const current = classificacaoMap.get(cat);
+      classificacaoMap.set(cat, {
+        valor: current.valor + conta.valor,
+        quantidade: current.quantidade + 1
+      });
+    });
+
+    const HEX_CORES_GRUPOS: Record<string, string> = {
+      '1': '#3b82f6', // Operacional & Frota
+      '2': '#10b981', // Pessoal & Folha
+      '3': '#8b5cf6', // Administrativo & TI
+      '4': '#f59e0b', // Tributário & Fiscal
+      '5': '#06b6d4', // Financeiro & Bancário
+      '6': '#ec4899', // Instalações & Manutenção
+      '7': '#6366f1', // Investimentos & CAPEX
+      'default': '#94a3b8'
+    };
+
+    const porClassificacao = Array.from(classificacaoMap.entries())
+      .map(([nome, dados]) => {
+        const style = getClassificacaoStyle(nome);
+        const grupoId = style.codigo ? style.codigo.split('.')[0] : 'default';
+        return {
+          name: nome,
+          valor: dados.valor,
+          quantidade: dados.quantidade,
+          grupoNome: style.grupoNome,
+          fill: HEX_CORES_GRUPOS[grupoId] || HEX_CORES_GRUPOS['default']
+        };
+      })
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 6);
+
     setDadosGraficos({
       porTipo,
       porStatus,
       evolucaoMensal,
       porFornecedor,
-      porCentroCusto
+      porCentroCusto,
+      porClassificacao
     });
     
     console.log('✅ Dados processados:', {
@@ -140,7 +183,8 @@ export const ContasAPagarDashboard: React.FC<DashboardProps> = ({ contas, refres
       porStatus: porStatus.length,
       evolucaoMensal: evolucaoMensal.length,
       porFornecedor: porFornecedor.length,
-      porCentroCusto: porCentroCusto.length
+      porCentroCusto: porCentroCusto.length,
+      porClassificacao: porClassificacao.length
     });
     
     setLoading(false);
@@ -351,6 +395,60 @@ export const ContasAPagarDashboard: React.FC<DashboardProps> = ({ contas, refres
               <Bar dataKey="valor" fill="#a855f7" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Gráfico: Classificação de Contas a Pagar */}
+      <Card className="bg-zinc-900 border-zinc-800 rounded-2xl shadow-xl overflow-hidden lg:col-span-2">
+        <CardHeader className="py-4 px-5 bg-zinc-950/60 border-b border-zinc-800 flex flex-row items-center justify-between">
+          <CardTitle className="text-white text-sm font-bold flex items-center gap-2">
+            <Tag size={18} className="text-sky-400" />
+            Distribuição por Classificação de Contas a Pagar
+          </CardTitle>
+          <span className="text-xs text-zinc-400 font-medium">Top Classificações por Volume Financeiro</span>
+        </CardHeader>
+        <CardContent className="p-4">
+          {dadosGraficos.porClassificacao.length === 0 ? (
+            <div className="text-center py-8 text-zinc-500 text-xs">
+              Nenhuma conta classificada até o momento.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={dadosGraficos.porClassificacao} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis 
+                  type="number" 
+                  stroke="#a1a1aa" 
+                  fontSize={11} 
+                  tickLine={false} 
+                  tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} 
+                />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  stroke="#d4d4d8" 
+                  width={180} 
+                  fontSize={11} 
+                  tickLine={false} 
+                />
+                <Tooltip 
+                  formatter={(value: number) => [formatarMoeda(value), 'Total']}
+                  contentStyle={{ 
+                    backgroundColor: '#18181b', 
+                    border: '1px solid #3f3f46',
+                    borderRadius: '12px',
+                    color: '#f4f4f5',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
+                  }}
+                />
+                <Bar dataKey="valor" radius={[0, 6, 6, 0]}>
+                  {dadosGraficos.porClassificacao.map((entry, index) => (
+                    <Cell key={`cell-class-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
     </div>

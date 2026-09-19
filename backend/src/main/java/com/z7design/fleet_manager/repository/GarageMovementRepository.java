@@ -18,6 +18,12 @@ public interface GarageMovementRepository extends JpaRepository<GarageMovement, 
 
     List<GarageMovement> findByVehicleIdOrderByCreatedAtDesc(UUID vehicleId);
 
+    java.util.Optional<GarageMovement> findFirstByVehicleIdAndActiveStayTrueOrderByCreatedAtDesc(UUID vehicleId);
+
+    java.util.Optional<GarageMovement> findFirstByVehicleIdOrderByCreatedAtDesc(UUID vehicleId);
+
+    List<GarageMovement> findByCompanyIdAndActiveStayTrueOrderByCreatedAtDesc(UUID companyId);
+
     @Query("SELECT m FROM GarageMovement m WHERE m.toGarage.id = :garageId ORDER BY m.createdAt DESC")
     List<GarageMovement> findRecentArrivals(@Param("garageId") UUID garageId, Pageable pageable);
 

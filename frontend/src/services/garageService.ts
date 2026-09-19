@@ -7,6 +7,14 @@ export interface GarageVehicleSummary {
   brand?: string;
   currentMileage?: number;
   status?: string;
+  assignedDriver?: string;
+  clientName?: string;
+  vehicleType?: string;
+  entryDate?: string;
+  entryTime?: string;
+  stayDurationMinutes?: number;
+  stayDurationFormatted?: string;
+  reason?: string;
 }
 
 export interface GarageOccupancyDashboard {
@@ -61,6 +69,14 @@ export interface GarageMovement {
   fromGarageName?: string;
   toGarageId?: string;
   toGarageName?: string;
+  movementType?: 'CHECK_IN' | 'CHECK_OUT' | 'TRANSFER' | string;
+  driverName?: string;
+  clientName?: string;
+  entryTime?: string;
+  exitTime?: string;
+  stayDurationMinutes?: number;
+  stayDurationFormatted?: string;
+  activeStay?: boolean;
   reason?: string;
   reasonDetail?: string;
   performedBy?: string;
@@ -78,12 +94,36 @@ export interface GarageTransferInput {
   kmReading?: number;
 }
 
+export interface GarageCheckInInput {
+  vehicleId: string;
+  garageId: string;
+  driverName?: string;
+  clientName?: string;
+  reason?: string;
+  reasonDetail?: string;
+  kmReading?: number;
+  entryTime?: string;
+}
+
+export interface GarageCheckOutInput {
+  vehicleId: string;
+  driverName?: string;
+  reason?: string;
+  reasonDetail?: string;
+  kmReading?: number;
+  exitTime?: string;
+}
+
 export const MOVEMENT_REASON_LABELS: Record<string, string> = {
-  REMANEJAMENTO: 'Remanejamento',
-  MANUTENCAO: 'Manutenção',
-  LIMPEZA: 'Limpeza',
-  OPERACAO: 'Operação / Recolhimento',
-  ESCALA: 'Escala',
+  CHECK_IN: 'Entrada no Pátio',
+  CHECK_OUT: 'Saída do Pátio',
+  REMANEJAMENTO: 'Remanejamento entre Garagens',
+  MANUTENCAO: 'Manutenção / Reparo',
+  LIMPEZA: 'Limpeza / Higienização',
+  OPERACAO: 'Operação / Linha',
+  ESCALA: 'Escala de Viagem',
+  RECOLHIMENTO: 'Recolhimento Noturno / Final de Turno',
+  RESERVA: 'Reserva Técnica Operacional',
   OUTROS: 'Outros',
 };
 
@@ -144,8 +184,26 @@ class GarageService {
     return response.data;
   }
 
+  /** Check-in rápido de entrada no pátio. */
+  async checkIn(data: GarageCheckInInput): Promise<GarageMovement> {
+    const response = await api.post('/garages/check-in', data);
+    return response.data;
+  }
+
+  /** Check-out rápido de saída do pátio. */
+  async checkOut(data: GarageCheckOutInput): Promise<GarageMovement> {
+    const response = await api.post('/garages/check-out', data);
+    return response.data;
+  }
+
+  /** Lista de veículos atualmente dentro dos pátios com tempo de permanência live. */
+  async listActiveStays(): Promise<GarageMovement[]> {
+    const response = await api.get('/garages/active-stays');
+    return response.data;
+  }
+
   /** Histórico de movimentações entre garagens (paginado). */
-  async listMovements(page = 0, size = 30): Promise<GarageMovement[]> {
+  async listMovements(page = 0, size = 50): Promise<GarageMovement[]> {
     const response = await api.get(`/garages/movements?page=${page}&size=${size}`);
     return response.data;
   }
@@ -153,6 +211,12 @@ class GarageService {
   /** Histórico de movimentações de um veículo. */
   async getVehicleMovements(vehicleId: string): Promise<GarageMovement[]> {
     const response = await api.get(`/garages/movements/vehicle/${vehicleId}`);
+    return response.data;
+  }
+
+  /** Executa o seed de garagens e alocação de veículos de demonstração. */
+  async seed(): Promise<string> {
+    const response = await api.post('/garages/seed');
     return response.data;
   }
 }

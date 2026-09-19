@@ -41,6 +41,7 @@ import { useToast } from '@/hooks/use-toast';
 import { hasPermission, hasAnyPermission, getRoleDisplayName, getRoleColor } from '@/utils/permissions';
 import { UserPermissions } from '@/types/user';
 import { Company360Dashboard } from '@/components/empresa/Company360Dashboard';
+import { CompanyMotivationalCarousel } from '@/components/dashboard/CompanyMotivationalCarousel';
 // import LiveStats from './LiveStats';
 // import NotificationCenter from './NotificationCenter';
 // import QuickActions from './QuickActions';
@@ -64,7 +65,7 @@ interface DashboardModule {
 }
 
 const InteractiveDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, empresa } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
@@ -357,6 +358,12 @@ const InteractiveDashboard: React.FC = () => {
 
     return (
       <div className="space-y-6">
+        {/* Banner Motivacional da Empresa */}
+        <CompanyMotivationalCarousel
+          companyId={user?.companyId || empresa?.id}
+          companyName={user?.companyName || empresa?.nome}
+        />
+
         {/* Estatísticas em tempo real / DP-RH */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {isRhOrDp ? (

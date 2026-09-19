@@ -117,6 +117,10 @@ public class Invoice implements TenantAware {
     @JoinColumn(name = "unit_id", nullable = false)
     private Unit unit;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "garage_id")
+    private Garage garage;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

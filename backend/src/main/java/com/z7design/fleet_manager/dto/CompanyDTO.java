@@ -76,21 +76,44 @@ public class CompanyDTO {
     @Size(max = 500, message = "Logo URL must not exceed 500 characters")
     private String logoUrl;
     
+    private List<String> bannerUrls;
+    
     @NotNull(message = "Company status is required")
     private CompanyStatus status;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
-    // EPIs padrÃ£o da primeira entrega
+    // EPIs padrão da primeira entrega
     private List<CompanyDefaultEPIDTO> defaultEpis;
     
-    // MÃ©todos de conversÃ£o
+    // Métodos de conversão
     public static CompanyDTO fromEntity(Company company) {
         if (company == null) {
             return null;
         }
         
+        List<String> banners = null;
+        if (company.getBannerUrls() != null && !company.getBannerUrls().trim().isEmpty()) {
+            try {
+                String raw = company.getBannerUrls().trim();
+                if (raw.startsWith("[") && raw.endsWith("]")) {
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    banners = mapper.readValue(raw, new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+                } else {
+                    banners = java.util.Arrays.stream(raw.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.toList());
+                }
+            } catch (Exception e) {
+                banners = java.util.Arrays.stream(company.getBannerUrls().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
+            }
+        }
+
         return CompanyDTO.builder()
                 .id(company.getId())
                 .name(company.getName())
@@ -109,6 +132,7 @@ public class CompanyDTO {
                 .email(company.getEmail())
                 .website(company.getWebsite())
                 .logoUrl(company.getLogoUrl())
+                .bannerUrls(banners)
                 .status(company.getStatus())
                 .defaultEpis(company.getDefaultEpis() != null 
                     ? company.getDefaultEpis().stream()
@@ -139,6 +163,14 @@ public class CompanyDTO {
         company.setEmail(this.email);
         company.setWebsite(this.website);
         company.setLogoUrl(this.logoUrl);
+        if (this.bannerUrls != null) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                company.setBannerUrls(mapper.writeValueAsString(this.bannerUrls));
+            } catch (Exception e) {
+                company.setBannerUrls(String.join(",", this.bannerUrls));
+            }
+        }
         company.setStatus(this.status);
         return company;
     }

@@ -32,6 +32,11 @@ import {
 import { ContaAPagar } from './ContasAPagarFormModal';
 import { format, isAfter, isBefore, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
+import {
+  CLASSIFICACOES_PADRAO,
+  GRUPOS_CLASSIFICACAO,
+  getClassificacaoStyle
+} from '@/constants/classificacaoContasPagar';
 
 interface ContasAPagarTableProps {
   contas: ContaAPagar[];
@@ -420,12 +425,33 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
             </div>
 
             <div>
-              <Input
-                placeholder="Plano de Contas..."
-                value={categoriaFilter}
-                onChange={(e) => setCategoriaFilter(e.target.value)}
-                className="bg-zinc-950/80 border-zinc-700 text-zinc-100 text-xs focus:border-emerald-500 h-9 rounded-lg"
-              />
+              <Select value={categoriaFilter || 'ALL'} onValueChange={(v) => setCategoriaFilter(v === 'ALL' ? '' : v)}>
+                <SelectTrigger className="bg-zinc-950/80 border-zinc-700 text-zinc-100 text-xs h-9 rounded-lg">
+                  <SelectValue placeholder="Classificação: Todas" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100 text-xs max-h-[300px]">
+                  <SelectItem value="ALL">Classificação: Todas</SelectItem>
+                  {GRUPOS_CLASSIFICACAO.map(grupo => {
+                    const itens = CLASSIFICACOES_PADRAO.filter(item => item.grupo === grupo.id);
+                    if (itens.length === 0) return null;
+                    return (
+                      <div key={grupo.id} className="py-0.5">
+                        <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase bg-zinc-950/60">
+                          {grupo.label}
+                        </div>
+                        {itens.map(item => {
+                          const val = `${item.codigo} - ${item.nome}`;
+                          return (
+                            <SelectItem key={val} value={val} className="text-xs pl-4">
+                              [{item.codigo}] {item.nome}
+                            </SelectItem>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -498,8 +524,8 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                       </span>
                     )}
                     {conta.categoria && (
-                      <span className="inline-flex items-center gap-1 bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300 border border-zinc-700">
-                        <Layers size={11} className="text-zinc-400" />
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border font-medium ${getClassificacaoStyle(conta.categoria).bg} ${getClassificacaoStyle(conta.categoria).text} ${getClassificacaoStyle(conta.categoria).border}`}>
+                        <Tag size={11} />
                         {conta.categoria}
                       </span>
                     )}
@@ -555,7 +581,7 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                   {renderSortHeader('Descrição', 'descricao')}
                   {renderSortHeader('Empresa', 'empresa')}
                   {renderSortHeader('Obra / Setor', 'obra')}
-                  {renderSortHeader('Plano de Contas', 'categoria')}
+                  {renderSortHeader('Classificação', 'categoria')}
                   {renderSortHeader('Centro de Custo', 'centroCusto')}
                   {renderSortHeader('Tipo', 'tipo')}
                   {renderSortHeader('Valor', 'valor')}
@@ -621,7 +647,7 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
 
                       <TableCell className="whitespace-nowrap text-xs">
                         {conta.categoria ? (
-                          <Badge variant="outline" className="border-zinc-700 text-zinc-200 bg-zinc-800/90 font-medium text-[11px]">
+                          <Badge variant="outline" className={`font-medium text-[11px] border ${getClassificacaoStyle(conta.categoria).bg} ${getClassificacaoStyle(conta.categoria).text} ${getClassificacaoStyle(conta.categoria).border}`}>
                             {conta.categoria}
                           </Badge>
                         ) : (

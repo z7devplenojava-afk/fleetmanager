@@ -137,7 +137,7 @@ export function EmployeeCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-full p-0 bg-seguranca-graphite border-gray-600 z-[10002] shadow-lg"
+        className="w-full p-0 bg-seguranca-graphite border-gray-600 z-[10070] shadow-lg"
       >
         <Command className="bg-seguranca-graphite text-seguranca-lightgray">
           <CommandInput 

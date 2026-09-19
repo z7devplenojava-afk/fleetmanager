@@ -57,6 +57,7 @@ public class EmailMessageAttachment {
     @Column(name = "content_id")
     private String contentId;
 
+    @Builder.Default
     @Column(name = "inline")
     private Boolean inline = false;
 

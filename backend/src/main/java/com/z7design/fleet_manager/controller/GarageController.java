@@ -131,6 +131,35 @@ public class GarageController {
         return ResponseEntity.ok(service.getVehicleMovements(vehicleId));
     }
 
+    /** Check-in rápido de entrada no pátio (Portaria / QR Code). */
+    @PostMapping("/check-in")
+    public ResponseEntity<GarageMovementDTO> checkIn(
+            @Valid @RequestBody com.z7design.fleet_manager.dto.GarageCheckInRequest request,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(service.checkInVehicle(request, user.getCompanyId(), user));
+    }
+
+    /** Check-out rápido de saída do pátio (Portaria / QR Code). */
+    @PostMapping("/check-out")
+    public ResponseEntity<GarageMovementDTO> checkOut(
+            @Valid @RequestBody com.z7design.fleet_manager.dto.GarageCheckOutRequest request,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(service.checkOutVehicle(request, user.getCompanyId(), user));
+    }
+
+    /** Veículos atualmente dentro das garagens com tempo de permanência live. */
+    @GetMapping("/active-stays")
+    public ResponseEntity<List<GarageMovementDTO>> listActiveStays(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(service.listActiveStays(user.getCompanyId()));
+    }
+
+    /** Endpoint para execução do seed de garagens e alocação de veículos de demonstração. */
+    @PostMapping("/seed")
+    public ResponseEntity<String> seed(@AuthenticationPrincipal User user) {
+        service.seedGaragesAndVehicles(user.getCompanyId());
+        return ResponseEntity.ok("Seed de garagens executado com sucesso");
+    }
+
     /** Últimas chegadas em uma garagem. */
     @GetMapping("/{id}/arrivals")
     public ResponseEntity<List<GarageMovementDTO>> getArrivals(

@@ -39,3 +39,13 @@ export async function generateFleetWorkOrderPDFDownload(order: FleetWorkOrder): 
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Abre o PDF gerado diretamente em uma nova aba do navegador para visualização.
+ */
+export async function openFleetWorkOrderPDFPreview(order: FleetWorkOrder): Promise<void> {
+  const blob = await generateFleetWorkOrderPDFBlob(order);
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
+}

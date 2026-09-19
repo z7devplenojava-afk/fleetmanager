@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 @Transactional
 public class AccountsReceivableService {
-    private static final Logger log = LoggerFactory.getLogger(AccountsReceivableService.class);
     
     private final AccountsReceivableRepository accountsReceivableRepository;
     private final ClientRepository clientRepository;

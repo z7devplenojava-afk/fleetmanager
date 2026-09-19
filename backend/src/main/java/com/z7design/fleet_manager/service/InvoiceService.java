@@ -15,6 +15,8 @@ import com.z7design.fleet_manager.model.Client;
 import com.z7design.fleet_manager.model.Supplier;
 import com.z7design.fleet_manager.model.Contract;
 import com.z7design.fleet_manager.model.Unit;
+import com.z7design.fleet_manager.model.Garage;
+import com.z7design.fleet_manager.repository.GarageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -40,6 +42,7 @@ public class InvoiceService {
     private final ContractRepository contractRepository;
     private final WorkPostRepository workPostRepository;
     private final UnitRepository unitRepository;
+    private final GarageRepository garageRepository;
     
     @Transactional(readOnly = true)
     public List<Invoice> findAll() {
@@ -257,6 +260,15 @@ public class InvoiceService {
             } catch (org.hibernate.LazyInitializationException | jakarta.persistence.EntityNotFoundException e) {
                 // Unit foi deletado ou não pode ser inicializado, definir como null
                 invoice.setUnit(null);
+            }
+        }
+
+        // Inicializar Garage
+        if (invoice.getGarage() != null) {
+            try {
+                invoice.getGarage().getName(); // Força inicialização
+            } catch (org.hibernate.LazyInitializationException | jakarta.persistence.EntityNotFoundException e) {
+                invoice.setGarage(null);
             }
         }
     }
@@ -517,6 +529,16 @@ public class InvoiceService {
                     log.error("Erro ao buscar unidade {}: {}", dto.getUnitId(), e.getMessage());
                     throw new RuntimeException("Erro ao processar unidade: " + e.getMessage(), e);
                 }
+            }
+
+            if (dto.getGarageId() != null) {
+                log.debug("Processando garagem: {}", dto.getGarageId());
+                garageRepository.findById(dto.getGarageId()).ifPresentOrElse(
+                        invoice::setGarage,
+                        () -> invoice.setGarage(null)
+                );
+            } else {
+                invoice.setGarage(null);
             }
             
             log.info("AtualizaÃ§Ã£o de invoice concluÃ­da com sucesso");

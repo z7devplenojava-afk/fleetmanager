@@ -50,9 +50,15 @@ public class SupplierDTO {
     @Schema(description = "Categoria do fornecedor", example = "Tecnologia")
     private String category;
     
-    @Schema(description = "ObservaÃ§Ãµes sobre o fornecedor")
+    @Schema(description = "Observações sobre o fornecedor")
     private String notes;
     
-    @Schema(description = "Indica se o fornecedor estÃ¡ ativo", example = "true")
+    @Schema(description = "Tipo de documento: CPF ou CNPJ", example = "CNPJ")
+    private String documentType;
+    
+    @Schema(description = "Data de início da parceria / cadastro informada manualmente", example = "2023-01-15")
+    private java.time.LocalDate sinceDate;
+
+    @Schema(description = "Indica se o fornecedor está ativo", example = "true")
     private Boolean isActive = true;
 } 

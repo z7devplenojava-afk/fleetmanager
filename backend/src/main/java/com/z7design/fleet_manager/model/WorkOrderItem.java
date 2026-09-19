@@ -46,6 +46,26 @@ public class WorkOrderItem {
     @Column(name = "product_id")
     private UUID productId;
 
+    @Column(length = 50)
+    private String code;
+
+    @Column(name = "requires_approval")
+    @Builder.Default
+    private Boolean requiresApproval = false;
+
+    @Column(name = "approval_reason", columnDefinition = "TEXT")
+    private String approvalReason;
+
+    @Column
+    @Builder.Default
+    private Boolean approved = false;
+
+    @Column(name = "approved_by", length = 150)
+    private String approvedBy;
+
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+
     @Column
     private String provider;
 

@@ -119,9 +119,11 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/v1/document-processing/**").authenticated()
                                                 // Arquivos pÃºblicos (imagens e uploads)
                                                 .requestMatchers("/uploads/**").permitAll()
-                                                // Logos de empresas - permitir acesso pÃºblico (para exibiÃ§Ã£o em
-                                                // relatÃ³rios)
+                                                // Logos e banners de empresas - permitir acesso público para exibição
                                                 .requestMatchers("/api/uploads/companies/logos/**").permitAll()
+                                                .requestMatchers("/api/uploads/companies/banners/**").permitAll()
+                                                .requestMatchers("/api/uploads/companies/logo").authenticated()
+                                                .requestMatchers("/api/uploads/companies/banner-upload", "/api/uploads/companies/banners").authenticated()
                                                 .requestMatchers("/api/uploads/**").authenticated() // Outros arquivos
                                                                                                     // do chat requerem
                                                                                                     // autenticaÃ§Ã£o

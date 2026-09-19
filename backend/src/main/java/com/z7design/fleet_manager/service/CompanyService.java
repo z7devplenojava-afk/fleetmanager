@@ -191,6 +191,14 @@ public class CompanyService {
         if (dto.getEmail() != null) existingCompany.setEmail(dto.getEmail());
         if (dto.getWebsite() != null) existingCompany.setWebsite(dto.getWebsite());
         if (dto.getLogoUrl() != null) existingCompany.setLogoUrl(dto.getLogoUrl());
+        if (dto.getBannerUrls() != null) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                existingCompany.setBannerUrls(mapper.writeValueAsString(dto.getBannerUrls()));
+            } catch (Exception e) {
+                existingCompany.setBannerUrls(String.join(",", dto.getBannerUrls()));
+            }
+        }
         if (dto.getStatus() != null) existingCompany.setStatus(dto.getStatus());
 
         existingCompany = companyRepository.save(existingCompany);
