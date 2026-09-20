@@ -110,8 +110,6 @@ services:
         condition: service_healthy
       whatsapp-service-ci:
         condition: service_started
-      evolution-api-ci:
-        condition: service_started
     networks:
       - secured-guard-ci-network
       - z7network
@@ -186,7 +184,7 @@ services:
   # EVOLUTION API CI
   # ========================================
   evolution-api-ci:
-    image: evolutionapi/evolution-api:latest
+    image: atendai/evolution-api:latest
     container_name: secured-guard-evolution-ci
     environment:
       SERVER_URL: https://ci.z7botsolutions.com.br

@@ -399,7 +399,19 @@ jobs:
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
             cd /var/www/secured_guard/ci
             docker network create z7network 2>/dev/null || true
-            docker-compose -f docker-compose.ci.yml up -d --force-recreate --pull always --remove-orphans
+
+            # Pre-pull imagem pública da Evolution API com retry
+            echo "📥 Pulling Evolution API image..."
+            for i in 1 2 3; do
+              docker pull atendai/evolution-api:latest && break || {
+                echo "⚠️ Pull Evolution API falhou (tentativa $i), aguardando 15s..."
+                sleep 15
+              }
+            done
+
+            # Iniciar containers sem --pull always para evitar prompt interativo
+            echo "🚀 Iniciando containers..."
+            yes y | docker-compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans
           EOF
 
       # ============================================
@@ -411,7 +423,7 @@ jobs:
             cd /var/www/secured_guard/ci
             docker network create z7network 2>/dev/null || true
             docker-compose -f docker-compose.ci.yml ps
-            docker-compose -f docker-compose.ci.yml up -d
+            yes y | docker-compose -f docker-compose.ci.yml up -d
           EOF
 
       # ============================================
