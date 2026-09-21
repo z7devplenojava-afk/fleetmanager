@@ -40,6 +40,11 @@ public class FuelTank implements TenantAware {
     @Column(nullable = false)
     private Vehicle.FuelType fuelType;
 
+    /** Garagem onde o tanque está instalado. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "garage_id")
+    private Garage garage;
+
     @Column(name = "company_id")
     private UUID companyId;
 

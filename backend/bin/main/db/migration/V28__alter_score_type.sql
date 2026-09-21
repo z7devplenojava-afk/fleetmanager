@@ -1,1 +1,0 @@
-ALTER TABLE performance_evaluations ALTER COLUMN score TYPE INTEGER; 

@@ -1,1 +1,0 @@
-ALTER TABLE payrolls ALTER COLUMN gross_salary TYPE FLOAT; 

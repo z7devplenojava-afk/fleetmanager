@@ -43,6 +43,8 @@ import { Vehicle } from '@/types/fleet';
 import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
 import { EmployeeCombobox } from '@/components/ui/employee-combobox';
 import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
+import { workPostService, WorkPost } from '@/services/workPostService';
+import { clientService, Client } from '@/services/clientService';
 
 interface InternalFuelFormData {
   // Localização
@@ -137,6 +139,7 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
   const [formData, setFormData] = useState<InternalFuelFormData>(DEFAULT_FORM);
   const [mileageError, setMileageError] = useState<string | null>(null);
   const [mileageWarning, setMileageWarning] = useState<string | null>(null);
+  const [selectedVehicleObj, setSelectedVehicleObj] = useState<any>(null);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -145,6 +148,7 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
       setFormData({ ...DEFAULT_FORM, date: new Date().toISOString().split('T')[0] });
       setMileageError(null);
       setMileageWarning(null);
+      setSelectedVehicleObj(null);
     }
   }, [isOpen]);
 
@@ -167,6 +171,30 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
     enabled: isOpen,
   });
 
+  const { data: workPostsData = [] } = useQuery({
+    queryKey: ['workPostsAll'],
+    queryFn: () => workPostService.getAllWorkPosts(),
+    enabled: isOpen,
+  });
+
+  const { data: clientsData = [] } = useQuery({
+    queryKey: ['clientsAll'],
+    queryFn: () => clientService.getAllClients(),
+    enabled: isOpen,
+  });
+
+  const workPosts: WorkPost[] = useMemo(() => {
+    if (Array.isArray(workPostsData)) return workPostsData;
+    if (workPostsData && Array.isArray((workPostsData as any).content)) return (workPostsData as any).content;
+    return [];
+  }, [workPostsData]);
+
+  const clients: Client[] = useMemo(() => {
+    if (Array.isArray(clientsData)) return clientsData;
+    if (clientsData && Array.isArray((clientsData as any).content)) return (clientsData as any).content;
+    return [];
+  }, [clientsData]);
+
   const { data: lastFuelRecord } = useQuery({
     queryKey: ['lastFuelRecord', formData.vehicleId],
     queryFn: async () => {
@@ -180,23 +208,101 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
     enabled: !!formData.vehicleId,
   });
 
-  // Auto-fill vehicle info when vehicle changes
+  // Função inteligente para resolver Cliente e Obra/Setor do veículo
+  const resolveVehicleClientAndObra = React.useCallback((vehicle: any, lastFuel?: any) => {
+    if (!vehicle) return { clientName: '', obraName: '' };
+
+    // 1. Resolver Cliente
+    let resolvedClient = vehicle.clientName || vehicle.client?.name || vehicle.cliente || '';
+
+    // Se não veio nome direto, tentar pelo clientId
+    if (!resolvedClient && vehicle.clientId && clients.length > 0) {
+      const foundClient = clients.find((c: any) => c.id === vehicle.clientId);
+      if (foundClient) {
+        resolvedClient = foundClient.name || (foundClient as any).corporateReason || (foundClient as any).tradeName || '';
+      }
+    }
+
+    // Se o veículo tem workPostId e ainda não tem cliente, pegar do workPost
+    if (vehicle.workPostId && workPosts.length > 0) {
+      const foundWp = workPosts.find((w: any) => w.id === vehicle.workPostId);
+      if (foundWp && foundWp.clientName) {
+        resolvedClient = foundWp.clientName;
+      }
+    }
+
+    // Se ainda não achou cliente, tentar pelo último abastecimento do veículo
+    if (!resolvedClient && (lastFuel?.clientName || lastFuelRecord?.clientName)) {
+      resolvedClient = lastFuel?.clientName || lastFuelRecord?.clientName || '';
+    }
+
+    // 2. Resolver Obra / Setor
+    let resolvedObra = vehicle.workPostName || vehicle.postoDeTrabalho || vehicle.obraName || (vehicle as any).workPostEntity?.name || '';
+
+    // Se tem workPostId, buscar nome nos workPosts
+    if (!resolvedObra && vehicle.workPostId && workPosts.length > 0) {
+      const foundWp = workPosts.find((w: any) => w.id === vehicle.workPostId);
+      if (foundWp) {
+        resolvedObra = foundWp.name || foundWp.description || '';
+      }
+    }
+
+    // Se tem location, projectName ou operationName no veículo
+    if (!resolvedObra) {
+      resolvedObra = vehicle.location || vehicle.projectName || vehicle.operationName || '';
+    }
+
+    // Se achou o cliente, mas a obra continua vazia: procurar nos workPosts a obra associada a esse cliente
+    if (!resolvedObra && resolvedClient && workPosts.length > 0) {
+      const clientUpper = resolvedClient.trim().toUpperCase();
+      const matchingWp = workPosts.find((w: any) => {
+        const wpClient = (w.clientName || '').toUpperCase();
+        return wpClient && (wpClient.includes(clientUpper) || clientUpper.includes(wpClient));
+      });
+      if (matchingWp) {
+        resolvedObra = matchingWp.name || matchingWp.description || '';
+      }
+    }
+
+    // Se ainda não achou obra, tentar pelo último abastecimento
+    if (!resolvedObra && (lastFuel?.obraName || lastFuelRecord?.obraName)) {
+      resolvedObra = lastFuel?.obraName || lastFuelRecord?.obraName || '';
+    }
+
+    // Fallback operacional para veículos de garagem sem alocação externa
+    if (!resolvedClient && vehicle.garageName) {
+      resolvedClient = 'OPERACIONAL';
+      resolvedObra = resolvedObra || vehicle.garageName;
+    }
+
+    return {
+      clientName: resolvedClient,
+      obraName: resolvedObra,
+    };
+  }, [clients, workPosts, lastFuelRecord]);
+
+  // Auto-fill do veículo quando o vehicleId ou lastFuelRecord mudam
   useEffect(() => {
     if (!formData.vehicleId) return;
-    const vehicle = veiculos.find(v => v.id === formData.vehicleId);
+    const vehicle = (selectedVehicleObj && selectedVehicleObj.id === formData.vehicleId)
+      ? selectedVehicleObj
+      : veiculos.find(v => v.id === formData.vehicleId);
+
     if (vehicle) {
       const autoKm = lastFuelRecord?.mileage ?? vehicle.currentMileage ?? 0;
+      const { clientName, obraName } = resolveVehicleClientAndObra(vehicle, lastFuelRecord);
+
       setFormData(prev => ({
         ...prev,
-        vehiclePlate: vehicle.plate || '',
-        clientName: vehicle.clientName || (vehicle as any).client?.name || '',
-        obraName: vehicle.postoDeTrabalho || (vehicle as any).workPostEntity?.name || '',
+        vehiclePlate: vehicle.plate || (vehicle as any).placa || '',
+        clientName: clientName || prev.clientName || '',
+        obraName: obraName || prev.obraName || '',
         fuelType: (vehicle.fuelType as any) || prev.fuelType,
         initialMileage: autoKm,
         mileage: prev.mileage > 0 ? prev.mileage : autoKm,
       }));
     }
-  }, [formData.vehicleId, lastFuelRecord]);
+  }, [formData.vehicleId, selectedVehicleObj, veiculos, lastFuelRecord, resolveVehicleClientAndObra]);
 
   // Auto-fill pump/tank name
   useEffect(() => {
@@ -339,7 +445,44 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
     if (prevStep) setStep(prevStep.id);
   };
 
-  const selectedVehicle = veiculos.find(v => v.id === formData.vehicleId);
+  const selectedVehicle = (selectedVehicleObj && selectedVehicleObj.id === formData.vehicleId)
+    ? selectedVehicleObj
+    : veiculos.find(v => v.id === formData.vehicleId);
+
+  const clientOptions = useMemo(() => {
+    const set = new Set<string>();
+    clients.forEach((c: any) => {
+      const n = c.name || c.corporateReason || c.tradeName;
+      if (n) set.add(n);
+    });
+    workPosts.forEach((w: any) => {
+      if (w.clientName) set.add(w.clientName);
+    });
+    return Array.from(set).sort();
+  }, [clients, workPosts]);
+
+  const obraOptions = useMemo(() => {
+    const currentClient = formData.clientName?.trim().toUpperCase();
+    const set = new Set<string>();
+
+    workPosts.forEach((w: any) => {
+      const wpClient = (w.clientName || '').toUpperCase();
+      if (!currentClient || wpClient.includes(currentClient) || currentClient.includes(wpClient)) {
+        if (w.name) set.add(w.name);
+        if (w.description) set.add(w.description);
+      }
+    });
+
+    if (set.size === 0) {
+      workPosts.forEach((w: any) => {
+        if (w.name) set.add(w.name);
+        if (w.description) set.add(w.description);
+      });
+    }
+
+    return Array.from(set).sort();
+  }, [workPosts, formData.clientName]);
+
   const selectedTank = tanks.find(t => t.id === formData.tankId);
 
   // Pre-compute to avoid > operator confusing Rollup's JSX parser
@@ -576,7 +719,23 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                 </Label>
                 <VehicleCombobox
                   value={formData.vehicleId}
-                  onChange={(val) => setField('vehicleId', val)}
+                  onChange={(val, veh) => {
+                    setSelectedVehicleObj(veh);
+                    setField('vehicleId', val);
+                    if (veh) {
+                      const { clientName, obraName } = resolveVehicleClientAndObra(veh);
+                      setFormData(prev => ({
+                        ...prev,
+                        vehicleId: val,
+                        vehiclePlate: veh.plate || (veh as any).placa || '',
+                        clientName: clientName || prev.clientName || '',
+                        obraName: obraName || prev.obraName || '',
+                        fuelType: (veh.fuelType as any) || prev.fuelType,
+                        initialMileage: veh.currentMileage || prev.initialMileage,
+                        mileage: prev.mileage > 0 ? prev.mileage : (veh.currentMileage || 0),
+                      }));
+                    }
+                  }}
                 />
               </div>
 
@@ -624,22 +783,38 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
               {selectedVehicle && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-gray-400 font-medium text-sm">Cliente (editável)</Label>
+                    <Label className="text-gray-300 font-medium text-sm flex items-center justify-between">
+                      <span>Cliente <span className="text-xs text-emerald-400 font-normal">(autocompletado / editável)</span></span>
+                    </Label>
                     <Input
+                      list="clients-list-modal"
                       value={formData.clientName}
                       onChange={e => setField('clientName', e.target.value)}
                       placeholder="Nome do cliente"
-                      className="bg-gray-900/80 border-gray-700 text-white h-10"
+                      className="bg-gray-900/80 border-gray-700 text-white h-10 focus:border-emerald-500/50"
                     />
+                    <datalist id="clients-list-modal">
+                      {clientOptions.map((opt, i) => (
+                        <option key={i} value={opt} />
+                      ))}
+                    </datalist>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-gray-400 font-medium text-sm">Obra / Setor (editável)</Label>
+                    <Label className="text-gray-300 font-medium text-sm flex items-center justify-between">
+                      <span>Obra / Setor <span className="text-xs text-emerald-400 font-normal">(autocompletado / editável)</span></span>
+                    </Label>
                     <Input
+                      list="obras-list-modal"
                       value={formData.obraName}
                       onChange={e => setField('obraName', e.target.value)}
                       placeholder="Nome da obra ou setor"
-                      className="bg-gray-900/80 border-gray-700 text-white h-10"
+                      className="bg-gray-900/80 border-gray-700 text-white h-10 focus:border-emerald-500/50"
                     />
+                    <datalist id="obras-list-modal">
+                      {obraOptions.map((opt, i) => (
+                        <option key={i} value={opt} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
               )}

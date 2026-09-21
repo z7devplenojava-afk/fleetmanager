@@ -14,7 +14,7 @@ import { clientService } from '@/services/clientService';
 import { contractService } from '@/services/contractService';
 import { workPostService } from '@/services/workPostService';
 import { employeeService } from '@/services/employeeService';
-import { Vehicle } from '@/types/fleet';
+import { FuelRecord, Vehicle } from '@/types/fleet';
 import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
 import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
 import { EmployeeCombobox } from '@/components/ui/employee-combobox';
@@ -29,6 +29,7 @@ interface AbastecimentoExternoFormModalProps {
   onClose: () => void;
   onSuccess: () => void;
   veiculos: Vehicle[];
+  abastecimento?: FuelRecord | null;
 }
 
 interface ExternoFormData {
@@ -85,16 +86,61 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
   isOpen,
   onClose,
   onSuccess,
-  veiculos
+  veiculos,
+  abastecimento = null,
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEditing = !!abastecimento;
   const [formData, setFormData] = useState<ExternoFormData>(DEFAULT_FORM);
   const [isTotalManual, setIsTotalManual] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [mileageError, setMileageError] = useState<string | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Preencher formulário quando em modo de edição
+  useEffect(() => {
+    if (!abastecimento || !isOpen) return;
+
+    let dataFormatada = abastecimento.date || '';
+    if (dataFormatada && !dataFormatada.includes('-')) {
+      try {
+        const d = new Date(abastecimento.date);
+        if (!isNaN(d.getTime())) dataFormatada = d.toISOString().split('T')[0];
+      } catch { /* mantém valor original */ }
+    }
+
+    const notesStr = abastecimento.notes || '';
+    const garageMatch = notesStr.match(/Garagem: ([^|]+)/);
+    const respMatch = notesStr.match(/Resp: ([^|]+)/);
+
+    setFormData({
+      vehicleId: abastecimento.vehicleId || '',
+      date: dataFormatada,
+      fuelType: abastecimento.fuelType || 'DIESEL',
+      liters: abastecimento.quantity || 0,
+      pricePerLiter: abastecimento.pricePerLiter || 0,
+      totalValue: abastecimento.cost || 0,
+      station: abastecimento.station || '',
+      supplierId: '',
+      mileage: abastecimento.mileage || 0,
+      initialMileage: abastecimento.initialMileage || 0,
+      clientName: abastecimento.clientName || '',
+      clientId: abastecimento.clientId || '',
+      obraName: abastecimento.obraName || '',
+      workPostId: abastecimento.workPostId || '',
+      contractNumber: abastecimento.contractNumber || '',
+      contractId: abastecimento.contractId || '',
+      garageId: '',
+      garageName: garageMatch?.[1]?.trim() || '',
+      responsibleName: respMatch?.[1]?.trim() || '',
+      responsibleEmployeeId: '',
+      notes: notesStr.includes('|') ? notesStr : notesStr,
+      receiptFile: null,
+    });
+    setIsTotalManual(true);
+  }, [abastecimento, isOpen]);
 
   // --- Data Queries ---
 
@@ -205,6 +251,8 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
   // --- Effects ---
 
   useEffect(() => {
+    // Em modo de edição, não sobrescrever os dados pré-preenchidos do registro
+    if (isEditing) return;
     if (!formData.vehicleId || !veiculos.length) return;
     const v = veiculos.find(x => x.id === formData.vehicleId);
     if (!v) return;
@@ -222,7 +270,7 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
       mileage: prev.mileage > 0 ? prev.mileage : prevKm,
       fuelType: v.fuelType || 'DIESEL',
     }));
-  }, [formData.vehicleId, veiculos, lastFuelRecord]);
+  }, [formData.vehicleId, veiculos, lastFuelRecord, isEditing]);
 
   useEffect(() => {
     if (!formData.garageId || !garages.length) {
@@ -247,6 +295,11 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
   }, [formData.responsibleEmployeeId]);
 
   useEffect(() => {
+    // Em edição, ignorar o próprio registro como "KM anterior" (a API pode retorná-lo)
+    if (isEditing) {
+      setMileageError(null);
+      return;
+    }
     if (!formData.mileage || !lastFuelRecord?.mileage) {
       setMileageError(null);
       return;
@@ -258,7 +311,7 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
     } else {
       setMileageError(null);
     }
-  }, [formData.mileage, lastFuelRecord]);
+  }, [formData.mileage, lastFuelRecord, isEditing]);
 
   useEffect(() => {
     if (!isTotalManual && formData.liters > 0 && formData.pricePerLiter > 0) {
@@ -268,15 +321,22 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
 
   // --- Handlers ---
 
-  const createMutation = useMutation({
-    mutationFn: (data: FormData) => fleetService.createFuelRecord(data),
+  const saveMutation = useMutation({
+    mutationFn: (data: FormData) =>
+      isEditing && abastecimento
+        ? fleetService.updateFuelRecord(abastecimento.id, data as any)
+        : fleetService.createFuelRecord(data),
     onSuccess: () => {
-      toast({ title: 'Sucesso', description: 'Abastecimento externo registrado!' });
+      toast({
+        title: 'Sucesso',
+        description: isEditing ? 'Abastecimento externo atualizado!' : 'Abastecimento externo registrado!',
+      });
       queryClient.invalidateQueries({ queryKey: ['fuelRecords'] });
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       onSuccess();
       onClose();
       setFormData(DEFAULT_FORM);
+      setIsTotalManual(false);
     },
     onError: (err: any) => {
       toast({ title: 'Erro', description: err.response?.data?.message || 'Erro ao salvar', variant: 'destructive' });
@@ -314,12 +374,19 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
     }
     if (mileageError) return;
 
+    const computedCost = formData.totalValue || formData.liters * formData.pricePerLiter;
+    if (!computedCost || computedCost <= 0) {
+      toast({ title: 'Erro', description: 'Informe o Valor Total ou o Valor Unitário (R$/L) maior que zero', variant: 'destructive' });
+      return;
+    }
+    const safeCost = Math.max(computedCost, 0.01);
+
     const payload = {
       vehicleId: formData.vehicleId,
       date: formData.date,
       fuelType: formData.fuelType,
       quantity: formData.liters,
-      cost: formData.totalValue || formData.liters * formData.pricePerLiter,
+      cost: safeCost,
       pricePerLiter: formData.pricePerLiter || null,
       mileage: formData.mileage,
       initialMileage: formData.initialMileage || null,
@@ -341,7 +408,7 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
     if (formData.receiptFile) {
       fd.append('receipt', formData.receiptFile);
     }
-    createMutation.mutate(fd as any);
+    saveMutation.mutate(fd as any);
   };
 
   const selectedVehicle = veiculos.find(v => v.id === formData.vehicleId);
@@ -353,10 +420,12 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
           <DialogHeader className="p-6 pb-3 border-b border-gray-700/50">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               <Droplets className="h-5 w-5 text-green-400" />
-              Abastecimento Externo - Posto de Gasolina
+              {isEditing ? 'Editar Abastecimento Externo' : 'Abastecimento Externo - Posto de Gasolina'}
             </DialogTitle>
             <DialogDescription className="text-gray-400 text-sm">
-              Registro de abastecimento realizado em posto externo. Dados do veículo, cliente e contrato.
+              {isEditing
+                ? 'Altere os dados do registro de abastecimento realizado em posto externo.'
+                : 'Registro de abastecimento realizado em posto externo. Dados do veículo, cliente e contrato.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -658,13 +727,13 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={createMutation.isPending || !!mileageError || !formData.vehicleId || !formData.liters || !formData.station}
+              disabled={saveMutation.isPending || !!mileageError || !formData.vehicleId || !formData.liters || !formData.station}
               className="bg-green-600 hover:bg-green-700 text-white min-w-[160px]"
             >
-              {createMutation.isPending ? (
+              {saveMutation.isPending ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</>
               ) : (
-                <><Save className="mr-2 h-4 w-4" /> Registrar Abastecimento</>
+                <><Save className="mr-2 h-4 w-4" /> {isEditing ? 'Salvar Alterações' : 'Registrar Abastecimento'}</>
               )}
             </Button>
           </div>

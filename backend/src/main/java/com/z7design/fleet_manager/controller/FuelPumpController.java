@@ -45,6 +45,7 @@ public class FuelPumpController {
                 .capacity(dto.getCapacity())
                 .currentLevel(dto.getCurrentLevel())
                 .fuelType(dto.getFuelType())
+                .garage(dto.getGarageId() != null ? Garage.builder().id(dto.getGarageId()).build() : null)
                 .build();
         return ResponseEntity.ok(convertToDTO(fuelPumpService.saveTank(tank, companyId)));
     }
@@ -65,6 +66,7 @@ public class FuelPumpController {
                 .name(dto.getName())
                 .fuelTank(FuelTank.builder().id(dto.getFuelTankId()).build())
                 .lastMeterReading(dto.getLastMeterReading())
+                .garage(dto.getGarageId() != null ? Garage.builder().id(dto.getGarageId()).build() : null)
                 .build();
         return ResponseEntity.ok(convertToDTO(fuelPumpService.savePump(pump, companyId)));
     }
@@ -130,6 +132,10 @@ public class FuelPumpController {
         dto.setCapacity(tank.getCapacity());
         dto.setCurrentLevel(tank.getCurrentLevel());
         dto.setFuelType(tank.getFuelType());
+        if (tank.getGarage() != null) {
+            dto.setGarageId(tank.getGarage().getId());
+            dto.setGarageName(tank.getGarage().getName());
+        }
         return dto;
     }
 
@@ -140,6 +146,12 @@ public class FuelPumpController {
         dto.setFuelTankId(pump.getFuelTank().getId());
         dto.setFuelTankName(pump.getFuelTank().getName());
         dto.setLastMeterReading(pump.getLastMeterReading());
+        Garage pumpGarage = pump.getGarage() != null ? pump.getGarage()
+                : (pump.getFuelTank() != null ? pump.getFuelTank().getGarage() : null);
+        if (pumpGarage != null) {
+            dto.setGarageId(pumpGarage.getId());
+            dto.setGarageName(pumpGarage.getName());
+        }
         return dto;
     }
 

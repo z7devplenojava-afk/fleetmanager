@@ -21,12 +21,14 @@ import {
   ArrowUp, ArrowDown, FileText, Gauge, Droplets, Truck, Printer,
   Sparkles, Download, Eye, Search, Filter, RefreshCw, Layers,
   BarChart3, AlertTriangle, Lightbulb, ChevronRight, ChevronLeft,
-  X, CheckCircle2, ChevronDown, Award
+  X, CheckCircle2, ChevronDown, Award, Edit, Trash2
 } from 'lucide-react';
-import { FuelRecord } from '@/types/fleet';
+import { FuelRecord, Vehicle } from '@/types/fleet';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
+import AbastecimentoExternoFormModal from '@/components/frota/AbastecimentoExternoFormModal';
+import AbastecimentoDeleteDialog from '@/components/frota/AbastecimentoDeleteDialog';
 import {
   downloadAbastecimentoExternoPDF,
   previewAbastecimentoExternoPDF,
@@ -37,6 +39,8 @@ export type AbastExternoSubTab = 'lancamentos' | 'indicadores' | 'relatorio-inte
 
 interface AbastecimentoExternoReportProps {
   fuelRecords: FuelRecord[];
+  veiculos?: Vehicle[];
+  onRefresh?: () => void;
   activeSubTab?: AbastExternoSubTab;
   onSubTabChange?: (tab: AbastExternoSubTab) => void;
 }
@@ -59,6 +63,8 @@ function formatCurrency(v: number) {
 
 const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
   fuelRecords,
+  veiculos = [],
+  onRefresh,
   activeSubTab: propSubTab,
   onSubTabChange,
 }) => {
@@ -98,6 +104,22 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
 
   // Modal de Detalhes de Lançamento
   const [selectedRecordForDetail, setSelectedRecordForDetail] = useState<FuelRecord | null>(null);
+
+  // Ações (Editar / Excluir)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<FuelRecord | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingRecord, setDeletingRecord] = useState<FuelRecord | null>(null);
+
+  const handleEditRecord = (r: FuelRecord) => {
+    setEditingRecord(r);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteRecord = (r: FuelRecord) => {
+    setDeletingRecord(r);
+    setIsDeleteDialogOpen(true);
+  };
 
   // Estado do Relatório Inteligente
   const [selectedReportType, setSelectedReportType] = useState<ReportPdfType>('executive');
@@ -967,15 +989,35 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
                           {r.station || '—'}
                         </TableCell>
                         <TableCell className="text-center" onClick={e => e.stopPropagation()}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedRecordForDetail(r)}
-                            className="h-7 w-7 p-0 text-zinc-400 hover:text-white hover:bg-zinc-700"
-                            title="Ver detalhes"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </Button>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedRecordForDetail(r)}
+                              className="h-7 w-7 p-0 border-emerald-500 text-emerald-400 hover:bg-emerald-500 hover:text-white"
+                              title="Visualizar detalhes"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditRecord(r)}
+                              className="h-7 w-7 p-0 border-amber-500 text-amber-400 hover:bg-amber-500 hover:text-white"
+                              title="Editar"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteRecord(r)}
+                              className="h-7 w-7 p-0 border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -1587,6 +1629,36 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
           </Card>
         </div>
       )}
+
+      {/* MODAIS DE AÇÃO (Editar / Excluir) */}
+      <AbastecimentoExternoFormModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingRecord(null);
+        }}
+        onSuccess={() => {
+          setIsEditModalOpen(false);
+          setEditingRecord(null);
+          onRefresh?.();
+        }}
+        veiculos={veiculos}
+        abastecimento={editingRecord}
+      />
+
+      <AbastecimentoDeleteDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          setIsDeleteDialogOpen(false);
+          setDeletingRecord(null);
+        }}
+        onSuccess={() => {
+          setIsDeleteDialogOpen(false);
+          setDeletingRecord(null);
+          onRefresh?.();
+        }}
+        abastecimento={deletingRecord}
+      />
 
       {/* MODAL DE DETALHES DE UM LANÇAMENTO ESPECÍFICO */}
       <Dialog open={!!selectedRecordForDetail} onOpenChange={open => !open && setSelectedRecordForDetail(null)}>

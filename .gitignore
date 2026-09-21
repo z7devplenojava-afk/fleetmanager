@@ -107,3 +107,4 @@ backend/data/
 backend/nul
 scripts/_tmp_*
 *.log*
+*.tsbuildinfo

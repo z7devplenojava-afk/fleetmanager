@@ -106,8 +106,8 @@ const environments: Record<string, EnvironmentConfig> = {
   },
   dev: {
     name: 'Desenvolvimento',
-    apiUrl: 'https://dev.z7botsolutions.com.br/api',
-    wsUrl: 'wss://dev.z7botsolutions.com.br/ws',
+    apiUrl: 'https://dev.fluxbus.com.br/api',
+    wsUrl: 'wss://dev.fluxbus.com.br/ws',
     debug: true,
     features: {
       notifications: true,
@@ -117,8 +117,8 @@ const environments: Record<string, EnvironmentConfig> = {
   },
   test: {
     name: 'Teste',
-    apiUrl: 'https://test.z7botsolutions.com.br/api',
-    wsUrl: 'wss://test.z7botsolutions.com.br/ws',
+    apiUrl: 'https://test.fluxbus.com.br/api',
+    wsUrl: 'wss://test.fluxbus.com.br/ws',
     debug: true,
     features: {
       notifications: true,
@@ -162,7 +162,15 @@ export function getCurrentEnvironmentConfig(): EnvironmentConfig {
  * Obtém a URL da API para o ambiente atual
  */
 export function getApiUrl(): string {
-  // Primeiro tenta usar variável de ambiente (para builds específicos)
+  // No navegador, sempre detecta dinamicamente pelo hostname para evitar chamadas cruzadas (ex: CI chamando PROD)
+  if (typeof window !== 'undefined') {
+    const env = detectEnvironment();
+    if (env !== 'local' && environments[env]?.apiUrl) {
+      return environments[env].apiUrl;
+    }
+  }
+
+  // Primeiro tenta usar variável de ambiente (para builds locais ou específicos)
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
@@ -175,6 +183,15 @@ export function getApiUrl(): string {
  * Obtém a URL do WebSocket para o ambiente atual
  */
 export function getWsUrl(): string {
+  // No navegador, se não for local, usa a detecção dinâmica do ambiente
+  if (typeof window !== 'undefined') {
+    const env = detectEnvironment();
+    if (env !== 'local' && environments[env]?.wsUrl) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return environments[env].wsUrl.replace(/^ws(s)?\:/, protocol);
+    }
+  }
+
   // Primeiro tenta usar variável de ambiente
   if (import.meta.env.VITE_WS_URL) {
     return import.meta.env.VITE_WS_URL;

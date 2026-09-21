@@ -1,7 +1,0 @@
--- V1005__rename_activity_report_number_columns.sql
-
-ALTER TABLE activity_reports
-RENAME COLUMN ballistic_plate_number TO ballistic_plate_ballistic_plate_number;
-
-ALTER TABLE activity_reports
-RENAME COLUMN weapon_registry_number TO weapon_registry_weapon_registry_number;

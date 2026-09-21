@@ -6,6 +6,8 @@ export interface FuelTank {
     capacity: number;
     currentLevel: number;
     fuelType: string;
+    garageId?: string;
+    garageName?: string;
 }
 
 export interface FuelPump {
@@ -14,6 +16,8 @@ export interface FuelPump {
     fuelTankId: string;
     fuelTankName: string;
     lastMeterReading: number;
+    garageId?: string;
+    garageName?: string;
 }
 
 export interface FuelDelivery {

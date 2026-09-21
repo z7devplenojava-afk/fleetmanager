@@ -175,8 +175,13 @@ class FleetService {
     return response.data;
   }
 
-  async updateFuelRecord(id: string, record: Partial<FuelRecord>): Promise<FuelRecord> {
-    const response = await api.put(`/api/fuel-records/${id}`, record);
+  async updateFuelRecord(id: string, record: FormData | Partial<FuelRecord>): Promise<FuelRecord> {
+    const isFormData = typeof FormData !== 'undefined' && record instanceof FormData;
+    const response = await api.put(`/api/fuel-records/${id}`, record, isFormData ? {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    } : undefined);
     return response.data;
   }
 

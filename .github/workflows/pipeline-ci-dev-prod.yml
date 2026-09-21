@@ -156,11 +156,11 @@ jobs:
           SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS \
             ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} \
-            "mkdir -p /var/www/fluxbus/nginx /var/www/fluxbus/uploads && rm -rf /var/www/secured_guard"
+            "mkdir -p /var/www/fluxbus/ci/nginx /var/www/fluxbus/ci/uploads /var/www/fluxbus/uploads && rm -rf /var/www/secured_guard"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS docker-compose.ci.yml \
-            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS nginx/ci.conf \
-            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/nginx/ 2>/dev/null || true
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/nginx/ 2>/dev/null || true
 
       - name: "⚙️ Criar .env CI e subir containers"
         run: |
@@ -181,7 +181,7 @@ jobs:
           } > /tmp/ci.env
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp \
             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            /tmp/ci.env ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/.env
+            /tmp/ci.env ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/.env
           rm -f /tmp/ci.env
 
       - name: "🚀 Subir containers CI"
@@ -195,7 +195,7 @@ jobs:
               docker rm secured-guard-db-ci secured-guard-redis-ci secured-guard-backend-ci secured-guard-frontend-ci secured-guard-whatsapp-ci secured-guard-nginx-ci secured-guard-evolution-ci 2>/dev/null || true
               rm -rf /var/www/secured_guard 2>/dev/null || true
 
-              cd /var/www/fluxbus
+              cd /var/www/fluxbus/ci
               echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
               docker network create z7network 2>/dev/null || true
               docker-compose -f docker-compose.ci.yml down --remove-orphans 2>/dev/null || true

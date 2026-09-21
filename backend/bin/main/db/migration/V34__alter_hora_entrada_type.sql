@@ -1,1 +1,0 @@
-ALTER TABLE registros_ponto ALTER COLUMN hora_entrada TYPE TIME; 

@@ -183,6 +183,8 @@ const AbastecimentoDashboard: React.FC = () => {
                         </div>
                         <AbastecimentoExternoReport
                             fuelRecords={fuelRecords}
+                            veiculos={vehicles}
+                            onRefresh={handleSuccess}
                             activeSubTab={externoSubTab}
                             onSubTabChange={setExternoSubTab}
                         />

@@ -30,6 +30,7 @@ import { DriverFuelConsumptionStats } from '@/components/frota/DriverFuelConsump
 import { DriverRankingStats } from '@/components/frota/DriverRankingStats';
 import { ManutencoesTable } from '@/components/frota/ManutencoesTable';
 import ManutencaoFormModal from '@/components/frota/ManutencaoFormModal';
+import OrdensServicoTable from '@/components/frota/OrdensServicoTable';
 import { ManutencaoViewModal } from '@/components/frota/ManutencaoViewModal';
 import { ManutencaoDeleteDialog } from '@/components/frota/ManutencaoDeleteDialog';
 import MotoristasTable from '@/components/frota/MotoristasTable';
@@ -187,6 +188,7 @@ const Frota: React.FC = () => {
   const [abastecimentoTab, setAbastecimentoTab] = useState<'interno' | 'externo'>('interno');
   const [isManutencaoModalOpen, setIsManutencaoModalOpen] = useState(false);
   const [isManutencaoViewModalOpen, setIsManutencaoViewModalOpen] = useState(false);
+  const [manutencaoViewMode, setManutencaoViewMode] = useState<'os' | 'registros'>('os');
   const [isManutencaoDeleteDialogOpen, setIsManutencaoDeleteDialogOpen] = useState(false);
   const [isManutencaoDeleting, setIsManutencaoDeleting] = useState(false);
   const [isVehicleReportModalOpen, setIsVehicleReportModalOpen] = useState(false);
@@ -1541,6 +1543,8 @@ const Frota: React.FC = () => {
               <TabsContent value="externo" className="mt-4">
                 <AbastecimentoExternoReport
                   fuelRecords={fuelRecords || []}
+                  veiculos={veiculosComponent}
+                  onRefresh={refetchFuelRecords}
                   activeSubTab="lancamentos"
                   onSubTabChange={() => {}}
                 />
@@ -1549,6 +1553,32 @@ const Frota: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="manutencoes" className="mt-6 space-y-4">
+            {/* Alternador: Ordens de Serviço / Registros de Manutenção */}
+            <div className="flex items-center gap-2 bg-seguranca-graphite border border-gray-600 rounded-lg p-2 w-fit">
+              <Button
+                variant={manutencaoViewMode === 'os' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setManutencaoViewMode('os')}
+                className={manutencaoViewMode === 'os' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-white'}
+              >
+                <FileText size={16} className="mr-2" />
+                Ordens de Serviço
+              </Button>
+              <Button
+                variant={manutencaoViewMode === 'registros' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setManutencaoViewMode('registros')}
+                className={manutencaoViewMode === 'registros' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-white'}
+              >
+                <Settings size={16} className="mr-2" />
+                Registros de Manutenção
+              </Button>
+            </div>
+
+            {manutencaoViewMode === 'os' ? (
+              <OrdensServicoTable />
+            ) : (
+            <>
             <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
               <h3 className="text-seguranca-lightgray font-semibold flex items-center gap-2">
                 <Settings className="h-5 w-5" />
@@ -1623,6 +1653,8 @@ const Frota: React.FC = () => {
               onEdit={handleEditManutencao}
               onDelete={handleDeleteManutencao}
             />
+            </>
+            )}
           </TabsContent>
 
           <TabsContent value="controle-km" className="mt-6 space-y-4">

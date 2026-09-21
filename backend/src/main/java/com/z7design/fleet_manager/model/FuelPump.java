@@ -37,6 +37,11 @@ public class FuelPump implements TenantAware {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal lastMeterReading;
 
+    /** Garagem onde a bomba está instalada. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "garage_id")
+    private Garage garage;
+
     @Column(name = "company_id")
     private UUID companyId;
 

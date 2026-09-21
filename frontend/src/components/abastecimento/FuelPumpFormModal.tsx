@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import fuelPumpService, { FuelTank } from '@/services/fuelPumpService';
-import { useMutation } from '@tanstack/react-query';
+import { garageService, Garage } from '@/services/garageService';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 interface FuelPumpFormModalProps {
     isOpen: boolean;
@@ -20,8 +21,19 @@ const FuelPumpFormModal: React.FC<FuelPumpFormModalProps> = ({ isOpen, onClose, 
     const [formData, setFormData] = useState({
         name: '',
         fuelTankId: '',
-        lastMeterReading: ''
+        lastMeterReading: '',
+        garageId: ''
     });
+
+    const { data: garages = [] } = useQuery({
+        queryKey: ['garages'],
+        queryFn: () => garageService.list(),
+        enabled: isOpen
+    });
+
+    useEffect(() => {
+        if (isOpen) setFormData({ name: '', fuelTankId: '', lastMeterReading: '', garageId: '' });
+    }, [isOpen]);
 
     const mutation = useMutation({
         mutationFn: (data: any) => fuelPumpService.createPump(data),
@@ -39,6 +51,10 @@ const FuelPumpFormModal: React.FC<FuelPumpFormModalProps> = ({ isOpen, onClose, 
         e.preventDefault();
         if (!formData.fuelTankId) {
             toast({ title: 'Erro', description: 'Selecione um tanque.', variant: 'destructive' });
+            return;
+        }
+        if (!formData.garageId) {
+            toast({ title: 'Erro', description: 'Selecione a garagem onde a bomba está instalada.', variant: 'destructive' });
             return;
         }
         mutation.mutate({
@@ -93,6 +109,23 @@ const FuelPumpFormModal: React.FC<FuelPumpFormModalProps> = ({ isOpen, onClose, 
                             required
                         />
                         <p className="text-xs text-gray-400">Este valor será usado como ponto de partida para cálculos de saída.</p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Garagem de Instalação *</Label>
+                        <Select
+                            value={formData.garageId}
+                            onValueChange={val => setFormData({ ...formData, garageId: val })}
+                        >
+                            <SelectTrigger className="bg-seguranca-black border-gray-600">
+                                <SelectValue placeholder="Selecione a garagem" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-seguranca-graphite border-gray-600">
+                                {garages.map((g: Garage) => (
+                                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-500">Informe em qual garagem a bomba está instalada.</p>
                     </div>
                     <DialogFooter className="pt-4">
                         <Button type="button" variant="ghost" onClick={onClose} className="text-gray-400">Cancelar</Button>
