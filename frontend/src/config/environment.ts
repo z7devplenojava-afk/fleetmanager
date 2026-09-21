@@ -40,11 +40,11 @@ export function detectEnvironment(): AppEnvironment {
   const hostname = window.location.hostname;
 
   // Ambiente CI
-  if (hostname.includes('ci.z7botsolutions.com.br')) {
+  if (hostname.includes('ci.z7botsolutions.com.br') || hostname.includes('ci.fluxbus.com.br')) {
     cachedEnvironment = 'ci';
-  } else if (hostname.includes('dev.z7botsolutions.com.br')) {
+  } else if (hostname.includes('dev.z7botsolutions.com.br') || hostname.includes('dev.fluxbus.com.br')) {
     cachedEnvironment = 'dev';
-  } else if (hostname.includes('test.z7botsolutions.com.br') || hostname.includes('testing.z7botsolutions.com.br')) {
+  } else if (hostname.includes('test.z7botsolutions.com.br') || hostname.includes('testing.z7botsolutions.com.br') || hostname.includes('test.fluxbus.com.br')) {
     cachedEnvironment = 'test';
   } else if (hostname.includes('fluxbus.com.br') || (hostname.includes('z7botsolutions.com.br') && !hostname.includes('ci.') && !hostname.includes('dev.') && !hostname.includes('test.'))) {
     cachedEnvironment = 'prod';
@@ -95,8 +95,8 @@ const environments: Record<string, EnvironmentConfig> = {
   },
   ci: {
     name: 'CI - Integração Contínua',
-    apiUrl: 'https://ci.z7botsolutions.com.br/api',
-    wsUrl: 'wss://ci.z7botsolutions.com.br/ws',
+    apiUrl: 'https://ci.fluxbus.com.br/api',
+    wsUrl: 'wss://ci.fluxbus.com.br/ws',
     debug: true,
     features: {
       notifications: true,

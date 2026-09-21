@@ -1,9 +1,7 @@
 version: '3.8'
 
 # ========================================
-# DOCKER COMPOSE - AMBIENTE CI
-# URL: https://ci.fluxbus.com.br
-# Pasta VPS: /var/www/fluxbus/ci
+# DOCKER COMPOSE APENAS PARA AMBIENTE CI
 # ========================================
 
 services:
@@ -12,22 +10,22 @@ services:
   # ========================================
   postgres-ci:
     image: postgres:15-alpine
-    container_name: fluxbus-db-ci
+    container_name: secured-guard-db-ci
     env_file:
       - .env
     environment:
-      POSTGRES_DB: fluxbus_ci
-      POSTGRES_USER: fluxbus_ci
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_CI:-FluxBus@2026}
+      POSTGRES_DB: secured_guard_ci
+      POSTGRES_USER: secured_guard_ci
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_CI:-4KaCiJc6an@7sgbdcid2025}
     ports:
-      - "5436:5432"
+      - "5432:5432"
     volumes:
       - postgres_data_ci:/var/lib/postgresql/data
     networks:
-      - fluxbus-ci-network
+      - secured-guard-ci-network
       - z7network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fluxbus_ci"]
+      test: ["CMD-SHELL", "pg_isready -U secured_guard_ci"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,19 +36,19 @@ services:
   # ========================================
   redis-ci:
     image: redis:7-alpine
-    container_name: fluxbus-redis-ci
+    container_name: secured-guard-redis-ci
     env_file:
       - .env
     ports:
-      - "6381:6379"
+      - "6379:6379"
     volumes:
       - redis_data_ci:/data
     networks:
-      - fluxbus-ci-network
+      - secured-guard-ci-network
       - z7network
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD_CI:-redis_ci_2025}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_ci_2025}
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD_CI:-redis_ci_2025}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_ci_2025}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,50 +58,60 @@ services:
   # BACKEND API CI
   # ========================================
   backend-ci:
-    image: z7design/fluxbus-backend:ci
-    container_name: fluxbus-backend-ci
+    image: z7design/secured-guard-backend:ci
+    container_name: secured-guard-backend-ci
     env_file:
       - .env
     environment:
       SPRING_PROFILES_ACTIVE: ci
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-ci:5432/fluxbus_ci
-      SPRING_DATASOURCE_USERNAME: fluxbus_ci
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD_CI:-FluxBus@2026}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-ci:5432/secured_guard_ci
+      SPRING_DATASOURCE_USERNAME: secured_guard_ci
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD_CI:-4KaCiJc6an@7sgbdcid2025}
       SPRING_REDIS_HOST: redis-ci
       SPRING_REDIS_PORT: 6379
-      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD_CI:-redis_ci_2025}
-      JWT_SECRET: ${JWT_SECRET_CI:-jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure}
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_ci_2025}
+      JWT_SECRET: ${JWT_SECRET:-jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key}
       JWT_EXPIRATION: 604800000
       JWT_REFRESH_EXPIRATION: 2592000000
-      UPLOAD_DIR: /var/www/fluxbus/ci/uploads
-      LOGGING_FILE_PATH: /var/www/fluxbus/ci/logs/application.log
+      UPLOAD_DIR: /var/www/secured_guard/ci/uploads
+      LOGGING_FILE_PATH: /var/www/secured_guard/ci/logs/application.log
+      # Email Configuration
+      # IMPORTANTE: Se houver arquivo .env, ele pode sobrescrever essas variáveis
+      # Usando IP direto (186.209.113.105) ao invés de domínio para evitar problemas de IPv6/DNS
+      # O domínio mail.z7design.com.br resolve para IPv6 e dá timeout, mas o IP funciona
+      # Forçar uso do IP mesmo se .env tiver o domínio
       MAIL_HOST: 186.209.113.105
       MAIL_PORT: ${MAIL_PORT:-465}
       MAIL_USERNAME: ${MAIL_USERNAME:-securedguard@z7design.com.br}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      MAIL_STARTTLS_ENABLE: "false"
-      MAIL_SSL_ENABLE: "true"
-      MAIL_SOCKET_FACTORY: javax.net.ssl.SSLSocketFactory
-      MAIL_SOCKET_FACTORY_PORT: "465"
-      MAIL_CONNECTION_TIMEOUT: "10000"
-      MAIL_TIMEOUT: "10000"
-      MAIL_WRITE_TIMEOUT: "10000"
-      MAIL_DEBUG: "false"
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-D8rKeqSFZfaS$(y7}
+      MAIL_STARTTLS_ENABLE: ${MAIL_STARTTLS_ENABLE:-false}
+      MAIL_STARTTLS_REQUIRED: ${MAIL_STARTTLS_REQUIRED:-false}
+      MAIL_SSL_ENABLE: ${MAIL_SSL_ENABLE:-true}
+      MAIL_SOCKET_FACTORY: ${MAIL_SOCKET_FACTORY:-javax.net.ssl.SSLSocketFactory}
+      MAIL_SOCKET_FACTORY_PORT: ${MAIL_SOCKET_FACTORY_PORT:-465}
+      MAIL_CONNECTION_TIMEOUT: ${MAIL_CONNECTION_TIMEOUT:-10000}
+      MAIL_TIMEOUT: ${MAIL_TIMEOUT:-10000}
+      MAIL_WRITE_TIMEOUT: ${MAIL_WRITE_TIMEOUT:-10000}
+      MAIL_DEBUG: ${MAIL_DEBUG:-false}
+      # WhatsApp Configuration
+      # Usar o serviço whatsapp-service-ci que está na mesma rede Docker
       BAILEYS_REST_URL: ${BAILEYS_REST_URL:-http://whatsapp-service-ci:3333}
       BAILEYS_ENABLED: ${BAILEYS_ENABLED:-true}
-      BAILEYS_INSTANCE_KEY: ${BAILEYS_INSTANCE_KEY:-fluxbus_ci}
+      BAILEYS_INSTANCE_KEY: ${BAILEYS_INSTANCE_KEY:-securedguard_ci}
     ports:
       - "8081:8080"
     volumes:
-      - uploads_ci:/var/www/fluxbus/ci/uploads
-      - logs_ci:/var/www/fluxbus/ci/logs
+      - uploads_ci:/var/www/secured_guard/ci/uploads
+      - logs_ci:/var/www/secured_guard/ci/logs
     depends_on:
       postgres-ci:
         condition: service_healthy
       redis-ci:
         condition: service_healthy
+      whatsapp-service-ci:
+        condition: service_started
     networks:
-      - fluxbus-ci-network
+      - secured-guard-ci-network
       - z7network
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8080/api/health || exit 1"]
@@ -112,103 +120,198 @@ services:
       retries: 10
       start_period: 240s
     restart: unless-stopped
+    # DESABILITADO TRAEFIK - usando Nginx como proxy reverso
     labels:
       - "traefik.enable=false"
 
   # ========================================
-  # WHATSAPP SERVICE CI
+  # WHATSAPP SERVICE (Baileys)
   # ========================================
   whatsapp-service-ci:
-    image: z7design/fluxbus-whatsapp:ci
-    container_name: fluxbus-whatsapp-ci
+    image: z7design/secured-guard-whatsapp:ci
+    container_name: secured-guard-whatsapp-ci
     environment:
       PORT: 3333
-      INSTANCE_KEY: fluxbus_ci
+      INSTANCE_KEY: securedguard_ci
       SESSION_DIR: /app/sessions
       WEBHOOK_URL: http://backend-ci:8080/api/whatsapp/webhook
       NODE_ENV: production
     ports:
-      - "3335:3333"
+      - "3333:3333"
     volumes:
       - whatsapp_sessions_ci:/app/sessions
       - uploads_ci:/app/uploads
+    depends_on:
+      postgres-ci:
+        condition: service_healthy
+      redis-ci:
+        condition: service_healthy
     networks:
-      - fluxbus-ci-network
+      - secured-guard-ci-network
       - z7network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3333/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3333/health || curl -f http://localhost:3333/instance/connectionState?key=securedguard_ci || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
     restart: unless-stopped
+    # Memória compartilhada para Chromium/Puppeteer
     shm_size: 256mb
     labels:
       - "traefik.enable=false"
 
   # ========================================
-  # FRONTEND CI
+  # REDIS (para Evolution API CI)
   # ========================================
-  frontend-ci:
-    image: z7design/fluxbus-frontend:ci
-    container_name: fluxbus-frontend-ci
-    ports:
-      - "3002:80"
-    depends_on:
-      backend-ci:
-        condition: service_started
+  redis-evolution-ci:
+    image: redis:7-alpine
+    container_name: redis-evolution-ci
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_evolution_data_ci:/data
     networks:
-      - fluxbus-ci-network
+      - secured-guard-ci-network
       - z7network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.fluxbus-ci-https.rule=Host(`ci.fluxbus.com.br`)"
-      - "traefik.http.routers.fluxbus-ci-https.entrypoints=websecure"
-      - "traefik.http.routers.fluxbus-ci-https.tls.certresolver=letsencryptresolver"
-      - "traefik.http.routers.fluxbus-ci-https.service=fluxbus-ci-service"
-      - "traefik.http.routers.fluxbus-ci-https.priority=2000"
-      - "traefik.http.routers.fluxbus-ci-http.rule=Host(`ci.fluxbus.com.br`)"
-      - "traefik.http.routers.fluxbus-ci-http.entrypoints=web"
-      - "traefik.http.routers.fluxbus-ci-http.middlewares=redirect-https@docker"
-      - "traefik.http.routers.fluxbus-ci-http.priority=2000"
-      - "traefik.http.services.fluxbus-ci-service.loadbalancer.server.port=80"
-      # CORS
-      - "traefik.http.middlewares.fluxbus-ci-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD"
-      - "traefik.http.middlewares.fluxbus-ci-cors.headers.accesscontrolalloworiginlist=https://ci.fluxbus.com.br,https://dev.fluxbus.com.br,https://fluxbus.com.br"
-      - "traefik.http.middlewares.fluxbus-ci-cors.headers.accesscontrolallowheaders=*"
-      - "traefik.http.middlewares.fluxbus-ci-cors.headers.accesscontrolallowcredentials=true"
-      - "traefik.http.routers.fluxbus-ci-https.middlewares=fluxbus-ci-cors@docker"
-      - "traefik.docker.network=z7network"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ========================================
-  # NGINX PROXY CI (roteia /api → backend, / → frontend)
+  # EVOLUTION API CI
+  # ========================================
+  evolution-api-ci:
+    image: atendai/evolution-api:latest
+    container_name: secured-guard-evolution-ci
+    environment:
+      SERVER_URL: https://ci.z7botsolutions.com.br
+      AUTHENTICATION_TYPE: apikey
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-B6D711FCDE4D4FD5936544120E713976}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+      LANGUAGE: pt-BR
+      CONFIG_SESSION_PHONE_CLIENT: SecuredGuard
+      CONFIG_SESSION_PHONE_NAME: chrome
+      QRCODE_LIMIT: 1902
+      QRCODE_COLOR: "#000000"
+      DATABASE_ENABLED: "false"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis-evolution-ci:6379/0
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+      TYPEBOT_ENABLED: "false"
+      CHATWOOT_ENABLED: "false"
+      RABBITMQ_ENABLED: "false"
+      WEBHOOK_GLOBAL_ENABLED: "false"
+      WEBHOOK_EVENTS_QRCODE_UPDATED: "true"
+      WEBHOOK_EVENTS_CONNECTION_UPDATE: "true"
+      LOG_LEVEL: INFO
+      LOG_COLOR: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_instances_ci:/evolution/instances
+      - uploads_ci:/evolution/holerites
+    networks:
+      - secured-guard-ci-network
+      - z7network
+    depends_on:
+      redis-evolution-ci:
+        condition: service_healthy
+    shm_size: 512mb
+    security_opt:
+      - seccomp=unconfined
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=false"
+
+  # ========================================
+  # NGINX PROXY CI
   # ========================================
   nginx-ci:
     image: nginx:alpine
-    container_name: fluxbus-nginx-ci
+    container_name: secured-guard-nginx-ci
     ports:
       - "8082:80"
     volumes:
       - ./nginx/ci.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - backend-ci
-      - frontend-ci
+      backend-ci:
+        condition: service_started
+      frontend-ci:
+        condition: service_started
     networks:
-      - fluxbus-ci-network
+      - secured-guard-ci-network
       - z7network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      # Router HTTPS - usando labels diretas
+      - "traefik.http.routers.nginx-ci-https.rule=Host(`ci.z7botsolutions.com.br`)"
+      - "traefik.http.routers.nginx-ci-https.entrypoints=websecure"
+      - "traefik.http.routers.nginx-ci-https.tls.certresolver=letsencryptresolver"
+      - "traefik.http.routers.nginx-ci-https.service=nginx-ci-service"
+      - "traefik.http.routers.nginx-ci-https.priority=2000"
+      # Router HTTP (redireciona para HTTPS)
+      - "traefik.http.routers.nginx-ci-http.rule=Host(`ci.z7botsolutions.com.br`)"
+      - "traefik.http.routers.nginx-ci-http.entrypoints=web"
+      - "traefik.http.routers.nginx-ci-http.middlewares=redirect-https@docker"
+      - "traefik.http.routers.nginx-ci-http.priority=2000"
+      # Serviço
+      - "traefik.http.services.nginx-ci-service.loadbalancer.server.port=80"
+      # Middlewares CORS
+      - "traefik.http.middlewares.nginx-ci-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD"
+      - "traefik.http.middlewares.nginx-ci-cors.headers.accesscontrolalloworiginlist=*"
+      - "traefik.http.middlewares.nginx-ci-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.nginx-ci-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.routers.nginx-ci-https.middlewares=nginx-ci-cors@docker"
+      # Forçar detecção na rede correta
+      - "traefik.docker.network=z7network"
+
+  # ========================================
+  # FRONTEND CI
+  # ========================================
+  frontend-ci:
+    # Se precisar fazer build local na VPS, descomente as linhas abaixo e comente a linha 'image'
+    # build:
+    #   context: ./frontend
+    #   dockerfile: Dockerfile.prod
+    #   args:
+    #     VITE_API_URL: https://ci.z7botsolutions.com.br/api
+    #     VITE_WS_URL: wss://ci.z7botsolutions.com.br/ws
+    #     VITE_ENVIRONMENT: ci
+    image: z7design/secured-guard-frontend:ci
+    container_name: secured-guard-frontend-ci
+    ports:
+      - "3000:80"
+    depends_on:
+      backend-ci:
+        condition: service_started
+    networks:
+      - secured-guard-ci-network
+      - z7network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    # DESABILITADO TRAEFIK - usando Nginx como proxy reverso
     labels:
       - "traefik.enable=false"
 
 # ========================================
-# VOLUMES CI
+# VOLUMES CI (usando volumes nomeados para WSL)
 # ========================================
 volumes:
   postgres_data_ci:
@@ -221,14 +324,18 @@ volumes:
     driver: local
   whatsapp_sessions_ci:
     driver: local
+  evolution_instances_ci:
+    driver: local
+  redis_evolution_data_ci:
+    driver: local
 
 # ========================================
 # NETWORKS CI
 # ========================================
 networks:
-  fluxbus-ci-network:
+  secured-guard-ci-network:
     driver: bridge
-    name: fluxbus-ci
+    name: secured-guard-ci
   z7network:
     external: true
     name: z7network
