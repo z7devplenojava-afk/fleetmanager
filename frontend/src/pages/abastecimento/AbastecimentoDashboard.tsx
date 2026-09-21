@@ -213,12 +213,14 @@ const AbastecimentoDashboard: React.FC = () => {
                 veiculos={vehicles}
             />
 
-            <AbastecimentoExternoFormModal
-                isOpen={isExternoModalOpen}
-                onClose={() => setIsExternoModalOpen(false)}
-                onSuccess={handleSuccess}
-                veiculos={vehicles}
-            />
+            {isExternoModalOpen && (
+              <AbastecimentoExternoFormModal
+                  isOpen={isExternoModalOpen}
+                  onClose={() => setIsExternoModalOpen(false)}
+                  onSuccess={handleSuccess}
+                  veiculos={vehicles}
+              />
+            )}
         </StandardLayout>
     );
 };

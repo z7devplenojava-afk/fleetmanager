@@ -2188,15 +2188,17 @@ const Frota: React.FC = () => {
           vehicles={vehicles || []}
         />
 
-        <AbastecimentoExternoFormModal
-          isOpen={isAbastecimentoExternoModalOpen}
-          onClose={() => setIsAbastecimentoExternoModalOpen(false)}
-          onSuccess={() => {
-            refetchFuelRecords();
-            setIsAbastecimentoExternoModalOpen(false);
-          }}
-          veiculos={vehicles || []}
-        />
+        {isAbastecimentoExternoModalOpen && (
+          <AbastecimentoExternoFormModal
+            isOpen={isAbastecimentoExternoModalOpen}
+            onClose={() => setIsAbastecimentoExternoModalOpen(false)}
+            onSuccess={() => {
+              refetchFuelRecords();
+              setIsAbastecimentoExternoModalOpen(false);
+            }}
+            veiculos={vehicles || []}
+          />
+        )}
 
       </div>
       {/* Printable Area (Hidden) */}
