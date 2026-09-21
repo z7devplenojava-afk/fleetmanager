@@ -1,9 +1,8 @@
-name: 🚀 Deploy Automático para Dev (dev.fluxbus.com.br)
+name: "[LEGADO] Deploy DEV VPS (use pipeline-ci-dev-prod.yml)"
 
+# DESABILITADO: Substituido por pipeline-ci-dev-prod.yml
+# O pipeline sequencial controla CI -> DEV -> PROD automaticamente.
 on:
-  push:
-    branches:
-      - dev
   workflow_dispatch:
 
 concurrency:

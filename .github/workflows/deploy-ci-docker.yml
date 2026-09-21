@@ -1,14 +1,13 @@
-name: 🐳 Deploy CI Environment (Docker Compose)
+name: "[LEGADO] Deploy CI Docker (use pipeline-ci-dev-prod.yml)"
 
+# DESABILITADO: Substituido por pipeline-ci-dev-prod.yml
+# O pipeline sequencial agora controla CI -> DEV -> PROD.
 on:
-  push:
-    branches:
-      - ci
   workflow_dispatch:
 
 env:
   ENVIRONMENT: ci
-  DEPLOY_PATH: /var/www/secured_guard/ci
+  DEPLOY_PATH: /var/www/fluxbus/ci
   APP_URL: https://ci.z7botsolutions.com.br
 
 jobs:
@@ -121,8 +120,8 @@ jobs:
           echo "🔨 Construindo imagem do backend..."
           docker build --no-cache \
             --label org.opencontainers.image.revision=${{ github.sha }} \
-            --label org.opencontainers.image.source=https://github.com/zemarioramos/secured-guard \
-            -t z7design/secured-guard-backend:ci \
+            --label org.opencontainers.image.source=https://github.com/jmr337778-crypto/fleetmanager \
+            -t z7design/fluxbus-backend:ci \
             -f backend/Dockerfile.prod ./backend || {
             echo "❌ Build do backend Docker falhou!"
             exit 1
@@ -133,8 +132,8 @@ jobs:
           echo "🎨 Construindo imagem do frontend..."
           docker build --no-cache \
             --label org.opencontainers.image.revision=${{ github.sha }} \
-            --label org.opencontainers.image.source=https://github.com/zemarioramos/secured-guard \
-            -t z7design/secured-guard-frontend:ci \
+            --label org.opencontainers.image.source=https://github.com/jmr337778-crypto/fleetmanager \
+            -t z7design/fluxbus-frontend:ci \
             --build-arg VITE_API_URL=https://ci.z7botsolutions.com.br/api \
             --build-arg VITE_WS_URL=wss://ci.z7botsolutions.com.br/ws \
             --build-arg VITE_ENVIRONMENT=ci \
@@ -148,8 +147,8 @@ jobs:
           echo "📱 Construindo imagem do WhatsApp service..."
           docker build --no-cache \
             --label org.opencontainers.image.revision=${{ github.sha }} \
-            --label org.opencontainers.image.source=https://github.com/zemarioramos/secured-guard \
-            -t z7design/secured-guard-whatsapp:ci \
+            --label org.opencontainers.image.source=https://github.com/jmr337778-crypto/fleetmanager \
+            -t z7design/fluxbus-whatsapp:ci \
             -f whatsapp-service/Dockerfile ./whatsapp-service || {
             echo "❌ Build do WhatsApp service Docker falhou!"
             exit 1
@@ -158,7 +157,7 @@ jobs:
           
           # Verificar imagens construídas
           echo "📋 Verificando imagens construídas..."
-          docker images | grep z7design/secured-guard || echo "⚠️ Nenhuma imagem encontrada"
+          docker images | grep z7design/fluxbus || echo "⚠️ Nenhuma imagem encontrada"
 
       # ============================================
       # 5️⃣ LOGIN TO DOCKER HUB
@@ -174,9 +173,9 @@ jobs:
       # ============================================
       - name: 📤 Push images to Docker Hub
         run: |
-          docker push z7design/secured-guard-backend:ci
-          docker push z7design/secured-guard-frontend:ci
-          docker push z7design/secured-guard-whatsapp:ci
+          docker push z7design/fluxbus-backend:ci
+          docker push z7design/fluxbus-frontend:ci
+          docker push z7design/fluxbus-whatsapp:ci
 
       # ============================================
       # 7️⃣ INSTALL SSHPASS AND CONFIGURE SSH
@@ -195,11 +194,11 @@ jobs:
         run: |
           SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} \
-            "mkdir -p /var/www/secured_guard/ci/nginx"
+            "mkdir -p /var/www/fluxbus/ci/nginx"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS docker-compose.ci.yml \
-            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/secured_guard/ci/
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS nginx/ci.conf \
-            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/secured_guard/ci/nginx/
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/nginx/
 
       # ============================================
       # 9️⃣ VALIDATE AND CONFIGURE JWT_SECRET
@@ -257,7 +256,7 @@ jobs:
             printf 'BAILEYS_INSTANCE_KEY=%s\n' "${{ secrets.BAILEYS_INSTANCE_KEY || 'securedguard_ci' }}"
           } > /tmp/ci.env
           # Enviar arquivo para VPS
-          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp /tmp/ci.env ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/secured_guard/ci/.env
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp /tmp/ci.env ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/.env
           # Limpar arquivo temporário
           rm -f /tmp/ci.env
 
@@ -267,7 +266,7 @@ jobs:
       - name: 🔐 Ensure JWT_SECRET is correct on host and .env
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/secured_guard/ci
+            cd /var/www/fluxbus/ci
             JWT_SECRET="${{ secrets.JWT_SECRET_CI }}"
             if [ -z "$JWT_SECRET" ]; then
               JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
@@ -282,7 +281,7 @@ jobs:
       - name: 🔧 Force .env correction before stopping containers
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/secured_guard/ci
+            cd /var/www/fluxbus/ci
             JWT_SECRET="${{ secrets.JWT_SECRET_CI }}"
             if [ -z "$JWT_SECRET" ]; then
               JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
@@ -298,9 +297,9 @@ jobs:
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
             docker swarm leave --force 2>/dev/null || true
-            cd /var/www/secured_guard/ci
+            cd /var/www/fluxbus/ci
             docker-compose -f docker-compose.ci.yml down --remove-orphans 2>/dev/null || true
-            docker ps -a | grep secured-guard | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
+            docker ps -a | grep fluxbus | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
           EOF
 
       # ============================================
@@ -309,7 +308,7 @@ jobs:
       - name: 💾 Backup and stop old containers
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/secured_guard/ci
+            cd /var/www/fluxbus/ci
             docker-compose -f docker-compose.ci.yml stop 2>/dev/null || true
           EOF
 
@@ -339,27 +338,27 @@ jobs:
             echo '${{ secrets.DOCKER_PASSWORD }}' | docker login -u '${{ secrets.DOCKER_USERNAME }}' --password-stdin
 
             echo "🧹 Removendo imagens antigas..."
-            docker image rm -f z7design/secured-guard-backend:ci z7design/secured-guard-frontend:ci z7design/secured-guard-whatsapp:ci 2>/dev/null || true
+            docker image rm -f z7design/fluxbus-backend:ci z7design/fluxbus-frontend:ci z7design/fluxbus-whatsapp:ci 2>/dev/null || true
 
             echo "📥 Pull backend (retry)..."
             for i in 1 2 3; do
-              docker pull z7design/secured-guard-backend:ci && break || { echo "⚠️ Pull backend falhou ($i)"; sleep 10; }
+              docker pull z7design/fluxbus-backend:ci && break || { echo "⚠️ Pull backend falhou ($i)"; sleep 10; }
             done
 
             echo "📥 Pull frontend (retry)..."
             for i in 1 2 3; do
-              docker pull z7design/secured-guard-frontend:ci && break || { echo "⚠️ Pull frontend falhou ($i)"; sleep 10; }
+              docker pull z7design/fluxbus-frontend:ci && break || { echo "⚠️ Pull frontend falhou ($i)"; sleep 10; }
             done
 
             echo "📥 Pull whatsapp (retry)..."
             for i in 1 2 3; do
-              docker pull z7design/secured-guard-whatsapp:ci && break || { echo "⚠️ Pull whatsapp falhou ($i)"; sleep 10; }
+              docker pull z7design/fluxbus-whatsapp:ci && break || { echo "⚠️ Pull whatsapp falhou ($i)"; sleep 10; }
             done
 
             echo "🔎 Labels das imagens:"
-            docker image inspect z7design/secured-guard-backend:ci --format 'backend.revision={{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null || echo "backend.revision=unknown"
-            docker image inspect z7design/secured-guard-frontend:ci --format 'frontend.revision={{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null || echo "frontend.revision=unknown"
-            docker image inspect z7design/secured-guard-whatsapp:ci --format 'whatsapp.revision={{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null || echo "whatsapp.revision=unknown"
+            docker image inspect z7design/fluxbus-backend:ci --format 'backend.revision={{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null || echo "backend.revision=unknown"
+            docker image inspect z7design/fluxbus-frontend:ci --format 'frontend.revision={{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null || echo "frontend.revision=unknown"
+            docker image inspect z7design/fluxbus-whatsapp:ci --format 'whatsapp.revision={{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null || echo "whatsapp.revision=unknown"
           EOF
 
       # ============================================
@@ -368,7 +367,7 @@ jobs:
       - name: 🔍 Verify images before starting
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            docker images | grep "z7design/secured-guard"
+            docker images | grep "z7design/fluxbus"
           EOF
 
       # ============================================
@@ -377,17 +376,17 @@ jobs:
       - name: 🧹 Clean networks before starting
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/secured_guard/ci
+            cd /var/www/fluxbus/ci
             # Parar containers que podem estar usando a rede
             docker-compose -f docker-compose.ci.yml down 2>/dev/null || true
-            # Remover rede secured-guard-ci se existir (será recriada pelo docker-compose)
-            docker network rm secured-guard-ci 2>/dev/null || true
+            # Remover rede fluxbus-ci se existir (será recriada pelo docker-compose)
+            docker network rm fluxbus-ci 2>/dev/null || true
             # Garantir que a rede z7network existe
             docker network create z7network 2>/dev/null || true
             # Aguardar um pouco para garantir que a rede foi removida
             sleep 2
             # Verificar se a rede foi removida
-            docker network ls | grep secured-guard-ci || echo "✅ Rede secured-guard-ci removida ou não existe"
+            docker network ls | grep fluxbus-ci || echo "✅ Rede fluxbus-ci removida ou não existe"
             docker network ls | grep z7network || docker network create z7network
           EOF
 
@@ -397,7 +396,7 @@ jobs:
       - name: 🚀 Start new containers
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/secured_guard/ci
+            cd /var/www/fluxbus/ci
             docker network create z7network 2>/dev/null || true
 
             # Pre-pull imagem pública da Evolution API com retry
@@ -420,7 +419,7 @@ jobs:
       - name: 🔧 Fix containers that are not running
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/secured_guard/ci
+            cd /var/www/fluxbus/ci
             docker network create z7network 2>/dev/null || true
             docker-compose -f docker-compose.ci.yml ps
             yes y | docker-compose -f docker-compose.ci.yml up -d
@@ -436,9 +435,9 @@ jobs:
             if [ -z "$JWT_SECRET" ]; then
               JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
             fi
-            cd /var/www/secured_guard/ci
+            cd /var/www/fluxbus/ci
             cat .env | grep JWT_SECRET
-            docker exec secured-guard-backend-ci sh -c "export JWT_SECRET=$JWT_SECRET" || true
+            docker exec fluxbus-backend-ci sh -c "export JWT_SECRET=$JWT_SECRET" || true
           EOF
 
       # ============================================
@@ -456,9 +455,9 @@ jobs:
       - name: 🔍 Diagnostic - Container Status
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/secured_guard/ci
+            cd /var/www/fluxbus/ci
             docker-compose -f docker-compose.ci.yml ps
-            docker logs --tail 50 secured-guard-backend-ci
+            docker logs --tail 50 fluxbus-backend-ci
           EOF
 
       # ============================================
@@ -476,7 +475,7 @@ jobs:
       - name: 🔍 Verify containers are running
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            docker ps | grep secured-guard
+            docker ps | grep fluxbus
           EOF
 
       # ============================================
@@ -486,7 +485,7 @@ jobs:
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
             if ! docker ps | grep -q traefik; then
-              cd /var/www/secured_guard
+              cd /var/www/fluxbus
               docker-compose -f docker-compose.traefik.yml up -d
             fi
           EOF

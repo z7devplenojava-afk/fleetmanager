@@ -1,0 +1,435 @@
+﻿name: "🚀 Pipeline Sequencial CI → DEV → PROD"
+
+# ============================================================
+# DISPARO: push na branch ci
+# FLUXO:   build-and-push -> deploy-ci -> health-ci
+#          -> deploy-dev -> health-dev
+#          -> deploy-prod -> health-prod
+# Se qualquer etapa falhar, as proximas NAO executam.
+# ============================================================
+
+on:
+  push:
+    branches:
+      - ci
+  workflow_dispatch:
+    inputs:
+      start_from:
+        description: 'Iniciar a partir de qual ambiente'
+        required: false
+        default: 'ci'
+        type: choice
+        options:
+          - ci
+          - dev
+          - prod
+
+concurrency:
+  group: pipeline-ci-dev-prod
+  cancel-in-progress: false
+
+env:
+  CI_URL:   https://ci.z7botsolutions.com.br
+  DEV_URL:  https://dev.fluxbus.com.br
+  PROD_URL: https://fluxbus.com.br
+
+jobs:
+  # ============================================================
+  # JOB 1: BUILD E PUSH DAS IMAGENS DOCKER (tag :ci)
+  # ============================================================
+  build-and-push:
+    name: "🔨 Build & Push Imagens (tag ci)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: "${{ github.event.inputs.start_from == '' || github.event.inputs.start_from == 'ci' }}"
+
+    steps:
+      - name: "📥 Checkout branch ci"
+        uses: actions/checkout@v4
+        with:
+          ref: ci
+
+      - name: "☕ Setup Java 17"
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: backend/build.gradle
+
+      - name: "📦 Setup Node.js 20"
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: "🔨 Build Backend (Gradle)"
+        working-directory: ./backend
+        timeout-minutes: 20
+        run: |
+          chmod +x gradlew
+          for attempt in 1 2 3; do
+            echo "Tentativa $attempt..."
+            ./gradlew clean bootJar -x test --no-daemon && break || {
+              [ $attempt -lt 3 ] && sleep 10 || { echo "Build falhou!"; exit 1; }
+            }
+          done
+          ls -lh build/libs/*.jar
+
+      - name: "🎨 Build Frontend (Vite)"
+        working-directory: ./frontend
+        env:
+          VITE_API_URL: ${{ env.CI_URL }}/api
+          VITE_WS_URL: wss://ci.z7botsolutions.com.br/ws
+          VITE_ENVIRONMENT: ci
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --legacy-peer-deps --force --no-audit --no-fund
+          npm install --no-save --legacy-peer-deps @rollup/rollup-linux-x64-gnu
+          npm run build
+
+      - name: "🔐 Login no Docker Hub"
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: "🐳 Build & Push Backend :ci"
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: true
+          tags: z7design/fluxbus-backend:ci
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/jmr337778-crypto/fleetmanager
+
+      - name: "🐳 Build & Push Frontend :ci"
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: true
+          tags: z7design/fluxbus-frontend:ci
+          build-args: |
+            VITE_API_URL=${{ env.CI_URL }}/api
+            VITE_WS_URL=wss://ci.z7botsolutions.com.br/ws
+            VITE_ENVIRONMENT=ci
+
+      - name: "🐳 Build & Push WhatsApp :ci"
+        uses: docker/build-push-action@v5
+        with:
+          context: ./whatsapp-service
+          file: ./whatsapp-service/Dockerfile
+          push: true
+          tags: z7design/fluxbus-whatsapp:ci
+
+  # ============================================================
+  # JOB 2: DEPLOY CI
+  # ============================================================
+  deploy-ci:
+    name: "🧪 Deploy CI"
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: ci
+      url: ${{ env.CI_URL }}
+
+    steps:
+      - name: "📥 Checkout"
+        uses: actions/checkout@v4
+        with:
+          ref: ci
+
+      - name: "🔑 Instalar sshpass"
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y sshpass
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST_CI }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: "📤 Transferir arquivos para VPS CI"
+        run: |
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS \
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} \
+            "mkdir -p /var/www/fluxbus/ci/nginx"
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS docker-compose.ci.yml \
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS nginx/ci.conf \
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/nginx/ 2>/dev/null || true
+
+      - name: "⚙️ Criar .env CI e subir containers"
+        run: |
+          JWT="${{ secrets.JWT_SECRET_CI }}"
+          [ -z "$JWT" ] && JWT="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512"
+          {
+            printf 'POSTGRES_PASSWORD_CI=%s\n' "${{ secrets.POSTGRES_PASSWORD_CI || '4KaCiJc6an@7sgbdcid2025' }}"
+            printf 'REDIS_PASSWORD_CI=%s\n'    "${{ secrets.REDIS_PASSWORD_CI || 'redis_ci_2025' }}"
+            printf 'JWT_SECRET_CI=%s\n'        "$JWT"
+            printf 'MAIL_HOST=%s\n'            "${{ secrets.MAIL_HOST || 'mail.z7design.com.br' }}"
+            printf 'MAIL_PORT=%s\n'            "${{ secrets.MAIL_PORT || '465' }}"
+            printf 'MAIL_USERNAME=%s\n'        "${{ secrets.MAIL_USERNAME || 'securedguard@z7design.com.br' }}"
+            printf 'MAIL_PASSWORD=%s\n'        "${{ secrets.MAIL_PASSWORD }}"
+            printf 'MAIL_SSL_ENABLE=true\n'
+            printf 'BAILEYS_REST_URL=%s\n'     "${{ secrets.BAILEYS_REST_URL || 'http://whatsapp-service-ci:3333' }}"
+            printf 'BAILEYS_ENABLED=%s\n'      "${{ secrets.BAILEYS_ENABLED || 'true' }}"
+            printf 'BAILEYS_INSTANCE_KEY=%s\n' "fluxbus_ci"
+          } > /tmp/ci.env
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp \
+            -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            /tmp/ci.env ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/.env
+          rm -f /tmp/ci.env
+
+      - name: "🚀 Subir containers CI"
+        run: |
+          SSH_OPTS="-o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=5"
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS \
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'SSHEOF'
+              set -e
+              cd /var/www/fluxbus/ci
+              echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+              docker network create z7network 2>/dev/null || true
+              docker-compose -f docker-compose.ci.yml down --remove-orphans 2>/dev/null || true
+              docker network rm fluxbus-ci 2>/dev/null || true
+              for i in 1 2 3; do
+                docker pull z7design/fluxbus-backend:ci && \
+                docker pull z7design/fluxbus-frontend:ci && \
+                docker pull z7design/fluxbus-whatsapp:ci && break || { sleep 15; }
+              done
+              docker-compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans
+              docker-compose -f docker-compose.ci.yml ps
+          SSHEOF
+
+  # ============================================================
+  # JOB 3: HEALTH CHECK CI
+  # ============================================================
+  health-ci:
+    name: "🏥 Health Check CI"
+    needs: deploy-ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "⏳ Aguardar inicializacao (90s)"
+        run: sleep 90
+
+      - name: "🔍 Verificar saude CI"
+        run: |
+          for i in $(seq 1 15); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.CI_URL }}/api/health" --max-time 15 2>/dev/null || echo "000")
+            echo "Tentativa $i - HTTP $CODE"
+            [ "$CODE" = "200" ] && { echo "CI saudavel!"; exit 0; }
+            sleep 15
+          done
+          echo "Health check CI falhou"
+          exit 1
+
+  # ============================================================
+  # JOB 4: DEPLOY DEV (so roda se CI passou)
+  # ============================================================
+  deploy-dev:
+    name: "🔧 Deploy DEV"
+    needs: health-ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: dev
+      url: ${{ env.DEV_URL }}
+    steps:
+      - name: "📥 Checkout"
+        uses: actions/checkout@v4
+        with:
+          ref: ci
+
+      - name: "🔐 Login Docker Hub"
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: "🐳 Re-tag CI -> DEV e push"
+        run: |
+          docker pull z7design/fluxbus-backend:ci
+          docker pull z7design/fluxbus-frontend:ci
+          docker pull z7design/fluxbus-whatsapp:ci
+          docker tag z7design/fluxbus-backend:ci  z7design/fluxbus-backend:dev
+          docker tag z7design/fluxbus-frontend:ci z7design/fluxbus-frontend:dev
+          docker tag z7design/fluxbus-whatsapp:ci z7design/fluxbus-whatsapp:dev
+          docker push z7design/fluxbus-backend:dev
+          docker push z7design/fluxbus-frontend:dev
+          docker push z7design/fluxbus-whatsapp:dev
+
+      - name: "📤 Copiar compose DEV"
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST_DEV || secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER_DEV || secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD_DEV || secrets.VPS_PASSWORD }}
+          port: 22
+          source: docker-compose.fluxbus.dev.yml
+          target: /var/www/fluxbus/dev/
+          overwrite: true
+
+      - name: "🚀 Criar .env e subir DEV"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST_DEV || secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER_DEV || secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD_DEV || secrets.VPS_PASSWORD }}
+          port: 22
+          script: |
+            mkdir -p /var/www/fluxbus/dev
+            cd /var/www/fluxbus/dev
+            mv -f docker-compose.fluxbus.dev.yml docker-compose.yml 2>/dev/null || true
+            cat > .env << 'ENVEOF'
+            POSTGRES_DB_DEV=fluxbus_db_dev
+            POSTGRES_USER_DEV=fluxbus_user_dev
+            POSTGRES_PASSWORD_DEV=${{ secrets.POSTGRES_PASSWORD_DEV }}
+            REDIS_PASSWORD_DEV=${{ secrets.REDIS_PASSWORD_DEV }}
+            JWT_SECRET_DEV=${{ secrets.JWT_SECRET_DEV }}
+            MAIL_HOST=mail.z7design.com.br
+            MAIL_PORT=465
+            MAIL_USERNAME=securedguard@z7design.com.br
+            MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+            ENVEOF
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            docker compose pull
+            docker compose down
+            docker compose up -d
+            docker compose ps
+
+  # ============================================================
+  # JOB 5: HEALTH CHECK DEV
+  # ============================================================
+  health-dev:
+    name: "🏥 Health Check DEV"
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "⏳ Aguardar inicializacao (2 min)"
+        run: sleep 120
+
+      - name: "🔍 Verificar saude DEV"
+        run: |
+          for i in $(seq 1 15); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.DEV_URL }}/api/health" --max-time 15 2>/dev/null || echo "000")
+            echo "Tentativa $i - HTTP $CODE"
+            [ "$CODE" = "200" ] && { echo "DEV saudavel!"; exit 0; }
+            sleep 15
+          done
+          echo "Health check DEV falhou"
+          exit 1
+
+  # ============================================================
+  # JOB 6: DEPLOY PROD (so roda se DEV passou)
+  # ============================================================
+  deploy-prod:
+    name: "🌟 Deploy PROD"
+    needs: health-dev
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: prod
+      url: ${{ env.PROD_URL }}
+    steps:
+      - name: "📥 Checkout"
+        uses: actions/checkout@v4
+        with:
+          ref: ci
+
+      - name: "🔐 Login Docker Hub"
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: "🐳 Re-tag CI -> PROD e push"
+        run: |
+          docker pull z7design/fluxbus-backend:ci
+          docker pull z7design/fluxbus-frontend:ci
+          docker pull z7design/fluxbus-whatsapp:ci
+          docker tag z7design/fluxbus-backend:ci  z7design/fluxbus-backend:prod
+          docker tag z7design/fluxbus-frontend:ci z7design/fluxbus-frontend:prod
+          docker tag z7design/fluxbus-whatsapp:ci z7design/fluxbus-whatsapp:prod
+          docker push z7design/fluxbus-backend:prod
+          docker push z7design/fluxbus-frontend:prod
+          docker push z7design/fluxbus-whatsapp:prod
+
+      - name: "📤 Copiar compose PROD"
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST_PROD }}
+          username: ${{ secrets.VPS_USER_PROD }}
+          password: ${{ secrets.VPS_PASSWORD_PROD }}
+          port: 22
+          source: docker-compose.fluxbus.prod.yml
+          target: /var/www/fluxbus/prod/
+          overwrite: true
+
+      - name: "🚀 Criar .env e subir PROD"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST_PROD }}
+          username: ${{ secrets.VPS_USER_PROD }}
+          password: ${{ secrets.VPS_PASSWORD_PROD }}
+          port: 22
+          script: |
+            mkdir -p /var/www/fluxbus/prod
+            cd /var/www/fluxbus/prod
+            mv -f docker-compose.fluxbus.prod.yml docker-compose.yml 2>/dev/null || true
+            cat > .env << 'ENVEOF'
+            POSTGRES_DB_PROD=fluxbus_db_prod
+            POSTGRES_USER_PROD=fluxbus_user_prod
+            POSTGRES_PASSWORD_PROD=${{ secrets.POSTGRES_PASSWORD_PROD }}
+            REDIS_PASSWORD_PROD=${{ secrets.REDIS_PASSWORD_PROD }}
+            JWT_SECRET_PROD=${{ secrets.JWT_SECRET_PROD }}
+            MAIL_HOST=mail.z7design.com.br
+            MAIL_PORT=465
+            MAIL_USERNAME=securedguard@z7design.com.br
+            MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+            ENVEOF
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            docker tag z7design/fluxbus-backend:prod z7design/fluxbus-backend:backup-$(date +%Y%m%d-%H%M%S) 2>/dev/null || true
+            docker compose pull
+            docker compose down
+            docker compose up -d
+            docker compose ps
+
+  # ============================================================
+  # JOB 7: HEALTH CHECK PROD + RELATORIO FINAL
+  # ============================================================
+  health-prod:
+    name: "🏥 Health Check PROD"
+    needs: deploy-prod
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "⏳ Aguardar inicializacao (2 min)"
+        run: sleep 120
+
+      - name: "🔍 Verificar saude PROD"
+        run: |
+          for i in $(seq 1 20); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.PROD_URL }}/api/health" --max-time 15 2>/dev/null || echo "000")
+            echo "Tentativa $i - HTTP $CODE"
+            [ "$CODE" = "200" ] && { echo "PROD saudavel!"; exit 0; }
+            sleep 15
+          done
+          echo "Health check PROD falhou"
+          exit 1
+
+      - name: "🎉 Pipeline concluido com sucesso"
+        if: success()
+        run: |
+          echo "=================================================="
+          echo "PIPELINE CI->DEV->PROD CONCLUIDO!"
+          echo "SHA: ${{ github.sha }}"
+          echo "Hora: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          echo "CI   -> ${{ env.CI_URL }}"
+          echo "DEV  -> ${{ env.DEV_URL }}"
+          echo "PROD -> ${{ env.PROD_URL }}"
+          echo "=================================================="

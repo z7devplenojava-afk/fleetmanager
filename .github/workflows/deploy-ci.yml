@@ -1,9 +1,8 @@
-name: Deploy CI
-
+# DESABILITADO: Substituido por pipeline-ci-dev-prod.yml
+# Este workflow antigo foi substituido pelo pipeline sequencial.
+# Use pipeline-ci-dev-prod.yml que faz CI -> DEV -> PROD automaticamente.
 on:
-  push:
-    branches:
-      - ci
+  workflow_dispatch:
 
 concurrency:
   group: deploy-ci
@@ -23,9 +22,9 @@ jobs:
           script: |
             set -e
             APP_PATH="${{ secrets.VPS_APP_PATH_CI }}"
-            if [ -z "$APP_PATH" ]; then APP_PATH="/var/www/secured_guard/ci"; fi
+            if [ -z "$APP_PATH" ]; then APP_PATH="/var/www/fluxbus/ci"; fi
             cd "$APP_PATH"
-            git pull https://${{ secrets.USER_GITHUB }}:${{ secrets.TOKEN_GITHUB }}@github.com/zemarioramos/secured-guard.git ci
+            git pull https://${{ secrets.USER_GITHUB }}:${{ secrets.TOKEN_GITHUB }}@github.com/jmr337778-crypto/fleetmanager.git ci
             cd deploy
             docker-compose -f docker-compose.env-ci.yml build --no-cache backend-ci frontend-ci
             docker-compose -f docker-compose.env-ci.yml up -d --force-recreate
