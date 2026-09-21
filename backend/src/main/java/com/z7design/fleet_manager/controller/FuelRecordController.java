@@ -341,7 +341,7 @@ public class FuelRecordController {
             fuelRecord.setDate(createFuelRecordDTO.getDate());
             fuelRecord.setFuelType(createFuelRecordDTO.getFuelType());
             fuelRecord.setQuantity(BigDecimal.valueOf(createFuelRecordDTO.getQuantity()));
-            fuelRecord.setCost(BigDecimal.valueOf(createFuelRecordDTO.getCost()));
+            fuelRecord.setCost(createFuelRecordDTO.getCost() != null ? BigDecimal.valueOf(createFuelRecordDTO.getCost()) : BigDecimal.ZERO);
             fuelRecord.setMileage(createFuelRecordDTO.getMileage());
             fuelRecord.setInitialMileage(createFuelRecordDTO.getInitialMileage());
             fuelRecord.setFinalMileage(createFuelRecordDTO.getFinalMileage());
@@ -421,7 +421,7 @@ public class FuelRecordController {
             fuelRecord.setDate(updateFuelRecordDTO.getDate());
             fuelRecord.setFuelType(updateFuelRecordDTO.getFuelType());
             fuelRecord.setQuantity(BigDecimal.valueOf(updateFuelRecordDTO.getQuantity()));
-            fuelRecord.setCost(BigDecimal.valueOf(updateFuelRecordDTO.getCost()));
+            fuelRecord.setCost(updateFuelRecordDTO.getCost() != null ? BigDecimal.valueOf(updateFuelRecordDTO.getCost()) : BigDecimal.ZERO);
             fuelRecord.setMileage(updateFuelRecordDTO.getMileage());
             fuelRecord.setInitialMileage(updateFuelRecordDTO.getInitialMileage());
             fuelRecord.setFinalMileage(updateFuelRecordDTO.getFinalMileage());

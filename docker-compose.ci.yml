@@ -195,19 +195,22 @@ services:
       - "traefik.http.routers.nginx-ci-https.tls.certresolver=letsencryptresolver"
       - "traefik.http.routers.nginx-ci-https.service=nginx-ci-service"
       - "traefik.http.routers.nginx-ci-https.priority=2000"
-      # Router HTTP (redireciona para HTTPS)
+      # Router HTTP - SEM redirect para HTTPS (Cloudflare gerencia SSL; redirect causaria ERR_TOO_MANY_REDIRECTS no modo Flexible)
       - "traefik.http.routers.nginx-ci-http.rule=Host(`ci.fluxbus.com.br`) || Host(`ci.z7botsolutions.com.br`)"
       - "traefik.http.routers.nginx-ci-http.entrypoints=web"
-      - "traefik.http.routers.nginx-ci-http.middlewares=redirect-https@docker"
+      - "traefik.http.routers.nginx-ci-http.service=nginx-ci-service"
+      - "traefik.http.routers.nginx-ci-http.middlewares=nginx-ci-cloudflare-proto@docker"
       - "traefik.http.routers.nginx-ci-http.priority=2000"
       # Serviço
       - "traefik.http.services.nginx-ci-service.loadbalancer.server.port=80"
+      # Middleware: propagar X-Forwarded-Proto do Cloudflare para o backend
+      - "traefik.http.middlewares.nginx-ci-cloudflare-proto.headers.customrequestheaders.X-Forwarded-Proto=https"
       # Middlewares CORS
       - "traefik.http.middlewares.nginx-ci-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD"
       - "traefik.http.middlewares.nginx-ci-cors.headers.accesscontrolalloworiginlist=*"
       - "traefik.http.middlewares.nginx-ci-cors.headers.accesscontrolallowheaders=*"
       - "traefik.http.middlewares.nginx-ci-cors.headers.accesscontrolallowcredentials=true"
-      - "traefik.http.routers.nginx-ci-https.middlewares=nginx-ci-cors@docker"
+      - "traefik.http.routers.nginx-ci-https.middlewares=nginx-ci-cors@docker,nginx-ci-cloudflare-proto@docker"
       # Forçar detecção na rede correta
       - "traefik.docker.network=z7network"
 

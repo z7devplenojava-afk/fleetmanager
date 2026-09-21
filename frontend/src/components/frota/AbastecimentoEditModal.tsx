@@ -406,7 +406,7 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
       date: formData.date,
       fuelType: formData.fuelType,
       quantity: formData.liters,
-      cost: 0,
+      cost: abastecimento?.cost ? Number(abastecimento.cost) : 0,
       mileage: formData.mileage,
       initialMileage: formData.initialMileage || null,
       station: formData.garageName || 'Abastecimento Interno',
@@ -502,7 +502,7 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
 
   // ─── Formulário ─────────────────────────────────────────────────────────────
   const renderForm = () => (
-    <div className="space-y-5 pb-2">
+    <div className="space-y-5 pb-2 min-w-0 max-w-full overflow-x-hidden">
 
       {/* ══ Seção 1: Localização ════════════════════════════════ */}
       <div className="rounded-xl border border-gray-700/50 overflow-hidden">
@@ -533,10 +533,10 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
               <SelectContent className="bg-gray-900 border-gray-700">
                 {garages.map(g => (
                   <SelectItem key={g.id} value={g.id}>
-                    <span className="flex items-center gap-2">
-                      <Building2 className="h-3.5 w-3.5 text-blue-400" />
-                      {g.name}
-                      {g.address && <span className="text-gray-500 text-xs">• {g.address}</span>}
+                    <span className="flex items-center gap-2 min-w-0">
+                      <Building2 className="h-3.5 w-3.5 text-blue-400 flex-none" />
+                      <span className="truncate">{g.name}</span>
+                      {g.address && <span className="text-gray-500 text-xs truncate">• {g.address}</span>}
                     </span>
                   </SelectItem>
                 ))}
@@ -689,9 +689,9 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
           {/* Info card do veículo */}
           {selectedVehicle && (
             <div className="rounded-lg border border-gray-700/60 overflow-hidden">
-              <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-gray-800/60 border-b border-gray-700/60">
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-gray-800/60 border-b border-gray-700/60 min-w-0">
                 <Car className="h-4 w-4 text-cyan-400 flex-none" />
-                <span className="text-sm font-bold text-white tracking-wider">{selectedVehicle.plate}</span>
+                <span className="text-sm font-bold text-white tracking-wider flex-none">{selectedVehicle.plate}</span>
                 <span className="text-gray-500 text-xs">—</span>
                 <span className="text-gray-300 text-sm truncate">{selectedVehicle.brand} {selectedVehicle.model}</span>
                 {selectedVehicle.fuelType && (
@@ -700,7 +700,7 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
                   </Badge>
                 )}
               </div>
-              <div className="grid grid-cols-3 divide-x divide-gray-700/60 bg-gray-900/40">
+              <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-700/60 bg-gray-900/40 min-w-0">
                 <div className="px-3.5 py-3">
                   <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
                     <Briefcase className="h-3 w-3" /> Cliente
@@ -790,7 +790,7 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
           {/* Tipo de Combustível */}
           <div className="space-y-2">
             <FieldLabel icon={Fuel} iconColor="text-amber-400">Tipo de Combustível</FieldLabel>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {(['DIESEL', 'GASOLINE', 'ETHANOL', 'FLEX'] as const).map(type => (
                 <button
                   key={type}
@@ -919,7 +919,7 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
         title="Editar Abastecimento Interno"
         description="Atualize os campos abaixo para modificar o registro de abastecimento."
         footer={footer}
-        className="max-w-5xl"
+        className="max-w-5xl max-w-[calc(100vw-2rem)] w-full"
       >
         {renderForm()}
       </ResponsiveDrawer>

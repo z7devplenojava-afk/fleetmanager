@@ -30,8 +30,7 @@ public class CreateFuelRecordDTO {
     @Positive(message = "Quantidade deve ser positiva")
     private Double quantity;
     
-    @NotNull(message = "Custo Ã© obrigatÃ³rio")
-    @Positive(message = "Custo deve ser positivo")
+    @PositiveOrZero(message = "Custo não pode ser negativo")
     private Double cost;
     
     @NotNull(message = "Quilometragem Ã© obrigatÃ³ria")
