@@ -1,4 +1,4 @@
-﻿name: "🚀 Pipeline Sequencial CI → DEV → PROD"
+name: "🚀 Pipeline Sequencial CI → DEV → PROD"
 
 # ============================================================
 # DISPARO: push na branch ci
@@ -156,11 +156,11 @@ jobs:
           SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS \
             ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} \
-            "mkdir -p /var/www/fluxbus/ci/nginx"
+            "mkdir -p /var/www/fluxbus/nginx /var/www/fluxbus/uploads && rm -rf /var/www/secured_guard"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS docker-compose.ci.yml \
-            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS nginx/ci.conf \
-            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/nginx/ 2>/dev/null || true
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/nginx/ 2>/dev/null || true
 
       - name: "⚙️ Criar .env CI e subir containers"
         run: |
@@ -181,7 +181,7 @@ jobs:
           } > /tmp/ci.env
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp \
             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            /tmp/ci.env ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/.env
+            /tmp/ci.env ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/.env
           rm -f /tmp/ci.env
 
       - name: "🚀 Subir containers CI"
@@ -190,7 +190,12 @@ jobs:
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS \
             ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'SSHEOF'
               set -e
-              cd /var/www/fluxbus/ci
+              # Parar e remover qualquer container legado do secured_guard
+              docker stop secured-guard-db-ci secured-guard-redis-ci secured-guard-backend-ci secured-guard-frontend-ci secured-guard-whatsapp-ci secured-guard-nginx-ci secured-guard-evolution-ci 2>/dev/null || true
+              docker rm secured-guard-db-ci secured-guard-redis-ci secured-guard-backend-ci secured-guard-frontend-ci secured-guard-whatsapp-ci secured-guard-nginx-ci secured-guard-evolution-ci 2>/dev/null || true
+              rm -rf /var/www/secured_guard 2>/dev/null || true
+
+              cd /var/www/fluxbus
               echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
               docker network create z7network 2>/dev/null || true
               docker-compose -f docker-compose.ci.yml down --remove-orphans 2>/dev/null || true
@@ -282,6 +287,7 @@ jobs:
           port: 22
           script: |
             mkdir -p /var/www/fluxbus/dev
+            rm -rf /var/www/secured_guard 2>/dev/null || true
             cd /var/www/fluxbus/dev
             mv -f docker-compose.fluxbus.dev.yml docker-compose.yml 2>/dev/null || true
             cat > .env << 'ENVEOF'
@@ -379,6 +385,7 @@ jobs:
           port: 22
           script: |
             mkdir -p /var/www/fluxbus/prod
+            rm -rf /var/www/secured_guard 2>/dev/null || true
             cd /var/www/fluxbus/prod
             mv -f docker-compose.fluxbus.prod.yml docker-compose.yml 2>/dev/null || true
             cat > .env << 'ENVEOF'
