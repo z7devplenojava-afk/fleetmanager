@@ -356,7 +356,7 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!max-w-3xl !h-[92vh] flex flex-col !p-0 overflow-hidden bg-gray-950 text-white border border-gray-800 shadow-2xl">
+      <DialogContent className="!max-w-5xl !h-[92vh] flex flex-col !p-0 overflow-hidden bg-gray-950 text-white border border-gray-800 shadow-2xl">
         
         {/* ── HEADER ── */}
         <DialogHeader className="px-6 pt-5 pb-0 flex-none">

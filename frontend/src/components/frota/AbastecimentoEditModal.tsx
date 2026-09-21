@@ -662,7 +662,7 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
         title="Editar Abastecimento Interno"
         description="Atualize os campos abaixo para modificar o registro de abastecimento."
         footer={footer}
-        className="max-w-2xl"
+        className="max-w-5xl"
       >
         {renderForm()}
       </ResponsiveDrawer>
