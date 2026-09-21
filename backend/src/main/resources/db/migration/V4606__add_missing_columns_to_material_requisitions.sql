@@ -1,5 +1,5 @@
--- Migration: V1001__add_missing_columns_to_material_requisitions.sql
--- Description: Adiciona colunas se material_requisitions ja existir; caso contrario, V4606 aplicara apos criacao da tabela em V4589
+-- Migration: V4606__add_missing_columns_to_material_requisitions.sql
+-- Description: Adiciona colunas de entrega na tabela material_requisitions (criada na migration V4589)
 DO $$
 BEGIN
     IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'material_requisitions') THEN
