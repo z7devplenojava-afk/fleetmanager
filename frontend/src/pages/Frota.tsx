@@ -18,7 +18,7 @@ import VehicleDocumentsTable from '@/components/frota/VehicleDocumentsTable';
 import MobilizationPanel from '@/components/frota/MobilizationPanel';
 import VeiculoFormModal from '@/components/frota/VeiculoFormModal';
 import VeiculoEditModal from '@/components/frota/VeiculoEditModal';
-import AbastecimentoFormModal from '@/components/frota/AbastecimentoFormModal';
+import AbastecimentoInternoFormModal from '@/components/frota/AbastecimentoInternoFormModal';
 import AbastecimentoExternoFormModal from '@/components/frota/AbastecimentoExternoFormModal';
 import AbastecimentoExternoReport from '@/components/frota/AbastecimentoExternoReport';
 import MultaFormModal from '@/components/frota/MultaFormModal';
@@ -1980,26 +1980,11 @@ const Frota: React.FC = () => {
           veiculo={selectedVeiculo}
         />
 
-        <AbastecimentoFormModal
+        <AbastecimentoInternoFormModal
           isOpen={isAbastecimentoModalOpen}
           onClose={() => setIsAbastecimentoModalOpen(false)}
           onSuccess={handleAbastecimentoSuccess}
-          veiculos={vehicles ? vehicles.map(v => ({
-            id: v.id,
-            placa: v.plate,
-            marca: v.brand,
-            modelo: v.model,
-            ano: v.year,
-            cor: v.color || '',
-            combustivel: v.fuelType.toLowerCase(),
-            quilometragem: v.currentMileage || 0,
-            status: v.status.toLowerCase(),
-            data_aquisicao: v.acquisitionDate,
-            valor_aquisicao: v.acquisitionValue ? Number(v.acquisitionValue) : undefined,
-            photos: v.photos ? Array.from(v.photos).map(file => file.name).join(',') : undefined,
-            capacidade: v.capacity,
-            observacoes: v.notes
-          })) : []}
+          veiculos={vehicles || []}
         />
 
         <ManutencaoFormModal
