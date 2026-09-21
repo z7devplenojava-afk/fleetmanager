@@ -19,6 +19,8 @@ import MobilizationPanel from '@/components/frota/MobilizationPanel';
 import VeiculoFormModal from '@/components/frota/VeiculoFormModal';
 import VeiculoEditModal from '@/components/frota/VeiculoEditModal';
 import AbastecimentoFormModal from '@/components/frota/AbastecimentoFormModal';
+import AbastecimentoExternoFormModal from '@/components/frota/AbastecimentoExternoFormModal';
+import AbastecimentoExternoReport from '@/components/frota/AbastecimentoExternoReport';
 import MultaFormModal from '@/components/frota/MultaFormModal';
 import MultaViewModal from '@/components/frota/MultaViewModal';
 import MultaDeleteDialog from '@/components/frota/MultaDeleteDialog';
@@ -181,6 +183,8 @@ const Frota: React.FC = () => {
   const [isVeiculoModalOpen, setIsVeiculoModalOpen] = useState(false);
   const [isVeiculoEditModalOpen, setIsVeiculoEditModalOpen] = useState(false);
   const [isAbastecimentoModalOpen, setIsAbastecimentoModalOpen] = useState(false);
+  const [isAbastecimentoExternoModalOpen, setIsAbastecimentoExternoModalOpen] = useState(false);
+  const [abastecimentoTab, setAbastecimentoTab] = useState<'interno' | 'externo'>('interno');
   const [isManutencaoModalOpen, setIsManutencaoModalOpen] = useState(false);
   const [isManutencaoViewModalOpen, setIsManutencaoViewModalOpen] = useState(false);
   const [isManutencaoDeleteDialogOpen, setIsManutencaoDeleteDialogOpen] = useState(false);
@@ -1495,19 +1499,53 @@ const Frota: React.FC = () => {
           <TabsContent value="abastecimentos" className="mt-6 space-y-4">
             <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
               <h3 className="text-seguranca-lightgray font-semibold">Controle de Abastecimento</h3>
-              <Button
-                onClick={() => setIsAbastecimentoModalOpen(true)}
-                className="bg-seguranca-red hover:bg-seguranca-darkred"
-              >
-                <Plus size={16} className="mr-2" />
-                Novo Abastecimento
-              </Button>
+              <div className="flex gap-2">
+                {abastecimentoTab === 'interno' ? (
+                  <Button
+                    onClick={() => setIsAbastecimentoModalOpen(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Novo Abastecimento Interno
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => setIsAbastecimentoExternoModalOpen(true)}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Novo Abastecimento Externo
+                  </Button>
+                )}
+              </div>
             </div>
-            <AbastecimentosTable
-              abastecimentos={fuelRecords || []}
-              veiculos={veiculosComponent}
-              onRefresh={refetchFuelRecords}
-            />
+
+            <Tabs value={abastecimentoTab} onValueChange={(v) => setAbastecimentoTab(v as 'interno' | 'externo')}>
+              <TabsList className="grid w-full grid-cols-2 bg-seguranca-graphite border-gray-600 p-1">
+                <TabsTrigger value="interno" className="text-sm text-seguranca-lightgray data-[state='active']:bg-blue-600">
+                  <Fuel size={16} className="mr-2" /> Abastecimento Interno
+                </TabsTrigger>
+                <TabsTrigger value="externo" className="text-sm text-seguranca-lightgray data-[state='active']:bg-green-600">
+                  <Fuel size={16} className="mr-2" /> Abastecimento Externo
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="interno" className="mt-4">
+                <AbastecimentosTable
+                  abastecimentos={fuelRecords || []}
+                  veiculos={veiculosComponent}
+                  onRefresh={refetchFuelRecords}
+                />
+              </TabsContent>
+
+              <TabsContent value="externo" className="mt-4">
+                <AbastecimentoExternoReport
+                  fuelRecords={fuelRecords || []}
+                  activeSubTab="lancamentos"
+                  onSubTabChange={() => {}}
+                />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="manutencoes" className="mt-6 space-y-4">
@@ -2148,6 +2186,16 @@ const Frota: React.FC = () => {
           }}
           vehicle={selectedAgregado}
           vehicles={vehicles || []}
+        />
+
+        <AbastecimentoExternoFormModal
+          isOpen={isAbastecimentoExternoModalOpen}
+          onClose={() => setIsAbastecimentoExternoModalOpen(false)}
+          onSuccess={() => {
+            refetchFuelRecords();
+            setIsAbastecimentoExternoModalOpen(false);
+          }}
+          veiculos={vehicles || []}
         />
 
       </div>
