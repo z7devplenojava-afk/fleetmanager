@@ -104,7 +104,7 @@ jobs:
           tags: z7design/fluxbus-backend:ci
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=https://github.com/jmr337778-crypto/fleetmanager
+            org.opencontainers.image.source=https://github.com/z7devplenojava-afk/fleetmanager
 
       - name: "🐳 Build & Push Frontend :ci"
         uses: docker/build-push-action@v5
