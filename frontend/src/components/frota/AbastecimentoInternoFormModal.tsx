@@ -36,10 +36,13 @@ import {
   FileText,
 } from 'lucide-react';
 import fleetService from '@/services/fleetService';
-import driverService from '@/services/driverService';
-import { garageService, Garage } from '@/services/garageService';
+import { employeeService } from '@/services/employeeService';
+import { garageService } from '@/services/garageService';
 import fuelPumpService, { FuelPump, FuelTank } from '@/services/fuelPumpService';
 import { Vehicle } from '@/types/fleet';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
+import { EmployeeCombobox } from '@/components/ui/employee-combobox';
+import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
 
 interface InternalFuelFormData {
   // Localização
@@ -164,15 +167,6 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
     enabled: isOpen,
   });
 
-  const { data: drivers = [] } = useQuery({
-    queryKey: ['drivers', 'active'],
-    queryFn: async () => {
-      const res = await driverService.getDrivers();
-      return Array.isArray(res) ? res : [];
-    },
-    enabled: isOpen,
-  });
-
   const { data: lastFuelRecord } = useQuery({
     queryKey: ['lastFuelRecord', formData.vehicleId],
     queryFn: async () => {
@@ -214,6 +208,17 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
     }
   }, [formData.pumpId, pumps]);
 
+  // Auto-fill responsible name when responsibleId changes
+  useEffect(() => {
+    if (!formData.responsibleId) {
+      setField('responsibleName', '');
+      return;
+    }
+    employeeService.getEmployeeById(formData.responsibleId).then(emp => {
+      if (emp) setField('responsibleName', emp.name || emp.fullName || '');
+    }).catch(() => {});
+  }, [formData.responsibleId]);
+
   // Validate mileage
   useEffect(() => {
     if (!formData.mileage || !lastFuelRecord?.mileage) {
@@ -236,6 +241,25 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
       }
     }
   }, [formData.mileage, lastFuelRecord]);
+
+  // --- Filtered pump/tank options ---
+  const pumpOptions: SearchableOption[] = useMemo(() =>
+    pumps.map(p => ({
+      value: p.id,
+      label: p.name,
+      subtitle: p.fuelTankName || '',
+      keywords: [p.name, p.fuelTankName || ''].filter(Boolean),
+    })),
+  [pumps]);
+
+  const tankOptions: SearchableOption[] = useMemo(() =>
+    tanks.map(t => ({
+      value: t.id,
+      label: t.name,
+      subtitle: `${FUEL_TYPE_LABELS[t.fuelType] || t.fuelType} • ${t.currentLevel?.toFixed(0)}L disponíveis`,
+      keywords: [t.name, t.fuelType, FUEL_TYPE_LABELS[t.fuelType] || ''].filter(Boolean),
+    })),
+  [tanks]);
 
   const setField = <K extends keyof InternalFuelFormData>(field: K, value: InternalFuelFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -430,21 +454,24 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                     <Droplets className="h-4 w-4 text-cyan-400" />
                     Bomba / Dispensador
                   </Label>
-                  <Select
+                  <SearchableSelect
                     value={formData.pumpId}
-                    onValueChange={(val) => setField('pumpId', val)}
-                  >
-                    <SelectTrigger className="bg-gray-900/80 border-gray-700 text-white h-11">
-                      <SelectValue placeholder="Selecione a bomba..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-gray-700">
-                      {pumps.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name} — {p.fuelTankName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(val, opt) => {
+                      setField('pumpId', val);
+                      if (opt) {
+                        const pump = pumps.find(p => p.id === val);
+                        setField('pumpName', pump?.name || opt.label);
+                        if (pump) {
+                          setField('tankId', pump.fuelTankId || '');
+                          setField('tankName', pump.fuelTankName || '');
+                        }
+                      }
+                    }}
+                    options={pumpOptions}
+                    placeholder="Selecione a bomba..."
+                    searchPlaceholder="Buscar bomba..."
+                    emptyText="Nenhuma bomba encontrada."
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -452,28 +479,18 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                     <Fuel className="h-4 w-4 text-amber-400" />
                     Tanque
                   </Label>
-                  <Select
+                  <SearchableSelect
                     value={formData.tankId}
-                    onValueChange={(val) => {
-                      const tank = tanks.find(t => t.id === val);
+                    onChange={(val, opt) => {
                       setField('tankId', val);
-                      setField('tankName', tank?.name || '');
+                      const tank = tanks.find(t => t.id === val);
+                      setField('tankName', tank?.name || opt?.label || '');
                     }}
-                  >
-                    <SelectTrigger className="bg-gray-900/80 border-gray-700 text-white h-11">
-                      <SelectValue placeholder="Selecione o tanque..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-gray-700">
-                      {tanks.map(t => (
-                        <SelectItem key={t.id} value={t.id}>
-                          <span className="flex flex-col">
-                            <span>{t.name}</span>
-                            <span className="text-gray-500 text-xs">{FUEL_TYPE_LABELS[t.fuelType] || t.fuelType} • {t.currentLevel?.toFixed(0)}L disponíveis</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={tankOptions}
+                    placeholder="Selecione o tanque..."
+                    searchPlaceholder="Buscar tanque..."
+                    emptyText="Nenhum tanque encontrado."
+                  />
                 </div>
               </div>
 
@@ -528,28 +545,15 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                   <User className="h-4 w-4 text-green-400" />
                   Quem Abasteceu (Responsável) *
                 </Label>
-                <Select
+                <EmployeeCombobox
                   value={formData.responsibleId}
-                  onValueChange={(val) => {
-                    const driver = drivers.find(d => d.id === val);
+                  onChange={(val) => {
                     setField('responsibleId', val);
-                    setField('responsibleName', driver?.name || '');
                   }}
-                >
-                  <SelectTrigger className="bg-gray-900/80 border-gray-700 text-white h-11">
-                    <SelectValue placeholder="Selecione o responsável..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-700">
-                    {drivers.map(d => (
-                      <SelectItem key={d.id} value={d.id}>
-                        <span className="flex items-center gap-2">
-                          <User className="h-3.5 w-3.5 text-green-400" />
-                          {d.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Selecione o responsável..."
+                  searchPlaceholder="Buscar funcionário..."
+                  emptyPlaceholder="Nenhum funcionário encontrado."
+                />
               </div>
             </div>
           )}
@@ -570,28 +574,10 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                   <Car className="h-4 w-4 text-blue-400" />
                   Veículo *
                 </Label>
-                <Select
+                <VehicleCombobox
                   value={formData.vehicleId}
-                  onValueChange={(val) => setField('vehicleId', val)}
-                >
-                  <SelectTrigger className="bg-gray-900/80 border-gray-700 text-white h-11">
-                    <SelectValue placeholder="Selecione o veículo..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-700 max-h-60">
-                    {veiculos
-                      .filter(v => v.status === 'ACTIVE' || v.status === 'ATIVO')
-                      .map(v => (
-                        <SelectItem key={v.id} value={v.id}>
-                          <span className="flex items-center gap-2">
-                            <Car className="h-3.5 w-3.5 text-blue-400" />
-                            <strong>{v.plate}</strong>
-                            <span className="text-gray-400">—</span>
-                            {v.brand} {v.model}
-                          </span>
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(val) => setField('vehicleId', val)}
+                />
               </div>
 
               {/* Auto-fill info card */}
