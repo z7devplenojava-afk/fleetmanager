@@ -22,7 +22,7 @@ jobs:
           script: |
             set -e
             APP_PATH="${{ secrets.VPS_APP_PATH_CI }}"
-            if [ -z "$APP_PATH" ]; then APP_PATH="/var/www/fluxbus/ci"; fi
+            if [ -z "$APP_PATH" ]; then APP_PATH="/var/www/fluxbus"; fi
             cd "$APP_PATH"
             git pull https://${{ secrets.USER_GITHUB }}:${{ secrets.TOKEN_GITHUB }}@github.com/jmr337778-crypto/fleetmanager.git ci
             cd deploy

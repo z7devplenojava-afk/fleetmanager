@@ -41,7 +41,7 @@ public class WebConfig implements WebMvcConfigurer {
                     "file:uploads/",
                     "file:../uploads/",
                     "file:/app/uploads/",
-                    "file:/var/www/fluxbus/ci/uploads/"
+                    "file:/var/www/fluxbus/uploads/"
                 )
                 .setCachePeriod(3600); // Cache por 1 hora
                 
@@ -92,7 +92,7 @@ public class WebConfig implements WebMvcConfigurer {
                     "file:uploads/companies/logos/",
                     "file:../uploads/companies/logos/",
                     "file:/app/uploads/companies/logos/",
-                    "file:/var/www/fluxbus/ci/uploads/companies/logos/"
+                    "file:/var/www/fluxbus/uploads/companies/logos/"
                 )
                 .setCachePeriod(3600);
             

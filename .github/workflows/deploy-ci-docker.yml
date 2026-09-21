@@ -7,7 +7,7 @@ on:
 
 env:
   ENVIRONMENT: ci
-  DEPLOY_PATH: /var/www/fluxbus/ci
+  DEPLOY_PATH: /var/www/fluxbus
   APP_URL: https://ci.z7botsolutions.com.br
 
 jobs:
@@ -194,11 +194,11 @@ jobs:
         run: |
           SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} \
-            "mkdir -p /var/www/fluxbus/ci/nginx"
+            "mkdir -p /var/www/fluxbus/nginx"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS docker-compose.ci.yml \
-            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS nginx/ci.conf \
-            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/nginx/
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/nginx/
 
       # ============================================
       # 9️⃣ VALIDATE AND CONFIGURE JWT_SECRET
@@ -256,7 +256,7 @@ jobs:
             printf 'BAILEYS_INSTANCE_KEY=%s\n' "${{ secrets.BAILEYS_INSTANCE_KEY || 'securedguard_ci' }}"
           } > /tmp/ci.env
           # Enviar arquivo para VPS
-          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp /tmp/ci.env ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/.env
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp /tmp/ci.env ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/.env
           # Limpar arquivo temporário
           rm -f /tmp/ci.env
 
@@ -266,7 +266,7 @@ jobs:
       - name: 🔐 Ensure JWT_SECRET is correct on host and .env
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/fluxbus/ci
+            cd /var/www/fluxbus
             JWT_SECRET="${{ secrets.JWT_SECRET_CI }}"
             if [ -z "$JWT_SECRET" ]; then
               JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
@@ -281,7 +281,7 @@ jobs:
       - name: 🔧 Force .env correction before stopping containers
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/fluxbus/ci
+            cd /var/www/fluxbus
             JWT_SECRET="${{ secrets.JWT_SECRET_CI }}"
             if [ -z "$JWT_SECRET" ]; then
               JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
@@ -297,7 +297,7 @@ jobs:
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
             docker swarm leave --force 2>/dev/null || true
-            cd /var/www/fluxbus/ci
+            cd /var/www/fluxbus
             docker-compose -f docker-compose.ci.yml down --remove-orphans 2>/dev/null || true
             docker ps -a | grep fluxbus | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
           EOF
@@ -308,7 +308,7 @@ jobs:
       - name: 💾 Backup and stop old containers
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/fluxbus/ci
+            cd /var/www/fluxbus
             docker-compose -f docker-compose.ci.yml stop 2>/dev/null || true
           EOF
 
@@ -376,7 +376,7 @@ jobs:
       - name: 🧹 Clean networks before starting
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/fluxbus/ci
+            cd /var/www/fluxbus
             # Parar containers que podem estar usando a rede
             docker-compose -f docker-compose.ci.yml down 2>/dev/null || true
             # Remover rede fluxbus-ci se existir (será recriada pelo docker-compose)
@@ -396,7 +396,7 @@ jobs:
       - name: 🚀 Start new containers
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/fluxbus/ci
+            cd /var/www/fluxbus
             docker network create z7network 2>/dev/null || true
 
             # Pre-pull imagem pública da Evolution API com retry
@@ -419,7 +419,7 @@ jobs:
       - name: 🔧 Fix containers that are not running
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/fluxbus/ci
+            cd /var/www/fluxbus
             docker network create z7network 2>/dev/null || true
             docker-compose -f docker-compose.ci.yml ps
             yes y | docker-compose -f docker-compose.ci.yml up -d
@@ -435,7 +435,7 @@ jobs:
             if [ -z "$JWT_SECRET" ]; then
               JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
             fi
-            cd /var/www/fluxbus/ci
+            cd /var/www/fluxbus
             cat .env | grep JWT_SECRET
             docker exec fluxbus-backend-ci sh -c "export JWT_SECRET=$JWT_SECRET" || true
           EOF
@@ -455,7 +455,7 @@ jobs:
       - name: 🔍 Diagnostic - Container Status
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'EOF'
-            cd /var/www/fluxbus/ci
+            cd /var/www/fluxbus
             docker-compose -f docker-compose.ci.yml ps
             docker logs --tail 50 fluxbus-backend-ci
           EOF
