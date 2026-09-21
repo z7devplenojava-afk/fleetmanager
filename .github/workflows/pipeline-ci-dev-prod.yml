@@ -29,7 +29,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  CI_URL:   https://ci.z7botsolutions.com.br
+  CI_URL:   https://ci.fluxbus.com.br
   DEV_URL:  https://dev.fluxbus.com.br
   PROD_URL: https://fluxbus.com.br
 
@@ -81,7 +81,7 @@ jobs:
         working-directory: ./frontend
         env:
           VITE_API_URL: ${{ env.CI_URL }}/api
-          VITE_WS_URL: wss://ci.z7botsolutions.com.br/ws
+          VITE_WS_URL: wss://ci.fluxbus.com.br/ws
           VITE_ENVIRONMENT: ci
         run: |
           rm -rf node_modules package-lock.json
@@ -115,7 +115,7 @@ jobs:
           tags: z7design/fluxbus-frontend:ci
           build-args: |
             VITE_API_URL=${{ env.CI_URL }}/api
-            VITE_WS_URL=wss://ci.z7botsolutions.com.br/ws
+            VITE_WS_URL=wss://ci.fluxbus.com.br/ws
             VITE_ENVIRONMENT=ci
 
       - name: "🐳 Build & Push WhatsApp :ci"
