@@ -130,18 +130,14 @@ services:
     image: z7design/fluxbus-frontend:dev
     container_name: fluxbus-frontend-dev
     ports:
-      - "81:443"
-    volumes:
-      # HTTPS via nginx (cert self-signed p/ localhost + config SSL que proxya /api para o backend)
-      - ./fluxbus-nginx/ssl.conf:/etc/nginx/conf.d/ssl.conf:ro
-      - ./fluxbus-nginx/certs:/etc/nginx/certs:ro
+      # Frontend nginx escuta na porta 80 interna - mapeamento correto
+      - "80:80"
     depends_on:
       backend-dev:
         condition: service_started
     networks:
       - fluxbus-dev-network
     healthcheck:
-      # 127.0.0.1: localhost resolve ::1 (IPv6) e o nginx escuta so IPv4 -> wget busybox nao faz fallback
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1 || exit 1"]
       interval: 30s
       timeout: 10s
