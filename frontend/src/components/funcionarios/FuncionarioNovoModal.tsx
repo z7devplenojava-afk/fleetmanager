@@ -93,6 +93,36 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
   const { toast } = useToast();
   const [form, setForm] = useState<CreateEmployeeDTO>(initialState);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // ===== Cálculo de vencimentos de exames (validade de 1 ano) =====
+  const addOneYear = (dateStr?: string | null): string | null => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return null;
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().substring(0, 10);
+  };
+  const formatBRDate = (dateStr?: string | null): string => {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('pt-BR');
+  };
+  const nextAsoDate = addOneYear(form.exameMedicoData);
+  const nextPsicoDate = addOneYear((form as any).laudoPsicologicoData);
+  const asoDaysLeft = nextAsoDate
+    ? Math.ceil((new Date(nextAsoDate + 'T00:00:00').getTime() - Date.now()) / 86400000)
+    : null;
+  const psicoDaysLeft = nextPsicoDate
+    ? Math.ceil((new Date(nextPsicoDate + 'T00:00:00').getTime() - Date.now()) / 86400000)
+    : null;
+  const psicoStatusText = psicoDaysLeft === null
+    ? 'Sem laudo registrado'
+    : psicoDaysLeft < 0
+      ? `VENCIDO há ${Math.abs(psicoDaysLeft)} dia(s) — agendar novo exame`
+      : psicoDaysLeft <= 30
+        ? `Vence em ${psicoDaysLeft} dia(s) — programar renovação`
+        : `Válido até ${formatBRDate(nextPsicoDate)}`;
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -357,6 +387,10 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         // Dados do Exame Médico (ASO)
         exameMedicoData: employeeToEdit.exameMedicoData || '',
         exameMedicoTipo: employeeToEdit.exameMedicoTipo || '',
+        // Laudo Psicológico + próximos vencimentos
+        laudoPsicologicoData: (employeeToEdit as any).laudoPsicologicoData || '',
+        nextExameMedico: (employeeToEdit as any).nextExameMedico || '',
+        nextLaudoPsicologico: (employeeToEdit as any).nextLaudoPsicologico || '',
         exameMedicoDoctor: employeeToEdit.exameMedicoDoctor || undefined,
         exameMedicoHorario: employeeToEdit.exameMedicoHorario || '',
         exameMedicoIntervalosRefeicao: employeeToEdit.exameMedicoIntervalosRefeicao,
@@ -863,7 +897,10 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
       const employeeData = {
         ...form
         // Removido: dependents - não enviar dependentes no payload do funcionário
-      };
+      } as any;
+      // Próximos vencimentos são sempre recalculados pelo backend (data + 1 ano)
+      delete employeeData.nextExameMedico;
+      delete employeeData.nextLaudoPsicologico;
       
       if (isEditMode && employeeToEdit?.id) {
         // Modo de edição
@@ -2691,6 +2728,11 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                   onChange={(e) => setForm(prev => ({ ...prev, exameMedicoData: e.target.value }))} 
                   className="text-xs sm:text-sm h-9 sm:h-10"
                 />
+                {nextAsoDate && (
+                  <p className="text-xs mt-1 text-seguranca-yellow">
+                    ✓ Válido até: {formatBRDate(nextAsoDate)} (1 ano)
+                  </p>
+                )}
               </div>
               <div>
                 <Label className="text-sm font-medium text-gray-200">Tipo de Exame Realizado</Label>
@@ -2852,6 +2894,37 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                     <Label htmlFor="sindical-nao" className="text-gray-300 cursor-pointer text-xs sm:text-sm">Não</Label>
                   </div>
                 </RadioGroup>
+              </div>
+
+              {/* Laudo Psicológico */}
+              <div className="md:col-span-2 pt-2 border-t border-gray-600">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-200">Data do Laudo Psicológico</Label>
+                    <Input 
+                      name="laudoPsicologicoData" 
+                      type="date"
+                      value={(form as any).laudoPsicologicoData || ''} 
+                      onChange={(e) => setForm(prev => ({ ...prev, laudoPsicologicoData: e.target.value }))} 
+                      className="text-xs sm:text-sm h-9 sm:h-10"
+                    />
+                    {nextPsicoDate && (
+                      <p className="text-xs mt-1 text-seguranca-yellow">
+                        ✓ Válido até: {formatBRDate(nextPsicoDate)} (1 ano)
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-end">
+                    <div className={`w-full p-3 rounded-lg border ${
+                      psicoDaysLeft !== null && psicoDaysLeft < 0 ? 'bg-red-900/30 border-red-500' :
+                      psicoDaysLeft !== null && psicoDaysLeft <= 30 ? 'bg-orange-900/30 border-orange-500' :
+                      'bg-seguranca-black border-gray-600'
+                    }`}>
+                      <p className="text-xs text-gray-400">Situação do Laudo Psicológico</p>
+                      <p className="text-sm font-medium text-seguranca-lightgray mt-1">{psicoStatusText}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             </div>

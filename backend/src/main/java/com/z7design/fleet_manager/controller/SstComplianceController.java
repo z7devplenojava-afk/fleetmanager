@@ -36,6 +36,7 @@ public class SstComplianceController {
     private final OpacityTestService opacityTestService;
     private final ComplianceDossierService dossierService;
     private final AsoAlertScheduler asoAlertScheduler;
+    private final com.z7design.fleet_manager.scheduler.SSTExpirationAlertScheduler sstExpirationAlertScheduler;
 
     // ===== RF-04.3: Fumaça preta / Opacidade =====
 
@@ -119,10 +120,22 @@ public class SstComplianceController {
     // ===== RF-04.2: Alertas SST (execução manual do scheduler) =====
 
     @PostMapping("/alerts/run")
-    @Operation(summary = "Executar verificação manual de ASO/CNH vencendo em 30 dias")
+    @Operation(summary = "Executar verificação manual de vencimentos SST (ASO, CNH, treinamentos, CA de EPI e mandato CIPA)")
     public ResponseEntity<Map<String, Integer>> runSstAlerts() {
         int aso = asoAlertScheduler.notifyExpiringAso();
         int cnh = asoAlertScheduler.notifyExpiringCnh();
-        return ResponseEntity.ok(Map.of("asoAlerts", aso, "cnhAlerts", cnh));
+        int treinamentos = sstExpirationAlertScheduler.notifyExpiringTrainings();
+        int casEpi = sstExpirationAlertScheduler.notifyExpiringCaEPIs();
+        int cipa = sstExpirationAlertScheduler.notifyExpiringCipaMandates();
+        int psico = sstExpirationAlertScheduler.notifyExpiringLaudoPsicologico();
+        int asoCadastro = sstExpirationAlertScheduler.notifyExpiringAsoCadastro();
+        return ResponseEntity.ok(Map.of(
+                "asoAlerts", aso,
+                "cnhAlerts", cnh,
+                "trainingAlerts", treinamentos,
+                "epiCaAlerts", casEpi,
+                "cipaAlerts", cipa,
+                "laudoPsicologicoAlerts", psico,
+                "asoCadastroAlerts", asoCadastro));
     }
 }

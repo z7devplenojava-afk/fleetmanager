@@ -506,6 +506,16 @@ public class Employee implements TenantAware {
     @Column(name = "decreto_naturalizacao", length = 50)
     private String decretoNaturalizacao;
 
+    // Laudo Psicologico (exame psicotecnico)
+    @Column(name = "laudo_psicologico_data")
+    private LocalDate laudoPsicologicoData;
+
+    @Column(name = "next_laudo_psicologico")
+    private LocalDate nextLaudoPsicologico;
+
+    @Column(name = "next_exame_medico")
+    private LocalDate nextExameMedico;
+
     // Assinaturas e controle
     @Column(name = "assinatura_funcionario", columnDefinition = "TEXT")
     private String assinaturaFuncionario;
@@ -515,6 +525,7 @@ public class Employee implements TenantAware {
     private LocalDate dataRescisao;
 
     // Dados do Exame MÃ©dico (ASO)
+
     @Column(name = "exame_medico_data")
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate exameMedicoData;

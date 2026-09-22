@@ -26,7 +26,8 @@ import {
   Trash2,
   Download,
   Filter,
-  Search
+  Search,
+  RefreshCw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { sstService, SSTDashboardSummary, SSTAlert } from '@/services/sstService';
@@ -44,6 +45,7 @@ const SST: React.FC = () => {
   const [alerts, setAlerts] = useState<SSTAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [checkingAlerts, setCheckingAlerts] = useState(false);
 
   // Carregar dados do dashboard
   useEffect(() => {
@@ -94,31 +96,48 @@ const SST: React.FC = () => {
     }
   ];
 
-  const expiringItems = [
-    {
-      id: '1',
-      type: 'ASO',
-      employee: 'Carlos Lima',
-      expiryDate: '2024-01-25',
-      daysLeft: 3
-    },
-    {
-      id: '2',
-      type: 'EPI',
-      employee: 'Ana Costa',
-      item: 'Capacete de Segurança',
-      expiryDate: '2024-01-28',
-      daysLeft: 6
-    },
-    {
-      id: '3',
-      type: 'Treinamento',
-      employee: 'Pedro Oliveira',
-      training: 'NR-35 - Trabalho em Altura',
-      expiryDate: '2024-02-01',
-      daysLeft: 10
+  const expiringItems = alerts
+    .filter(a => !a.isResolved && a.dueDate)
+    .map(a => ({
+      id: a.id,
+      type: a.type === 'TREINAMENTO_VENCIMENTO' ? 'Treinamento'
+        : a.type === 'EPI_VENCIMENTO' ? 'EPI (CA)'
+        : a.type === 'CIPA_MANDATO' ? 'CIPA'
+        : a.type === 'EXAME_VENCIMENTO' ? 'ASO'
+        : 'Alerta',
+      employee: a.employeeName || '',
+      description: a.message,
+      expiryDate: a.dueDate as string,
+      daysLeft: Math.ceil((new Date(a.dueDate as string).getTime() - Date.now()) / 86400000),
+    }))
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
+  // Verificação manual de vencimentos (roda o scheduler sob demanda)
+  const handleRunAlertCheck = async () => {
+    try {
+      setCheckingAlerts(true);
+      const result = await sstService.runAlertCheck();
+      const total = (result?.asoAlerts || 0) + (result?.cnhAlerts || 0) + (result?.trainingAlerts || 0)
+        + (result?.epiCaAlerts || 0) + (result?.cipaAlerts || 0);
+      toast({
+        title: 'Verificação concluída',
+        description: total > 0
+          ? `${total} novo(s) alerta(s) de vencimento gerado(s).`
+          : 'Nenhum novo vencimento encontrado.',
+      });
+      const alertsData = await sstService.getAlerts();
+      setAlerts(alertsData);
+    } catch (err) {
+      console.error('Erro ao executar verificação de vencimentos:', err);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível executar a verificação de vencimentos.',
+        variant: 'destructive',
+      });
+    } finally {
+      setCheckingAlerts(false);
     }
-  ];
+  };
 
   // Função para marcar alerta como lido
   const handleMarkAlertAsRead = async (alertId: string) => {
@@ -349,6 +368,62 @@ const SST: React.FC = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Próximos Vencimentos (dados reais dos alertas) */}
+            <Card className="bg-seguranca-graphite border-gray-600">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-orange-500" />
+                  Próximos Vencimentos (30 dias)
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRunAlertCheck}
+                  disabled={checkingAlerts}
+                  className="border-gray-600 text-seguranca-lightgray"
+                >
+                  {checkingAlerts ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  Verificar vencimentos agora
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {expiringItems.length > 0 ? (
+                  <div className="space-y-2">
+                    {expiringItems.slice(0, 8).map((item) => (
+                      <div key={item.id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                        item.daysLeft < 0 ? 'bg-red-900/20 border-red-500' :
+                        item.daysLeft <= 7 ? 'bg-orange-900/20 border-orange-500' :
+                        'bg-yellow-900/20 border-yellow-500'
+                      }`}>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs border-gray-500 text-gray-300">{item.type}</Badge>
+                            {item.employee && (
+                              <p className="font-medium text-seguranca-lightgray">{item.employee}</p>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-400 mt-1 line-clamp-1">{item.description}</p>
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className={`text-sm font-medium ${item.daysLeft < 0 ? 'text-red-400' : 'text-gray-300'}`}>
+                            {item.daysLeft < 0 ? `Vencido há ${Math.abs(item.daysLeft)}d` : `${item.daysLeft}d restantes`}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(item.expiryDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                    <p className="text-seguranca-lightgray">Nenhum vencimento nos próximos 30 dias</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Alertas e Notificações */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

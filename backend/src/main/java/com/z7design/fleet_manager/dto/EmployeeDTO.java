@@ -225,6 +225,15 @@ public class EmployeeDTO {
     @JsonFormat(pattern = "yyyy-MM-dd")
     @JsonDeserialize(using = BlankStringToNullLocalDateDeserializer.class)
     private LocalDate exameMedicoData;
+    // Laudo Psicologico (exame psicotecnico)
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    @JsonDeserialize(using = BlankStringToNullLocalDateDeserializer.class)
+    private LocalDate laudoPsicologicoData;
+    // Próximos vencimentos (calculados pelo backend: data + 1 ano)
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate nextExameMedico;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate nextLaudoPsicologico;
     private String exameMedicoTipo; // ADMISSIONAL, DEMISSIONAL, PERIODICO, MUDANCA_FUNCAO, RETORNO_TRABALHO
     private IdOnlyDTO exameMedicoDoctor; // ReferÃªncia ao mÃ©dico
     private String exameMedicoHorario; // Ex: "18:00 Ã€S 06:00 H"

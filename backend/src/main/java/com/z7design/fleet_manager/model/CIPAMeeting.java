@@ -30,6 +30,10 @@ public class CIPAMeeting {
     private UUID id;
 
     @NotNull(message = "Data da reuniÃ£o Ã© obrigatÃ³ria")
+    @NotNull(message = "Título da reunião é obrigatório")
+    @Column(nullable = false)
+    private String title;
+
     @Column(name = "meeting_date", nullable = false)
     private LocalDate meetingDate;
 

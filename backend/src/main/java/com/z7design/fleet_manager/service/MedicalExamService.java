@@ -85,8 +85,39 @@ public class MedicalExamService {
      * Cria um novo exame mÃ©dico
      */
     public MedicalExam createExam(MedicalExam exam) {
-        log.info("Criando exame mÃ©dico para funcionÃ¡rio: {}", exam.getEmployee().getId());
+        log.info("Criando exame medico para funcionario: {}", exam.getEmployee().getId());
+        calculateNextExamDate(exam);
+        syncEmployeeExamDates(exam);
         return examRepository.save(exam);
+    }
+
+    /**
+     * Calcula a data do proximo exame quando nao informada:
+     * validade = validityMonths do tipo (padrao 12 meses = 1 ano, ex.: ASO).
+     */
+    private void calculateNextExamDate(MedicalExam exam) {
+        if (exam.getExamDate() == null || exam.getNextExamDate() != null) {
+            return;
+        }
+        Integer validityMonths = exam.getExamType() != null ? exam.getExamType().getValidityMonths() : null;
+        int months = (validityMonths != null && validityMonths > 0) ? validityMonths : 12;
+        exam.setNextExamDate(exam.getExamDate().plusMonths(months));
+        log.info("Proximo exame calculado automaticamente: {} (validade de {} meses)", exam.getNextExamDate(), months);
+    }
+
+    /**
+     * Espelha a data do exame no cadastro do funcionario (ASO) e recalcula o
+     * proximo vencimento (1 ano), mantendo o scheduler de alertas consistente.
+     */
+    private void syncEmployeeExamDates(MedicalExam exam) {
+        if (exam.getEmployee() == null || exam.getExamDate() == null) {
+            return;
+        }
+        com.z7design.fleet_manager.model.Employee employee = exam.getEmployee();
+        employee.setExameMedicoData(exam.getExamDate());
+        employee.setNextExameMedico(exam.getNextExamDate() != null
+                ? exam.getNextExamDate()
+                : exam.getExamDate().plusYears(1));
     }
 
     /**
@@ -140,6 +171,8 @@ public class MedicalExamService {
                     existing.setClinicName(exam.getClinicName());
                     existing.setDocumentUrl(exam.getDocumentUrl());
                     existing.setNotes(exam.getNotes());
+                    calculateNextExamDate(existing);
+                    syncEmployeeExamDates(existing);
                     return examRepository.save(existing);
                 })
                 .orElse(null);

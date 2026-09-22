@@ -50,6 +50,7 @@ const FichasEntregaEPI: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFicha, setSelectedFicha] = useState<EPIDeliveryForm | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [pdfGeneratingId, setPdfGeneratingId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
@@ -137,6 +138,29 @@ const FichasEntregaEPI: React.FC = () => {
   const handleView = (ficha: EPIDeliveryForm) => {
     setSelectedFicha(ficha);
     setViewModalOpen(true);
+  };
+
+  const handleDownloadPdf = async (ficha: EPIDeliveryForm) => {
+    try {
+      setPdfGeneratingId(ficha.id);
+      const blob = await epiDeliveryFormService.downloadPdf(ficha.id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      toast({
+        title: 'PDF gerado',
+        description: `Ficha de EPI de ${ficha.employeeName} aberta para impressão/download.`,
+      });
+    } catch (error) {
+      console.error('Erro ao gerar PDF da ficha:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível gerar o PDF da ficha.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPdfGeneratingId(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -336,6 +360,20 @@ const FichasEntregaEPI: React.FC = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadPdf(ficha)}
+                                disabled={pdfGeneratingId === ficha.id}
+                                title="Gerar Ficha de EPI em PDF (impressão/assinatura)"
+                                className="h-8 w-8 p-0"
+                              >
+                                {pdfGeneratingId === ficha.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <FileText className="h-4 w-4" />
+                                )}
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"

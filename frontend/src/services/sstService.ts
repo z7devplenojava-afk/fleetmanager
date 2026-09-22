@@ -259,17 +259,31 @@ export const sstService = {
 
   // Alertas
   async getAlerts(): Promise<SSTAlert[]> {
-    const response = await api.get('/api/sst/alerts');
+    const response = await api.get<any[]>('/api/sst/alerts');
+    // Normaliza o contrato do backend (alertType + employee objeto) para o formato do frontend
+    return (response.data || []).map((a: any) => ({
+      ...a,
+      type: a.type ?? a.alertType,
+      employeeId: a.employeeId ?? a.employee?.id,
+      employeeName: a.employeeName ?? a.employee?.name,
+    }));
+  },
+
+  /**
+   * Executa verificação manual de vencimentos SST (ASO, CNH, treinamentos, CA de EPI, CIPA)
+   */
+  async runAlertCheck(): Promise<Record<string, number>> {
+    const response = await api.post<Record<string, number>>('/api/sst-compliance/alerts/run');
     return response.data;
   },
 
   async getAlertsByEmployee(employeeId: string): Promise<SSTAlert[]> {
-    const response = await api.get(`/sst/alerts/employee/${employeeId}`);
+    const response = await api.get(`/api/sst/alerts/employee/${employeeId}`);
     return response.data;
   },
 
   async getUnreadAlerts(employeeId: string): Promise<SSTAlert[]> {
-    const response = await api.get(`/sst/alerts/unread/employee/${employeeId}`);
+    const response = await api.get(`/api/sst/alerts/unread/employee/${employeeId}`);
     return response.data;
   },
 
@@ -279,15 +293,15 @@ export const sstService = {
   },
 
   async markAlertAsRead(alertId: string): Promise<void> {
-    await api.post(`/sst/alerts/${alertId}/read`);
+    await api.post(`/api/sst/alerts/${alertId}/read`);
   },
 
   async markAlertAsResolved(alertId: string): Promise<void> {
-    await api.post(`/sst/alerts/${alertId}/resolve`);
+    await api.post(`/api/sst/alerts/${alertId}/resolve`);
   },
 
   async getUnreadAlertsCount(employeeId: string): Promise<number> {
-    const response = await api.get(`/sst/alerts/count/unread/employee/${employeeId}`);
+    const response = await api.get(`/api/sst/alerts/count/unread/employee/${employeeId}`);
     return response.data;
   },
 
