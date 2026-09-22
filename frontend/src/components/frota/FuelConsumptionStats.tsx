@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/axios';
+import fleetService from '@/services/fleetService';
 import {
   LineChart,
   Line,
@@ -44,15 +45,22 @@ interface FuelConsumptionStatsData {
 }
 
 interface Vehicle {
-  id: string;
-  placa: string;
-  marca: string;
-  modelo: string;
-  status: string;
+  id?: string;
+  vehicleId?: string;
+  placa?: string;
+  plate?: string;
+  vehiclePlate?: string;
+  marca?: string;
+  brand?: string;
+  vehicleBrand?: string;
+  modelo?: string;
+  model?: string;
+  vehicleModel?: string;
+  status?: string;
 }
 
 interface FuelConsumptionStatsProps {
-  vehicles: Vehicle[];
+  vehicles?: Vehicle[];
 }
 
 interface HistoricalData {
@@ -61,20 +69,57 @@ interface HistoricalData {
   costPerLiter: number;
 }
 
-export const FuelConsumptionStats: React.FC<FuelConsumptionStatsProps> = ({ vehicles }) => {
+// Helpers para compatibilidade entre formatos de veículo (PT/EN / API / Component)
+const getVehicleId = (v: any): string => String(v?.id || v?.vehicleId || '');
+const getVehiclePlate = (v: any): string => v?.plate || v?.placa || v?.vehiclePlate || '';
+const getVehicleBrand = (v: any): string => v?.brand || v?.marca || v?.vehicleBrand || '';
+const getVehicleModel = (v: any): string => v?.model || v?.modelo || v?.vehicleModel || '';
+const getVehicleStatus = (v: any): string => String(v?.status || '').toLowerCase();
+
+export const FuelConsumptionStats: React.FC<FuelConsumptionStatsProps> = ({ vehicles: initialVehicles = [] }) => {
+  const [localVehicles, setLocalVehicles] = useState<any[]>(initialVehicles);
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [stats, setStats] = useState<FuelConsumptionStatsData | null>(null);
   const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const vehiclesAtivos = vehicles.filter(v => 
-    v.status.toLowerCase() === 'active' || 
-    v.status.toLowerCase() === 'ativo'
-  );
+  // Sincronizar ou carregar veículos caso a prop venha vazia
+  useEffect(() => {
+    if (initialVehicles && initialVehicles.length > 0) {
+      setLocalVehicles(initialVehicles);
+    } else {
+      const fetchVehicles = async () => {
+        setLoadingVehicles(true);
+        try {
+          const fetched = await fleetService.getVehicles();
+          if (Array.isArray(fetched) && fetched.length > 0) {
+            setLocalVehicles(fetched);
+          }
+        } catch (e) {
+          console.warn('⚠️ Falha ao buscar lista de veículos como fallback:', e);
+        } finally {
+          setLoadingVehicles(false);
+        }
+      };
+      fetchVehicles();
+    }
+  }, [initialVehicles]);
+
+  const allVehicles = localVehicles && localVehicles.length > 0 ? localVehicles : initialVehicles;
+
+  const activeVehicles = allVehicles.filter(v => {
+    if (!v) return false;
+    const status = getVehicleStatus(v);
+    if (!status) return true; // se não tiver status, assume disponível
+    return status === 'active' || status === 'ativo' || status === 'disponivel' || status === 'em_uso' || status === 'operacional';
+  });
+
+  const displayVehicles = activeVehicles.length > 0 ? activeVehicles : allVehicles;
 
   const loadStats = async () => {
     if (!selectedVehicle) return;
@@ -84,12 +129,16 @@ export const FuelConsumptionStats: React.FC<FuelConsumptionStatsProps> = ({ vehi
 
     try {
       console.log('🔍 Carregando estatísticas para veículo:', selectedVehicle);
-      const response = await api.get(`/fuel-records/vehicle/${selectedVehicle}`);
+      const url = (startDate && endDate)
+        ? `/fuel-records/vehicle/${selectedVehicle}/period?startDate=${startDate}&endDate=${endDate}`
+        : `/fuel-records/vehicle/${selectedVehicle}`;
+
+      const response = await api.get(url);
       console.log('✅ Dados recebidos:', response.data?.length || 0, 'registros');
       
-      const records = response.data
-        .filter(r => r.mileage != null)
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const records = (response.data || [])
+        .filter((r: any) => r && r.mileage != null)
+        .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       console.log('📊 Registros válidos após filtro:', records.length);
 
@@ -101,42 +150,47 @@ export const FuelConsumptionStats: React.FC<FuelConsumptionStatsProps> = ({ vehi
       }
 
       // Calcular estatísticas agregadas a partir dos registros
-      const totalFuelConsumed = records.reduce((sum, record) => sum + record.quantity, 0);
-      const totalCost = records.reduce((sum, record) => sum + record.cost, 0);
+      const totalFuelConsumed = records.reduce((sum: number, record: any) => sum + (record.quantity || 0), 0);
+      const totalCost = records.reduce((sum: number, record: any) => sum + (record.cost || 0), 0);
       const firstRecord = records[0];
       const lastRecord = records[records.length - 1];
-      const totalDistance = lastRecord.mileage - firstRecord.mileage;
+      const totalDistance = Math.max(0, (lastRecord.mileage || 0) - (firstRecord.mileage || 0));
 
-      const vehicleInfo = vehicles.find(v => v.id === selectedVehicle);
+      const vehicleInfo = allVehicles.find(v => getVehicleId(v) === selectedVehicle);
+      const plate = vehicleInfo ? getVehiclePlate(vehicleInfo) : (records[0]?.vehiclePlate || '');
+      const brand = vehicleInfo ? getVehicleBrand(vehicleInfo) : '';
+      const model = vehicleInfo ? getVehicleModel(vehicleInfo) : '';
+      const modelDisplay = [brand, model].filter(Boolean).join(' ') || (records[0]?.vehicleModel || '');
 
       const aggregatedStats: FuelConsumptionStatsData = {
-        vehiclePlate: vehicleInfo?.placa || '',
-        vehicleModel: vehicleInfo?.modelo || '',
+        vehiclePlate: plate,
+        vehicleModel: modelDisplay,
         totalRecords: records.length,
         totalFuelConsumed,
         totalCost,
-        averageFuelPerRefill: totalFuelConsumed / records.length,
-        averagePricePerLiter: totalCost / totalFuelConsumed,
+        averageFuelPerRefill: records.length > 0 ? totalFuelConsumed / records.length : 0,
+        averagePricePerLiter: totalFuelConsumed > 0 ? totalCost / totalFuelConsumed : 0,
         consumptionPerKm: totalDistance > 0 ? totalFuelConsumed / totalDistance : 0,
         costPerKm: totalDistance > 0 ? totalCost / totalDistance : 0,
         totalDistance,
         lastRefillDate: lastRecord.date,
-        lastRefillQuantity: lastRecord.quantity,
-        lastRefillCost: lastRecord.cost,
+        lastRefillQuantity: lastRecord.quantity || 0,
+        lastRefillCost: lastRecord.cost || 0,
       };
       setStats(aggregatedStats);
 
-      // Processar dados para o gráfico (lógica já existente)
+      // Processar dados para o gráfico
       const chartData: HistoricalData[] = [];
       for (let i = 1; i < records.length; i++) {
         const prev = records[i - 1];
         const curr = records[i];
-        const distance = curr.mileage - prev.mileage;
+        const distance = (curr.mileage || 0) - (prev.mileage || 0);
+        const qty = curr.quantity || 1;
         if (distance > 0) {
           chartData.push({
             date: new Date(curr.date).toLocaleDateString('pt-BR'),
-            consumption: distance / curr.quantity,
-            costPerLiter: curr.cost / curr.quantity,
+            consumption: distance / qty,
+            costPerLiter: (curr.cost || 0) / qty,
           });
         }
       }
@@ -145,9 +199,7 @@ export const FuelConsumptionStats: React.FC<FuelConsumptionStatsProps> = ({ vehi
     } catch (err: any) {
       console.error('❌ Erro ao carregar estatísticas:', err);
       
-      // Melhorar mensagem de erro baseada no tipo de erro
       let errorMessage = 'Erro ao carregar estatísticas';
-      
       if (err.response?.status === 500) {
         errorMessage = 'Erro interno do servidor. Tente novamente mais tarde.';
       } else if (err.response?.status === 404) {
@@ -194,12 +246,9 @@ export const FuelConsumptionStats: React.FC<FuelConsumptionStatsProps> = ({ vehi
   };
 
   const getConsumptionEfficiency = (consumptionPerKm: number) => {
-    // Caso especial: sem dados ou consumo zero
     if (consumptionPerKm <= 0 || isNaN(consumptionPerKm)) {
       return { label: 'Sem Dados', color: 'bg-gray-500' };
     }
-    
-    // Lógica normal para casos com dados
     if (consumptionPerKm <= 0.08) return { label: 'Excelente', color: 'bg-green-500' };
     if (consumptionPerKm <= 0.12) return { label: 'Bom', color: 'bg-blue-500' };
     if (consumptionPerKm <= 0.16) return { label: 'Regular', color: 'bg-yellow-500' };
@@ -212,6 +261,33 @@ export const FuelConsumptionStats: React.FC<FuelConsumptionStatsProps> = ({ vehi
     setEndDate('');
     setStats(null);
   };
+
+  const renderVehicleSelect = (className: string = "w-full sm:w-64 bg-seguranca-black border-gray-600 text-seguranca-lightgray") => (
+    <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+      <SelectTrigger className={className}>
+        <SelectValue placeholder={loadingVehicles ? "Carregando veículos..." : "Selecione um veículo"} />
+      </SelectTrigger>
+      <SelectContent className="bg-seguranca-black border-gray-600">
+        {displayVehicles.length === 0 ? (
+          <div className="p-2 text-sm text-gray-400 text-center">Nenhum veículo disponível</div>
+        ) : (
+          displayVehicles.map((vehicle) => {
+            const vId = getVehicleId(vehicle);
+            const vPlate = getVehiclePlate(vehicle);
+            const vBrand = getVehicleBrand(vehicle);
+            const vModel = getVehicleModel(vehicle);
+            const desc = [vBrand, vModel].filter(Boolean).join(' ');
+
+            return (
+              <SelectItem key={vId || vPlate} value={vId} className="text-seguranca-lightgray">
+                {vPlate || 'Sem Placa'} {desc ? `- ${desc}` : ''}
+              </SelectItem>
+            );
+          })
+        )}
+      </SelectContent>
+    </Select>
+  );
 
   if (!stats && !loading && !selectedVehicle) {
     return (
@@ -229,18 +305,7 @@ export const FuelConsumptionStats: React.FC<FuelConsumptionStatsProps> = ({ vehi
               Selecione um veículo para visualizar as estatísticas de consumo
             </p>
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
-              <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
-                <SelectTrigger className="w-full sm:w-64 bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                  <SelectValue placeholder="Selecione um veículo" />
-                </SelectTrigger>
-                <SelectContent className="bg-seguranca-black border-gray-600">
-                  {vehiclesAtivos.map((vehicle) => (
-                    <SelectItem key={vehicle.id} value={vehicle.id} className="text-seguranca-lightgray">
-                      {vehicle.placa} - {vehicle.marca} {vehicle.modelo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {renderVehicleSelect()}
             </div>
           </div>
         </CardContent>
@@ -258,18 +323,7 @@ export const FuelConsumptionStats: React.FC<FuelConsumptionStatsProps> = ({ vehi
         
         {/* Filtros */}
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-          <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
-            <SelectTrigger className="w-full sm:w-64 bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-              <SelectValue placeholder="Selecione um veículo" />
-            </SelectTrigger>
-            <SelectContent className="bg-seguranca-black border-gray-600">
-              {vehiclesAtivos.map((vehicle) => (
-                <SelectItem key={vehicle.id} value={vehicle.id} className="text-seguranca-lightgray">
-                  {vehicle.placa} - {vehicle.marca} {vehicle.modelo}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {renderVehicleSelect()}
           
           <div className="flex gap-2">
             <input
