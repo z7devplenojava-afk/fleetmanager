@@ -34,7 +34,7 @@ info() {
 }
 
 # Verificar se estamos na VPS
-if [ -f "/opt/secured-guard/deploy.sh" ]; then
+if [ -f "/opt/fluxbus/deploy.sh" ]; then
     log "Executando correções na VPS..."
     
     log "1. Atualizando sistema..."
@@ -142,28 +142,28 @@ EOF
     log "11. Verificando logs SSH..."
     tail -5 /var/log/auth.log
     
-    log "12. Configurando projeto SecuredGuard..."
-    cd /opt/secured-guard
+    log "12. Configurando projeto FluxBus..."
+    cd /opt/fluxbus
     
     # Garantir que arquivo .env existe
     if [ ! -f ".env" ]; then
         cat > .env << EOF
-POSTGRES_DB=secured_guard_prod
+POSTGRES_DB=fluxbus_prod
 POSTGRES_USER=postgressg
 POSTGRES_PASSWORD=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
-POSTGRES_DB_DEV=secured_guard_dev
+POSTGRES_DB_DEV=fluxbus_dev
 POSTGRES_USER_DEV=postgressg
 POSTGRES_PASSWORD_DEV=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
-POSTGRES_DB_CI=secured_guard_ci
+POSTGRES_DB_CI=fluxbus_ci
 POSTGRES_USER_CI=postgressg
 POSTGRES_PASSWORD_CI=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
-REDIS_PASSWORD=redis_secured_guard_2024
+REDIS_PASSWORD=redis_fluxbus_2024
 JWT_SECRET=795927eaf0f77f4687edf8c7faaf30e2bd60d1c2215c0015ce9ddc83c8119615a3dec0755b6109a88d5077e6e4344a5b00be395e4c02a57ed923f95f1afebfed
 EOF
         chmod 600 .env
     fi
     
-    log "13. Subindo serviços SecuredGuard..."
+    log "13. Subindo serviços FluxBus..."
     docker compose -f deploy/docker-compose.prod.yml down 2>/dev/null || true
     docker compose -f deploy/docker-compose.prod.yml up -d
     sleep 30

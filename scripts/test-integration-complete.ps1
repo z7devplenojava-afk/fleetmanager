@@ -46,10 +46,10 @@ Write-Host "2. VERIFICANDO ESTRUTURA..." -ForegroundColor Yellow
 
 # Verificar serviços unificados
 $services = @(
-    "backend/src/main/java/com/z7design/secured_guard/service/PayslipProcessingService.java",
-    "backend/src/main/java/com/z7design/secured_guard/controller/PayslipController.java",
-    "backend/src/main/java/com/z7design/secured_guard/service/WhatsAppService.java",
-    "backend/src/main/java/com/z7design/secured_guard/controller/WhatsAppTestController.java"
+    "backend/src/main/java/com/z7design/fluxbus/service/PayslipProcessingService.java",
+    "backend/src/main/java/com/z7design/fluxbus/controller/PayslipController.java",
+    "backend/src/main/java/com/z7design/fluxbus/service/WhatsAppService.java",
+    "backend/src/main/java/com/z7design/fluxbus/controller/WhatsAppTestController.java"
 )
 
 foreach ($service in $services) {

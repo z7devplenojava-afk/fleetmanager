@@ -6,15 +6,15 @@ services:
   # ========================================
   postgres:
     image: postgres:15-alpine
-    container_name: secured-guard-db-ci
+    container_name: fluxbus-db-ci
     environment:
-      POSTGRES_DB: secured_guard_test
+      POSTGRES_DB: fluxbus_test
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
       - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -29,9 +29,9 @@ services:
   # ========================================
   redis:
     image: redis:7-alpine
-    container_name: secured-guard-redis-ci
+    container_name: fluxbus-redis-ci
     networks:
-      - secured-guard-network
+      - fluxbus-network
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -49,10 +49,10 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile.dev
-    container_name: secured-guard-backend-ci
+    container_name: fluxbus-backend-ci
     environment:
       SPRING_PROFILES_ACTIVE: test
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/secured_guard_test
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fluxbus_test
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_REDIS_HOST: redis
@@ -63,7 +63,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -73,11 +73,11 @@ services:
     labels:
       # Traefik labels para backend - CI
       - "traefik.enable=true"
-      - "traefik.http.routers.secured-guard-api-ci.rule=Host(`ci.z7botsolutions.com.br`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.secured-guard-api-ci.entrypoints=websecure"
-      - "traefik.http.routers.secured-guard-api-ci.tls.certresolver=letsencrypt"
-      - "traefik.http.services.secured-guard-api-ci.loadbalancer.server.port=8080"
-      - "traefik.docker.network=secured-guard-network"
+      - "traefik.http.routers.fluxbus-api-ci.rule=Host(`ci.z7botsolutions.com.br`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.fluxbus-api-ci.entrypoints=websecure"
+      - "traefik.http.routers.fluxbus-api-ci.tls.certresolver=letsencrypt"
+      - "traefik.http.services.fluxbus-api-ci.loadbalancer.server.port=8080"
+      - "traefik.docker.network=fluxbus-network"
 
   # ========================================
   # FRONTEND
@@ -86,14 +86,14 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile.dev
-    container_name: secured-guard-frontend-ci
+    container_name: fluxbus-frontend-ci
     environment:
       VITE_API_URL: https://ci.z7botsolutions.com.br/api
       VITE_WS_URL: wss://ci.z7botsolutions.com.br/ws
     depends_on:
       - backend
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5173"]
       interval: 30s
@@ -103,16 +103,16 @@ services:
     labels:
       # Traefik labels para frontend - CI
       - "traefik.enable=true"
-      - "traefik.http.routers.secured-guard-web-ci.rule=Host(`ci.z7botsolutions.com.br`)"
-      - "traefik.http.routers.secured-guard-web-ci.entrypoints=websecure"
-      - "traefik.http.routers.secured-guard-web-ci.tls.certresolver=letsencrypt"
-      - "traefik.http.services.secured-guard-web-ci.loadbalancer.server.port=5173"
-      - "traefik.docker.network=secured-guard-network"
+      - "traefik.http.routers.fluxbus-web-ci.rule=Host(`ci.z7botsolutions.com.br`)"
+      - "traefik.http.routers.fluxbus-web-ci.entrypoints=websecure"
+      - "traefik.http.routers.fluxbus-web-ci.tls.certresolver=letsencrypt"
+      - "traefik.http.services.fluxbus-web-ci.loadbalancer.server.port=5173"
+      - "traefik.docker.network=fluxbus-network"
 
 # ========================================
 # NETWORKS
 # ========================================
 networks:
-  secured-guard-network:
+  fluxbus-network:
     driver: bridge
     external: false

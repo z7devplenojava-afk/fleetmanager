@@ -5,7 +5,7 @@
 $env:PATH = "C:\Program Files\Git\bin;C:\Program Files\Git\cmd;$env:PATH"
 
 Write-Host "🔄 Verificando status do Git..." -ForegroundColor Cyan
-cd c:\dev\secured-guard
+cd c:\dev\fluxbus
 
 # Verificar se Git está disponível
 try {
@@ -66,7 +66,7 @@ feat: adicionar seed automático de banco de dados para ambiente CI
         if ($LASTEXITCODE -eq 0) {
             Write-Host "`n✅ Push realizado com sucesso!" -ForegroundColor Green
             Write-Host "🚀 Deploy automático será iniciado em breve!" -ForegroundColor Cyan
-            Write-Host "`n🔍 Acompanhe em: https://github.com/zemarioramos/secured-guard/actions" -ForegroundColor Yellow
+            Write-Host "`n🔍 Acompanhe em: https://github.com/zemarioramos/fluxbus/actions" -ForegroundColor Yellow
         } else {
             Write-Host "`n❌ Erro ao fazer push!" -ForegroundColor Red
             Write-Host "Código de saída: $LASTEXITCODE" -ForegroundColor Red

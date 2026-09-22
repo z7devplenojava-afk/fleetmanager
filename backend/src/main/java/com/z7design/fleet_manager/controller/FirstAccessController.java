@@ -177,7 +177,7 @@ public class FirstAccessController {
             // Enviar via WhatsApp usando BaileysRestService
             // ðŸ”’ ENCODING: Remover acentos e caracteres especiais para compatibilidade WhatsApp
             String message = String.format(
-                "*SecuredGuard - Codigo de Ativacao*\n\n" +
+                "*FluxBus - Codigo de Ativacao*\n\n" +
                 "Seu codigo de verificacao e: *%s*\n\n" +
                 "Este codigo expira em 5 minutos.\n" +
                 "Se voce nao solicitou este codigo, ignore esta mensagem.",

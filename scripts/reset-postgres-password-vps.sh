@@ -8,8 +8,8 @@ echo "🔧 RESETAR SENHA DO POSTGRESQL - VPS CI"
 echo "🔧 ========================================"
 echo ""
 
-cd /var/www/secured_guard/ci || {
-    echo "❌ Diretório /var/www/secured_guard/ci não encontrado!"
+cd /var/www/fluxbus/ci || {
+    echo "❌ Diretório /var/www/fluxbus/ci não encontrado!"
     exit 1
 }
 
@@ -36,7 +36,7 @@ sleep 5
 
 # Remover container do PostgreSQL (mas manter volume se quiser preservar dados)
 echo "🗑️ Removendo container do PostgreSQL..."
-docker rm -f secured-guard-db-ci 2>/dev/null || true
+docker rm -f fluxbus-db-ci 2>/dev/null || true
 
 # Opção 1: Resetar senha sem perder dados (recomendado)
 echo ""
@@ -52,16 +52,16 @@ echo "⏳ Aguardando PostgreSQL iniciar (20s)..."
 sleep 20
 
 # Verificar se está rodando
-if ! docker ps | grep -q "secured-guard-db-ci"; then
+if ! docker ps | grep -q "fluxbus-db-ci"; then
     echo "❌ PostgreSQL não iniciou!"
     echo "📋 Logs:"
-    docker logs secured-guard-db-ci --tail 30 2>&1 || true
+    docker logs fluxbus-db-ci --tail 30 2>&1 || true
     exit 1
 fi
 
 # Tentar resetar senha usando ALTER USER
 echo "🔐 Tentando resetar senha do usuário..."
-docker exec secured-guard-db-ci psql -U secured_guard_ci -d postgres -c "ALTER USER secured_guard_ci WITH PASSWORD '$POSTGRES_PASSWORD';" 2>&1 || {
+docker exec fluxbus-db-ci psql -U fluxbus_ci -d postgres -c "ALTER USER fluxbus_ci WITH PASSWORD '$POSTGRES_PASSWORD';" 2>&1 || {
     echo "⚠️ Não foi possível resetar senha (pode ser que o usuário não exista ou senha antiga esteja errada)"
     echo "💡 Tentando criar usuário novamente..."
     
@@ -78,7 +78,7 @@ docker exec secured-guard-db-ci psql -U secured_guard_ci -d postgres -c "ALTER U
         exit 1
     fi
     
-    docker volume rm secured-guard_postgres_data_ci 2>/dev/null || true
+    docker volume rm fluxbus_postgres_data_ci 2>/dev/null || true
     echo "✅ Volume removido"
 }
 
@@ -107,22 +107,22 @@ echo "⏳ Aguardando PostgreSQL iniciar (30s)..."
 sleep 30
 
 # Verificar se está rodando
-if docker ps | grep -q "secured-guard-db-ci"; then
+if docker ps | grep -q "fluxbus-db-ci"; then
     echo "✅ PostgreSQL está rodando!"
     
     # Testar conexão
     echo "🔍 Testando conexão com nova senha..."
-    docker exec secured-guard-db-ci psql -U secured_guard_ci -d secured_guard_ci -c "SELECT version();" 2>&1 && {
+    docker exec fluxbus-db-ci psql -U fluxbus_ci -d fluxbus_ci -c "SELECT version();" 2>&1 && {
         echo "✅ Conexão com PostgreSQL funcionando!"
     } || {
         echo "❌ Ainda há problema com a senha"
         echo "📋 Verificando logs..."
-        docker logs secured-guard-db-ci --tail 30
+        docker logs fluxbus-db-ci --tail 30
     }
 else
     echo "❌ PostgreSQL não está rodando!"
     echo "📋 Logs:"
-    docker logs secured-guard-db-ci --tail 50
+    docker logs fluxbus-db-ci --tail 50
     exit 1
 fi
 
@@ -135,14 +135,14 @@ echo "⏳ Aguardando backend iniciar (30s)..."
 sleep 30
 
 # Verificar backend
-if docker ps | grep -q "secured-guard-backend-ci"; then
+if docker ps | grep -q "fluxbus-backend-ci"; then
     echo "✅ Backend está rodando!"
     echo "📋 Verificando logs do backend (últimas 20 linhas)..."
-    docker logs secured-guard-backend-ci --tail 20
+    docker logs fluxbus-backend-ci --tail 20
 else
     echo "❌ Backend não está rodando!"
     echo "📋 Logs:"
-    docker logs secured-guard-backend-ci --tail 50
+    docker logs fluxbus-backend-ci --tail 50
 fi
 
 echo ""

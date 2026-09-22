@@ -3,7 +3,7 @@
 # ===================== SCRIPT PARA GERAR SENHAS SEGURAS =====================
 # Este script gera senhas seguras para todos os ambientes
 
-echo "🔐 Gerando senhas seguras para o projeto SecuredGuard..."
+echo "🔐 Gerando senhas seguras para o projeto FluxBus..."
 echo ""
 
 # Função para gerar senha segura

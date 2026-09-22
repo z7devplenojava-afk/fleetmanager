@@ -13,10 +13,10 @@ echo ""
 # Valor padrão seguro (80 caracteres)
 DEFAULT_JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
 
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 echo "1️⃣ Verificando JWT_SECRET atual no container..."
-JWT_CURRENT=$(docker exec secured-guard-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
+JWT_CURRENT=$(docker exec fluxbus-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
 if [ -n "$JWT_CURRENT" ]; then
     JWT_LENGTH=${#JWT_CURRENT}
     echo "   Tamanho atual: $JWT_LENGTH caracteres"
@@ -62,7 +62,7 @@ echo "   ✅ Containers parados"
 
 echo ""
 echo "5️⃣ Removendo container antigo (se existir)..."
-docker rm -f secured-guard-backend-ci 2>/dev/null || true
+docker rm -f fluxbus-backend-ci 2>/dev/null || true
 echo "   ✅ Container antigo removido"
 
 echo ""
@@ -80,7 +80,7 @@ echo "8️⃣ Verificando JWT_SECRET no novo container..."
 MAX_RETRIES=5
 RETRY=0
 while [ $RETRY -lt $MAX_RETRIES ]; do
-    JWT_NEW=$(docker exec secured-guard-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
+    JWT_NEW=$(docker exec fluxbus-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
     if [ -n "$JWT_NEW" ]; then
         JWT_LENGTH=${#JWT_NEW}
         echo "   ✅ JWT_SECRET encontrado: $JWT_LENGTH caracteres"
@@ -102,7 +102,7 @@ while [ $RETRY -lt $MAX_RETRIES ]; do
         else
             echo "   ❌ ERRO: JWT_SECRET não encontrado após $MAX_RETRIES tentativas"
             echo "   Verificando logs do backend..."
-            docker logs --tail=30 secured-guard-backend-ci
+            docker logs --tail=30 fluxbus-backend-ci
             exit 1
         fi
     fi
@@ -110,11 +110,11 @@ done
 
 echo ""
 echo "9️⃣ Verificando logs do backend para erros de JWT..."
-docker logs --tail=50 secured-guard-backend-ci 2>&1 | grep -i -E "(jwt|token|signing|chave)" | tail -10 || echo "   Nenhum erro de JWT encontrado nos logs recentes"
+docker logs --tail=50 fluxbus-backend-ci 2>&1 | grep -i -E "(jwt|token|signing|chave)" | tail -10 || echo "   Nenhum erro de JWT encontrado nos logs recentes"
 
 echo ""
 echo "🔟 Testando endpoint de health..."
-HEALTH_RESPONSE=$(docker exec secured-guard-backend-ci curl -s http://localhost:8081/api/health 2>/dev/null || echo "")
+HEALTH_RESPONSE=$(docker exec fluxbus-backend-ci curl -s http://localhost:8081/api/health 2>/dev/null || echo "")
 if [ -n "$HEALTH_RESPONSE" ]; then
     echo "   ✅ Backend está respondendo"
 else
@@ -132,5 +132,5 @@ echo "   - Container reiniciado"
 echo "   - Teste o login novamente"
 echo ""
 echo "🔍 Se ainda houver erro, verifique os logs:"
-echo "   docker logs --tail=100 secured-guard-backend-ci | grep -i jwt"
+echo "   docker logs --tail=100 fluxbus-backend-ci | grep -i jwt"
 

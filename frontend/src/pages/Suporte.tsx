@@ -696,7 +696,7 @@ export default function Suporte() {
                                 <CardContent className="space-y-4">
                                     <div className="space-y-2">
                                         <p className="font-medium">Suporte Geral</p>
-                                        <p className="text-lg font-bold text-blue-600">suporte@securedguard.com</p>
+                                        <p className="text-lg font-bold text-blue-600">suporte@fluxbus.com</p>
                                         <p className="text-sm text-muted-foreground">
                                             Resposta em até 4 horas úteis
                                         </p>
@@ -704,7 +704,7 @@ export default function Suporte() {
 
                                     <div className="space-y-2">
                                         <p className="font-medium">Suporte Técnico</p>
-                                        <p className="text-lg font-bold text-green-600">tecnico@securedguard.com</p>
+                                        <p className="text-lg font-bold text-green-600">tecnico@fluxbus.com</p>
                                         <p className="text-sm text-muted-foreground">
                                             Para problemas técnicos específicos
                                         </p>
@@ -712,7 +712,7 @@ export default function Suporte() {
 
                                     <div className="space-y-2">
                                         <p className="font-medium">Comercial</p>
-                                        <p className="text-lg font-bold text-purple-600">comercial@securedguard.com</p>
+                                        <p className="text-lg font-bold text-purple-600">comercial@fluxbus.com</p>
                                         <p className="text-sm text-muted-foreground">
                                             Dúvidas sobre planos e contratação
                                         </p>

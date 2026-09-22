@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Script de instalação limpa da VPS para Secured Guard CI
+# Script de instalação limpa da VPS para FluxBus CI
 # Execute: bash instalar-vps-limpa.sh
 
 set -e
 
 echo "🚀 =========================================="
-echo "🚀 INSTALAÇÃO LIMPA DA VPS - SECURED GUARD CI"
+echo "🚀 INSTALAÇÃO LIMPA DA VPS - FLUXBUS CI"
 echo "🚀 ========================================="
 echo ""
 
@@ -73,10 +73,10 @@ echo "✅ Firewall configurado"
 # ============================================
 echo ""
 echo "4️⃣ Criando estrutura de diretórios..."
-mkdir -p /var/www/secured_guard/ci/{postgres_data,redis_data,uploads,logs,whatsapp_sessions,backups}
-mkdir -p /root/secured_guard
-chmod -R 755 /var/www/secured_guard
-chmod -R 755 /root/secured_guard
+mkdir -p /var/www/fluxbus/ci/{postgres_data,redis_data,uploads,logs,whatsapp_sessions,backups}
+mkdir -p /root/fluxbus
+chmod -R 755 /var/www/fluxbus
+chmod -R 755 /root/fluxbus
 echo "✅ Diretórios criados"
 
 # ============================================
@@ -90,10 +90,10 @@ docker swarm leave --force 2>/dev/null || echo "Não estava em modo Swarm"
 
 # Criar redes
 docker network create z7network 2>/dev/null || echo "Rede z7network já existe"
-docker network create secured-guard-ci-network 2>/dev/null || echo "Rede secured-guard-ci-network já existe"
+docker network create fluxbus-ci-network 2>/dev/null || echo "Rede fluxbus-ci-network já existe"
 
 echo "✅ Redes criadas:"
-docker network ls | grep -E "(z7network|secured-guard)"
+docker network ls | grep -E "(z7network|fluxbus)"
 
 # ============================================
 # 6. CLONAR REPOSITÓRIO
@@ -104,15 +104,15 @@ echo "6️⃣ Clonando repositório..."
 cd /root
 
 # Remover diretório antigo se existir
-if [ -d "secured_guard" ]; then
-    echo "⚠️ Diretório secured_guard já existe. Removendo..."
-    rm -rf secured_guard
+if [ -d "fluxbus" ]; then
+    echo "⚠️ Diretório fluxbus já existe. Removendo..."
+    rm -rf fluxbus
 fi
 
 # Clonar repositório
-git clone https://github.com/zmarioramos/secured-guard.git secured_guard
+git clone https://github.com/zmarioramos/fluxbus.git fluxbus
 
-cd secured_guard
+cd fluxbus
 
 # Mudar para branch ci
 git checkout ci
@@ -125,11 +125,11 @@ echo "✅ Repositório clonado na branch: $(git branch --show-current)"
 echo ""
 echo "7️⃣ Criando arquivo .env..."
 
-cat > /root/secured_guard/.env << 'EOF'
+cat > /root/fluxbus/.env << 'EOF'
 # PostgreSQL
 POSTGRES_PASSWORD_CI=4KaCiJc6an@7sgbdcid2025
-POSTGRES_DB=secured_guard_ci
-POSTGRES_USER=secured_guard_ci
+POSTGRES_DB=fluxbus_ci
+POSTGRES_USER=fluxbus_ci
 
 # Redis
 REDIS_PASSWORD=redis_ci_2025
@@ -142,7 +142,7 @@ API_URL=https://ci.z7botsolutions.com.br/api
 FRONTEND_URL=https://ci.z7botsolutions.com.br
 EOF
 
-chmod 600 /root/secured_guard/.env
+chmod 600 /root/fluxbus/.env
 echo "✅ Arquivo .env criado"
 
 # ============================================
@@ -151,7 +151,7 @@ echo "✅ Arquivo .env criado"
 echo ""
 echo "8️⃣ Verificando arquivos necessários..."
 
-cd /root/secured_guard
+cd /root/fluxbus
 
 if [ ! -f "docker-compose.ci.yml" ]; then
     echo "⚠️ docker-compose.ci.yml não encontrado na raiz. Verificando em ci/..."
@@ -186,11 +186,11 @@ echo ""
 echo "📋 Próximos passos:"
 echo ""
 echo "1. Fazer deploy via GitHub Actions:"
-echo "   - Vá para: https://github.com/zmarioramos/secured-guard/actions"
+echo "   - Vá para: https://github.com/zmarioramos/fluxbus/actions"
 echo "   - Execute o workflow 'Deploy CI Environment'"
 echo ""
 echo "2. OU fazer deploy manual:"
-echo "   cd /root/secured_guard/ci"
+echo "   cd /root/fluxbus/ci"
 echo "   docker compose -f docker-compose.ci.yml up -d"
 echo ""
 echo "3. Verificar status:"
@@ -200,9 +200,9 @@ echo "4. Ver logs:"
 echo "   docker compose -f docker-compose.ci.yml logs -f"
 echo ""
 echo "📋 Informações:"
-echo "   - Diretório do projeto: /root/secured_guard"
-echo "   - Diretório de volumes: /var/www/secured_guard/ci"
+echo "   - Diretório do projeto: /root/fluxbus"
+echo "   - Diretório de volumes: /var/www/fluxbus/ci"
 echo "   - Branch: ci"
-echo "   - Arquivo .env: /root/secured_guard/.env"
+echo "   - Arquivo .env: /root/fluxbus/.env"
 echo ""
 

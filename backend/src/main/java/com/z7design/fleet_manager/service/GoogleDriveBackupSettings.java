@@ -29,7 +29,7 @@ public class GoogleDriveBackupSettings {
 
     /**
      * Caminho para o arquivo de credenciais da Service Account do Google.
-     * Ex.: /etc/secured_guard/google-service-account.json
+     * Ex.: /etc/fluxbus/google-service-account.json
      */
     private String credentialsPath;
 

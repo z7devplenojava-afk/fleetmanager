@@ -33,7 +33,7 @@ if %ERRORLEVEL% EQU 0 (
     echo.
     echo Tente reiniciar o backend pela sua IDE.
     echo As alteracoes ja foram salvas no arquivo:
-    echo backend\src\main\java\com\z7design\secured_guard\controller\SSTController.java
+    echo backend\src\main\java\com\z7design\fluxbus\controller\SSTController.java
     echo.
 )
 

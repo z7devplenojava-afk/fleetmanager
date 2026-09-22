@@ -2,7 +2,7 @@
 -- SCRIPT MANUAL: Corrigir mês dos comprovantes
 -- ========================================
 -- Use este script caso a migration V324 não seja aplicada automaticamente
--- Execute no PostgreSQL: psql -U postgres -d secured_guard -f fix_receipts_manual.sql
+-- Execute no PostgreSQL: psql -U postgres -d fluxbus -f fix_receipts_manual.sql
 
 -- 1. Ver situação atual
 SELECT 

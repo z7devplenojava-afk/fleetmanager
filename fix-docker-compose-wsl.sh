@@ -13,11 +13,11 @@ if [ ! -f "docker-compose.ci.yml" ]; then
 fi
 
 # Substituir todos os bind mounts por volumes nomeados usando sed
-sed -i 's|/var/www/secured_guard/ci/postgres_data:/var/lib/postgresql/data|postgres_data_ci:/var/lib/postgresql/data|g' docker-compose.ci.yml
-sed -i 's|/var/www/secured_guard/ci/redis_data:/data|redis_data_ci:/data|g' docker-compose.ci.yml
-sed -i 's|/var/www/secured_guard/ci/uploads:/var/www/secured_guard/ci/uploads|uploads_ci:/var/www/secured_guard/ci/uploads|g' docker-compose.ci.yml
-sed -i 's|/var/www/secured_guard/ci/logs:/var/www/secured_guard/ci/logs|logs_ci:/var/www/secured_guard/ci/logs|g' docker-compose.ci.yml
-sed -i 's|/var/www/secured_guard/ci/whatsapp_sessions:/app/sessions|whatsapp_sessions_ci:/app/sessions|g' docker-compose.ci.yml
+sed -i 's|/var/www/fluxbus/ci/postgres_data:/var/lib/postgresql/data|postgres_data_ci:/var/lib/postgresql/data|g' docker-compose.ci.yml
+sed -i 's|/var/www/fluxbus/ci/redis_data:/data|redis_data_ci:/data|g' docker-compose.ci.yml
+sed -i 's|/var/www/fluxbus/ci/uploads:/var/www/fluxbus/ci/uploads|uploads_ci:/var/www/fluxbus/ci/uploads|g' docker-compose.ci.yml
+sed -i 's|/var/www/fluxbus/ci/logs:/var/www/fluxbus/ci/logs|logs_ci:/var/www/fluxbus/ci/logs|g' docker-compose.ci.yml
+sed -i 's|/var/www/fluxbus/ci/whatsapp_sessions:/app/sessions|whatsapp_sessions_ci:/app/sessions|g' docker-compose.ci.yml
 
 # Adicionar seção de volumes no final se não existir
 if ! grep -q "^volumes:" docker-compose.ci.yml; then

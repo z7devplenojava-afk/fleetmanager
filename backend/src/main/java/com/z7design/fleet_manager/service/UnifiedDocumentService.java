@@ -205,7 +205,7 @@ public class UnifiedDocumentService {
             contentStream.beginText();
             contentStream.setFont(PDType1Font.HELVETICA, 10);
             contentStream.newLineAtOffset(50, 100);
-            contentStream.showText("Documento gerado automaticamente pelo sistema SecuredGuard");
+            contentStream.showText("Documento gerado automaticamente pelo sistema FluxBus");
             contentStream.newLineAtOffset(0, -15);
             contentStream.showText("Data de geraÃ§Ã£o: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")));
             contentStream.endText();
@@ -327,7 +327,7 @@ public class UnifiedDocumentService {
             contentStream.beginText();
             contentStream.setFont(PDType1Font.HELVETICA, 8);
             contentStream.newLineAtOffset(50, 50);
-            contentStream.showText("Documento unificado gerado automaticamente pelo sistema SecuredGuard");
+            contentStream.showText("Documento unificado gerado automaticamente pelo sistema FluxBus");
             contentStream.newLineAtOffset(0, -12);
             contentStream.showText("Data de geraÃ§Ã£o: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")));
             contentStream.endText();
@@ -392,7 +392,7 @@ public class UnifiedDocumentService {
             contentStream.beginText();
             contentStream.setFont(PDType1Font.HELVETICA, 10);
             contentStream.newLineAtOffset(50, 100);
-            contentStream.showText("Documento gerado automaticamente pelo sistema SecuredGuard");
+            contentStream.showText("Documento gerado automaticamente pelo sistema FluxBus");
             contentStream.newLineAtOffset(0, -15);
             contentStream.showText("Data de geraÃ§Ã£o: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")));
             contentStream.endText();

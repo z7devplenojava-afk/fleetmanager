@@ -33,7 +33,7 @@ fix_environment() {
         echo -e "${YELLOW}⚠️ Arquivo $env_file não encontrado, criando...${NC}"
         cat > "$env_file" << EOF
 # Database
-POSTGRES_DB=secured_guard_${env,,}
+POSTGRES_DB=fluxbus_${env,,}
 POSTGRES_USER=postgressg
 POSTGRES_PASSWORD=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
 
@@ -83,9 +83,9 @@ EOF
 }
 
 # Corrigir cada ambiente
-fix_environment "DEV" "deploy/docker-compose.dev.yml" "secured-guard-backend-dev"
-fix_environment "PROD" "deploy/docker-compose.prod.yml" "secured-guard-backend-prod"
-fix_environment "CI" "deploy/docker-compose.ci.yml" "secured-guard-backend-ci"
+fix_environment "DEV" "deploy/docker-compose.dev.yml" "fluxbus-backend-dev"
+fix_environment "PROD" "deploy/docker-compose.prod.yml" "fluxbus-backend-prod"
+fix_environment "CI" "deploy/docker-compose.ci.yml" "fluxbus-backend-ci"
 
 echo ""
 echo "🎉 Correção concluída!"
@@ -97,6 +97,6 @@ echo "PROD: http://localhost:8080"
 echo "CI:   http://localhost:8082"
 echo ""
 echo "🔍 Para verificar logs:"
-echo "docker logs secured-guard-backend-dev"
-echo "docker logs secured-guard-backend-prod"
-echo "docker logs secured-guard-backend-ci"
+echo "docker logs fluxbus-backend-dev"
+echo "docker logs fluxbus-backend-prod"
+echo "docker logs fluxbus-backend-ci"

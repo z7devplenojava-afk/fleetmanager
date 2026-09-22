@@ -70,7 +70,7 @@ Write-Host ""
 Write-Host ""
 Write-Host "⏱️ Timeout - Baileys não conectou em 60 segundos" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "Acesse: http://localhost:3333/qrcode?key=securedguard" -ForegroundColor Cyan
+Write-Host "Acesse: http://localhost:3333/qrcode?key=fluxbus" -ForegroundColor Cyan
 Write-Host "E escaneie com WhatsApp: 31971731747" -ForegroundColor Yellow
 Write-Host ""
 

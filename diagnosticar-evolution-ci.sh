@@ -36,12 +36,12 @@ if [ "$LOOP_COUNT" -gt 10 ]; then
     
     # Verificar se é problema de Redis
     echo "   A) Testando Redis..."
-    docker exec secured-guard-redis-ci redis-cli -a redis_ci_2025 ping && echo "      ✅ Redis OK" || echo "      ❌ Redis com problema"
+    docker exec fluxbus-redis-ci redis-cli -a redis_ci_2025 ping && echo "      ✅ Redis OK" || echo "      ❌ Redis com problema"
     echo ""
     
     # Verificar se é problema de banco
     echo "   B) Testando PostgreSQL..."
-    docker exec secured-guard-db-ci psql -U secured_guard_ci -d evolution_ci -c "SELECT 1;" && echo "      ✅ PostgreSQL OK" || echo "      ❌ PostgreSQL com problema"
+    docker exec fluxbus-db-ci psql -U fluxbus_ci -d evolution_ci -c "SELECT 1;" && echo "      ✅ PostgreSQL OK" || echo "      ❌ PostgreSQL com problema"
     echo ""
     
     # Verificar variáveis de ambiente

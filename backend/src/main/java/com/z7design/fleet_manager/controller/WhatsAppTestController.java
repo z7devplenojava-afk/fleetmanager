@@ -63,7 +63,7 @@ public class WhatsAppTestController {
             
             String mensagem = request.getMensagem() != null && !request.getMensagem().trim().isEmpty()
                 ? request.getMensagem()
-                : "âœ… Teste SecuredGuard - WhatsApp conectado e funcionando!";
+                : "âœ… Teste FluxBus - WhatsApp conectado e funcionando!";
             
             log.info("ðŸ“± Enviando mensagem de teste via Baileys REST para: {} - Mensagem: {}", 
                 request.getTelefone(), mensagem);

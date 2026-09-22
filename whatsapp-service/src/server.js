@@ -14,7 +14,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Config
 const PORT = process.env.PORT || 3333;
-const INSTANCE_KEY = process.env.INSTANCE_KEY || 'securedguard';
+const INSTANCE_KEY = process.env.INSTANCE_KEY || 'fluxbus';
 const SESSION_DIR = process.env.SESSION_DIR || path.join(__dirname, '..', 'sessions');
 const WEBHOOK_URL = process.env.WEBHOOK_URL || '';
 
@@ -50,7 +50,7 @@ async function connectToWhatsApp() {
     logger,
     printQRInTerminal: true,
     auth: state,
-    browser: ['Secured Guard', 'Chrome', '120.0.0.0'], // Nome personalizado
+    browser: ['FluxBus', 'Chrome', '120.0.0.0'], // Nome personalizado
     syncFullHistory: false,
     markOnlineOnConnect: false,
     defaultQueryTimeoutMs: 60000,

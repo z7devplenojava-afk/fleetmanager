@@ -30,7 +30,7 @@ echo GitHub Actions vai fazer deploy (~10 min)
 echo.
 echo Apos o deploy, teste:
 echo   curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
-echo     http://185.225.233.18:9000/instance/connect/securedguard
+echo     http://185.225.233.18:9000/instance/connect/fluxbus
 echo.
 pause
 

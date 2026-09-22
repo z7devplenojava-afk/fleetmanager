@@ -25,25 +25,25 @@ fi
 echo ""
 echo "2️⃣ Detectando diretório do projeto..."
 # Tentar encontrar o diretório do projeto
-if [ -d "/root/secured_guard/ci" ]; then
-    CI_DIR="/root/secured_guard/ci"
+if [ -d "/root/fluxbus/ci" ]; then
+    CI_DIR="/root/fluxbus/ci"
     echo "✅ Diretório encontrado: $CI_DIR"
-elif [ -d "/var/www/secured_guard/ci" ]; then
-    CI_DIR="/var/www/secured_guard/ci"
+elif [ -d "/var/www/fluxbus/ci" ]; then
+    CI_DIR="/var/www/fluxbus/ci"
     echo "✅ Diretório encontrado: $CI_DIR"
 elif [ -d "./ci" ]; then
     CI_DIR="$(pwd)/ci"
     echo "✅ Diretório encontrado: $CI_DIR"
 else
-    # Tentar criar em /root/secured_guard/ci primeiro
-    CI_DIR="/root/secured_guard/ci"
+    # Tentar criar em /root/fluxbus/ci primeiro
+    CI_DIR="/root/fluxbus/ci"
     echo "📁 Criando diretório $CI_DIR..."
     mkdir -p "$CI_DIR"
     echo "✅ Diretório criado: $CI_DIR"
 fi
 
 # Criar diretório de volumes se não existir
-VOLUMES_DIR="/var/www/secured_guard/ci"
+VOLUMES_DIR="/var/www/fluxbus/ci"
 if [ ! -d "$VOLUMES_DIR" ]; then
     echo "📁 Criando diretório de volumes: $VOLUMES_DIR..."
     mkdir -p "$VOLUMES_DIR"
@@ -64,12 +64,12 @@ else
     echo "✅ Rede z7network já existe"
 fi
 
-# Rede secured-guard-ci-network
-if ! docker network ls | grep -q "secured-guard-ci"; then
-    echo "📡 Criando rede secured-guard-ci-network..."
-    docker network create secured-guard-ci-network 2>&1 || echo "⚠️ Erro ao criar rede secured-guard-ci-network (pode já existir)"
+# Rede fluxbus-ci-network
+if ! docker network ls | grep -q "fluxbus-ci"; then
+    echo "📡 Criando rede fluxbus-ci-network..."
+    docker network create fluxbus-ci-network 2>&1 || echo "⚠️ Erro ao criar rede fluxbus-ci-network (pode já existir)"
 else
-    echo "✅ Rede secured-guard-ci-network já existe"
+    echo "✅ Rede fluxbus-ci-network já existe"
 fi
 
 # 4. Verificar se o docker-compose.ci.yml existe

@@ -1,5 +1,5 @@
 # ============================================
-# SECURED GUARD FRONTEND - PRODUÇÃO
+# FLUXBUS FRONTEND - PRODUÇÃO
 # Multi-stage build com Nginx otimizado
 # ============================================
 
@@ -39,7 +39,7 @@ RUN npm run build
 FROM nginx:1.25-alpine AS production
 
 # Metadados
-LABEL maintainer="Secured Guard Team"
+LABEL maintainer="FluxBus Team"
 LABEL environment="production"
 LABEL version="1.0.0"
 

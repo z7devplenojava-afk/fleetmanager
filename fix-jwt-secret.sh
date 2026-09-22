@@ -15,11 +15,11 @@ fi
 
 echo ""
 echo "2️⃣ Verificando JWT_SECRET no container..."
-docker exec secured-guard-backend-ci printenv | grep JWT_SECRET
+docker exec fluxbus-backend-ci printenv | grep JWT_SECRET
 
 echo ""
 echo "3️⃣ Verificando o tamanho da chave JWT no container..."
-JWT_SECRET_IN_CONTAINER=$(docker exec secured-guard-backend-ci printenv JWT_SECRET)
+JWT_SECRET_IN_CONTAINER=$(docker exec fluxbus-backend-ci printenv JWT_SECRET)
 if [ -z "$JWT_SECRET_IN_CONTAINER" ]; then
     echo "❌ JWT_SECRET não está definida no container!"
     echo ""
@@ -36,7 +36,7 @@ fi
 
 echo ""
 echo "4️⃣ Valor atual da chave (primeiros 30 caracteres):"
-docker exec secured-guard-backend-ci printenv JWT_SECRET | head -c 30
+docker exec fluxbus-backend-ci printenv JWT_SECRET | head -c 30
 echo "..."
 
 echo ""

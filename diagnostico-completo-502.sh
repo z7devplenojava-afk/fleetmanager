@@ -8,7 +8,7 @@ echo "🔍 DIAGNÓSTICO COMPLETO - ERRO 502"
 echo "🔍 =========================================="
 echo ""
 
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 echo "1️⃣ STATUS DOS CONTAINERS"
 echo "=========================================="
@@ -17,9 +17,9 @@ echo ""
 
 echo "2️⃣ VERIFICANDO SE BACKEND ESTÁ RODANDO"
 echo "=========================================="
-if docker ps | grep -q secured-guard-backend-ci; then
+if docker ps | grep -q fluxbus-backend-ci; then
     echo "✅ Container backend está rodando"
-    CONTAINER_STATUS=$(docker inspect --format='{{.State.Status}}' secured-guard-backend-ci)
+    CONTAINER_STATUS=$(docker inspect --format='{{.State.Status}}' fluxbus-backend-ci)
     echo "   Status: $CONTAINER_STATUS"
     
     if [ "$CONTAINER_STATUS" != "running" ]; then
@@ -38,19 +38,19 @@ echo ""
 
 echo "3️⃣ VERIFICANDO SE BACKEND ESTÁ ESCUTANDO NA PORTA 8081"
 echo "=========================================="
-if docker exec secured-guard-backend-ci netstat -tlnp 2>/dev/null | grep -q ":8081"; then
+if docker exec fluxbus-backend-ci netstat -tlnp 2>/dev/null | grep -q ":8081"; then
     echo "✅ Backend está escutando na porta 8081"
-    docker exec secured-guard-backend-ci netstat -tlnp 2>/dev/null | grep ":8081"
+    docker exec fluxbus-backend-ci netstat -tlnp 2>/dev/null | grep ":8081"
 else
     echo "❌ Backend NÃO está escutando na porta 8081"
     echo "   Verificando logs para entender o problema..."
-    docker logs --tail=50 secured-guard-backend-ci 2>&1 | tail -30
+    docker logs --tail=50 fluxbus-backend-ci 2>&1 | tail -30
 fi
 echo ""
 
 echo "4️⃣ TESTANDO HEALTH CHECK DO BACKEND (localhost:8081)"
 echo "=========================================="
-HEALTH_RESPONSE=$(docker exec secured-guard-backend-ci curl -s -w "\nHTTP_CODE:%{http_code}" http://localhost:8081/api/health 2>/dev/null || echo "ERROR")
+HEALTH_RESPONSE=$(docker exec fluxbus-backend-ci curl -s -w "\nHTTP_CODE:%{http_code}" http://localhost:8081/api/health 2>/dev/null || echo "ERROR")
 HTTP_CODE=$(echo "$HEALTH_RESPONSE" | grep "HTTP_CODE" | cut -d: -f2)
 BODY=$(echo "$HEALTH_RESPONSE" | grep -v "HTTP_CODE")
 
@@ -66,12 +66,12 @@ echo ""
 
 echo "5️⃣ VERIFICANDO NGINX"
 echo "=========================================="
-if docker ps | grep -q secured-guard-nginx-ci; then
+if docker ps | grep -q fluxbus-nginx-ci; then
     echo "✅ Container Nginx está rodando"
     
     # Testar conexão do Nginx para o Backend
     echo "   Testando conexão Nginx -> Backend..."
-    NGINX_TO_BACKEND=$(docker exec secured-guard-nginx-ci curl -s -w "\nHTTP_CODE:%{http_code}" http://secured-guard-backend-ci:8081/api/health 2>/dev/null || echo "ERROR")
+    NGINX_TO_BACKEND=$(docker exec fluxbus-nginx-ci curl -s -w "\nHTTP_CODE:%{http_code}" http://fluxbus-backend-ci:8081/api/health 2>/dev/null || echo "ERROR")
     NGINX_HTTP_CODE=$(echo "$NGINX_TO_BACKEND" | grep "HTTP_CODE" | cut -d: -f2)
     
     if [ "$NGINX_HTTP_CODE" = "200" ]; then
@@ -90,7 +90,7 @@ echo ""
 
 echo "6️⃣ VERIFICANDO JWT_SECRET"
 echo "=========================================="
-JWT_SECRET=$(docker exec secured-guard-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
+JWT_SECRET=$(docker exec fluxbus-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
 if [ -n "$JWT_SECRET" ]; then
     JWT_LENGTH=${#JWT_SECRET}
     echo "   JWT_SECRET está definido: $JWT_LENGTH caracteres"
@@ -108,12 +108,12 @@ echo ""
 
 echo "7️⃣ ÚLTIMOS LOGS DO BACKEND (50 linhas)"
 echo "=========================================="
-docker logs --tail=50 secured-guard-backend-ci 2>&1 | tail -50
+docker logs --tail=50 fluxbus-backend-ci 2>&1 | tail -50
 echo ""
 
 echo "8️⃣ VERIFICANDO ERROS NOS LOGS"
 echo "=========================================="
-ERRORS=$(docker logs secured-guard-backend-ci 2>&1 | grep -i -E "(error|exception|failed|❌|fatal)" | tail -20)
+ERRORS=$(docker logs fluxbus-backend-ci 2>&1 | grep -i -E "(error|exception|failed|❌|fatal)" | tail -20)
 if [ -n "$ERRORS" ]; then
     echo "⚠️ Erros encontrados:"
     echo "$ERRORS"
@@ -124,11 +124,11 @@ echo ""
 
 echo "9️⃣ VERIFICANDO CONFIGURAÇÃO DO NGINX"
 echo "=========================================="
-if docker exec secured-guard-nginx-ci nginx -t 2>&1 | grep -q "successful"; then
+if docker exec fluxbus-nginx-ci nginx -t 2>&1 | grep -q "successful"; then
     echo "✅ Configuração do Nginx está válida"
 else
     echo "❌ Configuração do Nginx tem erros!"
-    docker exec secured-guard-nginx-ci nginx -t
+    docker exec fluxbus-nginx-ci nginx -t
 fi
 echo ""
 
@@ -153,7 +153,7 @@ echo "   Se o backend não está rodando:"
 echo "   → docker-compose -f docker-compose.ci.yml up -d backend-ci"
 echo ""
 echo "   Se o backend está crashando:"
-echo "   → docker logs secured-guard-backend-ci"
+echo "   → docker logs fluxbus-backend-ci"
 echo ""
 echo "   Se o JWT_SECRET está errado:"
 echo "   → bash corrigir-jwt-urgente.sh"

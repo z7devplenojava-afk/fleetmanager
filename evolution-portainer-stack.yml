@@ -47,7 +47,7 @@ services:
       
       # ==================== SESSÃO ====================
       - LANGUAGE=pt-BR
-      - CONFIG_SESSION_PHONE_CLIENT=SecuredGuard
+      - CONFIG_SESSION_PHONE_CLIENT=FluxBus
       - CONFIG_SESSION_PHONE_NAME=chrome
       - CONFIG_SESSION_PHONE_VERSION=2.2413.51
       
@@ -59,7 +59,7 @@ services:
       # OPÇÃO 1: COM PostgreSQL (comentar para desabilitar)
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://fluxbus_user_ci:4KaCiJc6an@7sgbdcid2026@7sgbdcid2025@secured-guard-db-ci:5432/evolution_db?schema=public
+      - DATABASE_CONNECTION_URI=postgresql://fluxbus_user_ci:4KaCiJc6an@7sgbdcid2026@7sgbdcid2025@fluxbus-db-ci:5432/evolution_db?schema=public
       - DATABASE_CONNECTION_CLIENT_NAME=evolution_portainer
       - DATABASE_SAVE_DATA_INSTANCE=true
       - DATABASE_SAVE_DATA_NEW_MESSAGE=true

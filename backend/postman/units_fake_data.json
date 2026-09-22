@@ -5,7 +5,7 @@
       "description": "Unidade operacional no BH Shopping - Centro de Belo Horizonte",
       "address": "Av. Cristiano Machado, 4000 - Belo Horizonte, MG",
       "phone": "(31) 99999-8888",
-      "email": "bhshopping@securedguard.com",
+      "email": "bhshopping@fluxbus.com",
       "parentId": null,
       "clientId": null
     },
@@ -14,7 +14,7 @@
       "description": "Unidade operacional no centro da cidade",
       "address": "Rua da Liberdade, 100 - Centro - Belo Horizonte, MG",
       "phone": "(31) 88888-7777",
-      "email": "centro@securedguard.com",
+      "email": "centro@fluxbus.com",
       "parentId": null,
       "clientId": null
     },
@@ -23,7 +23,7 @@
       "description": "Unidade operacional na região da Savassi",
       "address": "Rua Pernambuco, 500 - Savassi - Belo Horizonte, MG",
       "phone": "(31) 77777-6666",
-      "email": "savassi@securedguard.com",
+      "email": "savassi@fluxbus.com",
       "parentId": null,
       "clientId": null
     },
@@ -32,7 +32,7 @@
       "description": "Unidade operacional na região da Pampulha",
       "address": "Av. Antônio Abrahão Caram, 1000 - Pampulha - Belo Horizonte, MG",
       "phone": "(31) 66666-5555",
-      "email": "pampulha@securedguard.com",
+      "email": "pampulha@fluxbus.com",
       "parentId": null,
       "clientId": null
     },
@@ -41,7 +41,7 @@
       "description": "Unidade operacional no Barreiro",
       "address": "Rua Padre Pedro Pinto, 200 - Barreiro - Belo Horizonte, MG",
       "phone": "(31) 55555-4444",
-      "email": "barreiro@securedguard.com",
+      "email": "barreiro@fluxbus.com",
       "parentId": null,
       "clientId": null
     },
@@ -50,7 +50,7 @@
       "description": "Unidade operacional em Venda Nova",
       "address": "Av. Venda Nova, 1500 - Venda Nova - Belo Horizonte, MG",
       "phone": "(31) 44444-3333",
-      "email": "vendanova@securedguard.com",
+      "email": "vendanova@fluxbus.com",
       "parentId": null,
       "clientId": null
     },
@@ -59,7 +59,7 @@
       "description": "Unidade operacional em Contagem",
       "address": "Av. João César de Oliveira, 800 - Contagem, MG",
       "phone": "(31) 33333-2222",
-      "email": "contagem@securedguard.com",
+      "email": "contagem@fluxbus.com",
       "parentId": null,
       "clientId": null
     },
@@ -68,7 +68,7 @@
       "description": "Unidade operacional em Betim",
       "address": "Rua das Palmeiras, 300 - Betim, MG",
       "phone": "(31) 22222-1111",
-      "email": "betim@securedguard.com",
+      "email": "betim@fluxbus.com",
       "parentId": null,
       "clientId": null
     },
@@ -77,7 +77,7 @@
       "description": "Unidade operacional em Ribeirão das Neves",
       "address": "Av. Principal, 600 - Ribeirão das Neves, MG",
       "phone": "(31) 11111-0000",
-      "email": "ribeirao@securedguard.com",
+      "email": "ribeirao@fluxbus.com",
       "parentId": null,
       "clientId": null
     },
@@ -86,7 +86,7 @@
       "description": "Unidade operacional em Santa Luzia",
       "address": "Rua da Paz, 400 - Santa Luzia, MG",
       "phone": "(31) 00000-9999",
-      "email": "santaluzia@securedguard.com",
+      "email": "santaluzia@fluxbus.com",
       "parentId": null,
       "clientId": null
     }
@@ -97,7 +97,7 @@
       "description": "Subunidade do setor A do BH Shopping",
       "address": "Av. Cristiano Machado, 4000 - Setor A - Belo Horizonte, MG",
       "phone": "(31) 99999-7777",
-      "email": "bhshopping.setora@securedguard.com",
+      "email": "bhshopping.setora@fluxbus.com",
       "parentId": "{{parentUnitId}}",
       "clientId": null
     },
@@ -106,7 +106,7 @@
       "description": "Subunidade do setor B do BH Shopping",
       "address": "Av. Cristiano Machado, 4000 - Setor B - Belo Horizonte, MG",
       "phone": "(31) 99999-6666",
-      "email": "bhshopping.setorb@securedguard.com",
+      "email": "bhshopping.setorb@fluxbus.com",
       "parentId": "{{parentUnitId}}",
       "clientId": null
     },
@@ -115,7 +115,7 @@
       "description": "Subunidade comercial do centro",
       "address": "Rua da Liberdade, 100 - Comercial - Belo Horizonte, MG",
       "phone": "(31) 88888-6666",
-      "email": "centro.comercial@securedguard.com",
+      "email": "centro.comercial@fluxbus.com",
       "parentId": "{{parentUnitId}}",
       "clientId": null
     }
@@ -126,7 +126,7 @@
       "description": "Unidade dedicada ao cliente ABC Ltda",
       "address": "Rua do Cliente ABC, 123 - Belo Horizonte, MG",
       "phone": "(31) 88888-9999",
-      "email": "cliente.abc@securedguard.com",
+      "email": "cliente.abc@fluxbus.com",
       "parentId": null,
       "clientId": 1
     },
@@ -135,7 +135,7 @@
       "description": "Unidade dedicada ao cliente XYZ S.A.",
       "address": "Av. do Cliente XYZ, 456 - Belo Horizonte, MG",
       "phone": "(31) 77777-8888",
-      "email": "cliente.xyz@securedguard.com",
+      "email": "cliente.xyz@fluxbus.com",
       "parentId": null,
       "clientId": 2
     },
@@ -144,7 +144,7 @@
       "description": "Unidade dedicada ao cliente DEF Comércio",
       "address": "Rua do Cliente DEF, 789 - Belo Horizonte, MG",
       "phone": "(31) 66666-7777",
-      "email": "cliente.def@securedguard.com",
+      "email": "cliente.def@fluxbus.com",
       "parentId": null,
       "clientId": 3
     }
@@ -159,7 +159,7 @@
       "description": "Unidade para testes completos da API",
       "address": "Av. Teste, 456 - Belo Horizonte, MG",
       "phone": "(31) 99999-0000",
-      "email": "teste@securedguard.com",
+      "email": "teste@fluxbus.com",
       "parentId": null,
       "clientId": null
     },
@@ -168,7 +168,7 @@
       "description": "Unidade atualizada via teste da API",
       "address": "Av. Teste Atualizada, 789 - Belo Horizonte, MG",
       "phone": "(31) 88888-0000",
-      "email": "teste.updated@securedguard.com",
+      "email": "teste.updated@fluxbus.com",
       "parentId": null,
       "clientId": null
     }

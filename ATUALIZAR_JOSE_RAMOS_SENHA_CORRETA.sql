@@ -66,6 +66,6 @@ WHERE username = 'jose.ramos';
 -- =====================================================
 
 -- ⚠️ NOTA: Se ainda der erro, gere hash novo:
--- Execute: backend/src/main/java/com/z7design/secured_guard/util/PasswordHashGenerator.java
+-- Execute: backend/src/main/java/com/z7design/fluxbus/util/PasswordHashGenerator.java
 -- =====================================================
 

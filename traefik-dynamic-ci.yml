@@ -68,7 +68,7 @@ http:
     ci-backend-service:
       loadBalancer:
         servers:
-          - url: "http://secured-guard-nginx-ci:80"
+          - url: "http://fluxbus-nginx-ci:80"
         passHostHeader: true
         # Timeouts aumentados para uploads grandes (5 minutos)
         responseForwarding:

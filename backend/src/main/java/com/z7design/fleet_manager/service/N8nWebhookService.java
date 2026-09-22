@@ -106,12 +106,12 @@ public class N8nWebhookService {
         // ConfiguraÃ§Ãµes especÃ­ficas por provedor
         switch (whatsappProvider.toLowerCase()) {
             case "wppconnect":
-                payload.put("sessionName", "securedguard");
+                payload.put("sessionName", "fluxbus");
                 payload.put("useGroup", false);
                 break;
                 
             case "baileys":
-                payload.put("sessionId", "securedguard-session");
+                payload.put("sessionId", "fluxbus-session");
                 payload.put("useGroup", false);
                 break;
                 

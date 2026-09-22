@@ -192,11 +192,11 @@ WHERE NOT EXISTS (
 );
 
 -- =====================================================
--- 7.1. USUÁRIOS DO BANCO secured_guard_test
+-- 7.1. USUÁRIOS DO BANCO fluxbus_test
 -- =====================================================
--- INSERTs hardcoded de usuários exportados do banco secured_guard_test
+-- INSERTs hardcoded de usuários exportados do banco fluxbus_test
 -- Para gerar estes INSERTs, execute o script: generate_inserts_and_update_migration.ps1
--- no ambiente onde o banco secured_guard_test está disponível
+-- no ambiente onde o banco fluxbus_test está disponível
 
 -- COLE OS INSERTs DE USUÁRIOS AQUI:
 -- (Execute generate_inserts_and_update_migration.ps1 para gerar automaticamente)
@@ -204,17 +204,17 @@ WHERE NOT EXISTS (
 -- =====================================================
 -- 7.2. USER_ROLES DOS USUÁRIOS
 -- =====================================================
--- INSERTs hardcoded de user_roles exportados do banco secured_guard_test
+-- INSERTs hardcoded de user_roles exportados do banco fluxbus_test
 
 -- COLE OS INSERTs DE USER_ROLES AQUI:
 -- (Execute generate_inserts_and_update_migration.ps1 para gerar automaticamente)
 
 -- =====================================================
--- 8. FUNCIONÁRIOS DO BANCO secured_guard_test
+-- 8. FUNCIONÁRIOS DO BANCO fluxbus_test
 -- =====================================================
--- INSERTs hardcoded de funcionários exportados do banco secured_guard_test
+-- INSERTs hardcoded de funcionários exportados do banco fluxbus_test
 -- Para gerar estes INSERTs, execute o script: generate_inserts_and_update_migration.ps1
--- no ambiente onde o banco secured_guard_test está disponível
+-- no ambiente onde o banco fluxbus_test está disponível
 
 -- COLE OS INSERTs DE FUNCIONÁRIOS AQUI:
 -- (Execute generate_inserts_and_update_migration.ps1 para gerar automaticamente)
@@ -476,14 +476,14 @@ DO $$
 BEGIN
     RAISE NOTICE '✅ Seed de dados essenciais para CI concluído com sucesso!';
     RAISE NOTICE '   - Usuário admin: admin@ci (senha: Admin123!)';
-    RAISE NOTICE '   - Usuários do banco secured_guard_test: Incluídos via INSERTs hardcoded';
+    RAISE NOTICE '   - Usuários do banco fluxbus_test: Incluídos via INSERTs hardcoded';
     RAISE NOTICE '   - Unidade: Unidade Matriz CI';
     RAISE NOTICE '   - Turnos: Manhã, Tarde, Noite';
     RAISE NOTICE '   - Cargos: Vigilante, Supervisor, Gerente';
     RAISE NOTICE '   - Departamento: Operacional';
     RAISE NOTICE '   - Cliente: Cliente Teste CI';
     RAISE NOTICE '   - Empresa: Empresa Teste CI';
-    RAISE NOTICE '   - Funcionários do banco secured_guard_test: Incluídos via INSERTs hardcoded';
+    RAISE NOTICE '   - Funcionários do banco fluxbus_test: Incluídos via INSERTs hardcoded';
     RAISE NOTICE '   - Funcionários de teste (fallback): 2 funcionários completos';
     RAISE NOTICE '   - Frota: 3 veículos de teste';
 END $$;

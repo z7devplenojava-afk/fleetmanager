@@ -29,13 +29,13 @@ fix_flyway() {
     echo "🔄 Executando flyway:repair..."
     docker-compose -f "$compose_file" run --rm backend bash -c "
         cd /app && 
-        ./mvnw flyway:repair -Dflyway.url=jdbc:postgresql://postgres:5432/secured_guard_${env,,} -Dflyway.user=postgressg -Dflyway.password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' -Dflyway.schemas=public
+        ./mvnw flyway:repair -Dflyway.url=jdbc:postgresql://postgres:5432/fluxbus_${env,,} -Dflyway.user=postgressg -Dflyway.password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' -Dflyway.schemas=public
     "
     
     echo "🔄 Executando flyway:migrate com outOfOrder..."
     docker-compose -f "$compose_file" run --rm backend bash -c "
         cd /app && 
-        ./mvnw flyway:migrate -Dflyway.outOfOrder=true -Dflyway.url=jdbc:postgresql://postgres:5432/secured_guard_${env,,} -Dflyway.user=postgressg -Dflyway.password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' -Dflyway.schemas=public
+        ./mvnw flyway:migrate -Dflyway.outOfOrder=true -Dflyway.url=jdbc:postgresql://postgres:5432/fluxbus_${env,,} -Dflyway.user=postgressg -Dflyway.password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' -Dflyway.schemas=public
     "
     
     # Reiniciar backend
@@ -64,7 +64,7 @@ fix_flyway() {
 }
 
 # Resolver Flyway para cada ambiente
-fix_flyway "PROD" "deploy/docker-compose.prod.yml" "secured-guard-backend-prod"
+fix_flyway "PROD" "deploy/docker-compose.prod.yml" "fluxbus-backend-prod"
 
 echo ""
 echo "🎉 Correção do Flyway concluída!"

@@ -84,7 +84,7 @@ sleep 30
 
 # 8. Verificar se a variável está correta dentro do container
 log "6. Verificando variável JWT_SECRET dentro do container..."
-CONTAINER_JWT=$(docker exec secured-guard-backend-ci env | grep JWT_SECRET | cut -d= -f2)
+CONTAINER_JWT=$(docker exec fluxbus-backend-ci env | grep JWT_SECRET | cut -d= -f2)
 CONTAINER_JWT_LEN=$(echo -n "$CONTAINER_JWT" | wc -c)
 
 if [ "$CONTAINER_JWT_LEN" -lt 64 ]; then

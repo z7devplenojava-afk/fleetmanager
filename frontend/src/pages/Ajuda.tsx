@@ -667,7 +667,7 @@ export default function Ajuda() {
                                                     <div className="border-l-4 border-gray-500 pl-4">
                                                         <h5 className="font-semibold">Como entrar em contato com o suporte?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                                                            Telefone: (11) 9999-9999 (horário comercial). E-mail: suporte@securedguard.com. Para problemas urgentes, use o telefone. Para dúvidas gerais, prefira o e-mail.
+                                                            Telefone: (11) 9999-9999 (horário comercial). E-mail: suporte@fluxbus.com. Para problemas urgentes, use o telefone. Para dúvidas gerais, prefira o e-mail.
                                                         </p>
                                                     </div>
                                                 </div>
@@ -723,14 +723,14 @@ export default function Ajuda() {
                                             <Mail className="w-5 h-5 text-blue-600" />
                                             <div>
                                                 <p className="font-medium">E-mail</p>
-                                                <p className="text-sm text-muted-foreground">suporte@securedguard.com</p>
+                                                <p className="text-sm text-muted-foreground">suporte@fluxbus.com</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center space-x-3">
                                             <Globe className="w-5 h-5 text-blue-600" />
                                             <div>
                                                 <p className="font-medium">Site</p>
-                                                <p className="text-sm text-muted-foreground">www.securedguard.com</p>
+                                                <p className="text-sm text-muted-foreground">www.fluxbus.com</p>
                                             </div>
                                         </div>
                                     </CardContent>

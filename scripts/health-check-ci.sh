@@ -55,7 +55,7 @@ check_traefik() {
 check_backend_ready() {
     log "🔍 Verificando se backend está pronto..."
     local backend_status=$(sshpass -p "${SSH_PASSWORD}" ssh -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" \
-        "docker inspect secured-guard-backend-ci --format '{{.State.Health.Status}}' 2>/dev/null || echo 'unknown'" 2>/dev/null || echo "unknown")
+        "docker inspect fluxbus-backend-ci --format '{{.State.Health.Status}}' 2>/dev/null || echo 'unknown'" 2>/dev/null || echo "unknown")
     
     if [ "$backend_status" = "healthy" ]; then
         log "✅ Backend está healthy"
@@ -67,7 +67,7 @@ check_backend_ready() {
         log "⚠️ Status do backend: $backend_status"
         # Verificar logs para ver se há erros
         local last_log=$(sshpass -p "${SSH_PASSWORD}" ssh -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" \
-            "docker logs --tail 5 secured-guard-backend-ci 2>&1 | tail -1" 2>/dev/null || echo "")
+            "docker logs --tail 5 fluxbus-backend-ci 2>&1 | tail -1" 2>/dev/null || echo "")
         if [ -n "$last_log" ]; then
             log "📋 Última linha do log: $last_log"
         fi
@@ -221,11 +221,11 @@ collect_diagnostics() {
         
         echo ""
         echo "📋 Logs do backend (últimas 30 linhas):"
-        docker logs --tail 30 secured-guard-backend-ci 2>&1 | tail -30 || echo "Container não encontrado"
+        docker logs --tail 30 fluxbus-backend-ci 2>&1 | tail -30 || echo "Container não encontrado"
         
         echo ""
         echo "📋 Logs do nginx (últimas 20 linhas):"
-        docker logs --tail 20 secured-guard-nginx-ci 2>&1 | tail -20 || echo "Container não encontrado"
+        docker logs --tail 20 fluxbus-nginx-ci 2>&1 | tail -20 || echo "Container não encontrado"
 DIAG_EOF
 }
 

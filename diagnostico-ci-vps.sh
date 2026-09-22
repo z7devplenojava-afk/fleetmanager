@@ -15,7 +15,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Diretório do projeto
-CI_DIR="/var/www/secured_guard/ci"
+CI_DIR="/var/www/fluxbus/ci"
 
 # ====================================================
 # 1. VERIFICAR DIRETÓRIOS
@@ -76,7 +76,7 @@ echo ""
 # 5. VERIFICAR HEALTH DOS CONTAINERS
 # ====================================================
 echo -e "${YELLOW}🏥 5. Health status dos containers...${NC}"
-CONTAINERS="secured-guard-backend-ci secured-guard-frontend-ci secured-guard-postgres-ci secured-guard-redis-ci secured-guard-nginx-ci"
+CONTAINERS="fluxbus-backend-ci fluxbus-frontend-ci fluxbus-postgres-ci fluxbus-redis-ci fluxbus-nginx-ci"
 for container in $CONTAINERS; do
     if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
         STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "no healthcheck")
@@ -181,12 +181,12 @@ echo ""
 # 9. VERIFICAR REDES DOCKER
 # ====================================================
 echo -e "${YELLOW}🔗 9. Verificando redes Docker...${NC}"
-if docker network ls | grep -q secured-guard-ci; then
-    echo -e "${GREEN}✅ Rede secured-guard-ci existe${NC}"
+if docker network ls | grep -q fluxbus-ci; then
+    echo -e "${GREEN}✅ Rede fluxbus-ci existe${NC}"
     echo "Containers conectados:"
-    docker network inspect secured-guard-ci --format='{{range .Containers}}{{.Name}} {{end}}' || true
+    docker network inspect fluxbus-ci --format='{{range .Containers}}{{.Name}} {{end}}' || true
 else
-    echo -e "${RED}❌ Rede secured-guard-ci não encontrada${NC}"
+    echo -e "${RED}❌ Rede fluxbus-ci não encontrada${NC}"
 fi
 echo ""
 
@@ -196,19 +196,19 @@ echo ""
 echo -e "${YELLOW}📋 10. Últimas linhas dos logs...${NC}"
 
 echo -e "\n${YELLOW}Backend (últimas 30 linhas):${NC}"
-docker logs --tail 30 secured-guard-backend-ci 2>/dev/null || echo "Container não encontrado"
+docker logs --tail 30 fluxbus-backend-ci 2>/dev/null || echo "Container não encontrado"
 
 echo -e "\n${YELLOW}Frontend (últimas 20 linhas):${NC}"
-docker logs --tail 20 secured-guard-frontend-ci 2>/dev/null || echo "Container não encontrado"
+docker logs --tail 20 fluxbus-frontend-ci 2>/dev/null || echo "Container não encontrado"
 
 echo -e "\n${YELLOW}Nginx (últimas 20 linhas):${NC}"
-docker logs --tail 20 secured-guard-nginx-ci 2>/dev/null || echo "Container não encontrado"
+docker logs --tail 20 fluxbus-nginx-ci 2>/dev/null || echo "Container não encontrado"
 
 echo -e "\n${YELLOW}PostgreSQL (últimas 10 linhas):${NC}"
-docker logs --tail 10 secured-guard-postgres-ci 2>/dev/null || echo "Container não encontrado"
+docker logs --tail 10 fluxbus-postgres-ci 2>/dev/null || echo "Container não encontrado"
 
 echo -e "\n${YELLOW}Redis (últimas 10 linhas):${NC}"
-docker logs --tail 10 secured-guard-redis-ci 2>/dev/null || echo "Container não encontrado"
+docker logs --tail 10 fluxbus-redis-ci 2>/dev/null || echo "Container não encontrado"
 
 echo ""
 echo "🔍 =============================================="
@@ -217,7 +217,7 @@ echo "🔍 =============================================="
 echo ""
 echo "💡 Próximos passos:"
 echo "   1. Se algum container não está rodando: docker-compose -f docker-compose.ci.yml up -d"
-echo "   2. Ver logs completos: docker logs -f secured-guard-backend-ci"
+echo "   2. Ver logs completos: docker logs -f fluxbus-backend-ci"
 echo "   3. Reiniciar containers: docker-compose -f docker-compose.ci.yml restart"
 echo "   4. Verificar Traefik: docker logs traefik"
 echo ""

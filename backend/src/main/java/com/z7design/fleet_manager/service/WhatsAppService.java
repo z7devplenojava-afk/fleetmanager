@@ -38,7 +38,7 @@ public class WhatsAppService {
 
             // Criar mensagem personalizada
             String message = String.format("""
-                ðŸ¢ *SecuredGuard*
+                ðŸ¢ *FluxBus*
                 
                 OlÃ¡! Seu documento unificado foi gerado com sucesso!
                 

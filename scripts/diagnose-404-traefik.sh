@@ -53,14 +53,14 @@ fi
 
 echo ""
 echo "5️⃣ Verificando se Nginx está rodando e acessível..."
-if docker ps | grep -q "secured-guard-nginx-ci"; then
+if docker ps | grep -q "fluxbus-nginx-ci"; then
   echo "✅ Nginx está rodando"
-  docker ps --filter "name=secured-guard-nginx-ci" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+  docker ps --filter "name=fluxbus-nginx-ci" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
   
   # Testar conectividade do Traefik para o Nginx
   echo ""
   echo "6️⃣ Testando conectividade do Traefik para o Nginx..."
-  if docker exec traefik wget -qO- --timeout=5 http://secured-guard-nginx-ci:80/health 2>/dev/null | grep -q "healthy"; then
+  if docker exec traefik wget -qO- --timeout=5 http://fluxbus-nginx-ci:80/health 2>/dev/null | grep -q "healthy"; then
     echo "✅ Traefik consegue acessar o Nginx"
   else
     echo "❌ Traefik NÃO consegue acessar o Nginx!"
@@ -68,7 +68,7 @@ if docker ps | grep -q "secured-guard-nginx-ci"; then
     
     # Verificar redes
     TRAEFIK_NETWORKS=$(docker inspect traefik | jq -r '.[0].NetworkSettings.Networks | keys[]' 2>/dev/null || echo "")
-    NGINX_NETWORKS=$(docker inspect secured-guard-nginx-ci | jq -r '.[0].NetworkSettings.Networks | keys[]' 2>/dev/null || echo "")
+    NGINX_NETWORKS=$(docker inspect fluxbus-nginx-ci | jq -r '.[0].NetworkSettings.Networks | keys[]' 2>/dev/null || echo "")
     
     echo "   Redes do Traefik: $TRAEFIK_NETWORKS"
     echo "   Redes do Nginx: $NGINX_NETWORKS"
@@ -87,12 +87,12 @@ fi
 
 echo ""
 echo "7️⃣ Verificando health check do Nginx diretamente..."
-if docker exec secured-guard-nginx-ci wget -qO- http://localhost/health 2>/dev/null | grep -q "healthy"; then
+if docker exec fluxbus-nginx-ci wget -qO- http://localhost/health 2>/dev/null | grep -q "healthy"; then
   echo "✅ Nginx responde ao health check internamente"
 else
   echo "❌ Nginx NÃO responde ao health check!"
   echo "📋 Logs do Nginx:"
-  docker logs secured-guard-nginx-ci --tail 20 2>&1 | tail -10
+  docker logs fluxbus-nginx-ci --tail 20 2>&1 | tail -10
 fi
 
 echo ""
@@ -114,7 +114,7 @@ echo "  3. Aguarde 10 segundos e verifique novamente"
 echo ""
 echo "Se o Nginx não está acessível pelo Traefik:"
 echo "  1. Verifique se ambos estão na rede z7network"
-echo "  2. Conecte o Nginx: docker network connect z7network secured-guard-nginx-ci"
+echo "  2. Conecte o Nginx: docker network connect z7network fluxbus-nginx-ci"
 echo "  3. Verifique novamente"
 echo ""
 echo "Para testar manualmente:"

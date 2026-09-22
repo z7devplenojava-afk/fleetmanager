@@ -2,7 +2,7 @@
 # Execute: .\iniciar-wsl.ps1
 
 Write-Host "`n════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "   SECURED GUARD - WSL UBUNTU" -ForegroundColor Cyan
+Write-Host "   FLUXBUS - WSL UBUNTU" -ForegroundColor Cyan
 Write-Host "════════════════════════════════════════`n" -ForegroundColor Cyan
 
 # 1. Verificar WSL
@@ -31,20 +31,20 @@ Write-Host "   ✅ Docker ativo no WSL`n" -ForegroundColor Green
 
 # 3. Copiar docker-compose.yml para WSL
 Write-Host "3️⃣ Copiando arquivos para WSL..." -ForegroundColor Yellow
-wsl -d Ubuntu-22.04 bash -c "mkdir -p ~/secured-guard"
-wsl -d Ubuntu-22.04 bash -c "cp /mnt/c/dev/secured-guard/docker-compose.yml ~/secured-guard/"
-wsl -d Ubuntu-22.04 bash -c "cp -r /mnt/c/dev/secured-guard/whatsapp-service ~/secured-guard/ 2>/dev/null || true"
+wsl -d Ubuntu-22.04 bash -c "mkdir -p ~/fluxbus"
+wsl -d Ubuntu-22.04 bash -c "cp /mnt/c/dev/fluxbus/docker-compose.yml ~/fluxbus/"
+wsl -d Ubuntu-22.04 bash -c "cp -r /mnt/c/dev/fluxbus/whatsapp-service ~/fluxbus/ 2>/dev/null || true"
 Write-Host "   ✅ Arquivos copiados`n" -ForegroundColor Green
 
 # 4. Criar estrutura de pastas no WSL
 Write-Host "4️⃣ Criando estrutura de pastas..." -ForegroundColor Yellow
-wsl -d Ubuntu-22.04 bash -c "mkdir -p ~/secured-guard/backend/holerites/9-2025"
+wsl -d Ubuntu-22.04 bash -c "mkdir -p ~/fluxbus/backend/holerites/9-2025"
 Write-Host "   ✅ Pastas criadas`n" -ForegroundColor Green
 
 # 5. Copiar PDF de teste
 Write-Host "5️⃣ Copiando PDF de teste..." -ForegroundColor Yellow
 if (Test-Path "backend\holerites\9-2025\JOSE_MARIO_RAMOS_00824310608_9_2025.pdf") {
-    wsl -d Ubuntu-22.04 bash -c "cp /mnt/c/dev/secured-guard/backend/holerites/9-2025/JOSE_MARIO_RAMOS_00824310608_9_2025.pdf ~/secured-guard/backend/holerites/9-2025/"
+    wsl -d Ubuntu-22.04 bash -c "cp /mnt/c/dev/fluxbus/backend/holerites/9-2025/JOSE_MARIO_RAMOS_00824310608_9_2025.pdf ~/fluxbus/backend/holerites/9-2025/"
     Write-Host "   ✅ PDF copiado`n" -ForegroundColor Green
 } else {
     Write-Host "   ⚠️ PDF não encontrado, mas continuando...`n" -ForegroundColor Yellow
@@ -52,19 +52,19 @@ if (Test-Path "backend\holerites\9-2025\JOSE_MARIO_RAMOS_00824310608_9_2025.pdf"
 
 # 6. Criar rede Docker
 Write-Host "6️⃣ Criando rede Docker no WSL..." -ForegroundColor Yellow
-wsl -d Ubuntu-22.04 bash -c "cd ~/secured-guard; docker network create secured-guard 2>/dev/null || echo 'Rede já existe'"
+wsl -d Ubuntu-22.04 bash -c "cd ~/fluxbus; docker network create fluxbus 2>/dev/null || echo 'Rede já existe'"
 Write-Host "   ✅ Rede pronta`n" -ForegroundColor Green
 
 # 7. Parar containers antigos
 Write-Host "7️⃣ Parando containers antigos..." -ForegroundColor Yellow
-wsl -d Ubuntu-22.04 bash -c "cd ~/secured-guard; docker compose down 2>/dev/null || true"
+wsl -d Ubuntu-22.04 bash -c "cd ~/fluxbus; docker compose down 2>/dev/null || true"
 Write-Host "   ✅ Containers parados`n" -ForegroundColor Green
 
 # 8. Iniciar serviços
 Write-Host "8️⃣ Iniciando serviços no WSL..." -ForegroundColor Yellow
 Write-Host "   (Isso pode demorar alguns minutos na primeira vez)`n" -ForegroundColor Gray
 
-$output = wsl -d Ubuntu-22.04 bash -c "cd ~/secured-guard; docker compose up -d 2>&1"
+$output = wsl -d Ubuntu-22.04 bash -c "cd ~/fluxbus; docker compose up -d 2>&1"
 Write-Host $output
 
 Write-Host "`n   ✅ Serviços iniciados!`n" -ForegroundColor Green
@@ -80,7 +80,7 @@ Write-Host "   ✅ Pronto!                    `n" -ForegroundColor Green
 
 # 10. Verificar status
 Write-Host "🔟 Verificando status..." -ForegroundColor Yellow
-$containers = wsl -d Ubuntu-22.04 bash -c "cd ~/secured-guard; docker ps --format '{{.Names}} - {{.Status}}'"
+$containers = wsl -d Ubuntu-22.04 bash -c "cd ~/fluxbus; docker ps --format '{{.Names}} - {{.Status}}'"
 Write-Host $containers
 Write-Host ""
 
@@ -140,9 +140,9 @@ if ($qrObtido) {
 }
 
 Write-Host "`nComandos Uteis (WSL):" -ForegroundColor Cyan
-Write-Host "   Ver logs: wsl -d Ubuntu-22.04 bash -c `"cd ~/secured-guard; docker logs -f whatsapp-service`"" -ForegroundColor Gray
-Write-Host "   Status: wsl -d Ubuntu-22.04 bash -c `"cd ~/secured-guard; docker ps`"" -ForegroundColor Gray
-Write-Host "   Parar: wsl -d Ubuntu-22.04 bash -c `"cd ~/secured-guard; docker compose down`"" -ForegroundColor Gray
+Write-Host "   Ver logs: wsl -d Ubuntu-22.04 bash -c `"cd ~/fluxbus; docker logs -f whatsapp-service`"" -ForegroundColor Gray
+Write-Host "   Status: wsl -d Ubuntu-22.04 bash -c `"cd ~/fluxbus; docker ps`"" -ForegroundColor Gray
+Write-Host "   Parar: wsl -d Ubuntu-22.04 bash -c `"cd ~/fluxbus; docker compose down`"" -ForegroundColor Gray
 
 Write-Host "`n----------------------------------------`n" -ForegroundColor Cyan
 

@@ -6,7 +6,7 @@ set -e
 echo "🔧 Corrigindo configuração do Traefik na VPS..."
 
 # 1. Remover healthCheck do arquivo ci.yml
-CONFIG_FILE="/var/www/secured_guard/traefik/dynamic/ci.yml"
+CONFIG_FILE="/var/www/fluxbus/traefik/dynamic/ci.yml"
 
 if [ -f "$CONFIG_FILE" ]; then
     echo "📝 Removendo healthCheck do arquivo de configuração..."
@@ -64,16 +64,16 @@ echo "$ROUTERS" | jq -r '.[].name' 2>/dev/null || echo "$ROUTERS"
 # 5. Verificar se Nginx tem labels corretas
 echo ""
 echo "🔍 Verificando labels do Nginx..."
-if docker ps | grep -q "secured-guard-nginx-ci"; then
+if docker ps | grep -q "fluxbus-nginx-ci"; then
     echo "Labels do Nginx:"
-    docker inspect secured-guard-nginx-ci | jq -r '.[0].Config.Labels' | grep traefik || echo "Nenhuma label Traefik encontrada"
+    docker inspect fluxbus-nginx-ci | jq -r '.[0].Config.Labels' | grep traefik || echo "Nenhuma label Traefik encontrada"
     
     # Verificar se está na rede z7network
-    if docker inspect secured-guard-nginx-ci 2>/dev/null | grep -q "z7network"; then
+    if docker inspect fluxbus-nginx-ci 2>/dev/null | grep -q "z7network"; then
         echo "✅ Nginx está na rede z7network"
     else
         echo "⚠️ Nginx NÃO está na rede z7network. Conectando..."
-        docker network connect z7network secured-guard-nginx-ci 2>/dev/null || echo "⚠️ Erro ao conectar"
+        docker network connect z7network fluxbus-nginx-ci 2>/dev/null || echo "⚠️ Erro ao conectar"
     fi
 else
     echo "❌ Container Nginx não está rodando!"

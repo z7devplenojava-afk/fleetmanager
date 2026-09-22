@@ -4,9 +4,9 @@ services:
   # ========================================
   postgres:
     image: postgres:15-alpine
-    container_name: secured-guard-db-prod
+    container_name: fluxbus-db-prod
     environment:
-      POSTGRES_DB: secured_guard_prod
+      POSTGRES_DB: fluxbus_prod
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
@@ -16,7 +16,7 @@ services:
       - postgres_data_prod:/var/lib/postgresql/data
       - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d
     networks:
-      - secured-guard-prod
+      - fluxbus-prod
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -29,13 +29,13 @@ services:
   # ========================================
   redis:
     image: redis:7-alpine
-    container_name: secured-guard-redis-prod
+    container_name: fluxbus-redis-prod
     ports:
       - "6382:6379"
     volumes:
       - redis_data_prod:/data
     networks:
-      - secured-guard-prod
+      - fluxbus-prod
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -51,17 +51,17 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile.prod
-    container_name: secured-guard-backend-prod
+    container_name: fluxbus-backend-prod
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/secured_guard_prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fluxbus_prod
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
       # WhatsApp/Baileys REST API
       BAILEYS_REST_URL: http://whatsapp-service-prod:3333
-      BAILEYS_INSTANCE_KEY: securedguard
+      BAILEYS_INSTANCE_KEY: fluxbus
       LOG_LEVEL_ROOT: "INFO"
       LOG_LEVEL_APP: "INFO"
     ports:
@@ -75,7 +75,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - secured-guard-prod
+      - fluxbus-prod
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -90,17 +90,17 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile.prod
-    container_name: secured-guard-frontend-prod
+    container_name: fluxbus-frontend-prod
     environment:
-      VITE_API_URL: https://secured-guard.com.br/api
-      VITE_WS_URL: wss://secured-guard.com.br/ws
+      VITE_API_URL: https://fluxbus.com.br/api
+      VITE_WS_URL: wss://fluxbus.com.br/ws
       NODE_ENV: production
     ports:
       - "5176:80"
     depends_on:
       - backend
     networks:
-      - secured-guard-prod
+      - fluxbus-prod
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 30s
@@ -112,11 +112,11 @@ services:
   # WHATSAPP SERVICE (Baileys REST API - PROD)
   # ========================================
   whatsapp-service:
-    image: z7design/secured-guard-whatsapp:prod
+    image: z7design/fluxbus-whatsapp:prod
     container_name: whatsapp-service-prod
     environment:
       PORT: 3333
-      INSTANCE_KEY: securedguard
+      INSTANCE_KEY: fluxbus
       SESSION_DIR: /app/sessions
     volumes:
       - whatsapp_sessions_prod:/app/sessions
@@ -124,7 +124,7 @@ services:
     ports:
       - "3335:3333"
     networks:
-      - secured-guard-prod
+      - fluxbus-prod
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -135,7 +135,7 @@ services:
   # ========================================
   nginx:
     image: nginx:alpine
-    container_name: secured-guard-nginx-prod
+    container_name: fluxbus-nginx-prod
     ports:
       - "8085:80"
     volumes:
@@ -144,7 +144,7 @@ services:
       - frontend
       - backend
     networks:
-      - secured-guard-prod
+      - fluxbus-prod
     restart: unless-stopped
 
 # ========================================
@@ -166,6 +166,6 @@ volumes:
 # NETWORKS
 # ========================================
 networks:
-  secured-guard-prod:
+  fluxbus-prod:
     external: true
-    name: secured-guard
+    name: fluxbus

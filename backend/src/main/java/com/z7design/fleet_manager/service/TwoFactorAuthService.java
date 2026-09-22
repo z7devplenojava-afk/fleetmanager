@@ -189,7 +189,7 @@ public class TwoFactorAuthService {
         }
 
         String message = String.format(
-                "ðŸ” *Secured Guard - CÃ³digo de VerificaÃ§Ã£o*\n\n" +
+                "ðŸ” *FluxBus - CÃ³digo de VerificaÃ§Ã£o*\n\n" +
                 "OlÃ¡, %s!\n\n" +
                 "Seu cÃ³digo de verificaÃ§Ã£o Ã©:\n\n" +
                 "*%s*\n\n" +
@@ -206,7 +206,7 @@ public class TwoFactorAuthService {
      * Envia cÃ³digo via Email
      */
     private boolean sendViaEmail(String code, String email, String userName) {
-        String subject = "ðŸ” CÃ³digo de VerificaÃ§Ã£o - Secured Guard";
+        String subject = "ðŸ” CÃ³digo de VerificaÃ§Ã£o - FluxBus";
         String htmlBody = createEmailBody(code, userName);
 
         return emailService.sendEmailWithAttachment(email, subject, htmlBody, null, null);
@@ -238,7 +238,7 @@ public class TwoFactorAuthService {
                         </div>
                         <div class="content">
                             <p>OlÃ¡, <strong>%s</strong>!</p>
-                            <p>VocÃª solicitou um cÃ³digo de verificaÃ§Ã£o para acessar o Secured Guard.</p>
+                            <p>VocÃª solicitou um cÃ³digo de verificaÃ§Ã£o para acessar o FluxBus.</p>
                             <div class="code">%s</div>
                             <div class="warning">
                                 <p><strong>â° Importante:</strong></p>
@@ -251,7 +251,7 @@ public class TwoFactorAuthService {
                             <p>Se vocÃª nÃ£o solicitou este cÃ³digo, ignore este email e considere alterar sua senha.</p>
                         </div>
                         <div class="footer">
-                            <p>Secured Guard &copy; 2025 - Sistema de GestÃ£o de SeguranÃ§a</p>
+                            <p>FluxBus &copy; 2025 - Sistema de GestÃ£o de SeguranÃ§a</p>
                             <p>Este Ã© um email automÃ¡tico. NÃ£o responda.</p>
                         </div>
                     </div>

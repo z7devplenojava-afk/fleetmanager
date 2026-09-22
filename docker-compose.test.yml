@@ -1,8 +1,8 @@
 version: '3.8'
 
 # ============================================
-# SECURED GUARD - AMBIENTE TEST
-# Nomenclatura: secured-guard-test-*
+# FLUXBUS - AMBIENTE TEST
+# Nomenclatura: fluxbus-test-*
 # Portas: 5433 (DB), 6380 (Redis), 8084 (Backend), 3001 (Frontend), 3334 (WhatsApp)
 # ============================================
 
@@ -23,7 +23,7 @@ services:
       - ./seeds/common:/docker-entrypoint-initdb.d/02-common:ro
       - ./seeds/test:/docker-entrypoint-initdb.d/03-test:ro
     networks:
-      - secured-guard-test-network
+      - fluxbus-test-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U test_user -d fluxbus_db_test"]
       interval: 10s
@@ -33,14 +33,14 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: secured-guard-test-redis
-    hostname: secured-guard-test-redis
+    container_name: fluxbus-test-redis
+    hostname: fluxbus-test-redis
     ports:
       - "6380:6379"
     volumes:
-      - secured-guard-test-redis-data:/data
+      - fluxbus-test-redis-data:/data
     networks:
-      - secured-guard-test-network
+      - fluxbus-test-network
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -53,20 +53,20 @@ services:
     build:
       context: ./whatsapp-service
       dockerfile: Dockerfile
-    image: secured-guard-whatsapp:test
-    container_name: secured-guard-test-whatsapp
-    hostname: secured-guard-test-whatsapp
+    image: fluxbus-whatsapp:test
+    container_name: fluxbus-test-whatsapp
+    hostname: fluxbus-test-whatsapp
     environment:
       PORT: 3333
       INSTANCE_KEY: fluxbus_db_test
       SESSION_DIR: /app/sessions
       NODE_ENV: test
     volumes:
-      - secured-guard-test-whatsapp-sessions:/app/sessions
+      - fluxbus-test-whatsapp-sessions:/app/sessions
     ports:
       - "3334:3333"
     networks:
-      - secured-guard-test-network
+      - fluxbus-test-network
     dns:
       - 8.8.8.8
     healthcheck:
@@ -81,23 +81,23 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
-    image: secured-guard-backend:test
-    container_name: secured-guard-test-backend
-    hostname: secured-guard-test-backend
+    image: fluxbus-backend:test
+    container_name: fluxbus-test-backend
+    hostname: fluxbus-test-backend
     environment:
       SPRING_PROFILES_ACTIVE: test
       SPRING_DATASOURCE_URL: jdbc:postgresql://fluxbus-test-db:5432/fluxbus_db_test
       SPRING_DATASOURCE_USERNAME: test_user
       SPRING_DATASOURCE_PASSWORD: test_pass
-      SPRING_REDIS_HOST: secured-guard-test-redis
+      SPRING_REDIS_HOST: fluxbus-test-redis
       SPRING_REDIS_PORT: 6379
       BAILEYS_ENABLED: "true"
-      BAILEYS_REST_URL: http://secured-guard-test-whatsapp:3333
+      BAILEYS_REST_URL: http://fluxbus-test-whatsapp:3333
       JWT_SECRET: ${JWT_SECRET_TEST}
     ports:
       - "8084:8083"
     networks:
-      - secured-guard-test-network
+      - fluxbus-test-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,16 +115,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
-    image: secured-guard-frontend:test
-    container_name: secured-guard-test-frontend
-    hostname: secured-guard-test-frontend
+    image: fluxbus-frontend:test
+    container_name: fluxbus-test-frontend
+    hostname: fluxbus-test-frontend
     environment:
       VITE_API_URL: https://test.z7botsolutions.com.br
       VITE_ENV: test
     ports:
       - "3001:80"
     networks:
-      - secured-guard-test-network
+      - fluxbus-test-network
     depends_on:
       - backend
     healthcheck:
@@ -137,14 +137,14 @@ services:
 volumes:
   fluxbus-test-db-data:
     name: fluxbus-test-db-data
-  secured-guard-test-redis-data:
-    name: secured-guard-test-redis-data
-  secured-guard-test-whatsapp-sessions:
-    name: secured-guard-test-whatsapp-sessions
+  fluxbus-test-redis-data:
+    name: fluxbus-test-redis-data
+  fluxbus-test-whatsapp-sessions:
+    name: fluxbus-test-whatsapp-sessions
 
 networks:
-  secured-guard-test-network:
-    name: secured-guard-test-network
+  fluxbus-test-network:
+    name: fluxbus-test-network
     driver: bridge
 
 

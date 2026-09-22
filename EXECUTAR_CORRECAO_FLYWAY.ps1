@@ -49,13 +49,13 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Você DEVE ver:" -ForegroundColor Yellow
 Write-Host "  → Flyway Community Edition..." -ForegroundColor White
-Write-Host "  → Database: jdbc:postgresql://localhost:5432/secured_guard_test" -ForegroundColor White
+Write-Host "  → Database: jdbc:postgresql://localhost:5432/fluxbus_test" -ForegroundColor White
 Write-Host "  → Migrating schema to version 226..." -ForegroundColor White
 Write-Host "  → Migrating schema to version 227..." -ForegroundColor White
 Write-Host "  → Migrating schema to version 228..." -ForegroundColor White
 Write-Host "  → Successfully applied X migrations" -ForegroundColor White
 Write-Host ""
-Write-Host "Pressione Ctrl+C após ver 'Started SecuredGuardApplication'" -ForegroundColor Yellow
+Write-Host "Pressione Ctrl+C após ver 'Started FluxBusApplication'" -ForegroundColor Yellow
 Write-Host ""
 
 # Iniciar Spring Boot

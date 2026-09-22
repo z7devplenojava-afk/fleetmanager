@@ -5,7 +5,7 @@
 DO $$
 BEGIN
     -- Atualizar encoding de conexão padrão
-    ALTER DATABASE secured_guard_test SET client_encoding TO 'UTF8';
+    ALTER DATABASE fluxbus_test SET client_encoding TO 'UTF8';
     
     RAISE NOTICE 'Database encoding configurado para UTF8';
 EXCEPTION
@@ -17,5 +17,5 @@ END $$;
 -- Nota: PostgreSQL já usa UTF-8 por padrão na maioria dos casos,
 -- mas vamos garantir que não há problemas de collation
 
-COMMENT ON DATABASE secured_guard_test IS 'Database com encoding UTF-8 para suporte a caracteres especiais';
+COMMENT ON DATABASE fluxbus_test IS 'Database com encoding UTF-8 para suporte a caracteres especiais';
 

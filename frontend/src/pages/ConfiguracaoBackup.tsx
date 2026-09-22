@@ -60,7 +60,7 @@ const ConfiguracaoBackup: React.FC = () => {
     type: 'LOCAL',
     host: 'localhost',
     port: 5432,
-    database: 'secured_guard_backup',
+    database: 'fluxbus_backup',
     username: 'postgres',
     password: '',
     enabled: true,
@@ -75,7 +75,7 @@ const ConfiguracaoBackup: React.FC = () => {
     type: 'REMOTE',
     host: '',
     port: 5432,
-    database: 'vps_secured_guard_backup',
+    database: 'vps_fluxbus_backup',
     username: '',
     password: '',
     enabled: true,
@@ -295,7 +295,7 @@ const ConfiguracaoBackup: React.FC = () => {
                   Backup Local
                 </CardTitle>
                 <CardDescription>
-                  Backup no proprio servidor (secured_guard_backup)
+                  Backup no proprio servidor (fluxbus_backup)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -325,7 +325,7 @@ const ConfiguracaoBackup: React.FC = () => {
                     <Input
                       value={localConfig.database}
                       onChange={(e) => setLocalConfig({...localConfig, database: e.target.value})}
-                      placeholder="secured_guard_backup"
+                      placeholder="fluxbus_backup"
                       className="bg-seguranca-black border-gray-600"
                     />
                   </div>
@@ -427,7 +427,7 @@ const ConfiguracaoBackup: React.FC = () => {
                   Backup VPS (Remoto)
                 </CardTitle>
                 <CardDescription>
-                  Backup em servidor externo (vps_secured_guard_backup)
+                  Backup em servidor externo (vps_fluxbus_backup)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -457,7 +457,7 @@ const ConfiguracaoBackup: React.FC = () => {
                     <Input
                       value={vpsConfig.database}
                       onChange={(e) => setVpsConfig({...vpsConfig, database: e.target.value})}
-                      placeholder="vps_secured_guard_backup"
+                      placeholder="vps_fluxbus_backup"
                       className="bg-seguranca-black border-gray-600"
                     />
                   </div>
@@ -497,7 +497,7 @@ const ConfiguracaoBackup: React.FC = () => {
                 <Alert className="bg-yellow-900/20 border-yellow-800">
                   <AlertTriangle className="h-4 w-4 text-yellow-400" />
                   <AlertDescription className="text-sm">
-                    Importante: Certifique-se de que o banco vps_secured_guard_backup ja esta criado na VPS
+                    Importante: Certifique-se de que o banco vps_fluxbus_backup ja esta criado na VPS
                     e que o usuario tem permissoes de escrita.
                   </AlertDescription>
                 </Alert>

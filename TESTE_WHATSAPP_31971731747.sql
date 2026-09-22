@@ -1,5 +1,5 @@
 -- Testar com o número que escaneou o QR Code
--- Banco: localhost:5432/secured_guard_dev
+-- Banco: localhost:5432/fluxbus_dev
 
 UPDATE users 
 SET whatsapp = '5531971731747' 

@@ -5,7 +5,7 @@
 
 set -e  # Parar em caso de erro
 
-echo "🗄️ Criando bancos de dados para o projeto SecuredGuard..."
+echo "🗄️ Criando bancos de dados para o projeto FluxBus..."
 echo ""
 
 # Configurações
@@ -16,11 +16,11 @@ POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
 
 # Lista de bancos para criar
 DATABASES=(
-    "secured_guard_dev"
-    "secured_guard_test" 
-    "secured_guard_staging"
-    "secured_guard_prod"
-    "secured_guard_ci"
+    "fluxbus_dev"
+    "fluxbus_test" 
+    "fluxbus_staging"
+    "fluxbus_prod"
+    "fluxbus_ci"
 )
 
 # Função para criar banco
@@ -120,7 +120,7 @@ echo ""
 
 # Listar bancos criados
 echo "📋 Bancos de dados disponíveis:"
-psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -l | grep secured_guard
+psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -l | grep fluxbus
 echo ""
 
 echo "✅ Todos os bancos de dados foram criados e configurados com sucesso!"

@@ -332,13 +332,13 @@ public class ContactValidationService {
      * Envia email de boas-vindas com credenciais
      */
     private void sendWelcomeEmail(User user, String password) {
-        String subject = "Bem-vindo ao Secured Guard - Suas Credenciais de Acesso";
+        String subject = "Bem-vindo ao FluxBus - Suas Credenciais de Acesso";
         
         String htmlBody = String.format("""
                 <html>
                 <body style="font-family: Arial, sans-serif; padding: 20px;">
                     <h2 style="color: #333;">OlÃ¡, %s!</h2>
-                    <p>Seu usuÃ¡rio foi criado no sistema <strong>Secured Guard</strong>.</p>
+                    <p>Seu usuÃ¡rio foi criado no sistema <strong>FluxBus</strong>.</p>
                     
                     <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
                         <h3 style="margin-top: 0;">Suas credenciais de acesso:</h3>
@@ -358,7 +358,7 @@ public class ContactValidationService {
                     <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
                     <p style="color: #777; font-size: 12px;">
                         Atenciosamente,<br>
-                        <strong>Equipe Secured Guard</strong>
+                        <strong>Equipe FluxBus</strong>
                     </p>
                 </body>
                 </html>

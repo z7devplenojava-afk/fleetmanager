@@ -90,7 +90,7 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
       // Adicionar timestamp para garantir unicidade
       const timestamp = Date.now().toString().slice(-3);
       const generatedUsername = `${firstName}.${lastName}.${cpfSuffix}.${timestamp}`;
-      const generatedEmail = `${firstName}.${lastName}.${cpfSuffix}@securedguard.com`;
+      const generatedEmail = `${firstName}.${lastName}.${cpfSuffix}@fluxbus.com`;
       
       setForm(prev => ({
         ...prev,

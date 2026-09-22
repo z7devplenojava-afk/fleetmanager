@@ -11,7 +11,7 @@ echo ""
 # Configurações do banco (ajuste conforme necessário)
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
-DB_NAME="${DB_NAME:-secured_guard}"
+DB_NAME="${DB_NAME:-fluxbus}"
 DB_USER="${DB_USER:-postgres}"
 DB_PASSWORD="${DB_PASSWORD:-4KaCiJc6an@7sgbdcid2025}"
 

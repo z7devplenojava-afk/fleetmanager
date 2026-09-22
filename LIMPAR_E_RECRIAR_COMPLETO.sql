@@ -47,7 +47,7 @@ ORDER BY installed_rank DESC;
 
 -- ✅ Após executar este script:
 -- - Recompile o backend: .\mvnw.cmd clean package -DskipTests
--- - Reinicie o backend: java -jar backend/target/secured-guard-1.0.0.jar --spring.profiles.active=test
+-- - Reinicie o backend: java -jar backend/target/fluxbus-1.0.0.jar --spring.profiles.active=test
 -- 
 -- A migration V2 será executada novamente e criará:
 -- ✅ Tabela employees COMPLETA com todas as 70+ colunas

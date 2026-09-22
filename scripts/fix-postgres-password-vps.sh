@@ -34,7 +34,7 @@ if [[ ! $REPLY =~ ^[Ss]$ ]]; then
 fi
 
 echo "🗑️ Removendo volume do PostgreSQL..."
-docker volume rm secured-guard_postgres_data_ci 2>/dev/null || true
+docker volume rm fluxbus_postgres_data_ci 2>/dev/null || true
 
 # Atualizar .env se necessário
 if [ -f .env ]; then
@@ -58,14 +58,14 @@ echo "⏳ Aguardando PostgreSQL iniciar (30s)..."
 sleep 30
 
 # Verificar se está rodando
-if docker ps | grep -q "secured-guard-db-ci"; then
+if docker ps | grep -q "fluxbus-db-ci"; then
     echo "✅ PostgreSQL está rodando!"
     echo "💡 A senha foi resetada. O banco foi recriado."
     echo "⚠️ Todos os dados anteriores foram perdidos!"
 else
     echo "❌ PostgreSQL não está rodando!"
     echo "📋 Verificando logs..."
-    docker logs secured-guard-db-ci --tail 50
+    docker logs fluxbus-db-ci --tail 50
     exit 1
 fi
 

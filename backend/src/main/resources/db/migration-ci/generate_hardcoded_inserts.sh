@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =====================================================
-# Script para gerar INSERTs hardcoded do banco secured_guard_test
+# Script para gerar INSERTs hardcoded do banco fluxbus_test
 # e atualizar automaticamente a migration V999
 # =====================================================
 
@@ -13,7 +13,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-DB_NAME="secured_guard_test"
+DB_NAME="fluxbus_test"
 DB_USER="${DB_USER:-postgressg}"
 DB_PASSWORD="${DB_PASSWORD:-4KaCiJc6an@7sgbdcid2025}"
 DB_HOST="${DB_HOST:-localhost}"

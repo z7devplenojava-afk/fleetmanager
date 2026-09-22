@@ -10,8 +10,8 @@ echo    OK
 echo.
 
 echo 2. Limpando sessoes antigas (corrompidas)...
-if exist "whatsapp-service\sessions\securedguard" (
-    rmdir /s /q "whatsapp-service\sessions\securedguard"
+if exist "whatsapp-service\sessions\fluxbus" (
+    rmdir /s /q "whatsapp-service\sessions\fluxbus"
     echo    ✅ Sessoes removidas
 ) else (
     echo    ⚠️  Pasta de sessoes nao encontrada
@@ -19,7 +19,7 @@ if exist "whatsapp-service\sessions\securedguard" (
 echo.
 
 echo 3. Recriando pasta de sessoes...
-mkdir "whatsapp-service\sessions\securedguard" 2>nul
+mkdir "whatsapp-service\sessions\fluxbus" 2>nul
 echo    OK
 echo.
 

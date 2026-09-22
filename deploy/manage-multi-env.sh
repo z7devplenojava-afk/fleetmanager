@@ -2,7 +2,7 @@
 
 # ========================================
 # SCRIPT DE GERENCIAMENTO MULTI-AMBIENTE
-# SecuredGuard - VPS Multi-Environment Manager
+# FluxBus - VPS Multi-Environment Manager
 # ========================================
 
 set -e
@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configurações
-PROJECT_DIR="/opt/secured-guard"
+PROJECT_DIR="/opt/fluxbus"
 COMPOSE_FILE="deploy/docker-compose.multi-env.yml"
 ENVIRONMENTS=("dev" "prod" "ci")
 
@@ -60,7 +60,7 @@ repair_flyway() {
     
     # Repair usando container Flyway
     docker run --rm \
-        --network secured-guard-network \
+        --network fluxbus-network \
         -v $PROJECT_DIR/backend/src/main/resources/db/migration:/flyway/sql \
         flyway/flyway:9.22.3 \
         -url=jdbc:postgresql://postgres-$env:5432/$db_name \
@@ -82,7 +82,7 @@ migrate_flyway() {
     
     # Migrate usando container Flyway
     docker run --rm \
-        --network secured-guard-network \
+        --network fluxbus-network \
         -v $PROJECT_DIR/backend/src/main/resources/db/migration:/flyway/sql \
         flyway/flyway:9.22.3 \
         -url=jdbc:postgresql://postgres-$env:5432/$db_name \
@@ -104,7 +104,7 @@ check_flyway() {
     log "Verificando status do Flyway para ambiente: $env"
     
     docker run --rm \
-        --network secured-guard-network \
+        --network fluxbus-network \
         -v $PROJECT_DIR/backend/src/main/resources/db/migration:/flyway/sql \
         flyway/flyway:9.22.3 \
         -url=jdbc:postgresql://postgres-$env:5432/$db_name \
@@ -167,9 +167,9 @@ repair_all_flyway() {
     
     # Mapeamento de ambientes
     declare -A env_config=(
-        ["dev"]="5432 secured_guard_dev"
-        ["prod"]="5433 secured_guard_prod"
-        ["ci"]="5434 secured_guard_ci"
+        ["dev"]="5432 fluxbus_dev"
+        ["prod"]="5433 fluxbus_prod"
+        ["ci"]="5434 fluxbus_ci"
     )
     
     for env in "${ENVIRONMENTS[@]}"; do
@@ -186,9 +186,9 @@ migrate_all_flyway() {
     
     # Mapeamento de ambientes
     declare -A env_config=(
-        ["dev"]="5432 secured_guard_dev"
-        ["prod"]="5433 secured_guard_prod"
-        ["ci"]="5434 secured_guard_ci"
+        ["dev"]="5432 fluxbus_dev"
+        ["prod"]="5433 fluxbus_prod"
+        ["ci"]="5434 fluxbus_ci"
     )
     
     for env in "${ENVIRONMENTS[@]}"; do
@@ -276,7 +276,7 @@ health_check() {
 
 # Função para backup
 backup_all() {
-    local backup_dir="/opt/secured-guard/backups/$(date +%Y%m%d_%H%M%S)"
+    local backup_dir="/opt/fluxbus/backups/$(date +%Y%m%d_%H%M%S)"
     
     log "Criando backup em: $backup_dir"
     
@@ -284,10 +284,10 @@ backup_all() {
     
     # Backup dos bancos
     for env in "${ENVIRONMENTS[@]}"; do
-        local db_name="secured_guard_$env"
+        local db_name="fluxbus_$env"
         log "Fazendo backup do banco: $db_name"
         
-        docker exec secured-guard-db-$env pg_dump -U postgressg "$db_name" > "$backup_dir/${db_name}.sql"
+        docker exec fluxbus-db-$env pg_dump -U postgressg "$db_name" > "$backup_dir/${db_name}.sql"
     done
     
     # Backup das configurações
@@ -299,7 +299,7 @@ backup_all() {
 
 # Função para mostrar ajuda
 show_help() {
-    echo "SecuredGuard Multi-Environment Manager"
+    echo "FluxBus Multi-Environment Manager"
     echo ""
     echo "Uso: $0 [COMANDO] [ARGUMENTOS]"
     echo ""
@@ -361,9 +361,9 @@ main() {
                 exit 1
             fi
             declare -A env_config=(
-                ["dev"]="5432 secured_guard_dev"
-                ["prod"]="5433 secured_guard_prod"
-                ["ci"]="5434 secured_guard_ci"
+                ["dev"]="5432 fluxbus_dev"
+                ["prod"]="5433 fluxbus_prod"
+                ["ci"]="5434 fluxbus_ci"
             )
             IFS=' ' read -r db_port db_name <<< "${env_config[$2]}"
             check_flyway "$2" "$db_port" "$db_name"

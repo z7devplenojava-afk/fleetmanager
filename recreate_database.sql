@@ -1,19 +1,19 @@
--- Script para excluir e recriar o banco secured_guard_test
+-- Script para excluir e recriar o banco fluxbus_test
 -- Execute este script no PostgreSQL
 
 -- Conectar ao banco postgres (padrão)
 \c postgres
 
--- Terminar todas as conexões com o banco secured_guard_test
+-- Terminar todas as conexões com o banco fluxbus_test
 SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
-WHERE datname = 'secured_guard_test' AND pid <> pg_backend_pid();
+WHERE datname = 'fluxbus_test' AND pid <> pg_backend_pid();
 
--- Excluir o banco secured_guard_test
-DROP DATABASE IF EXISTS secured_guard_test;
+-- Excluir o banco fluxbus_test
+DROP DATABASE IF EXISTS fluxbus_test;
 
--- Criar o banco secured_guard_test novamente
-CREATE DATABASE secured_guard_test
+-- Criar o banco fluxbus_test novamente
+CREATE DATABASE fluxbus_test
     WITH
     OWNER = postgres
     ENCODING = 'UTF8'
@@ -24,7 +24,7 @@ CREATE DATABASE secured_guard_test
     IS_TEMPLATE = False;
 
 -- Conectar ao novo banco
-\c secured_guard_test
+\c fluxbus_test
 
 -- Habilitar extensão uuid-ossp se necessário
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

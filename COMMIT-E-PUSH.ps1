@@ -6,13 +6,13 @@
 $env:PATH = "C:\Program Files\Git\bin;C:\Program Files\Git\cmd;$env:PATH"
 
 # Mudar para o diretório do projeto
-Set-Location "c:\dev\secured-guard"
+Set-Location "c:\dev\fluxbus"
 
 # Caminho completo do Git
 $git = "C:\Program Files\Git\bin\git.exe"
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  COMMIT E PUSH - SECURED GUARD" -ForegroundColor Cyan
+Write-Host "  COMMIT E PUSH - FLUXBUS" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -70,7 +70,7 @@ if ($LASTEXITCODE -eq 0) {
         Write-Host "   ✅ Push realizado com sucesso!" -ForegroundColor Green
         Write-Host ""
         Write-Host "🚀 Deploy automático será iniciado!" -ForegroundColor Cyan
-        Write-Host "🔍 Acompanhe: https://github.com/zemarioramos/secured-guard/actions" -ForegroundColor Yellow
+        Write-Host "🔍 Acompanhe: https://github.com/zemarioramos/fluxbus/actions" -ForegroundColor Yellow
     } else {
         Write-Host "   ❌ Erro ao fazer push!" -ForegroundColor Red
         Write-Host "   Código: $LASTEXITCODE" -ForegroundColor Red

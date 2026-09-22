@@ -5,7 +5,7 @@
 
 echo "🔧 Corrigindo JWT_SECRET no arquivo .env..."
 
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 # Valor padrão seguro (80 caracteres)
 DEFAULT_JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
@@ -53,7 +53,7 @@ sleep 40
 
 echo ""
 echo "✅ Verificando JWT_SECRET no container..."
-JWT_IN_CONTAINER=$(docker exec secured-guard-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
+JWT_IN_CONTAINER=$(docker exec fluxbus-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
 if [ -n "$JWT_IN_CONTAINER" ]; then
     JWT_LENGTH=${#JWT_IN_CONTAINER}
     echo "   JWT_SECRET no container: $JWT_LENGTH caracteres"

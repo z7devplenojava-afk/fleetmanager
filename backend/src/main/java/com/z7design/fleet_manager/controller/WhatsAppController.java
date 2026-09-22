@@ -131,7 +131,7 @@ public class WhatsAppController {
     @PostMapping("/connection/create")
     public ResponseEntity<?> createConnection(@RequestBody Map<String, Object> request) {
         try {
-            String instanceName = request != null ? (String) request.get("instanceName") : "securedguard";
+            String instanceName = request != null ? (String) request.get("instanceName") : "fluxbus";
             boolean qrcode = Boolean.TRUE.equals(request != null ? request.get("qrcode") : false);
             log.info("Criando conexão WhatsApp. Provider: {}, Instance: {}", whatsappProvider, instanceName);
 

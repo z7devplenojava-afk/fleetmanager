@@ -41,7 +41,7 @@ else
 fi
 
 # Verificar se o container está rodando
-if ! docker ps | grep -q "secured-guard-backend-ci"; then
+if ! docker ps | grep -q "fluxbus-backend-ci"; then
     error "Container backend-ci não está rodando!"
     exit 1
 fi
@@ -55,16 +55,16 @@ log "2. Verificando saúde do backend..."
 curl -s http://localhost:8081/actuator/health || warn "Backend não está respondendo"
 
 log "3. Verificando conexão com banco de dados..."
-docker compose -f deploy/docker-compose.ci.yml exec -T backend sh -c "psql -h postgres -U postgres -d secured_guard_test -c 'SELECT 1;'" 2>&1 || warn "Não foi possível conectar ao banco"
+docker compose -f deploy/docker-compose.ci.yml exec -T backend sh -c "psql -h postgres -U postgres -d fluxbus_test -c 'SELECT 1;'" 2>&1 || warn "Não foi possível conectar ao banco"
 
 log "4. Verificando se a tabela unified_documents tem as colunas corretas..."
-docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test -c "\d unified_documents" 2>&1 || warn "Tabela unified_documents não existe ou erro ao verificar"
+docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test -c "\d unified_documents" 2>&1 || warn "Tabela unified_documents não existe ou erro ao verificar"
 
 log "5. Verificando migrations executadas..."
-docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test -c "SELECT version, description, installed_on FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 10;" 2>&1 || warn "Não foi possível verificar migrations"
+docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test -c "SELECT version, description, installed_on FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 10;" 2>&1 || warn "Não foi possível verificar migrations"
 
 log "6. Verificando se há usuários no banco..."
-docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test -c "SELECT username, email FROM users LIMIT 5;" 2>&1 || warn "Não foi possível verificar usuários"
+docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test -c "SELECT username, email FROM users LIMIT 5;" 2>&1 || warn "Não foi possível verificar usuários"
 
 log "7. Verificando logs de erro recentes..."
 echo "=========================================="

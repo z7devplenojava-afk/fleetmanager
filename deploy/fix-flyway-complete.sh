@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Ir para diretório do projeto
-cd /opt/secured-guard
+cd /opt/fluxbus
 
 echo "📁 Diretório atual: $(pwd)"
 
@@ -47,7 +47,7 @@ echo "⏳ Aguardando banco ficar pronto..."
 sleep 15
 
 # Verificar se banco está rodando
-if docker ps | grep -q "secured-guard-db-prod"; then
+if docker ps | grep -q "fluxbus-db-prod"; then
     echo -e "${GREEN}✅ Banco PROD rodando${NC}"
 else
     echo -e "${RED}❌ Banco PROD não está rodando${NC}"
@@ -64,7 +64,7 @@ if command -v mvn &> /dev/null; then
     
     # Executar flyway:repair
     mvn -f backend/pom.xml flyway:repair \
-        -Dflyway.url=jdbc:postgresql://localhost:5432/secured_guard_prod \
+        -Dflyway.url=jdbc:postgresql://localhost:5432/fluxbus_prod \
         -Dflyway.user=postgressg \
         -Dflyway.password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' \
         -Dflyway.schemas=public
@@ -72,7 +72,7 @@ if command -v mvn &> /dev/null; then
     # Executar flyway:migrate com outOfOrder
     mvn -f backend/pom.xml flyway:migrate \
         -Dflyway.outOfOrder=true \
-        -Dflyway.url=jdbc:postgresql://localhost:5432/secured_guard_prod \
+        -Dflyway.url=jdbc:postgresql://localhost:5432/fluxbus_prod \
         -Dflyway.user=postgressg \
         -Dflyway.password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' \
         -Dflyway.schemas=public
@@ -97,7 +97,7 @@ if curl -s -f "http://localhost:8080/actuator/health" > /dev/null 2>&1; then
 else
     echo -e "${RED}❌ Backend PROD ainda não está respondendo${NC}"
     echo "📋 Logs do backend PROD:"
-    docker logs --tail 20 secured-guard-backend-prod
+    docker logs --tail 20 fluxbus-backend-prod
 fi
 
 echo ""

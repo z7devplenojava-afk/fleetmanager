@@ -1,10 +1,10 @@
-# Teste de Integração WhatsApp - SecuredGuard
+# Teste de Integração WhatsApp - FluxBus
 # Este script testa a integração com WPPConnect, Baileys e Twilio
 
 param(
     [string]$Provider = "wppconnect",
     [string]$PhoneNumber = "5511999999999",
-    [string]$Message = "Teste de integração WhatsApp - SecuredGuard",
+    [string]$Message = "Teste de integração WhatsApp - FluxBus",
     [string]$BaseUrl = "http://localhost:8080",
     [string]$Token = ""
 )

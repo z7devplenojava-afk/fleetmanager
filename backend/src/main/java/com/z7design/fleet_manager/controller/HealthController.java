@@ -23,7 +23,7 @@ public class HealthController {
     public ResponseEntity<Map<String, Object>> health() {
         Map<String, Object> response = new HashMap<>();
         response.put("status", "UP");
-        response.put("application", "secured-guard");
+        response.put("application", "fluxbus");
         response.put("timestamp", LocalDateTime.now().toString());
         response.put("version", "1.0.0");
         return ResponseEntity.ok(response);

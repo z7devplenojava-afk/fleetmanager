@@ -12,10 +12,10 @@ $PostgresPassword = $env:POSTGRES_PASSWORD ?? "S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx"
 
 # Lista de bancos faltantes
 $MissingDatabases = @(
-    "secured_guard_dev",
-    "secured_guard_test",
-    "secured_guard_staging",
-    "secured_guard_ci"
+    "fluxbus_dev",
+    "fluxbus_test",
+    "fluxbus_staging",
+    "fluxbus_ci"
 )
 
 # Função para criar banco
@@ -73,7 +73,7 @@ Write-Host ""
 # Verificar bancos criados
 Write-Host "📋 Verificando bancos criados..." -ForegroundColor Cyan
 $env:PGPASSWORD = $PostgresPassword
-& psql -h $PostgresHost -p $PostgresPort -U $PostgresUser -d postgres -c "SELECT datname FROM pg_database WHERE datname LIKE 'secured_guard%';"
+& psql -h $PostgresHost -p $PostgresPort -U $PostgresUser -d postgres -c "SELECT datname FROM pg_database WHERE datname LIKE 'fluxbus%';"
 Write-Host ""
 
 Write-Host "✅ Script concluído!" -ForegroundColor Green

@@ -197,7 +197,7 @@ export function HelpQuickActions({ onActionClick }: HelpQuickActionsProps) {
                 </div>
               </div>
               <Button size="sm" variant="outline" className="text-red-600 border-red-300">
-                urgente@securedguard.com
+                urgente@fluxbus.com
               </Button>
             </div>
           </div>

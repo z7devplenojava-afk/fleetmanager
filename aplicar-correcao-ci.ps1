@@ -4,7 +4,7 @@
 param(
     [string]$Server = "ci.z7botsolutions.com.br",
     [string]$User = "root",
-    [string]$ProjectPath = "/var/www/secured_guard"
+    [string]$ProjectPath = "/var/www/fluxbus"
 )
 
 Write-Host "🔧 Aplicando correção 405 no CI..." -ForegroundColor Cyan
@@ -44,13 +44,13 @@ fi
 
 echo ''
 echo '🧪 Testando configuração do NGINX...'
-docker exec secured-guard-nginx-ci nginx -t
+docker exec fluxbus-nginx-ci nginx -t
 
 if [ \$? -eq 0 ]; then
     echo '✅ Configuração válida'
     echo ''
     echo '🔄 Recarregando NGINX...'
-    docker exec secured-guard-nginx-ci nginx -s reload
+    docker exec fluxbus-nginx-ci nginx -s reload
     echo '✅ NGINX recarregado'
 else
     echo '❌ Configuração inválida!'
@@ -73,7 +73,7 @@ if [ \$HTTP_CODE -eq 405 ]; then
     echo '❌ FALHA: Ainda retornando 405'
     echo ''
     echo 'Verificando logs do NGINX:'
-    docker logs secured-guard-nginx-ci --tail 20
+    docker logs fluxbus-nginx-ci --tail 20
     exit 1
 elif [ \$HTTP_CODE -eq 401 ] || [ \$HTTP_CODE -eq 403 ] || [ \$HTTP_CODE -eq 200 ]; then
     echo '✅ SUCESSO: Login está funcionando (HTTP \$HTTP_CODE)'
@@ -83,7 +83,7 @@ fi
 
 echo ''
 echo '📋 Últimas linhas do log do NGINX:'
-docker logs secured-guard-nginx-ci --tail 10
+docker logs fluxbus-nginx-ci --tail 10
 
 echo ''
 echo '✅ Correção aplicada com sucesso!'
@@ -113,6 +113,6 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "  ssh $User@$Server" -ForegroundColor Gray
     Write-Host "  cd $ProjectPath" -ForegroundColor Gray
     Write-Host "  git pull origin main" -ForegroundColor Gray
-    Write-Host "  docker exec secured-guard-nginx-ci nginx -s reload" -ForegroundColor Gray
+    Write-Host "  docker exec fluxbus-nginx-ci nginx -s reload" -ForegroundColor Gray
     exit 1
 }

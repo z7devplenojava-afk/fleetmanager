@@ -10,7 +10,7 @@ echo.
 REM Configurações do banco (ajuste conforme necessário)
 set DB_HOST=localhost
 set DB_PORT=5432
-set DB_NAME=secured_guard
+set DB_NAME=fluxbus
 set DB_USER=postgres
 set DB_PASSWORD=4KaCiJc6an@7sgbdcid2025
 

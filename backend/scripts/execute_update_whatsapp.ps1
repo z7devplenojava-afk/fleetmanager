@@ -17,7 +17,7 @@ if (-not (Test-Path $sqlFile)) {
 # Configuracoes do banco de dados
 $dbHost = "localhost"
 $dbPort = "5432"
-$dbName = "secured_guard_test"
+$dbName = "fluxbus_test"
 $dbUser = "postgres"
 $dbPassword = "1234567"
 

@@ -11,7 +11,7 @@
 -- psql -U postgres
 
 -- Criar banco de backup local
-CREATE DATABASE secured_guard_backup
+CREATE DATABASE fluxbus_backup
     WITH 
     OWNER = postgres
     ENCODING = 'UTF8'
@@ -20,10 +20,10 @@ CREATE DATABASE secured_guard_backup
     TABLESPACE = pg_default
     CONNECTION LIMIT = -1;
 
-COMMENT ON DATABASE secured_guard_backup IS 'Banco de backup local do SecuredGuard';
+COMMENT ON DATABASE fluxbus_backup IS 'Banco de backup local do FluxBus';
 
 -- Conectar no banco de backup
-\c secured_guard_backup
+\c fluxbus_backup
 
 -- Criar extensões necessárias
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -41,7 +41,7 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 -- psql -U postgres
 
 -- Criar banco de backup na VPS
-CREATE DATABASE vps_secured_guard_backup
+CREATE DATABASE vps_fluxbus_backup
     WITH 
     OWNER = postgres
     ENCODING = 'UTF8'
@@ -50,10 +50,10 @@ CREATE DATABASE vps_secured_guard_backup
     TABLESPACE = pg_default
     CONNECTION LIMIT = -1;
 
-COMMENT ON DATABASE vps_secured_guard_backup IS 'Banco de backup remoto (VPS) do SecuredGuard';
+COMMENT ON DATABASE vps_fluxbus_backup IS 'Banco de backup remoto (VPS) do FluxBus';
 
 -- Conectar no banco de backup
-\c vps_secured_guard_backup
+\c vps_fluxbus_backup
 
 -- Criar extensões necessárias
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -72,7 +72,7 @@ FROM pg_database
 WHERE datname LIKE '%backup%';
 
 -- Resultado esperado:
--- secured_guard_backup | 8192 bytes
+-- fluxbus_backup | 8192 bytes
 
 -- Na VPS (via SSH):
 SELECT datname, pg_size_pretty(pg_database_size(datname)) as tamanho
@@ -80,7 +80,7 @@ FROM pg_database
 WHERE datname LIKE '%backup%';
 
 -- Resultado esperado:
--- vps_secured_guard_backup | 8192 bytes
+-- vps_fluxbus_backup | 8192 bytes
 
 -- =====================================================
 
@@ -107,7 +107,7 @@ WHERE datname LIKE '%backup%';
 -- =====================================================
 
 -- Do servidor principal, testar conexão com VPS:
--- psql -h IP_DA_VPS -p 5432 -U postgres -d vps_secured_guard_backup
+-- psql -h IP_DA_VPS -p 5432 -U postgres -d vps_fluxbus_backup
 
 -- Se conectar com sucesso: ✅ VPS configurada!
 

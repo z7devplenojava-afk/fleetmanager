@@ -64,7 +64,7 @@ export const TermsConsentModal: React.FC<TermsConsentModalProps> = ({
             <div>
               <h3 className="font-bold text-seguranca-yellow flex items-center gap-2 mb-3">
                 <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
-                Termos de Uso do Sistema SecuredGuard
+                Termos de Uso do Sistema FluxBus
               </h3>
               
               <div className="space-y-3 text-seguranca-lightgray">
@@ -153,7 +153,7 @@ export const TermsConsentModal: React.FC<TermsConsentModalProps> = ({
 
                 <p className="font-medium">8. Contato do DPO</p>
                 <p className="text-gray-400 text-xs sm:text-sm">
-                  Para exercer seus direitos ou esclarecer dúvidas sobre privacidade, entre em contato com nosso Encarregado de Dados (DPO): dpo@securedguard.com.br
+                  Para exercer seus direitos ou esclarecer dúvidas sobre privacidade, entre em contato com nosso Encarregado de Dados (DPO): dpo@fluxbus.com.br
                 </p>
               </div>
             </div>

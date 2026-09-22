@@ -1,7 +1,7 @@
-# Setup Baileys - SecuredGuard
+# Setup Baileys - FluxBus
 # Script para configurar rapidamente o Baileys
 
-Write-Host "🚀 Configurando Baileys para SecuredGuard" -ForegroundColor Cyan
+Write-Host "🚀 Configurando Baileys para FluxBus" -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 
 # Verificar se Node.js está instalado
@@ -177,7 +177,7 @@ app.post('/send-file', async (req, res) => {
 app.get('/sessions', (req, res) => {
     res.json({ 
         connected: isConnected,
-        sessionId: 'securedguard-session'
+        sessionId: 'fluxbus-session'
     });
 });
 
@@ -213,9 +213,9 @@ Write-Host "✅ Servidor Baileys criado" -ForegroundColor Green
 Write-Host "`n📝 Atualizando package.json..." -ForegroundColor Yellow
 $packageJson = @'
 {
-  "name": "baileys-securedguard",
+  "name": "baileys-fluxbus",
   "version": "1.0.0",
-  "description": "Baileys para SecuredGuard",
+  "description": "Baileys para FluxBus",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -251,9 +251,9 @@ Write-Host "✅ .gitignore criado" -ForegroundColor Green
 # Criar README
 Write-Host "`n📝 Criando README..." -ForegroundColor Yellow
 $readme = @'
-# Baileys - SecuredGuard
+# Baileys - FluxBus
 
-Servidor Baileys para integração WhatsApp do sistema SecuredGuard.
+Servidor Baileys para integração WhatsApp do sistema FluxBus.
 
 ## Instalação
 

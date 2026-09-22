@@ -194,7 +194,7 @@ function Start-ProdEnvironment {
                 Write-Step "Executando deploy via WSL" "Usando script otimizado"
                 
                 $wslScript = @"
-cd /mnt/c/dev/secured-guard
+cd /mnt/c/dev/fluxbus
 chmod +x deploy/deploy-to-vps-wsl.sh
 ./deploy/deploy-to-vps-wsl.sh
 "@
@@ -323,11 +323,11 @@ function Show-PipelineHelp {
 # EXECUÇÃO PRINCIPAL
 # ========================================
 
-Write-Header "🚀 SECUREDGUARD - PIPELINE DE INICIALIZAÇÃO" "Green"
+Write-Header "🚀 FLUXBUS - PIPELINE DE INICIALIZAÇÃO" "Green"
 
 # Verificar se estamos no diretório correto
 if (-not (Test-Path "docker-compose.yml") -and -not (Test-Path "deploy")) {
-    Write-Error "Execute este script na raiz do projeto SecuredGuard"
+    Write-Error "Execute este script na raiz do projeto FluxBus"
     exit 1
 }
 

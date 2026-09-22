@@ -41,7 +41,7 @@ docker compose -f docker-compose.ci.yml ps
 
 # 2. Verificar se o backend está rodando
 log "2. Verificando se o backend está rodando..."
-if ! docker ps | grep -q "secured-guard-backend-ci"; then
+if ! docker ps | grep -q "fluxbus-backend-ci"; then
     error "❌ Container backend-ci NÃO está rodando!"
     log "Tentando iniciar o container..."
     docker compose -f docker-compose.ci.yml up -d backend-ci
@@ -69,12 +69,12 @@ fi
 
 # 5. Verificar se o backend está acessível dentro da rede Docker
 log "5. Testando conexão do nginx para o backend..."
-if docker exec secured-guard-nginx-ci curl -f -s -m 5 http://secured-guard-backend-ci:8081/api/health > /dev/null 2>&1; then
+if docker exec fluxbus-nginx-ci curl -f -s -m 5 http://fluxbus-backend-ci:8081/api/health > /dev/null 2>&1; then
     log "✅ Backend está acessível do nginx"
 else
     error "❌ Backend NÃO está acessível do nginx"
     log "Verificando rede Docker..."
-    docker network inspect secured-guard-ci-network | grep -A 5 "backend-ci" || true
+    docker network inspect fluxbus-ci-network | grep -A 5 "backend-ci" || true
 fi
 
 # 6. Verificar conexão com banco de dados
@@ -94,11 +94,11 @@ echo "=========================================="
 
 # 9. Verificar healthcheck do container
 log "9. Verificando status do healthcheck..."
-docker inspect secured-guard-backend-ci --format='{{json .State.Health}}' | jq . || docker inspect secured-guard-backend-ci --format='{{.State.Health.Status}}' || true
+docker inspect fluxbus-backend-ci --format='{{json .State.Health}}' | jq . || docker inspect fluxbus-backend-ci --format='{{.State.Health.Status}}' || true
 
 # 10. Verificar nginx
 log "10. Verificando nginx..."
-if docker ps | grep -q "secured-guard-nginx-ci"; then
+if docker ps | grep -q "fluxbus-nginx-ci"; then
     log "✅ Nginx está rodando"
     docker compose -f docker-compose.ci.yml logs --tail=20 nginx-ci | grep -i -E "(error|502|bad gateway)" || log "Nenhum erro recente no nginx"
 else

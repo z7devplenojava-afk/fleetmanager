@@ -1,8 +1,8 @@
 version: '3.8'
 
 # ============================================
-# SECURED GUARD - AMBIENTE PRODUÇÃO
-# Nomenclatura: secured-guard-prod-*
+# FLUXBUS - AMBIENTE PRODUÇÃO
+# Nomenclatura: fluxbus-prod-*
 # Portas: 5435 (DB), 6382 (Redis), 8086 (Backend), 3003 (Frontend), 3336 (WhatsApp)
 # ⚠️  ATENÇÃO: Sempre use secrets e .env para senhas!
 # ============================================
@@ -25,7 +25,7 @@ services:
       - ./seeds/prod:/docker-entrypoint-initdb.d/03-prod:ro
       - ./backups:/backups
     networks:
-      - secured-guard-prod-network
+      - fluxbus-prod-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d fluxbus"]
       interval: 10s
@@ -40,14 +40,14 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: secured-guard-prod-redis
-    hostname: secured-guard-prod-redis
+    container_name: fluxbus-prod-redis
+    hostname: fluxbus-prod-redis
     ports:
       - "6382:6379"
     volumes:
-      - secured-guard-prod-redis-data:/data
+      - fluxbus-prod-redis-data:/data
     networks:
-      - secured-guard-prod-network
+      - fluxbus-prod-network
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     healthcheck:
       test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
@@ -65,20 +65,20 @@ services:
     build:
       context: ./whatsapp-service
       dockerfile: Dockerfile
-    image: secured-guard-whatsapp:prod
-    container_name: secured-guard-prod-whatsapp
-    hostname: secured-guard-prod-whatsapp
+    image: fluxbus-whatsapp:prod
+    container_name: fluxbus-prod-whatsapp
+    hostname: fluxbus-prod-whatsapp
     environment:
       PORT: 3333
       INSTANCE_KEY: fluxbus_db_prod
       SESSION_DIR: /app/sessions
       NODE_ENV: production
     volumes:
-      - secured-guard-prod-whatsapp-sessions:/app/sessions
+      - fluxbus-prod-whatsapp-sessions:/app/sessions
     ports:
       - "3336:3333"
     networks:
-      - secured-guard-prod-network
+      - fluxbus-prod-network
     dns:
       - 8.8.8.8
     healthcheck:
@@ -98,25 +98,25 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
-    image: secured-guard-backend:prod
-    container_name: secured-guard-prod-backend
-    hostname: secured-guard-prod-backend
+    image: fluxbus-backend:prod
+    container_name: fluxbus-prod-backend
+    hostname: fluxbus-prod-backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://fluxbus-prod-db:5432/fluxbus
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      SPRING_REDIS_HOST: secured-guard-prod-redis
+      SPRING_REDIS_HOST: fluxbus-prod-redis
       SPRING_REDIS_PORT: 6379
       SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD}
       BAILEYS_ENABLED: "true"
-      BAILEYS_REST_URL: http://secured-guard-prod-whatsapp:3333
+      BAILEYS_REST_URL: http://fluxbus-prod-whatsapp:3333
       JWT_SECRET: ${JWT_SECRET}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
     ports:
       - "8086:8083"
     networks:
-      - secured-guard-prod-network
+      - fluxbus-prod-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -143,16 +143,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
-    image: secured-guard-frontend:prod
-    container_name: secured-guard-prod-frontend
-    hostname: secured-guard-prod-frontend
+    image: fluxbus-frontend:prod
+    container_name: fluxbus-prod-frontend
+    hostname: fluxbus-prod-frontend
     environment:
-      VITE_API_URL: https://secured-guard.com.br
+      VITE_API_URL: https://fluxbus.com.br
       VITE_ENV: production
     ports:
       - "3003:80"
     networks:
-      - secured-guard-prod-network
+      - fluxbus-prod-network
     depends_on:
       - backend
     healthcheck:
@@ -170,14 +170,14 @@ services:
 volumes:
   fluxbus-prod-db-data:
     name: fluxbus-prod-db-data
-  secured-guard-prod-redis-data:
-    name: secured-guard-prod-redis-data
-  secured-guard-prod-whatsapp-sessions:
-    name: secured-guard-prod-whatsapp-sessions
+  fluxbus-prod-redis-data:
+    name: fluxbus-prod-redis-data
+  fluxbus-prod-whatsapp-sessions:
+    name: fluxbus-prod-whatsapp-sessions
 
 networks:
-  secured-guard-prod-network:
-    name: secured-guard-prod-network
+  fluxbus-prod-network:
+    name: fluxbus-prod-network
     driver: bridge
 
 

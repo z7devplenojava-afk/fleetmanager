@@ -21,15 +21,15 @@ curl -s http://localhost:8081/actuator/health || echo -e "${RED}Backend não est
 
 # 3. Verificar banco
 echo -e "\n${YELLOW}3. Testando conexão com banco:${NC}"
-docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test -c "SELECT 1;" 2>&1 | head -3 || echo -e "${RED}Erro ao conectar no banco${NC}"
+docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test -c "SELECT 1;" 2>&1 | head -3 || echo -e "${RED}Erro ao conectar no banco${NC}"
 
 # 4. Verificar colunas
 echo -e "\n${YELLOW}4. Verificando colunas unified_documents:${NC}"
-docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test -c "\d unified_documents" 2>&1 | grep -E "(file_name|file_path|unified_file)" || echo "Tabela não existe ou erro"
+docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test -c "\d unified_documents" 2>&1 | grep -E "(file_name|file_path|unified_file)" || echo "Tabela não existe ou erro"
 
 # 5. Verificar migrations
 echo -e "\n${YELLOW}5. Últimas migrations executadas:${NC}"
-docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test -c "SELECT version, description FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;" 2>&1 | head -10
+docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test -c "SELECT version, description FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;" 2>&1 | head -10
 
 # 6. Testar endpoint
 echo -e "\n${YELLOW}6. Testando endpoint de login:${NC}"

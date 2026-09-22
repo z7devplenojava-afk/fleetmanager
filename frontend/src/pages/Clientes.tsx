@@ -128,7 +128,7 @@ const Clientes: React.FC = () => {
               <li>Definir estratégia de abordagem</li>
             </ul>
             
-            <p><strong>Este é um alerta automático do sistema SecuredGuard.</strong></p>
+            <p><strong>Este é um alerta automático do sistema FluxBus.</strong></p>
           `,
           priority: 'media' as const
         };

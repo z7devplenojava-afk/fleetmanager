@@ -14,7 +14,7 @@ echo -e "${GREEN}🐳 Reiniciando containers do ambiente CI...${NC}"
 echo ""
 
 # Navegar para o diretório correto
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 # Verificar se o .env existe
 if [ ! -f ".env" ]; then
@@ -52,7 +52,7 @@ echo ""
 
 # Remover imagens antigas (opcional, descomente se necessário)
 # echo -e "${YELLOW}🗑️  Removendo imagens antigas...${NC}"
-# docker rmi z7design/secured-guard-backend:ci z7design/secured-guard-frontend:ci z7design/secured-guard-whatsapp:ci 2>/dev/null || true
+# docker rmi z7design/fluxbus-backend:ci z7design/fluxbus-frontend:ci z7design/fluxbus-whatsapp:ci 2>/dev/null || true
 # echo -e "${GREEN}✅ Imagens removidas${NC}"
 # echo ""
 
@@ -82,17 +82,17 @@ echo ""
 
 # Verificar logs do backend
 echo -e "${YELLOW}📋 Últimas linhas do log do backend:${NC}"
-docker logs --tail 20 secured-guard-backend-ci 2>&1 | tail -10 || echo "   Container ainda não iniciou"
+docker logs --tail 20 fluxbus-backend-ci 2>&1 | tail -10 || echo "   Container ainda não iniciou"
 echo ""
 
 # Verificar logs do WhatsApp
 echo -e "${YELLOW}📋 Últimas linhas do log do WhatsApp:${NC}"
-docker logs --tail 20 secured-guard-whatsapp-ci 2>&1 | tail -10 || echo "   Container ainda não iniciou"
+docker logs --tail 20 fluxbus-whatsapp-ci 2>&1 | tail -10 || echo "   Container ainda não iniciou"
 echo ""
 
 # Verificar conectividade entre containers
 echo -e "${YELLOW}🔍 Verificando conectividade entre containers...${NC}"
-if docker exec secured-guard-backend-ci curl -f http://whatsapp-service-ci:3333/health 2>/dev/null; then
+if docker exec fluxbus-backend-ci curl -f http://whatsapp-service-ci:3333/health 2>/dev/null; then
     echo -e "${GREEN}✅ Backend consegue acessar WhatsApp service${NC}"
 else
     echo -e "${RED}❌ Backend NÃO consegue acessar WhatsApp service${NC}"

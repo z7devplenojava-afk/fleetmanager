@@ -14,7 +14,7 @@ echo -e "${GREEN}🔧 Corrigindo URL do WhatsApp no .env...${NC}"
 echo ""
 
 # Navegar para o diretório correto
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 # Fazer backup do .env
 if [ -f ".env" ]; then

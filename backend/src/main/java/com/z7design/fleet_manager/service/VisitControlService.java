@@ -423,7 +423,7 @@ public class VisitControlService {
             }
             
             // RodapÃ©
-            Paragraph footer = new Paragraph("Documento gerado automaticamente pelo sistema Secured Guard")
+            Paragraph footer = new Paragraph("Documento gerado automaticamente pelo sistema FluxBus")
                     .setTextAlignment(TextAlignment.CENTER)
                     .setFontSize(8)
                     .setMarginTop(30);

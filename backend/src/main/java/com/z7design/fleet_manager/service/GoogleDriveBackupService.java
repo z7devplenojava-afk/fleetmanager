@@ -61,7 +61,7 @@ public class GoogleDriveBackupService {
                     GoogleNetHttpTransport.newTrustedTransport(),
                     GsonFactory.getDefaultInstance(),
                     new HttpCredentialsAdapter(credentials)
-            ).setApplicationName("secured-guard-backend")
+            ).setApplicationName("fluxbus-backend")
              .build();
 
             log.info("âœ… Cliente Google Drive inicializado com sucesso.");

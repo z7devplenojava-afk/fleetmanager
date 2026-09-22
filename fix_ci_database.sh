@@ -4,7 +4,7 @@
 echo "🔧 Corrigindo banco de dados CI no VPS..."
 
 # Conectar no container do PostgreSQL e executar o SQL
-docker exec -i secured-guard-db-ci psql -U secured_guard_ci -d secured_guard_ci << 'EOF'
+docker exec -i fluxbus-db-ci psql -U fluxbus_ci -d fluxbus_ci << 'EOF'
 -- Criar a tabela user_custom_permissions
 CREATE TABLE IF NOT EXISTS user_custom_permissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

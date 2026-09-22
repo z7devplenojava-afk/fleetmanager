@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Ir para diretório do projeto
-cd /opt/secured-guard
+cd /opt/fluxbus
 
 echo "📁 Diretório atual: $(pwd)"
 
@@ -35,7 +35,7 @@ for env in dev prod ci; do
         echo -e "${YELLOW}⚠️ Criando deploy/env.$env${NC}"
         cat > "deploy/env.$env" << EOF
 # Database
-POSTGRES_DB=secured_guard_$env
+POSTGRES_DB=fluxbus_$env
 POSTGRES_USER=postgressg
 POSTGRES_PASSWORD=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
 
@@ -69,7 +69,7 @@ if curl -s -f "http://localhost:8080/actuator/health" > /dev/null 2>&1; then
 else
     echo -e "${RED}❌ PROD com problemas${NC}"
     echo "📋 Logs do PROD:"
-    docker logs --tail 10 secured-guard-backend-prod
+    docker logs --tail 10 fluxbus-backend-prod
 fi
 
 # Subir ambiente DEV
@@ -88,7 +88,7 @@ if curl -s -f "http://localhost:8081/actuator/health" > /dev/null 2>&1; then
 else
     echo -e "${RED}❌ DEV com problemas${NC}"
     echo "📋 Logs do DEV:"
-    docker logs --tail 10 secured-guard-backend-dev
+    docker logs --tail 10 fluxbus-backend-dev
 fi
 
 # Subir ambiente CI
@@ -107,7 +107,7 @@ if curl -s -f "http://localhost:8082/actuator/health" > /dev/null 2>&1; then
 else
     echo -e "${RED}❌ CI com problemas${NC}"
     echo "📋 Logs do CI:"
-    docker logs --tail 10 secured-guard-backend-ci
+    docker logs --tail 10 fluxbus-backend-ci
 fi
 
 echo ""

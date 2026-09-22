@@ -19,8 +19,8 @@ esac
 
 ssh -p "$VPS_PORT" -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" \
   "set -e; \
-   cd /opt/secured-guard; \
-   docker network ls --format '{{.Name}}' | grep -q '^secured-guard$' || docker network create --driver bridge secured-guard; \
+   cd /opt/fluxbus; \
+   docker network ls --format '{{.Name}}' | grep -q '^fluxbus$' || docker network create --driver bridge fluxbus; \
    docker compose -f $ENV_FILE down || true; \
    docker compose -f $ENV_FILE up -d --build; \
    docker compose -f $ENV_FILE ps"
@@ -32,7 +32,7 @@ echo "Started $1 environment on VPS"
 # ===================== COMANDOS PARA EXECUTAR NA VPS =====================
 # Execute estes comandos um por vez na VPS
 
-echo "🔍 Verificando status da VPS SecuredGuard..."
+echo "🔍 Verificando status da VPS FluxBus..."
 echo ""
 
 echo "1️⃣ Verificando containers Docker:"
@@ -40,15 +40,15 @@ docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 echo ""
 
 echo "2️⃣ Verificando logs do backend (últimas 10 linhas):"
-docker logs --tail 10 secured-guard-backend-1 2>/dev/null || echo "   ❌ Backend não encontrado"
+docker logs --tail 10 fluxbus-backend-1 2>/dev/null || echo "   ❌ Backend não encontrado"
 echo ""
 
 echo "3️⃣ Verificando logs do PostgreSQL (últimas 5 linhas):"
-docker logs --tail 5 secured-guard-postgres-1 2>/dev/null || echo "   ❌ PostgreSQL não encontrado"
+docker logs --tail 5 fluxbus-postgres-1 2>/dev/null || echo "   ❌ PostgreSQL não encontrado"
 echo ""
 
 echo "4️⃣ Verificando bancos de dados:"
-docker exec secured-guard-postgres-1 psql -U postgressg -d postgres -c "SELECT datname FROM pg_database WHERE datname LIKE 'secured_guard%';" 2>/dev/null || echo "   ❌ Não foi possível conectar no PostgreSQL"
+docker exec fluxbus-postgres-1 psql -U postgressg -d postgres -c "SELECT datname FROM pg_database WHERE datname LIKE 'fluxbus%';" 2>/dev/null || echo "   ❌ Não foi possível conectar no PostgreSQL"
 echo ""
 
 echo "5️⃣ Testando endpoint do backend:"

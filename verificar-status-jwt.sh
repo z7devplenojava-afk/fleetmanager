@@ -9,7 +9,7 @@ echo "🔍 =========================================="
 echo ""
 
 echo "1️⃣ Verificando JWT_SECRET no container backend..."
-JWT_SECRET_IN_CONTAINER=$(docker exec secured-guard-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
+JWT_SECRET_IN_CONTAINER=$(docker exec fluxbus-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
 
 if [ -z "$JWT_SECRET_IN_CONTAINER" ]; then
     echo "❌ ERRO: JWT_SECRET não está definido no container!"
@@ -28,22 +28,22 @@ fi
 
 echo ""
 echo "2️⃣ Verificando logs do backend (últimas 50 linhas)..."
-docker logs --tail=50 secured-guard-backend-ci 2>&1 | grep -i -E "(jwt|token|error|exception|500)" | tail -20
+docker logs --tail=50 fluxbus-backend-ci 2>&1 | grep -i -E "(jwt|token|error|exception|500)" | tail -20
 
 echo ""
 echo "3️⃣ Testando login diretamente..."
-docker exec secured-guard-backend-ci curl -X POST http://localhost:8081/api/auth/login \
+docker exec fluxbus-backend-ci curl -X POST http://localhost:8081/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"test","password":"test"}' \
   -v 2>&1 | head -30
 
 echo ""
 echo "4️⃣ Verificando se o container está usando a imagem mais recente..."
-docker inspect secured-guard-backend-ci | grep -i image
+docker inspect fluxbus-backend-ci | grep -i image
 
 echo ""
 echo "5️⃣ Verificando data de criação do container..."
-docker inspect secured-guard-backend-ci | grep -i created
+docker inspect fluxbus-backend-ci | grep -i created
 
 echo ""
 echo "✅ Verificação concluída!"

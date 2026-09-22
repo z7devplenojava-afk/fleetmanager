@@ -93,7 +93,7 @@ if command -v psql &> /dev/null; then
     # Configurações do banco baseadas no ambiente
     DB_HOST="localhost"
     DB_PORT="5432"
-    DB_NAME="secured_guard_$ENVIRONMENT"
+    DB_NAME="fluxbus_$ENVIRONMENT"
     DB_USER="postgressg"
     
     log "🔍 Conectando ao banco de dados: $DB_NAME"
@@ -104,4 +104,4 @@ fi
 
 log "🎉 Migrações concluídas com sucesso!"
 log "📝 Verifique o log acima para confirmar que todas as tabelas foram criadas."
-log "🌍 Ambiente: $ENVIRONMENT | Banco: secured_guard_$ENVIRONMENT"
+log "🌍 Ambiente: $ENVIRONMENT | Banco: fluxbus_$ENVIRONMENT"

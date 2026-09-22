@@ -21,7 +21,7 @@ Write-Host "Encontrados $($jsonData.total) funcionarios no JSON" -ForegroundColo
 # Configuracoes do banco de dados
 $dbHost = "localhost"
 $dbPort = "5432"
-$dbName = "secured_guard_dev"
+$dbName = "fluxbus_dev"
 $dbUser = "postgres"
 $dbPassword = "1234567"
 

@@ -4,7 +4,7 @@
 $ErrorActionPreference = "Continue"
 
 Write-Host "`n════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "   SECURED GUARD - BACKEND + WHATSAPP" -ForegroundColor Cyan
+Write-Host "   FLUXBUS - BACKEND + WHATSAPP" -ForegroundColor Cyan
 Write-Host "════════════════════════════════════════`n" -ForegroundColor Cyan
 
 # 1. Verificar se Docker está rodando
@@ -22,7 +22,7 @@ try {
 
 # 2. Criar rede Docker se não existir
 Write-Host "2️⃣ Verificando rede Docker..." -ForegroundColor Yellow
-docker network create secured-guard 2>$null | Out-Null
+docker network create fluxbus 2>$null | Out-Null
 Write-Host "   ✅ Rede verificada`n" -ForegroundColor Green
 
 # 3. Iniciar serviços Docker (PostgreSQL, Redis, WhatsApp)

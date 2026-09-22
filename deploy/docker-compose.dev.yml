@@ -6,11 +6,11 @@ services:
   # ========================================
   postgres:
     image: postgres:15-alpine
-    container_name: secured-guard-db-dev
+    container_name: fluxbus-db-dev
     env_file:
       - ./env.dev
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-secured_guard_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-fluxbus_dev}
       POSTGRES_USER: ${POSTGRES_USER:-postgressg}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
@@ -21,7 +21,7 @@ services:
       - ../scripts/init-databases.sh:/docker-entrypoint-initdb.d/01-init-databases.sh:ro
       - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d/migration:ro
     networks:
-      - secured-guard-dev
+      - fluxbus-dev
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgressg}"]
       interval: 10s
@@ -34,7 +34,7 @@ services:
   # ========================================
   redis:
     image: redis:7-alpine
-    container_name: secured-guard-redis-dev
+    container_name: fluxbus-redis-dev
     env_file:
       - ./env.dev
     ports:
@@ -42,10 +42,10 @@ services:
     volumes:
       - redis_data_dev:/data
     networks:
-      - secured-guard-dev
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-secured_guard_redis_dev}
+      - fluxbus-dev
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-fluxbus_redis_dev}
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-secured_guard_redis_dev}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-fluxbus_redis_dev}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -58,12 +58,12 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile.dev
-    container_name: secured-guard-backend-dev
+    container_name: fluxbus-backend-dev
     env_file:
       - ./env.dev
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-secured_guard_dev}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-fluxbus_dev}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgressg}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_REDIS_HOST: redis
@@ -81,7 +81,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - secured-guard-dev
+      - fluxbus-dev
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
       interval: 30s
@@ -96,13 +96,13 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile.dev
-    container_name: secured-guard-frontend-dev
+    container_name: fluxbus-frontend-dev
     ports:
       - "3001:3000"
     depends_on:
       - backend
     networks:
-      - secured-guard-dev
+      - fluxbus-dev
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 30s
@@ -123,6 +123,6 @@ volumes:
 # NETWORKS
 # ========================================
 networks:
-  secured-guard-dev:
+  fluxbus-dev:
     external: true
-    name: secured-guard
+    name: fluxbus

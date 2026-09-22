@@ -107,7 +107,7 @@ const Holerites: React.FC = () => {
   const [filters, setFilters] = useState<any>({});
   const { toast } = useToast();
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
-  const [whatsAppMessage, setWhatsAppMessage] = useState('Olá! Seu holerite está disponível para download. Acesse o sistema SecuredGuard para visualizar. Em caso de dúvidas, entre em contato com o RH.');
+  const [whatsAppMessage, setWhatsAppMessage] = useState('Olá! Seu holerite está disponível para download. Acesse o sistema FluxBus para visualizar. Em caso de dúvidas, entre em contato com o RH.');
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
   const [activeTab, setActiveTab] = useState('processados');
   const [showReceiptUploadModal, setShowReceiptUploadModal] = useState(false);
@@ -1753,7 +1753,7 @@ const Holerites: React.FC = () => {
         tipo: type,
         funcionarioId: validation.employeeId,
         mensagem: type === 'whatsapp'
-          ? 'Olá! Seu documento unificado (holerite + comprovante) está disponível para download. Acesse o sistema SecuredGuard para visualizar.'
+          ? 'Olá! Seu documento unificado (holerite + comprovante) está disponível para download. Acesse o sistema FluxBus para visualizar.'
           : undefined
       };
 
@@ -1830,7 +1830,7 @@ const Holerites: React.FC = () => {
             tipo: sendType,
             funcionarioId: employeeId,
             mensagem: sendType === 'whatsapp'
-              ? 'Olá! Seu documento unificado (holerite + comprovante) está disponível para download. Acesse o sistema SecuredGuard para visualizar.'
+              ? 'Olá! Seu documento unificado (holerite + comprovante) está disponível para download. Acesse o sistema FluxBus para visualizar.'
               : undefined
           };
 
@@ -1905,7 +1905,7 @@ const Holerites: React.FC = () => {
             tipo: type,
             funcionarioId: employeeId,
             mensagem: type === 'whatsapp'
-              ? 'Olá! Seu documento unificado (holerite + comprovante) está disponível para download. Acesse o sistema SecuredGuard para visualizar.'
+              ? 'Olá! Seu documento unificado (holerite + comprovante) está disponível para download. Acesse o sistema FluxBus para visualizar.'
               : undefined
           };
 
@@ -3692,7 +3692,7 @@ const Holerites: React.FC = () => {
             const payload = {
               tipo: 'whatsapp',
               funcionarioId,
-              mensagem: 'Olá! Seu holerite está disponível para download. Acesse o sistema SecuredGuard para visualizar. Em caso de dúvidas, entre em contato com o RH.'
+              mensagem: 'Olá! Seu holerite está disponível para download. Acesse o sistema FluxBus para visualizar. Em caso de dúvidas, entre em contato com o RH.'
             };
             console.log('📤 Payload:', payload);
 
@@ -3734,7 +3734,7 @@ const Holerites: React.FC = () => {
       const payload = {
         tipo: 'whatsapp',
         cpf,
-        mensagem: 'Olá! Seu holerite está disponível para download. Acesse o sistema SecuredGuard para visualizar. Em caso de dúvidas, entre em contato com o RH.'
+        mensagem: 'Olá! Seu holerite está disponível para download. Acesse o sistema FluxBus para visualizar. Em caso de dúvidas, entre em contato com o RH.'
       };
       console.log('📤 Payload (por CPF):', payload);
 

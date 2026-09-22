@@ -6,16 +6,16 @@ services:
   # ========================================
   postgres:
     image: postgres:15-alpine
-    container_name: secured-guard-db-dev
+    container_name: fluxbus-db-dev
     environment:
-      POSTGRES_DB: secured_guard_dev
+      POSTGRES_DB: fluxbus_dev
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data
       - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -30,11 +30,11 @@ services:
   # ========================================
   redis:
     image: redis:7-alpine
-    container_name: secured-guard-redis-dev
+    container_name: fluxbus-redis-dev
     volumes:
       - redis_data_dev:/data
     networks:
-      - secured-guard-network
+      - fluxbus-network
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -52,10 +52,10 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile.dev
-    container_name: secured-guard-backend-dev
+    container_name: fluxbus-backend-dev
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/secured_guard_dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fluxbus_dev
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_REDIS_HOST: redis
@@ -70,7 +70,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -80,11 +80,11 @@ services:
     labels:
       # Traefik labels para backend - desenvolvimento
       - "traefik.enable=true"
-      - "traefik.http.routers.secured-guard-api-dev.rule=Host(`dev.z7botsolutions.com.br`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.secured-guard-api-dev.entrypoints=websecure"
-      - "traefik.http.routers.secured-guard-api-dev.tls.certresolver=letsencrypt"
-      - "traefik.http.services.secured-guard-api-dev.loadbalancer.server.port=8080"
-      - "traefik.docker.network=secured-guard-network"
+      - "traefik.http.routers.fluxbus-api-dev.rule=Host(`dev.z7botsolutions.com.br`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.fluxbus-api-dev.entrypoints=websecure"
+      - "traefik.http.routers.fluxbus-api-dev.tls.certresolver=letsencrypt"
+      - "traefik.http.services.fluxbus-api-dev.loadbalancer.server.port=8080"
+      - "traefik.docker.network=fluxbus-network"
 
   # ========================================
   # FRONTEND
@@ -93,7 +93,7 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile.dev
-    container_name: secured-guard-frontend-dev
+    container_name: fluxbus-frontend-dev
     environment:
       VITE_API_URL: https://dev.z7botsolutions.com.br/api
       VITE_WS_URL: wss://dev.z7botsolutions.com.br/ws
@@ -103,7 +103,7 @@ services:
     depends_on:
       - backend
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5173"]
       interval: 30s
@@ -113,11 +113,11 @@ services:
     labels:
       # Traefik labels para frontend - desenvolvimento
       - "traefik.enable=true"
-      - "traefik.http.routers.secured-guard-web-dev.rule=Host(`dev.z7botsolutions.com.br`)"
-      - "traefik.http.routers.secured-guard-web-dev.entrypoints=websecure"
-      - "traefik.http.routers.secured-guard-web-dev.tls.certresolver=letsencrypt"
-      - "traefik.http.services.secured-guard-web-dev.loadbalancer.server.port=5173"
-      - "traefik.docker.network=secured-guard-network"
+      - "traefik.http.routers.fluxbus-web-dev.rule=Host(`dev.z7botsolutions.com.br`)"
+      - "traefik.http.routers.fluxbus-web-dev.entrypoints=websecure"
+      - "traefik.http.routers.fluxbus-web-dev.tls.certresolver=letsencrypt"
+      - "traefik.http.services.fluxbus-web-dev.loadbalancer.server.port=5173"
+      - "traefik.docker.network=fluxbus-network"
 
 # ========================================
 # VOLUMES
@@ -132,6 +132,6 @@ volumes:
 # NETWORKS
 # ========================================
 networks:
-  secured-guard-network:
+  fluxbus-network:
     external: true
-    name: secured-guard
+    name: fluxbus

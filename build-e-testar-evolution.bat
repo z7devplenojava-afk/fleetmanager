@@ -27,13 +27,13 @@ echo    ✅ Build concluido!
 echo.
 
 echo 4. Limpando volumes...
-docker volume rm secured-guard_evolution_instances -f 2>nul
+docker volume rm fluxbus_evolution_instances -f 2>nul
 echo    OK
 echo.
 
 echo 5. Recriando banco...
-docker exec secured-guard-db-local psql -U postgres -c "DROP DATABASE IF EXISTS evolution_db;" 2>nul
-docker exec secured-guard-db-local psql -U postgres -c "CREATE DATABASE evolution_db;"
+docker exec fluxbus-db-local psql -U postgres -c "DROP DATABASE IF EXISTS evolution_db;" 2>nul
+docker exec fluxbus-db-local psql -U postgres -c "CREATE DATABASE evolution_db;"
 echo    OK
 echo.
 
@@ -73,7 +73,7 @@ echo 10. Criando instancia...
 curl -X POST http://localhost:9000/instance/create ^
   -H "apikey: B6D711FCDE4D4FD5936544120E713976" ^
   -H "Content-Type: application/json" ^
-  -d "{\"instanceName\":\"securedguard\",\"integration\":\"WHATSAPP-BAILEYS\"}"
+  -d "{\"instanceName\":\"fluxbus\",\"integration\":\"WHATSAPP-BAILEYS\"}"
 echo.
 echo    OK
 echo.
@@ -98,7 +98,7 @@ echo.
 
 echo 13. Obtendo QR Code...
 curl -s -H "apikey: B6D711FCDE4D4FD5936544120E713976" ^
-  http://localhost:9000/instance/connect/securedguard > qr_response.json
+  http://localhost:9000/instance/connect/fluxbus > qr_response.json
 
 echo.
 type qr_response.json | findstr "code" >nul
@@ -108,7 +108,7 @@ if %ERRORLEVEL% EQU 0 (
     echo ========================================
     echo.
     echo ACESSE PARA ESCANEAR:
-    echo   http://localhost:9000/instance/connect/securedguard
+    echo   http://localhost:9000/instance/connect/fluxbus
     echo.
     echo Header: apikey: B6D711FCDE4D4FD5936544120E713976
     echo Numero: 31971731747

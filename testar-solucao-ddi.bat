@@ -34,7 +34,7 @@ if %ERRORLEVEL% EQU 0 (
     echo    ✅ Baileys CONECTADO!
 ) else (
     echo    ⚠️  Baileys nao conectado
-    echo    Acesse: http://localhost:3333/qrcode?key=securedguard
+    echo    Acesse: http://localhost:3333/qrcode?key=fluxbus
     echo    Escaneie com WhatsApp: 31971731747
     echo.
     pause

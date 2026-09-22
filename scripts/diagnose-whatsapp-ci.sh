@@ -12,7 +12,7 @@ if [ $? -ne 0 ]; then
     echo "❌ Container whatsapp-service-ci NÃO está rodando!"
     echo ""
     echo "📋 Tentando iniciar o container..."
-    cd /var/www/secured_guard/ci
+    cd /var/www/fluxbus/ci
     docker-compose -f docker-compose.ci.yml up -d whatsapp-service-ci
     sleep 10
 else
@@ -21,11 +21,11 @@ fi
 
 echo ""
 echo "2️⃣ Verificando logs do container (últimas 30 linhas)..."
-docker logs --tail 30 secured-guard-whatsapp-ci 2>&1
+docker logs --tail 30 fluxbus-whatsapp-ci 2>&1
 
 echo ""
 echo "3️⃣ Testando conectividade interna (do backend para o WhatsApp service)..."
-docker exec secured-guard-backend-ci curl -s -o /dev/null -w "HTTP Code: %{http_code}\n" http://whatsapp-service-ci:3333/health || echo "❌ Backend não consegue acessar o WhatsApp service"
+docker exec fluxbus-backend-ci curl -s -o /dev/null -w "HTTP Code: %{http_code}\n" http://whatsapp-service-ci:3333/health || echo "❌ Backend não consegue acessar o WhatsApp service"
 
 echo ""
 echo "4️⃣ Testando health endpoint diretamente..."
@@ -41,24 +41,24 @@ docker network inspect z7network | grep -A 5 whatsapp-service-ci || echo "⚠️
 
 echo ""
 echo "7️⃣ Verificando variáveis de ambiente do backend..."
-docker exec secured-guard-backend-ci env | grep BAILEYS || echo "⚠️ Variável BAILEYS_REST_URL não encontrada"
+docker exec fluxbus-backend-ci env | grep BAILEYS || echo "⚠️ Variável BAILEYS_REST_URL não encontrada"
 
 echo ""
 echo "8️⃣ Testando endpoint de inicialização..."
-curl -s -X GET "http://localhost:3333/instance/init?key=securedguard_ci" | head -20 || echo "❌ Endpoint /instance/init não responde"
+curl -s -X GET "http://localhost:3333/instance/init?key=fluxbus_ci" | head -20 || echo "❌ Endpoint /instance/init não responde"
 
 echo ""
 echo "9️⃣ Verificando diretório de sessões..."
-ls -la /var/www/secured_guard/ci/whatsapp_sessions/ 2>&1 | head -10 || echo "⚠️ Diretório de sessões não existe ou não tem permissão"
+ls -la /var/www/fluxbus/ci/whatsapp_sessions/ 2>&1 | head -10 || echo "⚠️ Diretório de sessões não existe ou não tem permissão"
 
 echo ""
 echo "========================================"
 echo "✅ Diagnóstico concluído!"
 echo ""
 echo "💡 Se o container não está rodando, execute:"
-echo "   cd /var/www/secured_guard/ci"
+echo "   cd /var/www/fluxbus/ci"
 echo "   docker-compose -f docker-compose.ci.yml up -d whatsapp-service-ci"
 echo ""
 echo "💡 Para ver logs em tempo real:"
-echo "   docker logs -f secured-guard-whatsapp-ci"
+echo "   docker logs -f fluxbus-whatsapp-ci"
 

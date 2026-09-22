@@ -12,8 +12,8 @@ function fixFile(filePath) {
     // Os caracteres corrompidos aparecem como sequências específicas
     const replacements = [
       // Mensagem WhatsApp linha 87
-      [/'Ol[^\x20-\x7E]! Seu holerite est[^\x20-\x7E] dispon[^\x20-\x7E]vel para download\. Acesse o sistema SecuredGuard para visualizar\. Em caso de d[^\x20-\x7E]vidas, entre em contato com o RH\.'/, 
-       "'Olá! Seu holerite está disponível para download. Acesse o sistema SecuredGuard para visualizar. Em caso de dúvidas, entre em contato com o RH.'"],
+      [/'Ol[^\x20-\x7E]! Seu holerite est[^\x20-\x7E] dispon[^\x20-\x7E]vel para download\. Acesse o sistema FluxBus para visualizar\. Em caso de d[^\x20-\x7E]vidas, entre em contato com o RH\.'/, 
+       "'Olá! Seu holerite está disponível para download. Acesse o sistema FluxBus para visualizar. Em caso de dúvidas, entre em contato com o RH.'"],
       
       // Comentários
       [/\/\/ Estados para unio[^\x20-\x7E] de documentos/, '// Estados para união de documentos'],

@@ -1,7 +1,7 @@
-# Script PowerShell para iniciar serviços locais do Secured Guard
+# Script PowerShell para iniciar serviços locais do FluxBus
 # Uso: .\start-local-services.ps1
 
-Write-Host "🚀 Iniciando serviços locais do Secured Guard..." -ForegroundColor Cyan
+Write-Host "🚀 Iniciando serviços locais do FluxBus..." -ForegroundColor Cyan
 Write-Host ""
 
 # Verificar se Docker está rodando
@@ -42,7 +42,7 @@ Write-Host "🔍 Verificando saúde dos serviços..." -ForegroundColor Yellow
 # Verificar PostgreSQL
 Write-Host "  PostgreSQL..." -NoNewline
 try {
-    $pgResult = docker exec secured-guard-local-db pg_isready -U dev_user 2>&1
+    $pgResult = docker exec fluxbus-local-db pg_isready -U dev_user 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Host " ✅" -ForegroundColor Green
     } else {
@@ -55,7 +55,7 @@ try {
 # Verificar Redis
 Write-Host "  Redis..." -NoNewline
 try {
-    $redisResult = docker exec secured-guard-local-redis redis-cli ping 2>&1
+    $redisResult = docker exec fluxbus-local-redis redis-cli ping 2>&1
     if ($redisResult -match "PONG") {
         Write-Host " ✅" -ForegroundColor Green
     } else {

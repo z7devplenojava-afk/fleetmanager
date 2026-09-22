@@ -1,7 +1,7 @@
 # Script para obter QR Code da Evolution API
 $API_URL = "http://localhost:9000"
 $API_KEY = "etd2t8kdu5isqdrxh3euhcx0ceflhm92"
-$INSTANCE_NAME = "secured-guard-whatsapp"
+$INSTANCE_NAME = "fluxbus-whatsapp"
 
 $headers = @{
     "apikey" = $API_KEY

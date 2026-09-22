@@ -28,12 +28,12 @@ docker-compose -f docker-compose.ci.yml logs --tail=100 backend-ci | grep -i err
 # Verificar uso de recursos
 echo ""
 echo "💻 Uso de recursos do backend:"
-docker stats secured-guard-backend-ci --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}"
+docker stats fluxbus-backend-ci --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}"
 
 # Verificar conectividade com o banco
 echo ""
 echo "🗄️  Verificando conectividade com o banco de dados:"
-docker-compose -f docker-compose.ci.yml exec -T backend-ci ping -c 1 secured-guard-db-ci 2>/dev/null || echo "⚠️  Não foi possível testar conectividade"
+docker-compose -f docker-compose.ci.yml exec -T backend-ci ping -c 1 fluxbus-db-ci 2>/dev/null || echo "⚠️  Não foi possível testar conectividade"
 
 echo ""
 echo "✅ Verificação concluída!"

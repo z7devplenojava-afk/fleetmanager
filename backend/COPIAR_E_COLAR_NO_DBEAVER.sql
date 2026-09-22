@@ -1,7 +1,7 @@
 -- =====================================================
 -- COPIE E COLE NO DBEAVER OU PGADMIN
 -- =====================================================
--- Database: secured_guard
+-- Database: fluxbus
 -- =====================================================
 
 -- 1️⃣ VERIFICAR SE USUÁRIO TEM ROLES

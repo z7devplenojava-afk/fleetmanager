@@ -8,15 +8,15 @@ echo "🔧 CORRIGINDO URL DO REPOSITÓRIO REMOTO"
 echo "🔧 ========================================"
 echo ""
 
-CORRECT_URL="https://github.com/zemarioramos/secured-guard.git"
+CORRECT_URL="https://github.com/zemarioramos/fluxbus.git"
 
 # Verificar em múltiplos locais possíveis
 REPO_PATHS=(
-  "/var/www/secured_guard/ci"
-  "/var/www/secured_guard"
-  "/root/secured-guard"
-  "/home/root/secured-guard"
-  "$HOME/secured-guard"
+  "/var/www/fluxbus/ci"
+  "/var/www/fluxbus"
+  "/root/fluxbus"
+  "/home/root/fluxbus"
+  "$HOME/fluxbus"
   "$(pwd)"
 )
 

@@ -1,7 +1,7 @@
-# Setup WPPConnect - SecuredGuard
+# Setup WPPConnect - FluxBus
 # Script para configurar rapidamente o WPPConnect
 
-Write-Host "🚀 Configurando WPPConnect para SecuredGuard" -ForegroundColor Cyan
+Write-Host "🚀 Configurando WPPConnect para FluxBus" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 
 # Verificar se Node.js está instalado
@@ -64,7 +64,7 @@ app.use(express.json());
 
 // Configuração WPPConnect
 create({
-    session: 'securedguard',
+    session: 'fluxbus',
     catchQR: (base64Qr, asciiQR, attempts, urlCode) => {
         console.log('QR Code:');
         console.log(asciiQR);
@@ -123,7 +123,7 @@ create({
 app.get('/api/status', (req, res) => {
     res.json({ 
         status: 'running',
-        session: 'securedguard',
+        session: 'fluxbus',
         timestamp: new Date().toISOString()
     });
 });
@@ -190,9 +190,9 @@ Write-Host "✅ Servidor WPPConnect criado" -ForegroundColor Green
 Write-Host "`n📝 Atualizando package.json..." -ForegroundColor Yellow
 $packageJson = @'
 {
-  "name": "wppconnect-securedguard",
+  "name": "wppconnect-fluxbus",
   "version": "1.0.0",
-  "description": "WPPConnect para SecuredGuard",
+  "description": "WPPConnect para FluxBus",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -228,9 +228,9 @@ Write-Host "✅ .gitignore criado" -ForegroundColor Green
 # Criar README
 Write-Host "`n📝 Criando README..." -ForegroundColor Yellow
 $readme = @'
-# WPPConnect - SecuredGuard
+# WPPConnect - FluxBus
 
-Servidor WPPConnect para integração WhatsApp do sistema SecuredGuard.
+Servidor WPPConnect para integração WhatsApp do sistema FluxBus.
 
 ## Instalação
 

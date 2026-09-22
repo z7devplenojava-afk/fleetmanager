@@ -5,7 +5,7 @@
 
 echo "🔐 Corrigindo JWT_SECRET na VPS..."
 
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 # Valor correto do JWT_SECRET (80 caracteres)
 CORRECT_JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
@@ -59,7 +59,7 @@ fi
 
 echo ""
 echo "4️⃣ Verificando JWT_SECRET no container backend..."
-CONTAINER_JWT=$(docker exec secured-guard-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
+CONTAINER_JWT=$(docker exec fluxbus-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
 if [ -n "$CONTAINER_JWT" ]; then
     CONTAINER_LENGTH=${#CONTAINER_JWT}
     echo "   JWT_SECRET no container: ${CONTAINER_JWT:0:20}... (${CONTAINER_LENGTH} caracteres)"
@@ -84,7 +84,7 @@ sleep 30
 
 echo ""
 echo "7️⃣ Verificando JWT_SECRET após reinício..."
-NEW_CONTAINER_JWT=$(docker exec secured-guard-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
+NEW_CONTAINER_JWT=$(docker exec fluxbus-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
 if [ -n "$NEW_CONTAINER_JWT" ]; then
     NEW_LENGTH=${#NEW_CONTAINER_JWT}
     echo "   JWT_SECRET no container: ${NEW_CONTAINER_JWT:0:20}... (${NEW_LENGTH} caracteres)"
@@ -93,7 +93,7 @@ if [ -n "$NEW_CONTAINER_JWT" ]; then
     else
         echo "   ❌ JWT_SECRET ainda está muito curto!"
         echo "   🔍 Verificando logs do backend..."
-        docker logs secured-guard-backend-ci --tail 20 | grep -i jwt || echo "   Nenhum log JWT encontrado"
+        docker logs fluxbus-backend-ci --tail 20 | grep -i jwt || echo "   Nenhum log JWT encontrado"
     fi
 else
     echo "   ⚠️ JWT_SECRET não encontrado no container após reinício"
@@ -103,6 +103,6 @@ echo ""
 echo "✅ Processo concluído!"
 echo ""
 echo "📋 Para verificar manualmente:"
-echo "   docker exec secured-guard-backend-ci printenv JWT_SECRET | wc -c"
+echo "   docker exec fluxbus-backend-ci printenv JWT_SECRET | wc -c"
 echo "   (deve mostrar 81: 80 caracteres + 1 newline)"
 

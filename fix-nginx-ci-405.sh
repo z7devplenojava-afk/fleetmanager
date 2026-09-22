@@ -127,10 +127,10 @@ case $NGINX_TYPE in
         print_info "Aplicando correção no NGINX do host..."
         
         # Detectar localização da configuração
-        if [ -f "/etc/nginx/sites-available/secured-guard-ci.conf" ]; then
-            CONFIG_PATH="/etc/nginx/sites-available/secured-guard-ci.conf"
-        elif [ -f "/etc/nginx/conf.d/secured-guard-ci.conf" ]; then
-            CONFIG_PATH="/etc/nginx/conf.d/secured-guard-ci.conf"
+        if [ -f "/etc/nginx/sites-available/fluxbus-ci.conf" ]; then
+            CONFIG_PATH="/etc/nginx/sites-available/fluxbus-ci.conf"
+        elif [ -f "/etc/nginx/conf.d/fluxbus-ci.conf" ]; then
+            CONFIG_PATH="/etc/nginx/conf.d/fluxbus-ci.conf"
         elif [ -f "/etc/nginx/nginx.conf" ]; then
             CONFIG_PATH="/etc/nginx/nginx.conf"
         else

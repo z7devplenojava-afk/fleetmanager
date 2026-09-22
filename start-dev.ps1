@@ -1,8 +1,8 @@
 # ========================================
-# SECURED GUARD - Script de Inicialização Desenvolvimento (PowerShell)
+# FLUXBUS - Script de Inicialização Desenvolvimento (PowerShell)
 # ========================================
 
-Write-Host "🚀 Iniciando Secured Guard - Ambiente de Desenvolvimento" -ForegroundColor Cyan
+Write-Host "🚀 Iniciando FluxBus - Ambiente de Desenvolvimento" -ForegroundColor Cyan
 Write-Host ""
 
 # Verificar se Docker está rodando

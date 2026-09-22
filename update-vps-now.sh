@@ -8,8 +8,8 @@ set -e  # Parar em caso de erro
 echo "🚀 Atualizando projeto na VPS..."
 
 # Navegar para o diretório do projeto
-cd ~/secured_guard || {
-    echo "❌ Diretório ~/secured_guard não encontrado!"
+cd ~/fluxbus || {
+    echo "❌ Diretório ~/fluxbus não encontrado!"
     exit 1
 }
 

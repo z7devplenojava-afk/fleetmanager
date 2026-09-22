@@ -19,31 +19,31 @@ sleep 2
 echo ""
 echo "2️⃣ Criando redes Docker..."
 docker network create z7network 2>/dev/null || echo "✅ Rede z7network já existe"
-docker network create secured-guard-ci-network 2>/dev/null || echo "✅ Rede secured-guard-ci-network já existe"
+docker network create fluxbus-ci-network 2>/dev/null || echo "✅ Rede fluxbus-ci-network já existe"
 
 # 3. Criar diretórios de volumes
 echo ""
 echo "3️⃣ Criando diretórios de volumes..."
-mkdir -p /var/www/secured_guard/ci/postgres_data
-mkdir -p /var/www/secured_guard/ci/redis_data
-mkdir -p /var/www/secured_guard/ci/uploads
-mkdir -p /var/www/secured_guard/ci/logs
-mkdir -p /var/www/secured_guard/ci/whatsapp_sessions
-mkdir -p /var/www/secured_guard/ci/backups
+mkdir -p /var/www/fluxbus/ci/postgres_data
+mkdir -p /var/www/fluxbus/ci/redis_data
+mkdir -p /var/www/fluxbus/ci/uploads
+mkdir -p /var/www/fluxbus/ci/logs
+mkdir -p /var/www/fluxbus/ci/whatsapp_sessions
+mkdir -p /var/www/fluxbus/ci/backups
 
 # 4. Ir para o diretório do projeto
 echo ""
 echo "4️⃣ Verificando diretório do projeto..."
-if [ -d "/root/secured_guard/ci" ]; then
-    cd /root/secured_guard/ci
-    echo "✅ Usando diretório: /root/secured_guard/ci"
-elif [ -d "/root/secured_guard" ]; then
-    cd /root/secured_guard
-    echo "✅ Usando diretório: /root/secured_guard"
+if [ -d "/root/fluxbus/ci" ]; then
+    cd /root/fluxbus/ci
+    echo "✅ Usando diretório: /root/fluxbus/ci"
+elif [ -d "/root/fluxbus" ]; then
+    cd /root/fluxbus
+    echo "✅ Usando diretório: /root/fluxbus"
 else
     echo "❌ Diretório do projeto não encontrado!"
     echo "   Por favor, clone o repositório primeiro:"
-    echo "   cd /root && git clone https://github.com/zmarioramos/secured-guard.git secured_guard"
+    echo "   cd /root && git clone https://github.com/zmarioramos/fluxbus.git fluxbus"
     exit 1
 fi
 

@@ -46,7 +46,7 @@ describe('TermsConsentModal', () => {
       />
     );
 
-    expect(screen.getByText(/Termos de Uso do Sistema SecuredGuard/i)).toBeInTheDocument();
+    expect(screen.getByText(/Termos de Uso do Sistema FluxBus/i)).toBeInTheDocument();
     expect(screen.getByText(/Aceitação dos Termos/i)).toBeInTheDocument();
     expect(screen.getByText(/Uso do Sistema/i)).toBeInTheDocument();
   });

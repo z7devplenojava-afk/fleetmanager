@@ -1,8 +1,8 @@
 version: '3.8'
 
 # ============================================
-# SECURED GUARD - AMBIENTE LOCAL
-# Nomenclatura: secured-guard-local-*
+# FLUXBUS - AMBIENTE LOCAL
+# Nomenclatura: fluxbus-local-*
 # Uso: docker-compose -f docker-compose.local.yml up -d
 # ============================================
 
@@ -26,7 +26,7 @@ services:
       - ./seeds/common:/docker-entrypoint-initdb.d/02-common:ro
       - ./seeds/local:/docker-entrypoint-initdb.d/03-local:ro
     networks:
-      - secured-guard-local-network
+      - fluxbus-local-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dev_user -d fluxbus_db_local"]
       interval: 10s
@@ -39,14 +39,14 @@ services:
   # ==========================================
   redis:
     image: redis:7-alpine
-    container_name: secured-guard-local-redis
-    hostname: secured-guard-local-redis
+    container_name: fluxbus-local-redis
+    hostname: fluxbus-local-redis
     ports:
       - "6379:6379"
     volumes:
-      - secured-guard-local-redis-data:/data
+      - fluxbus-local-redis-data:/data
     networks:
-      - secured-guard-local-network
+      - fluxbus-local-network
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -60,8 +60,8 @@ services:
   # ==========================================
   minio:
     image: minio/minio:latest
-    container_name: secured-guard-local-minio
-    hostname: secured-guard-local-minio
+    container_name: fluxbus-local-minio
+    hostname: fluxbus-local-minio
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -69,9 +69,9 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - secured-guard-local-minio-data:/data
+      - fluxbus-local-minio-data:/data
     networks:
-      - secured-guard-local-network
+      - fluxbus-local-network
     command: server /data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -87,21 +87,21 @@ services:
     build:
       context: ./whatsapp-service
       dockerfile: Dockerfile
-    image: secured-guard-whatsapp:local
-    container_name: secured-guard-local-whatsapp
-    hostname: secured-guard-local-whatsapp
+    image: fluxbus-whatsapp:local
+    container_name: fluxbus-local-whatsapp
+    hostname: fluxbus-local-whatsapp
     environment:
       PORT: 3333
       INSTANCE_KEY: fluxbus_db_local
       SESSION_DIR: /app/sessions
       NODE_ENV: development
     volumes:
-      - secured-guard-local-whatsapp-sessions:/app/sessions
+      - fluxbus-local-whatsapp-sessions:/app/sessions
       - ./backend/holerites:/app/holerites:rw
     ports:
       - "3333:3333"
     networks:
-      - secured-guard-local-network
+      - fluxbus-local-network
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -120,20 +120,20 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.local
-    image: secured-guard-backend:local
-    container_name: secured-guard-local-backend
-    hostname: secured-guard-local-backend
+    image: fluxbus-backend:local
+    container_name: fluxbus-local-backend
+    hostname: fluxbus-local-backend
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_DATASOURCE_URL: jdbc:postgresql://fluxbus-local-db:5432/fluxbus_db_local
       SPRING_DATASOURCE_USERNAME: dev_user
       SPRING_DATASOURCE_PASSWORD: dev_pass
-      SPRING_REDIS_HOST: secured-guard-local-redis
+      SPRING_REDIS_HOST: fluxbus-local-redis
       SPRING_REDIS_PORT: 6379
       BAILEYS_ENABLED: "true"
-      BAILEYS_REST_URL: http://secured-guard-local-whatsapp:3333
+      BAILEYS_REST_URL: http://fluxbus-local-whatsapp:3333
       JWT_SECRET: dev_secret_key_min_64_chars_for_hmac512_algorithm_local_only
-      MINIO_URL: http://secured-guard-local-minio:9000
+      MINIO_URL: http://fluxbus-local-minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
     ports:
@@ -143,9 +143,9 @@ services:
       - ./backend/src:/app/src:ro
       - ./backend/target:/app/target
       - ./backend/holerites:/app/holerites:rw
-      - secured-guard-local-backend-m2:/root/.m2
+      - fluxbus-local-backend-m2:/root/.m2
     networks:
-      - secured-guard-local-network
+      - fluxbus-local-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -168,9 +168,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.local
-    image: secured-guard-frontend:local
-    container_name: secured-guard-local-frontend
-    hostname: secured-guard-local-frontend
+    image: fluxbus-frontend:local
+    container_name: fluxbus-local-frontend
+    hostname: fluxbus-local-frontend
     environment:
       VITE_API_URL: http://localhost:8083
       VITE_ENV: local
@@ -179,9 +179,9 @@ services:
     volumes:
       - ./frontend/src:/app/src:ro
       - ./frontend/public:/app/public:ro
-      - secured-guard-local-frontend-modules:/app/node_modules
+      - fluxbus-local-frontend-modules:/app/node_modules
     networks:
-      - secured-guard-local-network
+      - fluxbus-local-network
     depends_on:
       - backend
     healthcheck:
@@ -200,23 +200,23 @@ services:
 volumes:
   fluxbus-local-db-data:
     name: fluxbus-local-db-data
-  secured-guard-local-redis-data:
-    name: secured-guard-local-redis-data
-  secured-guard-local-minio-data:
-    name: secured-guard-local-minio-data
-  secured-guard-local-whatsapp-sessions:
-    name: secured-guard-local-whatsapp-sessions
-  secured-guard-local-backend-m2:
-    name: secured-guard-local-backend-m2
-  secured-guard-local-frontend-modules:
-    name: secured-guard-local-frontend-modules
+  fluxbus-local-redis-data:
+    name: fluxbus-local-redis-data
+  fluxbus-local-minio-data:
+    name: fluxbus-local-minio-data
+  fluxbus-local-whatsapp-sessions:
+    name: fluxbus-local-whatsapp-sessions
+  fluxbus-local-backend-m2:
+    name: fluxbus-local-backend-m2
+  fluxbus-local-frontend-modules:
+    name: fluxbus-local-frontend-modules
 
 # ============================================
 # NETWORKS
 # ============================================
 networks:
-  secured-guard-local-network:
-    name: secured-guard-local-network
+  fluxbus-local-network:
+    name: fluxbus-local-network
     driver: bridge
 
 

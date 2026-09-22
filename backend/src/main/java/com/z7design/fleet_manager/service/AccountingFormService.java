@@ -134,7 +134,7 @@ public class AccountingFormService {
 
         // RodapÃ©
         html.append("<div class='footer'>");
-        html.append("<p>Este documento foi gerado automaticamente pelo sistema Secured Guard</p>");
+        html.append("<p>Este documento foi gerado automaticamente pelo sistema FluxBus</p>");
         html.append("<p>Data: ").append(LocalDate.now().format(DATE_FORMATTER)).append("</p>");
         html.append("<div class='signatures'>");
         html.append("<div class='signature-box'>");

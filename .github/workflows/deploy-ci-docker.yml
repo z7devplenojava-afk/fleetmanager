@@ -223,7 +223,7 @@ jobs:
           # Criar arquivo .env localmente primeiro para evitar problemas com caracteres especiais
           # Usar printf para cada linha, exceto MAIL_PASSWORD que usa variável de ambiente
           {
-            printf 'POSTGRES_PASSWORD_CI=%s\n' "${{ secrets.POSTGRES_PASSWORD_CI || '4KaCiJc6an@7sgbdcid2025' }}"
+            printf 'POSTGRES_PASSWORD_CI=%s\n' "${{ secrets.POSTGRES_PASSWORD_CI || '4KaCiJc6an@7sgbdcid2026' }}"
             printf 'REDIS_PASSWORD_CI=%s\n' "${{ secrets.REDIS_PASSWORD_CI || 'redis_ci_2025' }}"
             printf 'JWT_SECRET_CI=%s\n' "${{ secrets.JWT_SECRET_CI || 'jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key' }}"
             printf '# Email Configuration\n'

@@ -7,7 +7,7 @@
 
 set -e
 
-echo "🔧 CORREÇÃO BACKEND VPS - SecuredGuard"
+echo "🔧 CORREÇÃO BACKEND VPS - FluxBus"
 echo "======================================"
 
 # Cores
@@ -34,7 +34,7 @@ info() {
 }
 
 # Ir para diretório do projeto
-cd /opt/secured-guard
+cd /opt/fluxbus
 
 log "1. Parando todos os containers..."
 docker compose -f deploy/docker-compose.prod.yml down 2>/dev/null || true
@@ -48,16 +48,16 @@ log "3. Verificando arquivo .env..."
 if [ ! -f ".env" ]; then
     warning "Arquivo .env não encontrado. Criando..."
     cat > .env << EOF
-POSTGRES_DB=secured_guard_prod
+POSTGRES_DB=fluxbus_prod
 POSTGRES_USER=postgressg
 POSTGRES_PASSWORD=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
-POSTGRES_DB_DEV=secured_guard_dev
+POSTGRES_DB_DEV=fluxbus_dev
 POSTGRES_USER_DEV=postgressg
 POSTGRES_PASSWORD_DEV=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
-POSTGRES_DB_CI=secured_guard_ci
+POSTGRES_DB_CI=fluxbus_ci
 POSTGRES_USER_CI=postgressg
 POSTGRES_PASSWORD_CI=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
-REDIS_PASSWORD=redis_secured_guard_2024
+REDIS_PASSWORD=redis_fluxbus_2024
 JWT_SECRET=795927eaf0f77f4687edf8c7faaf30e2bd60d1c2215c0015ce9ddc83c8119615a3dec0755b6109a88d5077e6e4344a5b00be395e4c02a57ed923f95f1afebfed
 EOF
     chmod 600 .env
@@ -72,16 +72,16 @@ docker compose -f deploy/docker-compose.prod.yml ps postgres
 
 log "6. Criando banco se não existir..."
 docker compose -f deploy/docker-compose.prod.yml exec postgres sh -c "
-    psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname='secured_guard_prod'\" | grep -q 1 || \
-    psql -U postgres -c \"CREATE DATABASE secured_guard_prod OWNER postgressg;\"
+    psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname='fluxbus_prod'\" | grep -q 1 || \
+    psql -U postgres -c \"CREATE DATABASE fluxbus_prod OWNER postgressg;\"
 "
 
 log "7. Reparando Flyway..."
 docker run --rm \
-    --network secured-guard-network \
-    -v /opt/secured-guard/backend/src/main/resources/db/migration:/flyway/sql \
+    --network fluxbus-network \
+    -v /opt/fluxbus/backend/src/main/resources/db/migration:/flyway/sql \
     flyway/flyway:9.22.3 \
-    -url=jdbc:postgresql://postgres:5432/secured_guard_prod \
+    -url=jdbc:postgresql://postgres:5432/fluxbus_prod \
     -user=postgressg \
     -password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' \
     -schemas=public \
@@ -89,10 +89,10 @@ docker run --rm \
 
 log "8. Migrando Flyway..."
 docker run --rm \
-    --network secured-guard-network \
-    -v /opt/secured-guard/backend/src/main/resources/db/migration:/flyway/sql \
+    --network fluxbus-network \
+    -v /opt/fluxbus/backend/src/main/resources/db/migration:/flyway/sql \
     flyway/flyway:9.22.3 \
-    -url=jdbc:postgresql://postgres:5432/secured_guard_prod \
+    -url=jdbc:postgresql://postgres:5432/fluxbus_prod \
     -user=postgressg \
     -password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' \
     -schemas=public \

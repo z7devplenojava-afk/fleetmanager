@@ -13,6 +13,7 @@ interface ServiceOrderPDFData {
   };
   generatedBy: string;
   generatedAt: string;
+  evidencePhotos?: Array<{ url: string; caption?: string } | string>;
 }
 
 class ServiceOrderPDFGenerator {
@@ -269,6 +270,47 @@ class ServiceOrderPDFGenerator {
             font-size: 11px;
             color: #78350f;
           }
+          .evidence-section {
+            margin-top: 20px;
+          }
+          .evidence-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #1f2937;
+            font-size: 14px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 5px;
+          }
+          .evidence-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+          }
+          .evidence-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #f9fafb;
+          }
+          .evidence-image {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            max-width: 100%;
+            max-height: 140px;
+          }
+          .evidence-caption {
+            padding: 8px;
+            font-size: 10px;
+            color: #6b7280;
+            text-align: center;
+            background-color: white;
+            border-top: 1px solid #e5e7eb;
+          }
+          img {
+            max-width: 100%;
+            height: auto;
+          }
         </style>
       </head>
       <body>
@@ -396,6 +438,21 @@ class ServiceOrderPDFGenerator {
           <div class="notes-section">
             <div class="notes-title">Observações</div>
             <div class="notes-content">${order.observations}</div>
+          </div>
+          ` : ''}
+
+          <!-- Evidências Fotográficas / Fotos da Manutenção -->
+          ${order.evidencePhotos && order.evidencePhotos.length > 0 ? `
+          <div class="evidence-section">
+            <div class="evidence-title">EVIDÊNCIAS FOTOGRÁFICAS / FOTOS DA MANUTENÇÃO</div>
+            <div class="evidence-grid">
+              ${order.evidencePhotos.map((photo: any, index: number) => `
+                <div class="evidence-item">
+                  <img class="evidence-image" src="${photo.url || photo}" alt="Evidência ${index + 1}" />
+                  ${photo.caption ? `<div class="evidence-caption">${photo.caption}</div>` : ''}
+                </div>
+              `).join('')}
+            </div>
           </div>
           ` : ''}
 

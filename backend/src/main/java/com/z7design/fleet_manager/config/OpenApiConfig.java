@@ -22,6 +22,6 @@ public class OpenApiConfig {
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")))
-                .info(new Info().title("Secured Guard API").version("1.0").description("DocumentaÃ§Ã£o da API do sistema Secured Guard"));
+                .info(new Info().title("FluxBus API").version("1.0").description("DocumentaÃ§Ã£o da API do sistema FluxBus"));
     }
 } 

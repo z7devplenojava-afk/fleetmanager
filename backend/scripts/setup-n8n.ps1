@@ -1,5 +1,5 @@
 # Script para configurar e iniciar o n8n para integração WhatsApp
-# Autor: Sistema SecuredGuard
+# Autor: Sistema FluxBus
 # Data: 2024
 
 Write-Host "=== CONFIGURAÇÃO N8N PARA WHATSAPP ===" -ForegroundColor Green
@@ -39,14 +39,14 @@ version: '3.8'
 services:
   n8n:
     image: n8nio/n8n:latest
-    container_name: securedguard-n8n
+    container_name: fluxbus-n8n
     restart: unless-stopped
     ports:
       - "5678:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=securedguard2024
+      - N8N_BASIC_AUTH_PASSWORD=fluxbus2024
       - N8N_HOST=localhost
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
@@ -63,15 +63,15 @@ services:
 
   wppconnect:
     image: wppconnect/wppconnect:latest
-    container_name: securedguard-wppconnect
+    container_name: fluxbus-wppconnect
     restart: unless-stopped
     ports:
       - "21465:21465"
     environment:
       - WPPCONNECT_SERVER_PORT=21465
       - WPPCONNECT_SERVER_HOST=0.0.0.0
-      - WPPCONNECT_SERVER_SECRET=securedguard-secret
-      - WPPCONNECT_SERVER_TOKEN=securedguard-token
+      - WPPCONNECT_SERVER_SECRET=fluxbus-secret
+      - WPPCONNECT_SERVER_TOKEN=fluxbus-token
     volumes:
       - wppconnect-data:/home/node/.wppconnect
     networks:
@@ -79,7 +79,7 @@ services:
 
   baileys:
     image: baileys-whatsapp:latest
-    container_name: securedguard-baileys
+    container_name: fluxbus-baileys
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -132,7 +132,7 @@ Write-Host "=== CONFIGURAÇÃO COMPLETA ===" -ForegroundColor Green
 Write-Host ""
 Write-Host "📋 PRÓXIMOS PASSOS:" -ForegroundColor Cyan
 Write-Host "1. Acesse http://localhost:5678" -ForegroundColor White
-Write-Host "2. Login: admin / securedguard2024" -ForegroundColor White
+Write-Host "2. Login: admin / fluxbus2024" -ForegroundColor White
 Write-Host "3. Importe o workflow: n8n-workflows/whatsapp-envio-holerites.json" -ForegroundColor White
 Write-Host "4. Configure as credenciais dos provedores WhatsApp" -ForegroundColor White
 Write-Host "5. Ative o workflow" -ForegroundColor White

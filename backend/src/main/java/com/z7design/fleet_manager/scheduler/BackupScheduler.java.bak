@@ -1,8 +1,8 @@
-package com.z7design.secured_guard.scheduler;
+package com.z7design.fluxbus.scheduler;
 
-import com.z7design.secured_guard.model.BackupConfiguration;
-import com.z7design.secured_guard.repository.BackupConfigurationRepository;
-import com.z7design.secured_guard.service.BackupService;
+import com.z7design.fluxbus.model.BackupConfiguration;
+import com.z7design.fluxbus.repository.BackupConfigurationRepository;
+import com.z7design.fluxbus.service.BackupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

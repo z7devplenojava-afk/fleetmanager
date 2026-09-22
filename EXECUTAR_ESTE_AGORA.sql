@@ -17,7 +17,7 @@ ORDER BY version;
 
 -- ✅ DEPOIS DE EXECUTAR ESTE SCRIPT:
 -- 1. Pare o backend (Ctrl+C no terminal)
--- 2. Reinicie o backend: java -jar backend/target/secured-guard-1.0.0.jar --spring.profiles.active=test
+-- 2. Reinicie o backend: java -jar backend/target/fluxbus-1.0.0.jar --spring.profiles.active=test
 -- 
 -- O Flyway vai:
 -- ✅ Executar a V2 e criar a tabela positions (com base_salary)

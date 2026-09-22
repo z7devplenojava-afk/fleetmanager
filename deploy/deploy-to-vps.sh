@@ -33,7 +33,7 @@ info() {
 
 # Verificar se estamos no diretório correto
 if [ ! -f "deploy/install-vps.sh" ]; then
-    error "Execute este script a partir do diretório raiz do projeto SecuredGuard"
+    error "Execute este script a partir do diretório raiz do projeto FluxBus"
 fi
 
 # Verificar se o usuário tem SSH configurado
@@ -147,7 +147,7 @@ rsync -avz --delete \
     --exclude='logs/' \
     --exclude='backups/' \
     -e "ssh -p $VPS_PORT" \
-    ./ $VPS_USER@$VPS_HOST:/opt/secured-guard/
+    ./ $VPS_USER@$VPS_HOST:/opt/fluxbus/
 
 # Restaurar .gitignore original
 mv .gitignore.backup .gitignore 2>/dev/null || true
@@ -160,7 +160,7 @@ log "Código copiado para VPS!"
 # ========================================
 log "Executando deploy na VPS..."
 
-ssh -p $VPS_PORT $VPS_USER@$VPS_HOST "cd /opt/secured-guard && ./deploy.sh"
+ssh -p $VPS_PORT $VPS_USER@$VPS_HOST "cd /opt/fluxbus && ./deploy.sh"
 
 log "Deploy concluído!"
 
@@ -169,7 +169,7 @@ log "Deploy concluído!"
 # ========================================
 log "Verificando status dos serviços..."
 
-ssh -p $VPS_PORT $VPS_USER@$VPS_HOST "cd /opt/secured-guard && docker compose -f deploy/docker-compose.prod.yml ps"
+ssh -p $VPS_PORT $VPS_USER@$VPS_HOST "cd /opt/fluxbus && docker compose -f deploy/docker-compose.prod.yml ps"
 
 # ========================================
 # FINALIZAÇÃO
@@ -180,9 +180,9 @@ info "Acesse sua aplicação em:"
 echo "🌐 https://$VPS_HOST"
 echo ""
 info "Comandos úteis na VPS:"
-echo "- Ver logs: docker compose -f /opt/secured-guard/deploy/docker-compose.prod.yml logs -f"
-echo "- Status: docker compose -f /opt/secured-guard/deploy/docker-compose.prod.yml ps"
-echo "- Backup: /opt/secured-guard/backup.sh"
-echo "- Restart: cd /opt/secured-guard && ./deploy.sh"
+echo "- Ver logs: docker compose -f /opt/fluxbus/deploy/docker-compose.prod.yml logs -f"
+echo "- Status: docker compose -f /opt/fluxbus/deploy/docker-compose.prod.yml ps"
+echo "- Backup: /opt/fluxbus/backup.sh"
+echo "- Restart: cd /opt/fluxbus && ./deploy.sh"
 echo ""
 warning "IMPORTANTE: Configure seu domínio e certificados SSL reais para produção!"

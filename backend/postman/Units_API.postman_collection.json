@@ -1,8 +1,8 @@
 {
 	"info": {
 		"_postman_id": "units-api-collection",
-		"name": "Units API - SecuredGuard",
-		"description": "Coleção completa para testar os endpoints de Unidades do sistema SecuredGuard",
+		"name": "Units API - FluxBus",
+		"description": "Coleção completa para testar os endpoints de Unidades do sistema FluxBus",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -23,7 +23,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"name\": \"Unidade BH Shopping\",\n  \"description\": \"Unidade operacional no BH Shopping\",\n  \"address\": \"Av. Cristiano Machado, 4000 - Belo Horizonte, MG\",\n  \"phone\": \"(31) 99999-8888\",\n  \"email\": \"bhshopping@securedguard.com\",\n  \"parentId\": null,\n  \"clientId\": null\n}"
+					"raw": "{\n  \"name\": \"Unidade BH Shopping\",\n  \"description\": \"Unidade operacional no BH Shopping\",\n  \"address\": \"Av. Cristiano Machado, 4000 - Belo Horizonte, MG\",\n  \"phone\": \"(31) 99999-8888\",\n  \"email\": \"bhshopping@fluxbus.com\",\n  \"parentId\": null,\n  \"clientId\": null\n}"
 				},
 				"url": {
 					"raw": "{{baseUrl}}/api/units",
@@ -215,7 +215,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"name\": \"Unidade BH Shopping Atualizada\",\n  \"description\": \"Unidade operacional no BH Shopping - Atualizada\",\n  \"address\": \"Av. Cristiano Machado, 4000 - Belo Horizonte, MG\",\n  \"phone\": \"(31) 99999-9999\",\n  \"email\": \"bhshopping.updated@securedguard.com\",\n  \"parentId\": null,\n  \"clientId\": null\n}"
+					"raw": "{\n  \"name\": \"Unidade BH Shopping Atualizada\",\n  \"description\": \"Unidade operacional no BH Shopping - Atualizada\",\n  \"address\": \"Av. Cristiano Machado, 4000 - Belo Horizonte, MG\",\n  \"phone\": \"(31) 99999-9999\",\n  \"email\": \"bhshopping.updated@fluxbus.com\",\n  \"parentId\": null,\n  \"clientId\": null\n}"
 				},
 				"url": {
 					"raw": "{{baseUrl}}/api/units/{{unitId}}",
@@ -302,7 +302,7 @@
 		},
 		{
 			"key": "unitEmail",
-			"value": "bhshopping@securedguard.com",
+			"value": "bhshopping@fluxbus.com",
 			"type": "string"
 		},
 		{

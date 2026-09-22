@@ -70,7 +70,7 @@ public class EmailTestController {
             
             boolean success = emailService.sendEmailWithAttachment(
                 email,
-                "ðŸ§ª Teste de Email - Secured Guard",
+                "ðŸ§ª Teste de Email - FluxBus",
                 createTestEmailBody(),
                 null, // Sem anexo
                 null
@@ -243,7 +243,7 @@ public class EmailTestController {
                 <div class="container">
                     <div class="header">
                         <h1>ðŸ§ª Teste de Email</h1>
-                        <p>Secured Guard - Ambiente CI</p>
+                        <p>FluxBus - Ambiente CI</p>
                     </div>
                     <div class="content">
                         <p class="success">âœ… ConfiguraÃ§Ã£o de email funcionando corretamente!</p>
@@ -260,7 +260,7 @@ public class EmailTestController {
                         </ul>
                     </div>
                     <div class="footer">
-                        <p>Secured Guard &copy; 2025 - Sistema de GestÃ£o de SeguranÃ§a</p>
+                        <p>FluxBus &copy; 2025 - Sistema de GestÃ£o de SeguranÃ§a</p>
                         <p>Este Ã© um email automÃ¡tico de teste. NÃ£o responda.</p>
                     </div>
                 </div>

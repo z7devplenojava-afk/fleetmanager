@@ -5,7 +5,7 @@
 
 echo "🔐 Corrigindo JWT_SECRET na VPS..."
 
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 # Valor correto do JWT_SECRET (80 caracteres)
 CORRECT_JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
@@ -42,7 +42,7 @@ sleep 30
 
 echo ""
 echo "5️⃣ Verificando JWT_SECRET no container..."
-CONTAINER_JWT=$(docker exec secured-guard-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
+CONTAINER_JWT=$(docker exec fluxbus-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
 if [ -n "$CONTAINER_JWT" ]; then
     CONTAINER_LENGTH=${#CONTAINER_JWT}
     echo "   JWT_SECRET no container: ${CONTAINER_JWT:0:30}... (${CONTAINER_LENGTH} caracteres)"
@@ -54,7 +54,7 @@ if [ -n "$CONTAINER_JWT" ]; then
         sleep 5
         docker-compose -f docker-compose.ci.yml up -d
         sleep 30
-        CONTAINER_JWT=$(docker exec secured-guard-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
+        CONTAINER_JWT=$(docker exec fluxbus-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
         CONTAINER_LENGTH=${#CONTAINER_JWT}
         if [ $CONTAINER_LENGTH -ge 64 ]; then
             echo "   ✅ JWT_SECRET corrigido após reinício completo!"
@@ -78,7 +78,7 @@ if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
     echo "   ✅ Login está funcionando (retornou $HTTP_CODE - credenciais inválidas, mas endpoint OK)"
 elif [ "$HTTP_CODE" = "500" ]; then
     echo "   ❌ Login ainda retorna 500. Verificando logs..."
-    docker logs --tail 30 secured-guard-backend-ci 2>&1 | grep -i jwt | tail -5
+    docker logs --tail 30 fluxbus-backend-ci 2>&1 | grep -i jwt | tail -5
 else
     echo "   ℹ️ Login retornou código $HTTP_CODE"
 fi
@@ -87,5 +87,5 @@ echo ""
 echo "✅ Processo concluído!"
 echo ""
 echo "📋 Para verificar manualmente:"
-echo "   docker exec secured-guard-backend-ci printenv JWT_SECRET | wc -c"
+echo "   docker exec fluxbus-backend-ci printenv JWT_SECRET | wc -c"
 echo "   (deve mostrar 81: 80 caracteres + 1 newline)"

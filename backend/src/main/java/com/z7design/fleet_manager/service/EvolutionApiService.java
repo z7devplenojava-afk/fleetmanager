@@ -31,7 +31,7 @@ public class EvolutionApiService {
     @Value("${evolution.api.key:}")
     private String apiKey;
 
-    @Value("${evolution.api.instance:securedguard}")
+    @Value("${evolution.api.instance:fluxbus}")
     private String instanceName;
 
     @Value("${evolution.api.enabled:false}")

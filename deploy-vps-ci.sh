@@ -32,7 +32,7 @@ log "🚀 Iniciando deploy na VPS - Ambiente CI..."
 
 # Verificar se estamos no diretório correto
 if [ ! -f "deploy/docker-compose.ci.yml" ]; then
-    error "Execute este script a partir do diretório raiz do projeto SecuredGuard"
+    error "Execute este script a partir do diretório raiz do projeto FluxBus"
 fi
 
 # ========================================

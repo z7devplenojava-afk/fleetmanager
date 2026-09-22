@@ -1,13 +1,13 @@
-package com.z7design.secured_guard.controller;
+package com.z7design.fluxbus.controller;
 
-import com.z7design.secured_guard.dto.FunctionalityDTO;
-import com.z7design.secured_guard.dto.MessageResponseDTO;
-import com.z7design.secured_guard.dto.UpdateProfileRequestDTO;
-import com.z7design.secured_guard.dto.UserProfileDTO;
-import com.z7design.secured_guard.model.User;
-import com.z7design.secured_guard.repository.UserRepository;
-import com.z7design.secured_guard.service.LogService;
-import com.z7design.secured_guard.service.RoleFunctionalityService;
+import com.z7design.fluxbus.dto.FunctionalityDTO;
+import com.z7design.fluxbus.dto.MessageResponseDTO;
+import com.z7design.fluxbus.dto.UpdateProfileRequestDTO;
+import com.z7design.fluxbus.dto.UserProfileDTO;
+import com.z7design.fluxbus.model.User;
+import com.z7design.fluxbus.repository.UserRepository;
+import com.z7design.fluxbus.service.LogService;
+import com.z7design.fluxbus.service.RoleFunctionalityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

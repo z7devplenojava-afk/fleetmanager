@@ -9,8 +9,8 @@ if (-not (Test-Path ".git")) {
 
 # Adicionar arquivos modificados
 Write-Host "Adicionando arquivos..." -ForegroundColor Yellow
-git add backend/src/main/java/com/z7design/secured_guard/controller/LeadController.java
-git add backend/src/main/java/com/z7design/secured_guard/service/LeadService.java
+git add backend/src/main/java/com/z7design/fluxbus/controller/LeadController.java
+git add backend/src/main/java/com/z7design/fluxbus/service/LeadService.java
 git add frontend/package-lock.json
 git add frontend/package.json
 

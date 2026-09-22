@@ -6,7 +6,7 @@ Write-Host "=== INSERINDO DADOS DE TESTE NO BANCO ===" -ForegroundColor Green
 # Configurações do banco
 $DB_HOST = "localhost"
 $DB_PORT = "5432"
-$DB_NAME = "secured_guard"
+$DB_NAME = "fluxbus"
 $DB_USER = "postgres"
 $DB_PASSWORD = "postgres"
 

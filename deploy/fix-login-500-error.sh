@@ -32,11 +32,11 @@ log "🔧 Corrigindo erro 500 no login..."
 
 # 1. Verificar e corrigir colunas unified_documents
 log "1. Verificando colunas da tabela unified_documents..."
-HAS_OLD_COLUMNS=$(docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test -t -c "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'unified_documents' AND column_name IN ('unified_file_name', 'unified_file_path');" 2>/dev/null | tr -d ' ' || echo "0")
+HAS_OLD_COLUMNS=$(docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test -t -c "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'unified_documents' AND column_name IN ('unified_file_name', 'unified_file_path');" 2>/dev/null | tr -d ' ' || echo "0")
 
 if [ "$HAS_OLD_COLUMNS" != "0" ] && [ "$HAS_OLD_COLUMNS" != "" ]; then
     log "Corrigindo nomes das colunas..."
-    docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test <<EOF
+    docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test <<EOF
 DO \$\$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'unified_documents' AND column_name = 'unified_file_name') THEN
@@ -57,11 +57,11 @@ fi
 
 # 2. Verificar se a migration V336 foi executada
 log "2. Verificando migrations..."
-HAS_V336=$(docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test -t -c "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '336';" 2>/dev/null | tr -d ' ' || echo "0")
+HAS_V336=$(docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test -t -c "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '336';" 2>/dev/null | tr -d ' ' || echo "0")
 
 if [ "$HAS_V336" = "0" ] || [ -z "$HAS_V336" ]; then
     warn "Migration V336 não encontrada. Executando manualmente..."
-    docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test <<EOF
+    docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test <<EOF
 -- V336__fix_unified_documents_column_names.sql
 ALTER TABLE unified_documents RENAME COLUMN unified_file_name TO file_name;
 ALTER TABLE unified_documents RENAME COLUMN unified_file_path TO file_path;
@@ -73,11 +73,11 @@ fi
 
 # 3. Verificar se a migration V335 foi executada (PayslipTableRow)
 log "3. Verificando migration V335 (table_details)..."
-HAS_V335=$(docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test -t -c "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '335';" 2>/dev/null | tr -d ' ' || echo "0")
+HAS_V335=$(docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test -t -c "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '335';" 2>/dev/null | tr -d ' ' || echo "0")
 
 if [ "$HAS_V335" = "0" ] || [ -z "$HAS_V335" ]; then
     warn "Migration V335 não encontrada. Executando manualmente..."
-    docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d secured_guard_test <<EOF
+    docker compose -f deploy/docker-compose.ci.yml exec -T postgres psql -U postgres -d fluxbus_test <<EOF
 -- V335__add_table_details_to_payslips.sql
 ALTER TABLE payslips ADD COLUMN IF NOT EXISTS table_details JSONB;
 COMMENT ON COLUMN payslips.table_details IS 'Dados detalhados da tabela de vencimentos e descontos do holerite (JSONB)';

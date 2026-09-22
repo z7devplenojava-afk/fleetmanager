@@ -1,6 +1,6 @@
 -- =====================================================
--- SCRIPT PARA EXPORTAR FUNCIONÁRIOS DO BANCO secured_guard_test
--- Execute este script no PostgreSQL conectado ao banco secured_guard_test
+-- SCRIPT PARA EXPORTAR FUNCIONÁRIOS DO BANCO fluxbus_test
+-- Execute este script no PostgreSQL conectado ao banco fluxbus_test
 -- e copie os INSERTs gerados para o arquivo V999__seed_ci_essential_data.sql
 -- =====================================================
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ============================================
-# SECURED GUARD - Ambiente Local (Bash)
+# FLUXBUS - Ambiente Local (Bash)
 # Inicia TODO o sistema dockerizado
 # ============================================
 
@@ -15,7 +15,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}🏠 SECURED GUARD - Ambiente Local${NC}"
+echo -e "${GREEN}🏠 FLUXBUS - Ambiente Local${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
@@ -67,29 +67,29 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # Verificar PostgreSQL
-if docker exec secured-guard-local-db pg_isready -U dev_user > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ PostgreSQL:${NC} secured-guard-local-db (porta 5432)"
+if docker exec fluxbus-local-db pg_isready -U dev_user > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ PostgreSQL:${NC} fluxbus-local-db (porta 5432)"
 else
     echo -e "${YELLOW}⏳ PostgreSQL:${NC} Iniciando..."
 fi
 
 # Verificar Redis
-if docker exec secured-guard-local-redis redis-cli ping > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ Redis:${NC} secured-guard-local-redis (porta 6379)"
+if docker exec fluxbus-local-redis redis-cli ping > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ Redis:${NC} fluxbus-local-redis (porta 6379)"
 else
     echo -e "${YELLOW}⏳ Redis:${NC} Iniciando..."
 fi
 
 # Verificar MinIO
 if curl -sf http://localhost:9000/minio/health/live > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ MinIO:${NC} secured-guard-local-minio (portas 9000, 9001)"
+    echo -e "${GREEN}✅ MinIO:${NC} fluxbus-local-minio (portas 9000, 9001)"
 else
     echo -e "${YELLOW}⏳ MinIO:${NC} Iniciando..."
 fi
 
 # Verificar WhatsApp
 if curl -sf http://localhost:3333/health > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ WhatsApp:${NC} secured-guard-local-whatsapp (porta 3333)"
+    echo -e "${GREEN}✅ WhatsApp:${NC} fluxbus-local-whatsapp (porta 3333)"
 else
     echo -e "${YELLOW}⏳ WhatsApp:${NC} Iniciando..."
 fi
@@ -97,14 +97,14 @@ fi
 # Verificar Backend
 sleep 20
 if curl -sf http://localhost:8083/api/health > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ Backend:${NC} secured-guard-local-backend (porta 8083)"
+    echo -e "${GREEN}✅ Backend:${NC} fluxbus-local-backend (porta 8083)"
 else
     echo -e "${YELLOW}⏳ Backend:${NC} Iniciando (pode demorar ~60s)..."
 fi
 
 # Verificar Frontend
 if curl -sf http://localhost:3000 > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ Frontend:${NC} secured-guard-local-frontend (porta 3000)"
+    echo -e "${GREEN}✅ Frontend:${NC} fluxbus-local-frontend (porta 3000)"
 else
     echo -e "${YELLOW}⏳ Frontend:${NC} Iniciando..."
 fi
@@ -127,7 +127,7 @@ echo -e "${GREEN}💾 Banco de Dados:${NC}"
 echo ""
 echo "  Host:     localhost"
 echo "  Port:     5432"
-echo "  Database: secured_guard_local"
+echo "  Database: fluxbus_local"
 echo "  User:     dev_user"
 echo "  Password: dev_pass"
 echo ""

@@ -1198,7 +1198,7 @@ const Frota: React.FC = () => {
         ${multasHTML}
         
         <div style="text-align: center; margin-top: 30px; color: #666; font-size: 12px;">
-          <p>Relatório gerado automaticamente pelo Sistema Secured Guard</p>
+          <p>Relatório gerado automaticamente pelo Sistema FluxBus</p>
           <p>Data: ${currentDate} | Hora: ${new Date().toLocaleTimeString('pt-BR')}</p>
         </div>
       `;

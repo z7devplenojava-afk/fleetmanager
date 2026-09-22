@@ -94,7 +94,7 @@ function New-SecurePasswords {
     }
     
     # Salvar em arquivo temporário
-    $tempFile = "$env:TEMP\secured_guard_passwords.txt"
+    $tempFile = "$env:TEMP\fluxbus_passwords.txt"
     $content = @"
 # Senhas geradas em $(Get-Date)
 POSTGRES_PASSWORD=$($passwords.POSTGRES_PASSWORD)
@@ -125,11 +125,11 @@ function New-Databases {
     Write-Status "Criando bancos de dados..."
     
     $Databases = @(
-        "secured_guard_dev",
-        "secured_guard_test", 
-        "secured_guard_staging",
-        "secured_guard_prod",
-        "secured_guard_ci"
+        "fluxbus_dev",
+        "fluxbus_test", 
+        "fluxbus_staging",
+        "fluxbus_prod",
+        "fluxbus_ci"
     )
     
     $env:PGPASSWORD = ""
@@ -193,11 +193,11 @@ function Grant-DatabasePermissions {
     Write-Status "Configurando permissões..."
     
     $Databases = @(
-        "secured_guard_dev",
-        "secured_guard_test", 
-        "secured_guard_staging",
-        "secured_guard_prod",
-        "secured_guard_ci"
+        "fluxbus_dev",
+        "fluxbus_test", 
+        "fluxbus_staging",
+        "fluxbus_prod",
+        "fluxbus_ci"
     )
     
     foreach ($db in $Databases) {
@@ -235,7 +235,7 @@ SPRING_PROFILES_ACTIVE=dev
 # ===================== BANCO DE DADOS =====================
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
-POSTGRES_DB=secured_guard_dev
+POSTGRES_DB=fluxbus_dev
 POSTGRES_USER=postgressg
 POSTGRES_PASSWORD=$($Passwords.POSTGRES_PASSWORD)
 
@@ -254,7 +254,7 @@ MAIL_HOST=localhost
 MAIL_PORT=25
 MAIL_USERNAME=dev@localhost
 MAIL_PASSWORD=dev
-MAIL_FROM=dev@securedguard.local
+MAIL_FROM=dev@fluxbus.local
 
 # ===================== SERVER CONFIGURATION =====================
 SERVER_PORT=8081
@@ -297,7 +297,7 @@ SPRING_PROFILES_ACTIVE=prod
 # ===================== BANCO DE DADOS =====================
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
-POSTGRES_DB=secured_guard_prod
+POSTGRES_DB=fluxbus_prod
 POSTGRES_USER=postgressg
 POSTGRES_PASSWORD=CHANGE_THIS_PRODUCTION_PASSWORD
 
@@ -358,20 +358,20 @@ function Test-DatabaseConnections {
     # Testar conexão com usuário postgressg
     $testCommand = "SELECT 1;"
     try {
-        & psql -h localhost -p 5432 -U postgressg -d secured_guard_dev -c $testCommand 2>$null
+        & psql -h localhost -p 5432 -U postgressg -d fluxbus_dev -c $testCommand 2>$null
         if ($LASTEXITCODE -eq 0) {
-            Write-Success "Conexão com secured_guard_dev funcionando"
+            Write-Success "Conexão com fluxbus_dev funcionando"
         } else {
-            Write-Error "Erro na conexão com secured_guard_dev"
+            Write-Error "Erro na conexão com fluxbus_dev"
             return $false
         }
     } catch {
-        Write-Error "Erro na conexão com secured_guard_dev"
+        Write-Error "Erro na conexão com fluxbus_dev"
         return $false
     }
     
     # Testar outros bancos
-    $Databases = @("secured_guard_test", "secured_guard_staging", "secured_guard_prod", "secured_guard_ci")
+    $Databases = @("fluxbus_test", "fluxbus_staging", "fluxbus_prod", "fluxbus_ci")
     foreach ($db in $Databases) {
         try {
             & psql -h localhost -p 5432 -U postgressg -d $db -c $testCommand 2>$null
@@ -408,7 +408,7 @@ function Show-Summary {
     Write-Host "📁 Arquivos criados:" -ForegroundColor Cyan
     Write-Host "  📄 config\environments\.env.dev" -ForegroundColor White
     Write-Host "  📄 config\environments\.env.prod" -ForegroundColor White
-    Write-Host "  📄 $env:TEMP\secured_guard_passwords.txt" -ForegroundColor White
+    Write-Host "  📄 $env:TEMP\fluxbus_passwords.txt" -ForegroundColor White
     Write-Host ""
     Write-Host "🔐 Próximos passos:" -ForegroundColor Cyan
     Write-Host "  1. Salve as senhas em um gerenciador de senhas" -ForegroundColor White
@@ -426,7 +426,7 @@ function Show-Summary {
 
 # Função principal
 function Main {
-    Write-Host "🚀 Iniciando setup do banco de dados SecuredGuard..." -ForegroundColor Green
+    Write-Host "🚀 Iniciando setup do banco de dados FluxBus..." -ForegroundColor Green
     Write-Host ""
     
     $passwords = New-SecurePasswords
@@ -441,7 +441,7 @@ function Main {
     Show-Summary -Passwords $passwords
     
     Write-Status "Limpando arquivos temporários..."
-    Remove-Item "$env:TEMP\secured_guard_passwords.txt" -Force -ErrorAction SilentlyContinue
+    Remove-Item "$env:TEMP\fluxbus_passwords.txt" -Force -ErrorAction SilentlyContinue
     Write-Success "Setup concluído!"
 }
 

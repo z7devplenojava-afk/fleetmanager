@@ -6,9 +6,9 @@ services:
   # ========================================
   postgres-dev:
     image: postgres:15-alpine
-    container_name: secured-guard-db-dev
+    container_name: fluxbus-db-dev
     environment:
-      POSTGRES_DB: secured_guard_dev
+      POSTGRES_DB: fluxbus_dev
       POSTGRES_USER: postgressg
       POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
     ports:
@@ -18,7 +18,7 @@ services:
       - ../scripts/init-databases.sh:/docker-entrypoint-initdb.d/01-init-databases.sh:ro
       - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d/migration:ro
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgressg"]
       interval: 10s
@@ -31,9 +31,9 @@ services:
   # ========================================
   postgres-prod:
     image: postgres:15-alpine
-    container_name: secured-guard-db-prod
+    container_name: fluxbus-db-prod
     environment:
-      POSTGRES_DB: secured_guard_prod
+      POSTGRES_DB: fluxbus_prod
       POSTGRES_USER: postgressg
       POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
     ports:
@@ -43,7 +43,7 @@ services:
       - ../scripts/init-databases.sh:/docker-entrypoint-initdb.d/01-init-databases.sh:ro
       - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d/migration:ro
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgressg"]
       interval: 10s
@@ -56,9 +56,9 @@ services:
   # ========================================
   postgres-ci:
     image: postgres:15-alpine
-    container_name: secured-guard-db-ci
+    container_name: fluxbus-db-ci
     environment:
-      POSTGRES_DB: secured_guard_ci
+      POSTGRES_DB: fluxbus_ci
       POSTGRES_USER: postgressg
       POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
     ports:
@@ -68,7 +68,7 @@ services:
       - ../scripts/init-databases.sh:/docker-entrypoint-initdb.d/01-init-databases.sh:ro
       - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d/migration:ro
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgressg"]
       interval: 10s
@@ -81,16 +81,16 @@ services:
   # ========================================
   redis-dev:
     image: redis:7-alpine
-    container_name: secured-guard-redis-dev
+    container_name: fluxbus-redis-dev
     ports:
       - "6379:6379"
     volumes:
       - redis_data_dev:/data
     networks:
-      - secured-guard-network
-    command: redis-server --appendonly yes --requirepass redis_secured_guard_dev_2024
+      - fluxbus-network
+    command: redis-server --appendonly yes --requirepass redis_fluxbus_dev_2024
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redis_secured_guard_dev_2024", "ping"]
+      test: ["CMD", "redis-cli", "-a", "redis_fluxbus_dev_2024", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -101,16 +101,16 @@ services:
   # ========================================
   redis-prod:
     image: redis:7-alpine
-    container_name: secured-guard-redis-prod
+    container_name: fluxbus-redis-prod
     ports:
       - "6380:6379"
     volumes:
       - redis_data_prod:/data
     networks:
-      - secured-guard-network
-    command: redis-server --appendonly yes --requirepass redis_secured_guard_prod_2024
+      - fluxbus-network
+    command: redis-server --appendonly yes --requirepass redis_fluxbus_prod_2024
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redis_secured_guard_prod_2024", "ping"]
+      test: ["CMD", "redis-cli", "-a", "redis_fluxbus_prod_2024", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -121,16 +121,16 @@ services:
   # ========================================
   redis-ci:
     image: redis:7-alpine
-    container_name: secured-guard-redis-ci
+    container_name: fluxbus-redis-ci
     ports:
       - "6381:6379"
     volumes:
       - redis_data_ci:/data
     networks:
-      - secured-guard-network
-    command: redis-server --appendonly yes --requirepass redis_secured_guard_ci_2024
+      - fluxbus-network
+    command: redis-server --appendonly yes --requirepass redis_fluxbus_ci_2024
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redis_secured_guard_ci_2024", "ping"]
+      test: ["CMD", "redis-cli", "-a", "redis_fluxbus_ci_2024", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -143,15 +143,15 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile.prod
-    container_name: secured-guard-backend-dev
+    container_name: fluxbus-backend-dev
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-dev:5432/secured_guard_dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-dev:5432/fluxbus_dev
       SPRING_DATASOURCE_USERNAME: postgressg
       SPRING_DATASOURCE_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
       SPRING_REDIS_HOST: redis-dev
       SPRING_REDIS_PORT: 6379
-      SPRING_REDIS_PASSWORD: redis_secured_guard_dev_2024
+      SPRING_REDIS_PASSWORD: redis_fluxbus_dev_2024
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8081:8081"
@@ -164,7 +164,7 @@ services:
       redis-dev:
         condition: service_healthy
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
       interval: 30s
@@ -179,15 +179,15 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile.prod
-    container_name: secured-guard-backend-prod
+    container_name: fluxbus-backend-prod
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-prod:5432/secured_guard_prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-prod:5432/fluxbus_prod
       SPRING_DATASOURCE_USERNAME: postgressg
       SPRING_DATASOURCE_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
       SPRING_REDIS_HOST: redis-prod
       SPRING_REDIS_PORT: 6379
-      SPRING_REDIS_PASSWORD: redis_secured_guard_prod_2024
+      SPRING_REDIS_PASSWORD: redis_fluxbus_prod_2024
       JAVA_OPTS: "-Xmx1g -Xms512m"
     ports:
       - "8080:8081"
@@ -200,7 +200,7 @@ services:
       redis-prod:
         condition: service_healthy
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
       interval: 30s
@@ -215,15 +215,15 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile.prod
-    container_name: secured-guard-backend-ci
+    container_name: fluxbus-backend-ci
     environment:
       SPRING_PROFILES_ACTIVE: ci
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-ci:5432/secured_guard_ci
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-ci:5432/fluxbus_ci
       SPRING_DATASOURCE_USERNAME: postgressg
       SPRING_DATASOURCE_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
       SPRING_REDIS_HOST: redis-ci
       SPRING_REDIS_PORT: 6379
-      SPRING_REDIS_PASSWORD: redis_secured_guard_ci_2024
+      SPRING_REDIS_PASSWORD: redis_fluxbus_ci_2024
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8082:8081"
@@ -236,7 +236,7 @@ services:
       redis-ci:
         condition: service_healthy
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
       interval: 30s
@@ -251,7 +251,7 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile.prod
-    container_name: secured-guard-frontend-dev
+    container_name: fluxbus-frontend-dev
     environment:
       VITE_API_URL: http://localhost:8081/api
       VITE_WS_URL: ws://localhost:8081/ws
@@ -260,7 +260,7 @@ services:
     depends_on:
       - backend-dev
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 30s
@@ -275,7 +275,7 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile.prod
-    container_name: secured-guard-frontend-prod
+    container_name: fluxbus-frontend-prod
     environment:
       VITE_API_URL: http://localhost:8080/api
       VITE_WS_URL: ws://localhost:8080/ws
@@ -284,7 +284,7 @@ services:
     depends_on:
       - backend-prod
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 30s
@@ -299,7 +299,7 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile.prod
-    container_name: secured-guard-frontend-ci
+    container_name: fluxbus-frontend-ci
     environment:
       VITE_API_URL: http://localhost:8082/api
       VITE_WS_URL: ws://localhost:8082/ws
@@ -308,7 +308,7 @@ services:
     depends_on:
       - backend-ci
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 30s
@@ -321,7 +321,7 @@ services:
   # ========================================
   nginx:
     image: nginx:alpine
-    container_name: secured-guard-nginx
+    container_name: fluxbus-nginx
     ports:
       - "443:443"
     volumes:
@@ -332,7 +332,7 @@ services:
       - frontend-prod
       - backend-prod
     networks:
-      - secured-guard-network
+      - fluxbus-network
     restart: unless-stopped
 
 # ========================================
@@ -356,5 +356,5 @@ volumes:
 # NETWORKS
 # ========================================
 networks:
-  secured-guard-network:
+  fluxbus-network:
     driver: bridge

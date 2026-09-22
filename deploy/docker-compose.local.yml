@@ -11,9 +11,9 @@ services:
   # ========================================
   postgres:
     image: postgres:15-alpine
-    container_name: secured-guard-db-local
+    container_name: fluxbus-db-local
     environment:
-      POSTGRES_DB: secured_guard_dev
+      POSTGRES_DB: fluxbus_dev
       POSTGRES_USER: postgressg
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
@@ -23,7 +23,7 @@ services:
       - postgres_data_local:/var/lib/postgresql/data
       - ./backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d
     networks:
-      - secured-guard-local
+      - fluxbus-local
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgressg"]
       interval: 10s
@@ -36,13 +36,13 @@ services:
   # ========================================
   redis:
     image: redis:7-alpine
-    container_name: secured-guard-redis-local
+    container_name: fluxbus-redis-local
     ports:
       - "6379:6379"
     volumes:
       - redis_data_local:/data
     networks:
-      - secured-guard-local
+      - fluxbus-local
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
@@ -58,10 +58,10 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile.dev
-    container_name: secured-guard-backend-local
+    container_name: fluxbus-backend-local
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/secured_guard_dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fluxbus_dev
       SPRING_DATASOURCE_USERNAME: postgressg
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
       SPRING_REDIS_HOST: redis
@@ -87,7 +87,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - secured-guard-local
+      - fluxbus-local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -102,7 +102,7 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile.dev
-    container_name: secured-guard-frontend-local
+    container_name: fluxbus-frontend-local
     environment:
       VITE_API_URL: http://localhost:8080/api
       VITE_WS_URL: ws://localhost:8080/ws
@@ -119,7 +119,7 @@ services:
     depends_on:
       - backend
     networks:
-      - secured-guard-local
+      - fluxbus-local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5173"]
       interval: 30s
@@ -132,7 +132,7 @@ services:
   # ========================================
   nginx:
     image: nginx:alpine
-    container_name: secured-guard-nginx-local
+    container_name: fluxbus-nginx-local
     ports:
       - "80:80"
     volumes:
@@ -141,7 +141,7 @@ services:
       - frontend
       - backend
     networks:
-      - secured-guard-local
+      - fluxbus-local
     restart: unless-stopped
 
 # ========================================
@@ -161,7 +161,7 @@ volumes:
 # NETWORKS
 # ========================================
 networks:
-  secured-guard-local:
+  fluxbus-local:
     driver: bridge
     ipam:
       config:

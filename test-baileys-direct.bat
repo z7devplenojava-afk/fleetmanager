@@ -11,8 +11,8 @@ echo    OK
 echo.
 
 echo 2. Limpando sessoes...
-rmdir /s /q "whatsapp-service\sessions\securedguard" 2>nul
-mkdir "whatsapp-service\sessions\securedguard"
+rmdir /s /q "whatsapp-service\sessions\fluxbus" 2>nul
+mkdir "whatsapp-service\sessions\fluxbus"
 echo    OK
 echo.
 
@@ -23,7 +23,7 @@ docker run -d ^
   -v "%CD%\whatsapp-service\sessions:/app/sessions" ^
   -v "%CD%\backend\holerites:/app/holerites" ^
   -e PORT=3333 ^
-  secured-guard-whatsapp
+  fluxbus-whatsapp
 echo    OK
 echo.
 

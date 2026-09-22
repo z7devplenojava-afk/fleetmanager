@@ -10,7 +10,7 @@ echo "🔧 CORREÇÃO DE PROBLEMAS DOCKER SWARM"
 echo "🔧 ========================================="
 echo ""
 
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 # 1. Verificar se está em modo swarm
 echo "📋 Verificando modo Docker..."
@@ -30,30 +30,30 @@ docker-compose -f docker-compose.ci.yml down --remove-orphans 2>/dev/null || tru
 # 3. Remover containers órfãos manualmente (incluindo os com nomes estranhos)
 echo ""
 echo "🧹 Removendo containers órfãos..."
-docker ps -a | grep "secured-guard" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
-docker ps -a --format "{{.ID}} {{.Names}}" | grep -E "(secured-guard|cc[0-9a-f]+_secured-guard)" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
+docker ps -a | grep "fluxbus" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
+docker ps -a --format "{{.ID}} {{.Names}}" | grep -E "(fluxbus|cc[0-9a-f]+_fluxbus)" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
 
 # Remover containers específicos com padrões conhecidos
-docker ps -a | grep -E "cc[0-9a-f]+_secured-guard" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
+docker ps -a | grep -E "cc[0-9a-f]+_fluxbus" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
 
 # 4. Limpar redes órfãs
 echo ""
 echo "🧹 Limpando redes órfãs..."
 docker network prune -f 2>/dev/null || true
-docker network rm secured-guard-ci-network 2>/dev/null || true
+docker network rm fluxbus-ci-network 2>/dev/null || true
 
 # 5. Remover imagens corrompidas
 echo ""
 echo "🧹 Removendo imagens corrompidas..."
-docker images | grep "z7design/secured-guard" | grep -E "(<none>|ci)" | awk '{print $3}' | xargs -r docker rmi -f 2>/dev/null || true
+docker images | grep "z7design/fluxbus" | grep -E "(<none>|ci)" | awk '{print $3}' | xargs -r docker rmi -f 2>/dev/null || true
 
 # 6. Verificar se as imagens existem
 echo ""
 echo "🔍 Verificando imagens Docker..."
 IMAGES=(
-    "z7design/secured-guard-backend:ci"
-    "z7design/secured-guard-frontend:ci"
-    "z7design/secured-guard-whatsapp:ci"
+    "z7design/fluxbus-backend:ci"
+    "z7design/fluxbus-frontend:ci"
+    "z7design/fluxbus-whatsapp:ci"
 )
 
 MISSING_IMAGES=()
@@ -136,12 +136,12 @@ docker-compose -f docker-compose.ci.yml ps || docker compose -f docker-compose.c
 # 14. Verificar logs do backend
 echo ""
 echo "📋 Logs do backend (últimas 20 linhas):"
-docker logs --tail 20 secured-guard-backend-ci 2>&1 || echo "⚠️ Container backend não encontrado"
+docker logs --tail 20 fluxbus-backend-ci 2>&1 || echo "⚠️ Container backend não encontrado"
 
 # 15. Verificar logs do nginx
 echo ""
 echo "📋 Logs do nginx (últimas 20 linhas):"
-docker logs --tail 20 secured-guard-nginx-ci 2>&1 || echo "⚠️ Container nginx não encontrado"
+docker logs --tail 20 fluxbus-nginx-ci 2>&1 || echo "⚠️ Container nginx não encontrado"
 
 echo ""
 echo "✅ =========================================="

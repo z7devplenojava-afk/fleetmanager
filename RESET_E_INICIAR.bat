@@ -2,7 +2,7 @@
 chcp 65001 >nul
 echo.
 echo ╔═══════════════════════════════════════════════════════════════╗
-echo ║           🔧 RESET COMPLETO - SECURED GUARD 🔧                ║
+echo ║           🔧 RESET COMPLETO - FLUXBUS 🔧                ║
 echo ╚═══════════════════════════════════════════════════════════════╝
 echo.
 
@@ -43,7 +43,7 @@ if /I not "%CONFIRMA%"=="SIM" (
 
 echo.
 echo Executando reset no PostgreSQL...
-psql -U postgres -h localhost -p 5432 -d secured_guard -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" 2>nul
+psql -U postgres -h localhost -p 5432 -d fluxbus -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" 2>nul
 if %ERRORLEVEL% EQU 0 (
     echo ✅ Banco resetado com sucesso!
 ) else (

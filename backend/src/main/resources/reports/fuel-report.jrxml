@@ -374,7 +374,7 @@
                 <textElement>
                     <font fontName="DejaVu Sans" size="8" pdfFontName="Helvetica"/>
                 </textElement>
-                <textFieldExpression><![CDATA["Relatório gerado pelo Sistema Secured Guard"]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Relatório gerado pelo Sistema FluxBus"]]></textFieldExpression>
             </textField>
             
             <textField>

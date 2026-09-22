@@ -192,7 +192,7 @@ WHERE NOT EXISTS (
 );
 
 -- =====================================================
--- 7.1. COPIAR USUÁRIOS DO BANCO secured_guard_test
+-- 7.1. COPIAR USUÁRIOS DO BANCO fluxbus_test
 -- =====================================================
 -- Tenta copiar automaticamente usando dblink, se disponível
 -- Se dblink não estiver disponível, usa INSERTs hardcoded (gerados previamente)
@@ -208,12 +208,12 @@ BEGIN
     ) INTO dblink_available;
 
     IF dblink_available THEN
-        RAISE NOTICE '📋 Copiando usuários do banco secured_guard_test via dblink...';
+        RAISE NOTICE '📋 Copiando usuários do banco fluxbus_test via dblink...';
         
         -- Criar conexão e copiar usuários (exceto admin@ci)
         PERFORM dblink_connect(
             'test_db_conn',
-            format('host=localhost port=5432 dbname=secured_guard_test user=%s password=%s', 
+            format('host=localhost port=5432 dbname=fluxbus_test user=%s password=%s', 
                    test_db_user, test_db_password)
         );
 
@@ -288,7 +288,7 @@ END $$;
 -- 7.1.1. INSERTs HARDCODED DE USUÁRIOS (FALLBACK)
 -- =====================================================
 -- Se dblink não estiver disponível ou falhar, estes INSERTs serão usados
--- Para gerar estes INSERTs, execute: export_users_from_test_db.sql no banco secured_guard_test
+-- Para gerar estes INSERTs, execute: export_users_from_test_db.sql no banco fluxbus_test
 -- e cole os resultados aqui:
 
 -- COLE OS INSERTs DE USUÁRIOS AQUI (se dblink não funcionar):
@@ -301,7 +301,7 @@ END $$;
 -- COLE OS INSERTs DE USER_ROLES AQUI (se dblink não funcionar):
 
 -- =====================================================
--- 8. COPIAR FUNCIONÁRIOS DO BANCO secured_guard_test
+-- 8. COPIAR FUNCIONÁRIOS DO BANCO fluxbus_test
 -- =====================================================
 -- Tenta copiar automaticamente usando dblink, se disponível
 DO $$
@@ -316,13 +316,13 @@ BEGIN
     ) INTO dblink_available;
 
     IF dblink_available THEN
-        RAISE NOTICE '📋 Copiando funcionários do banco secured_guard_test via dblink...';
+        RAISE NOTICE '📋 Copiando funcionários do banco fluxbus_test via dblink...';
         
         -- Criar conexão se ainda não existir
         BEGIN
             PERFORM dblink_connect(
                 'test_db_conn',
-                format('host=localhost port=5432 dbname=secured_guard_test user=%s password=%s', 
+                format('host=localhost port=5432 dbname=fluxbus_test user=%s password=%s', 
                        test_db_user, test_db_password)
             );
         EXCEPTION
@@ -418,7 +418,7 @@ END $$;
 -- 8.1. INSERTs HARDCODED DE FUNCIONÁRIOS (FALLBACK)
 -- =====================================================
 -- Se dblink não estiver disponível ou falhar, estes INSERTs serão usados
--- Para gerar estes INSERTs, execute: export_employees_from_test_db.sql no banco secured_guard_test
+-- Para gerar estes INSERTs, execute: export_employees_from_test_db.sql no banco fluxbus_test
 -- e cole os resultados aqui:
 
 -- COLE OS INSERTs DE FUNCIONÁRIOS AQUI (se dblink não funcionar):
@@ -680,14 +680,14 @@ DO $$
 BEGIN
     RAISE NOTICE '✅ Seed de dados essenciais para CI concluído com sucesso!';
     RAISE NOTICE '   - Usuário admin: admin@ci (senha: Admin123!)';
-    RAISE NOTICE '   - Usuários do banco secured_guard_test: Incluídos (se exportados)';
+    RAISE NOTICE '   - Usuários do banco fluxbus_test: Incluídos (se exportados)';
     RAISE NOTICE '   - Unidade: Unidade Matriz CI';
     RAISE NOTICE '   - Turnos: Manhã, Tarde, Noite';
     RAISE NOTICE '   - Cargos: Vigilante, Supervisor, Gerente';
     RAISE NOTICE '   - Departamento: Operacional';
     RAISE NOTICE '   - Cliente: Cliente Teste CI';
     RAISE NOTICE '   - Empresa: Empresa Teste CI';
-    RAISE NOTICE '   - Funcionários do banco secured_guard_test: Incluídos (se exportados)';
+    RAISE NOTICE '   - Funcionários do banco fluxbus_test: Incluídos (se exportados)';
     RAISE NOTICE '   - Funcionários de teste (fallback): 2 funcionários completos';
     RAISE NOTICE '   - Frota: 3 veículos de teste';
 END $$;

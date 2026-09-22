@@ -28,7 +28,7 @@ public class BaileysRestService {
     @Value("${baileys.rest.token:}")
     private String baileysToken;
     
-    @Value("${baileys.rest.instance.key:securedguard}")
+    @Value("${baileys.rest.instance.key:fluxbus}")
     private String instanceKey;
     
     @Value("${baileys.enabled:false}")
@@ -238,7 +238,7 @@ public class BaileysRestService {
             } catch (org.springframework.web.client.ResourceAccessException e) {
                 logger.error("âŒ Endpoint /health nÃ£o acessÃ­vel - Erro de conexÃ£o: {}", e.getMessage());
                 logger.error("   Verifique se o container 'whatsapp-service-ci' estÃ¡ rodando e acessÃ­vel em: {}", baileysRestUrl);
-                logger.error("   No ambiente CI, o serviÃ§o deve estar na rede Docker 'secured-guard-ci-network' ou 'z7network'");
+                logger.error("   No ambiente CI, o serviÃ§o deve estar na rede Docker 'fluxbus-ci-network' ou 'z7network'");
             } catch (Exception e) {
                 logger.warn("âš ï¸ Endpoint /health nÃ£o disponÃ­vel, tentando endpoint alternativo: {}", e.getMessage());
             }
@@ -441,7 +441,7 @@ public class BaileysRestService {
     
     /**
      * Converte caminho do sistema de arquivos local para caminho do Docker
-     * Exemplo: C:\dev\secured-guard\backend\holerites\9-2025\arquivo.pdf -> /app/holerites/9-2025/arquivo.pdf
+     * Exemplo: C:\dev\fluxbus\backend\holerites\9-2025\arquivo.pdf -> /app/holerites/9-2025/arquivo.pdf
      * Exemplo: /app/backend/holerites/... -> /app/holerites/...
      */
     private String convertToDockerPath(String localPath) {

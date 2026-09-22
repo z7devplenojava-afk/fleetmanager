@@ -2,7 +2,7 @@
 Write-Host "🚀 Forçando execução do GitHub Actions..." -ForegroundColor Cyan
 Write-Host ""
 
-cd c:\dev\secured-guard
+cd c:\dev\fluxbus
 
 # 1. Verificar e fazer checkout da branch ci
 Write-Host "1️⃣ Verificando branch..." -ForegroundColor Yellow
@@ -57,7 +57,7 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
     Write-Host ""
     Write-Host "🔗 Verifique o status em:" -ForegroundColor Cyan
-    Write-Host "   https://github.com/[seu-usuario]/secured-guard/actions" -ForegroundColor Yellow
+    Write-Host "   https://github.com/[seu-usuario]/fluxbus/actions" -ForegroundColor Yellow
     Write-Host ""
 } else {
     Write-Host "   ❌ Erro ao fazer push!" -ForegroundColor Red

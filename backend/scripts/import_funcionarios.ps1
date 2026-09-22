@@ -1,5 +1,5 @@
 # Script para importar funcionários para o SecureGuard
-Write-Host "🚀 IMPORTANDO FUNCIONÁRIOS PARA SECUREDGUARD" -ForegroundColor Green
+Write-Host "🚀 IMPORTANDO FUNCIONÁRIOS PARA FLUXBUS" -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor Green
 
 # Verificar se o arquivo JSON existe

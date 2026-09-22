@@ -32,9 +32,9 @@ echo ""
 
 # Se o container do frontend estiver rodando, podemos reiniciá-lo para garantir
 # que o novo service worker seja servido
-if docker ps | grep -q "secured-guard-frontend-ci"; then
+if docker ps | grep -q "fluxbus-frontend-ci"; then
     echo -e "${YELLOW}🔄 Reiniciando container do frontend para aplicar mudanças...${NC}"
-    docker restart secured-guard-frontend-ci || echo "⚠️  Não foi possível reiniciar o container"
+    docker restart fluxbus-frontend-ci || echo "⚠️  Não foi possível reiniciar o container"
     sleep 5
     echo -e "${GREEN}✅ Container reiniciado${NC}"
 fi

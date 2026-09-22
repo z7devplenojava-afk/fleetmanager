@@ -9,7 +9,7 @@ echo Adicionando arquivos...
 git add docker-compose.yml
 git add docker-compose.ci.yml
 git add backend/src/main/resources/application-ci.properties
-git add backend/src/test/java/com/z7design/secured_guard/service/EnvioServiceTest.java
+git add backend/src/test/java/com/z7design/fluxbus/service/EnvioServiceTest.java
 git add evolution-api/Dockerfile
 git add evolution-portainer-stack.yml
 git add GUIA_PORTAINER_EVOLUTION.md

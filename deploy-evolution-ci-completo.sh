@@ -21,7 +21,7 @@ echo -e "========================================${NC}"
 echo ""
 
 # Ir para o diretório
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 echo -e "${YELLOW}1. Fazendo git pull...${NC}"
 git pull origin ci
@@ -29,14 +29,14 @@ echo -e "${GREEN}   ✅ Pull concluído!${NC}"
 echo ""
 
 echo -e "${YELLOW}2. Criando banco evolution_ci...${NC}"
-docker exec secured-guard-db-ci psql -U secured_guard_ci -c "CREATE DATABASE evolution_ci;" 2>/dev/null && echo -e "${GREEN}   ✅ Banco criado!${NC}" || echo -e "${YELLOW}   ⚠️  Banco já existe${NC}"
+docker exec fluxbus-db-ci psql -U fluxbus_ci -c "CREATE DATABASE evolution_ci;" 2>/dev/null && echo -e "${GREEN}   ✅ Banco criado!${NC}" || echo -e "${YELLOW}   ⚠️  Banco já existe${NC}"
 echo ""
 
 echo -e "${YELLOW}3. Criando diretórios...${NC}"
-mkdir -p /var/www/secured_guard/ci/evolution_instances
-mkdir -p /var/www/secured_guard/ci/holerites
-chmod -R 755 /var/www/secured_guard/ci/evolution_instances
-chmod -R 755 /var/www/secured_guard/ci/holerites
+mkdir -p /var/www/fluxbus/ci/evolution_instances
+mkdir -p /var/www/fluxbus/ci/holerites
+chmod -R 755 /var/www/fluxbus/ci/evolution_instances
+chmod -R 755 /var/www/fluxbus/ci/holerites
 echo -e "${GREEN}   ✅ Diretórios criados!${NC}"
 echo ""
 
@@ -83,7 +83,7 @@ echo -e "${YELLOW}8. Criando instância Evolution API...${NC}"
 INSTANCE_RESPONSE=$(curl -s -X POST https://evolution.z7botsolutions.com.br/instance/create \
     -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
     -H "Content-Type: application/json" \
-    -d '{"instanceName":"securedguard","integration":"WHATSAPP-BAILEYS"}')
+    -d '{"instanceName":"fluxbus","integration":"WHATSAPP-BAILEYS"}')
 
 if echo "$INSTANCE_RESPONSE" | grep -q "hash"; then
     echo -e "${GREEN}   ✅ Instância criada!${NC}"
@@ -125,7 +125,7 @@ echo ""
 
 echo -e "${YELLOW}11. Obtendo QR Code...${NC}"
 QR_RESPONSE=$(curl -s -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
-    https://evolution.z7botsolutions.com.br/instance/connect/securedguard)
+    https://evolution.z7botsolutions.com.br/instance/connect/fluxbus)
 
 if echo "$QR_RESPONSE" | grep -q "code"; then
     QR_LENGTH=$(echo "$QR_RESPONSE" | jq -r '.code' | wc -c)
@@ -140,7 +140,7 @@ if echo "$QR_RESPONSE" | grep -q "code"; then
         echo -e "${BLUE}  📱 ACESSE PARA ESCANEAR:${NC}"
         echo -e "${BLUE}========================================${NC}"
         echo ""
-        echo -e "${YELLOW}https://evolution.z7botsolutions.com.br/instance/connect/securedguard${NC}"
+        echo -e "${YELLOW}https://evolution.z7botsolutions.com.br/instance/connect/fluxbus${NC}"
         echo ""
         echo -e "${CYAN}API Key: B6D711FCDE4D4FD5936544120E713976${NC}"
         echo -e "${CYAN}Número: 31971731747${NC}"

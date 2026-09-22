@@ -8,7 +8,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$ServerHost = "ci.z7botsolutions.com.br",
     
-    [string]$ProjectPath = "/var/www/secured_guard"
+    [string]$ProjectPath = "/var/www/fluxbus"
 )
 
 Write-Host "=== DIAGNÓSTICO REMOTO - LOGIN CI ===" -ForegroundColor Cyan
@@ -49,7 +49,7 @@ if ($resposta -eq "S" -or $resposta -eq "s") {
     Write-Host "4. Aplicando correção..." -ForegroundColor Yellow
     ssh "${ServerUser}@${ServerHost}" @"
 cd ${ProjectPath}
-docker exec -i secured-guard-postgres-ci psql -U secured_guard_user -d secured_guard < fix-users-without-roles-ci.sql
+docker exec -i fluxbus-postgres-ci psql -U fluxbus_user -d fluxbus < fix-users-without-roles-ci.sql
 "@
     
     Write-Host ""

@@ -36,7 +36,7 @@ echo  DEPLOY INICIADO!
 echo ================================================
 echo.
 echo Acompanhe o progresso em:
-echo https://github.com/SEU_USUARIO/secured-guard/actions
+echo https://github.com/SEU_USUARIO/fluxbus/actions
 echo.
 echo O workflow agora inclui:
 echo  - Diagnostico de status dos containers

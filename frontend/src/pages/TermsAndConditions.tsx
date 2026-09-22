@@ -243,7 +243,7 @@ const TermsAndConditions: React.FC = () => {
                 </p>
                 <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
                   <p className="text-sm sm:text-base text-gray-700 mb-2">
-                    <strong>E-mail:</strong> contratos@securedguard.com.br
+                    <strong>E-mail:</strong> contratos@fluxbus.com.br
                   </p>
                   <p className="text-sm sm:text-base text-gray-700 mb-2">
                     <strong>Telefone:</strong> (31) 99999-9999

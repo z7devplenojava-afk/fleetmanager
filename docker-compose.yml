@@ -1,5 +1,5 @@
 # ========================================
-# SECURED GUARD - DESENVOLVIMENTO LOCAL
+# FLUXBUS - DESENVOLVIMENTO LOCAL
 # BAILEYS WHATSAPP SERVICE (STANDALONE)
 # ========================================
 
@@ -9,7 +9,7 @@ services:
   # ========================================
   postgres:
     image: postgres:15-alpine
-    container_name: secured-guard-db-local
+    container_name: fluxbus-db-local
     environment:
       POSTGRES_DB: fluxbus
       POSTGRES_USER: postgres
@@ -19,7 +19,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - secured-guard-network
+      - fluxbus-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -31,13 +31,13 @@ services:
   # ========================================
   redis:
     image: redis:7-alpine
-    container_name: secured-guard-redis-local
+    container_name: fluxbus-redis-local
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - secured-guard-network
+      - fluxbus-network
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -52,11 +52,11 @@ services:
     build:
       context: ./whatsapp-service
       dockerfile: Dockerfile
-    image: secured-guard-whatsapp:latest
+    image: fluxbus-whatsapp:latest
     container_name: whatsapp-service
     environment:
       PORT: 3333
-      INSTANCE_KEY: securedguard
+      INSTANCE_KEY: fluxbus
       SESSION_DIR: /app/sessions
     volumes:
       - whatsapp_sessions:/app/sessions
@@ -64,7 +64,7 @@ services:
     ports:
       - "3333:3333"
     networks:
-      - secured-guard-network
+      - fluxbus-network
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -80,7 +80,7 @@ services:
     build:
       context: ./evolution-api
       dockerfile: Dockerfile
-    image: secured-guard-evolution-api:latest
+    image: fluxbus-evolution-api:latest
     container_name: evolution-api-local
     environment:
       SERVER_URL: http://localhost:8080
@@ -88,7 +88,7 @@ services:
       AUTHENTICATION_API_KEY: B6D711FCDE4D4FD5936544120E713976
       AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
       LANGUAGE: pt-BR
-      CONFIG_SESSION_PHONE_CLIENT: SecuredGuard
+      CONFIG_SESSION_PHONE_CLIENT: FluxBus
       CONFIG_SESSION_PHONE_NAME: chrome
       QRCODE_LIMIT: 1902
       QRCODE_COLOR: "#000000"
@@ -110,7 +110,7 @@ services:
       - evolution_instances:/evolution/instances
       - ./backend/holerites:/evolution/holerites
     networks:
-      - secured-guard-network
+      - fluxbus-network
     depends_on:
       redis-evolution:
         condition: service_started
@@ -129,7 +129,7 @@ services:
     volumes:
       - redis_evolution_data:/data
     networks:
-      - secured-guard-network
+      - fluxbus-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -151,6 +151,6 @@ volumes:
 # NETWORKS
 # ========================================
 networks:
-  secured-guard-network:
+  fluxbus-network:
     external: true
-    name: secured-guard
+    name: fluxbus

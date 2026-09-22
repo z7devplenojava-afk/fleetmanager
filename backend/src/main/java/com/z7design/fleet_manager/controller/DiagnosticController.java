@@ -27,7 +27,7 @@ public class DiagnosticController {
 
     private final DataSource dataSource;
 
-    @Value("${spring.application.name:Secured Guard}")
+    @Value("${spring.application.name:FluxBus}")
     private String applicationName;
 
     @Value("${server.port:8080}")

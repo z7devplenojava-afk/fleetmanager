@@ -59,7 +59,7 @@ export const TermsConsentGuard: React.FC<TermsConsentGuardProps> = ({ children }
 
       toast({
         title: "Termos Aceitos!",
-        description: "Bem-vindo ao sistema SecuredGuard.",
+        description: "Bem-vindo ao sistema FluxBus.",
         variant: "default",
       });
 

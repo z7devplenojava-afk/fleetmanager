@@ -8,7 +8,7 @@ echo ""
 
 # 1. Verificar se Nginx está rodando
 echo "1️⃣ Verificando Nginx..."
-if ! docker ps | grep -q "secured-guard-nginx-ci"; then
+if ! docker ps | grep -q "fluxbus-nginx-ci"; then
   echo "❌ Nginx não está rodando!"
   exit 1
 else
@@ -18,13 +18,13 @@ fi
 # 2. Verificar se Nginx está na rede z7network
 echo ""
 echo "2️⃣ Verificando rede do Nginx..."
-if docker inspect secured-guard-nginx-ci 2>/dev/null | grep -q "z7network"; then
+if docker inspect fluxbus-nginx-ci 2>/dev/null | grep -q "z7network"; then
   echo "✅ Nginx está na rede z7network"
 else
   echo "⚠️ Nginx não está na rede z7network. Conectando..."
-  docker network connect z7network secured-guard-nginx-ci 2>/dev/null || echo "⚠️ Pode já estar conectado"
+  docker network connect z7network fluxbus-nginx-ci 2>/dev/null || echo "⚠️ Pode já estar conectado"
   sleep 2
-  if docker inspect secured-guard-nginx-ci 2>/dev/null | grep -q "z7network"; then
+  if docker inspect fluxbus-nginx-ci 2>/dev/null | grep -q "z7network"; then
     echo "✅ Nginx conectado à rede z7network"
   else
     echo "❌ Falha ao conectar Nginx à rede z7network"
@@ -35,7 +35,7 @@ fi
 # 3. Verificar labels do Nginx
 echo ""
 echo "3️⃣ Verificando labels do Nginx..."
-LABELS=$(docker inspect secured-guard-nginx-ci | jq -r '.[0].Config.Labels' 2>/dev/null || echo "{}")
+LABELS=$(docker inspect fluxbus-nginx-ci | jq -r '.[0].Config.Labels' 2>/dev/null || echo "{}")
 if echo "$LABELS" | grep -q "traefik.enable"; then
   echo "✅ Labels do Traefik encontradas no Nginx"
   echo "$LABELS" | jq -r 'to_entries[] | select(.key | startswith("traefik")) | "  \(.key) = \(.value)"' 2>/dev/null || echo "  (não foi possível listar labels)"
@@ -92,7 +92,7 @@ else
   echo "$ROUTERS" | jq -r '.[].name' 2>/dev/null | head -10 || echo "$ROUTERS"
   echo ""
   echo "💡 Tentando recriar container do Nginx para forçar detecção..."
-  cd /var/www/secured_guard/ci
+  cd /var/www/fluxbus/ci
   docker-compose -f docker-compose.ci.yml up -d --force-recreate nginx-ci
   sleep 10
   
@@ -129,7 +129,7 @@ elif [ "$HTTP_CODE" = "404" ]; then
   echo ""
   echo "📋 Diagnóstico adicional:"
   echo "   Verificando se Traefik consegue acessar o Nginx:"
-  docker exec traefik wget -qO- --timeout=5 http://secured-guard-nginx-ci:80/health 2>&1 | head -3 || echo "   ❌ Falha ao acessar Nginx"
+  docker exec traefik wget -qO- --timeout=5 http://fluxbus-nginx-ci:80/health 2>&1 | head -3 || echo "   ❌ Falha ao acessar Nginx"
 else
   echo "⚠️ Resposta HTTP: $HTTP_CODE"
 fi

@@ -14,10 +14,10 @@ POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx}
 
 # Lista de bancos faltantes
 MISSING_DATABASES=(
-    "secured_guard_dev"
-    "secured_guard_test"
-    "secured_guard_staging"
-    "secured_guard_ci"
+    "fluxbus_dev"
+    "fluxbus_test"
+    "fluxbus_staging"
+    "fluxbus_ci"
 )
 
 # Função para criar banco
@@ -60,7 +60,7 @@ echo ""
 
 # Verificar bancos criados
 echo "📋 Verificando bancos criados..."
-psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d postgres -c "SELECT datname FROM pg_database WHERE datname LIKE 'secured_guard%';"
+psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d postgres -c "SELECT datname FROM pg_database WHERE datname LIKE 'fluxbus%';"
 echo ""
 
 echo "✅ Script concluído!"
