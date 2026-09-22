@@ -24,19 +24,34 @@ public class JwtTokenProvider {
 
     private final JwtConfig jwtConfig;
 
+    private java.security.Key getSigningKey() {
+        byte[] keyBytes = jwtConfig.getSecret().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        if (keyBytes.length < 64) {
+            try {
+                java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-512");
+                keyBytes = md.digest(keyBytes);
+            } catch (Exception e) {
+                byte[] padded = new byte[64];
+                System.arraycopy(keyBytes, 0, padded, 0, Math.min(keyBytes.length, 64));
+                keyBytes = padded;
+            }
+        }
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
     public String generateToken(User user) {
         try {
             Date now = new Date();
             Date expiryDate = new Date(now.getTime() + jwtConfig.getExpiration());
 
-            log.debug("Gerando token para usuÃ¡rio: {}, expira em: {}", user.getUsername(), expiryDate);
+            log.debug("Gerando token para usuário: {}, expira em: {}", user.getUsername(), expiryDate);
 
             String token = Jwts.builder()
                     .setSubject(user.getUsername())
                     .claim("roles", user.getRoles().stream().map(Role::getName).collect(Collectors.toList()))
                     .setIssuedAt(now)
                     .setExpiration(expiryDate)
-                    .signWith(Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes()), SignatureAlgorithm.HS512)
+                    .signWith(getSigningKey(), SignatureAlgorithm.HS512)
                     .compact();
 
             log.debug("Token gerado com sucesso: {}", token);
@@ -50,13 +65,13 @@ public class JwtTokenProvider {
     public String getUsernameFromToken(String token) {
         try {
             Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes()))
+                    .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
 
             String username = claims.getSubject();
-            log.debug("Username extraÃ­do do token: {}", username);
+            log.debug("Username extraído do token: {}", username);
             return username;
         } catch (Exception e) {
             log.error("Erro ao extrair username do token: {}", e.getMessage(), e);
@@ -67,13 +82,13 @@ public class JwtTokenProvider {
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()
-                    .setSigningKey(Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes()))
+                    .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token);
-            log.debug("Token vÃ¡lido");
+            log.debug("Token válido");
             return true;
         } catch (Exception e) {
-            log.error("Token invÃ¡lido: {}", e.getMessage());
+            log.error("Token inválido: {}", e.getMessage());
             return false;
         }
     }

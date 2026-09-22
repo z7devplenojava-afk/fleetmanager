@@ -9,23 +9,23 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: secured-guard-test-db
-    hostname: secured-guard-test-db
+    container_name: fluxbus-test-db
+    hostname: fluxbus-test-db
     environment:
-      POSTGRES_DB: secured_guard_test
+      POSTGRES_DB: fluxbus_db_test
       POSTGRES_USER: test_user
       POSTGRES_PASSWORD: test_pass
     ports:
       - "5433:5432"
     volumes:
-      - secured-guard-test-db-data:/var/lib/postgresql/data
+      - fluxbus-test-db-data:/var/lib/postgresql/data
       - ./seeds/schema:/docker-entrypoint-initdb.d/01-schema:ro
       - ./seeds/common:/docker-entrypoint-initdb.d/02-common:ro
       - ./seeds/test:/docker-entrypoint-initdb.d/03-test:ro
     networks:
       - secured-guard-test-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U test_user -d secured_guard_test"]
+      test: ["CMD-SHELL", "pg_isready -U test_user -d fluxbus_db_test"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -58,7 +58,7 @@ services:
     hostname: secured-guard-test-whatsapp
     environment:
       PORT: 3333
-      INSTANCE_KEY: secured_guard_test
+      INSTANCE_KEY: fluxbus_db_test
       SESSION_DIR: /app/sessions
       NODE_ENV: test
     volumes:
@@ -86,7 +86,7 @@ services:
     hostname: secured-guard-test-backend
     environment:
       SPRING_PROFILES_ACTIVE: test
-      SPRING_DATASOURCE_URL: jdbc:postgresql://secured-guard-test-db:5432/secured_guard_test
+      SPRING_DATASOURCE_URL: jdbc:postgresql://fluxbus-test-db:5432/fluxbus_db_test
       SPRING_DATASOURCE_USERNAME: test_user
       SPRING_DATASOURCE_PASSWORD: test_pass
       SPRING_REDIS_HOST: secured-guard-test-redis
@@ -135,8 +135,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  secured-guard-test-db-data:
-    name: secured-guard-test-db-data
+  fluxbus-test-db-data:
+    name: fluxbus-test-db-data
   secured-guard-test-redis-data:
     name: secured-guard-test-redis-data
   secured-guard-test-whatsapp-sessions:

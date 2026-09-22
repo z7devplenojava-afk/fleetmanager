@@ -59,7 +59,7 @@ services:
       # OPÇÃO 1: COM PostgreSQL (comentar para desabilitar)
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://secured_guard_ci:4KaCiJc6an@7sgbdcid2025@secured-guard-db-ci:5432/evolution_db?schema=public
+      - DATABASE_CONNECTION_URI=postgresql://fluxbus_user_ci:4KaCiJc6an@7sgbdcid2026@7sgbdcid2025@secured-guard-db-ci:5432/evolution_db?schema=public
       - DATABASE_CONNECTION_CLIENT_NAME=evolution_portainer
       - DATABASE_SAVE_DATA_INSTANCE=true
       - DATABASE_SAVE_DATA_NEW_MESSAGE=true
@@ -99,7 +99,7 @@ services:
       # Dados da Evolution API
       - evolution_instances:/evolution/instances
       # Holerites do sistema
-      - /var/www/secured_guard/ci/holerites:/evolution/holerites
+      - /var/www/fluxbus/ci/holerites:/evolution/holerites
     
     networks:
       - z7network

@@ -19,7 +19,7 @@ echo -e "${YELLOW}📝 Versão do Service Worker: $SW_VERSION${NC}"
 
 # Criar arquivo de versão que será servido pelo Nginx
 # Isso força o navegador a atualizar o service worker
-VERSION_FILE="/var/www/secured_guard/ci/sw-version.txt"
+VERSION_FILE="/var/www/fluxbus/ci/sw-version.txt"
 
 # Criar arquivo de versão
 echo "SW_VERSION=$SW_VERSION" > "$VERSION_FILE"

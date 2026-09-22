@@ -197,7 +197,7 @@ collect_diagnostics() {
     
     sshpass -p "${SSH_PASSWORD}" ssh -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" << 'DIAG_EOF'
         echo "📋 Status dos containers CI:"
-        cd /var/www/secured_guard/ci
+        cd /var/www/fluxbus/ci
         docker-compose -f docker-compose.ci.yml ps 2>&1 || echo "Erro ao verificar containers"
         
         echo ""
@@ -248,7 +248,7 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
         if ! check_traefik; then
             log "💡 Tentando iniciar Traefik..."
             sshpass -p "${SSH_PASSWORD}" ssh -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" \
-                "cd /var/www/secured_guard && docker-compose -f docker-compose.traefik.yml up -d 2>&1" || true
+                "cd /var/www/fluxbus && docker-compose -f docker-compose.traefik.yml up -d 2>&1" || true
             sleep 10
         fi
     fi

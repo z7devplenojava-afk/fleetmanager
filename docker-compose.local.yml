@@ -12,23 +12,23 @@ services:
   # ==========================================
   postgres:
     image: postgres:15-alpine
-    container_name: secured-guard-local-db
-    hostname: secured-guard-local-db
+    container_name: fluxbus-local-db
+    hostname: fluxbus-local-db
     environment:
-      POSTGRES_DB: secured_guard_local
+      POSTGRES_DB: fluxbus_db_local
       POSTGRES_USER: dev_user
       POSTGRES_PASSWORD: dev_pass
     ports:
       - "5432:5432"
     volumes:
-      - secured-guard-local-db-data:/var/lib/postgresql/data
+      - fluxbus-local-db-data:/var/lib/postgresql/data
       - ./seeds/schema:/docker-entrypoint-initdb.d/01-schema:ro
       - ./seeds/common:/docker-entrypoint-initdb.d/02-common:ro
       - ./seeds/local:/docker-entrypoint-initdb.d/03-local:ro
     networks:
       - secured-guard-local-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dev_user -d secured_guard_local"]
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d fluxbus_db_local"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -92,7 +92,7 @@ services:
     hostname: secured-guard-local-whatsapp
     environment:
       PORT: 3333
-      INSTANCE_KEY: secured_guard_local
+      INSTANCE_KEY: fluxbus_db_local
       SESSION_DIR: /app/sessions
       NODE_ENV: development
     volumes:
@@ -125,7 +125,7 @@ services:
     hostname: secured-guard-local-backend
     environment:
       SPRING_PROFILES_ACTIVE: local
-      SPRING_DATASOURCE_URL: jdbc:postgresql://secured-guard-local-db:5432/secured_guard_local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://fluxbus-local-db:5432/fluxbus_db_local
       SPRING_DATASOURCE_USERNAME: dev_user
       SPRING_DATASOURCE_PASSWORD: dev_pass
       SPRING_REDIS_HOST: secured-guard-local-redis
@@ -198,8 +198,8 @@ services:
 # VOLUMES
 # ============================================
 volumes:
-  secured-guard-local-db-data:
-    name: secured-guard-local-db-data
+  fluxbus-local-db-data:
+    name: fluxbus-local-db-data
   secured-guard-local-redis-data:
     name: secured-guard-local-redis-data
   secured-guard-local-minio-data:

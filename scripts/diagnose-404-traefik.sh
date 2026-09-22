@@ -18,13 +18,13 @@ fi
 
 echo ""
 echo "2️⃣ Verificando configuração dinâmica do Traefik..."
-if [ -f "/var/www/secured_guard/traefik/dynamic/ci.yml" ]; then
+if [ -f "/var/www/fluxbus/traefik/dynamic/ci.yml" ]; then
   echo "✅ Arquivo de configuração dinâmica encontrado"
   echo "📋 Conteúdo do arquivo:"
-  cat /var/www/secured_guard/traefik/dynamic/ci.yml | head -20
+  cat /var/www/fluxbus/traefik/dynamic/ci.yml | head -20
 else
   echo "❌ Arquivo de configuração dinâmica NÃO encontrado!"
-  echo "   Caminho esperado: /var/www/secured_guard/traefik/dynamic/ci.yml"
+  echo "   Caminho esperado: /var/www/fluxbus/traefik/dynamic/ci.yml"
 fi
 
 echo ""
@@ -108,7 +108,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "📋 Resumo do diagnóstico:"
 echo ""
 echo "Se o router ci-backend não foi encontrado:"
-echo "  1. Verifique se /var/www/secured_guard/traefik/dynamic/ci.yml existe"
+echo "  1. Verifique se /var/www/fluxbus/traefik/dynamic/ci.yml existe"
 echo "  2. Reinicie o Traefik: docker restart traefik"
 echo "  3. Aguarde 10 segundos e verifique novamente"
 echo ""

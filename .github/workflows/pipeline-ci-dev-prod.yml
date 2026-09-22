@@ -165,10 +165,12 @@ jobs:
       - name: "⚙️ Criar .env CI e subir containers"
         run: |
           JWT="${{ secrets.JWT_SECRET_CI }}"
-          [ -z "$JWT" ] && JWT="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512"
+          [ -z "$JWT" ] && JWT="jwt_secret2026"
           {
-            printf 'POSTGRES_PASSWORD_CI=%s\n' "${{ secrets.POSTGRES_PASSWORD_CI || '4KaCiJc6an@7sgbdcid2025' }}"
-            printf 'REDIS_PASSWORD_CI=%s\n'    "${{ secrets.REDIS_PASSWORD_CI || 'redis_ci_2025' }}"
+            printf 'POSTGRES_DB_CI=fluxbus_db_ci\n'
+            printf 'POSTGRES_USER_CI=fluxbus_user_ci\n'
+            printf 'POSTGRES_PASSWORD_CI=%s\n' "${{ secrets.POSTGRES_PASSWORD_CI || '4KaCiJc6an@7sgbdcid2026' }}"
+            printf 'REDIS_PASSWORD_CI=%s\n'    "${{ secrets.REDIS_PASSWORD_CI || 'redis_ci_2026' }}"
             printf 'JWT_SECRET_CI=%s\n'        "$JWT"
             printf 'MAIL_HOST=%s\n'            "${{ secrets.MAIL_HOST || 'mail.z7design.com.br' }}"
             printf 'MAIL_PORT=%s\n'            "${{ secrets.MAIL_PORT || '465' }}"

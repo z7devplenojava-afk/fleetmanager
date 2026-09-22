@@ -64,7 +64,7 @@ services:
       REDIS_HOST: redis-ci
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD_CI:-redis_ci_2026}
-      JWT_SECRET: ${JWT_SECRET_CI:-z7_Secure_Guard_Prod_2026_High_Security_Key_Minimum_64_Bytes_JWT_Secret_!!!}
+      JWT_SECRET: ${JWT_SECRET_CI:-jwt_secret2026}
       # Email Configuration
       MAIL_HOST: ${MAIL_HOST:-186.209.113.105}
       MAIL_PORT: ${MAIL_PORT:-465}

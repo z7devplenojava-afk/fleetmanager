@@ -29,10 +29,10 @@ services:
       - "--accesslog=true"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "/var/www/secured_guard/traefik/letsencrypt:/etc/traefik/letsencrypt"
-      - "/var/www/secured_guard/traefik/logs:/var/log/traefik"
+      - "/var/www/fluxbus/traefik/letsencrypt:/etc/traefik/letsencrypt"
+      - "/var/www/fluxbus/traefik/logs:/var/log/traefik"
       # Montar diretório de configuração dinâmica
-      - "/var/www/secured_guard/traefik/dynamic:/etc/traefik/dynamic:ro"
+      - "/var/www/fluxbus/traefik/dynamic:/etc/traefik/dynamic:ro"
     ports:
       - "80:80"
       - "443:443"

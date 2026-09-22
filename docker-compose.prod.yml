@@ -10,16 +10,16 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: secured-guard-prod-db
-    hostname: secured-guard-prod-db
+    container_name: fluxbus-prod-db
+    hostname: fluxbus-prod-db
     environment:
-      POSTGRES_DB: secured_guard
+      POSTGRES_DB: fluxbus
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5435:5432"
     volumes:
-      - secured-guard-prod-db-data:/var/lib/postgresql/data
+      - fluxbus-prod-db-data:/var/lib/postgresql/data
       - ./seeds/schema:/docker-entrypoint-initdb.d/01-schema:ro
       - ./seeds/common:/docker-entrypoint-initdb.d/02-common:ro
       - ./seeds/prod:/docker-entrypoint-initdb.d/03-prod:ro
@@ -27,7 +27,7 @@ services:
     networks:
       - secured-guard-prod-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d secured_guard"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d fluxbus"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -70,7 +70,7 @@ services:
     hostname: secured-guard-prod-whatsapp
     environment:
       PORT: 3333
-      INSTANCE_KEY: secured_guard_prod
+      INSTANCE_KEY: fluxbus_db_prod
       SESSION_DIR: /app/sessions
       NODE_ENV: production
     volumes:
@@ -103,7 +103,7 @@ services:
     hostname: secured-guard-prod-backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://secured-guard-prod-db:5432/secured_guard
+      SPRING_DATASOURCE_URL: jdbc:postgresql://fluxbus-prod-db:5432/fluxbus
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_REDIS_HOST: secured-guard-prod-redis
@@ -168,8 +168,8 @@ services:
         max-file: "3"
 
 volumes:
-  secured-guard-prod-db-data:
-    name: secured-guard-prod-db-data
+  fluxbus-prod-db-data:
+    name: fluxbus-prod-db-data
   secured-guard-prod-redis-data:
     name: secured-guard-prod-redis-data
   secured-guard-prod-whatsapp-sessions:
