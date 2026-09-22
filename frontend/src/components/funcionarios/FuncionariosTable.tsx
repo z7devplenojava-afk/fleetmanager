@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,9 +6,13 @@ import { Card } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
   MoreHorizontal, Edit, Trash2, Eye, User, Mail, Phone, MapPin, 
-  Calendar, Building, FileText, UserPlus, AlertCircle, UserMinus, Briefcase
+  Calendar, Building, FileText, UserPlus, AlertCircle, UserMinus, Briefcase,
+  ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { Employee } from '@/types/employee';
+
+type SortField = 'name' | 'hireDate' | 'terminationDate' | 'position';
+type SortDirection = 'asc' | 'desc';
 
 interface FuncionariosTableProps {
   employees: Employee[];
@@ -20,6 +24,9 @@ interface FuncionariosTableProps {
   isLoading?: boolean;
 }
 
+export const getEmployeeTerminationDate = (employee: Employee): string | undefined =>
+  employee.terminationDate || employee.dataRescisao || undefined;
+
 export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
   employees,
   onEdit,
@@ -29,6 +36,46 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
   onViewDependents,
   isLoading = false
 }) => {
+  const [sortField, setSortField] = useState<SortField>('hireDate');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection(field === 'name' || field === 'position' ? 'asc' : 'desc');
+    }
+  };
+
+  const sortedEmployees = useMemo(() => {
+    if (!employees?.length) return [];
+    return [...employees].sort((a, b) => {
+      if (sortField === 'name') {
+        const cmp = (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }
+      if (sortField === 'position') {
+        const cmp = (a.position?.name || '').localeCompare(b.position?.name || '', 'pt-BR', { sensitivity: 'base' });
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }
+      const valA = sortField === 'hireDate' ? (a.hireDate || '') : (getEmployeeTerminationDate(a) || '');
+      const valB = sortField === 'hireDate' ? (b.hireDate || '') : (getEmployeeTerminationDate(b) || '');
+      const cmp = valA.localeCompare(valB, 'pt-BR');
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [employees, sortField, sortDirection]);
+
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3.5 w-3.5 opacity-40 group-hover/head:opacity-100 transition-opacity inline ml-1" />;
+    }
+    return sortDirection === 'asc' ? (
+      <ArrowUp className="h-3.5 w-3.5 text-seguranca-yellow font-bold inline ml-1" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5 text-seguranca-yellow font-bold inline ml-1" />
+    );
+  };
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; className: string }> = {
       'ACTIVE': { 
@@ -106,18 +153,38 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
         <Table>
           <TableHeader>
             <TableRow className="bg-seguranca-black/50 hover:bg-seguranca-black/70 border-gray-600/30">
-              <TableHead className="text-seguranca-yellow font-semibold">Funcionário</TableHead>
-              <TableHead className="text-seguranca-yellow font-semibold">Cargo/Função</TableHead>
+              <TableHead 
+                className="text-seguranca-yellow font-semibold cursor-pointer select-none group-hover/head:text-white"
+                onClick={() => handleSort('name')}
+              >
+                Funcionário{renderSortIcon('name')}
+              </TableHead>
+              <TableHead 
+                className="text-seguranca-yellow font-semibold cursor-pointer select-none group-hover/head:text-white"
+                onClick={() => handleSort('position')}
+              >
+                Cargo/Função{renderSortIcon('position')}
+              </TableHead>
               <TableHead className="text-seguranca-yellow font-semibold">Empresa</TableHead>
               <TableHead className="text-seguranca-yellow font-semibold">Posto de Trabalho</TableHead>
-              <TableHead className="text-seguranca-yellow font-semibold">Admissão</TableHead>
-              <TableHead className="text-seguranca-yellow font-semibold">Demissão</TableHead>
+              <TableHead 
+                className="text-seguranca-yellow font-semibold cursor-pointer select-none group-hover/head:text-white"
+                onClick={() => handleSort('hireDate')}
+              >
+                Admissão{renderSortIcon('hireDate')}
+              </TableHead>
+              <TableHead 
+                className="text-seguranca-yellow font-semibold cursor-pointer select-none group-hover/head:text-white"
+                onClick={() => handleSort('terminationDate')}
+              >
+                Demissão{renderSortIcon('terminationDate')}
+              </TableHead>
               <TableHead className="text-seguranca-yellow font-semibold">Status</TableHead>
               <TableHead className="text-seguranca-yellow font-semibold w-[70px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {employees.map((employee, index) => (
+            {sortedEmployees.map((employee, index) => (
               <TableRow 
                 key={employee.id}
                 className="border-gray-600/30 hover:bg-seguranca-black/30 transition-all duration-200 group"
@@ -203,7 +270,7 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
                 <TableCell>
                   <div className="flex items-center gap-2 text-sm text-seguranca-lightgray">
                     <Calendar className="h-4 w-4 text-gray-400" />
-                    {formatDate(employee.terminationDate)}
+                    {formatDate(getEmployeeTerminationDate(employee))}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -274,7 +341,7 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
 
       {/* Mobile View - Cards */}
       <div className="lg:hidden space-y-4">
-        {employees.map((employee, index) => (
+        {sortedEmployees.map((employee, index) => (
           <Card 
             key={employee.id}
             className="bg-seguranca-black/50 border-gray-600/30 hover:border-seguranca-red/50 transition-all duration-300 overflow-hidden group"
@@ -339,10 +406,10 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
                     <span>Admissão: {formatDate(employee.hireDate)}</span>
                   </div>
                 )}
-                {employee.terminationDate && (
+                {getEmployeeTerminationDate(employee) && (
                   <div className="flex items-center gap-2 text-gray-400">
                     <Calendar className="h-4 w-4 flex-shrink-0" />
-                    <span>Demissão: {formatDate(employee.terminationDate)}</span>
+                    <span>Demissão: {formatDate(getEmployeeTerminationDate(employee))}</span>
                   </div>
                 )}
               </div>

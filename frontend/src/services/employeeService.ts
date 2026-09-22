@@ -320,6 +320,18 @@ export const employeeService = {
   },
 
   /**
+   * Excluir funcionário
+   */
+  async deleteEmployee(id: string): Promise<void> {
+    try {
+      await api.delete(`/api/employees/${id}`);
+    } catch (error: any) {
+      console.error('Erro ao excluir funcionário:', error);
+      throw new Error(error.response?.data?.message || 'Erro ao excluir funcionário');
+    }
+  },
+
+  /**
    * Gerar PDF da ficha de registro do funcionário
    */
   async generateEmployeeRecordPdf(id: string): Promise<Blob> {
