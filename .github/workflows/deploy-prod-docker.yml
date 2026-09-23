@@ -89,10 +89,10 @@ jobs:
             mkdir -p /var/www/secured_guard/prod
             cd /var/www/secured_guard/prod
             cat > .env << 'ENVEOF'
-POSTGRES_PASSWORD_PROD=${{ secrets.POSTGRES_PASSWORD_PROD }}
-REDIS_PASSWORD_PROD=${{ secrets.REDIS_PASSWORD_PROD }}
-JWT_SECRET_PROD=${{ secrets.JWT_SECRET_PROD }}
-ENVEOF
+          POSTGRES_PASSWORD_PROD=${{ secrets.POSTGRES_PASSWORD_PROD }}
+          REDIS_PASSWORD_PROD=${{ secrets.REDIS_PASSWORD_PROD }}
+          JWT_SECRET_PROD=${{ secrets.JWT_SECRET_PROD }}
+          ENVEOF
           EOF
 
       - name: 📤 Transfer files to PROD VPS

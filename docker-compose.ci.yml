@@ -70,7 +70,7 @@ services:
       SPRING_REDIS_HOST: redis-ci
       SPRING_REDIS_PORT: 6379
       SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD_CI:-redis_ci_2026}
-      JWT_SECRET: ${JWT_SECRET_CI:-jwt_secret2026}
+      JWT_SECRET: ${JWT_SECRET_CI:-jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algo}
       JWT_EXPIRATION: 604800000
       JWT_REFRESH_EXPIRATION: 2592000000
       UPLOAD_DIR: /var/www/fluxbus/uploads

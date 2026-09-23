@@ -25,7 +25,7 @@ on:
           - prod
 
 concurrency:
-  group: pipeline-ci-dev-prod
+  group: deploy-ci
   cancel-in-progress: false
 
 env:
@@ -160,12 +160,12 @@ jobs:
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS docker-compose.ci.yml \
             ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS nginx/ci.conf \
-            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/nginx/ 2>/dev/null || true
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/nginx/
 
       - name: "⚙️ Criar .env CI e subir containers"
         run: |
           JWT="${{ secrets.JWT_SECRET_CI }}"
-          [ -z "$JWT" ] && JWT="jwt_secret2026"
+          [ -z "$JWT" ] && JWT="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algo"
           {
             printf 'POSTGRES_DB_CI=fluxbus_db_ci\n'
             printf 'POSTGRES_USER_CI=fluxbus_user_ci\n'
@@ -197,18 +197,26 @@ jobs:
               docker rm secured-guard-db-ci secured-guard-redis-ci secured-guard-backend-ci secured-guard-frontend-ci secured-guard-whatsapp-ci secured-guard-nginx-ci secured-guard-evolution-ci 2>/dev/null || true
               rm -rf /var/www/secured_guard 2>/dev/null || true
 
+              # Remover containers orfaos de nomes fixos (conflito de container_name)
+              docker rm -f fluxbus-nginx-ci fluxbus-db-ci fluxbus-redis-ci fluxbus-backend-ci fluxbus-frontend-ci fluxbus-whatsapp-ci whatsapp-service-ci 2>/dev/null || true
+
+              # Derrubar stack legado antigo (compose renomeado em /var/www/fluxbus)
+              if [ -f /var/www/fluxbus/docker-compose.yml ]; then
+                (cd /var/www/fluxbus && docker compose down --remove-orphans) 2>/dev/null || true
+              fi
+
               cd /var/www/fluxbus/ci
               echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
               docker network create z7network 2>/dev/null || true
-              docker-compose -f docker-compose.ci.yml down --remove-orphans 2>/dev/null || true
+              docker compose -f docker-compose.ci.yml down --remove-orphans 2>/dev/null || true
               docker network rm fluxbus-ci 2>/dev/null || true
               for i in 1 2 3; do
                 docker pull z7design/fluxbus-backend:ci && \
                 docker pull z7design/fluxbus-frontend:ci && \
                 docker pull z7design/fluxbus-whatsapp:ci && break || { sleep 15; }
               done
-              docker-compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans
-              docker-compose -f docker-compose.ci.yml ps
+              docker compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans
+              docker compose -f docker-compose.ci.yml ps
           SSHEOF
 
   # ============================================================

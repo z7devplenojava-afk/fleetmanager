@@ -107,28 +107,44 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-      - name: 🔎 Garantir docker-compose.fluxbus.ci.yml no checkout
+      - name: 🔎 Garantir docker-compose.ci.yml no checkout
         run: |
-          if [ ! -f docker-compose.fluxbus.ci.yml ]; then
-            echo "::error::Arquivo docker-compose.fluxbus.ci.yml ausente neste branch"
+          if [ ! -f docker-compose.ci.yml ]; then
+            echo "::error::Arquivo docker-compose.ci.yml ausente neste branch"
             ls -la docker-compose*.yml || true
             exit 1
           fi
-          ls -la docker-compose.fluxbus.ci.yml
+          if [ ! -f nginx/ci.conf ]; then
+            echo "::error::Arquivo nginx/ci.conf ausente neste branch"
+            exit 1
+          fi
+          ls -la docker-compose.ci.yml nginx/ci.conf
 
-      - name: 📋 Copiar docker-compose.fluxbus.ci.yml para a VPS
+      - name: 📋 Copiar docker-compose.ci.yml para a VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           password: ${{ env.VPS_PASSWORD }}
           port: 22
-          source: "docker-compose.fluxbus.ci.yml"
-          target: "/var/www/fluxbus/"
+          source: "docker-compose.ci.yml"
+          target: "/var/www/fluxbus/ci/"
           strip_components: 0
           overwrite: true
 
-      - name: 🔧 Renomear arquivo e criar .env na VPS
+      - name: 📋 Copiar nginx/ci.conf para a VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          password: ${{ env.VPS_PASSWORD }}
+          port: 22
+          source: "nginx/ci.conf"
+          target: "/var/www/fluxbus/ci/nginx/"
+          strip_components: 1
+          overwrite: true
+
+      - name: 🔧 Ajustar paths e criar .env na VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ env.VPS_HOST }}
@@ -136,30 +152,29 @@ jobs:
           password: ${{ env.VPS_PASSWORD }}
           port: 22
           script: |
-            # Criar diretório se não existir
-            mkdir -p /var/www/fluxbus
-            cd /var/www/fluxbus
+            mkdir -p /var/www/fluxbus/ci/nginx /var/www/fluxbus/ci/uploads /var/www/fluxbus/uploads
+            cd /var/www/fluxbus/ci
 
-            # Renomear arquivo para docker-compose.yml
-            mv -f docker-compose.fluxbus.ci.yml docker-compose.yml
-
-            # Criar arquivo .env com as variáveis USANDO AS SECRETS
             cat > .env << 'EOF'
             # ========================================
             # VARIÁVEIS DE AMBIENTE PARA CI.FLUXBUS.COM.BR
             # ========================================
             POSTGRES_DB_CI=fluxbus_db_ci
             POSTGRES_USER_CI=fluxbus_user_ci
-            POSTGRES_PASSWORD_CI=${{ secrets.POSTGRES_PASSWORD_CI }}
-            REDIS_PASSWORD_CI=${{ secrets.REDIS_PASSWORD_CI }}
-            JWT_SECRET_CI=${{ secrets.JWT_SECRET_CI }}
-            MAIL_HOST=186.209.113.105
-            MAIL_PORT=465
-            MAIL_USERNAME=securedguard@z7design.com.br
+            POSTGRES_PASSWORD_CI=${{ secrets.POSTGRES_PASSWORD_CI || '4KaCiJc6an@7sgbdcid2026' }}
+            REDIS_PASSWORD_CI=${{ secrets.REDIS_PASSWORD_CI || 'redis_ci_2026' }}
+            JWT_SECRET_CI=${{ secrets.JWT_SECRET_CI || 'jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algo' }}
+            MAIL_HOST=${{ secrets.MAIL_HOST || 'mail.z7design.com.br' }}
+            MAIL_PORT=${{ secrets.MAIL_PORT || '465' }}
+            MAIL_USERNAME=${{ secrets.MAIL_USERNAME || 'securedguard@z7design.com.br' }}
             MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+            MAIL_SSL_ENABLE=true
+            BAILEYS_REST_URL=${{ secrets.BAILEYS_REST_URL || 'http://whatsapp-service-ci:3333' }}
+            BAILEYS_ENABLED=${{ secrets.BAILEYS_ENABLED || 'true' }}
+            BAILEYS_INSTANCE_KEY=fluxbus_ci
             EOF
 
-            echo ".env e docker-compose.yml criados com sucesso!"
+            echo ".env criado com sucesso!"
             ls -la
 
       - name: 🚀 Pull das novas imagens e restart dos containers
@@ -170,43 +185,51 @@ jobs:
           password: ${{ env.VPS_PASSWORD }}
           port: 22
           script: |
-            cd /var/www/fluxbus
-
             echo "🔐 Logando no Docker Hub..."
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+            # Remover containers orfaos de nomes fixos (conflito de container_name)
+            docker rm -f fluxbus-nginx-ci fluxbus-db-ci fluxbus-redis-ci fluxbus-backend-ci fluxbus-frontend-ci fluxbus-whatsapp-ci whatsapp-service-ci 2>/dev/null || true
+
+            # Derrubar stack legado antigo (compose renomeado em /var/www/fluxbus)
+            if [ -f /var/www/fluxbus/docker-compose.yml ]; then
+              (cd /var/www/fluxbus && docker compose down --remove-orphans) 2>/dev/null || true
+            fi
+
+            cd /var/www/fluxbus/ci
+            docker network create z7network 2>/dev/null || true
+            docker compose -f docker-compose.ci.yml down --remove-orphans 2>/dev/null || true
+            docker network rm fluxbus-ci 2>/dev/null || true
 
             echo "📥 Pull das últimas imagens..."
-            docker compose pull
+            docker compose -f docker-compose.ci.yml pull
 
-            echo "🔄 Parando containers antigos..."
-            docker compose down
-
-            echo "🚀 Subindo novos containers..."
-            docker compose up -d
+            echo "🚀 Subindo containers..."
+            docker compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans
 
             echo "✅ Deploy concluído!"
             echo "📊 Status dos containers:"
-            docker compose ps
+            docker compose -f docker-compose.ci.yml ps
 
   health-check:
     name: 🏥 Health Check do CI
     needs: deploy
     runs-on: ubuntu-latest
     steps:
-      - name: ⏳ Aguardar inicialização (2 minutos)
-        run: sleep 120
+      - name: ⏳ Aguardar inicialização (90s)
+        run: sleep 90
 
-      - name: 🔍 Verificar Health do Backend
-        id: health-check
-        uses: fjogeleit/http-request-action@v1
-        with:
-          url: 'https://ci.fluxbus.com.br/api/health'
-          method: 'GET'
-          timeout: 30000
-        continue-on-error: true
-
-      - name: ✅ Resultado Final
-        if: always()
+      - name: 🔍 Verificar Health do Backend (retry real)
         run: |
-          echo "Health check outcome: ${{ steps.health-check.outcome }}"
-          echo "🌐 Acesse: https://ci.fluxbus.com.br"
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://ci.fluxbus.com.br/api/health" --max-time 15 2>/dev/null || echo "000")
+            echo "Tentativa $i - HTTP $CODE"
+            [ "$CODE" = "200" ] && { echo "CI saudável!"; exit 0; }
+            sleep 15
+          done
+          echo "::error::Health check do CI falhou após 30 tentativas"
+          exit 1
+
+      - name: 🌐 Acesso
+        if: always()
+        run: 'echo "🌐 Acesse: https://ci.fluxbus.com.br"'
