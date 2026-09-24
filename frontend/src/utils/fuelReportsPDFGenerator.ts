@@ -24,6 +24,7 @@ export function computeFuelReportsKpis(records: FuelRecord[]): FuelReportsKpis {
 
 export interface FuelReportsPDFOptions {
   reportView: 'period' | 'vehicle' | 'worksite' | 'garage' | 'driver' | 'all';
+  reportTitle?: string;
   fuelRecords: FuelRecord[];
   vehicles?: Vehicle[];
   kpis: FuelReportsKpis;
@@ -36,6 +37,8 @@ export interface FuelReportsPDFOptions {
     station?: string;
     costCenter?: string;
     fuelType?: string;
+    garageId?: string;
+    garageName?: string;
   };
   company?: {
     name?: string;
@@ -186,7 +189,7 @@ export async function generateFuelReportsPDF(options: FuelReportsPDFOptions) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(22, 101, 52);
-  doc.text('RELATÓRIO DE ABASTECIMENTO', pageWidth - marginRight, y + 4, { align: 'right' });
+  doc.text(options.reportTitle || 'RELATÓRIO DE ABASTECIMENTOS INTERNOS', pageWidth - marginRight, y + 4, { align: 'right' });
 
   const badgeText = VIEW_LABELS[options.reportView] || 'CONSOLIDADO';
   doc.setFillColor(220, 252, 231);
@@ -236,6 +239,9 @@ export async function generateFuelReportsPDF(options: FuelReportsPDFOptions) {
   const filterItems: string[] = [];
   if (options.filters.startDate) filterItems.push(`De: ${fmtDate(options.filters.startDate)}`);
   if (options.filters.endDate) filterItems.push(`Até: ${fmtDate(options.filters.endDate)}`);
+  if (options.filters.garageName && options.filters.garageName !== 'ALL') {
+    filterItems.push(`Garagem: ${options.filters.garageName}`);
+  }
   filterItems.push(`Veículo: ${options.filters.vehicleId === 'ALL' || !options.filters.vehicleId ? 'Todos' : options.filters.vehiclePlate || options.filters.vehicleId}`);
   filterItems.push(`Motorista: ${options.filters.driver === 'ALL' || !options.filters.driver ? 'Todos' : options.filters.driver}`);
   filterItems.push(`Combustível: ${options.filters.fuelType === 'ALL' || !options.filters.fuelType ? 'Todos' : FUEL_LABELS[options.filters.fuelType] || options.filters.fuelType}`);
@@ -611,8 +617,10 @@ export async function generateFuelReportsPDF(options: FuelReportsPDFOptions) {
  */
 export async function downloadFuelReportsPDF(options: FuelReportsPDFOptions): Promise<void> {
   const doc = await generateFuelReportsPDF(options);
-  const now = new Date();
-  const filename = `relatorio-abastecimento-${options.reportView}-${now.toISOString().split('T')[0]}.pdf`;
+  const baseName = options.reportTitle
+    ? options.reportTitle.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '')
+    : 'relatorio-abastecimentos-internos';
+  const filename = `${baseName}-${options.reportView}-${now.toISOString().split('T')[0]}.pdf`;
   doc.save(filename);
 }
 

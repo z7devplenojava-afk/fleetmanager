@@ -222,3 +222,4 @@ class GarageService {
 }
 
 export const garageService = new GarageService();
+export default garageService;

@@ -203,7 +203,7 @@ public class FleetWorkOrder implements TenantAware {
     @Builder.Default
     private List<FleetWorkOrderChecklist> checklistItems = new ArrayList<>();
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "fleet_work_order_photos", joinColumns = @JoinColumn(name = "work_order_id"))
     @Column(name = "photo_url", columnDefinition = "TEXT")
     @Builder.Default
