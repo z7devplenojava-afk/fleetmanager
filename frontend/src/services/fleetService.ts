@@ -277,6 +277,15 @@ class FleetService {
     return response.data;
   }
 
+  async getFilteredFuelRecords(filters: {
+    vehicleId?: string;
+    driverId?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<FuelRecord[]> {
+    return this.getFuelRecordsReport(filters);
+  }
+
   async exportFuelRecordsPDF(filters: {
     vehicleId?: string;
     driverId?: string;

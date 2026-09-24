@@ -61,6 +61,10 @@ import { companyService } from '@/services/companyService';
 interface VeiculoComponent {
   id: string; // UUID
   placa: string;
+  fleetNumber?: string;
+  prefixo?: string;
+  garageId?: string;
+  garageName?: string;
   marca: string;
   modelo: string;
   ano: number;
@@ -132,6 +136,10 @@ const mapVehicleToComponent = (vehicle: Vehicle): VeiculoComponent => {
   return {
     id: vehicle.id.toString(), // já é string UUID
     placa: vehicle.plate,
+    fleetNumber: vehicle.fleetNumber || (vehicle as any).prefixo || '',
+    prefixo: (vehicle as any).prefixo || vehicle.fleetNumber || '',
+    garageId: vehicle.garageId || (vehicle as any).garage?.id || '',
+    garageName: vehicle.garageName || (vehicle as any).garage?.name || '',
     marca: vehicle.brand,
     modelo: vehicle.model,
     ano: vehicle.year,

@@ -148,9 +148,13 @@ const AbastecimentoDashboard: React.FC = () => {
                                     veiculos={vehicles.map((v) => ({
                                         id: v.id,
                                         placa: v.plate || (v as any).placa || '',
+                                        fleetNumber: v.fleetNumber || (v as any).prefixo || '',
+                                        prefixo: (v as any).prefixo || v.fleetNumber || '',
                                         marca: v.brand || (v as any).marca || '',
                                         modelo: v.model || (v as any).modelo || '',
-                                        status: v.status || (v as any).status || 'ATIVO'
+                                        status: v.status || (v as any).status || 'ATIVO',
+                                        garageId: v.garageId || (v as any).garage?.id || '',
+                                        garageName: v.garageName || (v as any).garage?.name || '',
                                     }))}
                                     onRefresh={handleSuccess}
                                 />
