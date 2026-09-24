@@ -99,26 +99,28 @@ public class StandardReportLayoutService {
     public DocumentWithPdf createDocumentWithLayout(PdfWriter writer, ReportLayoutConfig config) throws IOException {
         PdfDocument pdfDoc = new PdfDocument(writer);
         PageSize pageSize = config.isLandscape() ? PageSize.A4.rotate() : PageSize.A4;
-        Document document = new Document(pdfDoc, pageSize);
+        // immediateFlush = false é MANDATÓRIO para permitir manipular e adicionar header/footer
+        // em todas as páginas posteriormente (two-pass layout) sem que as páginas anteriores sejam liberadas/descartadas
+        Document document = new Document(pdfDoc, pageSize, false);
         
-        // Configurar margens baseadas na configuraÃ§Ã£o
+        // Configurar margens baseadas na configuração
         document.setMargins(
-            config.getTopMargin(),    // Margem superior (espaÃ§o para cabeÃ§alho)
+            config.getTopMargin(),    // Margem superior (espaço para cabeçalho)
             config.getRightMargin(),  // Margem direita
-            config.getBottomMargin(), // Margem inferior (espaÃ§o para rodapÃ©)
+            config.getBottomMargin(), // Margem inferior (espaço para rodapé)
             config.getLeftMargin()    // Margem esquerda
         );
         
         // Buscar empresa
         Company company = companyRepository.findById(config.getCompanyId())
-            .orElseThrow(() -> new ResourceNotFoundException("Empresa nÃ£o encontrada com ID: " + config.getCompanyId()));
+            .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada com ID: " + config.getCompanyId()));
         
-        // Retornar Document e PdfDocument para adicionar header/footer apÃ³s o conteÃºdo
+        // Retornar Document e PdfDocument para adicionar header/footer após o conteúdo
         return new DocumentWithPdf(document, pdfDoc, company, config);
     }
     
     /**
-     * Adiciona header e footer em todas as pÃ¡ginas do documento apÃ³s o conteÃºdo ser inserido
+     * Adiciona header e footer em todas as páginas do documento após o conteúdo ser inserido
      * Deve ser chamado ANTES de fechar o documento
      */
     public void finalizeDocumentLayout(DocumentWithPdf docWithPdf) throws IOException {
@@ -126,17 +128,17 @@ public class StandardReportLayoutService {
         Company company = docWithPdf.getCompany();
         ReportLayoutConfig config = docWithPdf.getConfig();
         
-        log.info("ðŸŽ¨ Iniciando finalizaÃ§Ã£o do layout padrÃ£o - Empresa: {}, TÃ­tulo: {}, PÃ¡ginas: {}", 
+        log.info("🎨 Iniciando finalização do layout padrão - Empresa: {}, Título: {}, Páginas: {}", 
                 company.getName(), config.getReportTitle(), pdfDoc.getNumberOfPages());
         
-        // Adicionar cabeÃ§alho e rodapÃ© em todas as pÃ¡ginas (marca d'Ã¡gua Ã© adicionada dentro deste mÃ©todo se necessÃ¡rio)
+        // Adicionar cabeçalho e rodapé em todas as páginas (marca d'água é adicionada dentro deste método se necessário)
         addHeaderFooterToAllPages(pdfDoc, company, config);
         
-        log.info("âœ… Layout padrÃ£o finalizado com sucesso");
+        log.info("✅ Layout padrão finalizado com sucesso");
     }
     
     /**
-     * Classe auxiliar para manter referÃªncias necessÃ¡rias
+     * Classe auxiliar para manter referências necessárias
      */
     public static class DocumentWithPdf {
         private final Document document;
@@ -158,20 +160,33 @@ public class StandardReportLayoutService {
     }
     
     /**
-     * Adiciona cabeÃ§alho e rodapÃ© em todas as pÃ¡ginas do documento
-     * Esta mÃ©todo deve ser chamado apÃ³s o conteÃºdo ser adicionado ao documento
+     * Adiciona cabeçalho e rodapé em todas as páginas do documento
+     * Esta método deve ser chamado após o conteúdo ser adicionado ao documento
      */
     private void addHeaderFooterToAllPages(PdfDocument pdfDoc, Company company, ReportLayoutConfig config) {
         int totalPages = pdfDoc.getNumberOfPages();
         
         if (totalPages == 0) {
-            log.warn("Documento nÃ£o tem pÃ¡ginas ainda. Header/footer nÃ£o serÃ£o adicionados.");
+            log.warn("Documento não tem páginas ainda. Header/footer não serão adicionados.");
             return;
         }
         
         for (int i = 1; i <= totalPages; i++) {
             PdfPage page = pdfDoc.getPage(i);
-            Rectangle pageSize = page.getPageSize();
+            if (page == null || page.isFlushed()) {
+                log.warn("Página {} é nula ou já sofreu flush. Ignorando header/footer para esta página.", i);
+                continue;
+            }
+            
+            Rectangle pageSize = null;
+            try {
+                pageSize = page.getPageSize();
+            } catch (Exception e) {
+                log.warn("Não foi possível obter pageSize da página {}, usando padrão: {}", i, e.getMessage());
+            }
+            if (pageSize == null) {
+                pageSize = config.isLandscape() ? PageSize.A4.rotate() : PageSize.A4;
+            }
             
             try {
                 float pageWidth = pageSize.getWidth();
