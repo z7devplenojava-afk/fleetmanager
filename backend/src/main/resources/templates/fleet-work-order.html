@@ -330,6 +330,7 @@
       border-collapse: collapse;
       margin-top: 3px;
       margin-bottom: 4px;
+      table-layout: fixed;
     }
     
     table.fotos-table tr {
@@ -337,24 +338,30 @@
     }
     
     .foto-cell {
-      width: 33.33%;
+      width: 25%;
       text-align: center;
-      vertical-align: middle;
-      padding: 3px;
+      vertical-align: top;
+      padding: 2px;
+      box-sizing: border-box;
     }
     
     .foto-container {
       border: 1px solid #d0d0d0;
       border-radius: 4px;
-      padding: 3px;
+      padding: 2px;
       background-color: #fafafa;
       text-align: center;
+      box-sizing: border-box;
+      height: 98px;
+      overflow: hidden;
     }
     
     .foto-img {
-      max-width: 100%;
-      max-height: 125px;
-      height: auto;
+      width: 100%;
+      max-width: 155px;
+      height: 92px;
+      max-height: 92px;
+      object-fit: cover;
       display: block;
       margin: 0 auto;
       border-radius: 2px;
@@ -662,12 +669,15 @@
       <tr th:each="row : ${photoRows}">
         <td class="foto-cell" th:each="photo : ${row}">
           <div class="foto-container">
-            <img class="foto-img" th:src="${photo}" alt="Evidência Fotográfica" />
+            <img class="foto-img" th:src="${photo}" alt="Evidência Fotográfica" width="155" height="92" />
           </div>
         </td>
         <td class="foto-cell" th:if="${#lists.size(row) == 1}"></td>
         <td class="foto-cell" th:if="${#lists.size(row) == 1}"></td>
+        <td class="foto-cell" th:if="${#lists.size(row) == 1}"></td>
         <td class="foto-cell" th:if="${#lists.size(row) == 2}"></td>
+        <td class="foto-cell" th:if="${#lists.size(row) == 2}"></td>
+        <td class="foto-cell" th:if="${#lists.size(row) == 3}"></td>
       </tr>
     </table>
 

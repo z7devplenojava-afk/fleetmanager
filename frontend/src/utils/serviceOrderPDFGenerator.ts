@@ -283,21 +283,21 @@ class ServiceOrderPDFGenerator {
           }
           .evidence-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
           }
           .evidence-item {
             border: 1px solid #e5e7eb;
-            border-radius: 8px;
+            border-radius: 4px;
             overflow: hidden;
             background-color: #f9fafb;
           }
           .evidence-image {
             width: 100%;
-            height: 140px;
+            height: 92px;
             object-fit: cover;
             max-width: 100%;
-            max-height: 140px;
+            max-height: 92px;
           }
           .evidence-caption {
             padding: 8px;

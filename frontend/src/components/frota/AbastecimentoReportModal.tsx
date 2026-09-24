@@ -4,8 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
+import { downloadFuelReportsPDF, computeFuelReportsKpis } from '@/utils/fuelReportsPDFGenerator';
 import fleetService from '@/services/fleetService';
 import driverService from '@/services/driverService';
 import { costCenterService, CostCenterDTO } from '@/services/costCenterService';
@@ -21,6 +25,16 @@ interface Veiculo {
   modelo: string;
   status: string;
 }
+
+const getVehiclePlate = (v: Veiculo | undefined | null): string =>
+  (v as any)?.placa || (v as any)?.plate || '';
+
+const getVehicleLabel = (v: Veiculo): string => {
+  const plate = getVehiclePlate(v);
+  const brand = (v as any).marca || (v as any).brand || '';
+  const model = (v as any).modelo || (v as any).model || '';
+  return [plate, brand, model].filter(Boolean).join(' - ').replace(/ - $/, '') || 'Sem identificação';
+};
 
 interface AbastecimentoReportModalProps {
   isOpen: boolean;
@@ -49,6 +63,7 @@ const AbastecimentoReportModal: React.FC<AbastecimentoReportModalProps> = ({
   veiculos
 }) => {
   const { toast } = useToast();
+  const { user, empresa } = useAuth();
   const [filters, setFilters] = useState<ReportFilters>({
     vehicleId: 'all',
     driverId: 'all',
@@ -112,11 +127,22 @@ const AbastecimentoReportModal: React.FC<AbastecimentoReportModalProps> = ({
   // Filtrar motoristas ativos
   const activeDrivers = drivers.filter(d => d?.status === 'ATIVO');
 
-  // Filtrar veículos ativos
-  const activeVehicles = veiculos.filter(v =>
-    v.status.toLowerCase() === 'ativo' ||
-    v.status.toLowerCase() === 'active'
-  );
+  // Filtrar veículos ativos (compatível com campos PT e EN da API)
+  const activeVehicles = veiculos.filter(v => {
+    const status = String((v as any).status || '').toLowerCase();
+    return !status || status === 'ativo' || status === 'active';
+  });
+
+  const vehicleOptions = React.useMemo(() => {
+    return [
+      { label: 'Todos os veículos', value: 'all', search: 'todos veículos all' },
+      ...activeVehicles.map((vehicle) => ({
+        label: getVehicleLabel(vehicle),
+        value: vehicle.id,
+        search: `${getVehiclePlate(vehicle)} ${(vehicle as any).marca || (vehicle as any).brand || ''} ${(vehicle as any).modelo || (vehicle as any).model || ''}`.trim()
+      }))
+    ];
+  }, [activeVehicles]);
 
   // Gerar relatório
   const generateReport = () => {
@@ -186,26 +212,37 @@ const AbastecimentoReportModal: React.FC<AbastecimentoReportModalProps> = ({
     setReportData(null);
   };
 
-  // Exportar relatório para PDF
+  // Exportar relatório para PDF (padrão OS client-side, com logo da empresa)
   const exportToPDF = async () => {
-    if (!reportData) return;
+    if (!reportData || reportData.records.length === 0) return;
 
     try {
-      const blob = await fleetService.exportFuelRecordsPDF({
-        vehicleId: filters.vehicleId && filters.vehicleId !== 'all' ? filters.vehicleId : undefined,
-        driverId: filters.driverId && filters.driverId !== 'all' ? filters.driverId : undefined,
-        startDate: filters.startDate || undefined,
-        endDate: filters.endDate || undefined
-      });
+      const selectedVehicle = veiculos.find((v) => v.id === filters.vehicleId);
+      const selectedDriver = drivers.find((d) => d.id === filters.driverId);
 
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `relatorio_abastecimentos_${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      await downloadFuelReportsPDF({
+        reportView: 'all',
+        fuelRecords: reportData.records,
+        vehicles: veiculos as any,
+        kpis: computeFuelReportsKpis(reportData.records),
+        filters: {
+          startDate: filters.startDate || undefined,
+          endDate: filters.endDate || undefined,
+          vehicleId: filters.vehicleId && filters.vehicleId !== 'all' ? filters.vehicleId : undefined,
+          vehiclePlate: getVehiclePlate(selectedVehicle) || undefined,
+          driver: selectedDriver?.name,
+        },
+        company: {
+          name: empresa?.nome || (user as any)?.companyName || undefined,
+          tradeName: (empresa as any)?.sigla || empresa?.nome || undefined,
+          cnpj: (empresa as any)?.cnpj || (user as any)?.companyCnpj || undefined,
+          logoUrl: resolveCompanyLogoUrl(empresa?.logoUrl),
+          phone: (empresa as any)?.telefone,
+          email: (empresa as any)?.email,
+          address: (empresa as any)?.endereco,
+        },
+        userName: (user as any)?.name || (user as any)?.username || undefined,
+      });
 
       toast({
         title: "Relatório PDF exportado",
@@ -350,22 +387,14 @@ const AbastecimentoReportModal: React.FC<AbastecimentoReportModalProps> = ({
               <Car className="h-4 w-4 inline mr-1" />
               Veículo
             </Label>
-            <Select
-              value={filters.vehicleId}
-              onValueChange={(value) => setFilters({ ...filters, vehicleId: value })}
-            >
-              <SelectTrigger className="h-10 border-2 border-gray-600 bg-seguranca-black text-seguranca-lightgray hover:border-gray-500 focus:border-seguranca-yellow transition-colors">
-                <SelectValue placeholder="Todos os veículos" />
-              </SelectTrigger>
-              <SelectContent className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray">
-                <SelectItem value="all">Todos os veículos</SelectItem>
-                {activeVehicles.map((vehicle) => (
-                  <SelectItem key={vehicle.id} value={vehicle.id}>
-                    {vehicle.placa} - {vehicle.marca} {vehicle.modelo}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              options={vehicleOptions}
+              value={filters.vehicleId || 'all'}
+              onChange={(value) => setFilters({ ...filters, vehicleId: value })}
+              placeholder="Todos os veículos"
+              searchPlaceholder="Buscar por placa, marca ou modelo..."
+              emptyPlaceholder="Nenhum veículo encontrado."
+            />
           </div>
 
           {/* Filtro por Motorista */}

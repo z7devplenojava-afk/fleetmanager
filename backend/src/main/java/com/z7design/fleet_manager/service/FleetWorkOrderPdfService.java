@@ -272,10 +272,10 @@ public class FleetWorkOrderPdfService {
         data.put("hasPhotos", hasPhotos);
         data.put("photos", processedPhotos);
 
-        // Agrupar fotos em linhas de 3 para tabela no PDF
+        // Agrupar fotos em linhas de 4 para tabela no PDF
         List<List<String>> photoRows = new ArrayList<>();
-        for (int i = 0; i < processedPhotos.size(); i += 3) {
-            photoRows.add(processedPhotos.subList(i, Math.min(i + 3, processedPhotos.size())));
+        for (int i = 0; i < processedPhotos.size(); i += 4) {
+            photoRows.add(processedPhotos.subList(i, Math.min(i + 4, processedPhotos.size())));
         }
         data.put("photoRows", photoRows);
 

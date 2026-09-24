@@ -8,11 +8,18 @@ export interface ParsedSupplierRow {
   registrationNumber?: string;
   cnpj?: string;
   phone?: string;
+  mobile?: string;
   email?: string;
   address?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
   city?: string;
   state?: string;
   zipCode?: string;
+  stateRegistration?: string;
+  municipalRegistration?: string;
   notes?: string;
   isValid: boolean;
   validationIssues?: string[];
@@ -118,7 +125,7 @@ async function extractFromExcel(file: File): Promise<{ rows: any[][]; headers: s
     const row = jsonData[i];
     if (!row || !Array.isArray(row)) continue;
     const rowStr = row.map(c => normalizeText(String(c || ''))).join(' ');
-    if (rowStr.includes('nome') || rowStr.includes('cnpj') || rowStr.includes('cpf') || rowStr.includes('fornecedor') || rowStr.includes('razao')) {
+    if (rowStr.includes('nome') || rowStr.includes('nomcad') || rowStr.includes('nomres') || rowStr.includes('cnpj') || rowStr.includes('cpf') || rowStr.includes('fornecedor') || rowStr.includes('razao') || rowStr.includes('endereco') || rowStr.includes('endcad') || rowStr.includes('email')) {
       headerIndex = i;
       break;
     }
@@ -128,6 +135,60 @@ async function extractFromExcel(file: File): Promise<{ rows: any[][]; headers: s
   const dataRows = jsonData.slice(headerIndex + 1).filter(r => Array.isArray(r) && r.some(c => c !== null && c !== undefined && String(c).trim() !== ''));
 
   return { rows: dataRows, headers };
+}
+
+function isHeaderMatch(norm: string, keys: string[]): boolean {
+  return keys.some((k) => norm === k || norm.includes(k));
+}
+
+/** Monta endereço completo a partir de logradouro, número, complemento e bairro. */
+export function composeSupplierAddress(
+  street: string,
+  number?: string,
+  complement?: string,
+  neighborhood?: string
+): string {
+  const parts = [
+    (street || '').trim(),
+    (number || '').trim(),
+    (complement || '').trim(),
+    (neighborhood || '').trim()
+  ].filter(Boolean);
+  if (parts.length === 0) return '';
+  // Evita repetir se o logradouro já contém número/complemento/bairro
+  const base = parts[0];
+  const rest = parts.slice(1).filter((p) => !normalizeText(base).includes(normalizeText(p)));
+  return [base, ...rest].join(', ');
+}
+
+/** Preferência de telefone: celular > telefone fixo. */
+export function pickSupplierPhone(tel?: string, cel?: string): string {
+  const t = (tel || '').trim();
+  const c = (cel || '').trim();
+  return c || t || '';
+}
+
+/**
+ * Monta notas com inscrições sem coluna própria dedicada (ex.: IM).
+ * Inscrição Estadual vai para registrationNumber (coluna do banco).
+ */
+export function composeSupplierNotes(
+  baseNotes: string,
+  municipalRegistration?: string,
+  stateRegistration?: string
+): string {
+  const notes: string[] = [];
+  const base = (baseNotes || '').trim();
+  if (base) notes.push(base);
+  const im = (municipalRegistration || '').trim();
+  if (im && !normalizeText(base).includes(normalizeText(im))) {
+    notes.push(`Inscrição Municipal: ${im}`);
+  }
+  const ie = (stateRegistration || '').trim();
+  if (ie && !normalizeText(base).includes(normalizeText(ie))) {
+    notes.push(`Inscrição Estadual: ${ie}`);
+  }
+  return notes.join(' | ');
 }
 
 export class SupplierImportParser {
@@ -225,10 +286,13 @@ export class SupplierImportParser {
     }
 
     const columnsMapping: ColumnMappingInfo[] = [
-      { fileColumn: 'Nome do Fornecedor / Razão Social', dbColumn: 'name', dbFieldLabel: 'Nome (Obrigatório)', status: 'MAPPED', confidence: 100 },
+      { fileColumn: 'Nome / Razão Social', dbColumn: 'name', dbFieldLabel: 'Nome (Obrigatório)', status: 'MAPPED', confidence: 100 },
       { fileColumn: 'CPF / CNPJ', dbColumn: 'cnpj', dbFieldLabel: 'CPF / CNPJ', status: 'MAPPED', confidence: 100 },
-      { fileColumn: 'Endereço Completo', dbColumn: 'address', dbFieldLabel: 'Endereço', status: 'MAPPED', confidence: 95 },
-      { fileColumn: 'Telefone / Contato', dbColumn: 'phone', dbFieldLabel: 'Telefone', status: 'MAPPED', confidence: 90 },
+      { fileColumn: 'ENDEREÇO + NUMERO + COMPLEMENTO + BAIRRO', dbColumn: 'address', dbFieldLabel: 'Endereço (composto)', status: 'MAPPED', confidence: 95 },
+      { fileColumn: 'TEL / CEL', dbColumn: 'phone', dbFieldLabel: 'Telefone (CEL preferido)', status: 'MAPPED', confidence: 95 },
+      { fileColumn: 'EMAIL', dbColumn: 'email', dbFieldLabel: 'E-mail', status: 'MAPPED', confidence: 90 },
+      { fileColumn: 'INSCRIÇÃO ESTADUAL', dbColumn: 'registration_number', dbFieldLabel: 'Inscrição Estadual', status: 'MAPPED', confidence: 95 },
+      { fileColumn: 'INSCRIÇÃO MUNICIPAL', dbColumn: 'notes', dbFieldLabel: 'Inscrição Municipal (Notas)', status: 'MAPPED', confidence: 90 },
       { fileColumn: 'Cidade / Estado', dbColumn: 'city, state', dbFieldLabel: 'Cidade & Estado', status: 'MAPPED', confidence: 85 }
     ];
 
@@ -256,26 +320,51 @@ export class SupplierImportParser {
 
     headers.forEach((h, idx) => {
       const norm = normalizeText(h);
-      if (norm === 'razao social' || norm === 'razaosocial' || norm.includes('fantasia')) {
-        colIndexMap['tradeName'] = idx;
-        columnsMapping.push({ fileColumn: h, dbColumn: 'trade_name', dbFieldLabel: 'Razão Social / Nome Fantasia', status: 'MAPPED', confidence: 100 });
-      } else if (norm.includes('razao') || norm.includes('fornecedor') || norm.includes('nome') || norm === 'nome') {
-        if (colIndexMap['name'] === undefined) {
-          colIndexMap['name'] = idx;
-          columnsMapping.push({ fileColumn: h, dbColumn: 'name', dbFieldLabel: 'Nome (Obrigatório)', status: 'MAPPED', confidence: 100 });
+      if (!norm) return;
+
+      // Ordem importa: colunas mais específicas primeiro
+      if (isHeaderMatch(norm, ['inscricao estadual', 'inscricao est', 'insc estadual']) || norm === 'ie') {
+        colIndexMap['stateRegistration'] = idx;
+        columnsMapping.push({ fileColumn: h, dbColumn: 'registration_number', dbFieldLabel: 'Inscrição Estadual', status: 'MAPPED', confidence: 100 });
+      } else if (isHeaderMatch(norm, ['inscricao municipal', 'inscricao mun', 'insc municipal']) || norm === 'im') {
+        colIndexMap['municipalRegistration'] = idx;
+        columnsMapping.push({ fileColumn: h, dbColumn: 'notes', dbFieldLabel: 'Inscrição Municipal (gravada em Notas)', status: 'MAPPED', confidence: 95 });
+      } else if (isHeaderMatch(norm, ['codigo fornec', 'cod_fornec']) || norm === 'codigo' || norm === 'cod') {
+        if (colIndexMap['registrationNumber'] === undefined) {
+          colIndexMap['registrationNumber'] = idx;
+          columnsMapping.push({ fileColumn: h, dbColumn: 'registration_number', dbFieldLabel: 'Nº Cadastro / Inscrição', status: 'MAPPED', confidence: 95 });
         }
       } else if (norm.includes('cnpj') || norm.includes('cpf') || norm.includes('documento')) {
-        colIndexMap['cnpj'] = idx;
-        columnsMapping.push({ fileColumn: h, dbColumn: 'cnpj', dbFieldLabel: 'CPF / CNPJ', status: 'MAPPED', confidence: 100 });
-      } else if (norm.includes('numcad') || norm.includes('inscricao') || norm.includes('codigo') || norm.includes('cod')) {
-        colIndexMap['registrationNumber'] = idx;
-        columnsMapping.push({ fileColumn: h, dbColumn: 'registration_number', dbFieldLabel: 'Nº Cadastro / Inscrição (NUMCAD)', status: 'MAPPED', confidence: 95 });
-      } else if (norm.includes('endereco') || norm.includes('logradouro') || norm.includes('rua')) {
-        colIndexMap['address'] = idx;
-        columnsMapping.push({ fileColumn: h, dbColumn: 'address', dbFieldLabel: 'Endereço', status: 'MAPPED', confidence: 100 });
-      } else if (norm.includes('telefone') || norm.includes('celular') || norm.includes('fone') || norm.includes('contato')) {
-        colIndexMap['phone'] = idx;
-        columnsMapping.push({ fileColumn: h, dbColumn: 'phone', dbFieldLabel: 'Telefone', status: 'MAPPED', confidence: 95 });
+        if (colIndexMap['cnpj'] === undefined) {
+          colIndexMap['cnpj'] = idx;
+          columnsMapping.push({ fileColumn: h, dbColumn: 'cnpj', dbFieldLabel: 'CPF / CNPJ', status: 'MAPPED', confidence: 100 });
+        }
+      } else if (isHeaderMatch(norm, ['celular', 'cell', 'whatsapp']) || norm === 'cel') {
+        colIndexMap['mobile'] = idx;
+        columnsMapping.push({ fileColumn: h, dbColumn: 'phone', dbFieldLabel: 'Celular (preferido no campo Telefone)', status: 'MAPPED', confidence: 100 });
+      } else if (isHeaderMatch(norm, ['telefone', 'tel.', 'fone']) || norm === 'tel') {
+        if (colIndexMap['phone'] === undefined) {
+          colIndexMap['phone'] = idx;
+          columnsMapping.push({ fileColumn: h, dbColumn: 'phone', dbFieldLabel: 'Telefone', status: 'MAPPED', confidence: 95 });
+        }
+      } else if (isHeaderMatch(norm, ['contato', 'representante']) || norm === 'nomcnt') {
+        colIndexMap['contactName'] = idx;
+        columnsMapping.push({ fileColumn: h, dbColumn: 'contact_name', dbFieldLabel: 'Contato', status: 'MAPPED', confidence: 90 });
+      } else if (isHeaderMatch(norm, ['complemento', 'compl.']) || norm === 'cmplto') {
+        colIndexMap['complement'] = idx;
+        columnsMapping.push({ fileColumn: h, dbColumn: 'address', dbFieldLabel: 'Complemento (no Endereço)', status: 'MAPPED', confidence: 100 });
+      } else if (isHeaderMatch(norm, ['bairro', 'distrito']) || norm === 'bai') {
+        colIndexMap['neighborhood'] = idx;
+        columnsMapping.push({ fileColumn: h, dbColumn: 'address', dbFieldLabel: 'Bairro (no Endereço)', status: 'MAPPED', confidence: 100 });
+      } else if (isHeaderMatch(norm, ['numero', 'número', 'nro', 'n°', 'no ']) || norm === 'nº' || norm === 'num' || norm === 'numcad') {
+        colIndexMap['number'] = idx;
+        columnsMapping.push({ fileColumn: h, dbColumn: 'address', dbFieldLabel: 'Número (no Endereço)', status: 'MAPPED', confidence: 100 });
+      } else if (isHeaderMatch(norm, ['endereco', 'endereço', 'logradouro', 'rua', 'avenida', 'av.']) || norm === 'endcad') {
+        if (colIndexMap['address'] === undefined && colIndexMap['street'] === undefined) {
+          colIndexMap['street'] = idx;
+          colIndexMap['address'] = idx;
+          columnsMapping.push({ fileColumn: h, dbColumn: 'address', dbFieldLabel: 'Endereço', status: 'MAPPED', confidence: 100 });
+        }
       } else if (norm.includes('email') || norm.includes('e-mail')) {
         colIndexMap['email'] = idx;
         columnsMapping.push({ fileColumn: h, dbColumn: 'email', dbFieldLabel: 'E-mail', status: 'MAPPED', confidence: 100 });
@@ -291,6 +380,20 @@ export class SupplierImportParser {
       } else if (norm.includes('observ') || norm.includes('obs') || norm.includes('nota')) {
         colIndexMap['notes'] = idx;
         columnsMapping.push({ fileColumn: h, dbColumn: 'notes', dbFieldLabel: 'Observações', status: 'MAPPED', confidence: 80 });
+      } else if (norm.includes('fantasia') || isHeaderMatch(norm, ['nome fantasia', 'apelido'])) {
+        colIndexMap['tradeName'] = idx;
+        columnsMapping.push({ fileColumn: h, dbColumn: 'trade_name', dbFieldLabel: 'Nome Fantasia', status: 'MAPPED', confidence: 95 });
+      } else if (norm.includes('razao') || norm === 'nome' || norm.startsWith('nome ') || norm.includes('nome do fornecedor') || norm.includes('fornecedor') || norm === 'nomcad' || norm === 'nomres') {
+        // Prioriza "Razão Social" / "Nome" para o campo name (dois-passos abaixo se houver ambos)
+        if (colIndexMap['name'] === undefined) {
+          colIndexMap['name'] = idx;
+          columnsMapping.push({ fileColumn: h, dbColumn: 'name', dbFieldLabel: 'Nome / Razão Social (Obrigatório)', status: 'MAPPED', confidence: 100 });
+        } else if (colIndexMap['tradeName'] === undefined && norm.includes('razao')) {
+          // Se Nome já mapeado e apareceu Razão Social depois, Razão Social vira name principal e Nome vira trade
+          const prevName = colIndexMap['name'];
+          colIndexMap['tradeName'] = prevName;
+          colIndexMap['name'] = idx;
+        }
       } else {
         columnsMapping.push({ fileColumn: h, dbColumn: 'notes', dbFieldLabel: 'Informação Adicional (Armazenado em Notas)', status: 'OPTIONAL', confidence: 50 });
       }
@@ -308,34 +411,58 @@ export class SupplierImportParser {
 
       let name = getVal('name');
       const tradeName = getVal('tradeName');
+      const contactName = getVal('contactName');
       const regNumber = getVal('registrationNumber');
       const rawDoc = getVal('cnpj');
-      const address = getVal('address');
-      const phone = getVal('phone');
+      const street = getVal('street') || getVal('address');
+      const number = getVal('number');
+      const complement = getVal('complement');
+      const neighborhood = getVal('neighborhood');
+      const tel = getVal('phone');
+      const cel = getVal('mobile');
+      const phone = pickSupplierPhone(tel, cel);
       const email = getVal('email');
       const city = getVal('city');
       const state = getVal('state');
       const zipCode = getVal('zipCode');
-      const notes = getVal('notes');
+      const notesRaw = getVal('notes');
+      const stateRegistration = getVal('stateRegistration');
+      const municipalRegistration = getVal('municipalRegistration');
 
       if (!name && tradeName) {
         name = tradeName;
       }
+
+      const address = composeSupplierAddress(street, number, complement, neighborhood);
+      // Inscrição Estadual prioriza registration_number do banco; IM vai para notes
+      const registrationNumber = stateRegistration || regNumber || undefined;
+      const notes =
+        composeSupplierNotes(notesRaw, municipalRegistration, stateRegistration) ||
+        (regNumber && !stateRegistration ? `NUMCAD: ${regNumber}` : undefined) ||
+        undefined;
 
       if (name && name.length >= 2) {
         rows.push({
           id: `row-${idx + 1}`,
           name,
           tradeName: tradeName || undefined,
-          registrationNumber: regNumber || undefined,
+          contactName: contactName || undefined,
+          registrationNumber,
           cnpj: formatCpfCnpjString(rawDoc) || undefined,
           address: address || undefined,
+          street: street || undefined,
+          number: number || undefined,
+          complement: complement || undefined,
+          neighborhood: neighborhood || undefined,
           phone: formatPhoneString(phone) || undefined,
+          mobile: cel ? formatPhoneString(cel) || undefined : undefined,
           email: email || undefined,
           city: city || undefined,
           state: state || undefined,
           zipCode: zipCode || undefined,
-          notes: notes || (regNumber ? `NUMCAD: ${regNumber}` : undefined),
+          stateRegistration: stateRegistration || undefined,
+          municipalRegistration: municipalRegistration || undefined,
+          notes: notes || undefined,
           isValid: true
         });
       }

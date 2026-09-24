@@ -71,7 +71,12 @@ public interface EPIDeliveryRepository extends JpaRepository<EPIDelivery, UUID> 
     List<EPIDelivery> findLatestDeliveryByEmployeeAndEpi(@Param("employeeId") UUID employeeId, @Param("epiId") UUID epiId);
 
     /**
-     * Conta entregas por funcionÃ¡rio e perÃ­odo
+     * Busca entregas por status
+     */
+    List<EPIDelivery> findByStatus(String status);
+
+    /**
+     * Conta entregas por funcionário e período
      */
     @Query("SELECT COUNT(e) FROM EPIDelivery e WHERE e.employee.id = :employeeId AND e.deliveryDate BETWEEN :startDate AND :endDate")
     Long countByEmployeeAndDeliveryDateBetween(@Param("employeeId") UUID employeeId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);

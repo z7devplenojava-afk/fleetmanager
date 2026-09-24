@@ -19,8 +19,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
+interface ComboboxOption {
+  label: string;
+  value: string;
+  /** Texto indexado na busca (ex.: placa); padrão é option.value */
+  search?: string;
+}
+
 interface ComboboxProps {
-  options: { label: string; value: string }[];
+  options: ComboboxOption[];
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -65,9 +72,15 @@ export function Combobox({
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value}
+                  value={option.search ?? option.value}
                   onSelect={(currentValue) => {
-                    onChange(currentValue === value ? "" : currentValue)
+                    const matched = options.find(
+                      (o) =>
+                        o.value === currentValue ||
+                        (o.search ?? o.value).toLowerCase() === currentValue.toLowerCase() ||
+                        o.value.toLowerCase() === currentValue.toLowerCase()
+                    )
+                    onChange(matched ? matched.value : currentValue)
                     setOpen(false)
                   }}
                   className="text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-lightgray"

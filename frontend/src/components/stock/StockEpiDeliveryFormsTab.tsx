@@ -98,7 +98,7 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
       const [fichasRes, emps, comps, items] = await Promise.all([
         epiDeliveryFormService.getAll(0, 100).catch(() => ({ content: [], totalElements: 0 })),
         employeeService.getEmployees().catch(() => []),
-        companyService.getCompanies().catch(() => []),
+        companyService.getAllCompanies().catch(() => []),
         stockService.getAllItems().catch(() => [])
       ]);
 

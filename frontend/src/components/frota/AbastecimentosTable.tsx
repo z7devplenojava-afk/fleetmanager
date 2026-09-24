@@ -10,12 +10,16 @@ import AbastecimentoEditModal from './AbastecimentoEditModal';
 import AbastecimentoDeleteDialog from './AbastecimentoDeleteDialog';
 import AbastecimentoReportModal from './AbastecimentoReportModal';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
+import { downloadFuelReportsPDF, computeFuelReportsKpis } from '@/utils/fuelReportsPDFGenerator';
 import api from '@/lib/axios';
 import fleetService from '@/services/fleetService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 
 interface Veiculo {
   id: string;
@@ -24,6 +28,16 @@ interface Veiculo {
   modelo: string;
   status: string;
 }
+
+const getVehiclePlate = (v: Veiculo | undefined | null): string =>
+  (v as any)?.placa || (v as any)?.plate || '';
+
+const getVehicleLabel = (v: Veiculo): string => {
+  const plate = getVehiclePlate(v);
+  const brand = (v as any).marca || (v as any).brand || '';
+  const model = (v as any).modelo || (v as any).model || '';
+  return [plate, brand, model].filter(Boolean).join(' - ').replace(/ - $/, '') || 'Sem identificação';
+};
 
 interface AbastecimentosTableProps {
   abastecimentos: FuelRecord[];
@@ -36,6 +50,7 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
   veiculos,
   onRefresh
 }) => {
+  const { user, empresa } = useAuth();
   const [editingAbastecimento, setEditingAbastecimento] = useState<FuelRecord | null>(null);
   const [deletingAbastecimento, setDeletingAbastecimento] = useState<FuelRecord | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -163,6 +178,66 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
     fuelType: ''
   });
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [pdfFallbackVehicles, setPdfFallbackVehicles] = useState<Veiculo[]>([]);
+  const [isLoadingPdfVehicles, setIsLoadingPdfVehicles] = useState(false);
+
+  const normalizedPdfVehicles: Veiculo[] = React.useMemo(
+    () =>
+      veiculos.map((v) => ({
+        ...v,
+        placa: getVehiclePlate(v),
+        marca: (v as any).marca || (v as any).brand || '',
+        modelo: (v as any).modelo || (v as any).model || '',
+        status: (v as any).status || ''
+      })),
+    [veiculos]
+  );
+
+  const pdfVehicleOptions = React.useMemo(() => {
+    const source = normalizedPdfVehicles.length > 0 ? normalizedPdfVehicles : pdfFallbackVehicles;
+    return [
+      { label: 'Todos os veículos', value: 'all', search: 'todos veículos all' },
+      ...source.map((v) => {
+        const plate = getVehiclePlate(v);
+        const brand = v.marca || '';
+        const model = v.modelo || '';
+        return {
+          label: getVehicleLabel(v),
+          value: v.id,
+          search: `${plate} ${brand} ${model}`.trim()
+        };
+      })
+    ];
+  }, [normalizedPdfVehicles, pdfFallbackVehicles]);
+
+  React.useEffect(() => {
+    if (!isPDFModalOpen || normalizedPdfVehicles.length > 0) return;
+    let cancelled = false;
+    setIsLoadingPdfVehicles(true);
+    fleetService
+      .getVehicles()
+      .then((data) => {
+        if (cancelled || !Array.isArray(data)) return;
+        setPdfFallbackVehicles(
+          data.map((v: any) => ({
+            id: v.id,
+            placa: v.plate || v.placa || '',
+            marca: v.brand || v.marca || '',
+            modelo: v.model || v.modelo || '',
+            status: v.status || 'ATIVO'
+          }))
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setPdfFallbackVehicles([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingPdfVehicles(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isPDFModalOpen, normalizedPdfVehicles.length]);
 
   const handleGeneratePDF = async () => {
     if (!pdfFilters.startDate || !pdfFilters.endDate) {
@@ -176,42 +251,68 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
 
     setIsGeneratingPDF(true);
     try {
-      const filters: any = {
+      const filters: {
+        startDate?: string;
+        endDate?: string;
+        vehicleId?: string;
+        driverId?: string;
+      } = {
         startDate: pdfFilters.startDate,
         endDate: pdfFilters.endDate
       };
-      
+
       if (pdfFilters.vehicleId && pdfFilters.vehicleId !== 'all') {
         filters.vehicleId = pdfFilters.vehicleId;
       }
-      
+
+      let records = await fleetService.getFilteredFuelRecords(filters);
+
       if (pdfFilters.fuelType && pdfFilters.fuelType !== 'all') {
-        filters.fuelType = pdfFilters.fuelType;
+        records = records.filter((r) => r.fuelType === pdfFilters.fuelType);
       }
 
-      const blob = await fleetService.exportFuelRecordsPDF(filters);
-      
-      // Criar URL para download
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      
-      // Definir nome do arquivo
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
-      link.download = `relatorio_abastecimentos_${timestamp}.pdf`;
-      
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
+      if (records.length === 0) {
+        toast({
+          title: "Sem dados",
+          description: "Nenhum abastecimento encontrado com os filtros aplicados.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const vehicleSource =
+        normalizedPdfVehicles.length > 0 ? normalizedPdfVehicles : pdfFallbackVehicles;
+      const selectedVehicle = vehicleSource.find((v) => v.id === pdfFilters.vehicleId);
+      await downloadFuelReportsPDF({
+        reportView: 'all',
+        fuelRecords: records,
+        vehicles: vehicleSource as any,
+        kpis: computeFuelReportsKpis(records),
+        filters: {
+          startDate: pdfFilters.startDate || undefined,
+          endDate: pdfFilters.endDate || undefined,
+          vehicleId: pdfFilters.vehicleId && pdfFilters.vehicleId !== 'all' ? pdfFilters.vehicleId : undefined,
+          vehiclePlate: getVehiclePlate(selectedVehicle) || undefined,
+          fuelType: pdfFilters.fuelType && pdfFilters.fuelType !== 'all' ? pdfFilters.fuelType : undefined,
+        },
+        company: {
+          name: empresa?.nome || (user as any)?.companyName || undefined,
+          tradeName: (empresa as any)?.sigla || empresa?.nome || undefined,
+          cnpj: (empresa as any)?.cnpj || (user as any)?.companyCnpj || undefined,
+          logoUrl: resolveCompanyLogoUrl(empresa?.logoUrl),
+          phone: (empresa as any)?.telefone,
+          email: (empresa as any)?.email,
+          address: (empresa as any)?.endereco,
+        },
+        userName: (user as any)?.name || (user as any)?.username || undefined,
+      });
+
       toast({
         title: "Relatório gerado com sucesso!",
         description: "O relatório de abastecimentos foi baixado com sucesso.",
         variant: "default",
       });
-      
+
       setIsPDFModalOpen(false);
     } catch (error: any) {
       console.error('Erro ao gerar relatório PDF:', error);
@@ -865,22 +966,18 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
             
             <div className="space-y-2">
               <Label className="text-seguranca-lightgray">Veículo</Label>
-              <Select 
-                value={pdfFilters.vehicleId} 
-                onValueChange={(value) => setPdfFilters({ ...pdfFilters, vehicleId: value })}
-              >
-                <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                  <SelectValue placeholder="Todos os veículos" />
-                </SelectTrigger>
-                <SelectContent className="bg-seguranca-graphite border-gray-600">
-                  <SelectItem value="all">Todos os veículos</SelectItem>
-                  {veiculos.map((veiculo) => (
-                    <SelectItem key={veiculo.id} value={veiculo.id}>
-                      {veiculo.placa} - {veiculo.marca} {veiculo.modelo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={pdfVehicleOptions}
+                value={pdfFilters.vehicleId || 'all'}
+                onChange={(value) => setPdfFilters({ ...pdfFilters, vehicleId: value })}
+                placeholder="Todos os veículos"
+                searchPlaceholder="Buscar por placa, marca ou modelo..."
+                emptyPlaceholder={
+                  isLoadingPdfVehicles
+                    ? 'Carregando veículos...'
+                    : 'Nenhum veículo encontrado.'
+                }
+              />
             </div>
             
             <div className="space-y-2">

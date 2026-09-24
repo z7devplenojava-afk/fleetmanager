@@ -150,23 +150,41 @@ public class SSTEPIService {
     // ========== CONTROLE DE ENTREGA ==========
 
     /**
-     * Registra entrega de EPI
+     * Busca todas as entregas de EPI ordenadas por data
+     */
+    @Transactional(readOnly = true)
+    public List<EPIDelivery> getAllEPIDeliveries() {
+        return deliveryRepository.findAll(org.springframework.data.domain.Sort.by(
+                org.springframework.data.domain.Sort.Direction.DESC, "deliveryDate", "createdAt"));
+    }
+
+    /**
+     * Registra entrega de EPI básica (compatibilidade)
      */
     public EPIDelivery deliverEPI(UUID employeeId, UUID epiId, Integer quantity, String reason, UUID deliveredByUserId, String notes, LocalDate deliveryDate) {
-        log.info("Registrando entrega de EPI {} para funcionÃ¡rio {} na data {}", epiId, employeeId, deliveryDate);
+        return deliverEPI(employeeId, epiId, quantity, reason, deliveredByUserId, notes, deliveryDate, null, 0, null, null, null);
+    }
+
+    /**
+     * Registra entrega de EPI completa com controle de periodicidade, conferência de almoxarifado e estorno
+     */
+    public EPIDelivery deliverEPI(UUID employeeId, UUID epiId, Integer quantity, String reason, UUID deliveredByUserId,
+                                  String notes, LocalDate deliveryDate, UUID returnedEpiId, Integer returnedQuantity,
+                                  String returnedCondition, String exchangeJustification, LocalDate nextExchangeDate) {
+        log.info("Registrando entrega de EPI {} para funcionário {} na data {}", epiId, employeeId, deliveryDate);
         
-        // Busca o funcionÃ¡rio
+        // Busca o funcionário
         Employee employee = employeeRepository.findById(employeeId)
-            .orElseThrow(() -> new IllegalArgumentException("FuncionÃ¡rio nÃ£o encontrado"));
+            .orElseThrow(() -> new IllegalArgumentException("Funcionário não encontrado"));
         
-        // Verifica se hÃ¡ estoque suficiente
+        // Verifica se há estoque suficiente
         PersonalProtectiveEquipment epi = getEPIById(epiId);
         if (epi == null) {
-            throw new IllegalArgumentException("EPI nÃ£o encontrado");
+            throw new IllegalArgumentException("EPI não encontrado");
         }
         
-        if (epi.getCurrentStock() < quantity) {
-            throw new IllegalArgumentException("Estoque insuficiente");
+        if (epi.getCurrentStock() != null && epi.getCurrentStock() < quantity) {
+            throw new IllegalArgumentException("Estoque insuficiente. Disponível: " + epi.getCurrentStock() + ", Solicitado: " + quantity);
         }
         
         // Converte o motivo da entrega (string) para enum
@@ -174,14 +192,29 @@ public class SSTEPIService {
         try {
             deliveryReason = EPIDeliveryReason.valueOf(reason.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Motivo de entrega invÃ¡lido: " + reason);
+            throw new IllegalArgumentException("Motivo de entrega inválido: " + reason);
         }
         
-        // Busca o usuÃ¡rio que estÃ¡ fazendo a entrega (se fornecido)
+        // Busca o usuário que está fazendo o registro
         User deliveredByUser = null;
         if (deliveredByUserId != null) {
-            deliveredByUser = userRepository.findById(deliveredByUserId)
-                .orElse(null); // NÃ£o Ã© obrigatÃ³rio, pode ser null
+            deliveredByUser = userRepository.findById(deliveredByUserId).orElse(null);
+        }
+        
+        // Identificar se o usuário é do Almoxarifado ou Administrador
+        boolean isAlmoxarifadoOrAdmin = false;
+        if (deliveredByUser != null && deliveredByUser.getRoles() != null) {
+            isAlmoxarifadoOrAdmin = deliveredByUser.getRoles().stream()
+                .anyMatch(r -> {
+                    String name = r.getName().toUpperCase();
+                    return name.contains("ALMOXARIFADO") || name.contains("ADMIN");
+                });
+        }
+
+        // Calcular próxima data de troca se não fornecida
+        if (nextExchangeDate == null && epi.getValidityMonths() != null && epi.getValidityMonths() > 0) {
+            LocalDate baseDate = deliveryDate != null ? deliveryDate : LocalDate.now();
+            nextExchangeDate = baseDate.plusMonths(epi.getValidityMonths());
         }
         
         // Cria registro de entrega
@@ -194,17 +227,89 @@ public class SSTEPIService {
         delivery.setDeliveredByUser(deliveredByUser);
         delivery.setReceivedByEmployee(false);
         delivery.setNotes(notes);
+        delivery.setNextExchangeDate(nextExchangeDate);
+        delivery.setExchangeJustification(exchangeJustification);
+
+        // Tratamento de Devolução / Troca e Estorno de Estoque
+        if (returnedEpiId != null && returnedQuantity != null && returnedQuantity > 0) {
+            PersonalProtectiveEquipment returnedEpi = getEPIById(returnedEpiId);
+            delivery.setReturnedEpi(returnedEpi);
+            delivery.setReturnedQuantity(returnedQuantity);
+            delivery.setReturnedCondition(returnedCondition != null ? returnedCondition : "REAPROVEITAVEL");
+
+            // Se for reaproveitável, efetua o estorno no estoque do EPI devolvido
+            if ("REAPROVEITAVEL".equalsIgnoreCase(returnedCondition) && returnedEpi != null) {
+                int estoqueAtual = returnedEpi.getCurrentStock() != null ? returnedEpi.getCurrentStock() : 0;
+                int novoEstoqueDevolvido = estoqueAtual + returnedQuantity;
+                updateEPIStock(returnedEpi.getId(), novoEstoqueDevolvido);
+                delivery.setReturnedStockRefunded(true);
+                log.info("♻️ Estorno no estoque: EPI devolvido '{}' (+{} unidades). Novo estoque: {}",
+                        returnedEpi.getName(), returnedQuantity, novoEstoqueDevolvido);
+            } else {
+                delivery.setReturnedStockRefunded(false);
+                log.info("🗑️ Item devolvido classificado como descarte. Sem estorno de estoque.");
+            }
+        }
+
+        // Regra de Almoxarifado vs RH/DP/SST:
+        if (isAlmoxarifadoOrAdmin) {
+            // Almoxarifado registra: baixa imediata
+            delivery.setStatus("CONCLUIDO");
+            delivery.setVerifiedByAlmoxarifado(true);
+            delivery.setVerifiedByAlmoxarifadoAt(java.time.LocalDateTime.now());
+            delivery.setVerifiedByAlmoxarifadoUser(deliveredByUser);
+            
+            // Atualiza estoque (baixa)
+            int estoqueAtual = epi.getCurrentStock() != null ? epi.getCurrentStock() : 0;
+            updateEPIStock(epiId, Math.max(0, estoqueAtual - quantity));
+            log.info("📦 Entrega registrada pelo Almoxarifado/Admin. Baixa no estoque efetuada imediatamente.");
+        } else {
+            // RH, Departamento Pessoal ou SST registra: Fica pendente de conferência do almoxarifado
+            delivery.setStatus("PENDENTE_CONFERENCIA_ALMOXARIFADO");
+            delivery.setVerifiedByAlmoxarifado(false);
+            log.info("⏳ Entrega registrada por RH/DP/SST. Pendente de conferência física e baixa pelo Almoxarifado.");
+        }
         
         EPIDelivery savedDelivery = deliveryRepository.save(delivery);
-        
-        // Atualiza estoque
-        updateEPIStock(epiId, epi.getCurrentStock() - quantity);
-        
         return savedDelivery;
     }
 
     /**
-     * Confirma recebimento do EPI pelo funcionÃ¡rio
+     * Almoxarifado confere e efetua a baixa no estoque da entrega
+     */
+    public EPIDelivery verifyDeliveryByAlmoxarifado(UUID deliveryId, UUID almoxarifeUserId) {
+        log.info("Almoxarifado conferindo entrega de EPI: {}", deliveryId);
+        EPIDelivery delivery = deliveryRepository.findById(deliveryId)
+            .orElseThrow(() -> new IllegalArgumentException("Entrega de EPI não encontrada"));
+
+        if (Boolean.TRUE.equals(delivery.getVerifiedByAlmoxarifado())) {
+            log.warn("Entrega {} já foi conferida pelo almoxarifado anteriormente.", deliveryId);
+            return delivery;
+        }
+
+        User almoxarife = null;
+        if (almoxarifeUserId != null) {
+            almoxarife = userRepository.findById(almoxarifeUserId).orElse(null);
+        }
+
+        PersonalProtectiveEquipment epi = delivery.getEpi();
+        if (epi != null && epi.getCurrentStock() != null) {
+            int novoEstoque = Math.max(0, epi.getCurrentStock() - delivery.getQuantity());
+            updateEPIStock(epi.getId(), novoEstoque);
+            log.info("📦 Baixa de estoque efetuada pelo Almoxarifado para EPI '{}': -{} unidades (Novo estoque: {})",
+                    epi.getName(), delivery.getQuantity(), novoEstoque);
+        }
+
+        delivery.setStatus("CONCLUIDO");
+        delivery.setVerifiedByAlmoxarifado(true);
+        delivery.setVerifiedByAlmoxarifadoAt(java.time.LocalDateTime.now());
+        delivery.setVerifiedByAlmoxarifadoUser(almoxarife);
+
+        return deliveryRepository.save(delivery);
+    }
+
+    /**
+     * Confirma recebimento do EPI pelo funcionário
      */
     public void confirmEPIReceipt(UUID deliveryId, String signatureUrl) {
         log.info("Confirmando recebimento do EPI: {}", deliveryId);

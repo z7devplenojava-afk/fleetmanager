@@ -72,6 +72,43 @@ public class EPIDelivery {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Builder.Default
+    @Column(name = "status", length = 50)
+    private String status = "CONCLUIDO";
+
+    @Builder.Default
+    @Column(name = "verified_by_almoxarifado")
+    private Boolean verifiedByAlmoxarifado = false;
+
+    @Column(name = "verified_by_almoxarifado_at")
+    private LocalDateTime verifiedByAlmoxarifadoAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "verified_by_almoxarifado_user_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private User verifiedByAlmoxarifadoUser;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "returned_epi_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private PersonalProtectiveEquipment returnedEpi;
+
+    @Column(name = "returned_quantity")
+    private Integer returnedQuantity;
+
+    @Builder.Default
+    @Column(name = "returned_stock_refunded")
+    private Boolean returnedStockRefunded = false;
+
+    @Column(name = "returned_condition", length = 50)
+    private String returnedCondition;
+
+    @Column(name = "next_exchange_date")
+    private LocalDate nextExchangeDate;
+
+    @Column(name = "exchange_justification", columnDefinition = "TEXT")
+    private String exchangeJustification;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

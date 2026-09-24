@@ -145,7 +145,13 @@ const AbastecimentoDashboard: React.FC = () => {
                             <CardContent className="p-0">
                                 <AbastecimentosTable
                                     abastecimentos={fuelRecords}
-                                    veiculos={vehicles}
+                                    veiculos={vehicles.map((v) => ({
+                                        id: v.id,
+                                        placa: v.plate || (v as any).placa || '',
+                                        marca: v.brand || (v as any).marca || '',
+                                        modelo: v.model || (v as any).modelo || '',
+                                        status: v.status || (v as any).status || 'ATIVO'
+                                    }))}
                                     onRefresh={handleSuccess}
                                 />
                             </CardContent>

@@ -17,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -29,8 +30,9 @@ import java.util.UUID;
 @RequestMapping("/api/epi-delivery-forms")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Fichas de Entrega de EPI", description = "Endpoints para gestÃ£o de fichas de entrega de EPI")
+@Tag(name = "Fichas de Entrega de EPI", description = "Endpoints para gestão de fichas de entrega de EPI")
 @SecurityRequirement(name = "bearerAuth")
+@PreAuthorize("hasAnyRole('RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN') or hasAnyAuthority('RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN')")
 public class EPIDeliveryFormController {
 
     private final EPIDeliveryFormService epiDeliveryFormService;

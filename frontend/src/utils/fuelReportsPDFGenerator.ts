@@ -1,17 +1,32 @@
 import type { FuelRecord, Vehicle } from '@/types/fleet';
 
+export interface FuelReportsKpis {
+  totalCost: number;
+  totalLiters: number;
+  avgPricePerLiter: number;
+  avgCostPerRecord: number;
+  totalRecords: number;
+  uniqueVehicles: number;
+}
+
+export function computeFuelReportsKpis(records: FuelRecord[]): FuelReportsKpis {
+  const totalCost = records.reduce((sum, r) => sum + (r.cost || 0), 0);
+  const totalLiters = records.reduce((sum, r) => sum + (r.quantity || 0), 0);
+  return {
+    totalCost,
+    totalLiters,
+    avgPricePerLiter: totalLiters > 0 ? totalCost / totalLiters : 0,
+    avgCostPerRecord: records.length > 0 ? totalCost / records.length : 0,
+    totalRecords: records.length,
+    uniqueVehicles: new Set(records.map((r) => r.vehicleId)).size,
+  };
+}
+
 export interface FuelReportsPDFOptions {
   reportView: 'period' | 'vehicle' | 'worksite' | 'garage' | 'driver' | 'all';
   fuelRecords: FuelRecord[];
   vehicles?: Vehicle[];
-  kpis: {
-    totalCost: number;
-    totalLiters: number;
-    avgPricePerLiter: number;
-    avgCostPerRecord: number;
-    totalRecords: number;
-    uniqueVehicles: number;
-  };
+  kpis: FuelReportsKpis;
   filters: {
     startDate?: string;
     endDate?: string;
@@ -77,6 +92,25 @@ function loadImageAsBase64(url: string): Promise<string | null> {
   });
 }
 
+async function fetchLogoAsBase64(url: string): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const viaImage = await loadImageAsBase64(url);
+    if (viaImage) return viaImage;
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Gera relatório de abastecimento (todos os tipos) no padrão OS corporativo.
  */
@@ -100,7 +134,7 @@ export async function generateFuelReportsPDF(options: FuelReportsPDFOptions) {
   // Load logo
   let logoBase64: string | null = null;
   if (options.company?.logoUrl) {
-    try { logoBase64 = await loadImageAsBase64(options.company.logoUrl); } catch { logoBase64 = null; }
+    try { logoBase64 = await fetchLogoAsBase64(options.company.logoUrl); } catch { logoBase64 = null; }
   }
 
   // ── 1. CABEÇALHO INSTITUCIONAL ──

@@ -1,7 +1,7 @@
 {
-  "name": "FluxBus - Sistema de Segurança",
+  "name": "FluxBus - Fleet Management",
   "short_name": "FluxBus",
-  "description": "Sistema completo de gestão de segurança patrimonial",
+  "description": "Sistema completo de gestão de frotas e logística",
   "theme_color": "#dc2626",
   "background_color": "#1f2937",
   "display": "standalone",
@@ -10,7 +10,7 @@
   "scope": "/",
   "lang": "pt-BR",
   "dir": "ltr",
-  "categories": ["business", "productivity", "security"],
+  "categories": ["business", "productivity", "transportation"],
   "icons": [
     {
       "src": "/icons/icon-72x72.png",

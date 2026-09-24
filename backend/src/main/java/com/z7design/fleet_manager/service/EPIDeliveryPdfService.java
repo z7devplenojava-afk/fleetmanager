@@ -198,47 +198,64 @@ public class EPIDeliveryPdfService {
 
             document.add(employeeInfoTable);
 
-            Paragraph receiptTitle = new Paragraph("RECIBO DE EQUIPAMENTO DE PROTEÃ‡ÃƒO INDIVIDUAL (EPI)")
+            Paragraph receiptTitle = new Paragraph("FICHA DE CONTROLE INDIVIDUAL DE EPI / TERMO DE COMPROMISSO")
                 .setBold()
                 .setFontSize(8)
                 .setTextAlignment(TextAlignment.CENTER)
-                .setMarginBottom(6);
+                .setMarginBottom(4);
             document.add(receiptTitle);
 
-            String companyNameForText = company.getName() != null ? company.getName() : "a Empresa";
-            String declarationText = "Recebi da " + companyNameForText + ", Os EPI's abaixo especificados a serem usados no desempenho de minhas tarefas. " +
-                "Assumo o compromisso de usÃ¡-los durante a jornada de trabalho, zelar pela sua conservaÃ§Ã£o, quando necessÃ¡rio solicitar a substituiÃ§Ã£o ou reposiÃ§Ã£o e devolvÃª-los Ã  Empresa em caso de demissÃ£o. " +
-                "Estou ciente tambÃ©m que o uso desses EPI's implicarÃ¡ em insubordinaÃ§Ã£o, sujeito a sansÃµes disciplinares previstas no art. 158 CLT.";
-
-            Paragraph declaration = new Paragraph(declarationText)
-                .setFontSize(7)
-                .setTextAlignment(TextAlignment.JUSTIFIED)
-                .setMarginBottom(6);
-            document.add(declaration);
-
-            Table signatureTable = new Table(UnitValue.createPercentArray(new float[]{50f, 50f}))
+            // Termos Legais Oficiais (Portaria 3214, NR-1, NR-6, CLT 462)
+            Table legalTable = new Table(UnitValue.createPercentArray(new float[]{50f, 50f}))
                 .useAllAvailableWidth()
                 .setMarginBottom(6);
 
-            signatureTable.addCell(createPlainCell("Contagem: ____/____/____", 7));
-            signatureTable.addCell(createPlainCell("Assinatura: ________________________", 7));
-            document.add(signatureTable);
+            String termoCompromisso = "TERMO DE COMPROMISSO\n" +
+                "Declaro que recebi orientação sobre o uso correto do EPI fornecido pela empresa e que estou ciente da legislação abaixo discriminada, comprometendo-me a cumpri-la: " +
+                "Port. Nº 3214, de 08/06/78, do MTE NR - 1, item 1.8 alíneas a, b, c e d - Cabe ao Empregado: " +
+                "a) Cumprir as disposições legais e regulamentares sobre Segurança e Medicina do Trabalho; " +
+                "b) Usar o EPI fornecido pelo empregador; " +
+                "c) Colaborar com a empresa na aplicação das Normas Regulamentadoras - NR Port. Nº 3214, de 08/06/78, do MTb NR - 6, item 6.7.1 alíneas a, b, c e d.";
 
-            Table epiTable = new Table(UnitValue.createPercentArray(new float[]{6f, 35f, 15f, 10f, 12f, 12f, 10f}))
+            String cabeEmpregado = "CABE AO EMPREGADO:\n" +
+                "A) Usar, utilizando-o apenas para a finalidade a que se destina;\n" +
+                "B) Responsabilizar-se por sua guarda e conservação;\n" +
+                "C) Comunicar ao empregador qualquer alteração que o torne impróprio para uso;\n" +
+                "D) Cumprir as determinações do empregador sobre o uso adequado;\n" +
+                "NR - 1, sub item 1.8.1 - Constitui ato faltoso a recusa injustificada do empregado ao cumprimento do disposto no item 1.8. " +
+                "CLT - Art. 462, § 1º Em caso de dano causado pelo empregado, o desconto será lícito desde que esta possibilidade tenha sido acordada, ou na ocorrência de dolo do empregado.";
+
+            Cell cellLeft = new Cell()
+                .add(new Paragraph(termoCompromisso).setFontSize(6.5f).setTextAlignment(TextAlignment.JUSTIFIED))
+                .setBorder(new SolidBorder(ColorConstants.GRAY, 0.5f))
+                .setPadding(3);
+            Cell cellRight = new Cell()
+                .add(new Paragraph(cabeEmpregado).setFontSize(6.5f).setTextAlignment(TextAlignment.JUSTIFIED))
+                .setBorder(new SolidBorder(ColorConstants.GRAY, 0.5f))
+                .setPadding(3);
+
+            legalTable.addCell(cellLeft);
+            legalTable.addCell(cellRight);
+            document.add(legalTable);
+
+            Table epiTable = new Table(UnitValue.createPercentArray(new float[]{6f, 32f, 12f, 8f, 14f, 14f, 14f}))
                 .useAllAvailableWidth()
                 .setMarginTop(2);
 
             addTableHeader(epiTable, "ITEM", 7);
-            addTableHeader(epiTable, "DESCRIÃ‡ÃƒO DO EPI", 7);
-            addTableHeader(epiTable, "CA", 7);
-            addTableHeader(epiTable, "QUANTIDADE", 7);
-            addTableHeader(epiTable, "DATA DE ENTREGA", 7);
-            addTableHeader(epiTable, "DATA DE DEVOLUÃ‡ÃƒO", 7);
-            addTableHeader(epiTable, "AS", 7);
+            addTableHeader(epiTable, "DESCRIÇÃO DO EQUIPAMENTO", 7);
+            addTableHeader(epiTable, "Nº CA", 7);
+            addTableHeader(epiTable, "QUANT", 7);
+            addTableHeader(epiTable, "DATA ENTREGA / INSPEÇÃO", 7);
+            addTableHeader(epiTable, "RUBRICA EMPREGADO", 7);
+            addTableHeader(epiTable, "DATA DEVOLUÇÃO", 7);
 
             if (form.getItems() != null && !form.getItems().isEmpty()) {
+                // Manter itens por ordem de cadastro (o último item adicionado vem na linha de baixo)
+                java.util.List<EPIDeliveryFormItem> sortedItems = new java.util.ArrayList<>(form.getItems());
+
                 int itemNumber = 1;
-                for (EPIDeliveryFormItem item : form.getItems()) {
+                for (EPIDeliveryFormItem item : sortedItems) {
                     epiTable.addCell(createTableCell(String.valueOf(itemNumber++), 7, TextAlignment.CENTER));
                     epiTable.addCell(createTableCell(item.getEpiName() != null ? item.getEpiName() : "", 7, TextAlignment.LEFT));
                     epiTable.addCell(createTableCell(item.getCa() != null ? item.getCa() : "", 7, TextAlignment.CENTER));

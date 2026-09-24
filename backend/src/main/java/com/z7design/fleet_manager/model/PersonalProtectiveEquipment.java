@@ -70,6 +70,12 @@ public class PersonalProtectiveEquipment {
     @Column(name = "unit_cost", precision = 10, scale = 2)
     private BigDecimal unitCost;
 
+    @Column(name = "validity_months")
+    private Integer validityMonths = 6;
+
+    @Column(name = "periodicity_days")
+    private Integer periodicityDays = 180;
+
     @Column(nullable = false)
     private Boolean isActive = true;
 
@@ -81,7 +87,23 @@ public class PersonalProtectiveEquipment {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    // Getters e Setters explÃ­citos para resolver problemas de compilaÃ§Ã£o com
+    public Integer getValidityMonths() {
+        return validityMonths;
+    }
+
+    public void setValidityMonths(Integer validityMonths) {
+        this.validityMonths = validityMonths;
+    }
+
+    public Integer getPeriodicityDays() {
+        return periodicityDays;
+    }
+
+    public void setPeriodicityDays(Integer periodicityDays) {
+        this.periodicityDays = periodicityDays;
+    }
+
+    // Getters e Setters explícitos para resolver problemas de compilação com
     // Lombok
     public UUID getId() {
         return id;

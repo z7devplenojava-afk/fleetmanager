@@ -43,6 +43,10 @@ export const companyService = {
     return response.data as Array<any>;
   },
 
+  async getCompanies() {
+    return this.getAllCompanies();
+  },
+
   async getCompanyById(id: string) {
     const response = await api.get(`/api/companies/${id}`);
     return response.data;

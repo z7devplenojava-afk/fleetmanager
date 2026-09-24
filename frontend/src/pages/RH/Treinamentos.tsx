@@ -31,6 +31,8 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import CertificateManagementTab from '@/components/treinamentos/CertificateManagementTab';
 import { useToast } from '@/components/ui/use-toast';
 import { trainingService, Training, EmployeeCertification } from '@/services/trainingService';
 import { employeeService, SimpleEmployee } from '@/services/employeeService';
@@ -47,6 +49,7 @@ import {
   Calendar,
   Edit,
   Trash2,
+  Award,
 } from 'lucide-react';
 
 type CertificationFilter = 'all' | 'dueSoon' | 'expired' | 'compliant';
@@ -534,6 +537,24 @@ const Treinamentos: React.FC = () => {
       title="Treinamentos e Reciclagens"
       subtitle="Organize os cursos obrigatórios dos vigilantes e acompanhe as reciclagens anuais."
     >
+      <Tabs defaultValue="treinamentos" className="w-full space-y-6">
+        <TabsList className="bg-seguranca-black/50 border border-gray-600/30 h-auto p-1">
+          <TabsTrigger
+            value="treinamentos"
+            className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white"
+          >
+            <GraduationCap className="h-4 w-4 mr-2" />
+            Treinamentos
+          </TabsTrigger>
+          <TabsTrigger
+            value="certificados"
+            className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white"
+          >
+            <Award className="h-4 w-4 mr-2" />
+            Certificados
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="treinamentos" className="space-y-6">
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card className="bg-seguranca-graphite border-gray-700">
@@ -1346,6 +1367,11 @@ const Treinamentos: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+        <TabsContent value="certificados" className="space-y-6">
+          <CertificateManagementTab />
+        </TabsContent>
+      </Tabs>
     </StandardLayout>
   );
 };

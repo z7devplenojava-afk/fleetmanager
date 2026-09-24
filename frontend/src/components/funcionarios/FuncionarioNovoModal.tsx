@@ -32,6 +32,8 @@ import { Doctor } from '@/types/doctor';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import EmployeeHistoryTimeline from '@/components/funcionarios/EmployeeHistoryTimeline';
+import EmployeeDocumentsTab from '@/components/funcionarios/EmployeeDocumentsTab';
 
 interface FuncionarioNovoModalProps {
   open: boolean;
@@ -1875,10 +1877,12 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                   <Tabs defaultValue="cadastro" className="space-y-4 sm:space-y-6">
-                    <TabsList className="grid w-full grid-cols-3 bg-seguranca-graphite border border-gray-600">
-                      <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
-                      <TabsTrigger value="dependentes">Dependentes</TabsTrigger>
-                      <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-seguranca-graphite border border-gray-600 h-auto">
+                      <TabsTrigger value="cadastro" className="py-2">Cadastro</TabsTrigger>
+                      <TabsTrigger value="historico" className="py-2">Histórico</TabsTrigger>
+                      <TabsTrigger value="documentos" className="py-2">Documentos</TabsTrigger>
+                      <TabsTrigger value="dependentes" className="py-2">Dependentes</TabsTrigger>
+                      <TabsTrigger value="relatorios" className="py-2">Relatórios</TabsTrigger>
                     </TabsList>
                     <TabsContent value="cadastro" className="space-y-4 sm:space-y-6">
            {/* Seção: Relacionamentos Obrigatórios */}
@@ -3568,6 +3572,16 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
              </div>
            </Card>
 
+          </TabsContent>
+          <TabsContent value="historico" className="space-y-4 sm:space-y-6">
+            <EmployeeHistoryTimeline
+              employee={employeeIdValue ? { ...(employeeToEdit || {}), id: employeeIdValue } as any : null}
+            />
+          </TabsContent>
+          <TabsContent value="documentos" className="space-y-4 sm:space-y-6">
+            <EmployeeDocumentsTab
+              employee={employeeIdValue ? { ...(employeeToEdit || {}), id: employeeIdValue, name: form.name || employeeToEdit?.name || '' } as any : null}
+            />
           </TabsContent>
           <TabsContent value="dependentes" className="space-y-4 sm:space-y-6">
           {/* Seção: Dependentes */}

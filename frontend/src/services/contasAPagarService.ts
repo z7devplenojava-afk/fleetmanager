@@ -510,29 +510,19 @@ export const contasAPagarService = {
   // Buscar todos os fornecedores
   async getFornecedores(): Promise<Supplier[]> {
     try {
-      console.log('📦 contasAPagarService.getFornecedores: Iniciando chamada para /api/suppliers/all');
       const response = await api.get('/api/suppliers/all');
-      console.log('📦 contasAPagarService.getFornecedores: Resposta recebida:', {
-        status: response.status,
-        data: response.data,
-        dataType: typeof response.data,
-        isArray: Array.isArray(response.data),
-        length: Array.isArray(response.data) ? response.data.length : 'N/A'
-      });
       const data = response.data;
       const result = Array.isArray(data) ? data : [];
-      console.log('📦 contasAPagarService.getFornecedores: Retornando', result.length, 'fornecedores');
+      console.log('contasAPagarService.getFornecedores:', result.length, 'fornecedores');
       return result;
     } catch (error: any) {
-      console.error('❌ contasAPagarService.getFornecedores: Erro ao buscar fornecedores:', {
+      console.error('contasAPagarService.getFornecedores error:', {
         message: error?.message,
-        response: error?.response?.data,
         status: error?.response?.status,
         statusText: error?.response?.statusText,
-        error
       });
       if (isConnectionError(error)) {
-        console.warn('⚠️ Backend não está disponível. Retornando array vazio para fornecedores.');
+        console.warn('Backend indisponível. Retornando array vazio para fornecedores.');
       }
       return [];
     }

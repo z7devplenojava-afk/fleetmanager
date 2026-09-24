@@ -136,6 +136,7 @@ export interface PersonalProtectiveEquipment {
   caNumber?: string;
   caValidity?: string; // Data de validade do CA
   validityMonths?: number;
+  periodicityDays?: number;
   manufacturer?: string;
   model?: string;
   unitOfMeasurement?: string;
@@ -158,6 +159,16 @@ export interface EPIDelivery {
   reason: 'ADMISSAO' | 'REPOSICAO' | 'TROCA' | 'PERDA' | 'DANO';
   notes?: string;
   deliveredBy: string;
+  status?: 'PENDENTE_CONFERENCIA_ALMOXARIFADO' | 'CONCLUIDO' | 'CANCELADO' | string;
+  verifiedByAlmoxarifado?: boolean;
+  verifiedByAlmoxarifadoAt?: string;
+  returnedEpiId?: string;
+  returnedEpiName?: string;
+  returnedQuantity?: number;
+  returnedStockRefunded?: boolean;
+  returnedCondition?: 'REAPROVEITAVEL' | 'DESCARTE' | string;
+  nextExchangeDate?: string;
+  exchangeJustification?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -240,6 +251,11 @@ export interface CreateEPIDeliveryDTO {
   reason: string;
   deliveredByUserId?: string; // ID do usuário que está fazendo a entrega
   notes?: string;
+  returnedEpiId?: string;
+  returnedQuantity?: number;
+  returnedCondition?: 'REAPROVEITAVEL' | 'DESCARTE' | string;
+  exchangeJustification?: string;
+  nextExchangeDate?: string;
 }
 
 export interface AssociateRiskToEmployeeDTO {
@@ -436,37 +452,40 @@ export const sstService = {
   },
 
   async getTrainingParticipations(): Promise<TrainingParticipation[]> {
-    const response = await api.get('/api/sst/training-participations');
+    const response = await api.get('/api/sst/trainings/participations');
     return response.data;
   },
 
   async getTrainingParticipationById(id: string): Promise<TrainingParticipation> {
-    const response = await api.get(`/sst/training-participations/${id}`);
+    const response = await api.get(`/api/sst/trainings/participations/${id}`);
     return response.data;
   },
 
   async createTrainingParticipation(participation: CreateTrainingParticipationDTO): Promise<TrainingParticipation> {
-    const response = await api.post('/api/sst/training-participations', participation);
+    const response = await api.post('/api/sst/trainings/participations', participation);
     return response.data;
   },
 
   async updateTrainingParticipation(id: string, participation: Partial<TrainingParticipation>): Promise<TrainingParticipation> {
-    const response = await api.put(`/sst/training-participations/${id}`, participation);
+    const response = await api.put(`/api/sst/trainings/participations/${id}`, participation);
     return response.data;
   },
 
   async deleteTrainingParticipation(id: string): Promise<void> {
-    await api.delete(`/sst/training-participations/${id}`);
+    await api.delete(`/api/sst/trainings/participations/${id}`);
   },
 
   async getTrainingParticipationsByEmployee(employeeId: string): Promise<TrainingParticipation[]> {
-    const response = await api.get(`/sst/training-participations/employee/${employeeId}`);
+    const response = await api.get(`/api/sst/trainings/participations/employee/${employeeId}`);
     return response.data;
   },
 
   async getExpiredOrExpiringTrainings(days: number = 30): Promise<TrainingParticipation[]> {
-    const response = await api.get(`/sst/training-participations/expired-or-expiring/${days}`);
-    return response.data;
+    const [expired, expiring] = await Promise.all([
+      api.get<TrainingParticipation[]>('/api/sst/trainings/expired').then(r => r.data).catch(() => []),
+      api.get<TrainingParticipation[]>(`/api/sst/trainings/expiring?daysAhead=${days}`).then(r => r.data).catch(() => []),
+    ]);
+    return [...expired, ...expiring];
   },
 
   // Acidentes
@@ -551,6 +570,13 @@ export const sstService = {
 
   async createEPIDelivery(delivery: CreateEPIDeliveryDTO): Promise<EPIDelivery> {
     const response = await api.post('/api/sst/epi-deliveries', delivery);
+    return response.data;
+  },
+
+  async verifyDeliveryByAlmoxarifado(id: string, userId?: string): Promise<EPIDelivery> {
+    const response = await api.post(`/api/sst/epi-deliveries/${id}/verify-almoxarifado`, null, {
+      params: userId ? { userId } : {}
+    });
     return response.data;
   },
 

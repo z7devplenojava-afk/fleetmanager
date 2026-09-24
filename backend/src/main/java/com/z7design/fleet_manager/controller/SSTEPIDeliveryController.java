@@ -29,29 +29,30 @@ public class SSTEPIDeliveryController {
 
     @GetMapping
     @Operation(summary = "Listar todas as entregas de EPIs", description = "Retorna todas as entregas de EPIs")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<EPIDelivery>> getAllEPIDeliveries() {
         log.info("GET /api/sst/epi-deliveries - Buscando todas as entregas de EPIs");
-        // TODO: Implementar mÃ©todo getAllEPIDeliveries no service
-        return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(epiService.getAllEPIDeliveries());
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Buscar entrega de EPI por ID", description = "Retorna uma entrega especÃ­fica pelo ID")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @Operation(summary = "Buscar entrega de EPI por ID", description = "Retorna uma entrega específica pelo ID")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<EPIDelivery> getEPIDeliveryById(@PathVariable("id") UUID id) {
         log.info("GET /api/sst/epi-deliveries/{} - Buscando entrega de EPI", id);
-        // TODO: Implementar mÃ©todo getEPIDeliveryById no service
-        return ResponseEntity.notFound().build();
+        return epiService.getAllEPIDeliveries().stream()
+                .filter(d -> d.getId().equals(id))
+                .findFirst()
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    @Operation(summary = "Criar nova entrega de EPI", description = "Cria uma nova entrega de EPI")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @Operation(summary = "Criar nova entrega de EPI", description = "Cria uma nova entrega de EPI com suporte a periodicidade, conferência de almoxarifado e estorno")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> createEPIDelivery(@RequestBody CreateEPIDeliveryRequest request) {
-        log.info("POST /api/sst/epi-deliveries - Criando entrega de EPI para funcionÃ¡rio: {}", request.getEmployeeId());
+        log.info("POST /api/sst/epi-deliveries - Criando entrega de EPI para funcionário: {}", request.getEmployeeId());
         try {
-            // Usar a data fornecida ou a data atual se nÃ£o fornecida
             LocalDate deliveryDate = request.getDeliveryDate() != null 
                 ? request.getDeliveryDate() 
                 : LocalDate.now();
@@ -59,21 +60,42 @@ public class SSTEPIDeliveryController {
             EPIDelivery delivery = epiService.deliverEPI(
                 request.getEmployeeId(),
                 request.getEpiId(),
-                request.getQuantity(),
+                request.getQuantity() != null ? request.getQuantity() : 1,
                 request.getReason(),
                 request.getDeliveredByUserId(),
                 request.getNotes(),
-                deliveryDate
+                deliveryDate,
+                request.getReturnedEpiId(),
+                request.getReturnedQuantity() != null ? request.getReturnedQuantity() : 0,
+                request.getReturnedCondition(),
+                request.getExchangeJustification(),
+                request.getNextExchangeDate()
             );
             return ResponseEntity.ok(delivery);
         } catch (IllegalArgumentException e) {
-            log.error("Erro de validaÃ§Ã£o ao criar entrega de EPI: {}", e.getMessage());
+            log.error("Erro de validação ao criar entrega de EPI: {}", e.getMessage());
             return ResponseEntity.badRequest()
                 .body(java.util.Map.of("error", e.getMessage()));
         } catch (Exception e) {
             log.error("Erro ao criar entrega de EPI: {}", e.getMessage(), e);
             return ResponseEntity.status(500)
-                .body(java.util.Map.of("error", "Erro interno ao criar entrega de EPI"));
+                .body(java.util.Map.of("error", "Erro interno ao criar entrega de EPI: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/verify-almoxarifado")
+    @Operation(summary = "Conferir e baixar estoque pelo Almoxarifado", description = "Almoxarifado confere os itens e efetua a baixa no estoque")
+    @PreAuthorize("hasAnyAuthority('ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<?> verifyDeliveryByAlmoxarifado(@PathVariable("id") UUID id, @RequestParam(value = "userId", required = false) UUID userId) {
+        log.info("POST /api/sst/epi-deliveries/{}/verify-almoxarifado - Conferindo itens e efetuando baixa", id);
+        try {
+            EPIDelivery verified = epiService.verifyDeliveryByAlmoxarifado(id, userId);
+            return ResponseEntity.ok(verified);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Erro ao conferir entrega no almoxarifado: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(java.util.Map.of("error", "Erro interno ao conferir entrega"));
         }
     }
 
@@ -156,6 +178,12 @@ public class SSTEPIDeliveryController {
         private String notes;
         @JsonFormat(pattern = "yyyy-MM-dd")
         private LocalDate deliveryDate;
+        private UUID returnedEpiId;
+        private Integer returnedQuantity;
+        private String returnedCondition;
+        private String exchangeJustification;
+        @JsonFormat(pattern = "yyyy-MM-dd")
+        private LocalDate nextExchangeDate;
 
         // Getters e Setters
         public UUID getEmployeeId() { return employeeId; }
@@ -172,6 +200,16 @@ public class SSTEPIDeliveryController {
         public void setNotes(String notes) { this.notes = notes; }
         public LocalDate getDeliveryDate() { return deliveryDate; }
         public void setDeliveryDate(LocalDate deliveryDate) { this.deliveryDate = deliveryDate; }
+        public UUID getReturnedEpiId() { return returnedEpiId; }
+        public void setReturnedEpiId(UUID returnedEpiId) { this.returnedEpiId = returnedEpiId; }
+        public Integer getReturnedQuantity() { return returnedQuantity; }
+        public void setReturnedQuantity(Integer returnedQuantity) { this.returnedQuantity = returnedQuantity; }
+        public String getReturnedCondition() { return returnedCondition; }
+        public void setReturnedCondition(String returnedCondition) { this.returnedCondition = returnedCondition; }
+        public String getExchangeJustification() { return exchangeJustification; }
+        public void setExchangeJustification(String exchangeJustification) { this.exchangeJustification = exchangeJustification; }
+        public LocalDate getNextExchangeDate() { return nextExchangeDate; }
+        public void setNextExchangeDate(LocalDate nextExchangeDate) { this.nextExchangeDate = nextExchangeDate; }
     }
 
     public static class UpdateEPIDeliveryRequest {

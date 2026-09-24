@@ -30,7 +30,10 @@ import {
   RefreshCw,
   ArrowLeftRight,
   MessageSquare,
-  Info
+  Info,
+  CheckCheck,
+  RotateCcw,
+  PackageCheck
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { sstService, PersonalProtectiveEquipment, EPIDelivery, CreateEPIDeliveryDTO } from '@/services/sstService';
@@ -52,8 +55,10 @@ const EPIs: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'epis' | 'deliveries'>('epis');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [deliveryStatusFilter, setDeliveryStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [verifyingDeliveryId, setVerifyingDeliveryId] = useState<string | null>(null);
 
   // Estados para modal de entrega
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
@@ -67,6 +72,14 @@ const EPIs: React.FC = () => {
   });
   const [uniformType, setUniformType] = useState<'COMPLETO' | 'INDIVIDUAL' | ''>('');
   const [uniformItems, setUniformItems] = useState<string[]>([]);
+
+  // Estados para devolução / troca / estorno
+  const [returnedItemCollected, setReturnedItemCollected] = useState(true);
+  const [returnedEpiDifferent, setReturnedEpiDifferent] = useState(false);
+  const [returnedEpiId, setReturnedEpiId] = useState<string>('');
+  const [returnedQuantity, setReturnedQuantity] = useState<number>(1);
+  const [returnedCondition, setReturnedCondition] = useState<'REAPROVEITAVEL' | 'DESCARTE'>('REAPROVEITAVEL');
+  const [exchangeJustification, setExchangeJustification] = useState<string>('');
 
   // Estado para modal de visualização de EPI
   const [selectedEPI, setSelectedEPI] = useState<PersonalProtectiveEquipment | null>(null);
@@ -196,12 +209,59 @@ const EPIs: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  // Filtrar entregas
+  // Verificar se o usuário logado tem permissão para registrar entrega de EPI
+  const isAllowedToRegisterEPI = () => {
+    if (!user) return false;
+    const userRole = (user.role || '').toUpperCase();
+    const allowed = [
+      'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO',
+      'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO',
+      'ADMIN', 'ROLE_ADMIN', 'SUPER_ADMIN', 'ROLE_SUPER_ADMIN',
+      'FLEX_ADMIN', 'ROLE_FLEX_ADMIN', 'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN',
+      'ASSISTENCIA_RH', 'AUXILIAR_DE_RH', 'AUX_DEP', 'AUXILIAR_DE_DEPARTAMENTO_PESSOAL'
+    ];
+    if (allowed.includes(userRole)) return true;
+    if (user.roles && Array.isArray(user.roles)) {
+      return user.roles.some((r: any) => {
+        const roleName = (typeof r === 'string' ? r : r.name || '').toUpperCase();
+        return allowed.includes(roleName);
+      });
+    }
+    return false;
+  };
+
+  const isAlmoxarifadoUser = () => {
+    if (!user) return false;
+    const userRole = (user.role || '').toUpperCase();
+    if (userRole.includes('ALMOXARIFADO') || userRole.includes('ADMIN')) return true;
+    if (user.roles && Array.isArray(user.roles)) {
+      return user.roles.some((r: any) => {
+        const roleName = (typeof r === 'string' ? r : r.name || '').toUpperCase();
+        return roleName.includes('ALMOXARIFADO') || roleName.includes('ADMIN');
+      });
+    }
+    return false;
+  };
+
+  // Filtrar entregas com suporte a filtro de status e busca
   const filteredDeliveries = deliveries.filter(delivery => {
     const matchesSearch = delivery.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       delivery.epiName?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesSearch;
+    const matchesStatus = deliveryStatusFilter === 'all'
+      ? true
+      : deliveryStatusFilter === 'pending'
+        ? delivery.status === 'PENDENTE_CONFERENCIA_ALMOXARIFADO' || delivery.verifiedByAlmoxarifado === false
+        : delivery.status === 'CONCLUIDO' || delivery.verifiedByAlmoxarifado === true;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // Ordenar entregas por ordem de cadastro: o último item vem na linha de baixo
+  const sortedDeliveries = [...filteredDeliveries].sort((a, b) => {
+    const timeA = new Date(a.createdAt || a.deliveryDate || 0).getTime();
+    const timeB = new Date(b.createdAt || b.deliveryDate || 0).getTime();
+    return timeA - timeB;
   });
 
   // Resetar formulário
@@ -216,6 +276,12 @@ const EPIs: React.FC = () => {
     });
     setUniformType('');
     setUniformItems([]);
+    setReturnedItemCollected(true);
+    setReturnedEpiDifferent(false);
+    setReturnedEpiId('');
+    setReturnedQuantity(1);
+    setReturnedCondition('REAPROVEITAVEL');
+    setExchangeJustification('');
   };
 
   // Fechar modal e resetar formulário
@@ -229,6 +295,58 @@ const EPIs: React.FC = () => {
   const isUniformeTrabalho = selectedEPIForDelivery?.name?.toLowerCase().includes('uniforme de trabalho') || 
                              selectedEPIForDelivery?.name?.toLowerCase().includes('uniforme');
 
+  // Encontrar histórico de entregas anteriores deste mesmo EPI para o funcionário selecionado
+  const previousDeliveriesForEmployeeAndEPI = (deliveryForm.employeeId && deliveryForm.epiId)
+    ? deliveries
+        .filter(d => d.employeeId === deliveryForm.employeeId && d.epiId.toString() === deliveryForm.epiId.toString())
+        .sort((a, b) => new Date(b.deliveryDate).getTime() - new Date(a.deliveryDate).getTime())
+    : [];
+
+  const lastDeliveryOfEPI = previousDeliveriesForEmployeeAndEPI.length > 0 ? previousDeliveriesForEmployeeAndEPI[0] : null;
+
+  // Periodicidade em meses (default: 6 meses se não preenchido)
+  const epiValidityMonths = selectedEPIForDelivery?.validityMonths || 
+    (selectedEPIForDelivery?.periodicityDays ? Math.round(selectedEPIForDelivery.periodicityDays / 30) : 6);
+
+  // Verificação de periodicidade e vencimento
+  let isWithinValidityPeriod = false;
+  let nextRegularExchangeDate: Date | null = null;
+  let daysRemainingInValidity = 0;
+
+  if (lastDeliveryOfEPI && lastDeliveryOfEPI.deliveryDate) {
+    const lastDate = new Date(lastDeliveryOfEPI.deliveryDate);
+    nextRegularExchangeDate = new Date(lastDate);
+    nextRegularExchangeDate.setMonth(nextRegularExchangeDate.getMonth() + epiValidityMonths);
+
+    const checkDate = deliveryForm.deliveryDate ? new Date(deliveryForm.deliveryDate) : new Date();
+    if (checkDate < nextRegularExchangeDate) {
+      isWithinValidityPeriod = true;
+      daysRemainingInValidity = Math.ceil((nextRegularExchangeDate.getTime() - checkDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+  }
+
+  // Conferir entrega pelo Almoxarifado
+  const handleVerifyDelivery = async (deliveryId: string) => {
+    try {
+      setVerifyingDeliveryId(deliveryId);
+      await sstService.verifyDeliveryByAlmoxarifado(deliveryId, user?.id);
+      toast({
+        title: "Conferido!",
+        description: "Itens conferidos pelo Almoxarifado e baixa de estoque efetuada com sucesso!",
+      });
+      await loadData();
+    } catch (err: any) {
+      console.error('Erro ao conferir entrega no almoxarifado:', err);
+      toast({
+        title: "Erro",
+        description: err?.response?.data?.error || "Não foi possível conferir a entrega no almoxarifado",
+        variant: "destructive"
+      });
+    } finally {
+      setVerifyingDeliveryId(null);
+    }
+  };
+
   // Criar nova entrega
   const handleCreateDelivery = async () => {
     try {
@@ -239,6 +357,27 @@ const EPIs: React.FC = () => {
           variant: "destructive",
         });
         return;
+      }
+
+      // Validação de periodicidade: se estiver dentro da validade, não permite admissão/reposição regular
+      if (isWithinValidityPeriod) {
+        if (deliveryForm.reason === 'ADMISSAO' || deliveryForm.reason === 'REPOSICAO') {
+          toast({
+            title: "EPI dentro do prazo de validade!",
+            description: `Este EPI ainda está no período de validade até ${nextRegularExchangeDate?.toLocaleDateString('pt-BR')}. Para substituição extraordinária, selecione o motivo Troca, Dano ou Perda e informe a justificativa.`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!exchangeJustification.trim()) {
+          toast({
+            title: "Justificativa obrigatória",
+            description: "Como a entrega está ocorrendo antes do término do período de validade, informe a justificativa da troca prematura.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       // Validar uniforme se for Uniforme de Trabalho
@@ -261,7 +400,7 @@ const EPIs: React.FC = () => {
         }
       }
 
-      // Construir notas com informações do uniforme
+      // Construir notas com informações do uniforme e justificativa
       let notes = deliveryForm.notes || '';
       if (isUniformeTrabalho && uniformType) {
         const itemLabels: { [key: string]: string } = {
@@ -283,22 +422,48 @@ const EPIs: React.FC = () => {
         notes = notes ? `${notes}\n\n${uniformInfo}` : uniformInfo;
       }
 
+      // Calcular próxima data regular de troca para persistência
+      const baseDate = new Date(deliveryForm.deliveryDate);
+      const calculatedNextExchangeDate = new Date(baseDate);
+      calculatedNextExchangeDate.setMonth(calculatedNextExchangeDate.getMonth() + epiValidityMonths);
+      const nextExchangeDateStr = calculatedNextExchangeDate.toISOString().split('T')[0];
+
+      // Configurar dados de devolução e estorno caso seja TROCA
+      let effectiveReturnedEpiId: string | undefined = undefined;
+      let effectiveReturnedQuantity: number | undefined = undefined;
+      let effectiveReturnedCondition: string | undefined = undefined;
+
+      if (deliveryForm.reason === 'TROCA' && returnedItemCollected) {
+        effectiveReturnedEpiId = returnedEpiDifferent && returnedEpiId ? returnedEpiId : deliveryForm.epiId;
+        effectiveReturnedQuantity = returnedQuantity || 1;
+        effectiveReturnedCondition = returnedCondition;
+      }
+
       // Adicionar o ID do usuário autenticado ao payload
       const deliveryPayload: CreateEPIDeliveryDTO = {
         ...deliveryForm,
         deliveredByUserId: user?.id || undefined,
-        notes: notes
+        notes: notes,
+        returnedEpiId: effectiveReturnedEpiId,
+        returnedQuantity: effectiveReturnedQuantity,
+        returnedCondition: effectiveReturnedCondition,
+        exchangeJustification: exchangeJustification.trim() || undefined,
+        nextExchangeDate: nextExchangeDateStr
       };
       
       await sstService.createEPIDelivery(deliveryPayload);
+      
+      const successMessage = isAlmoxarifadoUser()
+        ? "Entrega registrada com sucesso! Baixa no estoque efetuada pelo Almoxarifado."
+        : "Entrega registrada! Itens enviados para conferência e baixa no estoque pelo Almoxarifado.";
+
       toast({
         title: "Sucesso",
-        description: "Entrega de EPI registrada com sucesso",
+        description: successMessage,
       });
 
       setShowDeliveryModal(false);
       resetDeliveryForm();
-
       loadData();
     } catch (err: any) {
       console.error('Erro ao criar entrega de EPI:', err);
@@ -404,8 +569,20 @@ const EPIs: React.FC = () => {
               Voltar
             </Button>
             <Button
-              onClick={() => setShowDeliveryModal(true)}
+              onClick={() => {
+                if (!isAllowedToRegisterEPI()) {
+                  toast({
+                    title: "Acesso Restrito",
+                    description: "Apenas usuários com perfil de RH, Departamento Pessoal, SST ou Almoxarifado podem registrar entregas de EPI.",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                setShowDeliveryModal(true);
+              }}
               className="bg-seguranca-red hover:bg-seguranca-darkred"
+              disabled={!isAllowedToRegisterEPI()}
+              title={!isAllowedToRegisterEPI() ? "Apenas RH, DP, SST ou Almoxarifado podem registrar entregas" : undefined}
             >
               <Plus className="h-4 w-4 mr-2" />
               Nova Entrega
@@ -473,6 +650,26 @@ const EPIs: React.FC = () => {
                       <SelectItem value="MAOS">Mãos</SelectItem>
                       <SelectItem value="PES">Pés</SelectItem>
                       <SelectItem value="CORPO">Corpo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {activeTab === 'deliveries' && (
+                <div>
+                  <Label htmlFor="deliveryStatus" className="text-seguranca-lightgray">Status da Conferência / Estoque</Label>
+                  <Select value={deliveryStatusFilter} onValueChange={(val: any) => setDeliveryStatusFilter(val)}>
+                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                      <SelectValue placeholder="Filtrar por status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as Entregas</SelectItem>
+                      <SelectItem value="pending">
+                        ⏳ Pendentes Almoxarifado ({deliveries.filter(d => d.status === 'PENDENTE_CONFERENCIA_ALMOXARIFADO' || d.verifiedByAlmoxarifado === false).length})
+                      </SelectItem>
+                      <SelectItem value="completed">
+                        ✅ Estoque Baixado / Concluídas ({deliveries.filter(d => d.status === 'CONCLUIDO' || d.verifiedByAlmoxarifado === true).length})
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -554,69 +751,144 @@ const EPIs: React.FC = () => {
         ) : (
           /* Entregas de EPIs */
           <Card className="bg-seguranca-graphite border-gray-600">
-            <CardHeader>
-              <CardTitle className="text-seguranca-lightgray">
-                Entregas de EPIs ({filteredDeliveries.length})
-              </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-seguranca-lightgray">
+                  Entregas de EPIs ({sortedDeliveries.length})
+                </CardTitle>
+                <p className="text-xs text-gray-400 mt-1">
+                  Exibição por ordem de cadastro (o último item adicionado fica na linha de baixo)
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="border-yellow-500/40 text-yellow-400 bg-yellow-500/10">
+                  Pendentes: {deliveries.filter(d => d.status === 'PENDENTE_CONFERENCIA_ALMOXARIFADO' || d.verifiedByAlmoxarifado === false).length}
+                </Badge>
+                <Badge variant="outline" className="border-green-500/40 text-green-400 bg-green-500/10">
+                  Concluídas: {deliveries.filter(d => d.status === 'CONCLUIDO' || d.verifiedByAlmoxarifado === true).length}
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
-              {filteredDeliveries.length > 0 ? (
+              {sortedDeliveries.length > 0 ? (
                 <div className="space-y-4">
-                  {filteredDeliveries.map((delivery) => (
-                    <div key={delivery.id} className="p-4 bg-seguranca-black rounded-lg border border-gray-600">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-semibold text-seguranca-lightgray">
-                              {delivery.employeeName}
-                            </h3>
-                            <Badge className={getReasonColor(delivery.reason)}>
-                              {delivery.reason}
-                            </Badge>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-400">
-                            <div className="flex items-center gap-2">
-                              <Package className="h-4 w-4" />
-                              <span>{delivery.epiName}</span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              <span>
-                                {new Date(delivery.deliveryDate).toLocaleDateString('pt-BR')}
+                  {sortedDeliveries.map((delivery, index) => {
+                    const isPendingAlmoxarifado = delivery.status === 'PENDENTE_CONFERENCIA_ALMOXARIFADO' || delivery.verifiedByAlmoxarifado === false;
+                    return (
+                      <div key={delivery.id} className="p-4 bg-seguranca-black rounded-lg border border-gray-600 hover:border-gray-500 transition-colors">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <span className="text-xs font-mono text-gray-400 bg-gray-800 px-2 py-0.5 rounded">
+                                #{index + 1}
                               </span>
+                              <h3 className="font-semibold text-seguranca-lightgray">
+                                {delivery.employeeName}
+                              </h3>
+                              <Badge className={getReasonColor(delivery.reason)}>
+                                {delivery.reason}
+                              </Badge>
+
+                              {/* Status de Conferência e Estoque */}
+                              {isPendingAlmoxarifado ? (
+                                <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 flex items-center gap-1">
+                                  <Clock className="w-3 h-3 animate-pulse" />
+                                  Pendente Almoxarifado (Estoque não baixado)
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-green-500/20 text-green-400 border border-green-500/40 flex items-center gap-1">
+                                  <CheckCheck className="w-3 h-3" />
+                                  Estoque Baixado / Conferido
+                                </Badge>
+                              )}
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4" />
-                              <span>Qtd: {delivery.quantity}</span>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-400">
+                              <div className="flex items-center gap-2">
+                                <Package className="h-4 w-4 text-seguranca-yellow" />
+                                <span>{delivery.epiName}</span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                <span>
+                                  {new Date(delivery.deliveryDate).toLocaleDateString('pt-BR')}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4" />
+                                <span>Qtd Entregue: {delivery.quantity}</span>
+                              </div>
+                            </div>
+
+                            {/* Informações de Devolução / Estorno */}
+                            {delivery.returnedQuantity && delivery.returnedQuantity > 0 && (
+                              <div className="mt-2 p-2 bg-blue-950/30 border border-blue-800/40 rounded text-xs text-blue-300 flex items-center gap-2">
+                                <RotateCcw className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                                <span>
+                                  <strong>Troca com Devolução:</strong> Recolhido {delivery.returnedQuantity} un de{' '}
+                                  {delivery.returnedEpiName || 'EPI Antigo'} | Condição: {delivery.returnedCondition === 'REAPROVEITAVEL' ? '✅ Reaproveitável (Estornado ao estoque)' : '⚠️ Descarte'}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Justificativa de substituição extraordinária */}
+                            {delivery.exchangeJustification && (
+                              <p className="text-xs text-amber-300 mt-2 bg-amber-950/20 p-2 rounded border border-amber-800/30">
+                                <strong>Justificativa da Troca:</strong> {delivery.exchangeJustification}
+                              </p>
+                            )}
+
+                            {delivery.notes && (
+                              <p className="text-sm text-gray-400 mt-2">{delivery.notes}</p>
+                            )}
+
+                            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 mt-2">
+                              <span>Entregue por: {delivery.deliveredBy || 'Sistema'}</span>
+                              {delivery.verifiedByAlmoxarifadoAt && (
+                                <span>Conferido pelo Almoxarifado em: {new Date(delivery.verifiedByAlmoxarifadoAt).toLocaleString('pt-BR')}</span>
+                              )}
                             </div>
                           </div>
 
-                          {delivery.notes && (
-                            <p className="text-sm text-gray-400 mt-2">{delivery.notes}</p>
-                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Botão de Conferência para Almoxarifado / Admin */}
+                            {isPendingAlmoxarifado && isAlmoxarifadoUser() && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleVerifyDelivery(delivery.id)}
+                                disabled={verifyingDeliveryId === delivery.id}
+                                className="bg-yellow-600 hover:bg-yellow-500 text-white shadow"
+                              >
+                                {verifyingDeliveryId === delivery.id ? (
+                                  <>
+                                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                                    Baixando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <PackageCheck className="w-4 h-4 mr-1" />
+                                    Conferir e Baixar Estoque
+                                  </>
+                                )}
+                              </Button>
+                            )}
 
-                          <p className="text-xs text-gray-500 mt-2">
-                            Entregue por: {delivery.deliveredBy}
-                          </p>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate(`/rh/sst/entregas/${delivery.id}`)}
-                            className="border-gray-600 text-seguranca-lightgray"
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Editar
-                          </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate(`/rh/sst/entregas/${delivery.id}`)}
+                              className="border-gray-600 text-seguranca-lightgray hover:bg-gray-700"
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Editar
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8">
@@ -665,6 +937,25 @@ const EPIs: React.FC = () => {
 
               {/* Content */}
               <div className="p-6">
+                {/* Banner de Controle de Setor e Estoque */}
+                {isAlmoxarifadoUser() ? (
+                  <div className="mb-6 p-3.5 bg-blue-950/40 border border-blue-600/40 rounded-lg flex items-center gap-3">
+                    <PackageCheck className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                    <div className="text-xs">
+                      <p className="font-semibold text-blue-300">Setor Almoxarifado / Admin</p>
+                      <p className="text-gray-300">Esta entrega dará baixa imediata no saldo físico do estoque de EPIs.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-6 p-3.5 bg-amber-950/40 border border-amber-600/40 rounded-lg flex items-center gap-3">
+                    <Clock className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                    <div className="text-xs">
+                      <p className="font-semibold text-amber-300">Setor Solicitante (RH / Departamento Pessoal / SST)</p>
+                      <p className="text-gray-300">A entrega registrará a ficha individual. O Almoxarifado fará a verificação física dos itens e dará a baixa no estoque.</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Funcionário */}
                   <div className="md:col-span-2">
@@ -771,7 +1062,7 @@ const EPIs: React.FC = () => {
                                       <Shield className="w-4 h-4 text-seguranca-red" />
                                       <div>
                                         <div className="font-medium">{epi.name}</div>
-                                        <div className="text-xs text-gray-400">CA: {epi.caNumber}</div>
+                                        <div className="text-xs text-gray-400">CA: {epi.caNumber || 'N/A'} | Validade: {epi.validityMonths || 6} meses</div>
                                       </div>
                                     </div>
                                   </SelectItem>
@@ -792,6 +1083,58 @@ const EPIs: React.FC = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* Card de Periodicidade e Validade do EPI */}
+                  {selectedEPIForDelivery && (
+                    <div className="md:col-span-2 p-3.5 bg-seguranca-black/80 rounded-lg border border-gray-700 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <span className="text-gray-300 flex items-center gap-1.5">
+                          <Clock className="w-4 h-4 text-seguranca-yellow" />
+                          <strong>Periodicidade / Validade:</strong> {epiValidityMonths} meses ({selectedEPIForDelivery.periodicityDays || (epiValidityMonths * 30)} dias)
+                        </span>
+                        {selectedEPIForDelivery.caNumber && (
+                          <span className="text-gray-400">CA: {selectedEPIForDelivery.caNumber}</span>
+                        )}
+                      </div>
+
+                      {/* Histórico e Validação de Troca Fora do Período */}
+                      {deliveryForm.employeeId && (
+                        lastDeliveryOfEPI ? (
+                          <div className={`p-3 rounded-md text-xs border ${
+                            isWithinValidityPeriod 
+                              ? 'bg-amber-950/40 border-amber-500/60 text-amber-200' 
+                              : 'bg-green-950/40 border-green-600/60 text-green-200'
+                          }`}>
+                            <div className="flex items-start gap-2">
+                              {isWithinValidityPeriod ? (
+                                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                              )}
+                              <div className="space-y-1">
+                                <p>
+                                  <strong>Última entrega deste EPI:</strong> {new Date(lastDeliveryOfEPI.deliveryDate).toLocaleDateString('pt-BR')} | <strong>Próxima troca regular prevista:</strong> {nextRegularExchangeDate?.toLocaleDateString('pt-BR')}
+                                </p>
+                                {isWithinValidityPeriod ? (
+                                  <p className="text-amber-300 font-medium">
+                                    ⚠️ BLOQUEIO DE PERIODICIDADE: O EPI anterior ainda está dentro da validade (restam {daysRemainingInValidity} dias). A entrega/troca fora do período regular só é autorizada em caso de exceção (Troca, Perda ou Dano) com Justificativa Obrigatória.
+                                  </p>
+                                ) : (
+                                  <p className="text-green-300">
+                                    ✅ Prazo de validade atingido ou expirado. Item apto para reposição periódica regular.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400 italic">
+                            Primeira entrega deste modelo de EPI registrada para este colaborador.
+                          </p>
+                        )
+                      )}
+                    </div>
+                  )}
 
                   {/* Data da Entrega */}
                   <div>
@@ -844,22 +1187,30 @@ const EPIs: React.FC = () => {
                           <SelectValue placeholder="Selecione o motivo" />
                         </SelectTrigger>
                         <SelectContent className="bg-seguranca-black border-gray-600">
-                          <SelectItem value="ADMISSAO" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                          <SelectItem 
+                            value="ADMISSAO" 
+                            disabled={isWithinValidityPeriod}
+                            className={`text-seguranca-lightgray hover:bg-seguranca-graphite ${isWithinValidityPeriod ? 'opacity-40 cursor-not-allowed' : ''}`}
+                          >
                             <div className="flex items-center gap-2">
                               <UserPlus className="w-4 h-4 text-green-400" />
-                              Admissão
+                              Admissão {isWithinValidityPeriod && '(Bloqueado: EPI na validade)'}
                             </div>
                           </SelectItem>
-                          <SelectItem value="REPOSICAO" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                          <SelectItem 
+                            value="REPOSICAO" 
+                            disabled={isWithinValidityPeriod}
+                            className={`text-seguranca-lightgray hover:bg-seguranca-graphite ${isWithinValidityPeriod ? 'opacity-40 cursor-not-allowed' : ''}`}
+                          >
                             <div className="flex items-center gap-2">
                               <RefreshCw className="w-4 h-4 text-blue-400" />
-                              Reposição
+                              Reposição Regular {isWithinValidityPeriod && '(Bloqueado: EPI na validade)'}
                             </div>
                           </SelectItem>
                           <SelectItem value="TROCA" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
                             <div className="flex items-center gap-2">
                               <ArrowLeftRight className="w-4 h-4 text-yellow-400" />
-                              Troca
+                              Troca (com recolhimento/devolução)
                             </div>
                           </SelectItem>
                           <SelectItem value="PERDA" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
@@ -871,13 +1222,139 @@ const EPIs: React.FC = () => {
                           <SelectItem value="DANO" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
                             <div className="flex items-center gap-2">
                               <XCircle className="w-4 h-4 text-red-400" />
-                              Dano
+                              Dano / Avaria
                             </div>
                           </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
+
+                  {/* Bloco de Troca com Devolução e Estorno no Estoque */}
+                  {deliveryForm.reason === 'TROCA' && (
+                    <div className="md:col-span-2 p-4 bg-seguranca-black/90 rounded-lg border border-blue-600/50 space-y-4">
+                      <div className="flex items-center justify-between border-b border-gray-700 pb-2">
+                        <Label className="text-sm font-semibold text-blue-300 flex items-center gap-2">
+                          <RotateCcw className="w-4 h-4 text-blue-400" />
+                          Controle de Devolução do EPI Antigo
+                        </Label>
+                        <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={returnedItemCollected}
+                            onChange={(e) => setReturnedItemCollected(e.target.checked)}
+                            className="rounded border-gray-600 bg-gray-800 text-seguranca-red"
+                          />
+                          EPI anterior recolhido do colaborador
+                        </label>
+                      </div>
+
+                      {returnedItemCollected && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                          {/* Item igual ou diferente */}
+                          <div className="md:col-span-2">
+                            <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={returnedEpiDifferent}
+                                onChange={(e) => {
+                                  setReturnedEpiDifferent(e.target.checked);
+                                  if (!e.target.checked) setReturnedEpiId('');
+                                }}
+                                className="rounded border-gray-600 bg-gray-800 text-seguranca-red"
+                              />
+                              O item devolvido é de um modelo diferente do que está sendo entregue
+                            </label>
+                          </div>
+
+                          {returnedEpiDifferent && (
+                            <div className="md:col-span-2">
+                              <Label className="text-xs text-gray-300 mb-1 block">Selecione o EPI Antigo Devolvido</Label>
+                              <Select
+                                value={returnedEpiId}
+                                onValueChange={(val) => setReturnedEpiId(val)}
+                              >
+                                <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-10">
+                                  <SelectValue placeholder="Selecione o EPI recolhido" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-seguranca-graphite border-gray-600">
+                                  {epis.map((e) => (
+                                    <SelectItem key={e.id} value={e.id.toString()} className="text-seguranca-lightgray">
+                                      {e.name} (CA: {e.caNumber || 'N/A'})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          <div>
+                            <Label className="text-xs text-gray-300 mb-1 block">Qtd Devolvida</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={returnedQuantity}
+                              onChange={(e) => setReturnedQuantity(parseInt(e.target.value) || 1)}
+                              className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-10"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-xs text-gray-300 mb-1 block">Condição do Item Devolvido</Label>
+                            <Select
+                              value={returnedCondition}
+                              onValueChange={(val) => setReturnedCondition(val)}
+                            >
+                              <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray h-10">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-seguranca-graphite border-gray-600">
+                                <SelectItem value="REAPROVEITAVEL" className="text-green-400">
+                                  Reaproveitável / Higienizado (Estorna ao Estoque)
+                                </SelectItem>
+                                <SelectItem value="DANIFICADO_DESCARTE" className="text-red-400">
+                                  Descarte / Inutilizado (Não Estorna)
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {returnedCondition === 'REAPROVEITAVEL' && (
+                            <div className="md:col-span-2 p-2 bg-green-950/30 border border-green-800/40 rounded text-xs text-green-300 flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                              <span>O estoque deste EPI será estornado (+{returnedQuantity} no saldo do almoxarifado) após conferência.</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Justificativa da Substituição / Troca */}
+                  {(isWithinValidityPeriod || deliveryForm.reason === 'TROCA' || deliveryForm.reason === 'PERDA' || deliveryForm.reason === 'DANO') && (
+                    <div className="md:col-span-2">
+                      <Label htmlFor="exchangeJustification" className={`font-medium flex items-center gap-2 ${
+                        isWithinValidityPeriod ? 'text-amber-400' : 'text-seguranca-lightgray'
+                      }`}>
+                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                        Justificativa da Troca / Substituição {isWithinValidityPeriod && '* (Obrigatória - Dentro da validade)'}
+                      </Label>
+                      <div className="mt-2">
+                        <Textarea
+                          id="exchangeJustification"
+                          placeholder="Informe o motivo técnico, avaria, desgaste ou solicitação extraordinária para a troca..."
+                          value={exchangeJustification}
+                          onChange={(e) => setExchangeJustification(e.target.value)}
+                          className={`bg-seguranca-black text-seguranca-lightgray focus:ring-seguranca-red/20 resize-none ${
+                            isWithinValidityPeriod && !exchangeJustification.trim()
+                              ? 'border-amber-500'
+                              : 'border-gray-600'
+                          }`}
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Campos específicos para Uniforme de Trabalho */}
                   {isUniformeTrabalho && (
@@ -1079,6 +1556,7 @@ const EPIs: React.FC = () => {
                       !deliveryForm.employeeId || 
                       !deliveryForm.epiId || 
                       !deliveryForm.deliveryDate ||
+                      (isWithinValidityPeriod && (!exchangeJustification.trim() || deliveryForm.reason === 'ADMISSAO' || deliveryForm.reason === 'REPOSICAO')) ||
                       (isUniformeTrabalho && (!uniformType || (uniformType === 'INDIVIDUAL' && uniformItems.length === 0)))
                     }
                   >

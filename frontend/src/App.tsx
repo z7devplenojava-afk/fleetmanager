@@ -190,6 +190,7 @@ const ImportarBatidas = lazy(() => import('@/pages/RH/ImportarBatidas'));
 const AvaliacaoDesempenho = lazy(() => import('@/pages/RH/AvaliacaoDesempenho'));
 const Vagas = lazy(() => import('@/pages/Vagas'));
 const Relatorios = lazy(() => import('@/pages/Relatorios'));
+const RelatorioFuncionarios = lazy(() => import('@/pages/RH/RelatorioFuncionarios'));
 const GestaoDocumentos = lazy(() => import('@/pages/GestaoDocumentos'));
 const Grupos = lazyWithRetry(() => import('@/pages/Grupos'), 'Grupos');
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'));
@@ -1451,6 +1452,13 @@ function App() {
                       <Route path="/rh/relatorios" element={
                         <ProtectedRoute>
                           <Relatorios />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/rh/relatorios/funcionarios" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <RelatorioFuncionarios />
+                          </Suspense>
                         </ProtectedRoute>
                       } />
                       <Route path="/rh/documentos" element={

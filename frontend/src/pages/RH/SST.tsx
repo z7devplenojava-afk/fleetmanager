@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,8 @@ import { sstService, SSTDashboardSummary, SSTAlert } from '@/services/sstService
 import { useToast } from '@/hooks/use-toast';
 import RiskMatrixByPosition from '@/components/sst/RiskMatrixByPosition';
 import CorrectiveActions from '@/components/sst/CorrectiveActions';
+import EmployeeSSTView from '@/components/sst/EmployeeSSTView';
+import { User } from 'lucide-react';
 
 const SST: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -280,9 +282,13 @@ const SST: React.FC = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 gap-2 bg-seguranca-graphite border-gray-600 p-1">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 gap-2 bg-seguranca-graphite border-gray-600 p-1">
             <TabsTrigger value="overview" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
               Visão Geral
+            </TabsTrigger>
+            <TabsTrigger value="employee" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red flex items-center justify-center gap-1.5">
+              <User className="h-4 w-4" />
+              Funcionários
             </TabsTrigger>
             <TabsTrigger value="compliance" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
               Conformidade
@@ -585,6 +591,11 @@ const SST: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Funcionários: Prontuário Completo SST */}
+          <TabsContent value="employee" className="space-y-6">
+            <EmployeeSSTView />
           </TabsContent>
 
           {/* Conformidade */}

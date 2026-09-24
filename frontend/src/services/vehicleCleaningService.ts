@@ -160,19 +160,55 @@ const DEFAULT_QUALITY_CHECKLIST: QualityChecklistItem[] = [
   { key: 'lixo', title: 'Lixeiras esvaziadas', checked: false },
 ];
 
+export interface CleaningSupplyItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+}
+
+export const DEFAULT_SUPPLIES: CleaningSupplyItem[] = [
+  { id: 'shampoo', name: 'Shampoo Automotivo Concentrado', quantity: 300, unit: 'ml' },
+  { id: 'pretinho', name: 'Pretinho / Silicone para Pneus', quantity: 150, unit: 'ml' },
+  { id: 'desinfetante', name: 'Desinfetante Sanitário / Químico', quantity: 200, unit: 'ml' },
+  { id: 'aromatizante', name: 'Aromatizante Floral Veicular', quantity: 50, unit: 'ml' },
+  { id: 'desengraxante', name: 'Desengraxante de Rodas e Chassi', quantity: 250, unit: 'ml' },
+  { id: 'cera', name: 'Cera Líquida Protetora', quantity: 100, unit: 'ml' },
+];
+
 export function parseChecklist(data?: string): ChecklistItem[] {
   if (!data) return DEFAULT_CHECKLIST_ITEMS.map(i => ({ ...i }));
   try {
     const parsed = JSON.parse(data);
     if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.items) && parsed.items.length > 0) {
+      return parsed.items;
+    }
     return DEFAULT_CHECKLIST_ITEMS.map(i => ({ ...i }));
   } catch {
     return DEFAULT_CHECKLIST_ITEMS.map(i => ({ ...i }));
   }
 }
 
+export function parseSupplies(data?: string): CleaningSupplyItem[] {
+  if (!data) return [];
+  try {
+    const parsed = JSON.parse(data);
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.supplies)) {
+      return parsed.supplies;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
 export function stringifyChecklist(items: ChecklistItem[]): string {
   return JSON.stringify(items);
+}
+
+export function stringifyChecklistWithSupplies(items: ChecklistItem[], supplies?: CleaningSupplyItem[]): string {
+  return JSON.stringify({ items, supplies: supplies || [] });
 }
 
 export function parseQualityChecklist(data?: string): QualityChecklistItem[] {
