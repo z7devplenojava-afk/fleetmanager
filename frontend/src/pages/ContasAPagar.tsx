@@ -30,7 +30,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Upload
+  Upload,
+  Layers
 } from 'lucide-react';
 import { ContasAPagarFormModal, ContaAPagar } from '@/components/financeiro/ContasAPagarFormModal';
 import { ContasAPagarTable } from '@/components/financeiro/ContasAPagarTable';
@@ -38,6 +39,7 @@ import { ContasAPagarDashboard } from '@/components/financeiro/ContasAPagarDashb
 import { ContasAPagarViewModal } from '@/components/financeiro/ContasAPagarViewModal';
 import { ImportarDespesasPdfModal } from '@/components/financeiro/ImportarDespesasPdfModal';
 import { contasAPagarService } from '@/services/contasAPagarService';
+import { CLASSIFICACOES_SIGLO } from '@/constants/classificacaoContasPagar';
 import { format, addDays, isBefore } from 'date-fns';
 
 const ContasAPagar: React.FC = () => {
@@ -63,17 +65,20 @@ const ContasAPagar: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'contas' | 'relatorios'>('contas');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportData, setReportData] = useState<any>(null);
+  const [classificacoesList, setClassificacoesList] = useState<string[]>(Array.from(CLASSIFICACOES_SIGLO));
   const [reportFilters, setReportFilters] = useState({
     startDate: new Date(new Date().getFullYear(), 0, 1),
     endDate: new Date(new Date().getFullYear(), 11, 31),
     status: 'TODOS',
     tipo: 'TODOS',
-    fornecedor: 'TODOS'
+    fornecedor: 'TODOS',
+    classificacao: 'TODAS'
   });
 
   // Estados para filtro por empresa no relatório
   const [empresaFilterRelatorio, setEmpresaFilterRelatorio] = useState<string>('TODAS');
   const [showEmpresaFilterRelatorio, setShowEmpresaFilterRelatorio] = useState<boolean>(false);
+  const [showClassificacaoDetalhes, setShowClassificacaoDetalhes] = useState<boolean>(false);
   
   // Estados para paginação
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -94,12 +99,16 @@ const ContasAPagar: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [contasData, estatisticas] = await Promise.all([
+      const [contasData, estatisticas, classifs] = await Promise.all([
         contasAPagarService.getContasAPagar(),
-        contasAPagarService.getEstatisticas()
+        contasAPagarService.getEstatisticas(),
+        contasAPagarService.getClassificacoes().catch(() => Array.from(CLASSIFICACOES_SIGLO))
       ]);
 
       setContas(contasData || []);
+      if (classifs && classifs.length > 0) {
+        setClassificacoesList(classifs);
+      }
 
       // Calcular estatísticas
       const hoje = new Date();
@@ -312,6 +321,7 @@ const ContasAPagar: React.FC = () => {
       // Resetar filtro de empresa quando gerar novo relatório
       setEmpresaFilterRelatorio('TODAS');
       setShowEmpresaFilterRelatorio(false);
+      setShowClassificacaoDetalhes(false);
       
       console.log('🔍 DEBUG: Gerando relatório do tipo:', reportType);
       console.log('🔍 DEBUG: Total de contas disponíveis:', contas.length);
@@ -338,16 +348,20 @@ const ContasAPagar: React.FC = () => {
         const filtroStatus = reportFilters.status === 'TODOS' || conta.status === reportFilters.status;
         const filtroTipo = reportFilters.tipo === 'TODOS' || conta.tipo === reportFilters.tipo;
         const filtroFornecedor = reportFilters.fornecedor === 'TODOS' || conta.fornecedor === reportFilters.fornecedor;
+        const filtroClassificacao = reportFilters.classificacao === 'TODAS' || 
+          reportFilters.classificacao === 'TODOS' || 
+          (conta.categoria && conta.categoria.toUpperCase().trim() === reportFilters.classificacao.toUpperCase().trim());
         
         console.log('🔍 DEBUG: Filtros aplicados:', {
           filtroData,
           filtroStatus,
           filtroTipo,
           filtroFornecedor,
-          passaFiltro: filtroData && filtroStatus && filtroTipo && filtroFornecedor
+          filtroClassificacao,
+          passaFiltro: filtroData && filtroStatus && filtroTipo && filtroFornecedor && filtroClassificacao
         });
         
-        return filtroData && filtroStatus && filtroTipo && filtroFornecedor;
+        return filtroData && filtroStatus && filtroTipo && filtroFornecedor && filtroClassificacao;
       });
       
       console.log('🔍 DEBUG: Contas filtradas:', contasFiltradas.length, contasFiltradas);
@@ -385,15 +399,79 @@ const ContasAPagar: React.FC = () => {
         ];
       }
 
-      let reportData = {
+      let reportData: any = {
         title: '',
         subtitle: '',
+        type: reportType,
         period: `${format(reportFilters.startDate, 'dd/MM/yyyy')} - ${format(reportFilters.endDate, 'dd/MM/yyyy')}`,
         data: contasParaRelatorio,
         summary: {}
       };
 
       switch (reportType) {
+        case 'classificacao': {
+          const classificacaoMap: Record<string, {
+            classificacao: string;
+            count: number;
+            vrReal: number;
+            vrDescontos: number;
+            vrJuros: number;
+            vrMultas: number;
+            vrPago: number;
+          }> = {};
+
+          contasParaRelatorio.forEach(conta => {
+            const cat = (conta.categoria && conta.categoria.trim()) ? conta.categoria.trim().toUpperCase() : 'NÃO CLASSIFICADO';
+            if (!classificacaoMap[cat]) {
+              classificacaoMap[cat] = {
+                classificacao: cat,
+                count: 0,
+                vrReal: 0,
+                vrDescontos: 0,
+                vrJuros: 0,
+                vrMultas: 0,
+                vrPago: 0
+              };
+            }
+            classificacaoMap[cat].count++;
+            const vrReal = Number(conta.vrReal ?? conta.valor ?? 0);
+            const vrDescontos = Number(conta.vrDescontos ?? 0);
+            const vrJuros = Number(conta.vrJuros ?? 0);
+            const vrMultas = Number(conta.vrMultas ?? 0);
+            const vrPago = Number(conta.vrPago ?? (conta.status === 'PAGA' ? conta.valor : 0));
+
+            classificacaoMap[cat].vrReal += vrReal;
+            classificacaoMap[cat].vrDescontos += vrDescontos;
+            classificacaoMap[cat].vrJuros += vrJuros;
+            classificacaoMap[cat].vrMultas += vrMultas;
+            classificacaoMap[cat].vrPago += vrPago;
+          });
+
+          const listaClassificacoes = Object.values(classificacaoMap).sort((a, b) => a.classificacao.localeCompare(b.classificacao));
+          const totalReal = listaClassificacoes.reduce((sum, item) => sum + item.vrReal, 0);
+          const totalDescontos = listaClassificacoes.reduce((sum, item) => sum + item.vrDescontos, 0);
+          const totalJuros = listaClassificacoes.reduce((sum, item) => sum + item.vrJuros, 0);
+          const totalMultas = listaClassificacoes.reduce((sum, item) => sum + item.vrMultas, 0);
+          const totalPago = listaClassificacoes.reduce((sum, item) => sum + item.vrPago, 0);
+
+          reportData = {
+            ...reportData,
+            title: 'Relatório por Classificação - SIGLO00058',
+            subtitle: 'Demonstrativo de despesas agrupadas por classificação contábil/financeira',
+            type: 'classificacao',
+            summary: {
+              totalContas: contasParaRelatorio.length,
+              valorTotal: totalReal,
+              listaClassificacoes,
+              totalReal,
+              totalDescontos,
+              totalJuros,
+              totalMultas,
+              totalPago
+            }
+          };
+          break;
+        }
         case 'resumo':
           reportData = {
             ...reportData,
@@ -520,20 +598,45 @@ const ContasAPagar: React.FC = () => {
     }
     
     try {
-      const headers = ['Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo', 'Empresa', 'Categoria'];
-      const csvContent = [
-        headers.join(','),
-        ...filteredReportDisplayData.map((conta: ContaAPagar) => [
-          `"${conta.descricao}"`,
-          `"${conta.fornecedor}"`,
-          conta.valor,
-          format(conta.vencimento, 'dd/MM/yyyy'),
-          getStatusDisplayName(conta.status),
-          conta.tipo,
-          conta.empresa || conta.companySigla || 'Não informado',
-          conta.categoria || ''
-        ].join(','))
-      ].join('\n');
+      let csvContent = '';
+      const formatNum = (v: number) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      if (reportData.type === 'classificacao') {
+        const headers = ['Classificação', 'Vr. Real', 'Vr. Descontos', 'Vr. Juros', 'Vr. Multas', 'Vr. Pago'];
+        const list = displaySummary.listaClassificacoes || [];
+        const rows = list.map((item: any) => [
+          `"${item.classificacao}"`,
+          formatNum(item.vrReal),
+          formatNum(item.vrDescontos),
+          formatNum(item.vrJuros),
+          formatNum(item.vrMultas),
+          formatNum(item.vrPago)
+        ]);
+        rows.push([
+          '"Total Geral :"',
+          formatNum(displaySummary.totalReal),
+          formatNum(displaySummary.totalDescontos),
+          formatNum(displaySummary.totalJuros),
+          formatNum(displaySummary.totalMultas),
+          formatNum(displaySummary.totalPago)
+        ]);
+        csvContent = ['SIGLO00058', headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+      } else {
+        const headers = ['Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo', 'Empresa', 'Categoria'];
+        csvContent = [
+          headers.join(','),
+          ...filteredReportDisplayData.map((conta: ContaAPagar) => [
+            `"${conta.descricao}"`,
+            `"${conta.fornecedor}"`,
+            conta.valor,
+            format(conta.vencimento, 'dd/MM/yyyy'),
+            getStatusDisplayName(conta.status),
+            conta.tipo,
+            conta.empresa || conta.companySigla || 'Não informado',
+            conta.categoria || ''
+          ].join(','))
+        ].join('\n');
+      }
       
       const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
@@ -554,7 +657,7 @@ const ContasAPagar: React.FC = () => {
       
       toast({
         title: "Sucesso",
-        description: `Relatório CSV exportado com sucesso! (${filteredReportDisplayData.length} registros)${empresaFilterRelatorio !== 'TODAS' ? ` - Filtrado por: ${empresaFilterRelatorio}` : ''}`
+        description: `Relatório CSV exportado com sucesso!`
       });
     } catch (error) {
       console.error('Erro ao exportar CSV:', error);
@@ -577,46 +680,98 @@ const ContasAPagar: React.FC = () => {
     }
 
     try {
-      // Criar uma planilha HTML simples que pode ser aberta no Excel
-      const headers = ['Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo', 'Empresa', 'Categoria'];
-      
-      let htmlContent = `
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>${reportData.title}</title>
-        </head>
-        <body>
-          <h1>${reportData.title}</h1>
-          <h2>${reportData.subtitle}</h2>
-          <p><strong>Período:</strong> ${reportData.period}</p>
-          ${empresaFilterRelatorio !== 'TODAS' ? `<p><strong>Filtrado por Empresa:</strong> ${empresaFilterRelatorio}</p>` : ''}
-          <p><strong>Total de registros:</strong> ${filteredReportDisplayData.length}</p>
-          <br>
-          <table border="1" cellpadding="5" cellspacing="0">
-            <thead>
-              <tr style="background-color: #f0f0f0;">
-                ${headers.map(header => `<th>${header}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredReportDisplayData.map((conta: ContaAPagar) => `
-                <tr>
-                  <td>${conta.descricao}</td>
-                  <td>${conta.fornecedor}</td>
-                  <td>${formatCurrency(conta.valor)}</td>
-                  <td>${format(conta.vencimento, 'dd/MM/yyyy')}</td>
-                  <td>${getStatusDisplayName(conta.status)}</td>
-                  <td>${conta.tipo}</td>
-                  <td>${conta.empresa || conta.companySigla || 'Não informado'}</td>
-                  <td>${conta.categoria || ''}</td>
+      const formatNum = (v: number) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      let htmlContent = '';
+
+      if (reportData.type === 'classificacao') {
+        const list = displaySummary.listaClassificacoes || [];
+        htmlContent = `
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>SIGLO00058 - Relatório por Classificação</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; font-size: 12px;">
+            <div style="text-align: right; font-size: 11px; font-weight: bold;">SIGLO00058</div>
+            <h2>Relatório de Despesas por Classificação</h2>
+            <p><strong>Período:</strong> ${reportData.period}</p>
+            <table border="1" cellpadding="6" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background-color: #f2f2f2; font-weight: bold;">
+                  <th style="text-align: left;">Classificação</th>
+                  <th style="text-align: right;">Vr. Real</th>
+                  <th style="text-align: right;">Vr. Descontos</th>
+                  <th style="text-align: right;">Vr. Juros</th>
+                  <th style="text-align: right;">Vr. Multas</th>
+                  <th style="text-align: right;">Vr. Pago</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </body>
-        </html>
-      `;
+              </thead>
+              <tbody>
+                ${list.map((item: any) => `
+                  <tr>
+                    <td>${item.classificacao}</td>
+                    <td style="text-align: right;">${formatNum(item.vrReal)}</td>
+                    <td style="text-align: right;">${formatNum(item.vrDescontos)}</td>
+                    <td style="text-align: right;">${formatNum(item.vrJuros)}</td>
+                    <td style="text-align: right;">${formatNum(item.vrMultas)}</td>
+                    <td style="text-align: right;">${formatNum(item.vrPago)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+              <tfoot>
+                <tr style="background-color: #e6e6e6; font-weight: bold;">
+                  <td style="text-align: left;">Total Geral :</td>
+                  <td style="text-align: right;">${formatNum(displaySummary.totalReal)}</td>
+                  <td style="text-align: right;">${formatNum(displaySummary.totalDescontos)}</td>
+                  <td style="text-align: right;">${formatNum(displaySummary.totalJuros)}</td>
+                  <td style="text-align: right;">${formatNum(displaySummary.totalMultas)}</td>
+                  <td style="text-align: right;">${formatNum(displaySummary.totalPago)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </body>
+          </html>
+        `;
+      } else {
+        const headers = ['Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo', 'Empresa', 'Categoria'];
+        htmlContent = `
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>${reportData.title}</title>
+          </head>
+          <body>
+            <h1>${reportData.title}</h1>
+            <h2>${reportData.subtitle}</h2>
+            <p><strong>Período:</strong> ${reportData.period}</p>
+            ${empresaFilterRelatorio !== 'TODAS' ? `<p><strong>Filtrado por Empresa:</strong> ${empresaFilterRelatorio}</p>` : ''}
+            <p><strong>Total de registros:</strong> ${filteredReportDisplayData.length}</p>
+            <br>
+            <table border="1" cellpadding="5" cellspacing="0">
+              <thead>
+                <tr style="background-color: #f0f0f0;">
+                  ${headers.map(header => `<th>${header}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredReportDisplayData.map((conta: ContaAPagar) => `
+                  <tr>
+                    <td>${conta.descricao}</td>
+                    <td>${conta.fornecedor}</td>
+                    <td>${formatCurrency(conta.valor)}</td>
+                    <td>${format(conta.vencimento, 'dd/MM/yyyy')}</td>
+                    <td>${getStatusDisplayName(conta.status)}</td>
+                    <td>${conta.tipo}</td>
+                    <td>${conta.empresa || conta.companySigla || 'Não informado'}</td>
+                    <td>${conta.categoria || ''}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </body>
+          </html>
+        `;
+      }
       
       const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel' });
       const link = document.createElement('a');
@@ -637,7 +792,7 @@ const ContasAPagar: React.FC = () => {
       
       toast({
         title: "Sucesso",
-        description: `Relatório Excel exportado com sucesso! (${filteredReportDisplayData.length} registros)${empresaFilterRelatorio !== 'TODAS' ? ` - Filtrado por: ${empresaFilterRelatorio}` : ''}`
+        description: `Relatório Excel exportado com sucesso!`
       });
     } catch (error) {
       console.error('Erro ao exportar Excel:', error);
@@ -660,7 +815,6 @@ const ContasAPagar: React.FC = () => {
     }
 
     try {
-      // Criar um PDF simples usando window.print() com estilos específicos
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
         toast({
@@ -671,99 +825,182 @@ const ContasAPagar: React.FC = () => {
         return;
       }
 
-      const headers = ['Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo', 'Empresa'];
-      
-      // Recalcular resumo com dados filtrados
-      let summaryHtml = '';
-      if (displaySummary && Object.keys(displaySummary).length > 0) {
-        summaryHtml = `
-          <div class="summary">
-            <h3>Resumo</h3>
-            <p><strong>Total de Contas:</strong> ${displaySummary.totalContas || 0}</p>
-            <p><strong>Valor Total:</strong> ${formatCurrency(displaySummary.valorTotal || 0)}</p>
-            ${displaySummary.contasPagas !== undefined ? `<p><strong>Contas Pagas:</strong> ${displaySummary.contasPagas}</p>` : ''}
-            ${displaySummary.contasAbertas !== undefined ? `<p><strong>Contas Abertas:</strong> ${displaySummary.contasAbertas}</p>` : ''}
-            ${displaySummary.contasVencidas !== undefined ? `<p><strong>Contas Vencidas:</strong> ${displaySummary.contasVencidas}</p>` : ''}
-          </div>
+      const formatNum = (v: number) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      let htmlContent = '';
+
+      if (reportData.type === 'classificacao') {
+        const list = displaySummary.listaClassificacoes || [];
+        htmlContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>SIGLO00058 - Relatório por Classificação</title>
+            <style>
+              body { font-family: "Segoe UI", Arial, sans-serif; margin: 25px; color: #111; }
+              .top-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
+              .doc-code { font-size: 11px; font-weight: bold; color: #333; text-align: right; }
+              table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11.5px; }
+              th { border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 6px 4px; font-weight: bold; }
+              td { padding: 4px; border-bottom: 1px dotted #ccc; }
+              .col-text { text-align: left; }
+              .col-num { text-align: right; font-variant-numeric: tabular-nums; }
+              .total-row { font-weight: bold; border-top: 2px solid #000; border-bottom: 2px solid #000; }
+              .total-row td { padding: 6px 4px; border-bottom: none; }
+              .meta-info { font-size: 11px; color: #555; margin-bottom: 12px; }
+              @media print {
+                .no-print { display: none !important; }
+                body { margin: 10mm; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="top-header">
+              <div>
+                <h2 style="margin: 0; font-size: 18px;">Demonstrativo por Classificação</h2>
+                <div class="meta-info">Período: ${reportData.period} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</div>
+              </div>
+              <div class="doc-code">SIGLO00058</div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th class="col-text">Classificação</th>
+                  <th class="col-num">Vr. Real</th>
+                  <th class="col-num">Vr. Descontos</th>
+                  <th class="col-num">Vr. Juros</th>
+                  <th class="col-num">Vr. Multas</th>
+                  <th class="col-num">Vr. Pago</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${list.map((item: any) => `
+                  <tr>
+                    <td class="col-text">${item.classificacao}</td>
+                    <td class="col-num">${formatNum(item.vrReal)}</td>
+                    <td class="col-num">${formatNum(item.vrDescontos)}</td>
+                    <td class="col-num">${formatNum(item.vrJuros)}</td>
+                    <td class="col-num">${formatNum(item.vrMultas)}</td>
+                    <td class="col-num">${formatNum(item.vrPago)}</td>
+                  </tr>
+                `).join('')}
+                <tr class="total-row">
+                  <td class="col-text" style="font-size: 12px;">Total Geral :</td>
+                  <td class="col-num">${formatNum(displaySummary.totalReal)}</td>
+                  <td class="col-num">${formatNum(displaySummary.totalDescontos)}</td>
+                  <td class="col-num">${formatNum(displaySummary.totalJuros)}</td>
+                  <td class="col-num">${formatNum(displaySummary.totalMultas)}</td>
+                  <td class="col-num">${formatNum(displaySummary.totalPago)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="no-print" style="margin-top: 30px; text-align: center;">
+              <button onclick="window.print()" style="padding: 10px 20px; font-size: 14px; background-color: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                Imprimir Relatório
+              </button>
+              <button onclick="window.close()" style="padding: 10px 20px; font-size: 14px; background-color: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; margin-left: 10px;">
+                Fechar
+              </button>
+            </div>
+          </body>
+          </html>
+        `;
+      } else {
+        const headers = ['Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo', 'Empresa'];
+        
+        let summaryHtml = '';
+        if (displaySummary && Object.keys(displaySummary).length > 0) {
+          summaryHtml = `
+            <div class="summary">
+              <h3>Resumo</h3>
+              <p><strong>Total de Contas:</strong> ${displaySummary.totalContas || 0}</p>
+              <p><strong>Valor Total:</strong> ${formatCurrency(displaySummary.valorTotal || 0)}</p>
+              ${displaySummary.contasPagas !== undefined ? `<p><strong>Contas Pagas:</strong> ${displaySummary.contasPagas}</p>` : ''}
+              ${displaySummary.contasAbertas !== undefined ? `<p><strong>Contas Abertas:</strong> ${displaySummary.contasAbertas}</p>` : ''}
+              ${displaySummary.contasVencidas !== undefined ? `<p><strong>Contas Vencidas:</strong> ${displaySummary.contasVencidas}</p>` : ''}
+            </div>
+          `;
+        }
+        
+        htmlContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>${reportData.title}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              h1 { color: #333; font-size: 24px; margin-bottom: 10px; }
+              h2 { color: #666; font-size: 18px; margin-bottom: 5px; }
+              p { margin: 5px 0; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+              th { background-color: #f2f2f2; font-weight: bold; }
+              tr:nth-child(even) { background-color: #f9f9f9; }
+              .summary { margin: 20px 0; padding: 15px; background-color: #f0f0f0; border-radius: 5px; }
+              .filter-info { background-color: #e3f2fd; padding: 10px; border-left: 4px solid #2196f3; margin: 10px 0; }
+              @media print {
+                body { margin: 0; }
+                .no-print { display: none; }
+              }
+            </style>
+          </head>
+          <body>
+            <h1>${reportData.title}</h1>
+            <h2>${reportData.subtitle}</h2>
+            <p><strong>Período:</strong> ${reportData.period}</p>
+            ${empresaFilterRelatorio !== 'TODAS' ? `
+              <div class="filter-info">
+                <strong>🔍 Filtro Aplicado:</strong> Empresa ${empresaFilterRelatorio}
+              </div>
+            ` : ''}
+            <p><strong>Data de geração:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+            <p><strong>Total de registros:</strong> ${filteredReportDisplayData.length}</p>
+            
+            ${summaryHtml}
+            
+            <table>
+              <thead>
+                <tr>
+                  ${headers.map(header => `<th>${header}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredReportDisplayData.map((conta: ContaAPagar) => `
+                  <tr>
+                    <td>${conta.descricao}</td>
+                    <td>${conta.fornecedor}</td>
+                    <td>${formatCurrency(conta.valor)}</td>
+                    <td>${format(conta.vencimento, 'dd/MM/yyyy')}</td>
+                    <td>${getStatusDisplayName(conta.status)}</td>
+                    <td>${conta.tipo}</td>
+                    <td>${conta.empresa || conta.companySigla || 'Não informado'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            
+            <div class="no-print" style="margin-top: 30px; text-align: center;">
+              <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                Imprimir PDF
+              </button>
+              <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; background-color: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+                Fechar
+              </button>
+            </div>
+          </body>
+          </html>
         `;
       }
-      
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>${reportData.title}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            h1 { color: #333; font-size: 24px; margin-bottom: 10px; }
-            h2 { color: #666; font-size: 18px; margin-bottom: 5px; }
-            p { margin: 5px 0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
-            th { background-color: #f2f2f2; font-weight: bold; }
-            tr:nth-child(even) { background-color: #f9f9f9; }
-            .summary { margin: 20px 0; padding: 15px; background-color: #f0f0f0; border-radius: 5px; }
-            .filter-info { background-color: #e3f2fd; padding: 10px; border-left: 4px solid #2196f3; margin: 10px 0; }
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>${reportData.title}</h1>
-          <h2>${reportData.subtitle}</h2>
-          <p><strong>Período:</strong> ${reportData.period}</p>
-          ${empresaFilterRelatorio !== 'TODAS' ? `
-            <div class="filter-info">
-              <strong>🔍 Filtro Aplicado:</strong> Empresa ${empresaFilterRelatorio}
-            </div>
-          ` : ''}
-          <p><strong>Data de geração:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-          <p><strong>Total de registros:</strong> ${filteredReportDisplayData.length}</p>
-          
-          ${summaryHtml}
-          
-          <table>
-            <thead>
-              <tr>
-                ${headers.map(header => `<th>${header}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredReportDisplayData.map((conta: ContaAPagar) => `
-                <tr>
-                  <td>${conta.descricao}</td>
-                  <td>${conta.fornecedor}</td>
-                  <td>${formatCurrency(conta.valor)}</td>
-                  <td>${format(conta.vencimento, 'dd/MM/yyyy')}</td>
-                  <td>${getStatusDisplayName(conta.status)}</td>
-                  <td>${conta.tipo}</td>
-                  <td>${conta.empresa || conta.companySigla || 'Não informado'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          
-          <div class="no-print" style="margin-top: 30px; text-align: center;">
-            <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
-              Imprimir PDF
-            </button>
-            <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; background-color: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
-              Fechar
-            </button>
-          </div>
-        </body>
-        </html>
-      `;
 
       printWindow.document.write(htmlContent);
       printWindow.document.close();
       
       toast({
         title: "Sucesso",
-        description: `Relatório PDF preparado! (${filteredReportDisplayData.length} registros)${empresaFilterRelatorio !== 'TODAS' ? ` - Filtrado por: ${empresaFilterRelatorio}` : ''}`
+        description: `Relatório PDF preparado!`
       });
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
@@ -816,6 +1053,48 @@ const ContasAPagar: React.FC = () => {
 
     // Recalculate summary based on the filtered data
     switch (reportData.type) {
+      case 'classificacao': {
+        const classificacaoMap: Record<string, any> = {};
+        dataToSummarize.forEach((conta: ContaAPagar) => {
+          const cat = (conta.categoria && conta.categoria.trim()) ? conta.categoria.trim().toUpperCase() : 'NÃO CLASSIFICADO';
+          if (!classificacaoMap[cat]) {
+            classificacaoMap[cat] = {
+              classificacao: cat,
+              count: 0,
+              vrReal: 0,
+              vrDescontos: 0,
+              vrJuros: 0,
+              vrMultas: 0,
+              vrPago: 0
+            };
+          }
+          classificacaoMap[cat].count++;
+          const vrReal = Number(conta.vrReal ?? conta.valor ?? 0);
+          const vrDescontos = Number(conta.vrDescontos ?? 0);
+          const vrJuros = Number(conta.vrJuros ?? 0);
+          const vrMultas = Number(conta.vrMultas ?? 0);
+          const vrPago = Number(conta.vrPago ?? (conta.status === 'PAGA' ? conta.valor : 0));
+
+          classificacaoMap[cat].vrReal += vrReal;
+          classificacaoMap[cat].vrDescontos += vrDescontos;
+          classificacaoMap[cat].vrJuros += vrJuros;
+          classificacaoMap[cat].vrMultas += vrMultas;
+          classificacaoMap[cat].vrPago += vrPago;
+        });
+
+        const listaClassificacoes = Object.values(classificacaoMap).sort((a: any, b: any) => a.classificacao.localeCompare(b.classificacao));
+        currentSummary = {
+          totalContas: dataToSummarize.length,
+          valorTotal: listaClassificacoes.reduce((s, i) => s + i.vrReal, 0),
+          listaClassificacoes,
+          totalReal: listaClassificacoes.reduce((s, i) => s + i.vrReal, 0),
+          totalDescontos: listaClassificacoes.reduce((s, i) => s + i.vrDescontos, 0),
+          totalJuros: listaClassificacoes.reduce((s, i) => s + i.vrJuros, 0),
+          totalMultas: listaClassificacoes.reduce((s, i) => s + i.vrMultas, 0),
+          totalPago: listaClassificacoes.reduce((s, i) => s + i.vrPago, 0),
+        };
+        break;
+      }
       case 'resumo':
         currentSummary = {
           totalContas: dataToSummarize.length,
@@ -1189,7 +1468,7 @@ const ContasAPagar: React.FC = () => {
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div>
                     <label className="text-sm font-medium text-seguranca-lightgray mb-3 block">Data Início</label>
                     <input
@@ -1234,77 +1513,110 @@ const ContasAPagar: React.FC = () => {
                       <option value="VARIAVEL">Variável</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-amber-300 mb-3 block flex items-center gap-1.5">
+                      <Layers className="h-4 w-4 text-amber-400" />
+                      Classificação
+                    </label>
+                    <select
+                      value={reportFilters.classificacao}
+                      onChange={(e) => setReportFilters(prev => ({ ...prev, classificacao: e.target.value }))}
+                      className="w-full px-3 py-3 bg-seguranca-black/50 border border-amber-500/40 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
+                    >
+                      <option value="TODAS">Todas as Classificações</option>
+                      {classificacoesList.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Tipos de Relatórios */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-              <Card className="bg-gradient-to-br from-blue-900/30 to-blue-800/30 border border-blue-500/30 hover:border-blue-400/50 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 cursor-pointer group" onClick={() => generateReport('resumo')}>
-                <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+              <Card className="bg-gradient-to-br from-amber-900/30 to-amber-800/30 border border-amber-500/40 hover:border-amber-400/60 hover:shadow-xl hover:shadow-amber-500/20 transition-all duration-300 cursor-pointer group" onClick={() => generateReport('classificacao')}>
+                <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-white text-lg group-hover:text-blue-300 transition-colors">Resumo Geral</h3>
-                      <p className="text-sm text-gray-400 mt-1">Visão geral das contas</p>
+                      <div className="inline-block px-2 py-0.5 mb-1 bg-amber-500/20 text-amber-300 text-[10px] font-bold rounded-md uppercase">
+                        SIGLO00058
+                      </div>
+                      <h3 className="font-semibold text-white text-base group-hover:text-amber-300 transition-colors">Classificação</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">Plano de contas</p>
                     </div>
-                    <div className="p-4 bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-xl group-hover:from-blue-500/30 group-hover:to-blue-600/30 transition-all duration-300">
-                      <PieChart className="h-7 w-7 text-blue-400 group-hover:text-blue-300 transition-colors" />
+                    <div className="p-3 bg-gradient-to-br from-amber-500/20 to-amber-600/20 rounded-xl group-hover:from-amber-500/30 group-hover:to-amber-600/30 transition-all duration-300">
+                      <Layers className="h-6 w-6 text-amber-400 group-hover:text-amber-300 transition-colors" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-blue-900/30 to-blue-800/30 border border-blue-500/30 hover:border-blue-400/50 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 cursor-pointer group" onClick={() => generateReport('resumo')}>
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-white text-base group-hover:text-blue-300 transition-colors">Resumo Geral</h3>
+                      <p className="text-xs text-gray-400 mt-1">Visão geral</p>
+                    </div>
+                    <div className="p-3 bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-xl group-hover:from-blue-500/30 group-hover:to-blue-600/30 transition-all duration-300">
+                      <PieChart className="h-6 w-6 text-blue-400 group-hover:text-blue-300 transition-colors" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="bg-gradient-to-br from-green-900/30 to-green-800/30 border border-green-500/30 hover:border-green-400/50 hover:shadow-xl hover:shadow-green-500/20 transition-all duration-300 cursor-pointer group" onClick={() => generateReport('periodo')}>
-                <CardContent className="p-6">
+                <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-white text-lg group-hover:text-green-300 transition-colors">Por Período</h3>
-                      <p className="text-sm text-gray-400 mt-1">Detalhamento temporal</p>
+                      <h3 className="font-semibold text-white text-base group-hover:text-green-300 transition-colors">Por Período</h3>
+                      <p className="text-xs text-gray-400 mt-1">Detalhamento temporal</p>
                     </div>
-                    <div className="p-4 bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-xl group-hover:from-green-500/30 group-hover:to-green-600/30 transition-all duration-300">
-                      <Calendar className="h-7 w-7 text-green-400 group-hover:text-green-300 transition-colors" />
+                    <div className="p-3 bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-xl group-hover:from-green-500/30 group-hover:to-green-600/30 transition-all duration-300">
+                      <Calendar className="h-6 w-6 text-green-400 group-hover:text-green-300 transition-colors" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="bg-gradient-to-br from-purple-900/30 to-purple-800/30 border border-purple-500/30 hover:border-purple-400/50 hover:shadow-xl hover:shadow-purple-500/20 transition-all duration-300 cursor-pointer group" onClick={() => generateReport('fornecedor')}>
-                <CardContent className="p-6">
+                <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-white text-lg group-hover:text-purple-300 transition-colors">Por Fornecedor</h3>
-                      <p className="text-sm text-gray-400 mt-1">Agrupamento por fornecedor</p>
+                      <h3 className="font-semibold text-white text-base group-hover:text-purple-300 transition-colors">Por Fornecedor</h3>
+                      <p className="text-xs text-gray-400 mt-1">Por fornecedor</p>
                     </div>
-                    <div className="p-4 bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-xl group-hover:from-purple-500/30 group-hover:to-purple-600/30 transition-all duration-300">
-                      <TrendingUp className="h-7 w-7 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                    <div className="p-3 bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-xl group-hover:from-purple-500/30 group-hover:to-purple-600/30 transition-all duration-300">
+                      <TrendingUp className="h-6 w-6 text-purple-400 group-hover:text-purple-300 transition-colors" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="bg-gradient-to-br from-orange-900/30 to-orange-800/30 border border-orange-500/30 hover:border-orange-400/50 hover:shadow-xl hover:shadow-orange-500/20 transition-all duration-300 cursor-pointer group" onClick={() => generateReport('status')}>
-                <CardContent className="p-6">
+                <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-white text-lg group-hover:text-orange-300 transition-colors">Por Status</h3>
-                      <p className="text-sm text-gray-400 mt-1">Distribuição por status</p>
+                      <h3 className="font-semibold text-white text-base group-hover:text-orange-300 transition-colors">Por Status</h3>
+                      <p className="text-xs text-gray-400 mt-1">Distribuição</p>
                     </div>
-                    <div className="p-4 bg-gradient-to-br from-orange-500/20 to-orange-600/20 rounded-xl group-hover:from-orange-500/30 group-hover:to-orange-600/30 transition-all duration-300">
-                      <CheckCircle className="h-7 w-7 text-orange-400 group-hover:text-orange-300 transition-colors" />
+                    <div className="p-3 bg-gradient-to-br from-orange-500/20 to-orange-600/20 rounded-xl group-hover:from-orange-500/30 group-hover:to-orange-600/30 transition-all duration-300">
+                      <CheckCircle className="h-6 w-6 text-orange-400 group-hover:text-orange-300 transition-colors" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="bg-gradient-to-br from-indigo-900/30 to-indigo-800/30 border border-indigo-500/30 hover:border-indigo-400/50 hover:shadow-xl hover:shadow-indigo-500/20 transition-all duration-300 cursor-pointer group" onClick={() => generateReport('empresa')}>
-                <CardContent className="p-6">
+                <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-white text-lg group-hover:text-indigo-300 transition-colors">Por Empresa</h3>
-                      <p className="text-sm text-gray-400 mt-1">Agrupamento por empresa</p>
+                      <h3 className="font-semibold text-white text-base group-hover:text-indigo-300 transition-colors">Por Empresa</h3>
+                      <p className="text-xs text-gray-400 mt-1">Por empresa</p>
                     </div>
-                    <div className="p-4 bg-gradient-to-br from-indigo-500/20 to-indigo-600/20 rounded-xl group-hover:from-indigo-500/30 group-hover:to-indigo-600/30 transition-all duration-300">
-                      <Building className="h-7 w-7 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
+                    <div className="p-3 bg-gradient-to-br from-indigo-500/20 to-indigo-600/20 rounded-xl group-hover:from-indigo-500/30 group-hover:to-indigo-600/30 transition-all duration-300">
+                      <Building className="h-6 w-6 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
                     </div>
                   </div>
                 </CardContent>
@@ -1438,71 +1750,179 @@ const ContasAPagar: React.FC = () => {
                   )}
 
                   {/* Tabela de Dados */}
-                  {filteredReportDisplayData && filteredReportDisplayData.length > 0 && (
-                    <div className="overflow-x-auto rounded-xl border border-gray-600/30">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-seguranca-black/70">
-                            <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Empresa</th>
-                            <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Descrição</th>
-                            <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Fornecedor</th>
-                            <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Valor</th>
-                            <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Vencimento</th>
-                            <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Status</th>
-                            <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Tipo</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {paginatedData.map((conta: ContaAPagar, index: number) => {
-                            const empresaSigla = conta.companySigla || conta.empresa || 'Não informado';
-                            return (
-                              <tr key={conta.id || index} className={index % 2 === 0 ? 'bg-seguranca-graphite/30' : 'bg-seguranca-black/30'}>
-                                <td className="px-4 py-3 border-b border-gray-700/30">
-                                  <div className="flex items-center gap-2">
-                                    <Badge 
-                                      variant="outline" 
-                                      className={`text-xs font-medium ${
-                                        empresaSigla === 'ADM' ? 'border-blue-500 text-blue-300 bg-blue-500/10' :
-                                        empresaSigla === 'TERC' ? 'border-green-500 text-green-300 bg-green-500/10' :
-                                        empresaSigla === 'VIG' ? 'border-purple-500 text-purple-300 bg-purple-500/10' :
-                                        'border-gray-500 text-gray-300 bg-gray-500/10'
-                                      }`}
-                                    >
-                                      {empresaSigla}
-                                    </Badge>
-                                    {empresaFilterRelatorio === 'TODAS' && (
-                                      <button
-                                        onClick={() => handleEmpresaFilterRelatorio(empresaSigla)}
-                                        className="text-xs text-blue-400 hover:text-blue-300 underline"
-                                        title={`Filtrar apenas por ${empresaSigla}`}
-                                      >
-                                        Filtrar
-                                      </button>
-                                    )}
-                                  </div>
+                  {reportData?.type === 'classificacao' && !showClassificacaoDetalhes ? (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center bg-zinc-900/90 p-4 rounded-xl border border-amber-500/30">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/30">
+                            SIGLO00058
+                          </span>
+                          <div>
+                            <span className="text-sm font-semibold text-white block">Demonstrativo por Classificação Contábil</span>
+                            <span className="text-xs text-zinc-400">Total de {displaySummary?.listaClassificacoes?.length || 0} classificações registradas</span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowClassificacaoDetalhes(true)}
+                          className="border-zinc-700 text-zinc-300 hover:text-white text-xs gap-1.5"
+                        >
+                          <Eye size={14} />
+                          Ver Títulos Detalhados ({filteredReportDisplayData.length})
+                        </Button>
+                      </div>
+
+                      <div className="overflow-x-auto rounded-xl border border-gray-700/60 bg-seguranca-black/60 shadow-xl">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-zinc-900/90 border-b border-gray-700 text-zinc-300 font-bold">
+                              <th className="px-5 py-3.5 text-left uppercase text-xs tracking-wider">Classificação</th>
+                              <th className="px-4 py-3.5 text-right uppercase text-xs tracking-wider">Vr. Real</th>
+                              <th className="px-4 py-3.5 text-right uppercase text-xs tracking-wider">Vr. Descontos</th>
+                              <th className="px-4 py-3.5 text-right uppercase text-xs tracking-wider">Vr. Juros</th>
+                              <th className="px-4 py-3.5 text-right uppercase text-xs tracking-wider">Vr. Multas</th>
+                              <th className="px-5 py-3.5 text-right uppercase text-xs tracking-wider text-emerald-400">Vr. Pago</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-800/60">
+                            {(displaySummary?.listaClassificacoes || []).map((item: any, idx: number) => (
+                              <tr
+                                key={item.classificacao}
+                                className={`hover:bg-zinc-800/40 transition-colors ${
+                                  idx % 2 === 0 ? 'bg-zinc-950/40' : 'bg-zinc-900/20'
+                                }`}
+                              >
+                                <td className="px-5 py-3 font-semibold text-white flex items-center gap-2.5">
+                                  <span className="w-2 h-2 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"></span>
+                                  {item.classificacao}
+                                  <span className="text-[11px] text-zinc-500 font-mono">({item.count} contas)</span>
                                 </td>
-                                <td className="px-4 py-3 text-gray-300 border-b border-gray-700/30">{conta.descricao}</td>
-                                <td className="px-4 py-3 text-gray-300 border-b border-gray-700/30">{conta.fornecedor}</td>
-                                <td className="px-4 py-3 text-green-400 font-medium border-b border-gray-700/30">{formatCurrency(conta.valor)}</td>
-                                <td className="px-4 py-3 text-gray-300 border-b border-gray-700/30">
-                                  {conta.vencimento ? format(conta.vencimento, 'dd/MM/yyyy') : '-'}
+                                <td className="px-4 py-3 text-right font-mono text-zinc-200">
+                                  {formatCurrency(item.vrReal)}
                                 </td>
-                                <td className="px-4 py-3 border-b border-gray-700/30">
-                                  <Badge variant={conta.status === 'PAGA' ? 'default' : conta.status === 'VENCIDA' ? 'destructive' : 'secondary'} className="text-xs">
-                                    {getStatusDisplayName(conta.status)}
-                                  </Badge>
+                                <td className="px-4 py-3 text-right font-mono text-zinc-400">
+                                  {formatCurrency(item.vrDescontos)}
                                 </td>
-                                <td className="px-4 py-3 text-gray-300 border-b border-gray-700/30">{conta.tipo}</td>
+                                <td className="px-4 py-3 text-right font-mono text-zinc-400">
+                                  {formatCurrency(item.vrJuros)}
+                                </td>
+                                <td className="px-4 py-3 text-right font-mono text-zinc-400">
+                                  {formatCurrency(item.vrMultas)}
+                                </td>
+                                <td className="px-5 py-3 text-right font-mono text-emerald-400 font-bold">
+                                  {formatCurrency(item.vrPago)}
+                                </td>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-zinc-900 border-t-2 border-amber-500/70 text-white font-bold">
+                              <td className="px-5 py-4 text-left text-amber-300 text-sm uppercase tracking-wider">
+                                Total Geral :
+                              </td>
+                              <td className="px-4 py-4 text-right font-mono text-base text-white">
+                                {formatCurrency(displaySummary?.totalReal || 0)}
+                              </td>
+                              <td className="px-4 py-4 text-right font-mono text-base text-zinc-300">
+                                {formatCurrency(displaySummary?.totalDescontos || 0)}
+                              </td>
+                              <td className="px-4 py-4 text-right font-mono text-base text-zinc-300">
+                                {formatCurrency(displaySummary?.totalJuros || 0)}
+                              </td>
+                              <td className="px-4 py-4 text-right font-mono text-base text-zinc-300">
+                                {formatCurrency(displaySummary?.totalMultas || 0)}
+                              </td>
+                              <td className="px-5 py-4 text-right font-mono text-base text-emerald-400 font-black">
+                                {formatCurrency(displaySummary?.totalPago || 0)}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
                     </div>
-                  )}
+                  ) : filteredReportDisplayData && filteredReportDisplayData.length > 0 ? (
+                    <div className="space-y-4">
+                      {reportData?.type === 'classificacao' && (
+                        <div className="flex justify-between items-center bg-zinc-900/70 p-3 rounded-lg border border-zinc-700">
+                          <span className="text-xs text-zinc-300">Exibindo títulos detalhados da classificação selecionada.</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowClassificacaoDetalhes(false)}
+                            className="text-xs border-amber-500/50 text-amber-300 hover:bg-amber-500/10"
+                          >
+                            Voltar ao Demonstrativo SIGLO00058
+                          </Button>
+                        </div>
+                      )}
+                      <div className="overflow-x-auto rounded-xl border border-gray-600/30">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-seguranca-black/70">
+                              <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Empresa</th>
+                              <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Classificação</th>
+                              <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Descrição</th>
+                              <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Fornecedor</th>
+                              <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Valor</th>
+                              <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Vencimento</th>
+                              <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Status</th>
+                              <th className="px-4 py-3 text-left text-white font-semibold border-b border-gray-600/50">Tipo</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedData.map((conta: ContaAPagar, index: number) => {
+                              const empresaSigla = conta.companySigla || conta.empresa || 'Não informado';
+                              return (
+                                <tr key={conta.id || index} className={index % 2 === 0 ? 'bg-seguranca-graphite/30' : 'bg-seguranca-black/30'}>
+                                  <td className="px-4 py-3 border-b border-gray-700/30">
+                                    <div className="flex items-center gap-2">
+                                      <Badge 
+                                        variant="outline" 
+                                        className={`text-xs font-medium ${
+                                          empresaSigla === 'ADM' ? 'border-blue-500 text-blue-300 bg-blue-500/10' :
+                                          empresaSigla === 'TERC' ? 'border-green-500 text-green-300 bg-green-500/10' :
+                                          empresaSigla === 'VIG' ? 'border-purple-500 text-purple-300 bg-purple-500/10' :
+                                          'border-gray-500 text-gray-300 bg-gray-500/10'
+                                        }`}
+                                      >
+                                        {empresaSigla}
+                                      </Badge>
+                                      {empresaFilterRelatorio === 'TODAS' && (
+                                        <button
+                                          onClick={() => handleEmpresaFilterRelatorio(empresaSigla)}
+                                          className="text-xs text-blue-400 hover:text-blue-300 underline"
+                                          title={`Filtrar apenas por ${empresaSigla}`}
+                                        >
+                                          Filtrar
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 text-amber-300/90 text-xs font-semibold border-b border-gray-700/30">{conta.categoria || '-'}</td>
+                                  <td className="px-4 py-3 text-gray-300 border-b border-gray-700/30">{conta.descricao}</td>
+                                  <td className="px-4 py-3 text-gray-300 border-b border-gray-700/30">{conta.fornecedor}</td>
+                                  <td className="px-4 py-3 text-green-400 font-medium border-b border-gray-700/30">{formatCurrency(conta.valor)}</td>
+                                  <td className="px-4 py-3 text-gray-300 border-b border-gray-700/30">
+                                    {conta.vencimento ? format(conta.vencimento, 'dd/MM/yyyy') : '-'}
+                                  </td>
+                                  <td className="px-4 py-3 border-b border-gray-700/30">
+                                    <Badge variant={conta.status === 'PAGA' ? 'default' : conta.status === 'VENCIDA' ? 'destructive' : 'secondary'} className="text-xs">
+                                      {getStatusDisplayName(conta.status)}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-4 py-3 text-gray-300 border-b border-gray-700/30">{conta.tipo}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : null}
 
                   {/* Controles de Paginação */}
-                  {filteredReportDisplayData && filteredReportDisplayData.length > 0 && totalPages > 1 && (
+                  {(!reportData || reportData.type !== 'classificacao' || showClassificacaoDetalhes) && filteredReportDisplayData && filteredReportDisplayData.length > 0 && totalPages > 1 && (
                     <div className="mt-6 flex items-center justify-between bg-seguranca-black/30 rounded-lg p-4 border border-gray-600/30">
                       <div className="text-sm text-gray-400">
                         Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, filteredReportDisplayData.length)} - {Math.min(currentPage * itemsPerPage, filteredReportDisplayData.length)} de {filteredReportDisplayData.length} registros

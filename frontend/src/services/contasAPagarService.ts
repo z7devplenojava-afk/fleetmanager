@@ -957,6 +957,20 @@ export const contasAPagarService = {
       console.error('Erro ao obter auditoria:', error);
       throw error;
     }
+  },
+
+  // Buscar lista de classificações de despesas
+  getClassificacoes: async (): Promise<string[]> => {
+    try {
+      const response = await api.get('/api/expense-classifications/names');
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        return response.data;
+      }
+    } catch (e) {
+      console.warn('Fallback para classificações locais:', e);
+    }
+    const { CLASSIFICACOES_SIGLO } = await import('@/constants/classificacaoContasPagar');
+    return Array.from(CLASSIFICACOES_SIGLO);
   }
 };
 
