@@ -97,6 +97,47 @@ public class Invoice implements TenantAware {
     @Column(name = "company_sigla", length = 10)
     private String companySigla;
 
+    // ── Campos de Despesa e Relatório SIGLO ──────────────────────
+    @Size(max = 50)
+    @Column(name = "expense_number", length = 50)
+    private String expenseNumber;
+
+    @Column(name = "installment_seq")
+    private Integer installmentSeq = 1;
+
+    @Size(max = 50)
+    @Column(name = "supplier_code", length = 50)
+    private String supplierCode;
+
+    @Size(max = 255)
+    @Column(name = "supplier_name", length = 255)
+    private String supplierName;
+
+    @Column(name = "interest_amount", precision = 15, scale = 2)
+    private BigDecimal interestAmount = BigDecimal.ZERO;
+
+    @Column(name = "fine_amount", precision = 15, scale = 2)
+    private BigDecimal fineAmount = BigDecimal.ZERO;
+
+    @Column(name = "discount_amount", precision = 15, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    @Column(name = "adjustment_amount", precision = 15, scale = 2)
+    private BigDecimal adjustmentAmount = BigDecimal.ZERO;
+
+    @Column(name = "paid_amount", precision = 15, scale = 2)
+    private BigDecimal paidAmount = BigDecimal.ZERO;
+
+    @Column(name = "balance_amount", precision = 15, scale = 2)
+    private BigDecimal balanceAmount = BigDecimal.ZERO;
+
+    @Size(max = 100)
+    @Column(name = "bank_account_info", length = 100)
+    private String bankAccountInfo;
+
+    @Column(name = "is_canceled")
+    private Boolean isCanceled = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id")
     private Supplier supplier;

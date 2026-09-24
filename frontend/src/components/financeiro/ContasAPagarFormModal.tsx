@@ -28,6 +28,7 @@ import {
 
 export interface ContaAPagar {
   id?: string;
+  invoiceNumber?: string;
   dataEmissao?: Date;
   vencimento: Date;
   companySigla?: string;
@@ -55,6 +56,20 @@ export interface ContaAPagar {
   categoria?: string | undefined;
   centroCusto?: string | undefined;
   createdAt?: Date;
+
+  // Campos SIGLO / Relatório de Despesas
+  expenseNumber?: string;
+  installmentSeq?: number;
+  supplierCode?: string;
+  supplierName?: string;
+  interestAmount?: number;
+  fineAmount?: number;
+  discountAmount?: number;
+  adjustmentAmount?: number;
+  paidAmount?: number;
+  balanceAmount?: number;
+  bankAccountInfo?: string;
+  isCanceled?: boolean;
 }
 
 interface ContasAPagarFormModalProps {

@@ -54,6 +54,11 @@ public interface InvoiceRepository extends JpaRepository<Invoice, java.util.UUID
     
     // Buscar por nÃºmero da fatura
     List<Invoice> findByInvoiceNumberContaining(String invoiceNumber);
+    Optional<Invoice> findFirstByInvoiceNumber(String invoiceNumber);
+
+    // Buscar por nÃºmero de despesa SIGLO
+    Optional<Invoice> findByExpenseNumberAndInstallmentSeq(String expenseNumber, Integer installmentSeq);
+    Optional<Invoice> findFirstByExpenseNumber(String expenseNumber);
     
     // Buscar por descriÃ§Ã£o
     List<Invoice> findByDescriptionContainingIgnoreCase(String description);

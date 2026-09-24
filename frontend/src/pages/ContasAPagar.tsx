@@ -29,12 +29,14 @@ import {
   ArrowLeft,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Upload
 } from 'lucide-react';
 import { ContasAPagarFormModal, ContaAPagar } from '@/components/financeiro/ContasAPagarFormModal';
 import { ContasAPagarTable } from '@/components/financeiro/ContasAPagarTable';
 import { ContasAPagarDashboard } from '@/components/financeiro/ContasAPagarDashboard';
 import { ContasAPagarViewModal } from '@/components/financeiro/ContasAPagarViewModal';
+import { ImportarDespesasPdfModal } from '@/components/financeiro/ImportarDespesasPdfModal';
 import { contasAPagarService } from '@/services/contasAPagarService';
 import { format, addDays, isBefore } from 'date-fns';
 
@@ -43,6 +45,7 @@ const ContasAPagar: React.FC = () => {
 
   // Estados
   const [contas, setContas] = useState<ContaAPagar[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -920,6 +923,15 @@ const ContasAPagar: React.FC = () => {
               {showDashboard ? 'Ocultar Gráficos' : 'Gráficos'}
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowImportModal(true)}
+              className="bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 border-emerald-700/60 h-9 px-3 text-xs gap-1.5 font-semibold"
+            >
+              <Upload size={14} className="text-emerald-400" />
+              Importar PDF Despesas
+            </Button>
+            <Button
               onClick={handleCreateConta}
               size="sm"
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-9 px-4 text-xs gap-1.5 shadow-lg shadow-emerald-950/50"
@@ -1583,6 +1595,15 @@ const ContasAPagar: React.FC = () => {
           onClose={handleCloseViewModal}
           conta={viewingConta}
           onEdit={handleEditConta}
+        />
+
+        {/* Modal de Importação de PDF de Despesas (SIGLO) */}
+        <ImportarDespesasPdfModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => {
+            loadData();
+          }}
         />
       </div>
     </StandardLayout>

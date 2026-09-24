@@ -90,6 +90,19 @@ public class InvoiceDTO {
     private String contractNumber;
     private String workPostName;
     private String garageName;
+
+    // ── Campos de Despesa e Relatório SIGLO ──────────────────────
+    private String expenseNumber;
+    private Integer installmentSeq;
+    private String supplierCode;
+    private BigDecimal interestAmount;
+    private BigDecimal fineAmount;
+    private BigDecimal discountAmount;
+    private BigDecimal adjustmentAmount;
+    private BigDecimal paidAmount;
+    private BigDecimal balanceAmount;
+    private String bankAccountInfo;
+    private Boolean isCanceled;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -162,6 +175,19 @@ public class InvoiceDTO {
             dto.setBarcode(invoice.getBarcode());
             dto.setNotes(invoice.getNotes());
             dto.setCompanySigla(invoice.getCompanySigla());
+
+            // Campos de Despesa e Relatório SIGLO
+            dto.setExpenseNumber(invoice.getExpenseNumber());
+            dto.setInstallmentSeq(invoice.getInstallmentSeq());
+            dto.setSupplierCode(invoice.getSupplierCode());
+            dto.setInterestAmount(invoice.getInterestAmount());
+            dto.setFineAmount(invoice.getFineAmount());
+            dto.setDiscountAmount(invoice.getDiscountAmount());
+            dto.setAdjustmentAmount(invoice.getAdjustmentAmount());
+            dto.setPaidAmount(invoice.getPaidAmount());
+            dto.setBalanceAmount(invoice.getBalanceAmount());
+            dto.setBankAccountInfo(invoice.getBankAccountInfo());
+            dto.setIsCanceled(invoice.getIsCanceled());
             
             // Tratamento seguro para relacionamentos (pode causar LazyInitializationException)
             try {

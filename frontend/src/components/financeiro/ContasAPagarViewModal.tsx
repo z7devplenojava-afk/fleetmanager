@@ -16,7 +16,8 @@ import {
   Download,
   Edit,
   Layers,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Receipt
 } from 'lucide-react';
 import { ContaAPagar } from './ContasAPagarFormModal';
 import { getClassificacaoStyle } from '@/constants/classificacaoContasPagar';
@@ -201,6 +202,66 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
               )}
             </CardContent>
           </Card>
+
+          {/* Detalhes da Despesa / Relatório SIGLO */}
+          {(conta.expenseNumber || conta.supplierCode || conta.bankAccountInfo || conta.paidAmount !== undefined || conta.balanceAmount !== undefined) && (
+            <Card className="bg-zinc-950/80 border-emerald-900/50 rounded-xl overflow-hidden shadow-lg">
+              <CardHeader className="py-3 px-4 bg-emerald-950/20 border-b border-emerald-900/40">
+                <CardTitle className="text-emerald-300 text-sm font-bold flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-emerald-400" />
+                  Dados do Relatório de Despesas (SIGLO)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                <div>
+                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Nº da Despesa</label>
+                  <p className="text-white font-bold text-sm mt-0.5">{conta.expenseNumber || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Seq / Parcela</label>
+                  <p className="text-white font-bold text-sm mt-0.5">{conta.installmentSeq || 1}</p>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Cód. Fornecedor</label>
+                  <p className="text-white font-bold text-sm mt-0.5">{conta.supplierCode || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Cancelada</label>
+                  <p className="text-white font-bold text-sm mt-0.5">{conta.isCanceled ? 'Sim' : 'Não'}</p>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Juros</label>
+                  <p className="text-zinc-300 font-mono text-sm mt-0.5">{formatCurrency(conta.interestAmount || 0)}</p>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Multa</label>
+                  <p className="text-zinc-300 font-mono text-sm mt-0.5">{formatCurrency(conta.fineAmount || 0)}</p>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Desconto</label>
+                  <p className="text-zinc-300 font-mono text-sm mt-0.5">{formatCurrency(conta.discountAmount || 0)}</p>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Ajustes</label>
+                  <p className="text-zinc-300 font-mono text-sm mt-0.5">{formatCurrency(conta.adjustmentAmount || 0)}</p>
+                </div>
+
+                <div className="bg-emerald-950/30 p-2.5 rounded-lg border border-emerald-800/40">
+                  <label className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">Valor Pago</label>
+                  <p className="text-emerald-300 font-bold font-mono text-base mt-0.5">{formatCurrency(conta.paidAmount || 0)}</p>
+                </div>
+                <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
+                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Saldo Restante</label>
+                  <p className="text-white font-bold font-mono text-base mt-0.5">{formatCurrency(conta.balanceAmount || 0)}</p>
+                </div>
+                <div className="sm:col-span-2 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
+                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Conta Corrente / Domicílio Bancário</label>
+                  <p className="text-zinc-200 font-mono text-sm mt-0.5">{conta.bankAccountInfo || 'Não informado no relatório'}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Informações Adicionais */}
           {(conta.codigoBarras || conta.observacoes) && (

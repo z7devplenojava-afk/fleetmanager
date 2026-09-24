@@ -94,6 +94,15 @@ export interface ImportResultDto {
   errors: string[];
 }
 
+export interface ExpensePdfImportResultDTO {
+  totalRead: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+  items: any[];
+}
+
 export interface ContasAPagarReport {
   totalContas: number;
   totalValor: number;
@@ -277,7 +286,19 @@ export const contasAPagarService = {
         dataPagamento: parseDateFromBackend(invoice.paymentDate),
         observacoes: invoice.notes,
         categoria: invoice.category,
-        centroCusto: invoice.centroCusto
+        centroCusto: invoice.centroCusto,
+        expenseNumber: invoice.expenseNumber,
+        installmentSeq: invoice.installmentSeq,
+        supplierCode: invoice.supplierCode,
+        supplierName: invoice.supplierName,
+        interestAmount: invoice.interestAmount != null ? parseFloat(invoice.interestAmount) : undefined,
+        fineAmount: invoice.fineAmount != null ? parseFloat(invoice.fineAmount) : undefined,
+        discountAmount: invoice.discountAmount != null ? parseFloat(invoice.discountAmount) : undefined,
+        adjustmentAmount: invoice.adjustmentAmount != null ? parseFloat(invoice.adjustmentAmount) : undefined,
+        paidAmount: invoice.paidAmount != null ? parseFloat(invoice.paidAmount) : undefined,
+        balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
+        bankAccountInfo: invoice.bankAccountInfo,
+        isCanceled: invoice.isCanceled
       };
     });
   },
@@ -320,7 +341,19 @@ export const contasAPagarService = {
       dataPagamento: parseDateFromBackend(invoice.paymentDate),
       observacoes: invoice.notes,
       categoria: invoice.category,
-      centroCusto: invoice.centroCusto
+      centroCusto: invoice.centroCusto,
+      expenseNumber: invoice.expenseNumber,
+      installmentSeq: invoice.installmentSeq,
+      supplierCode: invoice.supplierCode,
+      supplierName: invoice.supplierName,
+      interestAmount: invoice.interestAmount != null ? parseFloat(invoice.interestAmount) : undefined,
+      fineAmount: invoice.fineAmount != null ? parseFloat(invoice.fineAmount) : undefined,
+      discountAmount: invoice.discountAmount != null ? parseFloat(invoice.discountAmount) : undefined,
+      adjustmentAmount: invoice.adjustmentAmount != null ? parseFloat(invoice.adjustmentAmount) : undefined,
+      paidAmount: invoice.paidAmount != null ? parseFloat(invoice.paidAmount) : undefined,
+      balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
+      bankAccountInfo: invoice.bankAccountInfo,
+      isCanceled: invoice.isCanceled
     };
   },
 
@@ -491,6 +524,69 @@ export const contasAPagarService = {
       paymentDate: formatDateForBackend(dataPagamento)
     });
     return this.getContaAPagarById(response.data.id);
+  },
+
+  mapInvoiceToContaAPagar(invoice: any): ContaAPagar {
+    const fornecedorId = invoice.supplierId 
+      ? (typeof invoice.supplierId === 'string' ? invoice.supplierId : String(invoice.supplierId))
+      : undefined;
+    const fornecedorNome = invoice.supplierName || 'Não informado';
+
+    return {
+      id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      dataEmissao: parseDateFromBackend(invoice.issueDate),
+      vencimento: parseDateFromBackend(invoice.dueDate) || new Date(),
+      fornecedor: fornecedorNome,
+      fornecedorId: fornecedorId || '',
+      empresa: invoice.companyName || (invoice.company && invoice.company.name) || undefined,
+      empresaId: invoice.companyId || (invoice.company && invoice.company.id) || undefined,
+      companySigla: invoice.companySigla || (invoice.company && invoice.company.sigla) || undefined,
+      cliente: invoice.clientName,
+      clienteId: invoice.clientId,
+      contrato: invoice.contractNumber,
+      contratoId: invoice.contractId,
+      obra: invoice.workPostName,
+      obraId: invoice.workPostId,
+      garagem: invoice.garageName,
+      garagemId: invoice.garageId,
+      descricao: invoice.description,
+      tipo: invoice.type || 'VARIAVEL',
+      valor: parseFloat(invoice.amount),
+      codigoBarras: invoice.barcode,
+      status: mapBackendStatusToFrontend(invoice.status),
+      baixa: invoice.baixa || false,
+      dataPagamento: parseDateFromBackend(invoice.paymentDate),
+      observacoes: invoice.notes,
+      categoria: invoice.category,
+      centroCusto: invoice.centroCusto,
+      expenseNumber: invoice.expenseNumber,
+      installmentSeq: invoice.installmentSeq,
+      supplierCode: invoice.supplierCode,
+      supplierName: invoice.supplierName,
+      interestAmount: invoice.interestAmount != null ? parseFloat(invoice.interestAmount) : undefined,
+      fineAmount: invoice.fineAmount != null ? parseFloat(invoice.fineAmount) : undefined,
+      discountAmount: invoice.discountAmount != null ? parseFloat(invoice.discountAmount) : undefined,
+      adjustmentAmount: invoice.adjustmentAmount != null ? parseFloat(invoice.adjustmentAmount) : undefined,
+      paidAmount: invoice.paidAmount != null ? parseFloat(invoice.paidAmount) : undefined,
+      balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
+      bankAccountInfo: invoice.bankAccountInfo,
+      isCanceled: invoice.isCanceled
+    };
+  },
+
+  // Importar relatório de despesas PDF (SIGLO)
+  async importarDespesasPdf(file: File): Promise<ExpensePdfImportResultDTO> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post('/api/invoices/import-expenses-pdf', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data;
   },
 
   // Buscar contas vencidas
@@ -861,28 +957,6 @@ export const contasAPagarService = {
       console.error('Erro ao obter auditoria:', error);
       throw error;
     }
-  },
-
-  // Método auxiliar para mapear invoice para ContaAPagar
-  mapInvoiceToContaAPagar(invoice: any): ContaAPagar {
-    return {
-      id: invoice.id,
-      dataEmissao: parseDateFromBackend(invoice.issueDate),
-      vencimento: parseDateFromBackend(invoice.dueDate) || new Date(),
-      fornecedor: invoice.supplierName || 'Não informado',
-      fornecedorId: invoice.supplierId,
-      descricao: invoice.description,
-      tipo: invoice.type || 'VARIAVEL',
-      valor: parseFloat(invoice.amount),
-      codigoBarras: invoice.barcode,
-      status: mapBackendStatusToFrontend(invoice.status),
-      baixa: invoice.baixa || false,
-      dataPagamento: parseDateFromBackend(invoice.paymentDate),
-      observacoes: invoice.notes,
-      categoria: invoice.category,
-      centroCusto: invoice.centroCusto,
-      createdAt: parseDateFromBackend(invoice.createdAt)
-    };
   }
 };
 

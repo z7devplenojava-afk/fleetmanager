@@ -23,6 +23,9 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
     
     // Buscar por CNPJ
     Optional<Supplier> findByCnpj(String cnpj);
+
+    // Buscar por nome exato
+    Optional<Supplier> findFirstByNameIgnoreCase(String name);
     
     // Buscar por nome (contendo)
     List<Supplier> findByNameContainingIgnoreCase(String name);

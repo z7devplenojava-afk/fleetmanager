@@ -42,6 +42,7 @@ public class InvoiceController {
 
     private final InvoiceService invoiceService;
     private final ClientService clientService;
+    private final com.z7design.fleet_manager.service.ExpensePdfImportService expensePdfImportService;
     
     @GetMapping
     @Operation(summary = "Listar todas as faturas", description = "Retorna uma lista paginada de todas as faturas")
@@ -836,5 +837,14 @@ public class InvoiceController {
             log.error("Erro ao fazer debug de centros de custo", e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    @PostMapping(value = "/import-expenses-pdf", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Importar despesas a partir de PDF (SIGLO)", description = "LÃª relatÃ³rio de despesas em PDF do SIGLO e importa/atualiza as faturas correspondentes")
+    public ResponseEntity<com.z7design.fleet_manager.dto.ExpensePdfImportResultDTO> importExpensesPdf(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        log.info("Recebida requisiÃ§Ã£o para importar PDF de despesas: {}", file != null ? file.getOriginalFilename() : "null");
+        com.z7design.fleet_manager.dto.ExpensePdfImportResultDTO result = expensePdfImportService.importPdf(file);
+        return ResponseEntity.ok(result);
     }
 } 

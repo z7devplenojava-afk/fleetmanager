@@ -345,10 +345,14 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                 className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border-emerald-500/40 transition-colors text-xs font-semibold"
                 onClick={() => {
                   const csvRows = [
-                    ['Vencimento', 'Fornecedor', 'Descrição', 'Empresa', 'Obra/Setor', 'Plano de Contas', 'Centro de Custo', 'Tipo', 'Valor', 'Status', 'Data Pagamento'].join(';'),
+                    ['Vencimento', 'Fornecedor', 'Cód. Fornecedor', 'Despesa', 'Seq', 'Documento', 'Descrição', 'Empresa', 'Obra/Setor', 'Plano de Contas', 'Centro de Custo', 'Tipo', 'Valor', 'Juros', 'Multa', 'Desconto', 'Ajustes', 'Pagou', 'Saldo', 'Status', 'Data Pagamento', 'Conta Corrente'].join(';'),
                     ...sortedContas.map(c => [
                       c.vencimento ? format(new Date(c.vencimento), 'dd/MM/yyyy') : '',
                       `"${c.fornecedor || ''}"`,
+                      `"${c.supplierCode || ''}"`,
+                      `"${c.expenseNumber || ''}"`,
+                      c.installmentSeq || 1,
+                      `"${c.invoiceNumber || ''}"`,
                       `"${c.descricao || ''}"`,
                       `"${c.companySigla || c.empresa || ''}"`,
                       `"${c.obra || c.cliente || ''}"`,
@@ -356,8 +360,15 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                       `"${c.centroCusto || ''}"`,
                       c.tipo || '',
                       c.valor || 0,
+                      c.interestAmount || 0,
+                      c.fineAmount || 0,
+                      c.discountAmount || 0,
+                      c.adjustmentAmount || 0,
+                      c.paidAmount || 0,
+                      c.balanceAmount || 0,
                       c.status || '',
-                      c.dataPagamento ? format(new Date(c.dataPagamento), 'dd/MM/yyyy') : ''
+                      c.dataPagamento ? format(new Date(c.dataPagamento), 'dd/MM/yyyy') : '',
+                      `"${c.bankAccountInfo || ''}"`
                     ].join(';'))
                   ];
                   const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -523,6 +534,11 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                         {conta.obra || conta.cliente}
                       </span>
                     )}
+                    {conta.expenseNumber && (
+                      <span className="inline-flex items-center gap-1 bg-emerald-950/60 px-2 py-0.5 rounded text-emerald-300 border border-emerald-800/50 font-mono text-[11px]">
+                        Desp: {conta.expenseNumber} {conta.installmentSeq && conta.installmentSeq > 1 ? `(${conta.installmentSeq})` : ''}
+                      </span>
+                    )}
                     {conta.categoria && (
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border font-medium ${getClassificacaoStyle(conta.categoria).bg} ${getClassificacaoStyle(conta.categoria).text} ${getClassificacaoStyle(conta.categoria).border}`}>
                         <Tag size={11} />
@@ -626,7 +642,19 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                       </TableCell>
 
                       <TableCell className="text-zinc-300 text-xs">
-                        <div className="max-w-xs truncate font-medium" title={conta.descricao}>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {conta.expenseNumber && (
+                            <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-800/60 bg-emerald-950/40 py-0 px-1 font-mono">
+                              Desp: {conta.expenseNumber} {conta.installmentSeq && conta.installmentSeq > 1 ? `(${conta.installmentSeq})` : ''}
+                            </Badge>
+                          )}
+                          {conta.invoiceNumber && conta.invoiceNumber !== conta.expenseNumber && (
+                            <span className="text-[10px] font-mono text-zinc-400 bg-zinc-900 px-1 rounded border border-zinc-800">
+                              {conta.invoiceNumber}
+                            </span>
+                          )}
+                        </div>
+                        <div className="max-w-xs truncate font-medium mt-0.5" title={conta.descricao}>
                           {conta.descricao || '-'}
                         </div>
                       </TableCell>
@@ -667,8 +695,20 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
 
                       <TableCell className="whitespace-nowrap">{getTipoBadge(conta.tipo)}</TableCell>
 
-                      <TableCell className="font-bold text-emerald-400 font-mono whitespace-nowrap text-xs tracking-tight">
-                        {formatCurrency(conta.valor)}
+                      <TableCell className="whitespace-nowrap text-xs">
+                        <span className="font-bold text-emerald-400 font-mono block tracking-tight">
+                          {formatCurrency(conta.valor)}
+                        </span>
+                        {conta.paidAmount !== undefined && conta.paidAmount > 0 && (
+                          <span className="text-[10px] text-sky-400 block font-mono">
+                            Pago: {formatCurrency(conta.paidAmount)}
+                          </span>
+                        )}
+                        {conta.balanceAmount !== undefined && conta.balanceAmount > 0 && (
+                          <span className="text-[10px] text-amber-400 block font-mono">
+                            Saldo: {formatCurrency(conta.balanceAmount)}
+                          </span>
+                        )}
                       </TableCell>
 
                       <TableCell className="whitespace-nowrap">{getStatusBadge(conta.status, conta.vencimento)}</TableCell>

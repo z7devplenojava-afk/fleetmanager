@@ -482,6 +482,19 @@ public class InvoiceService {
             invoice.setBarcode(dto.getBarcode());
             invoice.setNotes(dto.getNotes());
             invoice.setCompanySigla(dto.getCompanySigla());
+
+            // Novos campos SIGLO / Relatório de Despesas
+            if (dto.getExpenseNumber() != null) invoice.setExpenseNumber(dto.getExpenseNumber());
+            if (dto.getInstallmentSeq() != null) invoice.setInstallmentSeq(dto.getInstallmentSeq());
+            if (dto.getSupplierCode() != null) invoice.setSupplierCode(dto.getSupplierCode());
+            if (dto.getInterestAmount() != null) invoice.setInterestAmount(dto.getInterestAmount());
+            if (dto.getFineAmount() != null) invoice.setFineAmount(dto.getFineAmount());
+            if (dto.getDiscountAmount() != null) invoice.setDiscountAmount(dto.getDiscountAmount());
+            if (dto.getAdjustmentAmount() != null) invoice.setAdjustmentAmount(dto.getAdjustmentAmount());
+            if (dto.getPaidAmount() != null) invoice.setPaidAmount(dto.getPaidAmount());
+            if (dto.getBalanceAmount() != null) invoice.setBalanceAmount(dto.getBalanceAmount());
+            if (dto.getBankAccountInfo() != null) invoice.setBankAccountInfo(dto.getBankAccountInfo());
+            if (dto.getIsCanceled() != null) invoice.setIsCanceled(dto.getIsCanceled());
             
             log.debug("Campos bÃ¡sicos definidos");
             
