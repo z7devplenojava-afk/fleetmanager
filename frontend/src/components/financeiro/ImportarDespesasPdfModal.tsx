@@ -130,17 +130,46 @@ export const ImportarDespesasPdfModal: React.FC<ImportarDespesasPdfModalProps> =
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-zinc-950 border-zinc-800 text-zinc-100 p-6 rounded-2xl shadow-2xl">
         <DialogHeader className="border-b border-zinc-800/80 pb-4">
           <DialogTitle className="text-white text-xl font-bold flex items-center gap-2.5">
-            <div className="h-10 w-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center text-emerald-400">
+            <div className="h-10 w-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center text-emerald-400 shrink-0">
               <Upload className="w-5 h-5" />
             </div>
-            Importar Relatório de Despesas (PDF - SIGLO)
+            <div>
+              <span>Importar Relatório de Despesas</span>
+              <span className="block text-xs font-normal text-zinc-400 mt-0.5">
+                Processamento inteligente de documentos em PDF para Contas a Pagar
+              </span>
+            </div>
           </DialogTitle>
-          <DialogDescription className="text-zinc-400 text-xs mt-1">
-            Faça upload do relatório de despesas emitido pelo SIGLO. O sistema verificará todas as colunas e linhas, criando ou atualizando automaticamente os fornecedores e as faturas no Contas a Pagar.
+          <DialogDescription className="text-zinc-400 text-xs mt-2 leading-relaxed">
+            Faça upload do relatório oficial de despesas em formato PDF. O sistema analisa automaticamente todas as colunas, registros e valores, criando ou atualizando faturas e fornecedores no Contas a Pagar.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 pt-3">
+        <div className="space-y-5 pt-2">
+          {/* Informações sobre a importação */}
+          {!importResult && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-3 flex items-start gap-2.5">
+                <div className="p-1 rounded-md bg-emerald-500/10 text-emerald-400 shrink-0 mt-0.5">
+                  <CheckCircle2 size={14} />
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-200">Reconciliação Automática</p>
+                  <p className="text-zinc-400 text-[11px] mt-0.5">Identifica fornecedores e atualiza pagamentos existentes.</p>
+                </div>
+              </div>
+              <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-3 flex items-start gap-2.5">
+                <div className="p-1 rounded-md bg-sky-500/10 text-sky-400 shrink-0 mt-0.5">
+                  <FileText size={14} />
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-200">Classificação Financeira</p>
+                  <p className="text-zinc-400 text-[11px] mt-0.5">Vincula categorias, datas de vencimento e parcelas.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Área de Upload / Drag & Drop */}
           {!importResult && (
             <div
@@ -150,7 +179,7 @@ export const ImportarDespesasPdfModal: React.FC<ImportarDespesasPdfModalProps> =
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
                 isDragging
-                  ? 'border-emerald-500 bg-emerald-500/10'
+                  ? 'border-emerald-500 bg-emerald-500/10 scale-[0.99]'
                   : 'border-zinc-700/80 hover:border-emerald-500/60 bg-zinc-900/40 hover:bg-zinc-900/80'
               }`}
             >
@@ -163,7 +192,7 @@ export const ImportarDespesasPdfModal: React.FC<ImportarDespesasPdfModalProps> =
               />
 
               <div className="flex flex-col items-center justify-center gap-3">
-                <div className="h-14 w-14 rounded-2xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center text-zinc-400">
+                <div className="h-14 w-14 rounded-2xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center text-zinc-400 shadow-inner">
                   <FileText className="h-7 w-7 text-emerald-400" />
                 </div>
                 <div>
@@ -172,8 +201,8 @@ export const ImportarDespesasPdfModal: React.FC<ImportarDespesasPdfModalProps> =
                   </p>
                   <p className="text-xs text-zinc-400 mt-1">
                     {selectedFile
-                      ? `${(selectedFile.size / 1024).toFixed(1)} KB • Arquivo pronto para importação`
-                      : 'Relatórios do sistema SIGLO (.pdf)'}
+                      ? `${(selectedFile.size / 1024).toFixed(1)} KB • Arquivo pronto para processamento`
+                      : 'Relatório financeiro de despesas em formato PDF (.pdf)'}
                   </p>
                 </div>
               </div>

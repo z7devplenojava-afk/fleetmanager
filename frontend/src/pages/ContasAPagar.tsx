@@ -620,7 +620,7 @@ const ContasAPagar: React.FC = () => {
           formatNum(displaySummary.totalMultas),
           formatNum(displaySummary.totalPago)
         ]);
-        csvContent = ['SIGLO00058', headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+        csvContent = ['RELATORIO_CLASSIFICACAO_DESPESAS', headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
       } else {
         const headers = ['Descrição', 'Fornecedor', 'Valor', 'Vencimento', 'Status', 'Tipo', 'Empresa', 'Categoria'];
         csvContent = [
