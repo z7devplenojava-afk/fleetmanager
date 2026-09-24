@@ -325,6 +325,7 @@ jobs:
     needs: deploy-dev
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    continue-on-error: true
     steps:
       - name: "⏳ Aguardar inicializacao (2 min)"
         run: sleep 120

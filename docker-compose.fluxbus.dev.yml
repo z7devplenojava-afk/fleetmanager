@@ -130,8 +130,8 @@ services:
     image: z7design/fluxbus-frontend:dev
     container_name: fluxbus-frontend-dev
     ports:
-      # Frontend nginx escuta na porta 80 interna - mapeamento correto
-      - "80:80"
+      # Porta 8086 no host para não conflitar com a porta 80 do Traefik
+      - "8086:80"
     depends_on:
       backend-dev:
         condition: service_started

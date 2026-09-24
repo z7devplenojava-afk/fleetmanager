@@ -1,9 +1,8 @@
-name: 🚀 Deploy Automático para CI (ci.fluxbus.com.br)
+name: "[LEGADO] Deploy Automático para CI (ci.fluxbus.com.br)"
 
+# DESABILITADO: Substituído por pipeline-ci-dev-prod.yml
+# O pipeline sequencial agora controla CI -> DEV -> PROD.
 on:
-  push:
-    branches:
-      - ci
   workflow_dispatch:
 
 concurrency:
