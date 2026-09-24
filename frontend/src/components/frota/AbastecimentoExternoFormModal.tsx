@@ -82,6 +82,8 @@ const DEFAULT_FORM: ExternoFormData = {
   receiptFile: null,
 };
 
+const EMPTY_LIST: any[] = [];
+
 const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps> = ({
   isOpen,
   onClose,
@@ -144,31 +146,31 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
 
   // --- Data Queries ---
 
-  const { data: garages = [] } = useQuery({
+  const { data: garages = EMPTY_LIST } = useQuery({
     queryKey: ['garages'],
     queryFn: () => garageService.list(),
     enabled: isOpen
   });
 
-  const { data: suppliers = [], refetch: refetchSuppliers } = useQuery({
+  const { data: suppliers = EMPTY_LIST, refetch: refetchSuppliers } = useQuery({
     queryKey: ['suppliers', 'active'],
     queryFn: contasAPagarService.getFornecedoresAtivos,
     enabled: isOpen
   });
 
-  const { data: clients = [] } = useQuery({
+  const { data: clients = EMPTY_LIST } = useQuery({
     queryKey: ['clients-for-externo'],
     queryFn: () => clientService.getClientsForSelect(),
     enabled: isOpen
   });
 
-  const { data: allWorkPosts = [] } = useQuery({
+  const { data: allWorkPosts = EMPTY_LIST } = useQuery({
     queryKey: ['workPosts-for-externo'],
     queryFn: () => workPostService.getAllWorkPosts(),
     enabled: isOpen
   });
 
-  const { data: allContracts = [] } = useQuery({
+  const { data: allContracts = EMPTY_LIST } = useQuery({
     queryKey: ['contracts-for-externo'],
     queryFn: () => contractService.getAllContracts(),
     enabled: isOpen
@@ -259,38 +261,65 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
 
     const prevKm = lastFuelRecord?.mileage ?? v.currentMileage ?? 0;
 
-    setFormData(prev => ({
-      ...prev,
-      clientId: prev.clientId || v.clientId || '',
-      clientName: prev.clientName || v.clientName || (v as any).client?.name || '',
-      obraName: prev.obraName || (v as any).workPostEntity?.name || v.location || '',
-      contractId: prev.contractId || v.contractId || '',
-      contractNumber: prev.contractNumber || v.allocationContractNumber || '',
-      initialMileage: prevKm,
-      mileage: prev.mileage > 0 ? prev.mileage : prevKm,
-      fuelType: v.fuelType || 'DIESEL',
-    }));
+    setFormData(prev => {
+      const nextClientName = prev.clientName || v.clientName || (v as any).client?.name || '';
+      const nextClientId = prev.clientId || v.clientId || '';
+      const nextObra = prev.obraName || (v as any).workPostEntity?.name || v.location || '';
+      const nextContractId = prev.contractId || v.contractId || '';
+      const nextContractNum = prev.contractNumber || v.allocationContractNumber || '';
+      const nextMileage = prev.mileage > 0 ? prev.mileage : prevKm;
+      const nextFuelType = v.fuelType || 'DIESEL';
+
+      if (
+        prev.initialMileage === prevKm &&
+        prev.mileage === nextMileage &&
+        prev.clientId === nextClientId &&
+        prev.clientName === nextClientName &&
+        prev.obraName === nextObra &&
+        prev.contractId === nextContractId &&
+        prev.contractNumber === nextContractNum &&
+        prev.fuelType === nextFuelType
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        clientId: nextClientId,
+        clientName: nextClientName,
+        obraName: nextObra,
+        contractId: nextContractId,
+        contractNumber: nextContractNum,
+        initialMileage: prevKm,
+        mileage: nextMileage,
+        fuelType: nextFuelType,
+      };
+    });
   }, [formData.vehicleId, veiculos, lastFuelRecord, isEditing]);
 
   useEffect(() => {
     if (!formData.garageId || !garages.length) {
-      setFormData(prev => ({ ...prev, responsibleName: '' }));
+      setFormData(prev => (prev.responsibleName ? { ...prev, responsibleName: '' } : prev));
       return;
     }
     const garage = garages.find(g => g.id === formData.garageId);
     if (garage) {
-      setFormData(prev => ({
-        ...prev,
-        garageName: garage.name,
-        responsibleName: prev.responsibleName || garage.responsibleName || ''
-      }));
+      setFormData(prev => {
+        const nextResp = prev.responsibleName || garage.responsibleName || '';
+        if (prev.garageName === garage.name && prev.responsibleName === nextResp) return prev;
+        return {
+          ...prev,
+          garageName: garage.name,
+          responsibleName: nextResp
+        };
+      });
     }
   }, [formData.garageId, garages]);
 
   useEffect(() => {
     if (!formData.responsibleEmployeeId) return;
     employeeService.getEmployeeById(formData.responsibleEmployeeId).then(emp => {
-      if (emp) setFormData(prev => ({ ...prev, responsibleName: emp.name }));
+      if (emp) setFormData(prev => (prev.responsibleName === emp.name ? prev : { ...prev, responsibleName: emp.name }));
     }).catch(() => {});
   }, [formData.responsibleEmployeeId]);
 
@@ -315,7 +344,8 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
 
   useEffect(() => {
     if (!isTotalManual && formData.liters > 0 && formData.pricePerLiter > 0) {
-      setFormData(prev => ({ ...prev, totalValue: Number((prev.liters * prev.pricePerLiter).toFixed(2)) }));
+      const calc = Number((formData.liters * formData.pricePerLiter).toFixed(2));
+      setFormData(prev => (prev.totalValue === calc ? prev : { ...prev, totalValue: calc }));
     }
   }, [formData.liters, formData.pricePerLiter, isTotalManual]);
 

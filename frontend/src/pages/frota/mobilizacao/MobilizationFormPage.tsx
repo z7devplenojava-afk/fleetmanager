@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { StandardLayout } from '@/components/StandardLayout';
@@ -186,6 +186,21 @@ const MobilizationFormPage: React.FC = () => {
     const filteredWorkPosts = formData.clientId
         ? allWorkPosts.filter(wp => wp.clientId === formData.clientId)
         : allWorkPosts;
+
+    const selectedVehicle = useMemo(() => {
+        return vehicles.find((v: any) => v.id === formData.vehicleId);
+    }, [vehicles, formData.vehicleId]);
+
+    const detectedBodyType = useMemo(() => {
+        if (!selectedVehicle) return 'bus_urban';
+        const str = `${selectedVehicle.model || ''} ${selectedVehicle.brand || ''} ${selectedVehicle.type || ''}`.toUpperCase();
+        if (str.includes('SAVEIRO') || str.includes('STRADA') || str.includes('PICKUP') || str.includes('PICAPE')) return 'pickup';
+        if (str.includes('SPRINTER') || str.includes('MASTER') || str.includes('DUCATO') || str.includes('VAN') || str.includes('FURGAO')) return 'van';
+        if (str.includes('VOLARE') || str.includes('MICRO') || str.includes('FOZ')) return 'microbus';
+        if (str.includes('PARADISO') || str.includes('VIAGGIO') || str.includes('RODOVIARIO') || str.includes('CAMPIONE')) return 'bus_road';
+        if (str.includes('GOL') || str.includes('KWID') || str.includes('ONIX') || str.includes('SEDAN') || str.includes('HATCH')) return 'car';
+        return 'bus_urban';
+    }, [selectedVehicle]);
 
     const mutation = useMutation({
         mutationFn: async (payload: { data: CreateTransportMobilizationDTO; odometer?: File; photos: File[] }) => {
@@ -524,7 +539,11 @@ const MobilizationFormPage: React.FC = () => {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <DamageMap points={damagePoints} onChange={setDamagePoints} />
+                            <DamageMap 
+                                points={damagePoints} 
+                                onChange={setDamagePoints} 
+                                initialBodyType={detectedBodyType}
+                            />
                         </CardContent>
                     </Card>
 

@@ -1631,34 +1631,38 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
       )}
 
       {/* MODAIS DE AÇÃO (Editar / Excluir) */}
-      <AbastecimentoExternoFormModal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setEditingRecord(null);
-        }}
-        onSuccess={() => {
-          setIsEditModalOpen(false);
-          setEditingRecord(null);
-          onRefresh?.();
-        }}
-        veiculos={veiculos}
-        abastecimento={editingRecord}
-      />
+      {isEditModalOpen && (
+        <AbastecimentoExternoFormModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingRecord(null);
+          }}
+          onSuccess={() => {
+            setIsEditModalOpen(false);
+            setEditingRecord(null);
+            onRefresh?.();
+          }}
+          veiculos={veiculos}
+          abastecimento={editingRecord}
+        />
+      )}
 
-      <AbastecimentoDeleteDialog
-        isOpen={isDeleteDialogOpen}
-        onClose={() => {
-          setIsDeleteDialogOpen(false);
-          setDeletingRecord(null);
-        }}
-        onSuccess={() => {
-          setIsDeleteDialogOpen(false);
-          setDeletingRecord(null);
-          onRefresh?.();
-        }}
-        abastecimento={deletingRecord}
-      />
+      {isDeleteDialogOpen && (
+        <AbastecimentoDeleteDialog
+          isOpen={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false);
+            setDeletingRecord(null);
+          }}
+          onSuccess={() => {
+            setIsDeleteDialogOpen(false);
+            setDeletingRecord(null);
+            onRefresh?.();
+          }}
+          abastecimento={deletingRecord}
+        />
+      )}
 
       {/* MODAL DE DETALHES DE UM LANÇAMENTO ESPECÍFICO */}
       <Dialog open={!!selectedRecordForDetail} onOpenChange={open => !open && setSelectedRecordForDetail(null)}>
