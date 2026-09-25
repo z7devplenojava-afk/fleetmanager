@@ -543,6 +543,8 @@ const MobilizationFormPage: React.FC = () => {
                                 points={damagePoints} 
                                 onChange={setDamagePoints} 
                                 initialBodyType={detectedBodyType}
+                                vehiclePlate={selectedVehicle?.plate || 'QXZ-4B32'}
+                                vehicleModel={selectedVehicle?.model || selectedVehicle?.brand || undefined}
                             />
                         </CardContent>
                     </Card>
