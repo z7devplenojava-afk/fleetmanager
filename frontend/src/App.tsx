@@ -7,7 +7,8 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -148,6 +149,7 @@ const GestaoChecklistCliente = lazyWithRetry(() => import('@/pages/manutencao/Ge
 const GestaoLimpezaVeiculos = lazy(() => import('@/pages/manutencao/GestaoLimpezaVeiculos'));
 const Garagens = lazy(() => import('@/pages/Garagens'));
 const Lavajato = lazy(() => import('@/pages/manutencao/Lavajato'));
+const GestaoCertificacoesCFME = lazy(() => import('@/pages/manutencao/GestaoCertificacoesCFME'));
 const TrafficManagementDashboard = lazy(() => import('@/pages/fretamento/TrafficManagementDashboard'));
 const RoutesAndPoints = lazy(() => import('@/pages/fretamento/RoutesAndPoints'));
 const DriverTripList = lazy(() => import('@/pages/fretamento/DriverTripList'));
@@ -294,17 +296,6 @@ const ClientVehiclesPage = lazy(() => import('@/pages/client/ClientVehiclesPage'
 const ClientMapPage = lazy(() => import('@/pages/client/ClientMapPage').then(m => ({ default: m.ClientMapPage })));
 const ClientDocumentacaoPage = lazy(() => import('@/pages/client/ClientDocumentacaoPage').then(m => ({ default: m.ClientDocumentacaoPage })));
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutos de cache em memória
-      gcTime: 1000 * 60 * 30, // 30 minutos retido na memória (garbage collection)
-      refetchOnWindowFocus: false, // Evita travamentos ao alternar abas do navegador
-      refetchOnMount: false, // Utiliza os dados já carregados imediatamente ao trocar de tela
-      retry: 1, // Limita tentativas de falhas de rede para não travar a UI
-    },
-  },
-});
 
 function App() {
   useEffect(() => {
@@ -952,6 +943,13 @@ function App() {
                         <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
                           <Suspense fallback={<LoadingSpinner />}>
                             <Lavajato />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/manutencao/certificacoes-cfme" element={
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <GestaoCertificacoesCFME />
                           </Suspense>
                         </ProtectedRoute>
                       } />
