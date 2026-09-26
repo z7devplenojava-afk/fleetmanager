@@ -1,4 +1,5 @@
 import api from '@/lib/axios';
+import { compressImageIfNeeded } from '@/lib/imageUtils';
 
 export interface CompanyDefaultEPI {
   id?: string;
@@ -61,16 +62,9 @@ export const companyService = {
     await api.delete(`/api/companies/${id}`);
   },
 
-  async toggleCompanyStatus(id: string, currentStatus?: string) {
-    try {
-      const response = await api.patch(`/api/companies/${id}/toggle-status`);
-      return response.data;
-    } catch (err: any) {
-      // Fallback via PUT caso o endpoint PATCH não esteja carregado
-      const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-      const response = await api.put(`/api/companies/${id}`, { status: newStatus });
-      return response.data;
-    }
+  async toggleCompanyStatus(id: string, _currentStatus?: string) {
+    const response = await api.patch(`/api/companies/${id}/toggle-status`);
+    return response.data;
   },
 
   async getCompanyOverview(companyId?: string): Promise<CompanyOverviewDTO> {
@@ -80,8 +74,9 @@ export const companyService = {
   },
 
   async uploadLogo(file: File): Promise<{ url: string; filename: string; originalName: string }> {
+    const fileToUpload = await compressImageIfNeeded(file, 1200, 1200, 0.85);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', fileToUpload);
     const response = await api.post('/api/uploads/companies/logo', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -91,8 +86,9 @@ export const companyService = {
   },
 
   async uploadBanner(file: File): Promise<{ url: string; filename: string; originalName: string }> {
+    const fileToUpload = await compressImageIfNeeded(file, 1920, 1080, 0.85);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', fileToUpload);
     const response = await api.post('/api/uploads/companies/banner-upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'

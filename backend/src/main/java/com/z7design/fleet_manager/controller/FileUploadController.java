@@ -295,10 +295,10 @@ public class FileUploadController {
             }
 
             // Validar tamanho (mÃ¡ximo 5MB para logos)
-            if (file.getSize() > 5 * 1024 * 1024) {
+            if (file.getSize() > 50 * 1024 * 1024) {
                 log.warn("âŒ Arquivo muito grande: {} bytes", file.getSize());
                 return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Arquivo muito grande. MÃ¡ximo 5MB"));
+                    .body(Map.of("error", "Arquivo muito grande. Máximo 50MB"));
             }
 
             // Gerar nome Ãºnico para o arquivo

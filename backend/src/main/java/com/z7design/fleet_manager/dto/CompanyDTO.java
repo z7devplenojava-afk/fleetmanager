@@ -134,14 +134,23 @@ public class CompanyDTO {
                 .logoUrl(company.getLogoUrl())
                 .bannerUrls(banners)
                 .status(company.getStatus())
-                .defaultEpis(company.getDefaultEpis() != null 
-                    ? company.getDefaultEpis().stream()
-                        .map(CompanyDefaultEPIDTO::fromEntity)
-                        .collect(Collectors.toList())
-                    : null)
+                .defaultEpis(mapDefaultEpisSafely(company))
                 .createdAt(company.getCreatedAt())
                 .updatedAt(company.getUpdatedAt())
                 .build();
+    }
+    
+    private static List<CompanyDefaultEPIDTO> mapDefaultEpisSafely(Company company) {
+        try {
+            if (company.getDefaultEpis() != null && org.hibernate.Hibernate.isInitialized(company.getDefaultEpis())) {
+                return company.getDefaultEpis().stream()
+                        .map(CompanyDefaultEPIDTO::fromEntity)
+                        .collect(Collectors.toList());
+            }
+        } catch (Exception ignored) {
+            // Coleção lazy não inicializada ou fora de sessão - retorna null sem quebrar a requisição
+        }
+        return null;
     }
     
     public Company toEntity() {

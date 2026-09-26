@@ -189,10 +189,16 @@ public class CompanyController {
     @PatchMapping("/{id}/toggle-status")
     @PreAuthorize("hasAnyAuthority('HR_WRITE','SUPER_ADMIN','ROLE_SUPER_ADMIN','ADMIN','ROLE_ADMIN','COMPANY_ADMIN','ROLE_COMPANY_ADMIN')")
     @Operation(summary = "Alternar status da empresa", description = "Alterna o status da empresa entre ACTIVE e INACTIVE")
-    public ResponseEntity<CompanyDTO> toggleCompanyStatus(
+    public ResponseEntity<?> toggleCompanyStatus(
             @Parameter(description = "ID da empresa") @PathVariable("id") UUID id) {
         log.debug("Recebida requisição para alternar status da empresa ID: {}", id);
-        CompanyDTO updatedCompany = companyService.toggleCompanyStatus(id);
-        return ResponseEntity.ok(updatedCompany);
+        try {
+            CompanyDTO updatedCompany = companyService.toggleCompanyStatus(id);
+            return ResponseEntity.ok(updatedCompany);
+        } catch (Exception e) {
+            log.error("Erro ao alternar status da empresa ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(java.util.Map.of("error", e.getMessage() != null ? e.getMessage() : "Erro ao alternar status da empresa"));
+        }
     }
 }

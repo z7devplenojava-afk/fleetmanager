@@ -162,7 +162,7 @@ public class CompanyService {
 
         // Validar sigla unica (exceto para a propria empresa)
         if (dto.getSigla() != null && !dto.getSigla().trim().isEmpty() &&
-                !existingCompany.getSigla().equalsIgnoreCase(dto.getSigla()) &&
+                (existingCompany.getSigla() == null || !existingCompany.getSigla().equalsIgnoreCase(dto.getSigla())) &&
                 companyRepository.existsBySigla(dto.getSigla())) {
             throw new BusinessException("Ja existe uma empresa com a sigla: " + dto.getSigla());
         }
@@ -222,8 +222,8 @@ public class CompanyService {
         log.info("Empresa atualizada com sucesso - ID: {}", existingCompany.getId());
 
         // Recarregar empresa com EPIs
-        existingCompany = companyRepository.findById(existingCompany.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Empresa nao encontrada"));
+        existingCompany = companyRepository.findByIdWithDefaultEpis(existingCompany.getId())
+                .orElse(existingCompany);
 
         return CompanyDTO.fromEntity(existingCompany);
     }
@@ -281,10 +281,12 @@ public class CompanyService {
     /**
      * Alternar status ativo/inativo da empresa
      */
+    @Transactional
     public CompanyDTO toggleCompanyStatus(UUID id) {
         log.info("Alternando status da empresa ID: {}", id);
-        Company company = companyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada com ID: " + id));
+        Company company = companyRepository.findByIdWithDefaultEpis(id)
+                .orElseGet(() -> companyRepository.findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada com ID: " + id)));
         CompanyStatus newStatus = company.getStatus() == CompanyStatus.ACTIVE ? CompanyStatus.INACTIVE : CompanyStatus.ACTIVE;
         company.setStatus(newStatus);
         company = companyRepository.save(company);
