@@ -4,6 +4,7 @@ import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.Company.CompanyStatus;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -97,4 +98,12 @@ public interface CompanyRepository extends JpaRepository<Company, UUID> {
         * SECURITY: Busca empresas por IDs e status (para validacao de acesso)
         */
        List<Company> findByIdInAndStatus(Set<UUID> ids, CompanyStatus status);
+
+       /**
+        * Update direto de status sem carregar a entidade.
+        * Evita disparar bean validation (sigla NOT NULL) em empresas legadas.
+        */
+       @Modifying(clearAutomatically = true, flushAutomatically = true)
+       @Query("UPDATE Company c SET c.status = :status, c.updatedAt = CURRENT_TIMESTAMP WHERE c.id = :id")
+       int updateStatus(@Param("id") UUID id, @Param("status") CompanyStatus status);
 }

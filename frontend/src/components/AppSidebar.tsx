@@ -164,6 +164,7 @@ const manutencaoMenuItems = [
   { icon: ClipboardCheck, text: 'Gestão Checklist por Cliente', to: '/manutencao/checklist-cliente', id: 'gestao-checklist-cliente' },
   { icon: Sparkles, text: 'Gestão de Limpeza', to: '/manutencao/limpeza', id: 'gestao-limpeza' },
   { icon: Droplets, text: 'Lavajato', to: '/manutencao/lavajato', id: 'lavajato' },
+  { icon: Award, text: 'Certificações CFME', to: '/manutencao/certificacoes-cfme', id: 'gestao-certificacoes-cfme' },
 ];
 
 // Módulo de Suporte

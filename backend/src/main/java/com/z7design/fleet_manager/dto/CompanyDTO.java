@@ -6,6 +6,7 @@ import com.z7design.fleet_manager.model.Company.CompanyStatus;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,8 +30,10 @@ public class CompanyDTO {
     @Size(max = 100, message = "Company name must not exceed 100 characters")
     private String name;
     
-    @NotBlank(message = "Company sigla is required")
+    // Sigla opcional, mas quando enviada precisa ser válida (2-10 caracteres alfanuméricos).
+    // Pode vir vazia ("") do frontend - não usar @NotBlank para não rejeitar update parcial.
     @Size(min = 2, max = 10, message = "Company sigla must be between 2 and 10 characters")
+    @Pattern(regexp = "^[A-Z0-9]*$", message = "Company sigla must contain only uppercase letters and numbers")
     private String sigla;
     
     private String description;

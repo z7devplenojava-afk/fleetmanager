@@ -279,7 +279,9 @@ public class CompanyService {
     }
 
     /**
-     * Alternar status ativo/inativo da empresa
+     * Alternar status ativo/inativo da empresa.
+     * Usa update direto (JPQL) para não disparar validações de bean validation
+     * em empresas legadas com sigla NULL, o que causava erro 500 no CI/VPS.
      */
     @Transactional
     public CompanyDTO toggleCompanyStatus(UUID id) {
@@ -287,9 +289,18 @@ public class CompanyService {
         Company company = companyRepository.findByIdWithDefaultEpis(id)
                 .orElseGet(() -> companyRepository.findById(id)
                         .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada com ID: " + id)));
-        CompanyStatus newStatus = company.getStatus() == CompanyStatus.ACTIVE ? CompanyStatus.INACTIVE : CompanyStatus.ACTIVE;
-        company.setStatus(newStatus);
-        company = companyRepository.save(company);
+
+        CompanyStatus currentStatus = company.getStatus() != null ? company.getStatus() : CompanyStatus.ACTIVE;
+        CompanyStatus newStatus = currentStatus == CompanyStatus.ACTIVE ? CompanyStatus.INACTIVE : CompanyStatus.ACTIVE;
+
+        int updated = companyRepository.updateStatus(id, newStatus);
+        if (updated == 0) {
+            throw new BusinessException("Não foi possível alternar o status da empresa ID: " + id);
+        }
+
+        // Recarregar a entidade já atualizada (evita devolver estado stale do contexto de persistência)
+        company = companyRepository.findByIdWithDefaultEpis(id)
+                .orElseGet(() -> companyRepository.findById(id).orElseThrow());
         log.info("Status da empresa {} alterado para: {}", id, newStatus);
         return CompanyDTO.fromEntity(company);
     }

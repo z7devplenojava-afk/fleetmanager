@@ -53,15 +53,27 @@ public class EPIDeliveryFormService {
 
         // Buscar entidades relacionadas
         Employee employee = employeeRepository.findById(dto.getEmployeeId())
-                .orElseThrow(() -> new ResourceNotFoundException("FuncionÃ¡rio nÃ£o encontrado com id: " + dto.getEmployeeId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Funcionário não encontrado com id: " + dto.getEmployeeId()));
 
-        Company company = companyRepository.findById(dto.getCompanyId())
-                .orElseThrow(() -> new ResourceNotFoundException("Empresa nÃ£o encontrada com id: " + dto.getCompanyId()));
+        Company company = null;
+        if (dto.getCompanyId() != null) {
+            company = companyRepository.findById(dto.getCompanyId()).orElse(null);
+        }
+        if (company == null && employee.getCompanyId() != null) {
+            company = companyRepository.findById(employee.getCompanyId()).orElse(null);
+        }
+        if (company == null && employee.getCompany() != null) {
+            company = employee.getCompany();
+        }
+        if (company == null) {
+            company = companyRepository.findAll().stream().findFirst().orElseThrow(
+                    () -> new ResourceNotFoundException("Nenhuma empresa cadastrada no sistema."));
+        }
 
         Employee responsibleEmployee = null;
         if (dto.getResponsibleEmployeeId() != null) {
             responsibleEmployee = employeeRepository.findById(dto.getResponsibleEmployeeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("FuncionÃ¡rio responsÃ¡vel nÃ£o encontrado com id: " + dto.getResponsibleEmployeeId()));
+                    .orElse(null);
         }
 
         User createdBy = null;
