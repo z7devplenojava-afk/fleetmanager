@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, DollarSign, Settings, FileText, Filter, RefreshCw, TrendingUp, Users, UserCheck, FileSpreadsheet } from 'lucide-react';
+import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, DollarSign, Settings, FileText, Filter, RefreshCw, TrendingUp, Users, UserCheck, FileSpreadsheet, FileCheck } from 'lucide-react';
 import { VehicleImportModal } from '@/components/frota/VehicleImportModal';
+import { VehicleCrlvImportModal } from '@/components/frota/VehicleCrlvImportModal';
+import { CrlvUploadTab } from '@/components/frota/CrlvUploadTab';
 import VeiculosTable from '@/components/frota/VeiculosTable';
 import AgregadosTable from '@/components/frota/AgregadosTable';
 import AgregadosDashboard from '@/components/frota/AgregadosDashboard';
@@ -201,6 +203,7 @@ const Frota: React.FC = () => {
   const [isManutencaoDeleting, setIsManutencaoDeleting] = useState(false);
   const [isVehicleReportModalOpen, setIsVehicleReportModalOpen] = useState(false);
   const [isVehicleImportModalOpen, setIsVehicleImportModalOpen] = useState(false);
+  const [isCrlvModalOpen, setIsCrlvModalOpen] = useState(false);
   const [isMultaModalOpen, setIsMultaModalOpen] = useState(false);
   const [isAgregadoModalOpen, setIsAgregadoModalOpen] = useState(false);
   const [selectedAgregado, setSelectedAgregado] = useState<Vehicle | null>(null);
@@ -1417,6 +1420,9 @@ const Frota: React.FC = () => {
             <TabsTrigger value="mobilizacao" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               Mobilização (PRD)
             </TabsTrigger>
+            <TabsTrigger value="crlv" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-blue-600 data-[state='active']:text-white text-blue-300 font-semibold flex items-center gap-1.5">
+              <FileCheck size={15} /> Uploads CRLV / DUT
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="veiculos" className="mt-6 space-y-4">
@@ -1463,6 +1469,14 @@ const Frota: React.FC = () => {
                 </select>
               </div>
               <div className="flex gap-2">
+                <Button
+                  onClick={() => setIsCrlvModalOpen(true)}
+                  variant="outline"
+                  className="border-blue-500 text-blue-400 hover:bg-blue-600 hover:text-white font-semibold"
+                >
+                  <FileCheck size={16} className="mr-2" />
+                  Importar CRLV (PDF)
+                </Button>
                 <Button
                   onClick={() => setIsVehicleImportModalOpen(true)}
                   variant="outline"
@@ -2001,6 +2015,11 @@ const Frota: React.FC = () => {
           <TabsContent value="mobilizacao" className="mt-6">
             <MobilizationPanel />
           </TabsContent>
+
+          {/* Aba de Uploads e Importação de CRLV / DUT (PDF) */}
+          <TabsContent value="crlv" className="mt-6">
+            <CrlvUploadTab onSuccess={refetchVehicles} />
+          </TabsContent>
         </Tabs>
 
         {/* Modais */}
@@ -2186,6 +2205,14 @@ const Frota: React.FC = () => {
         <VehicleImportModal
           open={isVehicleImportModalOpen}
           onOpenChange={setIsVehicleImportModalOpen}
+          onSuccess={() => {
+            refetchVehicles();
+          }}
+        />
+
+        <VehicleCrlvImportModal
+          open={isCrlvModalOpen}
+          onOpenChange={setIsCrlvModalOpen}
           onSuccess={() => {
             refetchVehicles();
           }}
