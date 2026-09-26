@@ -30,8 +30,12 @@ public class FineController {
     private final DriverRepository driverRepository;
     
     @GetMapping
-    public ResponseEntity<List<FineDTO>> getAllFines() {
+    public ResponseEntity<List<FineDTO>> getAllFines(
+            @RequestParam(value = "vehicleId", required = false) UUID vehicleId) {
         try {
+            if (vehicleId != null) {
+                return ResponseEntity.ok(fineService.getFinesByVehicle(vehicleId));
+            }
             return ResponseEntity.ok(fineService.getAllFines());
         } catch (Exception e) {
             // Evitar 500 para o frontend

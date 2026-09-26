@@ -287,26 +287,68 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         return [newServiceOpt, ...dbOpts];
     }, [servicesCatalog]);
 
-    // Handlers para Upload de Fotos / Evidências
+    // Handlers para Upload de Fotos / Evidências com compressão automática (evita erro 413 Payload Too Large)
     const [newPhotoUrl, setNewPhotoUrl] = useState('');
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const compressImage = (file: File, maxWidth = 1600, maxHeight = 1600, quality = 0.8): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width = Math.round((width * maxHeight) / height);
+                            height = maxHeight;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    } else {
+                        resolve(event.target?.result as string);
+                    }
+                };
+                img.onerror = () => resolve(event.target?.result as string);
+                img.src = event.target?.result as string;
+            };
+            reader.onerror = () => resolve('');
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
-        Array.from(files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const base64Url = event.target?.result as string;
-                if (base64Url) {
-                    setFormData(p => ({
-                        ...p,
-                        photoAttachments: [...(p.photoAttachments || []), base64Url]
-                    }));
-                }
-            };
-            reader.readAsDataURL(file);
-        });
+        const compressedList: string[] = [];
+        for (const file of Array.from(files)) {
+            const compressed = await compressImage(file);
+            if (compressed) {
+                compressedList.push(compressed);
+            }
+        }
+
+        if (compressedList.length > 0) {
+            setFormData(p => ({
+                ...p,
+                photoAttachments: [...(p.photoAttachments || []), ...compressedList]
+            }));
+        }
+        e.target.value = '';
     };
 
     const handleRemovePhoto = (idx: number) => {
