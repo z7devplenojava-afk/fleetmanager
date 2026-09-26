@@ -29,6 +29,11 @@ public class VehicleBatteryDTO {
     private LocalDate installDate;
     private LocalDate warrantyExpiryDate;
     private VehicleBattery.BatteryStatus status;
+    private String serialNumber;
+    private Integer ccaRating;
+    private Integer installKm;
+    private LocalDate removalDate;
+    private String removalReason;
     private BigDecimal cost;
     private String notes;
     private UUID companyId;
@@ -38,15 +43,22 @@ public class VehicleBatteryDTO {
     public static VehicleBatteryDTO fromEntity(VehicleBattery battery) {
         VehicleBatteryDTO dto = new VehicleBatteryDTO();
         dto.setId(battery.getId());
-        dto.setVehicleId(battery.getVehicle().getId());
-        dto.setVehiclePlate(battery.getVehicle().getPlate());
-        dto.setVehicleModel(battery.getVehicle().getModel());
+        if (battery.getVehicle() != null) {
+            dto.setVehicleId(battery.getVehicle().getId());
+            dto.setVehiclePlate(battery.getVehicle().getPlate());
+            dto.setVehicleModel(battery.getVehicle().getModel());
+        }
+        dto.setSerialNumber(battery.getSerialNumber());
         dto.setBatteryCode(battery.getBatteryCode());
         dto.setBrand(battery.getBrand());
         dto.setModel(battery.getModel());
         dto.setVoltage(battery.getVoltage());
         dto.setCapacity(battery.getCapacity());
+        dto.setCcaRating(battery.getCcaRating());
+        dto.setInstallKm(battery.getInstallKm());
         dto.setInstallDate(battery.getInstallDate());
+        dto.setRemovalDate(battery.getRemovalDate());
+        dto.setRemovalReason(battery.getRemovalReason());
         dto.setWarrantyExpiryDate(battery.getWarrantyExpiryDate());
         dto.setStatus(battery.getStatus());
         dto.setCost(battery.getCost());

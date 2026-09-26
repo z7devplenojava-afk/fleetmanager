@@ -11,5 +11,11 @@ import java.util.UUID;
 public interface TireRepository extends JpaRepository<Tire, UUID> {
     List<Tire> findByVehicleId(UUID vehicleId);
 
+    List<Tire> findByCompanyId(UUID companyId);
+
+    List<Tire> findByCompanyIdAndStatus(UUID companyId, com.z7design.fleet_manager.model.enums.TireStatus status);
+
+    java.util.Optional<Tire> findByVehicleIdAndAxleNumberAndPositionIndex(UUID vehicleId, Integer axleNumber, Integer positionIndex);
+
     boolean existsBySerialNumber(String serialNumber);
 }

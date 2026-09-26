@@ -43,6 +43,7 @@ import employeeService, { Employee } from '@/services/employeeService';
 import { documentService, Document } from '@/services/documentService';
 import { sstService, MedicalExam, TrainingParticipation } from '@/services/sstService';
 import { epiDeliveryFormService, EPIDeliveryForm } from '@/services/epiDeliveryFormService';
+import { EpiDeliveryModal } from './EpiDeliveryModal';
 
 export const EmployeeSSTView: React.FC = () => {
   const navigate = useNavigate();
@@ -65,6 +66,7 @@ export const EmployeeSSTView: React.FC = () => {
   const [trainings, setTrainings] = useState<TrainingParticipation[]>([]);
   const [epiForms, setEpiForms] = useState<EPIDeliveryForm[]>([]);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
+  const [isEpiDeliveryModalOpen, setIsEpiDeliveryModalOpen] = useState(false);
 
   // Carregar lista de colaboradores ao montar
   useEffect(() => {
@@ -437,15 +439,10 @@ export const EmployeeSSTView: React.FC = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={handleDownloadEmployeeRecord}
-                        disabled={downloadingPdfId === 'employee-record'}
-                        className="text-xs border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black h-8"
+                        onClick={() => setIsEpiDeliveryModalOpen(true)}
+                        className="text-xs border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 h-8"
                       >
-                        {downloadingPdfId === 'employee-record' ? (
-                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                        ) : (
-                          <Download className="h-3.5 w-3.5 mr-1.5 text-seguranca-yellow" />
-                        )}
+                        <Download className="h-3.5 w-3.5 mr-1.5 text-seguranca-yellow" />
                         Ficha Registro (PDF)
                       </Button>
 
@@ -889,7 +886,7 @@ export const EmployeeSSTView: React.FC = () => {
                       </div>
                       <Button
                         size="sm"
-                        onClick={() => navigate('/rh/sst/epis')}
+                        onClick={() => setIsEpiDeliveryModalOpen(true)}
                         className="text-xs bg-seguranca-red hover:bg-seguranca-darkred text-white h-7"
                       >
                         <Plus className="h-3 w-3 mr-1" />
@@ -972,6 +969,18 @@ export const EmployeeSSTView: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Modal Completo de Ficha de EPI (Preenchida / Manual, Paisagem / Retrato, Assinatura Digital) */}
+      <EpiDeliveryModal
+        isOpen={isEpiDeliveryModalOpen}
+        onClose={() => setIsEpiDeliveryModalOpen(false)}
+        employee={selectedEmployee}
+        onSuccess={() => {
+          if (selectedEmployee?.id) {
+            loadEmployeeSSTData(selectedEmployee.id);
+          }
+        }}
+      />
     </div>
   );
 };

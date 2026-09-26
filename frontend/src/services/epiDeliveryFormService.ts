@@ -2,6 +2,7 @@ import api from '@/lib/axios';
 
 export interface EPIDeliveryFormItem {
   id?: string;
+  stockItemId?: string;
   epiName: string;
   quantity: number;
   ca?: string; // Número do CA

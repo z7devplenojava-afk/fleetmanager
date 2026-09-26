@@ -37,11 +37,13 @@ import {
   ChevronsLeft,
   ChevronsRight,
   X,
-  Shield
+  Shield,
+  Printer
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StockItem, StockCategory, StockCategoryLabels } from '@/types/stock';
 import { stockService } from '@/services/stockService';
+import { StockLabelPrintModal } from './StockLabelPrintModal';
 import { useToast } from '@/hooks/use-toast';
 
 interface StockItemsTableProps {
@@ -95,6 +97,8 @@ const StockItemsTable: React.FC<StockItemsTableProps> = ({
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<number | 'all'>(50);
+  const [labelPrintItems, setLabelPrintItems] = useState<StockItem[]>([]);
+  const [showLabelPrintModal, setShowLabelPrintModal] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -413,11 +417,38 @@ const StockItemsTable: React.FC<StockItemsTableProps> = ({
     }
   };
 
-  const handleBulkDelete = async (ids?: string[] | React.MouseEvent) => {
-    const isArrayArg = Array.isArray(ids);
-    const targetIds = isArrayArg
-      ? (ids as string[])
-      : Array.from(selectedItems);
+    const handleDeleteItem = async (item: StockItem) => {
+    if (item.currentQuantity && item.currentQuantity > 0) {
+      toast({
+        title: "Exclusão Bloqueada",
+        description: `O item "${item.fullName || item.name}" possui saldo em estoque (${item.currentQuantity} un). Para excluir, o saldo deve estar zerado.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!window.confirm(`Tem certeza que deseja excluir o item "${item.fullName || item.name}"? Esta ação removerá o cadastro do almoxarifado.`)) {
+      return;
+    }
+
+    try {
+      await stockService.deleteItem(item.id);
+      toast({
+        title: "Item excluído",
+        description: `Item "${item.fullName || item.name}" excluído com sucesso.`,
+      });
+      onRefresh();
+    } catch (err: any) {
+      toast({
+        title: "Erro ao excluir item",
+        description: err?.message || "Não foi possível excluir o item.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const targetIds = Array.from(selectedItems);
     if (targetIds.length === 0) {
       toast({
         title: "Aviso",
@@ -427,19 +458,34 @@ const StockItemsTable: React.FC<StockItemsTableProps> = ({
       return;
     }
 
-    if (!window.confirm(`Tem certeza que deseja excluir ${targetIds.length} item(ns)? Esta ação não pode ser desfeita.`)) {
+    const targetItems = items.filter(it => targetIds.includes(it.id));
+    const itemsWithStock = targetItems.filter(it => (it.currentQuantity || 0) > 0);
+    const itemsZeroStock = targetItems.filter(it => (it.currentQuantity || 0) === 0);
+
+    if (itemsWithStock.length > 0) {
+      toast({
+        title: "Itens com saldo não podem ser excluídos",
+        description: `${itemsWithStock.length} item(ns) possuem saldo maior que zero e foram desconsiderados (${itemsWithStock.slice(0, 3).map(i => i.code).join(', ')}${itemsWithStock.length > 3 ? '...' : ''}). Apenas itens zerados podem ser excluídos.`,
+        variant: "destructive"
+      });
+    }
+
+    if (itemsZeroStock.length === 0) {
+      return;
+    }
+
+    if (!window.confirm(`Deseja excluir ${itemsZeroStock.length} item(ns) com estoque zerado? Esta ação não pode ser desfeita.`)) {
       return;
     }
 
     setDeleting(true);
     try {
-      const selectedIds = targetIds;
       const results = await Promise.allSettled(
-        selectedIds.map(id => stockService.deleteItem(id))
+        itemsZeroStock.map(it => stockService.deleteItem(it.id))
       );
 
       const failed = results.filter(r => r.status === 'rejected').length;
-      const succeeded = selectedIds.length - failed;
+      const succeeded = itemsZeroStock.length - failed;
 
       if (failed > 0) {
         toast({
@@ -458,10 +504,9 @@ const StockItemsTable: React.FC<StockItemsTableProps> = ({
       onRefresh();
     } catch (error: any) {
       console.error('Erro ao excluir em lote:', error);
-      const errorMessage = error?.response?.data?.error || error?.message || 'Erro ao excluir itens';
       toast({
         title: "Erro",
-        description: errorMessage,
+        description: error?.message || 'Erro ao excluir itens',
         variant: "destructive"
       });
     } finally {
@@ -612,6 +657,19 @@ const StockItemsTable: React.FC<StockItemsTableProps> = ({
               >
                 <Download size={16} className="mr-2" />
                 Exportar Selecionados ({selectedItems.size})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const selectedList = items.filter(it => selectedItems.has(it.id));
+                  setLabelPrintItems(selectedList);
+                  setShowLabelPrintModal(true);
+                }}
+                className="border-yellow-600/70 text-seguranca-yellow hover:bg-yellow-500/10"
+              >
+                <Printer size={16} className="mr-2" />
+                Etiquetas Pimaco A4 ({selectedItems.size})
               </Button>
               <Button
                 variant="outline"
@@ -790,9 +848,21 @@ const StockItemsTable: React.FC<StockItemsTableProps> = ({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleBulkDelete([item.id])}
+                              onClick={() => {
+                                setLabelPrintItems([item]);
+                                setShowLabelPrintModal(true);
+                              }}
+                              className="text-seguranca-lightgray hover:bg-seguranca-black hover:text-seguranca-yellow h-8 w-8 p-0"
+                              title="Imprimir Etiqueta Pimaco A4 (QRCode)"
+                            >
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteItem(item)}
                               className="text-red-500 hover:bg-seguranca-black h-8 w-8 p-0"
-                              title="Excluir"
+                              title={item.currentQuantity && item.currentQuantity > 0 ? "Não pode excluir (saldo em estoque)" : "Excluir item"}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -909,6 +979,14 @@ const StockItemsTable: React.FC<StockItemsTableProps> = ({
           )}
         </CardContent>
       </Card>
+      {/* Modal de Impressão de Etiquetas Pimaco */}
+      {showLabelPrintModal && (
+        <StockLabelPrintModal
+          open={showLabelPrintModal}
+          onOpenChange={setShowLabelPrintModal}
+          items={labelPrintItems}
+        />
+      )}
     </div>
   );
 };

@@ -724,6 +724,12 @@ const EPIs: React.FC = () => {
                           <span className="text-gray-400">Validade:</span>
                           <span className="text-seguranca-lightgray">{epi.validityMonths} meses</span>
                         </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Estoque em Almoxarifado:</span>
+                          <Badge className={(epi.currentStock ?? 0) > 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}>
+                            {epi.currentStock ?? 0} {epi.unitOfMeasurement || 'un'}
+                          </Badge>
+                        </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">Status:</span>
                           <Badge className={epi.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>

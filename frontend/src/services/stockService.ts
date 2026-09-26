@@ -102,9 +102,31 @@ export const stockService = {
   async deleteItem(id: string): Promise<void> {
     try {
       await api.delete(`/api/stock/items/${id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao excluir item:', error);
-      throw new Error('Falha ao excluir item');
+      const msg = error?.response?.data?.message || error?.message || 'Falha ao excluir item';
+      throw new Error(msg);
+    }
+  },
+
+  getItemQrCodeImageUrl(id: string, width = 300, height = 300): string {
+    return `/api/stock/items/${id}/qrcode-image?width=${width}&height=${height}`;
+  },
+
+  async getItemQrCodeDataUrl(id: string, width = 300, height = 300): Promise<string> {
+    try {
+      const response = await api.get(`/api/stock/items/${id}/qrcode-image?width=${width}&height=${height}`, {
+        responseType: 'blob'
+      });
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(response.data);
+      });
+    } catch (error) {
+      console.error('Erro ao buscar imagem QR Code:', error);
+      throw error;
     }
   },
 

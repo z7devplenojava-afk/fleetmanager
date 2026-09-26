@@ -1,11 +1,16 @@
 package com.z7design.fleet_manager.controller;
 
+import com.z7design.fleet_manager.dto.warehouse.TireDismountRequestDTO;
+import com.z7design.fleet_manager.dto.warehouse.TireMountRequestDTO;
+import com.z7design.fleet_manager.dto.warehouse.VehicleTireChassisDTO;
 import com.z7design.fleet_manager.model.Tire;
 import com.z7design.fleet_manager.model.TireMovement;
+import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.service.TireService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,17 +25,50 @@ public class TireController {
     private final TireService tireService;
 
     @GetMapping
-    public ResponseEntity<List<Tire>> findAll() {
-        log.info("GET /api/tires - Listando todos os pneus");
+    public ResponseEntity<List<Tire>> findAll(@AuthenticationPrincipal User user) {
+        log.info("GET /api/tires - Listando pneus da empresa");
         try {
-            List<Tire> tires = tireService.findAll();
-            // Evita serialização de proxies LAZY (open-in-view=false)
+            UUID companyId = user != null ? user.getCompanyId() : null;
+            List<Tire> tires = tireService.findByCompanyId(companyId);
             tires.forEach(t -> t.setVehicle(null));
             return ResponseEntity.ok(tires);
         } catch (Exception e) {
             log.error("Erro ao listar pneus: {}", e.getMessage(), e);
-            return ResponseEntity.ok(java.util.List.of());
+            return ResponseEntity.ok(List.of());
         }
+    }
+
+    @GetMapping("/available")
+    public ResponseEntity<List<Tire>> findAvailable(@AuthenticationPrincipal User user) {
+        UUID companyId = user != null ? user.getCompanyId() : null;
+        List<Tire> tires = tireService.findAvailable(companyId);
+        tires.forEach(t -> t.setVehicle(null));
+        return ResponseEntity.ok(tires);
+    }
+
+    @GetMapping("/chassis/{vehicleId}")
+    public ResponseEntity<VehicleTireChassisDTO> getVehicleChassis(@PathVariable("vehicleId") UUID vehicleId) {
+        return ResponseEntity.ok(tireService.getVehicleChassis(vehicleId));
+    }
+
+    @PostMapping("/mount")
+    public ResponseEntity<Tire> mountTire(
+            @AuthenticationPrincipal User user,
+            @RequestBody TireMountRequestDTO req
+    ) {
+        UUID companyId = user != null ? user.getCompanyId() : null;
+        UUID userId = user != null ? user.getId() : UUID.randomUUID();
+        return ResponseEntity.ok(tireService.mountTire(req, companyId, userId));
+    }
+
+    @PostMapping("/dismount")
+    public ResponseEntity<Tire> dismountTire(
+            @AuthenticationPrincipal User user,
+            @RequestBody TireDismountRequestDTO req
+    ) {
+        UUID companyId = user != null ? user.getCompanyId() : null;
+        UUID userId = user != null ? user.getId() : UUID.randomUUID();
+        return ResponseEntity.ok(tireService.dismountTire(req, companyId, userId));
     }
 
     @GetMapping("/{id}")

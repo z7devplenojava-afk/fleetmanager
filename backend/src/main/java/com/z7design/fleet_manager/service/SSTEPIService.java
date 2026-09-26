@@ -459,6 +459,7 @@ public class SSTEPIService {
 
         return EPIStockDTO.builder()
                 .id(epi.getId())
+                .stockItemId(epi.getStockItemId())
                 .name(epi.getName())
                 .description(epi.getDescription())
                 .type(type)

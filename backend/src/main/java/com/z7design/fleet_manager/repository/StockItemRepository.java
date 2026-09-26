@@ -31,6 +31,9 @@ public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
     // Buscar por QR Code
     Optional<StockItem> findByQrCode(String qrCode);
 
+    // Buscar por EPI ID (módulo SST)
+    Optional<StockItem> findByEpiId(UUID epiId);
+
     // Buscar por categoria
     List<StockItem> findByCategory(StockCategory category);
 

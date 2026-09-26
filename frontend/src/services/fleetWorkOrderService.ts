@@ -185,6 +185,10 @@ class FleetWorkOrderService {
         return data;
     }
 
+    async getAll(): Promise<FleetWorkOrder[]> {
+        return this.findAll();
+    }
+
     async findById(id: string): Promise<FleetWorkOrder> {
         const { data } = await api.get(`/fleet-work-orders/${id}`);
         return data;

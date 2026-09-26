@@ -33,6 +33,10 @@ public class StockItemDTO {
     private String notes;
     private Boolean isLowStock;
     private String fullName;
+    private String caNumber;
+    private java.time.LocalDate caValidity;
+    private String manufacturer;
+    private UUID epiId;
 
     public static StockItemDTO fromEntity(StockItem entity) {
         StockItemDTO dto = new StockItemDTO();
@@ -50,6 +54,10 @@ public class StockItemDTO {
         dto.setInvoiceNumber(entity.getInvoiceNumber());
         dto.setBarcode(entity.getBarcode());
         dto.setQrCode(entity.getQrCode());
+        dto.setCaNumber(entity.getCaNumber());
+        dto.setCaValidity(entity.getCaValidity());
+        dto.setManufacturer(entity.getManufacturer());
+        dto.setEpiId(entity.getEpiId());
         dto.setActive(entity.getActive());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
@@ -84,6 +92,10 @@ public class StockItemDTO {
         entity.setInvoiceNumber(dto.getInvoiceNumber());
         entity.setBarcode(dto.getBarcode());
         entity.setQrCode(dto.getQrCode());
+        entity.setCaNumber(dto.getCaNumber());
+        entity.setCaValidity(dto.getCaValidity());
+        entity.setManufacturer(dto.getManufacturer());
+        entity.setEpiId(dto.getEpiId());
         entity.setActive(dto.getActive() != null ? dto.getActive() : Boolean.TRUE);
         entity.setNotes(dto.getNotes());
         return entity;

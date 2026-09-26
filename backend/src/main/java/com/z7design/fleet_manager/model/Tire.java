@@ -54,6 +54,41 @@ public class Tire {
     @Column(name = "position_index")
     private Integer positionIndex;
 
+    @Column(name = "company_id")
+    private UUID companyId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id")
+    private WarehouseProduct product;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "inbound_item_id")
+    private WarehouseInboundItem inboundItem;
+
+    @Column(length = 20)
+    private String dot;
+
+    @Column(name = "initial_tread_depth", precision = 5, scale = 2)
+    private java.math.BigDecimal initialTreadDepth; // Sulco original em mm
+
+    @Column(name = "current_tread_depth", precision = 5, scale = 2)
+    private java.math.BigDecimal currentTreadDepth; // Sulco atual em mm
+
+    @Column(name = "acquisition_cost", precision = 12, scale = 2)
+    private java.math.BigDecimal acquisitionCost;
+
+    @Column(name = "total_repair_cost", precision = 12, scale = 2)
+    private java.math.BigDecimal totalRepairCost;
+
+    @Column(precision = 10, scale = 4)
+    private java.math.BigDecimal cpk; // Custo Por Quilômetro
+
+    @Column(name = "install_km")
+    private Integer installKm;
+
+    @Column(name = "install_date")
+    private LocalDateTime installDate;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id", insertable = false, updatable = false)
     @JsonIgnore

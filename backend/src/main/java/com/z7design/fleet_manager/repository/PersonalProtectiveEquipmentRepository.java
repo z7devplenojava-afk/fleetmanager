@@ -66,8 +66,13 @@ public interface PersonalProtectiveEquipmentRepository extends JpaRepository<Per
     boolean existsByNameAndIdNot(String name, UUID id);
 
     /**
-     * Busca EPIs por nÃºmero do CA
+     * Busca EPIs por número do CA
      */
     List<PersonalProtectiveEquipment> findByCaNumber(String caNumber);
+
+    /**
+     * Busca EPI vinculado ao item de estoque
+     */
+    java.util.Optional<PersonalProtectiveEquipment> findByStockItemId(UUID stockItemId);
 }
 

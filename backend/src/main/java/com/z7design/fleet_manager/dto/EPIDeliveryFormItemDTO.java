@@ -14,10 +14,11 @@ import java.util.UUID;
 @AllArgsConstructor
 public class EPIDeliveryFormItemDTO {
     private UUID id;
+    private UUID stockItemId;
     private String epiName;
     private Integer quantity;
-    private String ca; // NÃºmero do CA
-    private String caName; // Nome/DescriÃ§Ã£o do CA
+    private String ca; // Número do CA
+    private String caName; // Nome/Descrição do CA
     private LocalDate validityDate;
     private String uniformType;
     private String uniformPiece;

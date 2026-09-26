@@ -29,8 +29,19 @@ public class VehicleBattery {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vehicle_id", nullable = false)
+    @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id")
+    private WarehouseProduct product;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "inbound_item_id")
+    private WarehouseInboundItem inboundItem;
+
+    @Column(name = "serial_number", length = 60)
+    private String serialNumber;
 
     @Column(name = "battery_code", length = 60)
     private String batteryCode;
@@ -47,14 +58,27 @@ public class VehicleBattery {
     @Column(length = 30)
     private String capacity;
 
+    @Column(name = "cca_rating")
+    private Integer ccaRating; // Corrente de partida a frio
+
+    @Column(name = "install_km")
+    private Integer installKm;
+
     @Column(name = "install_date")
     private LocalDate installDate;
+
+    @Column(name = "removal_date")
+    private LocalDate removalDate;
+
+    @Column(name = "removal_reason", length = 100)
+    private String removalReason;
 
     @Column(name = "warranty_expiry_date")
     private LocalDate warrantyExpiryDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
+    @Builder.Default
     private BatteryStatus status = BatteryStatus.ACTIVE;
 
     @Column(precision = 12, scale = 2)

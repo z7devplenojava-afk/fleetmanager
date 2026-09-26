@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
-import { FileText, Download, Eye, User, Building, Calendar, Shield, Plus, X, HardHat, Loader2, CheckCircle2 } from 'lucide-react';
+import { FileText, Download, Eye, User, Building, Calendar, Shield, Plus, X, HardHat, Loader2, CheckCircle2, Package } from 'lucide-react';
 import { employeeService, Employee } from '@/services/employeeService';
 import { companyService } from '@/services/companyService';
 import { epiDeliveryFormService } from '@/services/epiDeliveryFormService';
@@ -66,6 +66,8 @@ const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId })
     }
   }, [employeeId]);
 
+  const [stockEpis, setStockEpis] = useState<any[]>([]);
+
   const [epis, setEpis] = useState([
     { 
       nome: '', 
@@ -75,7 +77,9 @@ const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId })
       validade: '',
       observacoes: '',
       uniformeTipo: '', // 'COMPLETO' ou 'INDIVIDUAL'
-      uniformePeca: '' // Peça específica se for individual
+      uniformePeca: '', // Peça específica se for individual
+      stockItemId: '',
+      availableStock: undefined as number | undefined
     }
   ]);
 
@@ -141,12 +145,16 @@ const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId })
   const loadData = async () => {
     setLoadingData(true);
     try {
-      const [employeesData, companiesData] = await Promise.all([
+      const [employeesData, companiesData, stockEpisRes] = await Promise.all([
         employeeService.getAllEmployees(),
-        companyService.getAllCompanies()
+        companyService.getAllCompanies(),
+        api.get('/api/sst/epis/stock-inventory').catch(() => ({ data: [] }))
       ]);
       setEmployees(employeesData);
       setCompanies(companiesData);
+      if (stockEpisRes && Array.isArray(stockEpisRes.data)) {
+        setStockEpis(stockEpisRes.data);
+      }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast({
@@ -159,7 +167,7 @@ const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId })
     }
   };
 
-  const handleEpiChange = (idx: number, field: string, value: string) => {
+  const handleEpiChange = (idx: number, field: string, value: any) => {
     setEpis(prevEpis => {
       const updatedEpis = [...prevEpis];
       updatedEpis[idx] = { ...updatedEpis[idx], [field]: value };
@@ -403,6 +411,18 @@ const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId })
       return;
     }
 
+    for (const epi of epis) {
+      const requestedQty = parseInt(epi.quantidade) || 1;
+      if (epi.availableStock !== undefined && requestedQty > epi.availableStock) {
+        toast({
+          title: 'Estoque insuficiente',
+          description: `O item "${epi.nome}" possui apenas ${epi.availableStock} un disponíveis em estoque. Não é possível entregar ${requestedQty} un.`,
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       // Buscar dados completos do funcionário
@@ -410,6 +430,29 @@ const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId })
       if (!fullEmployee) {
         throw new Error('Funcionário não encontrado');
       }
+
+      // Salvar ficha no banco de dados e dar baixa no estoque primeiro
+      const formData = {
+        employeeId: form.funcionarioId,
+        companyId: form.empresaId,
+        deliveryDate: form.dataEntrega,
+        responsibleEmployeeId: form.responsavelEntregaId || undefined,
+        observations: form.observacoes || undefined,
+        items: epis.map(epi => ({
+          stockItemId: epi.stockItemId || undefined,
+          epiName: epi.nome,
+          quantity: parseInt(epi.quantidade) || 1,
+          ca: epi.ca || undefined,
+          caName: epi.caName || undefined,
+          validityDate: epi.validade || undefined,
+          uniformType: epi.uniformeTipo || undefined,
+          uniformPiece: epi.uniformePeca || undefined,
+          observations: epi.observacoes || undefined
+        }))
+      };
+
+      await epiDeliveryFormService.create(formData);
+      console.log('✅ Ficha de entrega salva no banco e estoque baixado com sucesso');
 
       const payload = {
         templateName: 'ficha-entrega-epi.html',
@@ -462,34 +505,10 @@ const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId })
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-
-      // Salvar ficha no banco de dados
-      try {
-        const formData = {
-          employeeId: form.funcionarioId,
-          companyId: form.empresaId,
-          deliveryDate: form.dataEntrega,
-          responsibleEmployeeId: form.responsavelEntregaId || undefined,
-          observations: form.observacoes || undefined,
-          items: epis.map(epi => ({
-            epiName: epi.nome,
-            quantity: parseInt(epi.quantidade) || 1,
-            ca: epi.ca || undefined,
-            caName: epi.caName || undefined,
-            validityDate: epi.validade || undefined,
-            uniformType: epi.uniformeTipo || undefined,
-            uniformPiece: epi.uniformePeca || undefined,
-            observations: epi.observacoes || undefined
-          }))
-        };
-
-        await epiDeliveryFormService.create(formData);
-        console.log('✅ Ficha de entrega de EPI salva no banco de dados');
-      } catch (saveError) {
-        console.error('⚠️ Erro ao salvar ficha no banco de dados:', saveError);
-        // Não interrompe o fluxo, apenas loga o erro
-      }
       
+      // Recarregar dados para atualizar saldos de estoque
+      loadData();
+
       toast({
         title: 'Sucesso',
         description: 'Ficha de Entrega de EPI gerada e salva com sucesso!',
@@ -807,7 +826,22 @@ const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId })
                           <Select 
                             value={epi.nome || undefined} 
                             onValueChange={(value) => {
-                              handleEpiChange(idx, 'nome', value);
+                              const foundStock = stockEpis.find(s => s.name === value || s.id === value || s.uuid === value);
+                              if (foundStock) {
+                                handleEpiChange(idx, 'nome', foundStock.name);
+                                handleEpiChange(idx, 'stockItemId', foundStock.stockItemId || foundStock.uuid || foundStock.id);
+                                handleEpiChange(idx, 'availableStock', foundStock.availableQuantity ?? foundStock.quantity ?? 0);
+                                if (foundStock.certification) {
+                                  handleEpiChange(idx, 'ca', foundStock.certification);
+                                }
+                                if (foundStock.expiryDate) {
+                                  handleEpiChange(idx, 'validade', foundStock.expiryDate);
+                                }
+                              } else {
+                                handleEpiChange(idx, 'nome', value);
+                                handleEpiChange(idx, 'stockItemId', '');
+                                handleEpiChange(idx, 'availableStock', undefined);
+                              }
                               // Limpar campos de uniforme se mudar o EPI
                               if (value !== 'Uniforme de Trabalho') {
                                 handleEpiChange(idx, 'uniformeTipo', '');
@@ -818,8 +852,40 @@ const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId })
                             <SelectTrigger className="bg-background w-full">
                               <SelectValue placeholder="Selecione o EPI" />
                             </SelectTrigger>
-                            <SelectContent className="max-h-[300px]">
-                              {epiOptions.map(option => (
+                            <SelectContent className="max-h-[350px]">
+                              {stockEpis.length > 0 && (
+                                <>
+                                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 rounded">
+                                    📦 EPIs em Estoque (Almoxarifado)
+                                  </div>
+                                  {stockEpis.map(stockEpi => (
+                                    <SelectItem key={stockEpi.id || stockEpi.uuid || stockEpi.name} value={stockEpi.name}>
+                                      <div className="flex items-center justify-between gap-3 w-full py-0.5">
+                                        <span className="font-medium">{stockEpi.name}</span>
+                                        <div className="flex items-center gap-1.5">
+                                          {stockEpi.certification && (
+                                            <span className="text-[11px] text-muted-foreground">CA: {stockEpi.certification}</span>
+                                          )}
+                                          <Badge 
+                                            variant="outline" 
+                                            className={(stockEpi.availableQuantity ?? stockEpi.quantity ?? 0) > 0 
+                                              ? "bg-emerald-500/15 text-emerald-700 border-emerald-300 text-[10px] px-1.5 py-0" 
+                                              : "bg-red-500/15 text-red-700 border-red-300 text-[10px] px-1.5 py-0"}
+                                          >
+                                            Estoque: {stockEpi.availableQuantity ?? stockEpi.quantity ?? 0} un
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 rounded mt-2">
+                                    📋 Outros / Genéricos
+                                  </div>
+                                </>
+                              )}
+                              {epiOptions
+                                .filter(opt => !stockEpis.some(s => s.name?.toLowerCase() === opt.toLowerCase()))
+                                .map(option => (
                                 <SelectItem key={option} value={option}>
                                   {option}
                                 </SelectItem>
@@ -832,13 +898,20 @@ const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId })
                         {epi.nome !== 'Uniforme de Trabalho' && (
                           <>
                             <div className="space-y-2">
-                              <Label>Quantidade</Label>
+                              <div className="flex items-center justify-between">
+                                <Label>Quantidade</Label>
+                                {epi.availableStock !== undefined && (
+                                  <span className={`text-[11px] font-semibold ${parseInt(epi.quantidade) > epi.availableStock ? 'text-red-600' : 'text-emerald-600'}`}>
+                                    Disponível: {epi.availableStock} un
+                                  </span>
+                                )}
+                              </div>
                               <Input 
                                 type="number" 
                                 min="1"
                                 value={epi.quantidade} 
                                 onChange={(e) => handleEpiChange(idx, 'quantidade', e.target.value)}
-                                className="bg-background"
+                                className={`bg-background ${epi.availableStock !== undefined && parseInt(epi.quantidade) > epi.availableStock ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                               />
                             </div>
                             
@@ -1025,6 +1098,24 @@ const FichaEntregaEPIForm: React.FC<FichaEntregaEPIFormProps> = ({ employeeId })
                         </div>
                       )}
                       
+                      {/* Saldo de Estoque e Alerta */}
+                      {epi.availableStock !== undefined && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-muted/40 border border-muted-foreground/20 text-xs">
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-primary" />
+                            <span className="text-muted-foreground font-medium">Estoque no Almoxarifado:</span>
+                            <Badge variant="outline" className={epi.availableStock > 0 ? "bg-emerald-500/15 text-emerald-700 border-emerald-300 font-semibold" : "bg-red-500/15 text-red-700 border-red-300 font-semibold"}>
+                              {epi.availableStock} un disponíveis
+                            </Badge>
+                          </div>
+                          {parseInt(epi.quantidade) > epi.availableStock && (
+                            <span className="text-red-600 font-semibold flex items-center gap-1 animate-pulse">
+                              ⚠️ Bloqueado: solicitado ({epi.quantidade}) excede o estoque disponível ({epi.availableStock})!
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       {/* Observações do Item (sempre visível) */}
                       <div className="space-y-2">
                         <Label>Observações do Item</Label>

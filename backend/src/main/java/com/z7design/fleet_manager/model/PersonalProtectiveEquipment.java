@@ -79,6 +79,12 @@ public class PersonalProtectiveEquipment {
     @Column(nullable = false)
     private Boolean isActive = true;
 
+    @Column(name = "stock_item_id")
+    private UUID stockItemId;
+
+    @Column(name = "company_id")
+    private UUID companyId;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -225,7 +231,23 @@ public class PersonalProtectiveEquipment {
         this.updatedAt = updatedAt;
     }
 
-    // Builder manual para resolver problemas de compilaÃ§Ã£o
+    public UUID getStockItemId() {
+        return stockItemId;
+    }
+
+    public void setStockItemId(UUID stockItemId) {
+        this.stockItemId = stockItemId;
+    }
+
+    public UUID getCompanyId() {
+        return companyId;
+    }
+
+    public void setCompanyId(UUID companyId) {
+        this.companyId = companyId;
+    }
+
+    // Builder manual para resolver problemas de compilação
     public static PersonalProtectiveEquipmentBuilder builder() {
         return new PersonalProtectiveEquipmentBuilder();
     }
@@ -295,6 +317,16 @@ public class PersonalProtectiveEquipment {
 
         public PersonalProtectiveEquipmentBuilder isActive(Boolean isActive) {
             instance.setIsActive(isActive);
+            return this;
+        }
+
+        public PersonalProtectiveEquipmentBuilder stockItemId(UUID stockItemId) {
+            instance.setStockItemId(stockItemId);
+            return this;
+        }
+
+        public PersonalProtectiveEquipmentBuilder companyId(UUID companyId) {
+            instance.setCompanyId(companyId);
             return this;
         }
 

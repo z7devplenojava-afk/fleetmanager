@@ -110,10 +110,10 @@ services:
       - z7network
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8080/api/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 240s
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
     restart: unless-stopped
     # DESABILITADO TRAEFIK - usando Nginx como proxy reverso
     labels:
@@ -174,9 +174,9 @@ services:
       - ./nginx/ci.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       backend-ci:
-        condition: service_started
+        condition: service_healthy
       frontend-ci:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fluxbus-ci-network
       - z7network
@@ -230,10 +230,10 @@ services:
       - z7network
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: unless-stopped
     # DESABILITADO TRAEFIK - usando Nginx como proxy reverso
     labels:

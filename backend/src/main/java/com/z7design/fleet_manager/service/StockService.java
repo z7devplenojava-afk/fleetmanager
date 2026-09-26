@@ -12,6 +12,7 @@ import com.z7design.fleet_manager.dto.ImportResultDto;
 import com.z7design.fleet_manager.model.StockItem;
 import com.z7design.fleet_manager.model.StockMovement;
 import com.z7design.fleet_manager.model.StockAlert;
+import com.z7design.fleet_manager.model.PersonalProtectiveEquipment;
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.model.User;
@@ -23,11 +24,13 @@ import com.z7design.fleet_manager.repository.CompanyRepository;
 import com.z7design.fleet_manager.repository.StockItemRepository;
 import com.z7design.fleet_manager.repository.StockMovementRepository;
 import com.z7design.fleet_manager.repository.StockAlertRepository;
+import com.z7design.fleet_manager.repository.PersonalProtectiveEquipmentRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.repository.UnitRepository;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
+import com.z7design.fleet_manager.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -70,6 +73,7 @@ public class StockService {
     private final UnitRepository unitRepository;
     private final CompanyRepository companyRepository;
     private final UserCompanyResolver userCompanyResolver;
+    private final PersonalProtectiveEquipmentRepository personalProtectiveEquipmentRepository;
 
     // ===== GESTÃƒO DE ITENS =====
 
@@ -142,9 +146,14 @@ public class StockService {
     public StockItemDTO createItem(StockItemDTO dto) {
         log.info("Criando novo item de estoque: {}", dto.getName());
         
-        // Verificar se cÃ³digo jÃ¡ existe
+        // Verificar se código já existe
         if (dto.getCode() != null && stockItemRepository.existsByCode(dto.getCode())) {
-            throw new IllegalArgumentException("JÃ¡ existe um item com o cÃ³digo: " + dto.getCode());
+            throw new IllegalArgumentException("Já existe um item com o código: " + dto.getCode());
+        }
+
+        // Validação da NF de Entrada quando houver saldo inicial
+        if (dto.getCurrentQuantity() != null && dto.getCurrentQuantity() > 0 && (dto.getInvoiceNumber() == null || dto.getInvoiceNumber().trim().isEmpty())) {
+            throw new BusinessException("Para cadastrar item com saldo inicial em estoque, é obrigatório informar a Nota Fiscal de Entrada.");
         }
         
         StockItem item = StockItemDTO.toEntity(dto);
@@ -185,6 +194,9 @@ public class StockService {
         // Criar alerta se quantidade inicial for baixa
         checkAndCreateLowStockAlert(item);
         
+        // Sincronizar com módulo SST (EPIs)
+        syncWithPersonalProtectiveEquipment(item);
+
         log.info("Item criado com sucesso - ID: {}, Código: {}", item.getId(), item.getCode());
         return StockItemDTO.fromEntity(item);
     }
@@ -193,12 +205,12 @@ public class StockService {
         log.info("Atualizando item de estoque: {}", id);
         
         StockItem existingItem = stockItemRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Item de estoque nÃ£o encontrado: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Item de estoque não encontrado: " + id));
 
-        // Verificar se cÃ³digo jÃ¡ existe em outro item
+        // Verificar se código já existe em outro item
         if (dto.getCode() != null && !dto.getCode().equals(existingItem.getCode()) && 
             stockItemRepository.existsByCodeAndIdNot(dto.getCode(), id)) {
-            throw new IllegalArgumentException("JÃ¡ existe outro item com o cÃ³digo: " + dto.getCode());
+            throw new IllegalArgumentException("Já existe outro item com o código: " + dto.getCode());
         }
 
         // Atualizar campos
@@ -221,11 +233,17 @@ public class StockService {
             existingItem.setActive(dto.getActive());
         }
         existingItem.setNotes(dto.getNotes());
+        existingItem.setCaNumber(dto.getCaNumber());
+        existingItem.setCaValidity(dto.getCaValidity());
+        existingItem.setManufacturer(dto.getManufacturer());
+        if (dto.getEpiId() != null) {
+            existingItem.setEpiId(dto.getEpiId());
+        }
 
         // Atualizar unidade se especificada
         if (dto.getUnitId() != null) {
             Unit unit = unitRepository.findById(dto.getUnitId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Unidade nÃ£o encontrada: " + dto.getUnitId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Unidade não encontrada: " + dto.getUnitId()));
             existingItem.setUnit(unit);
         }
 
@@ -234,6 +252,9 @@ public class StockService {
         // Verificar se precisa criar/resolver alertas
         checkAndCreateLowStockAlert(existingItem);
         
+        // Sincronizar com módulo SST (EPIs)
+        syncWithPersonalProtectiveEquipment(existingItem);
+
         log.info("Item atualizado com sucesso: {}", id);
         return StockItemDTO.fromEntity(existingItem);
     }
@@ -242,13 +263,73 @@ public class StockService {
         log.info("Excluindo item de estoque: {}", id);
         
         StockItem item = stockItemRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Item de estoque nÃ£o encontrado: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Item de estoque não encontrado: " + id));
         
-        // Marcar como inativo em vez de excluir (para manter histÃ³rico)
-        item.setActive(false);
-        stockItemRepository.save(item);
+        // Regra de Negócio: Verificar se o item está zerado
+        if (item.getCurrentQuantity() != null && item.getCurrentQuantity() > 0) {
+            throw new BusinessException("Não é possível excluir o item '" + item.getName() + "' pois ele possui saldo em estoque (" + item.getCurrentQuantity() + " unidades). Para excluir, o saldo deve estar zerado.");
+        }
         
-        log.info("Item marcado como inativo: {}", id);
+        // Se houver histórico de movimentações, faz Soft Delete (inativa) para manter integridade
+        boolean hasMovements = stockMovementRepository.existsByStockItemId(id);
+        if (hasMovements) {
+            item.setActive(false);
+            stockItemRepository.save(item);
+            log.info("Item marcado como inativo devido ao histórico de movimentações: {}", id);
+        } else {
+            // Se nunca teve movimentações e está zerado, exclusão física definitiva
+            stockItemRepository.delete(item);
+            log.info("Item excluído definitivamente: {}", id);
+        }
+    }
+
+    public byte[] generateQrCodeImage(UUID id, int width, int height) {
+        StockItem item = stockItemRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Item de estoque não encontrado: " + id));
+
+        StringBuilder qrPayload = new StringBuilder();
+        qrPayload.append("{\"app\":\"FLEET_STOCK\"");
+        qrPayload.append(",\"id\":\"").append(item.getId()).append("\"");
+        qrPayload.append(",\"codigo\":\"").append(escapeJson(item.getCode())).append("\"");
+        qrPayload.append(",\"nome\":\"").append(escapeJson(item.getName())).append("\"");
+        if (item.getSizeVariation() != null && !item.getSizeVariation().isBlank()) {
+            qrPayload.append(",\"variacao\":\"").append(escapeJson(item.getSizeVariation())).append("\"");
+        }
+        qrPayload.append(",\"categoria\":\"").append(item.getCategory() != null ? item.getCategory().name() : "").append("\"");
+        if (item.getCaNumber() != null && !item.getCaNumber().isBlank()) {
+            qrPayload.append(",\"ca\":\"").append(escapeJson(item.getCaNumber())).append("\"");
+        }
+        qrPayload.append(",\"quantidade\":").append(item.getCurrentQuantity() != null ? item.getCurrentQuantity() : 0);
+        if (item.getSupplier() != null && !item.getSupplier().isBlank()) {
+            qrPayload.append(",\"fornecedor\":\"").append(escapeJson(item.getSupplier())).append("\"");
+        }
+        if (item.getInvoiceNumber() != null && !item.getInvoiceNumber().isBlank()) {
+            qrPayload.append(",\"nf\":\"").append(escapeJson(item.getInvoiceNumber())).append("\"");
+        }
+        qrPayload.append("}");
+
+        try {
+            int w = width > 0 ? width : 300;
+            int h = height > 0 ? height : 300;
+            com.google.zxing.common.BitMatrix bitMatrix = new com.google.zxing.MultiFormatWriter().encode(
+                    qrPayload.toString(),
+                    com.google.zxing.BarcodeFormat.QR_CODE,
+                    w,
+                    h
+            );
+            java.awt.image.BufferedImage image = com.google.zxing.client.j2se.MatrixToImageWriter.toBufferedImage(bitMatrix);
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(image, "png", baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            log.error("Erro ao gerar imagem QR Code para item de estoque {}: {}", id, e.getMessage(), e);
+            throw new RuntimeException("Erro ao gerar QR Code do item: " + e.getMessage(), e);
+        }
+    }
+
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ").replace("\r", "");
     }
 
     // ===== MOVIMENTAÃ‡Ã•ES =====
@@ -1726,4 +1807,93 @@ public class StockService {
         }
     }
 
+    /**
+     * Sincroniza item de estoque de EPI com a tabela de EPIs do módulo SST
+     */
+    private void syncWithPersonalProtectiveEquipment(StockItem item) {
+        if (item == null) return;
+        boolean isEpi = item.getCategory() == StockCategory.EPI 
+                || item.getCategory() == StockCategory.CALCADOS
+                || (item.getCategory() != null && item.getCategory().name().startsWith("UNIFORME"))
+                || (item.getCaNumber() != null && !item.getCaNumber().isBlank());
+        
+        if (!isEpi) return;
+
+        try {
+            PersonalProtectiveEquipment ppe = null;
+            if (item.getEpiId() != null) {
+                ppe = personalProtectiveEquipmentRepository.findById(item.getEpiId()).orElse(null);
+            }
+            if (ppe == null && item.getId() != null) {
+                ppe = personalProtectiveEquipmentRepository.findByStockItemId(item.getId()).orElse(null);
+            }
+            if (ppe == null && item.getCaNumber() != null && !item.getCaNumber().isBlank()) {
+                List<PersonalProtectiveEquipment> byCa = personalProtectiveEquipmentRepository.findByCaNumber(item.getCaNumber().trim());
+                if (!byCa.isEmpty()) {
+                    ppe = byCa.get(0);
+                }
+            }
+
+            if (ppe == null) {
+                ppe = new PersonalProtectiveEquipment();
+                ppe.setUnitOfMeasurement(item.getUnit() != null ? item.getUnit().getName() : "UNIDADE");
+                ppe.setIsActive(item.getActive() != null ? item.getActive() : true);
+            }
+
+            ppe.setName(item.getName());
+            ppe.setDescription(item.getDescription() != null ? item.getDescription() : item.getName());
+            
+            // Mapear categoria para EPICategory
+            if (item.getCategory() == StockCategory.CALCADOS) {
+                ppe.setCategory(com.z7design.fleet_manager.model.enums.EPICategory.PES);
+            } else if (item.getCategory() != null && item.getCategory().name().startsWith("UNIFORME")) {
+                ppe.setCategory(com.z7design.fleet_manager.model.enums.EPICategory.CORPO);
+            } else {
+                String nameLower = item.getName() != null ? item.getName().toLowerCase() : "";
+                if (nameLower.contains("luva")) {
+                    ppe.setCategory(com.z7design.fleet_manager.model.enums.EPICategory.MAOS);
+                } else if (nameLower.contains("oculos") || nameLower.contains("óculos") || nameLower.contains("visag")) {
+                    ppe.setCategory(com.z7design.fleet_manager.model.enums.EPICategory.OLHOS);
+                } else if (nameLower.contains("auricular") || nameLower.contains("abafador") || nameLower.contains("ouvido")) {
+                    ppe.setCategory(com.z7design.fleet_manager.model.enums.EPICategory.AUDITIVO);
+                } else if (nameLower.contains("mascara") || nameLower.contains("máscara") || nameLower.contains("respirador")) {
+                    ppe.setCategory(com.z7design.fleet_manager.model.enums.EPICategory.RESPIRATORIO);
+                } else if (nameLower.contains("capacete")) {
+                    ppe.setCategory(com.z7design.fleet_manager.model.enums.EPICategory.CABECA);
+                } else if (nameLower.contains("bota") || nameLower.contains("sapato") || nameLower.contains("coturno")) {
+                    ppe.setCategory(com.z7design.fleet_manager.model.enums.EPICategory.PES);
+                } else if (ppe.getCategory() == null) {
+                    ppe.setCategory(com.z7design.fleet_manager.model.enums.EPICategory.CORPO);
+                }
+            }
+
+            if (item.getCaNumber() != null && !item.getCaNumber().isBlank()) {
+                ppe.setCaNumber(item.getCaNumber().trim());
+            }
+            if (item.getCaValidity() != null) {
+                ppe.setCaValidity(item.getCaValidity());
+            }
+            if (item.getManufacturer() != null && !item.getManufacturer().isBlank()) {
+                ppe.setManufacturer(item.getManufacturer());
+            } else if (item.getSupplier() != null && !item.getSupplier().isBlank()) {
+                ppe.setManufacturer(item.getSupplier());
+            }
+            ppe.setMinimumStock(item.getMinimumQuantity() != null ? item.getMinimumQuantity() : 0);
+            ppe.setCurrentStock(item.getCurrentQuantity() != null ? item.getCurrentQuantity() : 0);
+            ppe.setUnitCost(item.getUnitCost());
+            ppe.setStockItemId(item.getId());
+            if (item.getCompany() != null) {
+                ppe.setCompanyId(item.getCompany().getId());
+            }
+
+            PersonalProtectiveEquipment saved = personalProtectiveEquipmentRepository.save(ppe);
+            if (item.getEpiId() == null || !item.getEpiId().equals(saved.getId())) {
+                item.setEpiId(saved.getId());
+                stockItemRepository.save(item);
+            }
+            log.info("Sincronizado EPI do SST: ID {} com item de estoque ID {}", saved.getId(), item.getId());
+        } catch (Exception e) {
+            log.warn("Erro ao sincronizar item de estoque com EPI no SST: {}", e.getMessage());
+        }
+    }
 }
