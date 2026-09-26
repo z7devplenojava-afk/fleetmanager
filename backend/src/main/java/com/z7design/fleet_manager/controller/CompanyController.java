@@ -31,21 +31,6 @@ public class CompanyController {
     private final CompanyService companyService;
     private final com.z7design.fleet_manager.service.UserCompanyResolver userCompanyResolver;
 
-    @GetMapping("/my-company")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Buscar empresa do usuário logado", description = "Retorna os dados da empresa à qual o usuário logado pertence")
-    public ResponseEntity<CompanyDTO> getMyCompany() {
-        log.debug("Buscando empresa do usuário logado");
-        try {
-            return userCompanyResolver.resolveCurrentCompany()
-                    .map(CompanyDTO::fromEntity)
-                    .map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.noContent().build());
-        } catch (Exception e) {
-            log.error("Erro ao buscar empresa do usuário logado: {}", e.getMessage());
-            return ResponseEntity.noContent().build();
-        }
-    }
 
     @GetMapping
     @Operation(summary = "Listar todas as empresas", description = "Retorna uma lista de todas as empresas")
