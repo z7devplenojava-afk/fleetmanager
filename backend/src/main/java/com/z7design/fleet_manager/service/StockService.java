@@ -1918,7 +1918,7 @@ public class StockService {
      * Sincroniza a entrada de estoque gerando registros individuais de Bateria ou Pneu
      * quando o item pertencer a essas categorias.
      */
-    private void syncBatteryAndTireInbound(
+    public void syncBatteryAndTireInbound(
             StockItem item,
             int quantity,
             String documentNumber,

@@ -49,6 +49,7 @@ import { StockWorkOrdersTab } from '@/components/stock/StockWorkOrdersTab';
 import { StockTiresTab } from '@/components/stock/StockTiresTab';
 import { StockBatteriesTab } from '@/components/stock/StockBatteriesTab';
 import { StockInventoryAuditTab } from '@/components/stock/StockInventoryAuditTab';
+import { StockNfeImportModal } from '@/components/stock/StockNfeImportModal';
 
 const EstoqueSimplificado: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -70,6 +71,7 @@ const EstoqueSimplificado: React.FC = () => {
   const [showQrScanner, setShowQrScanner] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [showGlobalLabelModal, setShowGlobalLabelModal] = useState(false);
+  const [isNfeModalOpen, setIsNfeModalOpen] = useState(false);
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -562,6 +564,15 @@ const EstoqueSimplificado: React.FC = () => {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              onClick={() => setIsNfeModalOpen(true)}
+              className="border-seguranca-yellow/40 text-seguranca-yellow hover:bg-seguranca-yellow/10 font-medium shadow-sm"
+            >
+              <FileText size={16} className="mr-2 text-seguranca-yellow" />
+              Importar XML NF-e
+            </Button>
+
+            <Button
+              variant="outline"
               onClick={() => fileInputRef.current?.click()}
               disabled={importing}
               className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
@@ -770,6 +781,12 @@ const EstoqueSimplificado: React.FC = () => {
           item={selectedItem}
           existingItems={stockItems}
           onSave={handleRefresh}
+        />
+
+        <StockNfeImportModal
+          open={isNfeModalOpen}
+          onOpenChange={setIsNfeModalOpen}
+          onSuccess={handleRefresh}
         />
 
         <StockLabelPrintModal

@@ -57,9 +57,11 @@ import {
   CreditCard,
   FileCheck,
   Trash2,
-  Receipt
+  Receipt,
+  Upload
 } from 'lucide-react';
 import { caepiService } from '@/services/caepiService';
+import { stockNfeService } from '@/services/stockNfeService';
 
 const CATEGORIES_WITH_SIZE = new Set<StockCategory>([
   StockCategory.UNIFORME_MOTORISTA,
@@ -224,6 +226,91 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
     quantity: 1,
     unitPrice: 0
   });
+
+  const xmlInputRef = React.useRef<HTMLInputElement>(null);
+  const [loadingXml, setLoadingXml] = useState(false);
+
+  const handleXmlUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.xml')) {
+      toast({
+        title: 'Arquivo inválido',
+        description: 'Por favor, selecione um arquivo XML de NF-e válido.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      setLoadingXml(true);
+      const data = await stockNfeService.parseXml(file);
+
+      // Atualizar dados do formulário principal
+      setFormData(prev => ({
+        ...prev,
+        invoiceNumber: data.invoiceNumber || prev.invoiceNumber,
+        supplier: data.supplierName || prev.supplier
+      }));
+
+      const invoiceItems = data.items.map(it => ({
+        productCode: it.productCode || '',
+        description: it.description || '',
+        quantity: it.quantity || 1,
+        unitPrice: it.unitPrice || 0,
+        totalPrice: it.totalPrice || 0
+      }));
+
+      const invoiceInstallments = (data.installments || []).map(inst => ({
+        number: inst.installmentNumber,
+        dueDate: inst.dueDate,
+        value: inst.amount
+      }));
+
+      setInvoiceData(prev => ({
+        ...prev,
+        series: data.series || prev.series,
+        issueDate: data.issueDate || prev.issueDate,
+        accessKey: data.accessKey || prev.accessKey,
+        totalAmount: data.totalInvoiceAmount || prev.totalAmount,
+        installmentsCount: invoiceInstallments.length > 0 ? invoiceInstallments.length : 1,
+        firstDueDate: invoiceInstallments.length > 0 ? invoiceInstallments[0].dueDate : prev.firstDueDate,
+        installments: invoiceInstallments,
+        items: invoiceItems
+      }));
+
+      // Se for novo cadastro e ainda não preencheu o nome
+      if (data.items.length > 0 && !formData.name) {
+        const first = data.items[0];
+        setFormData(prev => ({
+          ...prev,
+          name: first.description || prev.name,
+          unitCost: first.unitPrice || prev.unitCost,
+          currentQuantity: first.quantity || prev.currentQuantity,
+          barcode: first.barcode || prev.barcode,
+          category: (first.suggestedCategory as StockCategory) || prev.category
+        }));
+        if (first.unitPrice) {
+          setUnitCostDisplay(formatCurrencyFromNumber(first.unitPrice));
+        }
+      }
+
+      toast({
+        title: 'XML importado com sucesso!',
+        description: `NF-e nº ${data.invoiceNumber} (${data.supplierName}) carregada com ${data.items.length} item(ns) e ${data.installments.length} parcela(s).`
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao ler XML',
+        description: err.response?.data?.message || err.message || 'Falha ao processar arquivo XML.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoadingXml(false);
+      if (xmlInputRef.current) xmlInputRef.current.value = '';
+    }
+  };
 
   // Função para recalcular parcelas
   const recalculateInstallments = (total: number, count: number, firstDueStr?: string) => {
@@ -1181,11 +1268,36 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                       <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
                       NF de Entrada {formData.currentQuantity > 0 ? '*' : ''}
                     </Label>
-                    {formData.currentQuantity > 0 && (
-                      <Badge variant="destructive" className="text-[10px] py-0 px-1.5 animate-pulse">
-                        Obrigatório p/ Saldo &gt; 0
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => xmlInputRef.current?.click()}
+                        disabled={loadingXml}
+                        className="h-6 text-[11px] border-seguranca-yellow/40 text-seguranca-yellow hover:text-white hover:bg-seguranca-yellow/20 px-2 flex items-center gap-1 font-semibold"
+                        title="Carregar dados de itens e faturamento a partir do XML da NF-e"
+                      >
+                        {loadingXml ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Upload className="h-3 w-3" />
+                        )}
+                        Importar XML
+                      </Button>
+                      <input
+                        ref={xmlInputRef}
+                        type="file"
+                        accept=".xml,text/xml"
+                        className="hidden"
+                        onChange={handleXmlUpload}
+                      />
+                      {formData.currentQuantity > 0 && (
+                        <Badge variant="destructive" className="text-[10px] py-0 px-1.5 animate-pulse">
+                          Obrigatório p/ Saldo &gt; 0
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <Input
                     id="invoiceNumber"
@@ -1235,6 +1347,18 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                       </p>
                     </div>
                   </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => xmlInputRef.current?.click()}
+                    disabled={loadingXml}
+                    className="border-blue-400/40 text-blue-300 hover:text-white hover:bg-blue-500/20 text-xs font-semibold self-start sm:self-auto"
+                  >
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                    Atualizar pelo XML
+                  </Button>
                 </div>
 
                 {/* 1. Condições de Pagamento e Faturamento */}
