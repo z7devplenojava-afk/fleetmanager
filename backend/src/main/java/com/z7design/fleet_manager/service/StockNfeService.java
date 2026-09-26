@@ -8,6 +8,7 @@ import com.z7design.fleet_manager.model.Invoice;
 import com.z7design.fleet_manager.model.StockItem;
 import com.z7design.fleet_manager.model.StockMovement;
 import com.z7design.fleet_manager.model.Supplier;
+import com.z7design.fleet_manager.model.Unit;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.enums.ExpenseStatus;
 import com.z7design.fleet_manager.model.enums.ExpenseType;
@@ -18,6 +19,8 @@ import com.z7design.fleet_manager.repository.InvoiceRepository;
 import com.z7design.fleet_manager.repository.StockItemRepository;
 import com.z7design.fleet_manager.repository.StockMovementRepository;
 import com.z7design.fleet_manager.repository.SupplierRepository;
+import com.z7design.fleet_manager.repository.UnitRepository;
+import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,8 +38,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -48,6 +53,8 @@ public class StockNfeService {
     private final StockMovementRepository stockMovementRepository;
     private final SupplierRepository supplierRepository;
     private final InvoiceRepository invoiceRepository;
+    private final UnitRepository unitRepository;
+    private final UserRepository userRepository;
     private final StockService stockService;
     private final UserCompanyResolver userCompanyResolver;
 
@@ -307,6 +314,27 @@ public class StockNfeService {
     }
 
     /**
+     * Resolve uma unidade válida para associar às faturas e movimentações
+     */
+    private Unit resolveFallbackUnit(UUID companyId) {
+        try {
+            return unitRepository.findAll().stream().findFirst()
+                    .orElseGet(() -> {
+                        Unit unit = new Unit();
+                        unit.setName("Matriz Principal");
+                        unit.setAddress("Endereço Principal");
+                        return unitRepository.save(unit);
+                    });
+        } catch (Exception e) {
+            log.warn("Erro ao buscar unidade padrão para NF-e: {}", e.getMessage());
+            Unit unit = new Unit();
+            unit.setName("Matriz Principal");
+            unit.setAddress("Endereço Principal");
+            return unitRepository.save(unit);
+        }
+    }
+
+    /**
      * Processa a importação dos itens para o estoque e parcelas para o financeiro
      */
     @Transactional
@@ -317,6 +345,17 @@ public class StockNfeService {
                 ? user.getCompanyId() 
                 : (user != null ? userCompanyResolver.resolveCompanyId(user) : TenantContext.get());
 
+        // Unidade padrão obrigatória para faturas e movimentações
+        Unit fallbackUnit = resolveFallbackUnit(companyId);
+
+        // Usuário gerenciado pelo JPA
+        User managedUser = (user != null && user.getId() != null) 
+                ? userRepository.findById(user.getId()).orElse(null) 
+                : null;
+        String userName = (managedUser != null && managedUser.getName() != null) 
+                ? managedUser.getName() 
+                : (user != null && user.getName() != null ? user.getName() : "Sistema");
+
         // 1. Garantir cadastro do Fornecedor
         Supplier supplier = resolveOrCreateSupplier(request, companyId);
 
@@ -326,6 +365,7 @@ public class StockNfeService {
         int tiresCreated = 0;
         int financialAccountsCreated = 0;
         List<String> details = new ArrayList<>();
+        Set<String> usedCodesInBatch = new HashSet<>();
 
         // 2. Processar cada item selecionado
         for (StockNfeProcessRequestDTO.ProcessItemDTO itemReq : request.getItems()) {
@@ -347,12 +387,17 @@ public class StockNfeService {
                 stockItem.setUnitCost(unitCost);
                 stockItem.setSupplier(request.getSupplierName());
                 stockItem.setInvoiceNumber(request.getInvoiceNumber());
+                if (stockItem.getUnit() == null) {
+                    stockItem.setUnit(fallbackUnit);
+                }
                 stockItem = stockItemRepository.save(stockItem);
 
                 // Criar movimentação de entrada
                 StockMovement movement = new StockMovement();
                 movement.setStockItem(stockItem);
-                movement.setUser(user);
+                movement.setUser(managedUser);
+                movement.setUserName(userName);
+                movement.setUnit(fallbackUnit);
                 movement.setMovementType(MovementType.ENTRADA);
                 movement.setReason(MovementReason.COMPRA);
                 movement.setQuantity(qty);
@@ -377,15 +422,25 @@ public class StockNfeService {
                 details.add(String.format("Item '%s' atualizado (+%d un, saldo: %d)", stockItem.getName(), qty, newQty));
 
             } else {
-                // Criar novo item no estoque
-                String code = itemReq.getCode() != null && !itemReq.getCode().isBlank() 
+                // Criar novo item no estoque com código seguro e único
+                String baseCode = itemReq.getCode() != null && !itemReq.getCode().isBlank() 
                         ? itemReq.getCode().trim() 
-                        : "NF" + request.getInvoiceNumber() + "-" + (itemsCreated + 1);
+                        : "NF" + (request.getInvoiceNumber() != null ? request.getInvoiceNumber() : "0") + "-" + (itemsCreated + 1);
 
-                // Garantir unicidade do código
-                if (stockItemRepository.existsByCode(code)) {
-                    code = code + "-" + (System.currentTimeMillis() % 1000);
+                if (baseCode.length() > 35) {
+                    baseCode = baseCode.substring(0, 35);
                 }
+
+                String code = baseCode;
+                int codeAttempt = 1;
+                while (usedCodesInBatch.contains(code) || 
+                       stockItemRepository.existsByCompanyIdAndCodeNative(companyId, code)) {
+                    code = baseCode + "-" + (codeAttempt++);
+                    if (code.length() > 50) {
+                        code = baseCode.substring(0, Math.min(baseCode.length(), 40)) + "-" + codeAttempt;
+                    }
+                }
+                usedCodesInBatch.add(code);
 
                 StockItem newItem = new StockItem();
                 newItem.setCode(code);
@@ -401,13 +456,16 @@ public class StockNfeService {
                 newItem.setDescription(itemReq.getDescription());
                 newItem.setCaNumber(itemReq.getCaNumber());
                 newItem.setCompanyId(companyId);
+                newItem.setUnit(fallbackUnit);
                 newItem.setActive(true);
                 newItem = stockItemRepository.save(newItem);
 
                 // Criar movimentação de entrada inicial
                 StockMovement movement = new StockMovement();
                 movement.setStockItem(newItem);
-                movement.setUser(user);
+                movement.setUser(managedUser);
+                movement.setUserName(userName);
+                movement.setUnit(fallbackUnit);
                 movement.setMovementType(MovementType.ENTRADA);
                 movement.setReason(MovementReason.COMPRA);
                 movement.setQuantity(qty);
@@ -435,19 +493,32 @@ public class StockNfeService {
         // 3. Processar Módulo Financeiro (Contas a Pagar / Invoices)
         if (request.isCreateFinancialAccounts() && request.getInstallments() != null && !request.getInstallments().isEmpty()) {
             int totalInst = request.getInstallments().size();
+            String cleanDocNum = (request.getInvoiceNumber() != null && !request.getInvoiceNumber().isBlank())
+                    ? request.getInvoiceNumber().trim()
+                    : "S-N";
+            if (cleanDocNum.length() > 30) {
+                cleanDocNum = cleanDocNum.substring(0, 30);
+            }
+
             for (StockNfeProcessRequestDTO.ProcessInstallmentDTO instReq : request.getInstallments()) {
                 if (instReq.getAmount() == null || instReq.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
                     continue;
                 }
 
-                String generatedInvoiceNum = String.format("NF-%s/%02d", request.getInvoiceNumber(), instReq.getInstallmentNumber());
-                // Evitar duplicidade de fatura
-                if (invoiceRepository.findFirstByInvoiceNumber(generatedInvoiceNum).isPresent()) {
-                    generatedInvoiceNum = String.format("NF-%s/%02d-%d", request.getInvoiceNumber(), instReq.getInstallmentNumber(), System.currentTimeMillis() % 1000);
+                String generatedInvoiceNum = String.format("NF-%s/%02d", cleanDocNum, instReq.getInstallmentNumber());
+                int invAttempt = 1;
+                while (invoiceRepository.existsByInvoiceNumberNative(generatedInvoiceNum)) {
+                    generatedInvoiceNum = String.format("NF-%s/%02d-%d", cleanDocNum, instReq.getInstallmentNumber(), invAttempt++);
+                    if (generatedInvoiceNum.length() > 50) {
+                        generatedInvoiceNum = generatedInvoiceNum.substring(0, 50);
+                    }
                 }
 
                 Invoice inv = new Invoice();
                 inv.setCompanyId(companyId);
+                inv.setUnit(fallbackUnit);
+                inv.setCompanySigla("CI");
+                inv.setCentroCusto("ALMOXARIFADO");
                 inv.setInvoiceNumber(generatedInvoiceNum);
                 inv.setDescription(String.format("NF-e nº %s - Parcela %d/%d - %s", 
                         request.getInvoiceNumber(), instReq.getInstallmentNumber(), totalInst, request.getSupplierName()));
@@ -497,14 +568,32 @@ public class StockNfeService {
         }
 
         String rawCnpj = request.getSupplierCnpj();
-        if (rawCnpj != null && !rawCnpj.isBlank()) {
-            String cleanCnpj = rawCnpj.replaceAll("[^0-9]", "");
+        String cleanCnpj = (rawCnpj != null) ? rawCnpj.replaceAll("[^0-9]", "") : "";
+
+        if (!cleanCnpj.isBlank()) {
+            try {
+                Optional<Supplier> found = supplierRepository.findByCleanCnpjNative(cleanCnpj);
+                if (found.isPresent()) {
+                    return found.get();
+                }
+            } catch (Exception e) {
+                log.debug("Consulta nativa por CNPJ falhou: {}", e.getMessage());
+            }
+
             Optional<Supplier> found = supplierRepository.findByCnpj(cleanCnpj);
-            if (found.isEmpty()) {
+            if (found.isEmpty() && rawCnpj != null) {
                 found = supplierRepository.findByCnpj(rawCnpj);
             }
             if (found.isPresent()) {
                 return found.get();
+            }
+        }
+
+        // Tentar buscar por nome exato para evitar duplicidade de fornecedor sem CNPJ
+        if (request.getSupplierName() != null && !request.getSupplierName().isBlank()) {
+            Optional<Supplier> byName = supplierRepository.findFirstByNameIgnoreCase(request.getSupplierName().trim());
+            if (byName.isPresent()) {
+                return byName.get();
             }
         }
 
@@ -516,7 +605,13 @@ public class StockNfeService {
                 newSupplier.setTradeName(request.getSupplierTradeName() != null && !request.getSupplierTradeName().isBlank() 
                         ? request.getSupplierTradeName().trim() 
                         : request.getSupplierName().trim());
-                newSupplier.setCnpj(rawCnpj != null ? rawCnpj.replaceAll("[^0-9]", "") : "");
+
+                // CNPJ nunca pode ser nulo ou vazio no PostgreSQL ("" colide com UNIQUE)
+                String safeCnpj = (!cleanCnpj.isBlank()) 
+                        ? (cleanCnpj.length() > 18 ? cleanCnpj.substring(0, 18) : cleanCnpj) 
+                        : "ISENTO-" + (System.currentTimeMillis() % 100000);
+                newSupplier.setCnpj(safeCnpj);
+
                 newSupplier.setAddress(request.getSupplierAddress());
                 newSupplier.setCity(request.getSupplierCity());
                 newSupplier.setState(request.getSupplierState());
@@ -527,7 +622,10 @@ public class StockNfeService {
                 log.info("🏢 Fornecedor '{}' (CNPJ: {}) cadastrado automaticamente via XML", saved.getName(), saved.getCnpj());
                 return saved;
             } catch (Exception e) {
-                log.warn("Não foi possível salvar novo fornecedor automaticamente: {}", e.getMessage());
+                log.warn("Não foi possível salvar novo fornecedor automaticamente: {}. Tentando recuperar existente...", e.getMessage());
+                if (request.getSupplierName() != null) {
+                    return supplierRepository.findFirstByNameIgnoreCase(request.getSupplierName().trim()).orElse(null);
+                }
             }
         }
         return null;

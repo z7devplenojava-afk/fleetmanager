@@ -24,6 +24,10 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
     // Buscar por CNPJ
     Optional<Supplier> findByCnpj(String cnpj);
 
+    // Buscar por CNPJ limpo via query nativa (ignora filtro de tenant e formatações)
+    @Query(value = "SELECT * FROM suppliers WHERE REPLACE(REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', ''), ' ', '') = :cleanCnpj LIMIT 1", nativeQuery = true)
+    Optional<Supplier> findByCleanCnpjNative(@Param("cleanCnpj") String cleanCnpj);
+
     // Buscar por nome exato
     Optional<Supplier> findFirstByNameIgnoreCase(String name);
     

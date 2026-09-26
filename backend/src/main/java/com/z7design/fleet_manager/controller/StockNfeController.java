@@ -39,8 +39,17 @@ public class StockNfeController {
     public ResponseEntity<StockNfeProcessResponseDTO> processNfe(
             @RequestBody StockNfeProcessRequestDTO request,
             @AuthenticationPrincipal User user) {
-        log.info("POST /api/stock/nfe/process - NF-e nº: {}, Itens: {}", 
-                request.getInvoiceNumber(), request.getItems() != null ? request.getItems().size() : 0);
-        return ResponseEntity.ok(stockNfeService.processNfe(request, user));
+        log.info("POST /api/stock/nfe/process - NF-e nº: {}, Itens: {}, Usuário: {}", 
+                request.getInvoiceNumber(), request.getItems() != null ? request.getItems().size() : 0,
+                user != null ? user.getUsername() : "null");
+        try {
+            return ResponseEntity.ok(stockNfeService.processNfe(request, user));
+        } catch (com.z7design.fleet_manager.exception.BusinessException be) {
+            log.warn("Erro de negócio ao processar NF-e nº {}: {}", request.getInvoiceNumber(), be.getMessage());
+            throw be;
+        } catch (Exception e) {
+            log.error("Erro inesperado ao processar NF-e nº {}: {}", request.getInvoiceNumber(), e.getMessage(), e);
+            throw new com.z7design.fleet_manager.exception.BusinessException("Falha no processamento da NF-e: " + e.getMessage());
+        }
     }
 }

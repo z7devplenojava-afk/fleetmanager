@@ -292,9 +292,11 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       onOpenChange(false);
     } catch (err: any) {
       console.error('Erro ao processar NF-e:', err);
+      const rawError = err.response?.data?.message || err.response?.data?.error || err.message || 'Falha ao gravar no estoque e financeiro.';
+      const desc = typeof rawError === 'string' ? rawError : JSON.stringify(rawError);
       toast({
         title: 'Erro ao processar importação',
-        description: err.response?.data?.message || err.message || 'Falha ao gravar no estoque e financeiro.',
+        description: desc,
         variant: 'destructive'
       });
     } finally {

@@ -100,6 +100,10 @@ public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
     // Verificar se cÃ³digo jÃ¡ existe
     boolean existsByCodeAndIdNot(String code, UUID id);
 
-    // Verificar se cÃ³digo existe
+    // Verificar se código existe
     boolean existsByCode(String code);
+
+    // Verificar se código existe para a empresa via query nativa (ignora filtro tenant)
+    @Query(value = "SELECT COUNT(*) > 0 FROM stock_items WHERE (:companyId IS NULL OR company_id = :companyId) AND code = :code", nativeQuery = true)
+    boolean existsByCompanyIdAndCodeNative(@Param("companyId") UUID companyId, @Param("code") String code);
 }
