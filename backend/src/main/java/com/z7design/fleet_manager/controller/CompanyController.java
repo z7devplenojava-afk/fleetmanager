@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -123,6 +124,26 @@ public class CompanyController {
         log.debug("Buscando empresas ativas");
         List<CompanyDTO> companies = companyService.getActiveCompanies();
         return ResponseEntity.ok(companies);
+    }
+
+    @GetMapping("/my-company")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Buscar empresa do usuário logado", description = "Retorna a empresa associada ao usuário autenticado ou a principal ativa")
+    public ResponseEntity<CompanyDTO> getMyCompany(Authentication authentication) {
+        try {
+            CompanyDTO company = companyService.getMyCompany(authentication);
+            if (company != null) {
+                return ResponseEntity.ok(company);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("Erro ao buscar empresa do usuário: ", e);
+            List<CompanyDTO> active = companyService.getActiveCompanies();
+            if (!active.isEmpty()) {
+                return ResponseEntity.ok(active.get(0));
+            }
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping("/{id}")

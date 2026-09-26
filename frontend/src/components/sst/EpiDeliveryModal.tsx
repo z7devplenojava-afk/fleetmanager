@@ -285,6 +285,7 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
       setIsSaving(true);
 
       // 1. Salvar no backend caso haja itens para registrar
+      if (!isManual && epiList.length > 0) {
         let companyId = (employee as any).companyId || (employee as any).company?.id;
         if (!companyId) {
           try {

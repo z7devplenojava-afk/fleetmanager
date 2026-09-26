@@ -229,6 +229,24 @@ public class CompanyService {
     }
 
     /**
+     * Buscar empresa do usuário autenticado ou primeira empresa ativa
+     */
+    public CompanyDTO getMyCompany(org.springframework.security.core.Authentication authentication) {
+        if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
+            String username = ((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal()).getUsername();
+            User user = userRepository.findByUsername(username).orElse(null);
+            if (user != null && user.getCompanyId() != null) {
+                Company company = companyRepository.findByIdWithDefaultEpis(user.getCompanyId())
+                        .orElseGet(() -> companyRepository.findById(user.getCompanyId()).orElse(null));
+                if (company != null) {
+                    return CompanyDTO.fromEntity(company);
+                }
+            }
+        }
+        return getActiveCompanies().stream().findFirst().orElse(null);
+    }
+
+    /**
      * Excluir empresa
      */
     public void deleteCompany(UUID id) {
