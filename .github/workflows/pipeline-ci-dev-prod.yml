@@ -277,29 +277,24 @@ jobs:
           docker push z7design/fluxbus-frontend:dev
           docker push z7design/fluxbus-whatsapp:dev
 
-      - name: "📤 Copiar compose DEV"
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST_DEV || secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER_DEV || secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD_DEV || secrets.VPS_PASSWORD }}
-          port: 22
-          source: docker-compose.fluxbus.dev.yml
-          target: /var/www/fluxbus/dev/
-          overwrite: true
+      - name: "🔑 Instalar sshpass"
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
 
-      - name: "🚀 Criar .env e subir DEV"
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST_DEV || secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER_DEV || secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD_DEV || secrets.VPS_PASSWORD }}
-          port: 22
-          script: |
+      - name: "📤 Copiar compose e subir DEV"
+        run: |
+          HOST="${{ secrets.VPS_HOST_DEV || secrets.VPS_HOST }}"
+          USER="${{ secrets.VPS_USER_DEV || secrets.VPS_USER }}"
+          PASS="${{ secrets.VPS_PASSWORD_DEV || secrets.VPS_PASSWORD }}"
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=5"
+
+          sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "mkdir -p /var/www/fluxbus/dev"
+          sshpass -p "$PASS" scp $SSH_OPTS docker-compose.fluxbus.dev.yml $USER@$HOST:/var/www/fluxbus/dev/docker-compose.yml
+
+          sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST << 'SSHEOF'
+            set -e
             mkdir -p /var/www/fluxbus/dev
             rm -rf /var/www/secured_guard 2>/dev/null || true
             cd /var/www/fluxbus/dev
-            mv -f docker-compose.fluxbus.dev.yml docker-compose.yml 2>/dev/null || true
             cat > .env << 'ENVEOF'
             POSTGRES_DB_DEV=fluxbus_db_dev
             POSTGRES_USER_DEV=fluxbus_user_dev
@@ -311,11 +306,12 @@ jobs:
             MAIL_USERNAME=securedguard@z7design.com.br
             MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
             ENVEOF
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
             docker compose pull
             docker compose down
             docker compose up -d
             docker compose ps
+          SSHEOF
 
   # ============================================================
   # JOB 5: HEALTH CHECK DEV
@@ -376,29 +372,24 @@ jobs:
           docker push z7design/fluxbus-frontend:prod
           docker push z7design/fluxbus-whatsapp:prod
 
-      - name: "📤 Copiar compose PROD"
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST_PROD }}
-          username: ${{ secrets.VPS_USER_PROD }}
-          password: ${{ secrets.VPS_PASSWORD_PROD }}
-          port: 22
-          source: docker-compose.fluxbus.prod.yml
-          target: /var/www/fluxbus/prod/
-          overwrite: true
+      - name: "🔑 Instalar sshpass"
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
 
-      - name: "🚀 Criar .env e subir PROD"
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST_PROD }}
-          username: ${{ secrets.VPS_USER_PROD }}
-          password: ${{ secrets.VPS_PASSWORD_PROD }}
-          port: 22
-          script: |
+      - name: "📤 Copiar compose e subir PROD"
+        run: |
+          HOST="${{ secrets.VPS_HOST_PROD || secrets.VPS_HOST }}"
+          USER="${{ secrets.VPS_USER_PROD || secrets.VPS_USER }}"
+          PASS="${{ secrets.VPS_PASSWORD_PROD || secrets.VPS_PASSWORD }}"
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=5"
+
+          sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "mkdir -p /var/www/fluxbus/prod"
+          sshpass -p "$PASS" scp $SSH_OPTS docker-compose.fluxbus.prod.yml $USER@$HOST:/var/www/fluxbus/prod/docker-compose.yml
+
+          sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST << 'SSHEOF'
+            set -e
             mkdir -p /var/www/fluxbus/prod
             rm -rf /var/www/secured_guard 2>/dev/null || true
             cd /var/www/fluxbus/prod
-            mv -f docker-compose.fluxbus.prod.yml docker-compose.yml 2>/dev/null || true
             cat > .env << 'ENVEOF'
             POSTGRES_DB_PROD=fluxbus_db_prod
             POSTGRES_USER_PROD=fluxbus_user_prod
@@ -410,12 +401,13 @@ jobs:
             MAIL_USERNAME=securedguard@z7design.com.br
             MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
             ENVEOF
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
             docker tag z7design/fluxbus-backend:prod z7design/fluxbus-backend:backup-$(date +%Y%m%d-%H%M%S) 2>/dev/null || true
             docker compose pull
             docker compose down
             docker compose up -d
             docker compose ps
+          SSHEOF
 
   # ============================================================
   # JOB 7: HEALTH CHECK PROD + RELATORIO FINAL
