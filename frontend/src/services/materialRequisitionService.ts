@@ -1,4 +1,5 @@
 import api from './api';
+import { silentErrorLog, withSilentFallback } from '@/utils/silentFallback';
 
 export type RequisitionUrgency = 'NORMAL' | 'EMERGENCIA';
 
@@ -150,9 +151,27 @@ export const materialRequisitionService = {
   },
 
   listRequisitions: async (status?: RequisitionStatus): Promise<MaterialRequisition[]> => {
-    const params = status ? `?status=${status}` : '';
-    const response = await api.get(`/api/material-requisitions${params}`);
-    return response.data;
+    return withSilentFallback(
+      async () => {
+        const params = status ? `?status=${status}` : '';
+        const response = await api.get(`/api/material-requisitions${params}`, silentErrorLog());
+        return Array.isArray(response.data) ? response.data : [];
+      },
+      [],
+      {
+        key: 'material-requisitions:list',
+        message:
+          '[materialRequisitionService] Endpoint /api/material-requisitions indisponível no backend. Exibindo lista vazia como fallback.',
+      }
+    );
+  },
+
+  getAll: async (status?: RequisitionStatus): Promise<MaterialRequisition[]> => {
+    return materialRequisitionService.listRequisitions(status);
+  },
+
+  findAll: async (status?: RequisitionStatus): Promise<MaterialRequisition[]> => {
+    return materialRequisitionService.listRequisitions(status);
   },
 
   getById: async (id: string): Promise<MaterialRequisition> => {

@@ -1,4 +1,5 @@
 import api from '@/lib/axios';
+import { silentErrorLog, withSilentFallback } from '@/utils/silentFallback';
 
 export type WarehouseInventoryScope = 'ALL' | 'CATEGORY' | 'LOCATION' | 'PRODUCT';
 export type WarehouseInventoryStatus = 
@@ -86,48 +87,59 @@ export interface ApproveInventoryPayload {
   notes?: string;
 }
 
+const EMPTY_LIST = { content: [] as WarehouseInventoryAudit[], totalElements: 0 };
+
 class WarehouseInventoryService {
+  /**
+   * Lista auditorias de inventário. Se o endpoint não existir no backend
+   * (build desatualizada), degrada silenciosamente para lista vazia.
+   */
   async list(status?: WarehouseInventoryStatus): Promise<{ content: WarehouseInventoryAudit[]; totalElements: number }> {
-    try {
-      const params = new URLSearchParams();
-      if (status) params.append('status', status);
-      const res = await api.get(`/api/warehouse/inventory?${params.toString()}`);
-      return res.data || { content: [], totalElements: 0 };
-    } catch (error) {
-      console.warn('Endpoint /api/warehouse/inventory ainda não disponível no backend:', error);
-      return { content: [], totalElements: 0 };
-    }
+    return withSilentFallback(
+      async () => {
+        const params = new URLSearchParams();
+        if (status) params.append('status', status);
+        const res = await api.get(`/api/warehouse/inventory?${params.toString()}`, silentErrorLog());
+        return res.data || EMPTY_LIST;
+      },
+      EMPTY_LIST,
+      {
+        key: 'warehouse-inventory:list',
+        message:
+          '[warehouseInventoryService] Endpoint /api/warehouse/inventory indisponível no backend. Exibindo lista vazia como fallback.',
+      }
+    );
   }
 
   async getById(id: string, blind: boolean = false): Promise<WarehouseInventoryAudit> {
-    const res = await api.get(`/api/warehouse/inventory/${id}?blind=${blind}`);
+    const res = await api.get(`/api/warehouse/inventory/${id}?blind=${blind}`, silentErrorLog());
     return res.data;
   }
 
   async create(payload: CreateInventoryPayload): Promise<WarehouseInventoryAudit> {
-    const res = await api.post('/api/warehouse/inventory', payload);
+    const res = await api.post('/api/warehouse/inventory', payload, silentErrorLog());
     return res.data;
   }
 
   async startCount(id: string): Promise<WarehouseInventoryAudit> {
-    const res = await api.post(`/api/warehouse/inventory/${id}/start`);
+    const res = await api.post(`/api/warehouse/inventory/${id}/start`, undefined, silentErrorLog());
     return res.data;
   }
 
   async submitCount(id: string, payload: SubmitCountPayload): Promise<WarehouseInventoryAudit> {
-    const res = await api.post(`/api/warehouse/inventory/${id}/submit-count`, payload);
+    const res = await api.post(`/api/warehouse/inventory/${id}/submit-count`, payload, silentErrorLog());
     return res.data;
   }
 
   async approve(id: string, payload: ApproveInventoryPayload): Promise<WarehouseInventoryAudit> {
-    const res = await api.post(`/api/warehouse/inventory/${id}/approve`, payload);
+    const res = await api.post(`/api/warehouse/inventory/${id}/approve`, payload, silentErrorLog());
     return res.data;
   }
 
   async cancel(id: string, reason?: string): Promise<WarehouseInventoryAudit> {
     const params = new URLSearchParams();
     if (reason) params.append('reason', reason);
-    const res = await api.post(`/api/warehouse/inventory/${id}/cancel?${params.toString()}`);
+    const res = await api.post(`/api/warehouse/inventory/${id}/cancel?${params.toString()}`, undefined, silentErrorLog());
     return res.data;
   }
 }

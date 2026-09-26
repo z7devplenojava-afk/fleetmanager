@@ -53,7 +53,7 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
       setLoading(true);
       const [ordersData, reqsData] = await Promise.all([
         fleetWorkOrderService.findAll(),
-        materialRequisitionService.getAll()
+        materialRequisitionService.listRequisitions()
       ]);
       setWorkOrders(Array.isArray(ordersData) ? ordersData : []);
       setRequisitions(Array.isArray(reqsData) ? reqsData : []);
