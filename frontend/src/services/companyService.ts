@@ -39,6 +39,15 @@ export const companyService = {
     return response.data;
   },
 
+  async getMyCompany() {
+    try {
+      const response = await api.get('/api/companies/my-company');
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
+
   async getAllCompanies() {
     const response = await api.get('/api/companies');
     return response.data as Array<any>;
