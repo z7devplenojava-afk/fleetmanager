@@ -109,11 +109,11 @@ services:
       - fluxbus-ci-network
       - z7network
     healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:8080/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8080/api/health || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 20
-      start_period: 40s
+      retries: 30
+      start_period: 60s
     restart: unless-stopped
     # DESABILITADO TRAEFIK - usando Nginx como proxy reverso
     labels:

@@ -214,8 +214,13 @@ jobs:
                 docker pull z7design/fluxbus-backend:ci && \
                 docker pull z7design/fluxbus-frontend:ci && \
                 docker pull z7design/fluxbus-whatsapp:ci && break || { sleep 15; }
-              done
-              docker compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans
+              docker compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans || {
+                echo "❌ Falha ao subir containers no CI. Logs do backend:"
+                docker logs fluxbus-backend-ci --tail 100 || true
+                echo "Logs do frontend:"
+                docker logs fluxbus-frontend-ci --tail 50 || true
+                exit 1
+              }
               docker compose -f docker-compose.ci.yml ps
           SSHEOF
 
