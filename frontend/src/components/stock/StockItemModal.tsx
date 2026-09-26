@@ -693,6 +693,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         });
       }
       
+      window.dispatchEvent(new CustomEvent('stock-data-changed'));
       onSave();
       onOpenChange(false);
     } catch (error: any) {

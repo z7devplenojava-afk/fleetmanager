@@ -17,6 +17,11 @@ import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.Unit;
+import com.z7design.fleet_manager.model.VehicleBattery;
+import com.z7design.fleet_manager.model.Tire;
+import com.z7design.fleet_manager.model.enums.TireStatus;
+import com.z7design.fleet_manager.repository.VehicleBatteryRepository;
+import com.z7design.fleet_manager.repository.TireRepository;
 import com.z7design.fleet_manager.model.enums.StockCategory;
 import com.z7design.fleet_manager.model.enums.MovementType;
 import com.z7design.fleet_manager.model.enums.MovementReason;
@@ -74,6 +79,8 @@ public class StockService {
     private final CompanyRepository companyRepository;
     private final UserCompanyResolver userCompanyResolver;
     private final PersonalProtectiveEquipmentRepository personalProtectiveEquipmentRepository;
+    private final VehicleBatteryRepository vehicleBatteryRepository;
+    private final TireRepository tireRepository;
 
     // ===== GESTÃƒO DE ITENS =====
 
@@ -184,8 +191,10 @@ public class StockService {
                     initialMovement.setTotalCost(item.getUnitCost().multiply(java.math.BigDecimal.valueOf(item.getCurrentQuantity())));
                 }
                 initialMovement.setMovementDate(LocalDateTime.now());
-                initialMovement.setNotes("Saldo inicial cadastrado" + (item.getInvoiceNumber() != null ? " - NF: " + item.getInvoiceNumber() : ""));
-                stockMovementRepository.save(initialMovement);
+                initialMovement = stockMovementRepository.save(initialMovement);
+
+                // Sincronizar baterias ou pneus individuais na frota
+                syncBatteryAndTireInbound(item, item.getCurrentQuantity(), item.getInvoiceNumber(), item.getSupplier(), item.getUnitCost(), initialMovement.getId());
             } catch (Exception e) {
                 log.warn("Erro ao registrar movimentação inicial de estoque para o item {}: {}", item.getCode(), e.getMessage());
             }
@@ -383,10 +392,15 @@ public class StockService {
         item.setCurrentQuantity(newQuantity);
         stockItemRepository.save(item);
 
+        // Sincronizar baterias ou pneus individuais se for ENTRADA
+        if (dto.getMovementType() == MovementType.ENTRADA && dto.getQuantity() != null && dto.getQuantity() > 0) {
+            syncBatteryAndTireInbound(item, dto.getQuantity(), dto.getDocumentNumber(), dto.getSupplier(), dto.getUnitCost(), movement.getId());
+        }
+
         // Verificar alertas
         checkAndCreateLowStockAlert(item);
         
-        log.info("MovimentaÃ§Ã£o criada com sucesso - ID: {}, Nova quantidade: {}", movement.getId(), newQuantity);
+        log.info("Movimentação criada com sucesso - ID: {}, Nova quantidade: {}", movement.getId(), newQuantity);
         return StockMovementDTO.fromEntity(movement);
     }
 
@@ -408,6 +422,9 @@ public class StockService {
 
         int revertedQuantity;
         if (movement.getMovementType() == MovementType.ENTRADA) {
+            // Se for entrada de bateria ou pneu, estorna as unidades correspondentes que ainda estão em estoque
+            cleanupLinkedBatteriesAndTires(movement);
+
             // A entrada havia adicionado ao saldo; ao excluir, subtraimos de volta.
             revertedQuantity = current - quantity;
             if (revertedQuantity < 0) {
@@ -1894,6 +1911,179 @@ public class StockService {
             log.info("Sincronizado EPI do SST: ID {} com item de estoque ID {}", saved.getId(), item.getId());
         } catch (Exception e) {
             log.warn("Erro ao sincronizar item de estoque com EPI no SST: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Sincroniza a entrada de estoque gerando registros individuais de Bateria ou Pneu
+     * quando o item pertencer a essas categorias.
+     */
+    private void syncBatteryAndTireInbound(
+            StockItem item,
+            int quantity,
+            String documentNumber,
+            String supplier,
+            BigDecimal unitCost,
+            UUID movementId) {
+        if (item == null || quantity <= 0) {
+            return;
+        }
+
+        try {
+            if (isBatteryItem(item)) {
+                syncBatteriesInbound(item, quantity, documentNumber, supplier, unitCost, movementId);
+            } else if (isTireItem(item)) {
+                syncTiresInbound(item, quantity, documentNumber, supplier, unitCost, movementId);
+            }
+        } catch (Exception e) {
+            log.error("Erro ao sincronizar entrada individual de bateria/pneu para item {}: {}", item.getCode(), e.getMessage(), e);
+        }
+    }
+
+    public boolean isBatteryItem(StockItem item) {
+        if (item == null) return false;
+        String name = ((item.getName() != null ? item.getName() : "") + " " + (item.getDescription() != null ? item.getDescription() : "")).toLowerCase();
+        if (item.getCategory() == StockCategory.PECAS_ELETRICA) {
+            return name.contains("bateria") || name.contains("battery") || name.contains("acumulador");
+        }
+        return name.contains("bateria") || name.contains("battery") || name.contains("acumulador");
+    }
+
+    public boolean isTireItem(StockItem item) {
+        if (item == null) return false;
+        String name = ((item.getName() != null ? item.getName() : "") + " " + (item.getDescription() != null ? item.getDescription() : "")).toLowerCase();
+        
+        // Evitar falsos positivos como câmara de ar, roda, aro ou bico/válvula
+        if (name.contains("camara") || name.contains("câmara") || name.contains("roda ") || name.contains("aro ") || name.contains("valvula") || name.contains("válvula")) {
+            return false;
+        }
+        
+        if (item.getCategory() == StockCategory.PNEUS_RODAS) {
+            return true;
+        }
+        return name.contains("pneu") || name.contains("tire") || name.contains("pneumatico") || name.contains("pneumático");
+    }
+
+    private void syncBatteriesInbound(StockItem item, int quantity, String documentNumber, String supplier, BigDecimal unitCost, UUID movementId) {
+        UUID companyId = item.getCompanyId() != null ? item.getCompanyId() : resolveTenantCompanyId();
+        String docClean = (documentNumber != null && !documentNumber.isBlank()) 
+                ? documentNumber.trim().replaceAll("[^a-zA-Z0-9]", "") 
+                : "EST";
+        if (docClean.length() > 10) {
+            docClean = docClean.substring(0, 10);
+        }
+
+        String brand = (supplier != null && !supplier.isBlank()) 
+                ? supplier.trim() 
+                : (item.getSupplier() != null && !item.getSupplier().isBlank() ? item.getSupplier().trim() : "Moura");
+        if (brand.length() > 60) brand = brand.substring(0, 60);
+
+        String model = item.getName() != null && !item.getName().isBlank() ? item.getName().trim() : "Bateria Frota";
+        if (model.length() > 60) model = model.substring(0, 60);
+
+        BigDecimal cost = unitCost != null ? unitCost : (item.getUnitCost() != null ? item.getUnitCost() : BigDecimal.ZERO);
+        String movTag = movementId != null ? movementId.toString().substring(0, 8).toUpperCase() : "INIT";
+
+        for (int i = 1; i <= quantity; i++) {
+            long randSuffix = (System.currentTimeMillis() % 10000) + (long) (Math.random() * 900);
+            String serialNumber = String.format("BAT-%s-%02d-%d", docClean, i, randSuffix);
+
+            VehicleBattery battery = VehicleBattery.builder()
+                    .companyId(companyId)
+                    .serialNumber(serialNumber)
+                    .batteryCode(serialNumber)
+                    .brand(brand)
+                    .model(model)
+                    .voltage("12V")
+                    .capacity("150Ah")
+                    .ccaRating(950)
+                    .status(VehicleBattery.BatteryStatus.ACTIVE)
+                    .cost(cost)
+                    .warrantyExpiryDate(java.time.LocalDate.now().plusMonths(18))
+                    .notes("Entrada em Estoque - Item: " + item.getCode() + " - NF: " + (documentNumber != null ? documentNumber : "N/I") + 
+                           " [MOV:" + movTag + "]")
+                    .build();
+
+            vehicleBatteryRepository.save(battery);
+            log.info("🔋 Bateria individual cadastrada com sucesso: {} (NF: {})", serialNumber, documentNumber);
+        }
+    }
+
+    private void syncTiresInbound(StockItem item, int quantity, String documentNumber, String supplier, BigDecimal unitCost, UUID movementId) {
+        UUID companyId = item.getCompanyId() != null ? item.getCompanyId() : resolveTenantCompanyId();
+        String docClean = (documentNumber != null && !documentNumber.isBlank()) 
+                ? documentNumber.trim().replaceAll("[^a-zA-Z0-9]", "") 
+                : "EST";
+        if (docClean.length() > 10) {
+            docClean = docClean.substring(0, 10);
+        }
+
+        String brand = (supplier != null && !supplier.isBlank()) 
+                ? supplier.trim() 
+                : (item.getSupplier() != null && !item.getSupplier().isBlank() ? item.getSupplier().trim() : "Michelin");
+        if (brand.length() > 60) brand = brand.substring(0, 60);
+
+        String model = item.getName() != null && !item.getName().isBlank() ? item.getName().trim() : "295/80 R22.5";
+        if (model.length() > 60) model = model.substring(0, 60);
+
+        BigDecimal cost = unitCost != null ? unitCost : (item.getUnitCost() != null ? item.getUnitCost() : BigDecimal.ZERO);
+        int currentYear = java.time.LocalDate.now().getYear();
+        String movTag = movementId != null ? movementId.toString().substring(0, 8).toUpperCase() : "INIT";
+
+        for (int i = 1; i <= quantity; i++) {
+            String serialNumber;
+            do {
+                long rand = (long) (Math.random() * 90000) + 10000;
+                serialNumber = String.format("PN-%s-M%s-%02d-%d", docClean, movTag, i, rand);
+            } while (tireRepository.existsBySerialNumber(serialNumber));
+
+            Tire tire = new Tire();
+            tire.setCompanyId(companyId);
+            tire.setSerialNumber(serialNumber);
+            tire.setDot("DOT-" + currentYear);
+            tire.setBrand(brand);
+            tire.setModel(model);
+            tire.setSize("295/80 R22.5");
+            tire.setStatus(TireStatus.AVAILABLE);
+            tire.setCurrentMileage(0);
+            tire.setRecapCount(0);
+            tire.setAcquisitionCost(cost);
+            tire.setInitialTreadDepth(new BigDecimal("15.00"));
+            tire.setCurrentTreadDepth(new BigDecimal("15.00"));
+            tire.setCreatedAt(LocalDateTime.now());
+            tire.setUpdatedAt(LocalDateTime.now());
+
+            tireRepository.save(tire);
+            log.info("🛞 Pneu individual cadastrado com sucesso: {} (NF: {})", serialNumber, documentNumber);
+        }
+    }
+
+    private void cleanupLinkedBatteriesAndTires(StockMovement movement) {
+        if (movement == null || movement.getId() == null) return;
+        String movTag = movement.getId().toString().substring(0, 8).toUpperCase();
+
+        // 1. Verificar e estornar Baterias
+        List<VehicleBattery> batteries = vehicleBatteryRepository.findByNotesContaining("[MOV:" + movTag + "]");
+        for (VehicleBattery b : batteries) {
+            if (b.getVehicle() != null || b.getInstallDate() != null || b.getStatus() != VehicleBattery.BatteryStatus.ACTIVE) {
+                throw new IllegalArgumentException("Não é possível estornar a entrada: a bateria " + b.getSerialNumber() + " já está vinculada ou instalada em um veículo.");
+            }
+        }
+        if (!batteries.isEmpty()) {
+            vehicleBatteryRepository.deleteAll(batteries);
+            log.info("🔋 {} bateria(s) estornada(s) devido à exclusão da movimentação {}", batteries.size(), movement.getId());
+        }
+
+        // 2. Verificar e estornar Pneus
+        List<Tire> tires = tireRepository.findBySerialNumberContaining("-M" + movTag + "-");
+        for (Tire t : tires) {
+            if (t.getVehicleId() != null || t.getStatus() != TireStatus.AVAILABLE) {
+                throw new IllegalArgumentException("Não é possível estornar a entrada: o pneu " + t.getSerialNumber() + " já está montado ou em uso em um veículo.");
+            }
+        }
+        if (!tires.isEmpty()) {
+            tireRepository.deleteAll(tires);
+            log.info("🛞 {} pneu(s) estornado(s) devido à exclusão da movimentação {}", tires.size(), movement.getId());
         }
     }
 }

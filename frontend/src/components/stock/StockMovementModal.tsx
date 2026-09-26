@@ -54,7 +54,9 @@ import {
   ChevronsUpDown,
   ArrowRight,
   ArrowLeft,
-  Box
+  Box,
+  Zap,
+  CircleDot
 } from 'lucide-react';
 
 interface StockMovementModalProps {
@@ -96,6 +98,19 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
     unitCost: 0,
     notes: ''
   });
+
+  const isBattery = React.useMemo(() => {
+    if (!selectedItem) return false;
+    const text = `${selectedItem.name || ''} ${selectedItem.description || ''}`.toLowerCase();
+    return selectedItem.category === 'PECAS_ELETRICA' || text.includes('bateria') || text.includes('battery');
+  }, [selectedItem]);
+
+  const isTire = React.useMemo(() => {
+    if (!selectedItem) return false;
+    const text = `${selectedItem.name || ''} ${selectedItem.description || ''}`.toLowerCase();
+    if (text.includes('camara') || text.includes('câmara') || text.includes('roda ') || text.includes('valvula')) return false;
+    return selectedItem.category === 'PNEUS_RODAS' || text.includes('pneu') || text.includes('tire');
+  }, [selectedItem]);
 
   const formatCurrency = (value: string): string => {
     const digits = value.replace(/\D/g, '');
@@ -353,6 +368,7 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
         description: 'Movimentação registrada com sucesso.',
       });
       
+      window.dispatchEvent(new CustomEvent('stock-data-changed'));
       onSave();
       onOpenChange(false);
       
@@ -587,6 +603,24 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
                         Estoque Atual: <span className="font-medium text-seguranca-yellow">{selectedItem.currentQuantity}</span>
                       </span>
                     </div>
+
+                    {formData.movementType === MovementType.ENTRADA && isBattery && (
+                      <div className="mt-3 flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-xs">
+                        <Zap className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <span>
+                          <strong>Sincronização com Controle de Baterias:</strong> Ao confirmar esta entrada, <strong>{formData.quantity || 1}</strong> unidade(s) individual(is) serão criadas automaticamente na aba <strong>Baterias</strong> com status <em>Em Estoque</em>, disponíveis para instalação na frota.
+                        </span>
+                      </div>
+                    )}
+
+                    {formData.movementType === MovementType.ENTRADA && isTire && (
+                      <div className="mt-3 flex items-start gap-2 p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-300 text-xs">
+                        <CircleDot className="h-4 w-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                        <span>
+                          <strong>Sincronização com Pneus da Frota:</strong> Ao confirmar esta entrada, <strong>{formData.quantity || 1}</strong> unidade(s) individual(is) serão criadas automaticamente na aba <strong>Pneus da Frota</strong> com status <em>Disponível</em>, prontas para montagem nos veículos.
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>

@@ -18,4 +18,6 @@ public interface TireRepository extends JpaRepository<Tire, UUID> {
     java.util.Optional<Tire> findByVehicleIdAndAxleNumberAndPositionIndex(UUID vehicleId, Integer axleNumber, Integer positionIndex);
 
     boolean existsBySerialNumber(String serialNumber);
+
+    List<Tire> findBySerialNumberContaining(String infix);
 }

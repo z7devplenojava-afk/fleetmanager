@@ -89,6 +89,13 @@ export const StockBatteriesTab: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    const handleStockUpdate = () => {
+      loadData();
+    };
+    window.addEventListener('stock-data-changed', handleStockUpdate);
+    return () => {
+      window.removeEventListener('stock-data-changed', handleStockUpdate);
+    };
   }, []);
 
   // Métricas

@@ -69,6 +69,13 @@ export const StockTiresTab: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    const handleStockUpdate = () => {
+      loadData();
+    };
+    window.addEventListener('stock-data-changed', handleStockUpdate);
+    return () => {
+      window.removeEventListener('stock-data-changed', handleStockUpdate);
+    };
   }, []);
 
   const stats = useMemo(() => {

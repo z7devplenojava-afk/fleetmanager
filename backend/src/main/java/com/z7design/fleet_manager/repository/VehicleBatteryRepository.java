@@ -15,4 +15,6 @@ public interface VehicleBatteryRepository extends JpaRepository<VehicleBattery, 
     List<VehicleBattery> findByStatusOrderByCreatedAtDesc(VehicleBattery.BatteryStatus status);
 
     List<VehicleBattery> findByCompanyIdOrderByCreatedAtDesc(UUID companyId);
+
+    List<VehicleBattery> findByNotesContaining(String notes);
 }
