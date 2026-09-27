@@ -82,12 +82,24 @@ export const UserViewModal: React.FC<UserViewModalProps> = ({
                   </h3>
                   <p className="text-gray-400">ID: {user.id}</p>
                 </div>
-                <div className="text-right">
-                  <Badge className={getRoleColor(user.role)}>
-                    {getRoleDisplayName(user.role)}
-                    {user.role === 'SUPER_ADMIN' && ' 🟥'}
-                  </Badge>
-                  <Badge className={`ml-2 ${getStatusColor(user)}`}>
+                <div className="flex flex-wrap items-center justify-end gap-1.5 max-w-[50%]">
+                  {user.roles && Array.isArray(user.roles) && user.roles.length > 0 ? (
+                    user.roles.map((r: any) => {
+                      const roleName = (typeof r === 'string' ? r : r?.name || '').replace(/^ROLE_/, '') as UserRole;
+                      return (
+                        <Badge key={roleName} className={getRoleColor(roleName)}>
+                          {getRoleDisplayName(roleName)}
+                          {roleName === 'SUPER_ADMIN' && ' 🟥'}
+                        </Badge>
+                      );
+                    })
+                  ) : (
+                    <Badge className={getRoleColor(user.role)}>
+                      {getRoleDisplayName(user.role)}
+                      {user.role === 'SUPER_ADMIN' && ' 🟥'}
+                    </Badge>
+                  )}
+                  <Badge className={`ml-1 ${getStatusColor(user)}`}>
                     {getStatusText(user)}
                   </Badge>
                 </div>

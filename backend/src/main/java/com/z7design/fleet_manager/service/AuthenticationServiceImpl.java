@@ -190,7 +190,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             // Verificar status de LGPD e segurança (com tratamento de erro)
             boolean requiresLgpdConsent = false;
             try {
-                requiresLgpdConsent = !lgpdConsentService.hasAcceptedAllRequiredConsents(user.getId());
+                // SUPER_ADMIN tem acesso administrativo irrestrito e não deve ser bloqueado por tela de consentimento
+                boolean isSuperAdmin = roles != null && roles.stream().anyMatch(r -> 
+                    r.equalsIgnoreCase("SUPER_ADMIN") || r.equalsIgnoreCase("ROLE_SUPER_ADMIN")
+                );
+                if (!isSuperAdmin) {
+                    requiresLgpdConsent = !lgpdConsentService.hasAcceptedAllRequiredConsents(user.getId());
+                }
                 log.info("✅ Status LGPD verificado: requiresConsent={}", requiresLgpdConsent);
             } catch (Exception e) {
                 log.error("⚠️ Erro ao verificar consentimento LGPD (assumindo false): {}", e.getMessage());

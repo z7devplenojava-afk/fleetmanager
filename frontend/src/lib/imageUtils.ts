@@ -57,14 +57,20 @@ export async function compressImageIfNeeded(
 
         ctx.drawImage(img, 0, 0, width, height);
 
-        const outType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        // PNGs no canvas ignoram o parâmetro de qualidade (lossless), podendo gerar arquivos imensos (>10MB).
+        // Se a imagem for grande (>800KB) e sofrer redimensionamento, exportar como JPEG garante redução drástica (<500KB).
+        const isPng = file.type === 'image/png';
+        const outType = isPng && file.size <= 800 * 1024 ? 'image/png' : 'image/jpeg';
         canvas.toBlob(
           (blob) => {
             if (!blob) {
               resolve(file);
               return;
             }
-            const compressedFile = new File([blob], file.name, {
+            const outName = isPng && outType === 'image/jpeg'
+              ? file.name.replace(/\.png$/i, '.jpg')
+              : file.name;
+            const compressedFile = new File([blob], outName, {
               type: outType,
               lastModified: Date.now(),
             });

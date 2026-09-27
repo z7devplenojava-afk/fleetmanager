@@ -161,17 +161,24 @@ public class CompanyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Empresa nao encontrada com ID: " + id));
 
         // Validar sigla unica (exceto para a propria empresa)
-        if (dto.getSigla() != null && !dto.getSigla().trim().isEmpty() &&
-                (existingCompany.getSigla() == null || !existingCompany.getSigla().equalsIgnoreCase(dto.getSigla())) &&
-                companyRepository.existsBySigla(dto.getSigla())) {
-            throw new BusinessException("Ja existe uma empresa com a sigla: " + dto.getSigla());
+        if (dto.getSigla() != null && !dto.getSigla().trim().isEmpty()) {
+            companyRepository.findFirstBySiglaIgnoreCase(dto.getSigla().trim())
+                    .ifPresent(other -> {
+                        if (!other.getId().equals(id)) {
+                            throw new BusinessException("Ja existe uma empresa com a sigla: " + dto.getSigla());
+                        }
+                    });
         }
 
-        // Validar CNPJ unico (se fornecido)
-        if (dto.getCnpj() != null && !dto.getCnpj().trim().isEmpty() &&
-                (existingCompany.getCnpj() == null || !existingCompany.getCnpj().equals(dto.getCnpj())) &&
-                companyRepository.existsByCnpj(dto.getCnpj())) {
-            throw new BusinessException("Ja existe uma empresa com o CNPJ: " + dto.getCnpj());
+        // Validar CNPJ unico (se fornecido, exceto para a propria empresa)
+        if (dto.getCnpj() != null && !dto.getCnpj().trim().isEmpty()) {
+            String rawCnpj = dto.getCnpj().replaceAll("[^0-9]", "");
+            List<Company> byCnpj = companyRepository.findByNormalizedCnpj(rawCnpj);
+            for (Company other : byCnpj) {
+                if (!other.getId().equals(id)) {
+                    throw new BusinessException("Ja existe uma empresa com o CNPJ: " + dto.getCnpj());
+                }
+            }
         }
 
         // Atualizar campos apenas se fornecidos

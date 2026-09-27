@@ -99,8 +99,8 @@ public class SecurityConfig {
                                                                 return false;
                                                         }
                                                 }).permitAll()
-                                                .requestMatchers("/ws/**").authenticated()
-                                                .requestMatchers("/ws").authenticated()
+                                                      .requestMatchers("/ws/**").permitAll()
+                                                .requestMatchers("/ws").permitAll()
                                                 .requestMatchers("/api/email/test").authenticated()
                                                 .requestMatchers("/api/email/config").authenticated()
                                                 // Endpoints pÃºblicos do portal (vagas, etc)

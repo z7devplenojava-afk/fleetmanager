@@ -3,7 +3,7 @@
 -- =====================================================
 -- Senha: FluxBus@2026
 -- Hash BCrypt (10 rounds):
--- $2a$10$5.JlL1u3TUvbMfuCFGZWke5o0tRJMwFjpJPjx1dyCJbJqXpW5yXAm
+-- $2a$10$l42eHMXMf0IZK2MWnW6azeIxot4vF8zyWBMI2cRgjdqQatf7/f/4C
 -- =====================================================
 
 -- Garantir que os roles necessários existam
@@ -30,7 +30,7 @@ BEGIN
             VALUES (
                 '20202020-2020-2020-2020-202020202020'::uuid,
                 'jose.ramos',
-                '$2a$10$5.JlL1u3TUvbMfuCFGZWke5o0tRJMwFjpJPjx1dyCJbJqXpW5yXAm',
+                '$2a$10$l42eHMXMf0IZK2MWnW6azeIxot4vF8zyWBMI2cRgjdqQatf7/f/4C',
                 'jose.ramos@fluxbus.com.br',
                 'José Mário Ramos',
                 'ADMIN',
@@ -44,7 +44,7 @@ BEGIN
             VALUES (
                 '20202020-2020-2020-2020-202020202020'::uuid,
                 'jose.ramos',
-                '$2a$10$5.JlL1u3TUvbMfuCFGZWke5o0tRJMwFjpJPjx1dyCJbJqXpW5yXAm',
+                '$2a$10$l42eHMXMf0IZK2MWnW6azeIxot4vF8zyWBMI2cRgjdqQatf7/f/4C',
                 'jose.ramos@fluxbus.com.br',
                 'José Mário Ramos',
                 'ACTIVE',
@@ -58,7 +58,7 @@ BEGIN
     ELSE
         -- Atualizar senha e garantir ativo
         UPDATE users
-        SET password   = '$2a$10$5.JlL1u3TUvbMfuCFGZWke5o0tRJMwFjpJPjx1dyCJbJqXpW5yXAm',
+        SET password   = '$2a$10$l42eHMXMf0IZK2MWnW6azeIxot4vF8zyWBMI2cRgjdqQatf7/f/4C',
             active     = true,
             status     = 'ACTIVE',
             updated_at = NOW()

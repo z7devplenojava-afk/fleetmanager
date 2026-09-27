@@ -5,7 +5,7 @@ $loginUrl = "$baseUrl/api/auth/login"
 # Dados de login
 $loginData = @{
     username = "jose.ramos"
-    password = "Admin1234"
+    password = "FluxBus@2026"
 } | ConvertTo-Json
 
 Write-Host "Testando login do usuario jose.ramos..."

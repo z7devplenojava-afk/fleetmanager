@@ -1203,11 +1203,37 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const { forceScrollToTop } = useScrollPreservation();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const normalizedRole = useMemo(
-    () => (user?.role ?? '').replace(/^ROLE_/, '').toUpperCase() as UserRole,
-    [user?.role]
-  );
-  const allowedItemIds = useMemo(() => ROLE_ALLOWED_ITEM_IDS[normalizedRole], [normalizedRole]);
+  const userRoles = useMemo(() => {
+    const rolesSet = new Set<string>();
+    if (user?.role) {
+      rolesSet.add(user.role.replace(/^ROLE_/, '').toUpperCase());
+    }
+    if (user?.roles && Array.isArray(user.roles)) {
+      user.roles.forEach((r: any) => {
+        const name = typeof r === 'string' ? r : r?.name;
+        if (name) {
+          rolesSet.add(name.replace(/^ROLE_/, '').toUpperCase());
+        }
+      });
+    }
+    return Array.from(rolesSet) as UserRole[];
+  }, [user?.role, user?.roles]);
+
+  const allowedItemIds = useMemo(() => {
+    if (userRoles.some(r => r === 'SUPER_ADMIN' || r === 'FLEX_ADMIN')) {
+      return null;
+    }
+    const combined = new Set<string>();
+    let hasMatchingRule = false;
+    for (const r of userRoles) {
+      const allowed = ROLE_ALLOWED_ITEM_IDS[r];
+      if (allowed) {
+        hasMatchingRule = true;
+        allowed.forEach(id => combined.add(id));
+      }
+    }
+    return hasMatchingRule ? combined : null;
+  }, [userRoles]);
 
   // Referências para controlar o scroll da própria sidebar
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
