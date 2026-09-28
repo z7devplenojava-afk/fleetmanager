@@ -156,11 +156,13 @@ jobs:
           SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS \
             ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} \
-            "mkdir -p /var/www/fluxbus/ci/nginx /var/www/fluxbus/ci/uploads /var/www/fluxbus/uploads && rm -rf /var/www/secured_guard"
+            "mkdir -p /var/www/fluxbus/ci/nginx /var/www/fluxbus/ci/uploads /var/www/fluxbus/uploads /var/www/fluxbus/traefik/dynamic && rm -rf /var/www/secured_guard"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS docker-compose.ci.yml \
             ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS nginx/ci.conf \
             ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/nginx/
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS traefik-dynamic-ci.yml \
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/traefik/dynamic/ci.yml
 
       - name: "⚙️ Criar .env CI e subir containers"
         run: |
@@ -292,8 +294,9 @@ jobs:
           PASS="${{ secrets.VPS_PASSWORD_DEV || secrets.VPS_PASSWORD }}"
           SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=5"
 
-          sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "mkdir -p /var/www/fluxbus/dev"
+          sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "mkdir -p /var/www/fluxbus/dev /var/www/fluxbus/traefik/dynamic"
           sshpass -p "$PASS" scp $SSH_OPTS docker-compose.fluxbus.dev.yml $USER@$HOST:/var/www/fluxbus/dev/docker-compose.yml
+          sshpass -p "$PASS" scp $SSH_OPTS traefik-dynamic-dev.yml $USER@$HOST:/var/www/fluxbus/traefik/dynamic/dev.yml
 
           sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST << 'SSHEOF'
             set -e
@@ -387,8 +390,9 @@ jobs:
           PASS="${{ secrets.VPS_PASSWORD_PROD || secrets.VPS_PASSWORD }}"
           SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=5"
 
-          sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "mkdir -p /var/www/fluxbus/prod"
+          sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "mkdir -p /var/www/fluxbus/prod /var/www/fluxbus/traefik/dynamic"
           sshpass -p "$PASS" scp $SSH_OPTS docker-compose.fluxbus.prod.yml $USER@$HOST:/var/www/fluxbus/prod/docker-compose.yml
+          sshpass -p "$PASS" scp $SSH_OPTS traefik-dynamic-prod.yml $USER@$HOST:/var/www/fluxbus/traefik/dynamic/prod.yml
 
           sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST << 'SSHEOF'
             set -e

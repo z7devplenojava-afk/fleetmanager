@@ -1,0 +1,66 @@
+# ========================================
+# Configuração Dinâmica do Traefik para DEV
+# ========================================
+http:
+  middlewares:
+    dev-allow-all-methods:
+      headers:
+        customRequestHeaders:
+          Access-Control-Allow-Methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD"
+        customResponseHeaders:
+          Access-Control-Allow-Methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD"
+
+    dev-cors:
+      headers:
+        accessControlAllowOriginListRegex:
+          - ".*"
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+          - "PATCH"
+          - "OPTIONS"
+          - "HEAD"
+        accessControlAllowHeaders:
+          - "*"
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 3600
+        addVaryHeader: true
+
+  routers:
+    # API e WebSocket no backend com alta prioridade
+    dev-backend-router:
+      rule: "(Host(`dev.fluxbus.com.br`) || Host(`dev.z7botsolutions.com.br`)) && (PathPrefix(`/api`) || PathPrefix(`/ws`))"
+      entryPoints:
+        - websecure
+        - web
+      service: dev-backend-service
+      middlewares:
+        - dev-cors
+        - dev-allow-all-methods
+      priority: 2000
+
+    # Frontend SPA para rotas restantes
+    dev-frontend-router:
+      rule: "Host(`dev.fluxbus.com.br`) || Host(`dev.z7botsolutions.com.br`)"
+      entryPoints:
+        - websecure
+        - web
+      service: dev-frontend-service
+      priority: 1000
+
+  services:
+    dev-backend-service:
+      loadBalancer:
+        servers:
+          - url: "http://fluxbus-backend-dev:8083"
+        passHostHeader: true
+        responseForwarding:
+          flushInterval: 100ms
+
+    dev-frontend-service:
+      loadBalancer:
+        servers:
+          - url: "http://fluxbus-frontend-dev:80"
+        passHostHeader: true

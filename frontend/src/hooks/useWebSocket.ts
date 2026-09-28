@@ -3,6 +3,7 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { useMessageStore } from '../stores/messageStore';
 import { ChatMessage } from '../stores/messageStore';
+import { getWsUrl } from '../config/environment';
 
 interface WebSocketConfig {
   token: string;
@@ -57,9 +58,10 @@ export const useWebSocket = (config: WebSocketConfig) => {
     }
 
     try {
-      const socket = new SockJS('/ws');
+      const wsUrl = getWsUrl();
+      const httpWsUrl = wsUrl ? wsUrl.replace(/^wss:\/\//i, 'https://').replace(/^ws:\/\//i, 'http://') : '/ws';
       const client = new Client({
-        webSocketFactory: () => socket,
+        webSocketFactory: () => new SockJS(httpWsUrl),
         connectHeaders: {
           Authorization: `Bearer ${token}`,
           'X-Username': username

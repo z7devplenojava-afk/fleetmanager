@@ -1,9 +1,13 @@
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { getWsUrl } from '../config/environment';
 
 export function connectChatSocket(token: string, userId: string, onMessage: (msg: any) => void, onTyping?: (typing: any) => void) {
+  const wsUrl = getWsUrl();
+  const httpWsUrl = wsUrl ? wsUrl.replace(/^wss:\/\//i, 'https://').replace(/^ws:\/\//i, 'http://') : '/ws';
+
   const client = new Client({
-    webSocketFactory: () => new SockJS('/ws'),
+    webSocketFactory: () => new SockJS(httpWsUrl),
     connectHeaders: { Authorization: `Bearer ${token}` },
     onConnect: () => {
       client.subscribe(`/user/${userId}/chat`, (message) => {

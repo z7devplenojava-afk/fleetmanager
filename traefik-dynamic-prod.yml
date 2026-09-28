@@ -1,0 +1,78 @@
+# ========================================
+# Configuração Dinâmica do Traefik para PROD
+# ========================================
+http:
+  middlewares:
+    prod-allow-all-methods:
+      headers:
+        customRequestHeaders:
+          Access-Control-Allow-Methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD"
+        customResponseHeaders:
+          Access-Control-Allow-Methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD"
+
+    prod-cors:
+      headers:
+        accessControlAllowOriginListRegex:
+          - ".*"
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+          - "PATCH"
+          - "OPTIONS"
+          - "HEAD"
+        accessControlAllowHeaders:
+          - "*"
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 3600
+        addVaryHeader: true
+
+  routers:
+    # Subdomínio api.fluxbus.com.br roteado diretamente ao backend
+    prod-api-dedicated-router:
+      rule: "Host(`api.fluxbus.com.br`)"
+      entryPoints:
+        - websecure
+        - web
+      service: prod-backend-service
+      middlewares:
+        - prod-cors
+        - prod-allow-all-methods
+      priority: 2000
+
+    # Chamadas /api e /ws feitas em fluxbus.com.br roteadas diretamente ao backend (evita 405 do frontend)
+    prod-api-path-router:
+      rule: "(Host(`fluxbus.com.br`) || Host(`www.fluxbus.com.br`) || Host(`z7botsolutions.com.br`)) && (PathPrefix(`/api`) || PathPrefix(`/ws`))"
+      entryPoints:
+        - websecure
+        - web
+      service: prod-backend-service
+      middlewares:
+        - prod-cors
+        - prod-allow-all-methods
+      priority: 2000
+
+    # Frontend SPA para o domínio principal e www
+    prod-frontend-router:
+      rule: "Host(`fluxbus.com.br`) || Host(`www.fluxbus.com.br`) || Host(`z7botsolutions.com.br`)"
+      entryPoints:
+        - websecure
+        - web
+      service: prod-frontend-service
+      priority: 1000
+
+  services:
+    prod-backend-service:
+      loadBalancer:
+        servers:
+          - url: "http://fluxbus-backend-prod:8083"
+        passHostHeader: true
+        responseForwarding:
+          flushInterval: 100ms
+
+    prod-frontend-service:
+      loadBalancer:
+        servers:
+          - url: "http://fluxbus-frontend-prod:80"
+        passHostHeader: true

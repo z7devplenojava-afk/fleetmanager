@@ -19,6 +19,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // Suporte a WebSocket nativo direto (ex: wss://ci.fluxbus.com.br/ws)
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*");
+
+        // Suporte a clientes SockJS com fallback (ex: https://ci.fluxbus.com.br/ws/info)
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();

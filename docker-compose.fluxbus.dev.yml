@@ -91,6 +91,7 @@ services:
         condition: service_started
     networks:
       - fluxbus-dev-network
+      - z7network
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8083/api/health || exit 1"]
       interval: 30s
@@ -137,6 +138,7 @@ services:
         condition: service_started
     networks:
       - fluxbus-dev-network
+      - z7network
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1 || exit 1"]
       interval: 30s
@@ -163,3 +165,6 @@ networks:
   fluxbus-dev-network:
     driver: bridge
     name: fluxbus-dev
+  z7network:
+    external: true
+    name: z7network

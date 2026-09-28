@@ -52,9 +52,10 @@ http:
     # Router HTTPS específico para o ambiente CI
     # O redirecionamento HTTP → HTTPS é feito pelo entrypoint 'web' do Traefik
     ci-backend:
-      rule: "Host(`ci.z7botsolutions.com.br`)"
+      rule: "Host(`ci.fluxbus.com.br`) || Host(`ci.z7botsolutions.com.br`)"
       entryPoints:
         - websecure
+        - web
       service: ci-backend-service
       middlewares:
         - ci-cors
