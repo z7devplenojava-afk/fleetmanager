@@ -422,11 +422,11 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => handleDownloadPdf(ficha)}
-                        className="h-7 px-2 text-xs border-gray-700 text-emerald-400 hover:bg-emerald-950"
-                        title="Baixar PDF Oficial para Assinatura"
+                        className="h-7 px-2.5 text-xs border-emerald-500/50 text-emerald-400 hover:bg-emerald-950/40 hover:text-white"
+                        title="Baixar PDF Oficial assinado da Ficha de EPI"
                       >
-                        <Download className="h-3.5 w-3.5 mr-1" />
-                        PDF
+                        <Download className="h-3.5 w-3.5 mr-1 text-emerald-400" />
+                        Download
                       </Button>
                     </div>
                   </TableCell>

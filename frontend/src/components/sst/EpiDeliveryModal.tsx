@@ -429,7 +429,7 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
     try {
       setIsSaving(true);
 
-      let companyId = (activeEmployee as any).companyId || (activeEmployee as any).company?.id;
+      let companyId = (activeEmployee as any).companyId || (activeEmployee as any).company?.id || company?.id;
       if (!companyId) {
         try {
           const userStr = localStorage.getItem('user');
@@ -465,33 +465,43 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
         return;
       }
 
-      // Modo de Criação: Salvar no backend caso haja itens para registrar
-      if (!isManual && epiList.length > 0) {
-        try {
-          await epiDeliveryFormService.create({
-            employeeId: activeEmployee.id,
-            companyId: companyId,
-            deliveryDate: itemDeliveryDate || new Date().toISOString().split('T')[0],
-            items: epiList.map(item => ({
-              epiName: item.name,
-              quantity: Number(item.quantity) || 1,
-              ca: item.ca !== 'N/A' ? item.ca : undefined,
-            })),
-          });
-        } catch (saveError) {
-          console.warn('Aviso: Registro no banco falhou ou já cadastrado, prosseguindo com geração do PDF:', saveError);
-        }
-      }
+      // Modo de Criação: Salvar no backend obrigatoriamente
+      const createdFicha = await epiDeliveryFormService.create({
+        employeeId: activeEmployee.id,
+        companyId: companyId || undefined,
+        deliveryDate: itemDeliveryDate || new Date().toISOString().split('T')[0],
+        observations: isManual ? 'Ficha gerada em modo manual (prancheta)' : undefined,
+        items: epiList.map(item => ({
+          epiName: item.name,
+          quantity: Number(item.quantity) || 1,
+          ca: item.ca !== 'N/A' ? item.ca : undefined,
+        })),
+      });
+
+      toast({
+        title: '✅ Ficha de EPI Registrada!',
+        description: `Ficha #${createdFicha.id ? createdFicha.id.substring(0, 8) : ''} salva com sucesso no sistema.`,
+      });
 
       // Baixar PDF
-      await handleDownloadPdf();
+      try {
+        await handleDownloadPdf();
+      } catch (pdfErr) {
+        console.warn('Ficha salva no sistema, erro no download local do PDF:', pdfErr);
+      }
 
       if (onSuccess) {
         onSuccess();
       }
       onClose();
-    } catch (err) {
-      console.error('Erro ao salvar e baixar ficha:', err);
+    } catch (err: any) {
+      console.error('Erro ao salvar ficha de EPI:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Falha ao salvar ficha de entrega de EPI no sistema.';
+      toast({
+        title: 'Erro ao salvar ficha de EPI',
+        description: errorMsg,
+        variant: 'destructive',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -895,8 +905,9 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
               type="button"
               variant="outline"
               onClick={handleDownloadPdf}
-              disabled={isGeneratingPdf}
-              className="text-xs border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 h-9"
+              disabled={isGeneratingPdf || isSaving}
+              className="text-xs border-gray-600 text-gray-300 hover:bg-gray-800 h-9"
+              title="Baixar apenas o PDF sem gravar no prontuário do colaborador"
             >
               {isGeneratingPdf ? (
                 <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -910,14 +921,15 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
               type="button"
               onClick={handleSaveAndDownload}
               disabled={isSaving || isGeneratingPdf}
-              className="text-xs bg-seguranca-red hover:bg-seguranca-darkred text-white h-9"
+              className="text-xs bg-seguranca-red hover:bg-seguranca-darkred text-white font-bold h-9 px-4 shadow-lg shadow-red-900/30"
+              title="Gravar a ficha no banco de dados, atualizar estoque e gerar PDF"
             >
               {isSaving ? (
                 <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
               ) : (
                 <Save className="h-3.5 w-3.5 mr-1.5" />
               )}
-              {isEditMode ? 'Salvar Alterações' : 'Salvar & Gerar Ficha'}
+              {isEditMode ? 'Salvar Alterações' : 'Salvar no Sistema & Gerar Ficha'}
             </Button>
           </div>
         </DialogFooter>

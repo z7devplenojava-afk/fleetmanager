@@ -150,10 +150,7 @@ public class EPIDeliveryFormService {
                 }
 
                 if (availableStock != null && availableStock < quantity) {
-                    throw new IllegalArgumentException(String.format(
-                        "Estoque insuficiente para o EPI '%s'. Disponivel em estoque: %d un, Solicitado: %d un.",
-                        epiName, availableStock, quantity
-                    ));
+                    log.warn("⚠️ Saldo insuficiente ({}) para o EPI '{}' (solicitado: {}). A ficha será registrada e o saldo zerado.", availableStock, epiName, quantity);
                 }
 
                 // 3. Baixa no modulo SST (PersonalProtectiveEquipment)
@@ -220,33 +217,39 @@ public class EPIDeliveryFormService {
         return EPIDeliveryFormDTO.fromEntity(savedForm);
     }
 
+    @Transactional(readOnly = true)
     public EPIDeliveryFormDTO findById(UUID id) {
         EPIDeliveryForm form = epiDeliveryFormRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Ficha de entrega de EPI nÃ£o encontrada com id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Ficha de entrega de EPI não encontrada com id: " + id));
         return EPIDeliveryFormDTO.fromEntity(form);
     }
 
+    @Transactional(readOnly = true)
     public EPIDeliveryForm findByIdEntity(UUID id) {
         return epiDeliveryFormRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Ficha de entrega de EPI nÃ£o encontrada com id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Ficha de entrega de EPI não encontrada com id: " + id));
     }
 
+    @Transactional(readOnly = true)
     public Page<EPIDeliveryFormDTO> findAll(Pageable pageable) {
         return epiDeliveryFormRepository.findAll(pageable)
                 .map(EPIDeliveryFormDTO::fromEntity);
     }
 
+    @Transactional(readOnly = true)
     public Page<EPIDeliveryFormDTO> findByFilters(UUID employeeId, UUID companyId, LocalDate startDate, LocalDate endDate, Pageable pageable) {
         return epiDeliveryFormRepository.findByFilters(employeeId, companyId, startDate, endDate, pageable)
                 .map(EPIDeliveryFormDTO::fromEntity);
     }
 
+    @Transactional(readOnly = true)
     public List<EPIDeliveryFormDTO> findByEmployeeId(UUID employeeId) {
         return epiDeliveryFormRepository.findByEmployeeId(employeeId).stream()
                 .map(EPIDeliveryFormDTO::fromEntity)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<EPIDeliveryFormDTO> findByCompanyId(UUID companyId) {
         return epiDeliveryFormRepository.findByCompanyId(companyId).stream()
                 .map(EPIDeliveryFormDTO::fromEntity)

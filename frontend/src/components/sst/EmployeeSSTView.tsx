@@ -1023,20 +1023,21 @@ export const EmployeeSSTView: React.FC = () => {
                                       Excluir
                                     </Button>
 
-                                    {/* Botão Baixar PDF */}
+                                    {/* Botão Download PDF */}
                                     <Button
                                       size="sm"
                                       variant="outline"
                                       onClick={() => handleDownloadEpiPdf(form.id)}
                                       disabled={downloadingPdfId === form.id}
-                                      className="h-7 px-2 text-xs border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
-                                      title="Baixar PDF Oficial assinado"
+                                      className="h-7 px-2.5 text-xs border-emerald-500/50 text-emerald-400 hover:bg-emerald-950/40 hover:text-white"
+                                      title="Baixar PDF Oficial assinado da Ficha de EPI"
                                     >
                                       {downloadingPdfId === form.id ? (
-                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
                                       ) : (
-                                        <Download className="h-3.5 w-3.5 text-seguranca-yellow" />
+                                        <Download className="h-3.5 w-3.5 mr-1 text-emerald-400" />
                                       )}
+                                      Download
                                     </Button>
                                   </div>
                                 </TableCell>
