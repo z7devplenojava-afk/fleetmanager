@@ -30,17 +30,19 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
-import { Employee } from '@/services/employeeService';
+import { employeeService, Employee } from '@/services/employeeService';
 import { stockService } from '@/services/stockService';
 import { StockItem } from '@/types/stock';
-import { epiDeliveryFormService } from '@/services/epiDeliveryFormService';
+import { epiDeliveryFormService, EPIDeliveryForm } from '@/services/epiDeliveryFormService';
 import { epiPdfGeneratorService, EpiFormItemData } from '@/services/epiPdfGeneratorService';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-interface EpiDeliveryModalProps {
+export interface EpiDeliveryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  employee: Employee | null;
+  employee?: Employee | null;
+  initialData?: EPIDeliveryForm | null;
   onSuccess?: () => void;
 }
 
@@ -48,13 +50,19 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
   isOpen,
   onClose,
   employee,
+  initialData,
   onSuccess,
 }) => {
   const { toast } = useToast();
 
+  // Funcionário Ativo (passado por prop ou selecionado pelo Almoxarifado)
+  const [activeEmployee, setActiveEmployee] = useState<Employee | null>(employee || null);
+  const [employeesList, setEmployeesList] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState<boolean>(false);
+
   // Configurações do Documento
   const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
-  const [isManual, setIsManual] = useState<boolean>(false); // false = Preenchido, true = Manual (folha em branco com dados do empregado)
+  const [isManual, setIsManual] = useState<boolean>(false);
   const [enableDigitalSignature, setEnableDigitalSignature] = useState<boolean>(false);
 
   // Itens de EPI
@@ -78,17 +86,81 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  // Carregar itens de estoque ao abrir
+  // Carregar dados iniciais ao abrir
   useEffect(() => {
     if (isOpen) {
       loadStockItems();
-      // Resetar estados
-      setEpiList([]);
+
+      // Carregar lista de funcionários se não foi fornecido
+      if (!employee) {
+        loadEmployees();
+      } else {
+        setActiveEmployee(employee);
+      }
+
+      // Se for modo de edição, pré-carregar os dados da ficha
+      if (initialData) {
+        if (initialData.deliveryDate) {
+          setItemDeliveryDate(initialData.deliveryDate);
+        }
+        if (initialData.items && initialData.items.length > 0) {
+          setEpiList(initialData.items.map((item, idx) => ({
+            itemNumber: idx + 1,
+            name: item.epiName,
+            ca: item.ca || 'N/A',
+            quantity: item.quantity,
+            deliveryDate: initialData.deliveryDate 
+              ? new Date(initialData.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR') 
+              : new Date().toLocaleDateString('pt-BR'),
+          })));
+        } else {
+          setEpiList([]);
+        }
+
+        if (!employee) {
+          setActiveEmployee({
+            id: initialData.employeeId,
+            name: initialData.employeeName || 'Colaborador',
+            document: initialData.employeeCpf || '',
+            cpf: initialData.employeeCpf || '',
+            companyId: initialData.companyId,
+          } as any);
+        }
+      } else {
+        // Resetar estados
+        if (!employee) {
+          setActiveEmployee(null);
+        }
+        setEpiList([]);
+        setItemDeliveryDate(new Date().toISOString().split('T')[0]);
+      }
+
       setEnableDigitalSignature(false);
       setHasSignature(false);
       clearSignature();
     }
-  }, [isOpen]);
+  }, [isOpen, employee, initialData]);
+
+  const loadEmployees = async () => {
+    try {
+      setLoadingEmployees(true);
+      const res = await employeeService.getEmployees();
+      const emps = Array.isArray(res) ? res : [];
+      setEmployeesList(emps);
+
+      // Se temos initialData e activeEmployee ainda não tem cargo completo, tenta enriquecer
+      if (initialData && initialData.employeeId) {
+        const found = emps.find(e => e.id === initialData.employeeId);
+        if (found) {
+          setActiveEmployee(found);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao carregar funcionários:', err);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
 
   const loadStockItems = async () => {
     try {
@@ -228,7 +300,14 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
 
   // Gerar e Baixar PDF
   const handleDownloadPdf = async () => {
-    if (!employee) return;
+    if (!activeEmployee) {
+      toast({
+        title: 'Selecione um funcionário',
+        description: 'É necessário selecionar um colaborador para gerar a ficha.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (!isManual && epiList.length === 0) {
       toast({
@@ -244,7 +323,7 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
       const signatureImg = getSignatureDataUrl();
 
       await epiPdfGeneratorService.downloadPdf({
-        employee,
+        employee: activeEmployee,
         orientation,
         isManual,
         items: epiList,
@@ -270,7 +349,14 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
 
   // Salvar no Sistema e Baixar
   const handleSaveAndDownload = async () => {
-    if (!employee) return;
+    if (!activeEmployee) {
+      toast({
+        title: 'Selecione o colaborador',
+        description: 'Por favor, selecione um funcionário para a ficha de EPI.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (!isManual && epiList.length === 0) {
       toast({
@@ -284,27 +370,53 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
     try {
       setIsSaving(true);
 
-      // 1. Salvar no backend caso haja itens para registrar
-      if (!isManual && epiList.length > 0) {
-        let companyId = (employee as any).companyId || (employee as any).company?.id;
-        if (!companyId) {
-          try {
-            const userStr = localStorage.getItem('user');
-            if (userStr) {
-              const u = JSON.parse(userStr);
-              companyId = u.companyId || u.company?.id;
-            }
-          } catch (_) {}
+      let companyId = (activeEmployee as any).companyId || (activeEmployee as any).company?.id;
+      if (!companyId) {
+        try {
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            companyId = u.companyId || u.company?.id;
+          }
+        } catch (_) {}
+      }
+
+      // Se for modo de Edição de Ficha existente
+      if (initialData?.id) {
+        await epiDeliveryFormService.update(initialData.id, {
+          employeeId: activeEmployee.id,
+          companyId: companyId,
+          deliveryDate: itemDeliveryDate || new Date().toISOString().split('T')[0],
+          items: epiList.map(item => ({
+            epiName: item.name,
+            quantity: Number(item.quantity) || 1,
+            ca: item.ca !== 'N/A' ? item.ca : undefined,
+          })),
+        });
+
+        toast({
+          title: '✅ Ficha Atualizada com Sucesso!',
+          description: 'Os itens e o estoque foram recalculados e sincronizados.',
+        });
+
+        if (onSuccess) {
+          onSuccess();
         }
+        onClose();
+        return;
+      }
+
+      // Modo de Criação: Salvar no backend caso haja itens para registrar
+      if (!isManual && epiList.length > 0) {
         try {
           await epiDeliveryFormService.create({
-            employeeId: employee.id,
+            employeeId: activeEmployee.id,
             companyId: companyId,
             deliveryDate: itemDeliveryDate || new Date().toISOString().split('T')[0],
             items: epiList.map(item => ({
               epiName: item.name,
               quantity: Number(item.quantity) || 1,
-              ca: item.ca || undefined,
+              ca: item.ca !== 'N/A' ? item.ca : undefined,
             })),
           });
         } catch (saveError) {
@@ -312,7 +424,7 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
         }
       }
 
-      // 2. Baixar PDF
+      // Baixar PDF
       await handleDownloadPdf();
 
       if (onSuccess) {
@@ -326,10 +438,9 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
     }
   };
 
-  if (!employee) return null;
-
-  const cargo = (employee as any).position?.name || employee.role || 'Não Informado';
-  const matricula = employee.registrationNumber || employee.employeeCode || 'EMP' + employee.id.substring(0, 4);
+  const isEditMode = Boolean(initialData?.id);
+  const cargo = (activeEmployee as any)?.position?.name || activeEmployee?.role || 'Não Informado';
+  const matricula = activeEmployee?.registrationNumber || activeEmployee?.employeeCode || (activeEmployee ? 'EMP' + activeEmployee.id.substring(0, 4) : 'N/I');
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
@@ -342,38 +453,82 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
               </div>
               <div>
                 <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
-                  Emissão de Ficha de Entrega de EPI
-                  <Badge variant="outline" className="text-xs border-seguranca-yellow text-seguranca-yellow">
-                    NR-6 / SST
+                  {isEditMode ? 'Editar Ficha de Entrega de EPI' : 'Emissão de Ficha de Entrega de EPI'}
+                  <Badge variant="outline" className={`text-xs ${isEditMode ? 'border-blue-400 text-blue-400' : 'border-seguranca-yellow text-seguranca-yellow'}`}>
+                    {isEditMode ? `Edição #${initialData?.id.substring(0, 8)}` : 'NR-6 / SST'}
                   </Badge>
                 </DialogTitle>
                 <DialogDescription className="text-xs text-gray-400">
-                  Gere o documento oficial da Viação São Silvestre em PDF preenchido ou manual para prancheta.
+                  {isEditMode 
+                    ? 'Edite as quantidades, EPIs entregues ou datas da ficha. O estoque será atualizado automaticamente.' 
+                    : 'Gere o documento oficial da Viação São Silvestre em PDF preenchido ou manual para prancheta.'}
                 </DialogDescription>
               </div>
             </div>
           </div>
         </DialogHeader>
 
-        {/* Card do Colaborador */}
-        <div className="bg-seguranca-black/50 border border-gray-700 rounded-xl p-3.5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div>
-            <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider">Colaborador</span>
-            <span className="text-white font-bold truncate block">{employee.name}</span>
+        {/* Seleção ou Visualização do Colaborador */}
+        {!activeEmployee ? (
+          <div className="bg-seguranca-black/50 border border-gray-700 rounded-xl p-4 space-y-2">
+            <Label className="text-xs font-bold text-seguranca-yellow flex items-center gap-1.5">
+              Selecione o Colaborador para a Ficha
+            </Label>
+            {loadingEmployees ? (
+              <div className="flex items-center gap-2 text-xs text-gray-400 py-2">
+                <Loader2 className="h-4 w-4 animate-spin text-seguranca-yellow" />
+                Carregando funcionários cadastrados...
+              </div>
+            ) : (
+              <Select
+                onValueChange={(val) => {
+                  const emp = employeesList.find(e => e.id === val);
+                  if (emp) setActiveEmployee(emp);
+                }}
+              >
+                <SelectTrigger className="bg-gray-900 border-gray-700 text-xs h-10 text-white">
+                  <SelectValue placeholder="Pesquise e selecione o funcionário..." />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-gray-700 text-white max-h-64">
+                  {employeesList.map(emp => (
+                    <SelectItem key={emp.id} value={emp.id} className="text-xs">
+                      {emp.name} {emp.document || emp.cpf ? `(CPF: ${emp.document || emp.cpf})` : ''} - {emp.role || 'Geral'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
-          <div>
-            <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider">Matrícula</span>
-            <span className="text-white font-mono">{matricula}</span>
+        ) : (
+          <div className="bg-seguranca-black/50 border border-gray-700 rounded-xl p-3.5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs relative">
+            {!employee && !initialData && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setActiveEmployee(null)}
+                className="absolute top-2 right-2 text-[10px] text-gray-400 hover:text-white h-6 px-2"
+              >
+                Trocar
+              </Button>
+            )}
+            <div>
+              <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider">Colaborador</span>
+              <span className="text-white font-bold truncate block">{activeEmployee.name}</span>
+            </div>
+            <div>
+              <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider">Matrícula</span>
+              <span className="text-white font-mono">{matricula}</span>
+            </div>
+            <div>
+              <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider">Função / Cargo</span>
+              <span className="text-white truncate block">{cargo}</span>
+            </div>
+            <div>
+              <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider">CPF</span>
+              <span className="text-white font-mono">{activeEmployee.cpf || activeEmployee.document || 'N/D'}</span>
+            </div>
           </div>
-          <div>
-            <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider">Função / Cargo</span>
-            <span className="text-white truncate block">{cargo}</span>
-          </div>
-          <div>
-            <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider">CPF</span>
-            <span className="text-white font-mono">{employee.cpf || employee.document || 'N/D'}</span>
-          </div>
-        </div>
+        )}
 
         {/* Configurações de Emissão: Modo e Orientação */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -705,7 +860,7 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
               ) : (
                 <Save className="h-3.5 w-3.5 mr-1.5" />
               )}
-              Salvar & Gerar Ficha
+              {isEditMode ? 'Salvar Alterações' : 'Salvar & Gerar Ficha'}
             </Button>
           </div>
         </DialogFooter>

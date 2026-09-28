@@ -111,6 +111,21 @@ public class EPIDeliveryFormController {
         return ResponseEntity.ok(forms);
     }
 
+    @Operation(summary = "Atualiza uma ficha de entrega de EPI existente")
+    @PutMapping("/{id}")
+    public ResponseEntity<EPIDeliveryFormDTO> update(
+            @PathVariable("id") UUID id,
+            @RequestBody CreateEPIDeliveryFormDTO dto,
+            Authentication authentication) {
+        log.info("📝 Recebendo requisição para atualizar ficha de entrega de EPI: {}", id);
+        UUID updatedByUserId = null;
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetails) {
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        }
+        EPIDeliveryFormDTO updated = epiDeliveryFormService.update(id, dto, updatedByUserId);
+        return ResponseEntity.ok(updated);
+    }
+
     @Operation(summary = "Deleta uma ficha de entrega de EPI")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {

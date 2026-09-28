@@ -289,8 +289,23 @@ jobs:
       - name: "🔑 Instalar sshpass"
         run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
 
-      - name: "📤 Copiar compose e subir DEV"
+      - name: "⚙️ Criar .env DEV e subir containers"
         run: |
+          JWT="${{ secrets.JWT_SECRET_DEV }}"
+          [ -z "$JWT" ] && JWT="jwt_secret_dev_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algo"
+          {
+            printf 'POSTGRES_DB_DEV=fluxbus_db_dev\n'
+            printf 'POSTGRES_USER_DEV=fluxbus_user_dev\n'
+            printf 'POSTGRES_PASSWORD_DEV=%s\n' "${{ secrets.POSTGRES_PASSWORD_DEV || 'devpass123' }}"
+            printf 'REDIS_PASSWORD_DEV=%s\n'    "${{ secrets.REDIS_PASSWORD_DEV || 'devredispass' }}"
+            printf 'JWT_SECRET_DEV=%s\n'        "$JWT"
+            printf 'MAIL_HOST=mail.z7design.com.br\n'
+            printf 'MAIL_PORT=465\n'
+            printf 'MAIL_USERNAME=securedguard@z7design.com.br\n'
+            printf 'MAIL_PASSWORD=%s\n'        "${{ secrets.MAIL_PASSWORD }}"
+            printf 'MAIL_SSL_ENABLE=true\n'
+          } > /tmp/dev.env
+
           HOST="${{ secrets.VPS_HOST_DEV || secrets.VPS_HOST }}"
           USER="${{ secrets.VPS_USER_DEV || secrets.VPS_USER }}"
           PASS="${{ secrets.VPS_PASSWORD_DEV || secrets.VPS_PASSWORD }}"
@@ -299,23 +314,14 @@ jobs:
           sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "mkdir -p /var/www/fluxbus/dev /var/www/fluxbus/traefik/dynamic"
           sshpass -p "$PASS" scp $SSH_OPTS docker-compose.fluxbus.dev.yml $USER@$HOST:/var/www/fluxbus/dev/docker-compose.yml
           sshpass -p "$PASS" scp $SSH_OPTS traefik-dynamic-dev.yml $USER@$HOST:/var/www/fluxbus/traefik/dynamic/dev.yml
+          sshpass -p "$PASS" scp $SSH_OPTS /tmp/dev.env $USER@$HOST:/var/www/fluxbus/dev/.env
+          rm -f /tmp/dev.env
 
           sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST << 'SSHEOF'
             set -e
             mkdir -p /var/www/fluxbus/dev
             rm -rf /var/www/secured_guard 2>/dev/null || true
             cd /var/www/fluxbus/dev
-            cat > .env << 'ENVEOF'
-            POSTGRES_DB_DEV=fluxbus_db_dev
-            POSTGRES_USER_DEV=fluxbus_user_dev
-            POSTGRES_PASSWORD_DEV=${{ secrets.POSTGRES_PASSWORD_DEV }}
-            REDIS_PASSWORD_DEV=${{ secrets.REDIS_PASSWORD_DEV }}
-            JWT_SECRET_DEV=${{ secrets.JWT_SECRET_DEV }}
-            MAIL_HOST=mail.z7design.com.br
-            MAIL_PORT=465
-            MAIL_USERNAME=securedguard@z7design.com.br
-            MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
-            ENVEOF
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
             docker compose pull
             docker compose down
@@ -385,8 +391,25 @@ jobs:
       - name: "🔑 Instalar sshpass"
         run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
 
-      - name: "📤 Copiar compose e subir PROD"
+      - name: "⚙️ Criar .env PROD e subir containers"
         run: |
+          JWT="${{ secrets.JWT_SECRET_PROD }}"
+          [ -z "$JWT" ] && JWT="jwt_secret_prod_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algo"
+          {
+            printf 'POSTGRES_DB_PROD=fluxbus_db_prod\n'
+            printf 'POSTGRES_USER_PROD=fluxbus_user_prod\n'
+            printf 'POSTGRES_PASSWORD_PROD=%s\n' "${{ secrets.POSTGRES_PASSWORD_PROD || 'prodpass123' }}"
+            printf 'REDIS_PASSWORD_PROD=%s\n'    "${{ secrets.REDIS_PASSWORD_PROD || 'prodredispass' }}"
+            printf 'JWT_SECRET_PROD=%s\n'        "$JWT"
+            printf 'MAIL_HOST=mail.z7design.com.br\n'
+            printf 'MAIL_PORT=465\n'
+            printf 'MAIL_USERNAME=securedguard@z7design.com.br\n'
+            printf 'MAIL_PASSWORD=%s\n'        "${{ secrets.MAIL_PASSWORD }}"
+            printf 'MAIL_SSL_ENABLE=true\n'
+            printf 'EVOLUTION_API_KEY_PROD=%s\n' "${{ secrets.EVOLUTION_API_KEY_PROD || 'B6D711FCDE4D4FD5936544120E713976' }}"
+            printf 'EVOLUTION_API_INSTANCE_PROD=fluxbus_prod\n'
+          } > /tmp/prod.env
+
           HOST="${{ secrets.VPS_HOST_PROD || secrets.VPS_HOST }}"
           USER="${{ secrets.VPS_USER_PROD || secrets.VPS_USER }}"
           PASS="${{ secrets.VPS_PASSWORD_PROD || secrets.VPS_PASSWORD }}"
@@ -395,23 +418,14 @@ jobs:
           sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "mkdir -p /var/www/fluxbus/prod /var/www/fluxbus/traefik/dynamic"
           sshpass -p "$PASS" scp $SSH_OPTS docker-compose.fluxbus.prod.yml $USER@$HOST:/var/www/fluxbus/prod/docker-compose.yml
           sshpass -p "$PASS" scp $SSH_OPTS traefik-dynamic-prod.yml $USER@$HOST:/var/www/fluxbus/traefik/dynamic/prod.yml
+          sshpass -p "$PASS" scp $SSH_OPTS /tmp/prod.env $USER@$HOST:/var/www/fluxbus/prod/.env
+          rm -f /tmp/prod.env
 
           sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST << 'SSHEOF'
             set -e
             mkdir -p /var/www/fluxbus/prod
             rm -rf /var/www/secured_guard 2>/dev/null || true
             cd /var/www/fluxbus/prod
-            cat > .env << 'ENVEOF'
-            POSTGRES_DB_PROD=fluxbus_db_prod
-            POSTGRES_USER_PROD=fluxbus_user_prod
-            POSTGRES_PASSWORD_PROD=${{ secrets.POSTGRES_PASSWORD_PROD }}
-            REDIS_PASSWORD_PROD=${{ secrets.REDIS_PASSWORD_PROD }}
-            JWT_SECRET_PROD=${{ secrets.JWT_SECRET_PROD }}
-            MAIL_HOST=mail.z7design.com.br
-            MAIL_PORT=465
-            MAIL_USERNAME=securedguard@z7design.com.br
-            MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
-            ENVEOF
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
             docker tag z7design/fluxbus-backend:prod z7design/fluxbus-backend:backup-$(date +%Y%m%d-%H%M%S) 2>/dev/null || true
             docker compose pull

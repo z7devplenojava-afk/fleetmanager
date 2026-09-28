@@ -122,19 +122,19 @@ jobs:
           fi
           ls -la docker-compose.fluxbus.prod.yml
 
-      - name: 📋 Copiar docker-compose.fluxbus.prod.yml para a VPS
+      - name: 📋 Copiar arquivos de configuracao para a VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           password: ${{ env.VPS_PASSWORD }}
           port: 22
-          source: "docker-compose.fluxbus.prod.yml"
+          source: "docker-compose.fluxbus.prod.yml,traefik-dynamic-prod.yml"
           target: "/var/www/fluxbus/prod/"
           strip_components: 0
           overwrite: true
 
-      - name: 🔧 Renomear arquivo e criar .env na VPS
+      - name: 🔧 Organizar arquivos e criar .env na VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ env.VPS_HOST }}
@@ -142,20 +142,16 @@ jobs:
           password: ${{ env.VPS_PASSWORD }}
           port: 22
           script: |
-            # Criar diretório principal e subpastas se não existirem
             mkdir -p /var/www/fluxbus/ci
             mkdir -p /var/www/fluxbus/dev
             mkdir -p /var/www/fluxbus/prod
+            mkdir -p /var/www/fluxbus/traefik/dynamic
             cd /var/www/fluxbus/prod
 
-            # Renomear arquivo para docker-compose.yml
             mv -f docker-compose.fluxbus.prod.yml docker-compose.yml
+            cp -f traefik-dynamic-prod.yml /var/www/fluxbus/traefik/dynamic/prod.yml
 
-            # Criar arquivo .env com as variáveis USANDO AS SECRETS
             cat > .env << 'EOF'
-            # ========================================
-            # VARIÁVEIS DE AMBIENTE PARA FLUXBUS.COM.BR
-            # ========================================
             POSTGRES_DB_PROD=fluxbus_db_prod
             POSTGRES_USER_PROD=fluxbus_user_prod
             POSTGRES_PASSWORD_PROD=${{ secrets.POSTGRES_PASSWORD_PROD }}
@@ -165,10 +161,11 @@ jobs:
             MAIL_PORT=465
             MAIL_USERNAME=securedguard@z7design.com.br
             MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
-            EOF
+            EVOLUTION_API_KEY_PROD=${{ secrets.EVOLUTION_API_KEY_PROD || 'B6D711FCDE4D4FD5936544120E713976' }}
+            EVOLUTION_API_INSTANCE_PROD=fluxbus_prod
+EOF
 
             echo ".env e docker-compose.yml criados com sucesso em /var/www/fluxbus/prod!"
-            ls -la /var/www/fluxbus/
             ls -la /var/www/fluxbus/prod/
 
       - name: 🚀 Pull das novas imagens e restart dos containers
@@ -192,6 +189,9 @@ jobs:
 
             echo "🚀 Subindo novos containers..."
             docker compose up -d
+
+            echo "🔄 Reiniciando Traefik..."
+            docker restart traefik 2>/dev/null || true
 
             echo "✅ Deploy concluído!"
             echo "📊 Status dos containers:"

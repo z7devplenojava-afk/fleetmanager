@@ -254,55 +254,254 @@ public class EPIDeliveryFormService {
     }
 
     @Transactional
+    public EPIDeliveryFormDTO update(UUID id, CreateEPIDeliveryFormDTO dto, UUID updatedByUserId) {
+        log.info("📝 Atualizando ficha de entrega de EPI id: {}", id);
+
+        EPIDeliveryForm form = epiDeliveryFormRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ficha de entrega de EPI não encontrada com id: " + id));
+
+        if (dto.getDeliveryDate() != null) {
+            form.setDeliveryDate(dto.getDeliveryDate());
+        }
+        if (dto.getObservations() != null) {
+            form.setObservations(dto.getObservations());
+        }
+        if (dto.getPdfUrl() != null) {
+            form.setPdfUrl(dto.getPdfUrl());
+        }
+
+        if (dto.getResponsibleEmployeeId() != null) {
+            Employee responsible = employeeRepository.findById(dto.getResponsibleEmployeeId()).orElse(null);
+            form.setResponsibleEmployee(responsible);
+        }
+
+        Employee employee = form.getEmployee();
+
+        // Se novos itens foram enviados, estornar os anteriores e cadastrar os novos
+        if (dto.getItems() != null) {
+            // 1. Estorno dos itens antigos do estoque
+            if (form.getItems() != null && !form.getItems().isEmpty()) {
+                for (EPIDeliveryFormItem oldItem : form.getItems()) {
+                    int oldQty = oldItem.getQuantity() != null ? oldItem.getQuantity() : 1;
+                    String epiName = oldItem.getEpiName();
+
+                    // Devolver SST
+                    List<PersonalProtectiveEquipment> epis = epiRepository.findByNameContainingIgnoreCase(epiName);
+                    for (PersonalProtectiveEquipment epi : epis) {
+                        if (epi.getName().equalsIgnoreCase(epiName) && Boolean.TRUE.equals(epi.getIsActive())) {
+                            int cur = epi.getCurrentStock() != null ? epi.getCurrentStock() : 0;
+                            epi.setCurrentStock(cur + oldQty);
+                            epiRepository.save(epi);
+                            break;
+                        }
+                    }
+
+                    // Devolver Almoxarifado
+                    StockItem stockItem = null;
+                    if (oldItem.getStockItemId() != null) {
+                        stockItem = stockItemRepository.findById(oldItem.getStockItemId()).orElse(null);
+                    }
+                    if (stockItem == null) {
+                        stockItem = stockItemRepository.findByNameContainingIgnoreCase(epiName).stream()
+                                .filter(si -> Boolean.TRUE.equals(si.getActive()))
+                                .findFirst().orElse(null);
+                    }
+                    if (stockItem != null) {
+                        int prevStock = stockItem.getCurrentQuantity() != null ? stockItem.getCurrentQuantity() : 0;
+                        int newStock = prevStock + oldQty;
+                        stockItem.setCurrentQuantity(newStock);
+                        stockItemRepository.save(stockItem);
+
+                        try {
+                            StockMovement movement = new StockMovement();
+                            movement.setStockItem(stockItem);
+                            movement.setMovementType(MovementType.ENTRADA);
+                            movement.setReason(MovementReason.DEVOLUCAO);
+                            movement.setQuantity(oldQty);
+                            movement.setPreviousQuantity(prevStock);
+                            movement.setNewQuantity(newStock);
+                            movement.setDocumentNumber("ESTORNO-EDICAO-SST");
+                            movement.setMovementDate(java.time.LocalDateTime.now());
+                            movement.setNotes("Estorno de item para reedição da Ficha de EPI #" + id.toString().substring(0, 8));
+                            stockMovementRepository.save(movement);
+                        } catch (Exception ex) {
+                            log.warn("Erro ao registrar estorno de edição: {}", ex.getMessage());
+                        }
+                    }
+                }
+                form.getItems().clear();
+            }
+
+            // 2. Dar baixa e adicionar novos itens
+            for (EPIDeliveryFormItemDTO itemDto : dto.getItems()) {
+                String epiName = itemDto.getEpiName();
+                if (epiName == null || epiName.trim().isEmpty()) {
+                    epiName = "EPI";
+                }
+                Integer quantity = itemDto.getQuantity() != null ? itemDto.getQuantity() : 1;
+
+                StockItem stockItem = null;
+                PersonalProtectiveEquipment epi = null;
+
+                if (itemDto.getStockItemId() != null) {
+                    stockItem = stockItemRepository.findById(itemDto.getStockItemId()).orElse(null);
+                    epi = epiRepository.findByStockItemId(itemDto.getStockItemId()).orElse(null);
+                }
+
+                if (epi == null) {
+                    List<PersonalProtectiveEquipment> epis = epiRepository.findByNameContainingIgnoreCase(epiName);
+                    for (PersonalProtectiveEquipment e : epis) {
+                        if (e.getName().equalsIgnoreCase(epiName) && Boolean.TRUE.equals(e.getIsActive())) {
+                            epi = e;
+                            break;
+                        }
+                    }
+                    if (epi == null && !epis.isEmpty()) {
+                        epi = epis.stream().filter(e -> Boolean.TRUE.equals(e.getIsActive())).findFirst().orElse(null);
+                    }
+                }
+
+                if (stockItem == null && epi != null && epi.getStockItemId() != null) {
+                    stockItem = stockItemRepository.findById(epi.getStockItemId()).orElse(null);
+                }
+
+                if (stockItem == null) {
+                    List<StockItem> stockItems = stockItemRepository.findByNameContainingIgnoreCase(epiName);
+                    for (StockItem si : stockItems) {
+                        if (si.getName().equalsIgnoreCase(epiName) && Boolean.TRUE.equals(si.getActive())) {
+                            stockItem = si;
+                            break;
+                        }
+                    }
+                    if (stockItem == null && !stockItems.isEmpty()) {
+                        stockItem = stockItems.stream().filter(si -> Boolean.TRUE.equals(si.getActive())).findFirst().orElse(null);
+                    }
+                }
+
+                // Baixa SST
+                if (epi != null) {
+                    int cur = epi.getCurrentStock() != null ? epi.getCurrentStock() : 0;
+                    epi.setCurrentStock(Math.max(0, cur - quantity));
+                    epiRepository.save(epi);
+                }
+
+                // Baixa Almoxarifado
+                UUID linkedStockItemId = stockItem != null ? stockItem.getId() : (epi != null ? epi.getStockItemId() : null);
+                if (stockItem != null) {
+                    int prevStock = stockItem.getCurrentQuantity() != null ? stockItem.getCurrentQuantity() : 0;
+                    int newStock = Math.max(0, prevStock - quantity);
+                    stockItem.setCurrentQuantity(newStock);
+                    stockItemRepository.save(stockItem);
+
+                    try {
+                        StockMovement movement = new StockMovement();
+                        movement.setStockItem(stockItem);
+                        movement.setMovementType(MovementType.SAIDA);
+                        movement.setReason(MovementReason.ENTREGA_INICIAL);
+                        movement.setQuantity(quantity);
+                        movement.setPreviousQuantity(prevStock);
+                        movement.setNewQuantity(newStock);
+                        movement.setDocumentNumber("FICHA-SST-EDIT");
+                        movement.setMovementDate(form.getDeliveryDate() != null ? form.getDeliveryDate().atStartOfDay() : java.time.LocalDateTime.now());
+                        movement.setNotes("Atualização Ficha EPI #" + id.toString().substring(0, 8) + " - " + (employee != null ? employee.getName() : ""));
+                        stockMovementRepository.save(movement);
+                    } catch (Exception ex) {
+                        log.warn("Erro ao registrar movimento de saída na atualização: {}", ex.getMessage());
+                    }
+                }
+
+                EPIDeliveryFormItem newItem = EPIDeliveryFormItem.builder()
+                        .deliveryForm(form)
+                        .stockItemId(linkedStockItemId)
+                        .epiName(epiName)
+                        .quantity(quantity)
+                        .ca(itemDto.getCa() != null ? itemDto.getCa() : (epi != null ? epi.getCaNumber() : (stockItem != null ? stockItem.getCaNumber() : null)))
+                        .caName(itemDto.getCaName())
+                        .validityDate(itemDto.getValidityDate() != null ? itemDto.getValidityDate() : (epi != null ? epi.getCaValidity() : (stockItem != null ? stockItem.getCaValidity() : null)))
+                        .uniformType(itemDto.getUniformType())
+                        .uniformPiece(itemDto.getUniformPiece())
+                        .observations(itemDto.getObservations())
+                        .build();
+                form.getItems().add(newItem);
+            }
+        }
+
+        EPIDeliveryForm saved = epiDeliveryFormRepository.save(form);
+        log.info("✅ Ficha de entrega de EPI atualizada com sucesso: {}", saved.getId());
+        return EPIDeliveryFormDTO.fromEntity(saved);
+    }
+
+    @Transactional
     public void delete(UUID id) {
         EPIDeliveryForm form = epiDeliveryFormRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Ficha de entrega de EPI nÃ£o encontrada com id: " + id));
-        
-        // Devolver itens ao estoque antes de deletar
+                .orElseThrow(() -> new ResourceNotFoundException("Ficha de entrega de EPI não encontrada com id: " + id));
+
+        // Devolver itens ao estoque antes de deletar (tanto SST quanto Almoxarifado)
         if (form.getItems() != null && !form.getItems().isEmpty()) {
             for (EPIDeliveryFormItem item : form.getItems()) {
                 String epiName = item.getEpiName();
                 Integer quantity = item.getQuantity() != null ? item.getQuantity() : 1;
-                
-                // Buscar EPI pelo nome no estoque
+
+                // 1. Devolver no estoque SST
                 List<PersonalProtectiveEquipment> epis = epiRepository.findByNameContainingIgnoreCase(epiName);
                 PersonalProtectiveEquipment epi = null;
-                
-                // Tentar encontrar EPI exato primeiro
                 for (PersonalProtectiveEquipment e : epis) {
-                    if (e.getName().equalsIgnoreCase(epiName) && e.getIsActive()) {
+                    if (e.getName().equalsIgnoreCase(epiName) && Boolean.TRUE.equals(e.getIsActive())) {
                         epi = e;
                         break;
                     }
                 }
-                
-                // Se nÃ£o encontrou exato, pegar o primeiro ativo
                 if (epi == null && !epis.isEmpty()) {
                     epi = epis.stream()
-                            .filter(e -> e.getIsActive())
+                            .filter(e -> Boolean.TRUE.equals(e.getIsActive()))
                             .findFirst()
                             .orElse(null);
                 }
-                
-                // Se encontrou o EPI, devolver ao estoque
                 if (epi != null) {
-                    Integer currentStock = epi.getCurrentStock();
+                    Integer currentStock = epi.getCurrentStock() != null ? epi.getCurrentStock() : 0;
                     Integer newStock = currentStock + quantity;
                     epi.setCurrentStock(newStock);
                     epiRepository.save(epi);
-                    
-                    log.info("ðŸ“¦ DevoluÃ§Ã£o ao estoque: EPI '{}' - Quantidade: {} - Estoque anterior: {} - Estoque atual: {}", 
-                        epiName, quantity, currentStock, newStock);
-                } else {
-                    log.warn("âš ï¸ EPI '{}' nÃ£o encontrado no estoque. NÃ£o foi possÃ­vel devolver ao estoque.", epiName);
+                    log.info("📦 Devolução ao estoque SST: EPI '{}' - Quantidade: {} - Novo saldo: {}", epiName, quantity, newStock);
+                }
+
+                // 2. Devolver no Almoxarifado (StockItem)
+                StockItem stockItem = null;
+                if (item.getStockItemId() != null) {
+                    stockItem = stockItemRepository.findById(item.getStockItemId()).orElse(null);
+                }
+                if (stockItem == null) {
+                    stockItem = stockItemRepository.findByNameContainingIgnoreCase(epiName).stream()
+                            .filter(si -> Boolean.TRUE.equals(si.getActive()))
+                            .findFirst().orElse(null);
+                }
+                if (stockItem != null) {
+                    int prevStock = stockItem.getCurrentQuantity() != null ? stockItem.getCurrentQuantity() : 0;
+                    int newStock = prevStock + quantity;
+                    stockItem.setCurrentQuantity(newStock);
+                    stockItemRepository.save(stockItem);
+
+                    try {
+                        StockMovement movement = new StockMovement();
+                        movement.setStockItem(stockItem);
+                        movement.setMovementType(MovementType.ENTRADA);
+                        movement.setReason(MovementReason.DEVOLUCAO);
+                        movement.setQuantity(quantity);
+                        movement.setPreviousQuantity(prevStock);
+                        movement.setNewQuantity(newStock);
+                        movement.setDocumentNumber("CANCEL-FICHA-SST");
+                        movement.setMovementDate(java.time.LocalDateTime.now());
+                        movement.setNotes("Estorno de Ficha de EPI excluída #" + id.toString().substring(0, 8));
+                        stockMovementRepository.save(movement);
+                        log.info("📦 Devolução ao Almoxarifado registrada: Item '{}' (+{} un). Novo saldo: {}", stockItem.getName(), quantity, newStock);
+                    } catch (Exception ex) {
+                        log.warn("Erro ao registrar estorno de movimentação no Almoxarifado: {}", ex.getMessage());
+                    }
                 }
             }
         }
-        
+
         epiDeliveryFormRepository.deleteById(id);
-        log.info("ðŸ—‘ï¸ Ficha de entrega de EPI deletada: {}", id);
+        log.info("🗑️ Ficha de entrega de EPI deletada com sucesso: {}", id);
     }
 }
-
-
-

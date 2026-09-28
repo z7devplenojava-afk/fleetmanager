@@ -32,11 +32,22 @@ import {
   Plus,
   Shield,
   Eye,
+  Pencil,
+  Trash2,
+  Printer,
   Phone,
   Mail,
   CreditCard,
   Building,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import employeeService, { Employee } from '@/services/employeeService';
@@ -67,6 +78,13 @@ export const EmployeeSSTView: React.FC = () => {
   const [epiForms, setEpiForms] = useState<EPIDeliveryForm[]>([]);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [isEpiDeliveryModalOpen, setIsEpiDeliveryModalOpen] = useState(false);
+
+  // Estados para Gestão de Fichas de EPI (Ações: Visualizar, Editar, Excluir)
+  const [selectedFichaForView, setSelectedFichaForView] = useState<EPIDeliveryForm | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [editingFicha, setEditingFicha] = useState<EPIDeliveryForm | null>(null);
+  const [fichaToDelete, setFichaToDelete] = useState<EPIDeliveryForm | null>(null);
+  const [isDeletingFicha, setIsDeletingFicha] = useState(false);
 
   // Carregar lista de colaboradores ao montar
   useEffect(() => {
@@ -211,6 +229,32 @@ export const EmployeeSSTView: React.FC = () => {
       });
     } finally {
       setDownloadingPdfId(null);
+    }
+  };
+
+  // Exclusão de Ficha de EPI com estorno de estoque
+  const handleDeleteFicha = async () => {
+    if (!fichaToDelete) return;
+    try {
+      setIsDeletingFicha(true);
+      await epiDeliveryFormService.delete(fichaToDelete.id);
+      toast({
+        title: 'Ficha Excluída com Sucesso',
+        description: 'A entrega foi cancelada e os itens foram estornados ao estoque.',
+      });
+      setFichaToDelete(null);
+      if (selectedEmployee?.id) {
+        await loadEmployeeSSTData(selectedEmployee.id);
+      }
+    } catch (err: any) {
+      console.error('Erro ao excluir ficha de EPI:', err);
+      toast({
+        title: 'Erro ao excluir ficha',
+        description: err.response?.data?.message || 'Falha ao excluir registro de entrega de EPI.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingFicha(false);
     }
   };
 
@@ -886,7 +930,10 @@ export const EmployeeSSTView: React.FC = () => {
                       </div>
                       <Button
                         size="sm"
-                        onClick={() => setIsEpiDeliveryModalOpen(true)}
+                        onClick={() => {
+                          setEditingFicha(null);
+                          setIsEpiDeliveryModalOpen(true);
+                        }}
                         className="text-xs bg-seguranca-red hover:bg-seguranca-darkred text-white h-7"
                       >
                         <Plus className="h-3 w-3 mr-1" />
@@ -903,10 +950,10 @@ export const EmployeeSSTView: React.FC = () => {
                         <Table>
                           <TableHeader className="bg-seguranca-black/40">
                             <TableRow className="border-gray-700">
-                              <TableHead className="text-xs text-gray-300">Identificador da Ficha</TableHead>
+                              <TableHead className="text-xs text-gray-300">Identificador</TableHead>
                               <TableHead className="text-xs text-gray-300">Data de Entrega</TableHead>
-                              <TableHead className="text-xs text-gray-300">Itens Fornecidos</TableHead>
-                              <TableHead className="text-xs text-gray-300">Responsável pela Entrega</TableHead>
+                              <TableHead className="text-xs text-gray-300">Itens Entregues</TableHead>
+                              <TableHead className="text-xs text-gray-300">Responsável</TableHead>
                               <TableHead className="text-xs text-gray-300 text-right">Ações</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -917,32 +964,81 @@ export const EmployeeSSTView: React.FC = () => {
                                   #{form.id.substring(0, 8)}
                                 </TableCell>
                                 <TableCell className="text-xs text-gray-300">
-                                  {form.deliveryDate ? new Date(form.deliveryDate).toLocaleDateString('pt-BR') : '—'}
+                                  {form.deliveryDate ? new Date(form.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
                                 </TableCell>
                                 <TableCell className="text-xs text-gray-300">
-                                  <Badge variant="outline" className="border-gray-500 text-gray-300 text-[10px]">
-                                    {form.items ? `${form.items.length} item(ns)` : '0 itens'}
-                                  </Badge>
+                                  <div className="flex flex-col gap-0.5 max-w-[240px]">
+                                    <Badge variant="outline" className="border-gray-500 text-gray-300 text-[10px] w-fit">
+                                      {form.items ? `${form.items.length} item(ns)` : '0 itens'}
+                                    </Badge>
+                                    <span className="text-[11px] text-gray-400 truncate">
+                                      {form.items?.map(i => `${i.quantity}x ${i.epiName}`).join(', ') || 'Nenhum item'}
+                                    </span>
+                                  </div>
                                 </TableCell>
                                 <TableCell className="text-xs text-gray-400">
-                                  {form.responsibleEmployeeName || form.createdByName || '—'}
+                                  {form.responsibleEmployeeName || form.createdByName || 'Almoxarifado / SST'}
                                 </TableCell>
                                 <TableCell className="text-xs text-right">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleDownloadEpiPdf(form.id)}
-                                    disabled={downloadingPdfId === form.id}
-                                    className="h-7 text-xs border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
-                                    title="Baixar PDF da Ficha de EPI assinada"
-                                  >
-                                    {downloadingPdfId === form.id ? (
-                                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                                    ) : (
-                                      <Download className="h-3.5 w-3.5 mr-1 text-seguranca-yellow" />
-                                    )}
-                                    Baixar PDF
-                                  </Button>
+                                  <div className="flex items-center justify-end gap-1">
+                                    {/* Botão Visualizar */}
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setSelectedFichaForView(form);
+                                        setIsViewModalOpen(true);
+                                      }}
+                                      className="h-7 px-2 text-xs text-blue-400 hover:text-white hover:bg-blue-600/20"
+                                      title="Visualizar Detalhes da Ficha"
+                                    >
+                                      <Eye className="h-3.5 w-3.5 mr-1" />
+                                      Visualizar
+                                    </Button>
+
+                                    {/* Botão Editar */}
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setEditingFicha(form);
+                                        setIsEpiDeliveryModalOpen(true);
+                                      }}
+                                      className="h-7 px-2 text-xs text-amber-400 hover:text-white hover:bg-amber-600/20"
+                                      title="Editar Ficha de EPI"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5 mr-1" />
+                                      Editar
+                                    </Button>
+
+                                    {/* Botão Excluir */}
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setFichaToDelete(form)}
+                                      className="h-7 px-2 text-xs text-rose-400 hover:text-white hover:bg-rose-600/20"
+                                      title="Excluir Ficha (Estorna Estoque)"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                      Excluir
+                                    </Button>
+
+                                    {/* Botão Baixar PDF */}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleDownloadEpiPdf(form.id)}
+                                      disabled={downloadingPdfId === form.id}
+                                      className="h-7 px-2 text-xs border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+                                      title="Baixar PDF Oficial assinado"
+                                    >
+                                      {downloadingPdfId === form.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <Download className="h-3.5 w-3.5 text-seguranca-yellow" />
+                                      )}
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -970,19 +1066,236 @@ export const EmployeeSSTView: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal Completo de Ficha de EPI (Preenchida / Manual, Paisagem / Retrato, Assinatura Digital) */}
+      {/* Modal Completo de Ficha de EPI (Preenchida / Manual, Paisagem / Retrato, Assinatura Digital, Criação e Edição) */}
       <EpiDeliveryModal
         isOpen={isEpiDeliveryModalOpen}
-        onClose={() => setIsEpiDeliveryModalOpen(false)}
+        onClose={() => {
+          setIsEpiDeliveryModalOpen(false);
+          setEditingFicha(null);
+        }}
         employee={selectedEmployee}
+        initialData={editingFicha}
         onSuccess={() => {
           if (selectedEmployee?.id) {
             loadEmployeeSSTData(selectedEmployee.id);
           }
         }}
       />
+
+      {/* Modal de Visualização de Detalhes da Ficha de EPI */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="max-w-3xl bg-seguranca-graphite border-gray-700 text-white max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="border-b border-gray-700/80 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-seguranca-yellow/20 text-seguranca-yellow border border-seguranca-yellow/30">
+                <HardHat className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                  Ficha de Entrega de EPI #{selectedFichaForView?.id?.substring(0, 8)}
+                  <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-xs">
+                    NR-6 / SST
+                  </Badge>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-gray-400">
+                  Comprovante oficial de entrega e responsabilidade de Equipamentos de Proteção Individual
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {selectedFichaForView && (
+            <div className="space-y-4 py-2">
+              {/* Card Colaborador */}
+              <div className="bg-seguranca-black/60 border border-gray-700 rounded-xl p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">Colaborador</span>
+                  <span className="text-white font-bold">{selectedFichaForView.employeeName || selectedEmployee?.name}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">Matrícula</span>
+                  <span className="text-white font-mono">{selectedEmployee?.registrationNumber || 'EMP' + selectedFichaForView.employeeId?.substring(0, 4)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">Função</span>
+                  <span className="text-white">{selectedEmployee?.positionDescription || selectedEmployee?.role || 'Operacional'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">Data Entrega</span>
+                  <span className="text-seguranca-yellow font-bold">
+                    {selectedFichaForView.deliveryDate ? new Date(selectedFichaForView.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Tabela de Itens Entregues */}
+              <div>
+                <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Shield className="h-4 w-4 text-seguranca-yellow" />
+                  EPIs e Uniformes Registrados ({selectedFichaForView.items?.length || 0})
+                </h4>
+                <div className="border border-gray-700 rounded-xl overflow-hidden bg-seguranca-black/40">
+                  <Table>
+                    <TableHeader className="bg-gray-800/80">
+                      <TableRow className="border-gray-700 text-xs">
+                        <TableHead className="text-gray-300 text-xs">#</TableHead>
+                        <TableHead className="text-gray-300 text-xs">Descrição do EPI</TableHead>
+                        <TableHead className="text-gray-300 text-xs text-center">Nº do C.A.</TableHead>
+                        <TableHead className="text-gray-300 text-xs text-center">Qtd</TableHead>
+                        <TableHead className="text-gray-300 text-xs">Observações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedFichaForView.items && selectedFichaForView.items.length > 0 ? (
+                        selectedFichaForView.items.map((item, idx) => (
+                          <TableRow key={idx} className="border-gray-800 text-xs">
+                            <TableCell className="font-mono text-gray-400">{idx + 1}</TableCell>
+                            <TableCell className="font-semibold text-white">{item.epiName}</TableCell>
+                            <TableCell className="text-center">
+                              {item.ca ? (
+                                <Badge variant="outline" className="border-blue-500/40 text-blue-400 text-[10px] font-mono">
+                                  CA {item.ca}
+                                </Badge>
+                              ) : (
+                                <span className="text-gray-500">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center font-bold text-seguranca-yellow">{item.quantity}</TableCell>
+                            <TableCell className="text-gray-400 text-xs">{item.observations || '—'}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-4 text-gray-400 text-xs">
+                            Nenhum item discriminado nesta ficha (Ficha manual ou sem itens registrados).
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Informações de Auditoria e Termo */}
+              <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-3 text-xs space-y-1.5 text-gray-400">
+                <div className="flex justify-between items-center text-[11px]">
+                  <span>Responsável pela Entrega: <strong className="text-gray-200">{selectedFichaForView.responsibleEmployeeName || selectedFichaForView.createdByName || 'Almoxarifado'}</strong></span>
+                  <span>Registrado em: <strong className="text-gray-200">{selectedFichaForView.createdAt ? new Date(selectedFichaForView.createdAt).toLocaleDateString('pt-BR') : '—'}</strong></span>
+                </div>
+                {selectedFichaForView.observations && (
+                  <div className="pt-1 border-t border-gray-800 text-gray-300 text-[11px]">
+                    <span className="font-bold text-gray-400">Observações:</span> {selectedFichaForView.observations}
+                  </div>
+                )}
+                <div className="pt-1 text-[10px] text-gray-500 italic">
+                  Conforme a NR-6 da Portaria 3.214/78 do MTE, o empregado declara ter recebido os equipamentos acima em perfeito estado de conservação e funcionamento, obrigando-se a usá-los exclusivamente para as atividades da empresa.
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="border-t border-gray-700/80 pt-3 flex flex-row items-center justify-between">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsViewModalOpen(false)}
+              className="text-xs text-gray-400 hover:text-white"
+            >
+              Fechar
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setEditingFicha(selectedFichaForView);
+                  setIsEpiDeliveryModalOpen(true);
+                }}
+                className="text-xs border-amber-500/50 text-amber-400 hover:bg-amber-500/10 h-8"
+              >
+                <Pencil className="h-3.5 w-3.5 mr-1" />
+                Editar Ficha
+              </Button>
+              {selectedFichaForView && (
+                <Button
+                  type="button"
+                  onClick={() => handleDownloadEpiPdf(selectedFichaForView.id)}
+                  disabled={downloadingPdfId === selectedFichaForView.id}
+                  className="text-xs bg-seguranca-yellow hover:bg-yellow-500 text-seguranca-black font-bold h-8"
+                >
+                  {downloadingPdfId === selectedFichaForView.id ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  Baixar PDF Oficial
+                </Button>
+              )}
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Exclusão da Ficha de EPI */}
+      <Dialog open={Boolean(fichaToDelete)} onOpenChange={(open) => !open && setFichaToDelete(null)}>
+        <DialogContent className="max-w-md bg-seguranca-graphite border-gray-700 text-white">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-400">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-white">
+                  Excluir Ficha de Entrega de EPI?
+                </DialogTitle>
+                <DialogDescription className="text-xs text-gray-400">
+                  Esta ação é irreversível e estornará os itens ao estoque.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {fichaToDelete && (
+            <div className="space-y-3 py-2 text-xs text-gray-300">
+              <p>
+                Você está prestes a excluir a ficha <strong className="text-white font-mono">#{fichaToDelete.id.substring(0, 8)}</strong> emitida para <strong className="text-white">{fichaToDelete.employeeName || selectedEmployee?.name}</strong>.
+              </p>
+              <div className="bg-rose-950/30 border border-rose-800/50 rounded-lg p-2.5 text-[11px] text-rose-300">
+                ⚠️ Os <strong className="text-white">{fichaToDelete.items?.length || 0} item(ns)</strong> registrados nesta ficha serão automaticamente devolvidos ao estoque do Almoxarifado e SST.
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="border-t border-gray-700/80 pt-3 flex gap-2 justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setFichaToDelete(null)}
+              disabled={isDeletingFicha}
+              className="text-xs text-gray-400 hover:text-white"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDeleteFicha}
+              disabled={isDeletingFicha}
+              className="text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold"
+            >
+              {isDeletingFicha ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Sim, Excluir Ficha
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 export default EmployeeSSTView;
+

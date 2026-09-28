@@ -100,7 +100,7 @@ services:
   # WHATSAPP SERVICE (Evolution API) PROD
   # ========================================
   evolution-api-prod:
-    image: atendai/evolution-api:v2.1.1
+    image: evoapicloud/evolution-api:v2.3.7
     container_name: fluxbus-evolution-api-prod
     environment:
       - SERVER_URL=http://localhost:8080

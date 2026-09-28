@@ -9,6 +9,7 @@ import {
   RefreshCw, 
   RotateCcw, 
   Eye, 
+  Pencil,
   Trash2, 
   Calendar, 
   User, 
@@ -42,7 +43,6 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -55,6 +55,7 @@ import { employeeService, Employee } from '@/services/employeeService';
 import { companyService, Company } from '@/services/companyService';
 import { stockService } from '@/services/stockService';
 import { StockItem } from '@/types/stock';
+import { EpiDeliveryModal } from '@/components/sst/EpiDeliveryModal';
 
 export const StockEpiDeliveryFormsTab: React.FC = () => {
   const { toast } = useToast();
@@ -74,22 +75,13 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
   const [companyFilter, setCompanyFilter] = useState<string>('ALL');
 
   // Modais
-  const [showNewModal, setShowNewModal] = useState<boolean>(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState<boolean>(false);
+  const [selectedFichaForEdit, setSelectedFichaForEdit] = useState<EPIDeliveryForm | null>(null);
+  const [selectedEmployeeForModal, setSelectedEmployeeForModal] = useState<Employee | null>(null);
   const [showViewModal, setShowViewModal] = useState<boolean>(false);
   const [selectedFicha, setSelectedFicha] = useState<EPIDeliveryForm | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [fichaToDelete, setFichaToDelete] = useState<EPIDeliveryForm | null>(null);
-
-  // Form de Nova Ficha Manual
-  const [newEmployeeId, setNewEmployeeId] = useState<string>('');
-  const [newCompanyId, setNewCompanyId] = useState<string>('');
-  const [newDeliveryDate, setNewDeliveryDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const [newResponsibleId, setNewResponsibleId] = useState<string>('');
-  const [newObservations, setNewObservations] = useState<string>('');
-  const [itemsList, setItemsList] = useState<EPIDeliveryFormItem[]>([
-    { epiName: '', quantity: 1, ca: '', observations: '' }
-  ]);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // Carregar dados
   const loadData = useCallback(async () => {
@@ -152,107 +144,25 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
     return true;
   });
 
-  // Ações de itens no form
-  const handleAddItemRow = () => {
-    setItemsList(prev => [...prev, { epiName: '', quantity: 1, ca: '', observations: '' }]);
+  // Abrir modal oficial de emissão (mesma tela do SST)
+  const handleOpenCreate = () => {
+    setSelectedEmployeeForModal(null);
+    setSelectedFichaForEdit(null);
+    setShowDeliveryModal(true);
   };
 
-  const handleRemoveItemRow = (idx: number) => {
-    setItemsList(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const handleItemChange = (idx: number, field: keyof EPIDeliveryFormItem, val: any) => {
-    setItemsList(prev => {
-      const updated = [...prev];
-      updated[idx] = { ...updated[idx], [field]: val };
-      return updated;
-    });
-  };
-
-  const handleStockItemSelect = (idx: number, stockItemId: string) => {
-    const item = stockItems.find(s => s.id === stockItemId);
-    if (item) {
-      setItemsList(prev => {
-        const updated = [...prev];
-        updated[idx] = {
-          ...updated[idx],
-          epiName: item.name,
-          ca: item.caNumber || '',
-          observations: item.location ? `Loc: ${item.location}` : ''
-        };
-        return updated;
-      });
-    }
-  };
-
-  // Salvar Nova Ficha e Gerar PDF
-  const handleSaveFicha = async () => {
-    if (!newEmployeeId) {
-      toast({ title: 'Atenção', description: 'Selecione o funcionário.', variant: 'destructive' });
-      return;
-    }
-    const emp = employees.find(e => e.id === newEmployeeId);
-    const resolvedCompanyId = newCompanyId || (emp as any)?.companyId || (companies[0]?.id);
-
-    if (!resolvedCompanyId) {
-      toast({ title: 'Atenção', description: 'Selecione a empresa.', variant: 'destructive' });
-      return;
-    }
-
-    const validItems = itemsList.filter(i => i.epiName.trim().length > 0);
-    if (validItems.length === 0) {
-      toast({ title: 'Atenção', description: 'Adicione pelo menos um EPI/Uniforme.', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      const payload: CreateEPIDeliveryForm = {
-        employeeId: newEmployeeId,
-        companyId: resolvedCompanyId,
-        deliveryDate: newDeliveryDate,
-        responsibleEmployeeId: newResponsibleId || undefined,
-        observations: newObservations.trim() || undefined,
-        items: validItems
-      };
-
-      // Gerar PDF e salvar
-      const pdfBlob = await epiDeliveryFormService.generateAndSavePdf(payload);
-      
-      // Fazer download automático do PDF para assinatura imediata
-      const url = window.URL.createObjectURL(pdfBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Ficha_EPI_${emp?.name || 'Funcionario'}_${newDeliveryDate}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast({
-        title: '✅ Ficha de EPI Gerada com Sucesso!',
-        description: 'O PDF oficial foi gerado e baixado para colher a assinatura do colaborador.'
-      });
-
-      setShowNewModal(false);
-      // Reset
-      setNewEmployeeId('');
-      setNewCompanyId('');
-      setNewResponsibleId('');
-      setNewObservations('');
-      setItemsList([{ epiName: '', quantity: 1, ca: '', observations: '' }]);
-
-      await loadData();
-    } catch (error: any) {
-      console.error('Erro ao gerar Ficha de EPI:', error);
-      toast({
-        title: 'Erro ao gerar ficha',
-        description: error.response?.data?.message || 'Falha ao salvar ficha de EPI.',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsSaving(false);
-    }
+  // Abrir modal oficial de edição
+  const handleOpenEdit = (ficha: EPIDeliveryForm) => {
+    const emp = employees.find(e => e.id === ficha.employeeId) || ({
+      id: ficha.employeeId,
+      name: ficha.employeeName,
+      document: ficha.employeeCpf,
+      cpf: ficha.employeeCpf,
+      companyId: ficha.companyId
+    } as any);
+    setSelectedEmployeeForModal(emp);
+    setSelectedFichaForEdit(ficha);
+    setShowDeliveryModal(true);
   };
 
   // Download PDF de ficha existente
@@ -329,10 +239,10 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2">
           <Button
-            onClick={() => setShowNewModal(true)}
+            onClick={handleOpenCreate}
             className="bg-seguranca-yellow text-seguranca-black hover:bg-yellow-500 font-bold text-xs"
           >
-            <Plus className="h-4 w-4 mr-1" /> Nova Entrega Manual
+            <Plus className="h-4 w-4 mr-1" /> Nova Ficha de EPI (NR-6 / SST)
           </Button>
           <Button
             variant="outline"
@@ -441,14 +351,19 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
 
                   <TableCell>
                     <div className="text-xs font-mono text-gray-300">
-                      {ficha.deliveryDate ? new Date(ficha.deliveryDate).toLocaleDateString('pt-BR') : '—'}
+                      {ficha.deliveryDate ? new Date(ficha.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
                     </div>
                   </TableCell>
 
                   <TableCell className="text-center">
-                    <Badge variant="outline" className="border-gray-600 bg-gray-900/80 text-gray-200 text-xs">
-                      {ficha.items?.length || 0} item(s)
-                    </Badge>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Badge variant="outline" className="border-gray-600 bg-gray-900/80 text-gray-200 text-xs">
+                        {ficha.items?.length || 0} item(s)
+                      </Badge>
+                      <span className="text-[10px] text-gray-400 max-w-[160px] truncate">
+                        {ficha.items?.map(i => `${i.quantity}x ${i.epiName}`).join(', ')}
+                      </span>
+                    </div>
                   </TableCell>
 
                   <TableCell>
@@ -463,6 +378,7 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
 
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {/* Visualizar */}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -470,40 +386,47 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
                           setSelectedFicha(ficha);
                           setShowViewModal(true);
                         }}
-                        className="h-8 w-8 p-0 text-blue-400 hover:text-white hover:bg-blue-600/30"
-                        title="Visualizar Itens"
+                        className="h-7 px-2 text-xs text-blue-400 hover:text-white hover:bg-blue-600/20"
+                        title="Visualizar Detalhes da Ficha"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-3.5 w-3.5 mr-1" />
+                        Visualizar
                       </Button>
 
+                      {/* Editar */}
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => handleDownloadPdf(ficha)}
-                        className="h-8 w-8 p-0 text-emerald-400 hover:text-white hover:bg-emerald-600/30"
-                        title="Baixar PDF para Assinatura do Funcionário"
+                        onClick={() => handleOpenEdit(ficha)}
+                        className="h-7 px-2 text-xs text-amber-400 hover:text-white hover:bg-amber-600/20"
+                        title="Editar Ficha de EPI"
                       >
-                        <FileText className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5 mr-1" />
+                        Editar
                       </Button>
 
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDownloadExcel(ficha)}
-                        className="h-8 w-8 p-0 text-cyan-400 hover:text-white hover:bg-cyan-600/30"
-                        title="Baixar Planilha Excel"
-                      >
-                        <FileSpreadsheet className="h-4 w-4" />
-                      </Button>
-
+                      {/* Excluir */}
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => setFichaToDelete(ficha)}
-                        className="h-8 w-8 p-0 text-rose-400 hover:text-white hover:bg-rose-600/30"
-                        title="Excluir Registro"
+                        className="h-7 px-2 text-xs text-rose-400 hover:text-white hover:bg-rose-600/20"
+                        title="Excluir Ficha (Estorna Estoque)"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        Excluir
+                      </Button>
+
+                      {/* Download PDF */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDownloadPdf(ficha)}
+                        className="h-7 px-2 text-xs border-gray-700 text-emerald-400 hover:bg-emerald-950"
+                        title="Baixar PDF Oficial para Assinatura"
+                      >
+                        <Download className="h-3.5 w-3.5 mr-1" />
+                        PDF
                       </Button>
                     </div>
                   </TableCell>
@@ -514,216 +437,18 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
         )}
       </div>
 
-      {/* ================= MODAL: NOVA ENTREGA MANUAL DE EPI ================= */}
-      <Dialog open={showNewModal} onOpenChange={setShowNewModal}>
-        <DialogContent className="max-w-3xl bg-seguranca-black border-gray-700 text-gray-100 max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-seguranca-lightgray flex items-center gap-2">
-              <HardHat className="h-5 w-5 text-seguranca-yellow" />
-              Nova Entrega & Ficha de EPI para Assinatura
-            </DialogTitle>
-            <DialogDescription className="text-xs text-gray-400">
-              Registre a entrega de uniformes/EPIs e gere a ficha oficial em PDF pronta para assinatura do funcionário.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            {/* Linha 1: Funcionário e Empresa */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs text-gray-300">Funcionário *</Label>
-                <Select value={newEmployeeId} onValueChange={setNewEmployeeId}>
-                  <SelectTrigger className="bg-gray-900 border-gray-700 text-xs h-9 mt-1">
-                    <SelectValue placeholder="Selecione o funcionário..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-700 text-gray-100 max-h-60">
-                    {employees.map(emp => (
-                      <SelectItem key={emp.id} value={emp.id} className="text-xs">
-                        {emp.name} {emp.document ? `(CPF: ${emp.document})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-xs text-gray-300">Empresa Contratante</Label>
-                <Select value={newCompanyId} onValueChange={setNewCompanyId}>
-                  <SelectTrigger className="bg-gray-900 border-gray-700 text-xs h-9 mt-1">
-                    <SelectValue placeholder="Selecione a empresa..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-700 text-gray-100">
-                    {companies.map(c => (
-                      <SelectItem key={c.id} value={c.id} className="text-xs">
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Linha 2: Data e Responsável */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs text-gray-300">Data de Entrega *</Label>
-                <Input
-                  type="date"
-                  value={newDeliveryDate}
-                  onChange={(e) => setNewDeliveryDate(e.target.value)}
-                  className="bg-gray-900 border-gray-700 text-xs h-9 mt-1"
-                />
-              </div>
-
-              <div>
-                <Label className="text-xs text-gray-300">Responsável pelo Almoxarifado</Label>
-                <Select value={newResponsibleId} onValueChange={setNewResponsibleId}>
-                  <SelectTrigger className="bg-gray-900 border-gray-700 text-xs h-9 mt-1">
-                    <SelectValue placeholder="Almoxarife / Entregador..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-700 text-gray-100 max-h-60">
-                    {employees.map(emp => (
-                      <SelectItem key={emp.id} value={emp.id} className="text-xs">
-                        {emp.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Lista de Itens */}
-            <div className="border border-gray-800 rounded-xl p-4 bg-gray-900/40 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-seguranca-yellow uppercase tracking-wider">
-                  Equipamentos / Uniformes Entregues
-                </span>
-                <Button
-                  size="sm"
-                  type="button"
-                  onClick={handleAddItemRow}
-                  variant="outline"
-                  className="border-gray-700 text-xs h-7 px-2 text-gray-200"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Item
-                </Button>
-              </div>
-
-              {itemsList.map((itemRow, idx) => (
-                <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-gray-900/80 p-2.5 rounded-lg border border-gray-800">
-                  <div className="sm:col-span-5">
-                    <Label className="text-[10px] text-gray-400">Nome do Item / EPI *</Label>
-                    <div className="flex gap-1 mt-0.5">
-                      <Input
-                        value={itemRow.epiName}
-                        onChange={(e) => handleItemChange(idx, 'epiName', e.target.value)}
-                        placeholder="Ex: Botina de Segurança Nº 41"
-                        className="bg-seguranca-black border-gray-700 text-xs h-8 text-gray-100 flex-1"
-                      />
-                      {stockItems.length > 0 && (
-                        <Select onValueChange={(val) => handleStockItemSelect(idx, val)}>
-                          <SelectTrigger className="w-8 h-8 p-0 bg-gray-800 border-gray-700 text-gray-400" title="Puxar do Estoque">
-                            <span className="text-xs">📦</span>
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-900 border-gray-700 text-gray-100 max-h-48">
-                            {stockItems.slice(0, 30).map(si => (
-                              <SelectItem key={si.id} value={si.id} className="text-xs">
-                                {si.name} (Qtd: {si.currentQuantity})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <Label className="text-[10px] text-gray-400">Qtd</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={itemRow.quantity}
-                      onChange={(e) => handleItemChange(idx, 'quantity', Number(e.target.value))}
-                      className="bg-seguranca-black border-gray-700 text-xs h-8 text-gray-100 mt-0.5"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <Label className="text-[10px] text-gray-400">Nº CA</Label>
-                    <Input
-                      value={itemRow.ca || ''}
-                      onChange={(e) => handleItemChange(idx, 'ca', e.target.value)}
-                      placeholder="Ex: 42150"
-                      className="bg-seguranca-black border-gray-700 text-xs h-8 text-gray-100 mt-0.5"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <Label className="text-[10px] text-gray-400">Observações</Label>
-                    <Input
-                      value={itemRow.observations || ''}
-                      onChange={(e) => handleItemChange(idx, 'observations', e.target.value)}
-                      placeholder="Tamanho G"
-                      className="bg-seguranca-black border-gray-700 text-xs h-8 text-gray-100 mt-0.5"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-1 flex justify-end pt-3">
-                    {itemsList.length > 1 && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleRemoveItemRow(idx)}
-                        className="h-7 w-7 p-0 text-rose-400 hover:bg-rose-950"
-                      >
-                        ✕
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Observações Gerais */}
-            <div>
-              <Label className="text-xs text-gray-300">Observações Gerais</Label>
-              <Textarea
-                value={newObservations}
-                onChange={(e) => setNewObservations(e.target.value)}
-                placeholder="Ex: Primeira entrega referente à admissão na obra."
-                className="bg-gray-900 border-gray-700 text-xs mt-1 h-16 text-gray-100"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="border-t border-gray-800 pt-3">
-            <Button
-              variant="outline"
-              onClick={() => setShowNewModal(false)}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800 text-xs"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveFicha}
-              disabled={isSaving}
-              className="bg-seguranca-yellow text-seguranca-black hover:bg-yellow-500 font-bold text-xs"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Gerando PDF...
-                </>
-              ) : (
-                <>
-                  <FileDown className="h-4 w-4 mr-2" />
-                  Salvar e Gerar Ficha para Assinar
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ================= MODAL: FICHA DE ENTREGA DE EPI UNIFICADA (NR-6 / SST / ALMOXARIFADO) ================= */}
+      <EpiDeliveryModal
+        isOpen={showDeliveryModal}
+        onClose={() => {
+          setShowDeliveryModal(false);
+          setSelectedFichaForEdit(null);
+          setSelectedEmployeeForModal(null);
+        }}
+        employee={selectedEmployeeForModal}
+        initialData={selectedFichaForEdit}
+        onSuccess={loadData}
+      />
 
       {/* ================= MODAL: VISUALIZAR DETALHES ================= */}
       <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
@@ -785,7 +510,7 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
             </div>
           )}
 
-          <DialogFooter className="border-t border-gray-800 pt-3 flex justify-between sm:justify-between items-center">
+          <DialogFooter className="border-t border-gray-800 pt-3 flex flex-row items-center justify-between">
             <Button
               variant="outline"
               size="sm"
@@ -794,16 +519,32 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
             >
               Fechar
             </Button>
-            {selectedFicha && (
-              <Button
-                size="sm"
-                onClick={() => handleDownloadPdf(selectedFicha)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
-              >
-                <Download className="h-4 w-4 mr-1.5" />
-                Baixar PDF da Ficha
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {selectedFicha && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setShowViewModal(false);
+                    handleOpenEdit(selectedFicha);
+                  }}
+                  className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 text-xs h-8"
+                >
+                  <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                  Editar Ficha
+                </Button>
+              )}
+              {selectedFicha && (
+                <Button
+                  size="sm"
+                  onClick={() => handleDownloadPdf(selectedFicha)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-8"
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Baixar PDF da Ficha
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -817,7 +558,7 @@ export const StockEpiDeliveryFormsTab: React.FC = () => {
               Excluir Ficha de EPI
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-400">
-              Tem certeza que deseja excluir o registro de entrega de EPI para <strong>{fichaToDelete?.employeeName}</strong>?
+              Tem certeza que deseja excluir a ficha de entrega de EPI para <strong>{fichaToDelete?.employeeName}</strong>? Os itens serão estornados automaticamente de volta ao saldo do Almoxarifado e SST.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 flex gap-2">

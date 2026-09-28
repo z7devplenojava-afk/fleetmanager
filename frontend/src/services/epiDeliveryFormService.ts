@@ -77,6 +77,19 @@ export const epiDeliveryFormService = {
   },
 
   /**
+   * Atualizar uma ficha de entrega de EPI existente
+   */
+  async update(id: string, data: Partial<CreateEPIDeliveryForm>): Promise<EPIDeliveryForm> {
+    try {
+      const response = await api.put(`/api/epi-delivery-forms/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao atualizar ficha de entrega de EPI:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Buscar ficha por ID
    */
   async getById(id: string): Promise<EPIDeliveryForm> {
