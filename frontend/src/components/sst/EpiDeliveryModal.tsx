@@ -35,6 +35,8 @@ import { stockService } from '@/services/stockService';
 import { StockItem } from '@/types/stock';
 import { epiDeliveryFormService, EPIDeliveryForm } from '@/services/epiDeliveryFormService';
 import { epiPdfGeneratorService, EpiFormItemData } from '@/services/epiPdfGeneratorService';
+import { companyService } from '@/services/companyService';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -140,6 +142,40 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
       clearSignature();
     }
   }, [isOpen, employee, initialData]);
+
+  const [company, setCompany] = useState<any>(null);
+
+  // Carregar dados da empresa (para cabeçalho oficial e logo)
+  useEffect(() => {
+    const fetchCompany = async () => {
+      try {
+        let compId = (activeEmployee as any)?.companyId || (activeEmployee as any)?.company?.id;
+        if (!compId) {
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            compId = u.companyId || u.company?.id;
+          }
+        }
+        if (compId) {
+          const c = await companyService.getCompanyById(compId);
+          if (c) {
+            setCompany(c);
+            return;
+          }
+        }
+        const myComp = await companyService.getMyCompany();
+        if (myComp) {
+          setCompany(myComp);
+        }
+      } catch (e) {
+        console.warn('Erro ao carregar dados da empresa para ficha de EPI:', e);
+      }
+    };
+    if (isOpen) {
+      fetchCompany();
+    }
+  }, [isOpen, activeEmployee]);
 
   const loadEmployees = async () => {
     try {
@@ -322,6 +358,24 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
       setIsGeneratingPdf(true);
       const signatureImg = getSignatureDataUrl();
 
+      let compAddress = '';
+      if (company) {
+        const parts = [];
+        if (company.enderecoRua) {
+          parts.push(company.enderecoRua + (company.enderecoNumero ? ', ' + company.enderecoNumero : ''));
+        } else if (company.address) {
+          parts.push(company.address);
+        }
+        if (company.enderecoBairro) parts.push(company.enderecoBairro);
+        if (company.city || company.state) parts.push(`${company.city || ''}/${company.state || ''}`);
+        if (company.zipCode) parts.push(company.zipCode);
+        compAddress = parts.join(' - ');
+      }
+
+      const formNumber = initialData?.id
+        ? `OS-${initialData.id.substring(0, 8).toUpperCase()}`
+        : `OS-EPI-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900000) + 100000)}`;
+
       await epiPdfGeneratorService.downloadPdf({
         employee: activeEmployee,
         orientation,
@@ -329,6 +383,11 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
         items: epiList,
         digitalSignature: signatureImg,
         signedAt: new Date(),
+        companyName: company?.name || (activeEmployee as any)?.company?.name,
+        companyLogo: resolveCompanyLogoUrl(company?.logoUrl || (activeEmployee as any)?.company?.logoUrl),
+        companyCnpj: company?.cnpj || (activeEmployee as any)?.company?.cnpj,
+        companyAddress: compAddress || (activeEmployee as any)?.company?.address,
+        formNumber: formNumber,
       });
 
       toast({

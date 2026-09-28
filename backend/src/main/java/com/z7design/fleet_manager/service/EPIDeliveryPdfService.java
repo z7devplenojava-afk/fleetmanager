@@ -35,6 +35,21 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
+import org.xhtmlrenderer.pdf.ITextRenderer;
+import org.springframework.beans.factory.annotation.Value;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import com.z7design.fleet_manager.util.CompanyDataFormatter;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -44,98 +59,37 @@ public class EPIDeliveryPdfService {
     private final CompanyRepository companyRepository;
     private final StandardReportLayoutService standardReportLayoutService;
     private final ExcelReportLayoutService excelReportLayoutService;
+    private final TemplateEngine templateEngine;
+
+    @Value("${app.upload.dir:uploads}")
+    private String uploadDir;
 
     public byte[] generateEPIDeliveryPdf(UUID employeeId, UUID companyId, LocalDate deliveryDate, 
                                          UUID responsibleEmployeeId, String observations) throws Exception {
-        log.info("ðŸ“„ Gerando ficha de entrega de EPI para funcionÃ¡rio ID: {}", employeeId);
+        log.info("📄 Gerando ficha de entrega de EPI para funcionário ID: {}", employeeId);
         
         Employee employee = employeeRepository.findById(employeeId)
-            .orElseThrow(() -> new RuntimeException("FuncionÃ¡rio nÃ£o encontrado"));
+            .orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
         
         Company company = companyRepository.findById(companyId)
-            .orElseThrow(() -> new RuntimeException("Empresa nÃ£o encontrada"));
+            .orElseThrow(() -> new RuntimeException("Empresa não encontrada"));
 
         Employee responsible = null;
         if (responsibleEmployeeId != null) {
             responsible = employeeRepository.findById(responsibleEmployeeId).orElse(null);
         }
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        StandardReportLayoutService.DocumentWithPdf docWithPdf = null;
+        EPIDeliveryForm form = EPIDeliveryForm.builder()
+            .id(UUID.randomUUID())
+            .employee(employee)
+            .company(company)
+            .deliveryDate(deliveryDate != null ? deliveryDate : LocalDate.now())
+            .responsibleEmployee(responsible)
+            .observations(observations)
+            .items(new ArrayList<>())
+            .build();
 
-        try {
-            PdfWriter writer = new PdfWriter(baos);
-            ReportLayoutConfig layoutConfig = ReportLayoutConfig.builder()
-                .companyId(company.getId())
-                .reportTitle("FICHA DE ENTREGA DE EPI")
-                .topMargin(120f)
-                .bottomMargin(80f)
-                .leftMargin(50f)
-                .rightMargin(50f)
-                .build();
-
-            docWithPdf = standardReportLayoutService.createDocumentWithLayout(writer, layoutConfig);
-            Document document = docWithPdf.getDocument();
-
-            Table employeeTable = new Table(UnitValue.createPercentArray(new float[]{40f, 60f}))
-                .useAllAvailableWidth()
-                .setMarginTop(10)
-                .setMarginBottom(10);
-
-            addTableRow(employeeTable, "FuncionÃ¡rio:", employee.getName());
-            addTableRow(employeeTable, "CPF:", employee.getDocument());
-            addTableRow(employeeTable, "Cargo:", employee.getPosition() != null ? employee.getPosition().getName() : "");
-            addTableRow(employeeTable, "Setor:", employee.getUnit() != null ? employee.getUnit().getName() : "");
-            addTableRow(employeeTable, "Data de Entrega:", formatDate(deliveryDate));
-            if (responsible != null) {
-                addTableRow(employeeTable, "ResponsÃ¡vel pela Entrega:", responsible.getName());
-            }
-
-            document.add(employeeTable);
-
-            Paragraph companyTitle = new Paragraph("DADOS DA EMPRESA")
-                .setBold()
-                .setFontSize(12)
-                .setMarginTop(15)
-                .setMarginBottom(10);
-            document.add(companyTitle);
-
-            Table companyTable = new Table(UnitValue.createPercentArray(new float[]{40f, 60f}))
-                .useAllAvailableWidth();
-            addTableRow(companyTable, "RazÃ£o Social:", company.getName());
-            addTableRow(companyTable, "CNPJ:", company.getCnpj());
-            addTableRow(companyTable, "EndereÃ§o:", company.getAddress());
-            document.add(companyTable);
-
-            if (observations != null && !observations.trim().isEmpty()) {
-                Paragraph obsTitle = new Paragraph("OBSERVAÃ‡Ã•ES")
-                    .setBold()
-                    .setFontSize(12)
-                    .setMarginTop(15)
-                    .setMarginBottom(10);
-                document.add(obsTitle);
-
-                Paragraph obs = new Paragraph(observations)
-                    .setFontSize(10)
-                    .setMarginBottom(10);
-                document.add(obs);
-            }
-
-            Paragraph date = new Paragraph("Data de EmissÃ£o: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
-                .setFontSize(9)
-                .setTextAlignment(TextAlignment.RIGHT)
-                .setMarginTop(20);
-            document.add(date);
-
-            standardReportLayoutService.finalizeDocumentLayout(docWithPdf);
-            document.close();
-        } catch (Exception e) {
-            log.error("Erro ao gerar ficha de entrega de EPI com layout padrÃ£o", e);
-            throw e;
-        }
-
-        log.info("âœ… Ficha de entrega de EPI gerada com sucesso. Tamanho: {} bytes", baos.size());
-        return baos.toByteArray();
+        return generateEPIDeliveryPdfFromForm(form, false);
     }
 
     public byte[] generateEPIDeliveryPdfFromForm(EPIDeliveryForm form) throws Exception {
@@ -148,152 +102,122 @@ public class EPIDeliveryPdfService {
         Employee employee = form.getEmployee();
         Company company = form.getCompany();
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        StandardReportLayoutService.DocumentWithPdf docWithPdf = null;
-
         try {
-            PdfWriter writer = new PdfWriter(baos);
-            ReportLayoutConfig layoutConfig = ReportLayoutConfig.builder()
-                .companyId(company.getId())
-                .reportTitle("CONTROLE DE EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL (EPI)")
-                .topMargin(landscape ? 85f : 120f)
-                .bottomMargin(landscape ? 55f : 80f)
-                .leftMargin(35f)
-                .rightMargin(35f)
-                .landscape(landscape)
-                .build();
-
-            docWithPdf = standardReportLayoutService.createDocumentWithLayout(writer, layoutConfig);
-            Document document = docWithPdf.getDocument();
-
-            Paragraph companyName = new Paragraph(company.getName() != null ? company.getName().toUpperCase() : "")
-                .setBold()
-                .setFontSize(9)
-                .setMarginBottom(2);
-            document.add(companyName);
-
-            Paragraph companyCnpj = new Paragraph("CNPJ: " + (company.getCnpj() != null ? company.getCnpj() : ""))
-                .setFontSize(8)
-                .setMarginBottom(6);
-            document.add(companyCnpj);
-
-            Table employeeInfoTable = new Table(UnitValue.createPercentArray(new float[]{50f, 50f}))
-                .useAllAvailableWidth()
-                .setMarginBottom(6);
-
-            String funcao = employee.getPosition() != null ? employee.getPosition().getName() : "";
-            String cpf = employee.getDocument() != null ? employee.getDocument() : "";
-            String rg = "";
-            if (employee.getCinNumero() != null && !employee.getCinNumero().trim().isEmpty()) {
-                rg = employee.getCinNumero();
-                if (employee.getCinOrgaoEmissor() != null && !employee.getCinOrgaoEmissor().trim().isEmpty()) {
-                    rg = employee.getCinOrgaoEmissor() + "-" + rg;
-                }
-            } else if (employee.getCarteiraIdentidadeOrgaoEmissor() != null && !employee.getCarteiraIdentidadeOrgaoEmissor().trim().isEmpty()) {
-                rg = employee.getCarteiraIdentidadeOrgaoEmissor();
+            Map<String, Object> data = new HashMap<>();
+            data.put("companyName", company != null && company.getName() != null ? company.getName().toUpperCase() : "");
+            data.put("companyCnpj", company != null ? CompanyDataFormatter.formatCnpjForHeader(company) : "");
+            data.put("companyAddress", company != null ? CompanyDataFormatter.formatFullAddress(company) : "");
+            data.put("companyLogo", company != null ? loadLogoAsDataUri(company.getLogoUrl()) : null);
+            data.put("formNumber", form.getId() != null ? "EPI-" + LocalDate.now().getYear() + "-" + form.getId().toString().substring(0, Math.min(6, form.getId().toString().length())).toUpperCase() : "EPI-0001");
+            data.put("dataEmissao", LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+            data.put("landscape", landscape);
+            
+            if (employee != null) {
+                data.put("funcionarioNome", employee.getName());
+                data.put("funcionarioCpf", employee.getDocument() != null ? employee.getDocument() : "");
+                data.put("funcionarioCargo", employee.getPosition() != null ? employee.getPosition().getName() : "");
+                String matricula = employee.getRegistrationNumber() != null ? employee.getRegistrationNumber() : "N/D";
+                data.put("funcionarioMatricula", matricula);
+                data.put("funcionarioSetor", employee.getUnit() != null ? employee.getUnit().getName() : "");
+                data.put("funcionarioAdmissao", employee.getHireDate() != null ? employee.getHireDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "__/__/____");
+            } else {
+                data.put("funcionarioNome", "-");
+                data.put("funcionarioCpf", "-");
+                data.put("funcionarioCargo", "-");
+                data.put("funcionarioMatricula", "-");
+                data.put("funcionarioSetor", "-");
+                data.put("funcionarioAdmissao", "__/__/____");
             }
-            String terminationDateStr = formatDate(employee.getTerminationDate());
 
-            employeeInfoTable.addCell(createPlainCell("NOME: " + (employee.getName() != null ? employee.getName().toUpperCase() : ""), 8));
-            employeeInfoTable.addCell(createPlainCell("FUNÃ‡ÃƒO: " + funcao.toUpperCase(), 8));
-            employeeInfoTable.addCell(createPlainCell("CPF: " + cpf, 8));
-            employeeInfoTable.addCell(createPlainCell("RG: " + rg, 8));
-            employeeInfoTable.addCell(createPlainCell("ADMISSÃƒO: " + formatDate(employee.getHireDate()), 8));
-            employeeInfoTable.addCell(createPlainCell("DEMISSÃƒO: " + (terminationDateStr.isEmpty() ? "" : terminationDateStr), 8));
-
-            document.add(employeeInfoTable);
-
-            Paragraph receiptTitle = new Paragraph("FICHA DE CONTROLE INDIVIDUAL DE EPI / TERMO DE COMPROMISSO")
-                .setBold()
-                .setFontSize(8)
-                .setTextAlignment(TextAlignment.CENTER)
-                .setMarginBottom(4);
-            document.add(receiptTitle);
-
-            // Termos Legais Oficiais (Portaria 3214, NR-1, NR-6, CLT 462)
-            Table legalTable = new Table(UnitValue.createPercentArray(new float[]{50f, 50f}))
-                .useAllAvailableWidth()
-                .setMarginBottom(6);
-
-            String termoCompromisso = "TERMO DE COMPROMISSO\n" +
-                "Declaro que recebi orientação sobre o uso correto do EPI fornecido pela empresa e que estou ciente da legislação abaixo discriminada, comprometendo-me a cumpri-la: " +
-                "Port. Nº 3214, de 08/06/78, do MTE NR - 1, item 1.8 alíneas a, b, c e d - Cabe ao Empregado: " +
-                "a) Cumprir as disposições legais e regulamentares sobre Segurança e Medicina do Trabalho; " +
-                "b) Usar o EPI fornecido pelo empregador; " +
-                "c) Colaborar com a empresa na aplicação das Normas Regulamentadoras - NR Port. Nº 3214, de 08/06/78, do MTb NR - 6, item 6.7.1 alíneas a, b, c e d.";
-
-            String cabeEmpregado = "CABE AO EMPREGADO:\n" +
-                "A) Usar, utilizando-o apenas para a finalidade a que se destina;\n" +
-                "B) Responsabilizar-se por sua guarda e conservação;\n" +
-                "C) Comunicar ao empregador qualquer alteração que o torne impróprio para uso;\n" +
-                "D) Cumprir as determinações do empregador sobre o uso adequado;\n" +
-                "NR - 1, sub item 1.8.1 - Constitui ato faltoso a recusa injustificada do empregado ao cumprimento do disposto no item 1.8. " +
-                "CLT - Art. 462, § 1º Em caso de dano causado pelo empregado, o desconto será lícito desde que esta possibilidade tenha sido acordada, ou na ocorrência de dolo do empregado.";
-
-            Cell cellLeft = new Cell()
-                .add(new Paragraph(termoCompromisso).setFontSize(6.5f).setTextAlignment(TextAlignment.JUSTIFIED))
-                .setBorder(new SolidBorder(ColorConstants.GRAY, 0.5f))
-                .setPadding(3);
-            Cell cellRight = new Cell()
-                .add(new Paragraph(cabeEmpregado).setFontSize(6.5f).setTextAlignment(TextAlignment.JUSTIFIED))
-                .setBorder(new SolidBorder(ColorConstants.GRAY, 0.5f))
-                .setPadding(3);
-
-            legalTable.addCell(cellLeft);
-            legalTable.addCell(cellRight);
-            document.add(legalTable);
-
-            Table epiTable = new Table(UnitValue.createPercentArray(new float[]{6f, 32f, 12f, 8f, 14f, 14f, 14f}))
-                .useAllAvailableWidth()
-                .setMarginTop(2);
-
-            addTableHeader(epiTable, "ITEM", 7);
-            addTableHeader(epiTable, "DESCRIÇÃO DO EQUIPAMENTO", 7);
-            addTableHeader(epiTable, "Nº CA", 7);
-            addTableHeader(epiTable, "QUANT", 7);
-            addTableHeader(epiTable, "DATA ENTREGA / INSPEÇÃO", 7);
-            addTableHeader(epiTable, "RUBRICA EMPREGADO", 7);
-            addTableHeader(epiTable, "DATA DEVOLUÇÃO", 7);
-
-            if (form.getItems() != null && !form.getItems().isEmpty()) {
-                // Manter itens por ordem de cadastro (o último item adicionado vem na linha de baixo)
-                java.util.List<EPIDeliveryFormItem> sortedItems = new java.util.ArrayList<>(form.getItems());
-
-                int itemNumber = 1;
-                for (EPIDeliveryFormItem item : sortedItems) {
-                    epiTable.addCell(createTableCell(String.valueOf(itemNumber++), 7, TextAlignment.CENTER));
-                    epiTable.addCell(createTableCell(item.getEpiName() != null ? item.getEpiName() : "", 7, TextAlignment.LEFT));
-                    epiTable.addCell(createTableCell(item.getCa() != null ? item.getCa() : "", 7, TextAlignment.CENTER));
-                    epiTable.addCell(createTableCell(item.getQuantity() != null ? item.getQuantity().toString() : "1", 7, TextAlignment.CENTER));
-                    epiTable.addCell(createTableCell(formatDate(form.getDeliveryDate()), 7, TextAlignment.CENTER));
-                    epiTable.addCell(createTableCell("", 7, TextAlignment.CENTER));
-                    epiTable.addCell(createTableCell("", 7, TextAlignment.CENTER));
+            List<Map<String, Object>> itemsList = new ArrayList<>();
+            if (form.getItems() != null) {
+                for (EPIDeliveryFormItem item : form.getItems()) {
+                    Map<String, Object> itemMap = new HashMap<>();
+                    itemMap.put("epiName", item.getEpiName());
+                    itemMap.put("ca", item.getCa() != null ? item.getCa() : "N/A");
+                    itemMap.put("quantity", item.getQuantity() != null ? item.getQuantity() : 1);
+                    itemMap.put("deliveryDate", formatDate(form.getDeliveryDate()));
+                    itemsList.add(itemMap);
                 }
             }
+            data.put("itens", itemsList);
+            data.put("itensCount", itemsList.size());
+            data.put("emptyRowsCount", Math.max(0, 8 - itemsList.size()));
+            data.put("observacoes", form.getObservations());
+            data.put("responsavelEntrega", form.getResponsibleEmployee() != null ? form.getResponsibleEmployee().getName() : "Almoxarifado / Segurança do Trabalho");
+            data.put("assinaturaDigital", null);
 
-            int itemsCount = form.getItems() != null ? form.getItems().size() : 0;
-            int emptyRows = Math.max(0, Math.min(10 - itemsCount, 10));
-            for (int i = 0; i < emptyRows; i++) {
-                epiTable.addCell(createTableCell("", 7, TextAlignment.CENTER));
-                epiTable.addCell(createTableCell("", 7, TextAlignment.LEFT));
-                epiTable.addCell(createTableCell("", 7, TextAlignment.CENTER));
-                epiTable.addCell(createTableCell("", 7, TextAlignment.CENTER));
-                epiTable.addCell(createTableCell("", 7, TextAlignment.CENTER));
-                epiTable.addCell(createTableCell("", 7, TextAlignment.CENTER));
-                epiTable.addCell(createTableCell("", 7, TextAlignment.CENTER));
+            Context context = new Context();
+            context.setVariables(data);
+            String html = templateEngine.process("ficha-entrega-epi", context);
+
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                ITextRenderer renderer = new ITextRenderer();
+                renderer.setDocumentFromString(html);
+                renderer.layout();
+                renderer.createPDF(outputStream);
+                byte[] pdfBytes = outputStream.toByteArray();
+                log.info("✅ Ficha de entrega de EPI gerada com sucesso via Flying Saucer. Tamanho: {} bytes", pdfBytes.length);
+                return pdfBytes;
             }
-
-            document.add(epiTable);
-
-            standardReportLayoutService.finalizeDocumentLayout(docWithPdf);
-            document.close();
         } catch (Exception e) {
-            log.error("Erro ao gerar ficha de EPI com layout padrÃ£o", e);
+            log.error("Erro ao gerar PDF da ficha de EPI com template OS: {}", e.getMessage(), e);
             throw e;
         }
+    }
 
-        log.info("âœ… Ficha de entrega de EPI gerada com sucesso. Tamanho: {} bytes", baos.size());
-        return baos.toByteArray();
+    private String loadLogoAsDataUri(String logoUrl) {
+        if (logoUrl == null || logoUrl.isBlank()) {
+            return null;
+        }
+        try {
+            byte[] bytes;
+            if (logoUrl.startsWith("http://") || logoUrl.startsWith("https://")) {
+                bytes = new URL(logoUrl).openStream().readAllBytes();
+            } else {
+                Path logoPath = resolveLogoPath(logoUrl);
+                if (logoPath == null || !Files.exists(logoPath)) {
+                    log.warn("Logo da empresa não encontrado em disco: {}", logoUrl);
+                    return null;
+                }
+                bytes = Files.readAllBytes(logoPath);
+            }
+            if (bytes == null || bytes.length == 0) {
+                return null;
+            }
+
+            String lower = logoUrl.toLowerCase();
+            String mime;
+            if (lower.endsWith(".png")) {
+                mime = "image/png";
+            } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+                mime = "image/jpeg";
+            } else if (lower.endsWith(".gif")) {
+                mime = "image/gif";
+            } else {
+                return null;
+            }
+            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
+        } catch (Exception e) {
+            log.warn("Erro ao carregar logo da empresa ({}): {}", logoUrl, e.getMessage());
+            return null;
+        }
+    }
+
+    private Path resolveLogoPath(String logoUrl) {
+        try {
+            if (logoUrl.startsWith("/api/uploads/companies/logos/")) {
+                String filename = logoUrl.replace("/api/uploads/companies/logos/", "");
+                return Paths.get(uploadDir, "companies", "logos", filename);
+            }
+            if (!logoUrl.contains("/")) {
+                return Paths.get(uploadDir, "companies", "logos", logoUrl);
+            }
+            return Paths.get(uploadDir, logoUrl);
+        } catch (Exception e) {
+            log.warn("Erro ao resolver caminho do logo ({}): {}", logoUrl, e.getMessage());
+            return null;
+        }
     }
 
     public byte[] generateEPIDeliveryExcelFromForm(EPIDeliveryForm form) throws Exception {
