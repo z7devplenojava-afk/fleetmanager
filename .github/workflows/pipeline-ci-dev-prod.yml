@@ -192,7 +192,7 @@ jobs:
 
       - name: "🚀 Subir containers CI"
         run: |
-          SSH_OPTS="-o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=5"
+          SSH_OPTS="-o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o ServerAliveCountMax=30 -o ConnectTimeout=60 -o TCPKeepAlive=yes"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS \
             ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'SSHEOF'
               set -e
@@ -309,7 +309,7 @@ jobs:
           HOST="${{ secrets.VPS_HOST_DEV || secrets.VPS_HOST }}"
           USER="${{ secrets.VPS_USER_DEV || secrets.VPS_USER }}"
           PASS="${{ secrets.VPS_PASSWORD_DEV || secrets.VPS_PASSWORD }}"
-          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=5"
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=15 -o ServerAliveCountMax=30 -o ConnectTimeout=60 -o TCPKeepAlive=yes"
 
           sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "mkdir -p /var/www/fluxbus/dev /var/www/fluxbus/traefik/dynamic"
           sshpass -p "$PASS" scp $SSH_OPTS docker-compose.fluxbus.dev.yml $USER@$HOST:/var/www/fluxbus/dev/docker-compose.yml
@@ -413,7 +413,7 @@ jobs:
           HOST="${{ secrets.VPS_HOST_PROD || secrets.VPS_HOST }}"
           USER="${{ secrets.VPS_USER_PROD || secrets.VPS_USER }}"
           PASS="${{ secrets.VPS_PASSWORD_PROD || secrets.VPS_PASSWORD }}"
-          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=5"
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=15 -o ServerAliveCountMax=30 -o ConnectTimeout=60 -o TCPKeepAlive=yes"
 
           sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "mkdir -p /var/www/fluxbus/prod /var/www/fluxbus/traefik/dynamic"
           sshpass -p "$PASS" scp $SSH_OPTS docker-compose.fluxbus.prod.yml $USER@$HOST:/var/www/fluxbus/prod/docker-compose.yml

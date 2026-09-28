@@ -443,19 +443,30 @@ public class EPIDeliveryFormService {
                 Integer quantity = item.getQuantity() != null ? item.getQuantity() : 1;
 
                 // 1. Devolver no estoque SST
-                List<PersonalProtectiveEquipment> epis = epiRepository.findByNameContainingIgnoreCase(epiName);
                 PersonalProtectiveEquipment epi = null;
-                for (PersonalProtectiveEquipment e : epis) {
-                    if (e.getName().equalsIgnoreCase(epiName) && Boolean.TRUE.equals(e.getIsActive())) {
-                        epi = e;
-                        break;
+                if (item.getStockItemId() != null) {
+                    epi = epiRepository.findByStockItemId(item.getStockItemId()).orElse(null);
+                }
+                if (epi == null && item.getCa() != null && !item.getCa().trim().isEmpty()) {
+                    List<PersonalProtectiveEquipment> caEpis = epiRepository.findByCaNumber(item.getCa().trim());
+                    if (caEpis != null && !caEpis.isEmpty()) {
+                        epi = caEpis.stream().filter(e -> Boolean.TRUE.equals(e.getIsActive())).findFirst().orElse(caEpis.get(0));
                     }
                 }
-                if (epi == null && !epis.isEmpty()) {
-                    epi = epis.stream()
-                            .filter(e -> Boolean.TRUE.equals(e.getIsActive()))
-                            .findFirst()
-                            .orElse(null);
+                if (epi == null) {
+                    List<PersonalProtectiveEquipment> epis = epiRepository.findByNameContainingIgnoreCase(epiName);
+                    for (PersonalProtectiveEquipment e : epis) {
+                        if (e.getName().equalsIgnoreCase(epiName) && Boolean.TRUE.equals(e.getIsActive())) {
+                            epi = e;
+                            break;
+                        }
+                    }
+                    if (epi == null && !epis.isEmpty()) {
+                        epi = epis.stream()
+                                .filter(e -> Boolean.TRUE.equals(e.getIsActive()))
+                                .findFirst()
+                                .orElse(epis.get(0));
+                    }
                 }
                 if (epi != null) {
                     Integer currentStock = epi.getCurrentStock() != null ? epi.getCurrentStock() : 0;
@@ -470,9 +481,12 @@ public class EPIDeliveryFormService {
                 if (item.getStockItemId() != null) {
                     stockItem = stockItemRepository.findById(item.getStockItemId()).orElse(null);
                 }
+                if (stockItem == null && epi != null && epi.getStockItemId() != null) {
+                    stockItem = stockItemRepository.findById(epi.getStockItemId()).orElse(null);
+                }
                 if (stockItem == null) {
                     stockItem = stockItemRepository.findByNameContainingIgnoreCase(epiName).stream()
-                            .filter(si -> Boolean.TRUE.equals(si.getActive()))
+                            .filter(si -> si.getActive() == null || Boolean.TRUE.equals(si.getActive()))
                             .findFirst().orElse(null);
                 }
                 if (stockItem != null) {
