@@ -1,9 +1,10 @@
 name: 🧪 Deploy TEST Environment (Docker Compose)
 
 on:
-  push:
-    branches:
-      - test
+  # DESABILITADO: Projeto migrado para Gradle
+  # push:
+  #   branches:
+  #     - test
   workflow_dispatch:
 
 env:
@@ -27,7 +28,7 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: '17'
-          cache: 'maven'
+          cache: 'gradle'
 
       - name: 📦 Setup Node.js 20
         uses: actions/setup-node@v4
@@ -36,12 +37,12 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: 🔨 Build Backend (Maven)
+      - name: 🔨 Build Backend (Gradle)
         working-directory: ./backend
         run: |
-          chmod +x mvnw
-          ./mvnw clean package -Dmaven.test.skip=true -Dspring.profiles.active=test
-          ls -lh target/*.jar
+          chmod +x gradlew
+          ./gradlew clean bootJar -x test
+          ls -lh build/libs/*.jar
 
       - name: 🎨 Build Frontend (Vite)
         working-directory: ./frontend
