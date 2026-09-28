@@ -68,7 +68,7 @@ export const epiPdfGeneratorService = {
 
     if (orientation === 'landscape') {
       // =========================================================================
-      // MODELO PAISAGEM (A4: 297mm x 210mm) - Imagem Oficial com Ônibus
+      // MODELO PAISAGEM (A4: 297mm x 210mm) - Estrutura Idêntica ao Retrato
       // =========================================================================
       doc = new jsPDF({
         orientation: 'landscape',
@@ -79,122 +79,217 @@ export const epiPdfGeneratorService = {
       const pageWidth = 297;
       const pageHeight = 210;
 
-      // 1. Desenhar imagem de fundo oficial
-      try {
-        const bgImg = await loadImage('/images/sao-silvestre-ficha-modelo.jpg');
-        doc.addImage(bgImg, 'JPEG', 0, 0, pageWidth, pageHeight);
-      } catch (err) {
-        console.warn('Não foi possível carregar o template de fundo paisagem, desenhando layout alternativo', err);
-        // Fallback básico com moldura azul
-        doc.setFillColor(240, 244, 250);
-        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+      // Margens
+      const startX = 14;
+      const endX = 283;
+      const contentWidth = endX - startX; // 269mm
+      let curY = 12;
+
+      // 1. Título da Ficha
+      doc.setFillColor(10, 45, 115);
+      doc.roundedRect(startX, curY, contentWidth, 10, 1.5, 1.5, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(255, 255, 255);
+      doc.text('FICHA DE CONTROLE INDIVIDUAL DE EPI', pageWidth / 2, curY + 4.5, { align: 'center' });
+      doc.setFontSize(8);
+      doc.text('TERMO DE COMPROMISSO E RESPONSABILIDADE (NR-06 / NR-01 - PORTARIA 3.214/78)', pageWidth / 2, curY + 8.2, { align: 'center' });
+
+      curY += 12;
+
+      // 2. Seção Superior: Dados do Empregado (Esquerda) e Termo de Compromisso (Direita)
+      const colWidthLeft = 130;
+      const colWidthRight = 135;
+      const gap = 4;
+      const topSectionHeight = 35;
+
+      // Caixa Esquerda: Dados do Empregado e Empresa
+      doc.setDrawColor(10, 45, 115);
+      doc.setFillColor(235, 242, 252);
+      doc.rect(startX, curY, colWidthLeft, topSectionHeight, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(10, 30, 80);
+      doc.text('DADOS DO EMPREGADO E DA EMPRESA', startX + 3, curY + 4.5);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.text('Nome: ', startX + 3, curY + 9.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${employee.name} (Matrícula: ${matricula})`, startX + 16, curY + 9.5);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Cargo/Função: ', startX + 3, curY + 14.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${cargo}`, startX + 26, curY + 14.5);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Setor/Unidade: ', startX + 3, curY + 19.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${unidade}`, startX + 26, curY + 19.5);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('CPF: ', startX + 3, curY + 24.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${cpf}`, startX + 12, curY + 24.5);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Admissão: ', startX + 68, curY + 24.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${admissao}`, startX + 85, curY + 24.5);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Empresa: ', startX + 3, curY + 29.5);
+      doc.setFont('helvetica', 'normal');
+      const compDisplay = options.companyName || (employee as any).company?.name || 'Viação São Silvestre S.A.';
+      doc.text(`${compDisplay}`, startX + 18, curY + 29.5);
+
+      // Caixa Direita: Termo de Compromisso (Portaria 3.214/78 MTE - NR-1 e NR-6)
+      const rightX = startX + colWidthLeft + gap;
+      doc.setDrawColor(180, 195, 220);
+      doc.setFillColor(248, 250, 254);
+      doc.rect(rightX, curY, colWidthRight, topSectionHeight, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(15, 30, 80);
+      doc.text('TERMO DE COMPROMISSO (Portaria 3.214/78 MTE - NR-1 e NR-6)', rightX + 2, curY + 4);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(5.8);
+      doc.setTextColor(40, 45, 60);
+
+      const termoTextoLandscape = 
+        'Declaro que recebi orientação sobre o uso correto do EPI fornecido pela empresa e estou ciente da legislação ' +
+        'Port. Nº 3214/78, NR-1 item 1.8 e NR-6. Comprometo-me a: a) Usar o EPI apenas para a finalidade destinada; ' +
+        'b) Responsabilizar-me pela sua guarda e conservação; c) Comunicar qualquer alteração ou dano; ' +
+        'd) Cumprir as determinações de segurança. Ciente do Art. 462 §1º da CLT em caso de extravio ou dolo.';
+      
+      const splitTermoLandscape = doc.splitTextToSize(termoTextoLandscape, colWidthRight - 4);
+      doc.text(splitTermoLandscape, rightX + 2, curY + 7.5);
+
+      // Linhas de Assinatura do Termo na Caixa Direita
+      doc.setDrawColor(150, 150, 150);
+      doc.line(rightX + 5, curY + 27, rightX + 65, curY + 27);
+      doc.setFontSize(5.5);
+      doc.text('Assinatura do Empregado', rightX + 18, curY + 30);
+
+      doc.line(rightX + 72, curY + 27, rightX + 128, curY + 27);
+      doc.text('Rubrica do Empregado', rightX + 88, curY + 30);
+
+      if (digitalSignature) {
+        try {
+          doc.addImage(digitalSignature, 'PNG', rightX + 12, curY + 20, 32, 6.5);
+          doc.addImage(digitalSignature, 'PNG', rightX + 82, curY + 20, 24, 6.5);
+        } catch (e) {}
       }
 
-      // 2. Preencher Dados do Funcionário
-      // Baseado nas coordenadas identificadas:
-      // Linha 1 (y=54.5mm): Nome Completo (x=45mm), Matrícula (x=160mm)
-      // Linha 2 (y=63.8mm): Setor/Função (x=38mm), Garagem/Unidade (x=158mm)
-      // Linha 3 (y=73.0mm): CPF (x=24mm), Admissão (x=142mm)
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8.5);
-      doc.setTextColor(20, 30, 60);
-
-      // Nome Completo
-      doc.text(employee.name || '', 45, 54.5);
-      // Matrícula
-      doc.text(matricula, 160, 54.5);
-      // Setor / Função
-      doc.text(cargo, 38, 63.8);
-      // Garagem / Unidade
-      doc.text(unidade, 158, 63.8);
-      // CPF
-      doc.text(cpf, 24, 73.0);
-      // Admissão
-      doc.text(admissao, 142, 73.0);
+      curY += topSectionHeight + 4;
 
       // 3. Tabela de Equipamentos de Proteção Individual (EPI)
       // Colunas:
-      // ITEM: x ~ 7 a 36 mm (centro ~ 21.5 mm)
-      // DESCRIÇÃO: x ~ 36 a 121 mm (início 38 mm)
-      // CA: x ~ 121 a 153 mm (centro ~ 137 mm)
-      // QUANTIDADE: x ~ 153 a 195 mm (centro ~ 174 mm)
-      // DATA ENTREGA: x ~ 195 a 238 mm (centro ~ 216 mm)
-      // ASSINATURA: x ~ 238 a 289 mm (centro ~ 263 mm)
-      const tableStartY = 107.5; // Primeira linha de itens
-      const rowHeight = 5.25;    // Altura de cada linha
-      const maxRows = 6;
+      // Quant (16mm) | Descrição do Equipamento (105mm) | Número do CA (28mm) | Data Entrega (32mm) | Rubrica Empregado (36mm) | Data Devol. (26mm) | Rubrica (26mm)
+      const colWidths = [16, 105, 28, 32, 36, 26, 26]; // soma = 269mm = contentWidth
+      const colHeaders = [
+        'Quant',
+        'Descrição do Equipamento',
+        'Número do CA',
+        'Data Entrega',
+        'Rubrica Empregado',
+        'Data Devol.',
+        'Rubrica'
+      ];
+
+      // Cabeçalho da Tabela
+      doc.setFillColor(15, 50, 120);
+      doc.rect(startX, curY, contentWidth, 6.5, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(255, 255, 255);
+
+      let colX = startX;
+      colHeaders.forEach((header, i) => {
+        doc.text(header, colX + colWidths[i] / 2, curY + 4.5, { align: 'center' });
+        colX += colWidths[i];
+      });
+
+      curY += 6.5;
+
+      // Linhas da tabela (10 a 11 linhas para preencher toda a página paisagem)
+      const rowCount = 10;
+      const tableRowHeight = 9.5;
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
+      doc.setFontSize(7);
+      doc.setTextColor(30, 30, 30);
 
-      if (!isManual && items.length > 0) {
-        items.slice(0, maxRows).forEach((item, index) => {
-          const currentY = tableStartY + index * rowHeight;
-          const itemNum = String(index + 1).padStart(2, '0');
+      for (let r = 0; r < rowCount; r++) {
+        const item = !isManual && items[r] ? items[r] : null;
+        const rowBg = r % 2 === 0 ? 255 : 248;
+        doc.setFillColor(rowBg, rowBg, rowBg);
+        doc.rect(startX, curY, contentWidth, tableRowHeight, 'F');
 
-          // ITEM
-          doc.text(itemNum, 21.5, currentY, { align: 'center' });
+        // Borda da linha
+        doc.setDrawColor(200, 210, 225);
+        doc.rect(startX, curY, contentWidth, tableRowHeight, 'S');
 
-          // DESCRIÇÃO DO EPI (com corte de segurança se for longo)
-          const desc = item.name.length > 45 ? item.name.substring(0, 42) + '...' : item.name;
-          doc.text(desc, 38, currentY);
+        // Linhas verticais
+        let gridX = startX;
+        colWidths.forEach((w) => {
+          doc.line(gridX, curY, gridX, curY + tableRowHeight);
+          gridX += w;
+        });
 
+        // Preenchimento dos dados do item
+        if (item) {
+          // Quantidade
+          doc.text(String(item.quantity || 1), startX + colWidths[0] / 2, curY + 6, { align: 'center' });
+          // Descrição
+          const desc = item.name.length > 60 ? item.name.substring(0, 58) + '...' : item.name;
+          doc.text(desc, startX + colWidths[0] + 3, curY + 6);
           // CA
-          doc.text(item.ca || 'N/A', 137, currentY, { align: 'center' });
+          doc.text(item.ca || 'N/A', startX + colWidths[0] + colWidths[1] + colWidths[2] / 2, curY + 6, { align: 'center' });
+          // Data Entrega
+          doc.text(item.deliveryDate || safeDateStr, startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] / 2, curY + 6, { align: 'center' });
 
-          // QUANTIDADE
-          doc.text(String(item.quantity || 1), 174, currentY, { align: 'center' });
-
-          // DATA DA ENTREGA
-          const dtEntrega = item.deliveryDate || safeDateStr;
-          doc.text(dtEntrega, 216, currentY, { align: 'center' });
-
-          // ASSINATURA DO FUNCIONÁRIO NA LINHA
+          // Rubrica Entrega
           if (digitalSignature) {
             try {
-              // Insere pequena rubrica
-              doc.addImage(digitalSignature, 'PNG', 248, currentY - 4.2, 18, 4.8);
+              const rubricaX = startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + 3;
+              doc.addImage(digitalSignature, 'PNG', rubricaX, curY + 1.2, colWidths[4] - 6, tableRowHeight - 2.4);
             } catch (e) {
-              doc.setFontSize(6.5);
-              doc.text('Assinado digitalmente', 263, currentY, { align: 'center' });
-              doc.setFontSize(8);
+              doc.text('Assinado', startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4] / 2, curY + 6, { align: 'center' });
             }
           }
-        });
-      }
-
-      // 4. Declaração do Funcionário e Assinatura Principal
-      // Linha de assinatura fica em y ~ 176 mm
-      // Data da assinatura fica em y ~ 176 mm, x ~ 116 mm
-      if (digitalSignature) {
-        try {
-          // Estampar assinatura manuscrita desenhada
-          doc.addImage(digitalSignature, 'PNG', 40, 163, 48, 12);
-        } catch (e) {
-          console.warn('Erro ao inserir assinatura:', e);
         }
 
-        // Data preenchida
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.text(safeDateStr, 118, 175.5);
-
-        // Selo de assinatura digital auditável
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(5.5);
-        doc.setTextColor(50, 70, 120);
-        doc.text(`[ASSINADO DIGITALMENTE POR ${employee.name.toUpperCase()} EM ${safeDateStr} ÀS ${safeTimeStr}]`, 38, 180.5);
-      } else if (!isManual) {
-        // Se preenchida mas sem assinatura digital, preenche a data da entrega
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.text(safeDateStr, 118, 175.5);
+        curY += tableRowHeight;
       }
-      // Se for manual, a linha de assinatura e a data ficam em branco com os traços da imagem para preenchimento físico!
+
+      // Rodapé da Folha com Carimbo de Autenticação Digital
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(80, 90, 110);
+      if (digitalSignature) {
+        doc.text(
+          `Documento assinado digitalmente pelo colaborador ${employee.name} em ${safeDateStr} às ${safeTimeStr} - Conforme MP nº 2.200-2/2001 e Portaria MTE`,
+          pageWidth / 2,
+          198,
+          { align: 'center' }
+        );
+      } else {
+        doc.text(
+          `Ficha de Controle e Fornecimento de EPI - Emitida em ${safeDateStr} - Assinatura do Responsável pela Entrega: _______________________________`,
+          pageWidth / 2,
+          198,
+          { align: 'center' }
+        );
+      }
 
     } else {
       // =========================================================================
-      // MODELO RETRATO (A4: 210mm x 297mm) - Papel Timbrado Oficial São Silvestre
+      // MODELO RETRATO (A4: 210mm x 297mm) - Mesma Estrutura Oficial
       // =========================================================================
       doc = new jsPDF({
         orientation: 'portrait',
@@ -205,21 +300,13 @@ export const epiPdfGeneratorService = {
       const pageWidth = 210;
       const pageHeight = 297;
 
-      // 1. Desenhar imagem de fundo papel timbrado oficial
-      try {
-        const bgImg = await loadImage('/images/sao-silvestre-timbre-retrato.png');
-        doc.addImage(bgImg, 'PNG', 0, 0, pageWidth, pageHeight);
-      } catch (err) {
-        console.warn('Não foi possível carregar papel timbrado retrato', err);
-      }
-
-      // Margens úteis entre cabeçalho e rodapé do timbre
+      // Margens úteis entre cabeçalho e rodapé
       const startX = 14;
       const endX = 196;
-      const contentWidth = endX - startX;
-      let curY = 32;
+      const contentWidth = endX - startX; // 182mm
+      let curY = 16;
 
-      // Título da Ficha
+      // 1. Título da Ficha
       doc.setFillColor(10, 45, 115);
       doc.roundedRect(startX, curY, contentWidth, 10, 1.5, 1.5, 'F');
       doc.setFont('helvetica', 'bold');
@@ -227,11 +314,11 @@ export const epiPdfGeneratorService = {
       doc.setTextColor(255, 255, 255);
       doc.text('FICHA DE CONTROLE INDIVIDUAL DE EPI', pageWidth / 2, curY + 4.5, { align: 'center' });
       doc.setFontSize(8);
-      doc.text('TERMO DE COMPROMISSO E RESPONSABILIDADE', pageWidth / 2, curY + 8.2, { align: 'center' });
+      doc.text('TERMO DE COMPROMISSO E RESPONSABILIDADE (NR-06 / NR-01 - PORTARIA 3.214/78)', pageWidth / 2, curY + 8.2, { align: 'center' });
 
       curY += 12;
 
-      // Caixa de Legislação e Compromisso
+      // 2. Caixa de Legislação e Compromisso
       doc.setDrawColor(180, 195, 220);
       doc.setFillColor(248, 250, 254);
       doc.rect(startX, curY, contentWidth, 34, 'FD');
@@ -272,10 +359,10 @@ export const epiPdfGeneratorService = {
 
       curY += 12;
 
-      // Caixa: Dados do Funcionário
+      // 3. Caixa: Dados do Funcionário e Empresa
       doc.setDrawColor(10, 45, 115);
       doc.setFillColor(235, 242, 252);
-      doc.rect(startX, curY, contentWidth, 14, 'FD');
+      doc.rect(startX, curY, contentWidth, 18, 'FD');
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7.5);
@@ -299,11 +386,17 @@ export const epiPdfGeneratorService = {
       doc.setFont('helvetica', 'normal');
       doc.text(`${unidade}  |  CPF: ${cpf}`, startX + 27, curY + 12.2);
 
-      curY += 17;
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Empresa: `, startX + 2, curY + 15.8);
+      doc.setFont('helvetica', 'normal');
+      const compDisplayRetrato = options.companyName || (employee as any).company?.name || 'Viação São Silvestre S.A.';
+      doc.text(`${compDisplayRetrato}`, startX + 18, curY + 15.8);
 
-      // Tabela de Itens (Conforme Modelo da Imagem 5)
+      curY += 21;
+
+      // 4. Tabela de Itens (Mesmas colunas que Paisagem)
       // Colunas:
-      // Quant (14mm) | Descrição do Equipamento (62mm) | Nº do CA (20mm) | Data Entrega (26mm) | Rubrica Entrega (24mm) | Data Devolução (20mm) | Rubrica Devolução (16mm)
+      // Quant (12mm) | Descrição do Equipamento (60mm) | Nº do CA (20mm) | Data Entrega (26mm) | Rubrica Entrega (26mm) | Data Devolução (20mm) | Rubrica Devolução (18mm)
       const colWidths = [12, 60, 20, 26, 26, 20, 18]; // soma = 182 = contentWidth
       const colHeaders = [
         'Quant',
@@ -330,9 +423,9 @@ export const epiPdfGeneratorService = {
 
       curY += 6.5;
 
-      // Linhas da tabela (14 a 16 linhas para preencher toda a página)
-      const rowCount = 15;
-      const tableRowHeight = 6.2;
+      // Linhas da tabela (14 a 15 linhas para preencher toda a página retrato)
+      const rowCount = 14;
+      const tableRowHeight = 7.5;
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
@@ -358,14 +451,14 @@ export const epiPdfGeneratorService = {
         // Preenchimento dos dados do item
         if (item) {
           // Quantidade
-          doc.text(String(item.quantity || 1), startX + colWidths[0] / 2, curY + 4.2, { align: 'center' });
+          doc.text(String(item.quantity || 1), startX + colWidths[0] / 2, curY + 4.8, { align: 'center' });
           // Descrição
           const desc = item.name.length > 36 ? item.name.substring(0, 34) + '...' : item.name;
-          doc.text(desc, startX + colWidths[0] + 2, curY + 4.2);
+          doc.text(desc, startX + colWidths[0] + 2, curY + 4.8);
           // CA
-          doc.text(item.ca || 'N/A', startX + colWidths[0] + colWidths[1] + colWidths[2] / 2, curY + 4.2, { align: 'center' });
+          doc.text(item.ca || 'N/A', startX + colWidths[0] + colWidths[1] + colWidths[2] / 2, curY + 4.8, { align: 'center' });
           // Data Entrega
-          doc.text(item.deliveryDate || safeDateStr, startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] / 2, curY + 4.2, { align: 'center' });
+          doc.text(item.deliveryDate || safeDateStr, startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] / 2, curY + 4.8, { align: 'center' });
 
           // Rubrica Entrega
           if (digitalSignature) {
@@ -373,7 +466,7 @@ export const epiPdfGeneratorService = {
               const rubricaX = startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + 2;
               doc.addImage(digitalSignature, 'PNG', rubricaX, curY + 0.8, colWidths[4] - 4, tableRowHeight - 1.6);
             } catch (e) {
-              doc.text('Assinado', startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4] / 2, curY + 4.2, { align: 'center' });
+              doc.text('Assinado', startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4] / 2, curY + 4.8, { align: 'center' });
             }
           }
         }
@@ -382,14 +475,21 @@ export const epiPdfGeneratorService = {
       }
 
       // Rodapé da Folha com Carimbo de Autenticação Digital
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(80, 90, 110);
       if (digitalSignature) {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6);
-        doc.setTextColor(80, 90, 110);
         doc.text(
           `Documento assinado digitalmente pelo colaborador ${employee.name} em ${safeDateStr} às ${safeTimeStr} - Conforme MP nº 2.200-2/2001 e Portaria MTE`,
           pageWidth / 2,
-          268,
+          286,
+          { align: 'center' }
+        );
+      } else {
+        doc.text(
+          `Ficha de Controle e Fornecimento de EPI - Emitida em ${safeDateStr} - Assinatura do Responsável: _______________________________`,
+          pageWidth / 2,
+          286,
           { align: 'center' }
         );
       }

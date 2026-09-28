@@ -139,7 +139,11 @@ public class EPIDeliveryPdfService {
     }
 
     public byte[] generateEPIDeliveryPdfFromForm(EPIDeliveryForm form) throws Exception {
-        log.info("ðŸ“„ Gerando ficha de entrega de EPI a partir do formulÃ¡rio ID: {}", form.getId());
+        return generateEPIDeliveryPdfFromForm(form, false);
+    }
+
+    public byte[] generateEPIDeliveryPdfFromForm(EPIDeliveryForm form, boolean landscape) throws Exception {
+        log.info("📄 Gerando ficha de entrega de EPI a partir do formulário ID: {} (landscape: {})", form.getId(), landscape);
         
         Employee employee = form.getEmployee();
         Company company = form.getCompany();
@@ -151,11 +155,12 @@ public class EPIDeliveryPdfService {
             PdfWriter writer = new PdfWriter(baos);
             ReportLayoutConfig layoutConfig = ReportLayoutConfig.builder()
                 .companyId(company.getId())
-                .reportTitle("CONTROLE DE EQUIPAMENTOS DE PROTEÃ‡ÃƒO INDIVIDUAL (EPI)")
-                .topMargin(120f)
-                .bottomMargin(80f)
+                .reportTitle("CONTROLE DE EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL (EPI)")
+                .topMargin(landscape ? 85f : 120f)
+                .bottomMargin(landscape ? 55f : 80f)
                 .leftMargin(35f)
                 .rightMargin(35f)
+                .landscape(landscape)
                 .build();
 
             docWithPdf = standardReportLayoutService.createDocumentWithLayout(writer, layoutConfig);

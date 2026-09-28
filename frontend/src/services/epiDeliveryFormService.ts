@@ -221,9 +221,10 @@ export const epiDeliveryFormService = {
   /**
    * Baixar PDF de uma ficha existente
    */
-  async downloadPdf(id: string): Promise<Blob> {
+  async downloadPdf(id: string, orientation: 'portrait' | 'landscape' = 'portrait'): Promise<Blob> {
     try {
       const response = await api.get(`/api/epi-delivery-forms/${id}/pdf`, {
+        params: { orientation },
         responseType: 'blob'
       });
       return response.data;

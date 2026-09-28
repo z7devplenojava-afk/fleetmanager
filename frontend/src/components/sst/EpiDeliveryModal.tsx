@@ -593,7 +593,7 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
               >
                 <div className="w-7 h-5 border-2 border-current rounded-sm mb-1"></div>
                 <span>Paisagem</span>
-                <span className="text-[10px] text-gray-400 text-center mt-0.5">Modelo Oficial com Ônibus</span>
+                <span className="text-[10px] text-gray-400 text-center mt-0.5">Formato Horizontal (A4)</span>
               </button>
 
               <button
@@ -607,13 +607,11 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
               >
                 <div className="w-5 h-7 border-2 border-current rounded-sm mb-1"></div>
                 <span>Retrato</span>
-                <span className="text-[10px] text-gray-400 text-center mt-0.5">Papel Timbrado Vertical</span>
+                <span className="text-[10px] text-gray-400 text-center mt-0.5">Formato Vertical (A4)</span>
               </button>
             </div>
             <p className="text-[11px] text-gray-400">
-              {orientation === 'landscape' 
-                ? 'Design moderno com foto rodoviária e caixas integradas.' 
-                : 'Formato vertical contínuo com coluna de devolução.'}
+              Ambos os formatos mantêm rigorosamente a mesma estrutura: dados do empregado, termo de compromisso legal (NR-06/NR-01) e tabela com colunas padronizadas.
             </p>
           </div>
         </div>
