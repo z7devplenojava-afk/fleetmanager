@@ -36,6 +36,7 @@ public class JwtTenantFilter extends OncePerRequestFilter {
                 path.startsWith("/v3/api-docs") ||
                 path.startsWith("/api/public/") ||
                 path.startsWith("/api/health") ||
+                path.startsWith("/ws") ||
                 path.startsWith("/error")) {
             return true;
         }

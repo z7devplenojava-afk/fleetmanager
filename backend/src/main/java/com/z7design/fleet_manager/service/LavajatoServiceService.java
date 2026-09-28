@@ -45,7 +45,6 @@ public class LavajatoServiceService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final EvolutionApiService evolutionApiService;
-    private final BaileysRestService baileysRestService;
     private final ObjectMapper objectMapper;
 
     private static final String PHOTOS_DIR = "uploads/lavajato/";
@@ -437,13 +436,7 @@ public class LavajatoServiceService {
         } catch (Exception e) {
             log.warn("Evolution API falhou ao notificar lavajato {}: {}", serviceId, e.getMessage());
         }
-        if (!sent) {
-            try {
-                sent = baileysRestService.sendTextMessage(phone, whatsappMessage);
-            } catch (Exception e) {
-                log.warn("Baileys falhou ao notificar lavajato {}: {}", serviceId, e.getMessage());
-            }
-        }
+
         if (!sent) {
             log.warn("WhatsApp falhou para lavajato {} no número {}", serviceId, phone);
         }

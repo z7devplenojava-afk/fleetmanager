@@ -25,7 +25,7 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
-    private final BaileysRestService baileysRestService;
+    private final EvolutionApiService evolutionApiService;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.url:http://localhost:3000}")
@@ -293,8 +293,8 @@ public class PasswordResetService {
      * Envia link de recuperaÃ§Ã£o via WhatsApp
      */
     private boolean sendPasswordResetWhatsApp(String whatsapp, String userName, String resetLink) {
-        if (baileysRestService == null) {
-            log.error("âŒ BaileysRestService nÃ£o disponÃ­vel!");
+        if (evolutionApiService == null) {
+            log.error("âŒ EvolutionApiService nÃ£o disponÃ­vel!");
             return false;
         }
 
@@ -319,7 +319,7 @@ public class PasswordResetService {
                 normalized = "55" + normalized;
             }
             
-            return baileysRestService.sendTextMessage(normalized, message);
+            return evolutionApiService.sendTextMessage(normalized, message);
         } catch (Exception e) {
             log.error("âŒ Erro ao enviar WhatsApp de recuperaÃ§Ã£o: {}", e.getMessage(), e);
             return false;

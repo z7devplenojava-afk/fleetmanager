@@ -49,6 +49,20 @@ http:
         retryExpression: "IsNetworkError() && Attempts() < 2"
 
   routers:
+    # Router específico para WebSocket (sem buffering para não quebrar handshake HTTP Upgrade)
+    ci-websocket:
+      rule: "(Host(`ci.fluxbus.com.br`) || Host(`ci.z7botsolutions.com.br`)) && (PathPrefix(`/ws`) || Headers(`Upgrade`, `websocket`))"
+      entryPoints:
+        - websecure
+        - web
+      service: ci-backend-service
+      middlewares:
+        - ci-cors
+        - allow-all-methods
+      tls:
+        certResolver: letsencryptresolver
+      priority: 2000
+
     # Router HTTPS específico para o ambiente CI
     # O redirecionamento HTTP → HTTPS é feito pelo entrypoint 'web' do Traefik
     ci-backend:

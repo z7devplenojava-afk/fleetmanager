@@ -54,7 +54,6 @@ public class VehicleCleaningService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final EvolutionApiService evolutionApiService;
-    private final BaileysRestService baileysRestService;
     private final ObjectMapper objectMapper;
 
     private static final String PHOTOS_DIR = "uploads/vehicle-cleaning/";
@@ -622,13 +621,7 @@ public class VehicleCleaningService {
         } catch (Exception e) {
             log.warn("Evolution API falhou ao notificar limpeza {}: {}", orderId, e.getMessage());
         }
-        if (!sent) {
-            try {
-                sent = baileysRestService.sendTextMessage(phone, whatsappMessage);
-            } catch (Exception e) {
-                log.warn("Baileys falhou ao notificar limpeza {}: {}", orderId, e.getMessage());
-            }
-        }
+
         if (!sent) {
             log.warn("WhatsApp falhou para limpeza {} no número {}", orderId, phone);
         }

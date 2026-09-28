@@ -26,7 +26,7 @@ public class TwoFactorAuthService {
     private final EmailService emailService;
     
     @Autowired(required = false)
-    private BaileysRestService baileysRestService;
+    private EvolutionApiService evolutionApiService;
 
     private static final Random RANDOM = new Random();
 
@@ -183,8 +183,8 @@ public class TwoFactorAuthService {
      * Envia cÃ³digo via WhatsApp
      */
     private boolean sendViaWhatsApp(String code, String phoneNumber, String userName) {
-        if (baileysRestService == null) {
-            log.error("âŒ BaileysRestService nÃ£o disponÃ­vel!");
+        if (evolutionApiService == null) {
+            log.error("âŒ EvolutionApiService nÃ£o disponÃ­vel!");
             return false;
         }
 
@@ -199,7 +199,7 @@ public class TwoFactorAuthService {
                 userName, code
         );
 
-        return baileysRestService.sendTextMessage(phoneNumber, message);
+        return evolutionApiService.sendTextMessage(phoneNumber, message);
     }
 
     /**

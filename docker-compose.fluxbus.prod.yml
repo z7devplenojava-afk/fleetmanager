@@ -71,6 +71,13 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-securedguard@z7design.com.br}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-D8rKeqSFZfaS$(y7}
       MAIL_SSL_ENABLE: true
+      # JVM Memory Optimization (evita OOM Killer na VPS)
+      JAVA_OPTS: "-Xms256m -Xmx768m -XX:+UseG1GC -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom"
+      # WhatsApp Configuration (Evolution API)
+      EVOLUTION_API_URL: http://evolution-api-prod:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY_PROD:-B6D711FCDE4D4FD5936544120E713976}
+      EVOLUTION_API_INSTANCE: ${EVOLUTION_API_INSTANCE_PROD:-fluxbus_prod}
+      EVOLUTION_API_ENABLED: "true"
     ports:
       - "8085:8083"
     depends_on:
@@ -78,7 +85,7 @@ services:
         condition: service_healthy
       redis-prod:
         condition: service_healthy
-      whatsapp-service-prod:
+      evolution-api-prod:
         condition: service_started
     networks:
       - fluxbus-prod-network
@@ -92,28 +99,33 @@ services:
     restart: unless-stopped
 
   # ========================================
-  # WHATSAPP SERVICE (Baileys) PROD
+  # WHATSAPP SERVICE (Evolution API) PROD
   # ========================================
-  whatsapp-service-prod:
-    image: z7design/fluxbus-whatsapp:prod
-    container_name: fluxbus-whatsapp-prod
+  evolution-api-prod:
+    image: atendai/evolution-api:v2.1.1
+    container_name: fluxbus-evolution-api-prod
     environment:
-      PORT: 3335
-      INSTANCE_KEY: fluxbus_prod
-      SESSION_DIR: /app/sessions
-      WEBHOOK_URL: http://backend-prod:8083/api/whatsapp/webhook
-      NODE_ENV: production
+      - SERVER_URL=http://localhost:8080
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY_PROD:-B6D711FCDE4D4FD5936544120E713976}
+      - CONFIG_SESSION_PHONE_CLIENT=FluxBus
+      - CONFIG_SESSION_PHONE_NAME=chrome
+      - QRCODE_LIMIT=30
+      - DATABASE_ENABLED=false
+      - CACHE_REDIS_ENABLED=false
+      - CACHE_LOCAL_ENABLED=true
+      - TYPEBOT_ENABLED=false
+      - CHATWOOT_ENABLED=false
+      - RABBITMQ_ENABLED=false
+      - WEBHOOK_GLOBAL_ENABLED=false
+      - LOG_LEVEL=ERROR,WARN,INFO
     ports:
-      - "3335:3333"
+      - "8082:8080"
     volumes:
-      - whatsapp_sessions_prod:/app/sessions
-    depends_on:
-      redis-prod:
-        condition: service_healthy
+      - evolution_instances_prod:/evolution/instances
     networks:
       - fluxbus-prod-network
     restart: unless-stopped
-    shm_size: 256mb
 
   # ========================================
   # FRONTEND PROD
@@ -146,7 +158,7 @@ volumes:
     driver: local
   redis_data_prod:
     driver: local
-  whatsapp_sessions_prod:
+  evolution_instances_prod:
     driver: local
 
 # ========================================
@@ -159,3 +171,4 @@ networks:
   z7network:
     external: true
     name: z7network
+

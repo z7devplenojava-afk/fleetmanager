@@ -9,7 +9,7 @@ import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.service.LogService;
 import com.z7design.fleet_manager.service.TwoFactorService;
-import com.z7design.fleet_manager.service.BaileysRestService;
+import com.z7design.fleet_manager.service.EvolutionApiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,7 +37,7 @@ public class FirstAccessController {
     private final LogService logService;
     
     @Autowired(required = false)
-    private BaileysRestService baileysRestService;
+    private EvolutionApiService evolutionApiService;
 
     @Operation(summary = "Verifica status do primeiro acesso", description = "Retorna informaÃ§Ãµes sobre primeiro acesso e 2FA")
     @GetMapping("/status")
@@ -174,7 +174,7 @@ public class FirstAccessController {
             log.info("ðŸ“± CÃ³digo 2FA gerado: {} - Enviando via WhatsApp para: {}", 
                     twoFactorCode.getCode(), user.getWhatsapp());
 
-            // Enviar via WhatsApp usando BaileysRestService
+            // Enviar via WhatsApp usando EvolutionApiService
             // ðŸ”’ ENCODING: Remover acentos e caracteres especiais para compatibilidade WhatsApp
             String message = String.format(
                 "*FluxBus - Codigo de Ativacao*\n\n" +
@@ -185,9 +185,9 @@ public class FirstAccessController {
             );
 
             boolean sent = false;
-            if (baileysRestService != null) {
+            if (evolutionApiService != null) {
                 try {
-                    sent = baileysRestService.sendTextMessage(user.getWhatsapp(), message);
+                    sent = evolutionApiService.sendTextMessage(user.getWhatsapp(), message);
                     if (sent) {
                         log.info("âœ… CÃ³digo 2FA enviado via WhatsApp com sucesso");
                     } else {
@@ -197,7 +197,7 @@ public class FirstAccessController {
                     log.error("âŒ Erro ao enviar cÃ³digo via WhatsApp: {}", e.getMessage(), e);
                 }
             } else {
-                log.warn("âš ï¸ BaileysRestService nÃ£o disponÃ­vel - cÃ³digo nÃ£o enviado via WhatsApp");
+                log.warn("âš ï¸ EvolutionApiService nÃ£o disponÃ­vel - cÃ³digo nÃ£o enviado via WhatsApp");
                 log.info("ðŸ“± CÃ³digo para teste manual: {}", twoFactorCode.getCode());
             }
 

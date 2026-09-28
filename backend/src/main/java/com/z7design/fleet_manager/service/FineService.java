@@ -53,7 +53,6 @@ public class FineService {
     private final StandardReportLayoutService standardReportLayoutService;
     private final CompanyRepository companyRepository;
     private final EvolutionApiService evolutionApiService;
-    private final BaileysRestService baileysRestService;
     
     public List<FineDTO> getAllFines() {
         log.info("Buscando todas as multas");
@@ -180,13 +179,7 @@ public class FineService {
         } catch (Exception e) {
             log.warn("Evolution API falhou ao notificar multa {}: {}", fine.getId(), e.getMessage());
         }
-        if (!sent) {
-            try {
-                sent = baileysRestService.sendTextMessage(normalized, whatsappMessage);
-            } catch (Exception e) {
-                log.warn("Baileys falhou ao notificar multa {}: {}", fine.getId(), e.getMessage());
-            }
-        }
+
         log.info("Notificação WhatsApp de multa {} para {}: {}", fine.getId(), normalized, sent ? "enviada" : "falhou");
     }
     
@@ -271,13 +264,7 @@ public class FineService {
         } catch (Exception e) {
             log.warn("Evolution API falhou ao alertar vencimento da multa {}: {}", fine.getId(), e.getMessage());
         }
-        if (!sent) {
-            try {
-                sent = baileysRestService.sendTextMessage(normalized, whatsappMessage);
-            } catch (Exception e) {
-                log.warn("Baileys falhou ao alertar vencimento da multa {}: {}", fine.getId(), e.getMessage());
-            }
-        }
+
         if (sent) {
             if (vencida) {
                 fine.setOverdueReminderSent(true);
