@@ -163,6 +163,8 @@ jobs:
             ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/ci/nginx/
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp $SSH_OPTS traefik-dynamic-ci.yml \
             ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }}:/var/www/fluxbus/traefik/dynamic/ci.yml
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS \
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} "docker restart traefik 2>/dev/null || true"
 
       - name: "⚙️ Criar .env CI e subir containers"
         run: |

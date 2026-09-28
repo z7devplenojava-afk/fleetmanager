@@ -51,7 +51,7 @@ http:
   routers:
     # Router específico para WebSocket (sem buffering para não quebrar handshake HTTP Upgrade)
     ci-websocket:
-      rule: "(Host(`ci.fluxbus.com.br`) || Host(`ci.z7botsolutions.com.br`)) && (PathPrefix(`/ws`) || Headers(`Upgrade`, `websocket`))"
+      rule: "(Host(`ci.fluxbus.com.br`) || Host(`ci.z7botsolutions.com.br`)) && PathPrefix(`/ws`)"
       entryPoints:
         - websecure
         - web
