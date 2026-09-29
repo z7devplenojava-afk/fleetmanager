@@ -32,7 +32,8 @@ import {
   Truck,
   UserCheck,
   PackageCheck,
-  Calculator
+  Calculator,
+  Sparkles,
 } from 'lucide-react';
 import { StandardLayout } from '@/components/StandardLayout';
 import Equipamentos from './Equipamentos';
@@ -84,6 +85,7 @@ import VisitDashboard from '@/components/visits/VisitDashboard';
 import NotificationSettingsModal from '@/components/operacional/NotificationSettingsModal';
 import { orderOfServiceService, OrderOfService, CreateOrderOfServiceRequest } from '@/services/orderOfServiceService';
 import { useToast } from '@/hooks/use-toast';
+import OsHigienizacaoTab from '@/components/limpeza/OsHigienizacaoTab';
 
 const Operacional: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -1073,6 +1075,22 @@ const Operacional: React.FC = () => {
                     </TooltipContent>
                   </Tooltip>
 
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger
+                        value="os-higienizacao"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-blue-600 data-[state='active']:to-blue-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-blue-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                      >
+                        <Sparkles className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0 text-blue-400" />
+                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">OS Higieniz.</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="bg-seguranca-graphite text-white border-seguranca-red">
+                      <p className="font-semibold">OS de Higienização</p>
+                      <p className="text-xs text-gray-400">Emitir ordens de serviço de limpeza</p>
+                    </TooltipContent>
+                  </Tooltip>
+
                 </TabsList>
               </div>
             </TooltipProvider>
@@ -1312,6 +1330,10 @@ const Operacional: React.FC = () => {
                 }}
                 onExportPDF={() => toast({ title: 'Em breve', description: 'Exportação PDF em desenvolvimento' })}
               />
+            </TabsContent>
+
+            <TabsContent value="os-higienizacao" className="mt-6">
+              <OsHigienizacaoTab />
             </TabsContent>
           </Tabs>
         </div> {/* Fecha container mx-auto */}

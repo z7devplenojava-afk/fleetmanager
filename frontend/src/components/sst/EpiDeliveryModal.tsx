@@ -1030,34 +1030,36 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
               <AlertTriangle className="h-5 w-5 text-seguranca-yellow shrink-0" />
               Item Sem Estoque no Almoxarifado
             </DialogTitle>
-            <DialogDescription className="text-gray-300 text-xs mt-2 space-y-2">
-              <p>
-                O item <strong className="text-white">"{outOfStockItem?.itemName}"</strong> não possui saldo suficiente para entrega.
-              </p>
-              <div className="bg-seguranca-black/60 p-3 rounded-lg border border-gray-700/60 text-xs space-y-1.5 my-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Saldo Disponível:</span>
-                  <Badge variant="destructive" className="font-mono text-xs px-2 py-0.5">
-                    {outOfStockItem?.availableStock ?? 0} un
-                  </Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Quantidade Solicitada:</span>
-                  <span className="font-bold text-white font-mono">{outOfStockItem?.quantity} un</span>
-                </div>
-                {outOfStockItem?.caNumber && (
+            <DialogDescription asChild>
+              <div className="text-gray-300 text-xs mt-2 space-y-2">
+                <span className="block">
+                  O item <strong className="text-white">"{outOfStockItem?.itemName}"</strong> não possui saldo suficiente para entrega.
+                </span>
+                <div className="bg-seguranca-black/60 p-3 rounded-lg border border-gray-700/60 text-xs space-y-1.5 my-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Nº do C.A.:</span>
-                    <span className="text-gray-200 font-mono">{outOfStockItem.caNumber}</span>
+                    <span className="text-gray-400">Saldo Disponível:</span>
+                    <Badge variant="destructive" className="font-mono text-xs px-2 py-0.5">
+                      {outOfStockItem?.availableStock ?? 0} un
+                    </Badge>
                   </div>
-                )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Quantidade Solicitada:</span>
+                    <span className="font-bold text-white font-mono">{outOfStockItem?.quantity} un</span>
+                  </div>
+                  {outOfStockItem?.caNumber && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Nº do C.A.:</span>
+                      <span className="text-gray-200 font-mono">{outOfStockItem.caNumber}</span>
+                    </div>
+                  )}
+                </div>
+                <span className="block text-amber-200/90 font-medium">
+                  Deseja solicitar ao Almoxarifado a compra deste item?
+                </span>
+                <span className="block text-[11px] text-gray-400">
+                  Ao confirmar, o sistema gerará uma <strong>Solicitação de Compras</strong> para o setor responsável, e você poderá continuar preenchendo a ficha de EPI com os outros itens disponíveis.
+                </span>
               </div>
-              <p className="text-amber-200/90 font-medium">
-                Deseja solicitar ao Almoxarifado a compra deste item?
-              </p>
-              <p className="text-[11px] text-gray-400">
-                Ao confirmar, o sistema gerará uma <strong>Solicitação de Compras</strong> para o setor responsável, e você poderá continuar preenchendo a ficha de EPI com os outros itens disponíveis.
-              </p>
             </DialogDescription>
           </DialogHeader>
 

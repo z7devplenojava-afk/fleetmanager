@@ -47,6 +47,8 @@ import {
   CheckCircle,
   XCircle,
   Eye,
+  Droplets,
+  FileText,
 } from 'lucide-react';
 import {
   Dialog,
@@ -100,6 +102,9 @@ import {
   downloadCleaningReleasePDF,
   openCleaningReleasePDFPreview,
 } from '@/utils/vehicleCleaningPdfGenerator';
+import OsHigienizacaoTab from '@/components/limpeza/OsHigienizacaoTab';
+import { LavajatoContent } from '@/pages/manutencao/Lavajato';
+import { VehicleCleaningViewModal } from '@/components/limpeza/VehicleCleaningViewModal';
 
 interface VehicleOption {
   id: string;
@@ -116,7 +121,7 @@ const GestaoLimpezaVeiculos: React.FC = () => {
   useGSAP();
 
   // Navegação por abas principais
-  const [activeMainTab, setActiveMainTab] = useState<'operacional' | 'relatorios' | 'estatisticas'>('operacional');
+  const [activeMainTab, setActiveMainTab] = useState<'operacional' | 'relatorios' | 'estatisticas' | 'lavajato' | 'os-higienizacao'>('operacional');
 
   const [orders, setOrders] = useState<VehicleCleaningOrder[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
@@ -156,6 +161,10 @@ const GestaoLimpezaVeiculos: React.FC = () => {
   const [releaseSpotInput, setReleaseSpotInput] = useState('');
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
+
+  // Modal de visualização padronizada da OS de Higienização
+  const [isCleaningOsModalOpen, setIsCleaningOsModalOpen] = useState(false);
+  const [cleaningOrderForOsModal, setCleaningOrderForOsModal] = useState<VehicleCleaningOrder | null>(null);
 
   // Adicionar insumo personalizado no modal
   const [newSupplyName, setNewSupplyName] = useState('');
@@ -260,7 +269,7 @@ const GestaoLimpezaVeiculos: React.FC = () => {
         releaseSpot: newReleaseSpot.trim() || undefined,
         observations: newObservations.trim() || undefined,
       };
-      await vehicleCleaningService.create(payload);
+      const created = await vehicleCleaningService.create(payload);
       setShowNewDialog(false);
       setNewVehicleId('');
       setNewDriverId('');
@@ -269,8 +278,11 @@ const GestaoLimpezaVeiculos: React.FC = () => {
       setNewDeadline('');
       setNewReleaseSpot('');
       setNewObservations('');
-      toast({ title: 'Sucesso', description: 'Solicitação criada na fila de higienização' });
+      toast({ title: 'Sucesso', description: 'Solicitação criada com sucesso!' });
       loadOrders();
+      // Abre a OS de Higienização padronizada automaticamente
+      setCleaningOrderForOsModal(created);
+      setIsCleaningOsModalOpen(true);
     } catch (error: any) {
       toast({ title: 'Erro', description: error.response?.data?.message || 'Erro ao criar solicitação', variant: 'destructive' });
     } finally {
@@ -913,6 +925,12 @@ const GestaoLimpezaVeiculos: React.FC = () => {
               <TabsTrigger value="estatisticas" className="text-xs sm:text-sm data-[state='active']:bg-seguranca-red data-[state='active']:text-white flex items-center gap-1.5">
                 <BarChart3 size={15} /> Produtividade & Métricas
               </TabsTrigger>
+              <TabsTrigger value="lavajato" className="text-xs sm:text-sm data-[state='active']:bg-sky-600 data-[state='active']:text-white flex items-center gap-1.5">
+                <Droplets size={15} /> Lavajato
+              </TabsTrigger>
+              <TabsTrigger value="os-higienizacao" className="text-xs sm:text-sm data-[state='active']:bg-blue-600 data-[state='active']:text-white flex items-center gap-1.5">
+                <FileText size={15} /> OS Higienização
+              </TabsTrigger>
             </TabsList>
 
             <div className="flex items-center gap-2">
@@ -1018,10 +1036,10 @@ const GestaoLimpezaVeiculos: React.FC = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
-                          <SelectItem value="EXTERNAL">Apenas Externa (lavagem rápida/chassi)</SelectItem>
-                          <SelectItem value="INTERNAL">Apenas Interna (varrição, estofados, painel)</SelectItem>
+                          <SelectItem value="EXTERNAL">Limpeza Externa (Lavajato — Apenas Carroceria)</SelectItem>
+                          <SelectItem value="INTERNAL">Higienização Interna (Varrição, Estofados, Painel)</SelectItem>
                           <SelectItem value="SANITARY">Sanitário / Descarte e Reabastecimento</SelectItem>
-                          <SelectItem value="COMPLETE">Completa (interna + externa)</SelectItem>
+                          <SelectItem value="COMPLETE">Higienização Completa (Interna + Externa)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1419,6 +1437,16 @@ const GestaoLimpezaVeiculos: React.FC = () => {
               </Card>
             </div>
           </TabsContent>
+
+          {/* TAB 4: LAVAJATO */}
+          <TabsContent value="lavajato" className="mt-4">
+            <LavajatoContent />
+          </TabsContent>
+
+          {/* TAB 5: OS HIGIENIZAÇÃO */}
+          <TabsContent value="os-higienizacao" className="mt-4">
+            <OsHigienizacaoTab />
+          </TabsContent>
         </Tabs>
 
         {/* Modal de Detalhe, Execução, Insumos & Impressão */}
@@ -1435,10 +1463,13 @@ const GestaoLimpezaVeiculos: React.FC = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => openCleaningReleasePDFPreview(selectedOrder, supplies)}
-                      className="h-8 text-xs border-gray-600 text-seguranca-yellow hover:bg-seguranca-yellow/10"
+                      onClick={() => {
+                        setCleaningOrderForOsModal(selectedOrder);
+                        setIsCleaningOsModalOpen(true);
+                      }}
+                      className="h-8 text-xs border-red-500/60 text-red-400 hover:bg-red-500/10 font-semibold"
                     >
-                      <Printer size={14} className="mr-1.5" /> Visualizar PDF
+                      <FileText size={14} className="mr-1.5" /> Visualizar OS
                     </Button>
                     <Button
                       size="sm"
@@ -1580,6 +1611,17 @@ const GestaoLimpezaVeiculos: React.FC = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Modal Oficial Padronizado da OS de Higienização */}
+        <VehicleCleaningViewModal
+          isOpen={isCleaningOsModalOpen}
+          onClose={() => {
+            setIsCleaningOsModalOpen(false);
+            setCleaningOrderForOsModal(null);
+          }}
+          order={cleaningOrderForOsModal}
+          supplies={supplies}
+        />
       </div>
     </StandardLayout>
   );

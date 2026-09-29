@@ -9,7 +9,7 @@ import {
   AlertTriangle, Loader2, MapPin, Users, Calendar, DollarSign,
   Gauge, ClipboardList, CircleDot, Hash, Plus, Bus, DoorOpen,
   Wifi, Camera, Accessibility, Thermometer, Route, Settings,
-  CreditCard, UserCheck, QrCode
+  CreditCard, UserCheck, QrCode, Droplets
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -21,6 +21,9 @@ import fleetWorkOrderService, { FleetWorkOrder, VehicleMaintenanceRanking } from
 import tireService, { Tire } from '@/services/tireService';
 import { vehicleDocumentService, VehicleDocument, VehicleDocumentType } from '@/services/vehicleDocumentService';
 import workPostService from '@/services/workPostService';
+import { lavajatoService, LavajatoServiceRecord } from '@/services/lavajatoService';
+import { vehicleCleaningService, VehicleCleaningOrder, CLEANING_TYPE_LABELS } from '@/services/vehicleCleaningService';
+import { VehicleCleaningViewModal } from '@/components/limpeza/VehicleCleaningViewModal';
 import { getApiUrl } from '@/config/environment';
 
 // ==================== TIPOS ====================
@@ -210,12 +213,16 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
   const [fines, setFines] = useState<any[]>([]);
   const [maintenances, setMaintenances] = useState<any[]>([]);
   const [workPost, setWorkPost] = useState<WorkPostInfo | null>(null);
+  const [lavajatoRecords, setLavajatoRecords] = useState<LavajatoServiceRecord[]>([]);
+  const [cleaningOrders, setCleaningOrders] = useState<VehicleCleaningOrder[]>([]);
+  const [selectedCleaningOrder, setSelectedCleaningOrder] = useState<VehicleCleaningOrder | null>(null);
+  const [isCleaningOsModalOpen, setIsCleaningOsModalOpen] = useState(false);
 
   const loadAll = useCallback(async () => {
     if (!isOpen || !veiculo?.id) return;
     setLoading(true);
     try {
-      const [v, wos, rk, tiresData, docs, fuel, fineList, maint, wp] = await Promise.all([
+      const [v, wos, rk, tiresData, docs, fuel, fineList, maint, wp, lavs, cleans] = await Promise.all([
         fleetService.getVehicle(veiculo.id).catch(() => null),
         fleetWorkOrderService.findAll().catch(() => []),
         fleetWorkOrderService.getVehicleRanking().catch(() => []),
@@ -226,7 +233,9 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
         fleetService.getMaintenances(veiculo.id).catch(() => []),
         veiculo.workPostId
           ? workPostService.getWorkPostById(veiculo.workPostId).catch(() => null)
-          : Promise.resolve(null)
+          : Promise.resolve(null),
+        lavajatoService.list({ vehicleId: veiculo.id }).catch(() => []),
+        vehicleCleaningService.list({ vehicleId: veiculo.id } as any).catch(() => []),
       ]);
 
       setDetail(v as VehicleDetail | null);
@@ -238,6 +247,8 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
       setFines(fineList || []);
       setMaintenances(maint || []);
       setWorkPost(wp as WorkPostInfo | null);
+      setLavajatoRecords(lavs || []);
+      setCleaningOrders(cleans || []);
     } catch (error) {
       console.error('Erro ao carregar detalhes do veículo:', error);
       toast({ title: 'Erro', description: 'Falha ao carregar os detalhes do veículo', variant: 'destructive' });
@@ -470,6 +481,10 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
                   </TabsTrigger>
                   <TabsTrigger value="multas" className="text-xs px-3 py-1.5 data-[state=active]:bg-seguranca-black data-[state=active]:text-seguranca-yellow">
                     Multas {fines.length > 0 && `(${fines.length})`}
+                  </TabsTrigger>
+                  <TabsTrigger value="higienizacao" className="text-xs px-3 py-1.5 data-[state=active]:bg-seguranca-black data-[state=active]:text-sky-400">
+                    <Droplets className="inline h-3.5 w-3.5 mr-1" />
+                    Higienização {(lavajatoRecords.length + cleaningOrders.length) > 0 && `(${lavajatoRecords.length + cleaningOrders.length})`}
                   </TabsTrigger>
                 </TabsList>
 
@@ -1227,6 +1242,148 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
                     </>
                   )}
                 </TabsContent>
+
+                {/* ---------- HIGIENIZAÇÃO E LAVAJATO ---------- */}
+                <TabsContent value="higienizacao" className="mt-4 space-y-4">
+                  {cleaningOrders.length === 0 && lavajatoRecords.length === 0 ? (
+                    <div className="border-2 border-dashed border-gray-700 rounded-lg py-12 text-center">
+                      <Droplets className="h-10 w-10 text-gray-600 mx-auto mb-2" />
+                      <p className="text-gray-400 font-medium">Nenhum registro de higienização ou lavagem</p>
+                      <p className="text-gray-500 text-xs mt-1">
+                        As solicitações de limpeza e registros de lavajato vinculados a este veículo aparecerão aqui.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Resumo */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <MiniStat label="Total de Registros" value={String(cleaningOrders.length + lavajatoRecords.length)} strong />
+                        <MiniStat label="Higienizações (OS)" value={String(cleaningOrders.length)} />
+                        <MiniStat label="Lavagens (Lavajato)" value={String(lavajatoRecords.length)} />
+                        <MiniStat
+                          label="Última Execução"
+                          value={
+                            cleaningOrders[0]?.createdAt
+                              ? fmtDate(cleaningOrders[0].createdAt)
+                              : lavajatoRecords[0]?.startTime
+                              ? fmtDate(lavajatoRecords[0].startTime)
+                              : '—'
+                          }
+                        />
+                      </div>
+
+                      {/* Tabela de OS de Higienização */}
+                      {cleaningOrders.length > 0 && (
+                        <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-4 space-y-3">
+                          <h4 className="text-sm font-semibold text-seguranca-lightgray flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-sky-400" /> Ordens de Higienização ({cleaningOrders.length})
+                          </h4>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                              <thead>
+                                <tr className="border-b border-gray-700 text-[11px] text-gray-400 uppercase">
+                                  <th className="p-2.5">Data / Hora</th>
+                                  <th className="p-2.5">Tipo</th>
+                                  <th className="p-2.5">Solicitante / Motorista</th>
+                                  <th className="p-2.5">Fase / Status</th>
+                                  <th className="p-2.5">Observações</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-700/60 text-xs text-seguranca-lightgray">
+                                {cleaningOrders.map((order) => (
+                                  <tr key={order.id} className="hover:bg-seguranca-black/30 transition-colors cursor-pointer" onClick={() => { setSelectedCleaningOrder(order); setIsCleaningOsModalOpen(true); }}>
+                                    <td className="p-2.5 whitespace-nowrap text-gray-400 font-mono">
+                                      {order.createdAt ? fmtDate(order.createdAt) : '—'}
+                                    </td>
+                                    <td className="p-2.5 font-medium">
+                                      <span className="text-sky-400">
+                                        {CLEANING_TYPE_LABELS[order.cleaningType] || order.cleaningType}
+                                      </span>
+                                    </td>
+                                    <td className="p-2.5 text-gray-300">
+                                      {order.driverName || order.requestedByName || '—'}
+                                    </td>
+                                    <td className="p-2.5">
+                                      <Badge
+                                        variant="outline"
+                                        className={
+                                          order.status === 'COMPLETED'
+                                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                            : order.status === 'IN_PROGRESS'
+                                            ? 'bg-sky-500/15 text-sky-400 border-sky-500/30'
+                                            : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                        }
+                                      >
+                                        {order.phase || order.status}
+                                      </Badge>
+                                    </td>
+                                    <td className="p-2.5 text-gray-400 truncate max-w-[200px]" title={order.observations}>
+                                      {order.observations || '—'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tabela de Histórico Lavajato */}
+                      {lavajatoRecords.length > 0 && (
+                        <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-4 space-y-3">
+                          <h4 className="text-sm font-semibold text-seguranca-lightgray flex items-center gap-2">
+                            <Droplets className="h-4 w-4 text-cyan-400" /> Histórico de Lavajato ({lavajatoRecords.length})
+                          </h4>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                              <thead>
+                                <tr className="border-b border-gray-700 text-[11px] text-gray-400 uppercase">
+                                  <th className="p-2.5">Data Início</th>
+                                  <th className="p-2.5">Lavador</th>
+                                  <th className="p-2.5">Status</th>
+                                  <th className="p-2.5">Conclusão</th>
+                                  <th className="p-2.5">Observações</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-700/60 text-xs text-seguranca-lightgray">
+                                {lavajatoRecords.map((rec) => (
+                                  <tr key={rec.id} className="hover:bg-seguranca-black/30 transition-colors">
+                                    <td className="p-2.5 whitespace-nowrap text-gray-400 font-mono">
+                                      {rec.startTime ? fmtDate(rec.startTime) : '—'}
+                                    </td>
+                                    <td className="p-2.5 text-gray-300">
+                                      {rec.washerName || '—'}
+                                    </td>
+                                    <td className="p-2.5">
+                                      <Badge
+                                        variant="outline"
+                                        className={
+                                          rec.status === 'CONCLUIDO'
+                                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                            : rec.status === 'EM_ANDAMENTO'
+                                            ? 'bg-sky-500/15 text-sky-400 border-sky-500/30'
+                                            : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                        }
+                                      >
+                                        {rec.status}
+                                      </Badge>
+                                    </td>
+                                    <td className="p-2.5 whitespace-nowrap text-gray-400 font-mono">
+                                      {rec.endTime ? fmtDate(rec.endTime) : '—'}
+                                    </td>
+                                    <td className="p-2.5 text-gray-400 truncate max-w-[200px]" title={rec.notes}>
+                                      {rec.notes || '—'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </TabsContent>
               </Tabs>
             </div>
           )}
@@ -1251,6 +1408,16 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
           loadAll();
         }}
         initialVehicleId={veiculo.id}
+      />
+
+      {/* ===== MODAL VISUALIZAÇÃO PADRONIZADA OS HIGIENIZAÇÃO ===== */}
+      <VehicleCleaningViewModal
+        isOpen={isCleaningOsModalOpen}
+        onClose={() => {
+          setIsCleaningOsModalOpen(false);
+          setSelectedCleaningOrder(null);
+        }}
+        order={selectedCleaningOrder}
       />
     </div>,
     document.body

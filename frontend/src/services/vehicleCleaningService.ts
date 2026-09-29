@@ -71,10 +71,10 @@ export interface CreateCleaningOrderRequest {
   releaseSpot?: string;
 }
 
-const CLEANING_TYPE_LABELS: Record<CleaningType, string> = {
-  INTERNAL: 'Limpeza Interna',
-  EXTERNAL: 'Limpeza Externa',
-  COMPLETE: 'Limpeza Completa',
+export const CLEANING_TYPE_LABELS: Record<CleaningType, string> = {
+  INTERNAL: 'Higienização Interna',
+  EXTERNAL: 'Limpeza Externa (Lavajato)',
+  COMPLETE: 'Higienização Completa',
   SANITARY: 'Sanitário / Descarte',
 };
 
@@ -335,4 +335,4 @@ class VehicleCleaningService {
 }
 
 export const vehicleCleaningService = new VehicleCleaningService();
-export { CLEANING_TYPE_LABELS, STATUS_LABELS };
+export { STATUS_LABELS };

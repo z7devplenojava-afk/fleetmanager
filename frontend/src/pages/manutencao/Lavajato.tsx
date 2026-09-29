@@ -360,8 +360,8 @@ const Lavajato: React.FC = () => {
   };
 
   return (
-    <StandardLayout title="Lavajato" subtitle="Registro de lavagem, checklist interno/externo, cronômetro e notificações">
-      <div className="p-6">
+    <>
+      <div>
         {/* Cards de Resumo */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <Card className="bg-seguranca-graphite border-gray-700 p-4">
@@ -767,8 +767,17 @@ const Lavajato: React.FC = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </StandardLayout>
+    </>
   );
 };
 
-export default Lavajato;
+export { Lavajato as LavajatoContent };
+export default function LavajatoPage() {
+  return (
+    <StandardLayout title="Lavajato" subtitle="Registro de lavagem, checklist interno/externo, cronômetro e notificações">
+      <div className="p-6">
+        <Lavajato />
+      </div>
+    </StandardLayout>
+  );
+}
