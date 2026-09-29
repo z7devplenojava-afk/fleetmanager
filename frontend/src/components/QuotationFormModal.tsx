@@ -11,8 +11,9 @@ import {
   Building2, DollarSign, FileText, Clock, CreditCard, Truck, ShoppingCart, Plus, 
   ExternalLink, Image as ImageIcon, Camera, Trash2, Download, Sparkles, Wrench, 
   Car, Eye, X, Paperclip, FileSpreadsheet, File, ShieldCheck, CheckCircle2, Award,
-  Search, Boxes, Check, PackageSearch, Layers, Trophy
+  Search, Boxes, Check, PackageSearch, Layers, Trophy, ListPlus, Edit3
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Quotation, CreateQuotationRequest, UpdateQuotationRequest, QuotationStatus, quotationService } from '@/services/quotationService';
 import { contasAPagarService, Supplier, CreateSupplierRequest } from '@/services/contasAPagarService';
 import { purchaseRequestService, PurchaseRequest } from '@/services/purchaseRequestService';
@@ -95,6 +96,18 @@ interface ComparisonCriteriaState {
   partQuality: string;
 }
 
+export interface QuotationItemEntry {
+  id: string;
+  itemName: string;
+  itemCode?: string;
+  brand?: string;
+  quantity: number;
+  unit: string;
+  justification?: string;
+  purchaseRequestId?: string;
+  purchaseRequestNumber?: string;
+}
+
 const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ 
   quotation, 
   onClose, 
@@ -117,6 +130,13 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
     assignedToId: '',
     status: 'DRAFT'
   });
+
+  // Múltiplas solicitações e itens agregados na cotação
+  const [selectedPurchaseRequestIds, setSelectedPurchaseRequestIds] = useState<string[]>(
+    initialPurchaseRequestId ? [initialPurchaseRequestId] : []
+  );
+  const [quotationItems, setQuotationItems] = useState<QuotationItemEntry[]>([]);
+  const [isMultiRequestOpen, setIsMultiRequestOpen] = useState(false);
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -312,6 +332,8 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
       let restoredAttachments: QuotationSupplierAttachment[] = [];
       let restoredPart: Partial<PartDetailsState> = {};
       let restoredCriteria: Partial<ComparisonCriteriaState> = {};
+      let restoredQuotationItems: QuotationItemEntry[] = [];
+      let restoredPurchaseRequestIds: string[] = [];
       let cleanNotes = quotation.notes || '';
 
       if (quotation.notes && quotation.notes.trim().startsWith('{')) {
@@ -326,6 +348,14 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
           if (parsed.partDetails) {
             restoredPart = parsed.partDetails;
           }
+          if (parsed.items && Array.isArray(parsed.items)) {
+            restoredQuotationItems = parsed.items;
+          } else if (parsed.quotationItems && Array.isArray(parsed.quotationItems)) {
+            restoredQuotationItems = parsed.quotationItems;
+          }
+          if (parsed.purchaseRequestIds && Array.isArray(parsed.purchaseRequestIds)) {
+            restoredPurchaseRequestIds = parsed.purchaseRequestIds;
+          }
           if (parsed.comparisonCriteria) {
             restoredCriteria = parsed.comparisonCriteria;
           }
@@ -334,6 +364,26 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
           console.warn('Notes não é um JSON de metadados:', e);
         }
       }
+
+      if (purchaseRequestIdValue && !restoredPurchaseRequestIds.includes(purchaseRequestIdValue)) {
+        restoredPurchaseRequestIds.push(purchaseRequestIdValue);
+      }
+
+      if (restoredQuotationItems.length === 0 && (restoredPart.itemName || quotation.title)) {
+        restoredQuotationItems = [{
+          id: `item-restored-1`,
+          itemName: restoredPart.itemName || quotation.title || '',
+          itemCode: restoredPart.itemCode || '',
+          brand: restoredPart.brand || '',
+          quantity: restoredPart.quantity || 1,
+          unit: restoredPart.unit || 'UN',
+          justification: restoredPart.justification || '',
+          purchaseRequestId: purchaseRequestIdValue || undefined,
+        }];
+      }
+
+      setSelectedPurchaseRequestIds(restoredPurchaseRequestIds);
+      setQuotationItems(restoredQuotationItems);
 
       setPhotos(restoredPhotos);
       setSupplierAttachments(restoredAttachments);
@@ -388,6 +438,8 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
         assignedToId: '',
         status: 'DRAFT'
       });
+      setSelectedPurchaseRequestIds(initialPurchaseRequestId ? [initialPurchaseRequestId] : []);
+      setQuotationItems([]);
       setPhotos([]);
       setSupplierAttachments([]);
       setPartDetails({
@@ -478,34 +530,137 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
     if (!requestId || requestId === 'none') {
       return;
     }
+    if (!selectedPurchaseRequestIds.includes(requestId)) {
+      handleTogglePurchaseRequest(requestId);
+    }
+  };
+
+  const handleTogglePurchaseRequest = (requestId: string) => {
+    const isCurrentlySelected = selectedPurchaseRequestIds.includes(requestId);
     const req = purchaseRequests.find(r => String(r.id) === String(requestId));
     if (!req) return;
 
-    const firstItem = req.items && req.items.length > 0 ? req.items[0] : null;
-    if (firstItem) {
-      setPartDetails(prev => ({
-        ...prev,
-        itemName: firstItem.itemName || prev.itemName,
-        itemCode: firstItem.itemCode || firstItem.productName || prev.itemCode,
-        quantity: firstItem.quantity || prev.quantity || 1,
-        unit: firstItem.unit || prev.unit || 'UN',
-        justification: req.justification || prev.justification
-      }));
+    if (isCurrentlySelected) {
+      const newSelected = selectedPurchaseRequestIds.filter(id => id !== requestId);
+      setSelectedPurchaseRequestIds(newSelected);
+      setQuotationItems(prev => prev.filter(item => item.purchaseRequestId !== requestId));
+      if (formData.purchaseRequestId === requestId) {
+        handleInputChange('purchaseRequestId', newSelected[0] || '');
+      }
+    } else {
+      const newSelected = [...selectedPurchaseRequestIds, requestId];
+      setSelectedPurchaseRequestIds(newSelected);
+      if (!formData.purchaseRequestId) {
+        handleInputChange('purchaseRequestId', requestId);
+      }
+
+      const newItems: QuotationItemEntry[] = [];
+      if (req.items && req.items.length > 0) {
+        req.items.forEach((it, idx) => {
+          newItems.push({
+            id: `req-${req.id}-item-${idx}-${Date.now()}`,
+            itemName: it.itemName || req.title || '',
+            itemCode: it.itemCode || it.productName || '',
+            brand: it.brand || '',
+            quantity: it.quantity || 1,
+            unit: it.unit || 'UN',
+            justification: it.justification || req.justification || '',
+            purchaseRequestId: String(req.id),
+            purchaseRequestNumber: req.requestNumber,
+          });
+        });
+      } else {
+        newItems.push({
+          id: `req-${req.id}-${Date.now()}`,
+          itemName: req.title,
+          itemCode: '',
+          quantity: 1,
+          unit: 'UN',
+          justification: req.justification || '',
+          purchaseRequestId: String(req.id),
+          purchaseRequestNumber: req.requestNumber,
+        });
+      }
+
+      setQuotationItems(prev => {
+        const filteredNew = newItems.filter(
+          ni => !prev.some(p => p.purchaseRequestId === ni.purchaseRequestId && p.itemName.toLowerCase() === ni.itemName.toLowerCase())
+        );
+        return [...prev, ...filteredNew];
+      });
+
+      // Se partDetails estiver vazio, preenche com o primeiro item
+      if (!partDetails.itemName && newItems.length > 0) {
+        setPartDetails(prev => ({
+          ...prev,
+          itemName: newItems[0].itemName,
+          itemCode: newItems[0].itemCode || prev.itemCode,
+          quantity: newItems[0].quantity || prev.quantity,
+          unit: newItems[0].unit || prev.unit,
+        }));
+      }
+
+      if (newSelected.length === 1 && !formData.title) {
+        setFormData(prev => ({
+          ...prev,
+          title: `Cotação: ${req.title} (${req.requestNumber})`,
+          description: req.description || `Cotação referente à Solicitação ${req.requestNumber}`,
+        }));
+      } else if (newSelected.length > 1) {
+        setFormData(prev => ({
+          ...prev,
+          title: prev.title.startsWith('Cotação:') ? prev.title : `Cotação Agrupada (${newSelected.length} Solicitações)`,
+        }));
+      }
     }
+  };
 
-    const newTitle = `Cotação: ${req.title} (${req.requestNumber})`;
-    const newDesc = req.description || `Cotação referente à Solicitação ${req.requestNumber} - Solicitante: ${req.requesterName || 'Geral'}. Motivo: ${req.justification || ''}`;
+  const handleAddCustomItem = () => {
+    const newItem: QuotationItemEntry = {
+      id: `custom-item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      itemName: '',
+      itemCode: '',
+      brand: '',
+      quantity: 1,
+      unit: 'UN',
+    };
+    setQuotationItems(prev => [...prev, newItem]);
+  };
 
-    setFormData(prev => ({
-      ...prev,
-      title: prev.title || newTitle,
-      description: prev.description || newDesc,
-      totalValue: prev.totalValue || (req.totalValue ? String(req.totalValue) : '')
+  const handleUpdateItem = (id: string, field: keyof QuotationItemEntry, value: any) => {
+    setQuotationItems(prev => prev.map(item => {
+      if (item.id === id) {
+        const updated = { ...item, [field]: value };
+        if (prev[0]?.id === id) {
+          if (field === 'itemName') setPartDetails(p => ({ ...p, itemName: String(value) }));
+          if (field === 'itemCode') setPartDetails(p => ({ ...p, itemCode: String(value) }));
+          if (field === 'quantity') setPartDetails(p => ({ ...p, quantity: Number(value) || 1 }));
+          if (field === 'unit') setPartDetails(p => ({ ...p, unit: String(value) }));
+        }
+        return updated;
+      }
+      return item;
     }));
+  };
+
+  const handleRemoveItem = (id: string) => {
+    setQuotationItems(prev => prev.filter(item => item.id !== id));
   };
 
   const handleSelectStockItem = (item: StockItem) => {
     setSelectedStockItem(item);
+    
+    // Adicionar à lista de itens a cotar
+    const newItem: QuotationItemEntry = {
+      id: `stock-${item.id}-${Date.now()}`,
+      itemName: item.name || item.fullName || '',
+      itemCode: item.code || '',
+      brand: item.supplier || '',
+      quantity: 1,
+      unit: item.unitName || 'UN',
+    };
+    setQuotationItems(prev => [...prev, newItem]);
+
     setPartDetails(prev => ({
       ...prev,
       itemName: item.name || item.fullName,
@@ -525,8 +680,8 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
     setIsStockSearchOpen(false);
 
     toast({
-      title: "Peça do Estoque Selecionada",
-      description: `"${item.name}" (Cód: ${item.code}) preenchido com sucesso nos campos da cotação.`,
+      title: "Peça Adicionada à Cotação",
+      description: `"${item.name}" (Cód: ${item.code}) adicionado aos itens da cotação.`,
     });
   };
 
@@ -671,16 +826,25 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
         workOrderNumber: partDetails.workOrderNumber,
         requesterName: users.find(u => String(u.id) === formData.assignedToId)?.name || selectedPurchaseRequest?.requesterName,
         justification: partDetails.justification || selectedPurchaseRequest?.justification,
-        items: [
-          {
-            itemName: partDetails.itemName || formData.title || 'Item para Cotação',
-            itemCode: partDetails.itemCode,
-            brand: partDetails.brand,
-            quantity: partDetails.quantity || 1,
-            unit: partDetails.unit || 'UN',
-            specification: formData.description
-          }
-        ],
+        items: quotationItems.length > 0
+          ? quotationItems.map(it => ({
+              itemName: it.itemName,
+              itemCode: it.itemCode,
+              brand: it.brand,
+              quantity: it.quantity,
+              unit: it.unit,
+              specification: it.justification
+            }))
+          : [
+              {
+                itemName: partDetails.itemName || formData.title || 'Item para Cotação',
+                itemCode: partDetails.itemCode,
+                brand: partDetails.brand,
+                quantity: partDetails.quantity || 1,
+                unit: partDetails.unit || 'UN',
+                specification: formData.description
+              }
+            ],
         photos: photos,
         supplierAttachments: supplierAttachments,
         deliveryDays: comparisonCriteria.deliveryDays,
@@ -755,13 +919,13 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const titleVal = formData.title.trim() || partDetails.itemName.trim() || 'Nova Cotação de Peças';
+    const titleVal = formData.title.trim() || partDetails.itemName.trim() || (quotationItems[0]?.itemName ? `Cotação: ${quotationItems[0].itemName}` : 'Nova Cotação de Peças');
     const totalVal = parseFloat(formData.totalValue) || 0;
 
     if (!titleVal) {
       toast({
         title: "Título Necessário",
-        description: "Por favor, informe o título da cotação ou o nome da peça.",
+        description: "Por favor, informe o título da cotação ou adicione ao menos um item.",
         variant: "destructive",
       });
       return;
@@ -770,10 +934,14 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
     try {
       setLoading(true);
 
+      const primaryPurchaseRequestId = selectedPurchaseRequestIds[0] || formData.purchaseRequestId || undefined;
+
       // Salvar metadados de fotos, proposta do fornecedor e dados técnicos da peça em JSON no campo notes
       const notesPayloadObj = {
         rawNotes: formData.notes.trim(),
         partDetails,
+        items: quotationItems,
+        purchaseRequestIds: selectedPurchaseRequestIds,
         photos,
         supplierAttachments,
         comparisonCriteria
@@ -783,7 +951,7 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
         title: titleVal,
         description: formData.description.trim() || undefined,
         supplierId: formData.supplierId || undefined,
-        purchaseRequestId: formData.purchaseRequestId || undefined,
+        purchaseRequestId: primaryPurchaseRequestId,
         unitId: formData.unitId || undefined,
         totalValue: totalVal,
         validUntil: formData.validUntil || format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
@@ -905,116 +1073,254 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* SEÇÃO 1: VINCULAR SOLICITAÇÃO / ORDEM DE SERVIÇO */}
-          <Card className="bg-gradient-to-r from-zinc-900 to-seguranca-graphite border-gray-700 shadow-md">
-            <CardHeader className="pb-3 border-b border-gray-700/60">
-              <CardTitle className="text-base font-semibold text-seguranca-lightgray flex items-center gap-2">
-                <div className="p-1.5 bg-seguranca-red/20 rounded-lg">
-                  <ShoppingCart className="h-4 w-4 text-seguranca-red" />
-                </div>
-                1. Origem da Demanda (Requisição / Solicitação de Compra)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="purchaseRequestId" className="text-sm text-gray-300 font-medium flex items-center justify-between">
-                  <span>Vincular Solicitação de Compra Existente</span>
-                  <span className="text-xs text-seguranca-yellow font-normal">Opcional — Preenche dados automaticamente</span>
-                </Label>
-                <Select
-                  value={formData.purchaseRequestId || 'none'}
-                  onValueChange={(value) => handleSelectPurchaseRequest(value)}
-                >
-                  <SelectTrigger className="bg-zinc-900/90 border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
-                    <SelectValue placeholder={loadingPurchaseRequests ? "Carregando solicitações..." : "Selecione uma solicitação da lista (ou preencha manualmente abaixo)"} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-gray-700 max-h-[240px] text-seguranca-lightgray">
-                    <SelectItem value="none" className="text-gray-400 hover:bg-zinc-800">
-                      Nenhuma (Preenchimento Avulso)
-                    </SelectItem>
-                    {purchaseRequests.map((request) => (
-                      <SelectItem key={request.id} value={String(request.id)} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
-                        <div className="flex items-center gap-2 py-0.5">
-                          <Badge variant="outline" className="text-[10px] bg-zinc-800 border-gray-600 font-mono">
-                            {request.requestNumber || `#${request.id}`}
-                          </Badge>
-                          <span className="font-medium text-white truncate max-w-[340px]">{request.title}</span>
-                          {request.requesterName && (
-                            <span className="text-xs text-gray-400">({request.requesterName})</span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {selectedPurchaseRequest && (
-                  <div className="p-3.5 bg-zinc-900/80 border border-gray-700/80 rounded-lg space-y-2.5 mt-2">
-                    <div className="flex items-center justify-between border-b border-gray-700/80 pb-2">
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-seguranca-yellow text-zinc-950 font-mono font-bold text-xs">
-                          {selectedPurchaseRequest.requestNumber}
-                        </Badge>
-                        <span className="text-sm font-semibold text-white">
-                          {selectedPurchaseRequest.title}
-                        </span>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewPurchaseRequest(selectedPurchaseRequest.id)}
-                        className="h-7 text-xs text-seguranca-yellow hover:bg-seguranca-yellow/10"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                        Ver Solicitação
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <span className="text-gray-400 block">👤 Solicitante:</span>
-                        <span className="text-seguranca-lightgray font-medium">
-                          {selectedPurchaseRequest.requesterName || 'Não informado'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400 block">🏢 Departamento/Unidade:</span>
-                        <span className="text-seguranca-lightgray">
-                          {selectedPurchaseRequest.department || selectedPurchaseRequest.unitName || 'Geral'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400 block">📅 Data da Solicitação:</span>
-                        <span className="text-seguranca-lightgray">
-                          {selectedPurchaseRequest.createdAt ? format(new Date(selectedPurchaseRequest.createdAt), 'dd/MM/yyyy') : '-'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {selectedPurchaseRequest.justification && (
-                      <div className="text-xs bg-black/40 p-2 rounded border border-gray-800">
-                        <span className="text-seguranca-yellow font-semibold">📝 Justificativa da Compra: </span>
-                        <span className="text-gray-300 italic">"{selectedPurchaseRequest.justification}"</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* SEÇÃO 2: DADOS TÉCNICOS DA PEÇA / ITEM A COTAR */}
           <Card className="bg-gradient-to-r from-zinc-900 to-seguranca-graphite border-gray-700 shadow-md">
             <CardHeader className="pb-3 border-b border-gray-700/60 flex flex-row items-center justify-between">
               <CardTitle className="text-base font-semibold text-seguranca-lightgray flex items-center gap-2">
                 <div className="p-1.5 bg-seguranca-red/20 rounded-lg">
+                  <ShoppingCart className="h-4 w-4 text-seguranca-red" />
+                </div>
+                1. Origem da Demanda (Solicitações de Compra)
+              </CardTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsMultiRequestOpen(!isMultiRequestOpen)}
+                className={`text-xs h-7 flex items-center gap-1.5 transition-all ${
+                  isMultiRequestOpen || selectedPurchaseRequestIds.length > 1
+                    ? 'bg-seguranca-yellow text-zinc-950 font-bold border-seguranca-yellow hover:bg-yellow-400'
+                    : 'bg-zinc-800 text-seguranca-yellow border-gray-600 hover:bg-zinc-700'
+                }`}
+              >
+                <ListPlus className="h-3.5 w-3.5" />
+                {selectedPurchaseRequestIds.length > 1
+                  ? `${selectedPurchaseRequestIds.length} Solicitações Agrupadas`
+                  : isMultiRequestOpen
+                    ? 'Ocultar Seleção Múltipla'
+                    : 'Agrupar Várias Solicitações'}
+              </Button>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-4">
+              {/* Badges de Solicitações Vinculadas */}
+              {selectedPurchaseRequestIds.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 pb-1">
+                  <span className="text-xs text-gray-400 font-medium">Solicitações vinculadas:</span>
+                  {selectedPurchaseRequestIds.map(reqId => {
+                    const req = purchaseRequests.find(r => String(r.id) === String(reqId));
+                    return (
+                      <Badge
+                        key={reqId}
+                        className="bg-seguranca-yellow/20 border border-seguranca-yellow/50 text-seguranca-yellow text-xs py-0.5 px-2 flex items-center gap-1.5"
+                      >
+                        <span className="font-mono font-bold">{req?.requestNumber || `#${reqId}`}</span>
+                        <span className="max-w-[140px] truncate">{req?.title}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePurchaseRequest(reqId)}
+                          className="hover:text-red-400 font-bold ml-1"
+                          title="Desvincular esta solicitação"
+                        >
+                          ✕
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* MODO SELEÇÃO MÚLTIPLA COM CHECKBOXES */}
+              {isMultiRequestOpen || selectedPurchaseRequestIds.length > 1 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm text-gray-300 font-medium">
+                      Selecione uma ou mais Solicitações de Compra para unificar nesta cotação:
+                    </Label>
+                    <span className="text-xs text-seguranca-yellow">
+                      Itens das solicitações marcadas são agregados automaticamente
+                    </span>
+                  </div>
+
+                  <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-700/80 rounded-lg p-2 bg-zinc-950/60 divide-y divide-gray-800/60">
+                    {loadingPurchaseRequests ? (
+                      <div className="p-4 text-center text-xs text-gray-400">Carregando solicitações...</div>
+                    ) : purchaseRequests.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-gray-400">Nenhuma solicitação de compra encontrada.</div>
+                    ) : (
+                      purchaseRequests.map(req => {
+                        const isChecked = selectedPurchaseRequestIds.includes(String(req.id));
+                        return (
+                          <div
+                            key={req.id}
+                            onClick={() => handleTogglePurchaseRequest(String(req.id))}
+                            className={`p-2.5 rounded-md cursor-pointer flex items-center justify-between gap-3 text-xs transition-colors pt-2.5 ${
+                              isChecked
+                                ? 'bg-seguranca-yellow/10 border border-seguranca-yellow/30'
+                                : 'hover:bg-zinc-800/50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                checked={isChecked}
+                                onCheckedChange={() => handleTogglePurchaseRequest(String(req.id))}
+                                onClick={e => e.stopPropagation()}
+                              />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="font-mono text-[10px] bg-zinc-900 border-gray-700 text-seguranca-yellow font-bold">
+                                    {req.requestNumber || `#${req.id}`}
+                                  </Badge>
+                                  <span className="font-semibold text-white">{req.title}</span>
+                                </div>
+                                <div className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-2">
+                                  <span>👤 {req.requesterName || 'Não informado'}</span>
+                                  <span>• 🏢 {req.department || req.unitName || 'Geral'}</span>
+                                  {req.createdAt && (
+                                    <span>• 📅 {format(new Date(req.createdAt), 'dd/MM/yyyy')}</span>
+                                  )}
+                                  {req.items && req.items.length > 0 && (
+                                    <span className="text-emerald-400 font-medium">({req.items.length} itens)</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewPurchaseRequest(req.id);
+                              }}
+                              className="h-6 text-[11px] text-seguranca-yellow hover:bg-seguranca-yellow/10 px-2"
+                            >
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              Ver
+                            </Button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* MODO INDIVIDUAL COM SELECT */
+                <div className="space-y-2">
+                  <Label htmlFor="purchaseRequestId" className="text-sm text-gray-300 font-medium flex items-center justify-between">
+                    <span>Vincular Solicitação de Compra Existente</span>
+                    <span className="text-xs text-seguranca-yellow font-normal">Opcional — Preenche dados automaticamente</span>
+                  </Label>
+                  <Select
+                    value={formData.purchaseRequestId || 'none'}
+                    onValueChange={(value) => handleSelectPurchaseRequest(value)}
+                  >
+                    <SelectTrigger className="bg-zinc-900/90 border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow h-11">
+                      <SelectValue placeholder={loadingPurchaseRequests ? "Carregando solicitações..." : "Selecione uma solicitação da lista (ou preencha manualmente abaixo)"} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-gray-700 max-h-[240px] text-seguranca-lightgray">
+                      <SelectItem value="none" className="text-gray-400 hover:bg-zinc-800">
+                        Nenhuma (Preenchimento Avulso)
+                      </SelectItem>
+                      {purchaseRequests.map((request) => (
+                        <SelectItem key={request.id} value={String(request.id)} className="text-seguranca-lightgray hover:bg-seguranca-red/20">
+                          <div className="flex items-center gap-2 py-0.5">
+                            <Badge variant="outline" className="text-[10px] bg-zinc-800 border-gray-600 font-mono">
+                              {request.requestNumber || `#${request.id}`}
+                            </Badge>
+                            <span className="font-medium text-white truncate max-w-[340px]">{request.title}</span>
+                            {request.requesterName && (
+                              <span className="text-xs text-gray-400">({request.requesterName})</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {selectedPurchaseRequest && (
+                    <div className="p-3.5 bg-zinc-900/80 border border-gray-700/80 rounded-lg space-y-2.5 mt-2">
+                      <div className="flex items-center justify-between border-b border-gray-700/80 pb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-seguranca-yellow text-zinc-950 font-mono font-bold text-xs">
+                            {selectedPurchaseRequest.requestNumber}
+                          </Badge>
+                          <span className="text-sm font-semibold text-white">
+                            {selectedPurchaseRequest.title}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewPurchaseRequest(selectedPurchaseRequest.id)}
+                          className="h-7 text-xs text-seguranca-yellow hover:bg-seguranca-yellow/10"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                          Ver Solicitação
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <span className="text-gray-400 block">👤 Solicitante:</span>
+                          <span className="text-seguranca-lightgray font-medium">
+                            {selectedPurchaseRequest.requesterName || 'Não informado'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 block">🏢 Departamento/Unidade:</span>
+                          <span className="text-seguranca-lightgray">
+                            {selectedPurchaseRequest.department || selectedPurchaseRequest.unitName || 'Geral'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 block">📅 Data da Solicitação:</span>
+                          <span className="text-seguranca-lightgray">
+                            {selectedPurchaseRequest.createdAt ? format(new Date(selectedPurchaseRequest.createdAt), 'dd/MM/yyyy') : '-'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {selectedPurchaseRequest.justification && (
+                        <div className="text-xs bg-black/40 p-2 rounded border border-gray-800">
+                          <span className="text-seguranca-yellow font-semibold">📝 Justificativa da Compra: </span>
+                          <span className="text-gray-300 italic">"{selectedPurchaseRequest.justification}"</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* SEÇÃO 2: ITENS DA COTAÇÃO & ESPECIFICAÇÕES TÉCNICAS */}
+          <Card className="bg-gradient-to-r from-zinc-900 to-seguranca-graphite border-gray-700 shadow-md">
+            <CardHeader className="pb-3 border-b border-gray-700/60 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-seguranca-red/20 rounded-lg">
                   <Wrench className="h-4 w-4 text-seguranca-red" />
                 </div>
-                2. Especificações Técnicas da Peça / Item a Cotar
-              </CardTitle>
+                <div>
+                  <CardTitle className="text-base font-semibold text-seguranca-lightgray flex items-center gap-2">
+                    2. Itens a Cotar & Especificações Técnicas
+                    <Badge variant="outline" className="border-seguranca-yellow/40 text-seguranca-yellow text-xs ml-2">
+                      {quotationItems.length > 0 ? `${quotationItems.length} ${quotationItems.length === 1 ? 'item' : 'itens'}` : 'Item Único'}
+                    </Badge>
+                  </CardTitle>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddCustomItem}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-white border-gray-600 text-xs font-semibold h-7 flex items-center gap-1.5"
+                >
+                  <Plus className="h-3.5 w-3.5 text-seguranca-yellow" />
+                  + Item Avulso
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -1028,212 +1334,394 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
                   <Search className="h-3.5 w-3.5" />
                   Buscar Peça no Estoque
                 </Button>
-                <Badge variant="outline" className="border-seguranca-yellow/40 text-seguranca-yellow text-xs hidden sm:inline-flex">
-                  Precisão para Fornecedores
-                </Badge>
               </div>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                {/* Nome do Item / Peça com Busca Integrada no Estoque */}
-                <div className="md:col-span-6 space-y-2 relative">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="partName" className="text-sm font-medium text-gray-200">
-                      Nome da Peça / Descrição do Item <span className="text-seguranca-red">*</span>
-                    </Label>
-                    <button
+              {/* TABELA DE MÚLTIPLOS ITENS A COTAR */}
+              {quotationItems.length > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span>Edite os itens abaixo, altere quantidades ou acrescente novas peças:</span>
+                    <Button
                       type="button"
-                      onClick={() => {
-                        setStockSearchQuery('');
-                        setIsStockSearchOpen(true);
-                      }}
-                      className="text-xs text-seguranca-yellow hover:underline flex items-center gap-1"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleAddCustomItem}
+                      className="text-seguranca-yellow hover:bg-seguranca-yellow/10 h-6 text-xs p-1"
                     >
-                      <Boxes className="h-3 w-3" />
-                      Catálogo do Estoque
-                    </button>
-                  </div>
-                  
-                  <div className="relative">
-                    <Input
-                      id="partName"
-                      value={partDetails.itemName}
-                      onChange={(e) => {
-                        handlePartDetailChange('itemName', e.target.value);
-                        setShowStockSuggestions(true);
-                      }}
-                      onFocus={() => {
-                        if (partDetails.itemName && partDetails.itemName.trim().length >= 2) {
-                          setShowStockSuggestions(true);
-                        }
-                      }}
-                      placeholder="Ex: Par de Amortecedores Dianteiros Turbogás (ou digite para buscar no estoque)"
-                      className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11 pr-8"
-                    />
-                    {partDetails.itemName && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handlePartDetailChange('itemName', '');
-                          setSelectedStockItem(null);
-                        }}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs p-1"
-                        title="Limpar nome"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                      <Plus className="h-3 w-3 mr-1" />
+                      Acrescentar mais um item
+                    </Button>
                   </div>
 
-                  {/* Sugestões instantâneas do Estoque durante a digitação */}
-                  {showStockSuggestions && inlineStockSuggestions.length > 0 && (
-                    <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-zinc-950 border border-seguranca-yellow/50 rounded-lg shadow-2xl overflow-hidden max-h-60 overflow-y-auto divide-y divide-gray-800">
-                      <div className="px-3 py-1.5 bg-zinc-900 text-[11px] font-semibold text-seguranca-yellow flex items-center justify-between">
-                        <span className="flex items-center gap-1.5">
-                          <Boxes className="h-3.5 w-3.5" />
-                          Peças encontradas no Estoque ({inlineStockSuggestions.length}):
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setShowStockSuggestions(false)}
-                          className="text-gray-400 hover:text-white text-xs px-1"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      {inlineStockSuggestions.map((item) => (
-                        <div
-                          key={item.id}
-                          onClick={() => handleSelectStockItem(item)}
-                          className="p-2.5 hover:bg-seguranca-red/20 cursor-pointer flex items-center justify-between text-xs transition-colors group"
-                        >
-                          <div className="overflow-hidden pr-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-white group-hover:text-seguranca-yellow truncate">
-                                {item.name}
-                              </span>
-                              <Badge variant="outline" className="text-[10px] text-seguranca-yellow font-mono border-gray-700 bg-black/40 flex-shrink-0">
-                                {item.code}
-                              </Badge>
-                            </div>
-                            <div className="text-[11px] text-gray-400 mt-0.5 truncate">
-                              Categoria: {item.category || 'Geral'} {item.supplier ? `• Marca/Fornecedor: ${item.supplier}` : ''}
-                            </div>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <span className="text-emerald-400 font-bold block">
-                              {item.currentQuantity ?? 0} {item.unitName || 'UN'}
+                  <div className="space-y-3">
+                    {quotationItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className="p-3.5 bg-zinc-950/70 border border-gray-700/80 rounded-lg space-y-3 hover:border-gray-600 transition-colors"
+                      >
+                        <div className="flex items-center justify-between border-b border-gray-800 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="h-5 w-5 rounded-full bg-seguranca-yellow text-zinc-950 font-bold text-xs flex items-center justify-center">
+                              {index + 1}
                             </span>
-                            <span className="text-[10px] text-gray-400">em estoque</span>
+                            <span className="text-xs font-semibold text-gray-300">
+                              Item #{index + 1}
+                            </span>
+                            {item.purchaseRequestNumber && (
+                              <Badge variant="outline" className="text-[10px] bg-zinc-900 border-gray-700 text-seguranca-yellow font-mono">
+                                Da Solicitação {item.purchaseRequestNumber}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveItem(item.id)}
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-950/30"
+                            title="Remover item da cotação"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                          {/* Nome do Item */}
+                          <div className="md:col-span-5 space-y-1">
+                            <Label className="text-xs text-gray-300 font-medium">
+                              Nome da Peça / Descrição <span className="text-seguranca-red">*</span>
+                            </Label>
+                            <Input
+                              value={item.itemName}
+                              onChange={(e) => handleUpdateItem(item.id, 'itemName', e.target.value)}
+                              placeholder="Ex: Par de Amortecedores / Luva de Proteção"
+                              className="bg-zinc-900 border-gray-700 text-white focus:border-seguranca-yellow h-9 text-xs"
+                            />
+                          </div>
+
+                          {/* Código OEM / Part Number */}
+                          <div className="md:col-span-2 space-y-1">
+                            <Label className="text-xs text-gray-300 font-medium">
+                              Cód. OEM / Ref.
+                            </Label>
+                            <Input
+                              value={item.itemCode || ''}
+                              onChange={(e) => handleUpdateItem(item.id, 'itemCode', e.target.value)}
+                              placeholder="Ex: GP30143"
+                              className="bg-zinc-900 border-gray-700 text-white focus:border-seguranca-yellow h-9 text-xs font-mono uppercase"
+                            />
+                          </div>
+
+                          {/* Marca Preferencial */}
+                          <div className="md:col-span-2 space-y-1">
+                            <Label className="text-xs text-gray-300 font-medium">
+                              Marca Preferencial
+                            </Label>
+                            <Input
+                              value={item.brand || ''}
+                              onChange={(e) => handleUpdateItem(item.id, 'brand', e.target.value)}
+                              placeholder="Ex: Cofap / Danny"
+                              className="bg-zinc-900 border-gray-700 text-white focus:border-seguranca-yellow h-9 text-xs"
+                            />
+                          </div>
+
+                          {/* Quantidade */}
+                          <div className="md:col-span-1 space-y-1">
+                            <Label className="text-xs text-gray-300 font-medium">
+                              Qtd <span className="text-seguranca-red">*</span>
+                            </Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={item.quantity || 1}
+                              onChange={(e) => handleUpdateItem(item.id, 'quantity', parseFloat(e.target.value) || 1)}
+                              className="bg-zinc-900 border-gray-700 text-white focus:border-seguranca-yellow h-9 text-xs text-center font-bold"
+                            />
+                          </div>
+
+                          {/* Unidade */}
+                          <div className="md:col-span-2 space-y-1">
+                            <Label className="text-xs text-gray-300 font-medium">
+                              Unidade
+                            </Label>
+                            <Select
+                              value={item.unit || 'UN'}
+                              onValueChange={(val) => handleUpdateItem(item.id, 'unit', val)}
+                            >
+                              <SelectTrigger className="bg-zinc-900 border-gray-700 text-white focus:border-seguranca-yellow h-9 text-xs">
+                                <SelectValue placeholder="UN" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-zinc-900 border-gray-700 text-white">
+                                <SelectItem value="UN">UN (Unidade)</SelectItem>
+                                <SelectItem value="PC">PC (Peça)</SelectItem>
+                                <SelectItem value="PAR">PAR (Par)</SelectItem>
+                                <SelectItem value="JG">JG (Jogo)</SelectItem>
+                                <SelectItem value="KIT">KIT (Kit)</SelectItem>
+                                <SelectItem value="LT">LT (Litros)</SelectItem>
+                                <SelectItem value="KG">KG (Quilogramas)</SelectItem>
+                                <SelectItem value="MT">MT (Metros)</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
 
-                  {/* Badge de Peça Vinculada ao Estoque */}
-                  {selectedStockItem && (
-                    <div className="flex items-center justify-between bg-emerald-950/40 border border-emerald-500/40 rounded-lg p-2 text-xs text-emerald-300 animate-in fade-in duration-200">
-                      <div className="flex items-center gap-2 truncate">
-                        <Check className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                        <span className="truncate">
-                          Item do estoque: <strong>{selectedStockItem.name}</strong> (Cód: <span className="font-mono">{selectedStockItem.code}</span>)
-                        </span>
+                        {/* Justificativa / Observação do Item */}
+                        <div className="pt-1">
+                          <Input
+                            value={item.justification || ''}
+                            onChange={(e) => handleUpdateItem(item.id, 'justification', e.target.value)}
+                            placeholder="Observação técnica específica para este item (opcional)"
+                            className="bg-zinc-900/60 border-gray-800 text-gray-300 focus:border-seguranca-yellow h-8 text-xs italic"
+                          />
+                        </div>
                       </div>
-                      <Badge className="bg-emerald-900/80 text-emerald-200 border border-emerald-600 text-[10px] ml-2 flex-shrink-0">
-                        {selectedStockItem.currentQuantity ?? 0} {selectedStockItem.unitName || 'UN'} físico
-                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                /* FORMULÁRIO DE ITEM ÚNICO / AVULSO */
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    {/* Nome do Item / Peça com Busca Integrada no Estoque */}
+                    <div className="md:col-span-6 space-y-2 relative">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="partName" className="text-sm font-medium text-gray-200">
+                          Nome da Peça / Descrição do Item <span className="text-seguranca-red">*</span>
+                        </Label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStockSearchQuery('');
+                            setIsStockSearchOpen(true);
+                          }}
+                          className="text-xs text-seguranca-yellow hover:underline flex items-center gap-1"
+                        >
+                          <Boxes className="h-3 w-3" />
+                          Catálogo do Estoque
+                        </button>
+                      </div>
+                      
+                      <div className="relative">
+                        <Input
+                          id="partName"
+                          value={partDetails.itemName}
+                          onChange={(e) => {
+                            handlePartDetailChange('itemName', e.target.value);
+                            setShowStockSuggestions(true);
+                          }}
+                          onFocus={() => {
+                            if (partDetails.itemName && partDetails.itemName.trim().length >= 2) {
+                              setShowStockSuggestions(true);
+                            }
+                          }}
+                          placeholder="Ex: Par de Amortecedores Dianteiros (ou digite para buscar no estoque)"
+                          className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11 pr-8"
+                        />
+                        {partDetails.itemName && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handlePartDetailChange('itemName', '');
+                              setSelectedStockItem(null);
+                            }}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs p-1"
+                            title="Limpar nome"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Sugestões instantâneas do Estoque durante a digitação */}
+                      {showStockSuggestions && inlineStockSuggestions.length > 0 && (
+                        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-zinc-950 border border-seguranca-yellow/50 rounded-lg shadow-2xl overflow-hidden max-h-60 overflow-y-auto divide-y divide-gray-800">
+                          <div className="px-3 py-1.5 bg-zinc-900 text-[11px] font-semibold text-seguranca-yellow flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <Boxes className="h-3.5 w-3.5" />
+                              Peças encontradas no Estoque ({inlineStockSuggestions.length}):
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShowStockSuggestions(false)}
+                              className="text-gray-400 hover:text-white text-xs px-1"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          {inlineStockSuggestions.map((item) => (
+                            <div
+                              key={item.id}
+                              onClick={() => handleSelectStockItem(item)}
+                              className="p-2.5 hover:bg-seguranca-red/20 cursor-pointer flex items-center justify-between text-xs transition-colors group"
+                            >
+                              <div className="overflow-hidden pr-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-white group-hover:text-seguranca-yellow truncate">
+                                    {item.name}
+                                  </span>
+                                  <Badge variant="outline" className="text-[10px] text-seguranca-yellow font-mono border-gray-700 bg-black/40 flex-shrink-0">
+                                    {item.code}
+                                  </Badge>
+                                </div>
+                                <div className="text-[11px] text-gray-400 mt-0.5 truncate">
+                                  Categoria: {item.category || 'Geral'} {item.supplier ? `• Marca/Fornecedor: ${item.supplier}` : ''}
+                                </div>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <span className="text-emerald-400 font-bold block">
+                                  {item.currentQuantity ?? 0} {item.unitName || 'UN'}
+                                </span>
+                                <span className="text-[10px] text-gray-400">em estoque</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Badge de Peça Vinculada ao Estoque */}
+                      {selectedStockItem && (
+                        <div className="flex items-center justify-between bg-emerald-950/40 border border-emerald-500/40 rounded-lg p-2 text-xs text-emerald-300 animate-in fade-in duration-200">
+                          <div className="flex items-center gap-2 truncate">
+                            <Check className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                            <span className="truncate">
+                              Item do estoque: <strong>{selectedStockItem.name}</strong> (Cód: <span className="font-mono">{selectedStockItem.code}</span>)
+                            </span>
+                          </div>
+                          <Badge className="bg-emerald-900/80 text-emerald-200 border border-emerald-600 text-[10px] ml-2 flex-shrink-0">
+                            {selectedStockItem.currentQuantity ?? 0} {selectedStockItem.unitName || 'UN'} físico
+                          </Badge>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Código OEM / Part Number */}
-                <div className="md:col-span-3 space-y-2">
-                  <Label htmlFor="partCode" className="text-sm font-medium text-gray-200">
-                    Código OEM / Part Number
-                  </Label>
-                  <Input
-                    id="partCode"
-                    value={partDetails.itemCode}
-                    onChange={(e) => handlePartDetailChange('itemCode', e.target.value)}
-                    placeholder="Ex: OEM-GP30143"
-                    className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11 font-mono uppercase"
-                  />
-                </div>
+                    {/* Código OEM / Part Number */}
+                    <div className="md:col-span-3 space-y-2">
+                      <Label htmlFor="partCode" className="text-sm font-medium text-gray-200">
+                        Código OEM / Part Number
+                      </Label>
+                      <Input
+                        id="partCode"
+                        value={partDetails.itemCode}
+                        onChange={(e) => handlePartDetailChange('itemCode', e.target.value)}
+                        placeholder="Ex: OEM-GP30143"
+                        className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11 font-mono uppercase"
+                      />
+                    </div>
 
-                {/* Marca / Fabricante Recomendado */}
-                <div className="md:col-span-3 space-y-2">
-                  <Label htmlFor="partBrand" className="text-sm font-medium text-gray-200">
-                    Marca / Linha Preferencial
-                  </Label>
-                  <Input
-                    id="partBrand"
-                    value={partDetails.brand}
-                    onChange={(e) => handlePartDetailChange('brand', e.target.value)}
-                    placeholder="Ex: Cofap / Monroe / Original"
-                    className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11"
-                  />
-                </div>
+                    {/* Marca / Fabricante Recomendado */}
+                    <div className="md:col-span-3 space-y-2">
+                      <Label htmlFor="partBrand" className="text-sm font-medium text-gray-200">
+                        Marca / Linha Preferencial
+                      </Label>
+                      <Input
+                        id="partBrand"
+                        value={partDetails.brand}
+                        onChange={(e) => handlePartDetailChange('brand', e.target.value)}
+                        placeholder="Ex: Cofap / Monroe"
+                        className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11"
+                      />
+                    </div>
 
-                {/* Quantidade */}
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="partQty" className="text-sm font-medium text-gray-200">
-                    Quantidade <span className="text-seguranca-red">*</span>
-                  </Label>
-                  <Input
-                    id="partQty"
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={partDetails.quantity || 1}
-                    onChange={(e) => handlePartDetailChange('quantity', parseFloat(e.target.value) || 1)}
-                    className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11 text-center font-bold"
-                  />
-                </div>
+                    {/* Quantidade */}
+                    <div className="md:col-span-2 space-y-2">
+                      <Label htmlFor="partQty" className="text-sm font-medium text-gray-200">
+                        Quantidade <span className="text-seguranca-red">*</span>
+                      </Label>
+                      <Input
+                        id="partQty"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={partDetails.quantity || 1}
+                        onChange={(e) => handlePartDetailChange('quantity', parseFloat(e.target.value) || 1)}
+                        className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11 text-center font-bold"
+                      />
+                    </div>
 
-                {/* Unidade */}
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="partUnit" className="text-sm font-medium text-gray-200">
-                    Unidade
-                  </Label>
-                  <Select
-                    value={partDetails.unit || 'UN'}
-                    onValueChange={(val) => handlePartDetailChange('unit', val)}
-                  >
-                    <SelectTrigger className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11">
-                      <SelectValue placeholder="UN" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-gray-700 text-white">
-                      <SelectItem value="UN">UN (Unidade)</SelectItem>
-                      <SelectItem value="PC">PC (Peça)</SelectItem>
-                      <SelectItem value="PAR">PAR (Par)</SelectItem>
-                      <SelectItem value="JG">JG (Jogo)</SelectItem>
-                      <SelectItem value="KIT">KIT (Kit)</SelectItem>
-                      <SelectItem value="LT">LT (Litros)</SelectItem>
-                      <SelectItem value="KG">KG (Quilogramas)</SelectItem>
-                      <SelectItem value="MT">MT (Metros)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    {/* Unidade */}
+                    <div className="md:col-span-2 space-y-2">
+                      <Label htmlFor="partUnit" className="text-sm font-medium text-gray-200">
+                        Unidade
+                      </Label>
+                      <Select
+                        value={partDetails.unit || 'UN'}
+                        onValueChange={(val) => handlePartDetailChange('unit', val)}
+                      >
+                        <SelectTrigger className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11">
+                          <SelectValue placeholder="UN" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-gray-700 text-white">
+                          <SelectItem value="UN">UN (Unidade)</SelectItem>
+                          <SelectItem value="PC">PC (Peça)</SelectItem>
+                          <SelectItem value="PAR">PAR (Par)</SelectItem>
+                          <SelectItem value="JG">JG (Jogo)</SelectItem>
+                          <SelectItem value="KIT">KIT (Kit)</SelectItem>
+                          <SelectItem value="LT">LT (Litros)</SelectItem>
+                          <SelectItem value="KG">KG (Quilogramas)</SelectItem>
+                          <SelectItem value="MT">MT (Metros)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
+                    <div className="md:col-span-8 flex items-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const initialItems: QuotationItemEntry[] = [];
+                          if (partDetails.itemName) {
+                            initialItems.push({
+                              id: `item-init-${Date.now()}`,
+                              itemName: partDetails.itemName,
+                              itemCode: partDetails.itemCode,
+                              brand: partDetails.brand,
+                              quantity: partDetails.quantity || 1,
+                              unit: partDetails.unit || 'UN',
+                              justification: partDetails.justification
+                            });
+                          }
+                          initialItems.push({
+                            id: `custom-item-${Date.now()}-2`,
+                            itemName: '',
+                            itemCode: '',
+                            brand: '',
+                            quantity: 1,
+                            unit: 'UN'
+                          });
+                          setQuotationItems(initialItems);
+                        }}
+                        className="bg-seguranca-yellow/10 border-seguranca-yellow/40 text-seguranca-yellow hover:bg-seguranca-yellow hover:text-zinc-950 text-xs font-semibold h-11 w-full flex items-center justify-center gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Adicionar mais itens nesta cotação (Cotação Multi-itens)
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Informações Complementares de Veículo e OS */}
+              <div className="pt-2 border-t border-gray-800 grid grid-cols-1 md:grid-cols-12 gap-3">
                 {/* Placa do Veículo */}
-                <div className="md:col-span-3 space-y-2">
-                  <Label htmlFor="vehiclePlate" className="text-sm font-medium text-gray-200 flex items-center gap-1.5">
-                    <Car className="h-3.5 w-3.5 text-seguranca-yellow" />
-                    Placa do Veículo
+                <div className="md:col-span-3 space-y-1">
+                  <Label htmlFor="vehiclePlate" className="text-xs font-medium text-gray-300 flex items-center gap-1.5">
+                    <Car className="h-3 w-3 text-seguranca-yellow" />
+                    Placa do Veículo (opcional)
                   </Label>
                   <Input
                     id="vehiclePlate"
                     value={partDetails.vehiclePlate}
                     onChange={(e) => handlePartDetailChange('vehiclePlate', e.target.value.toUpperCase())}
                     placeholder="Ex: ABC-1234 / BRA2E19"
-                    className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11 font-mono uppercase"
+                    className="bg-zinc-900 border-gray-700 text-white focus:border-seguranca-yellow h-9 font-mono uppercase text-xs"
                   />
                 </div>
 
                 {/* Modelo / Ano do Veículo */}
-                <div className="md:col-span-3 space-y-2">
-                  <Label htmlFor="vehicleModel" className="text-sm font-medium text-gray-200">
+                <div className="md:col-span-5 space-y-1">
+                  <Label htmlFor="vehicleModel" className="text-xs font-medium text-gray-300">
                     Modelo / Motorização / Ano
                   </Label>
                   <Input
@@ -1241,13 +1729,13 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
                     value={partDetails.vehicleModel}
                     onChange={(e) => handlePartDetailChange('vehicleModel', e.target.value)}
                     placeholder="Ex: VW Gol 1.6 MSI 2021"
-                    className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11"
+                    className="bg-zinc-900 border-gray-700 text-white focus:border-seguranca-yellow h-9 text-xs"
                   />
                 </div>
 
                 {/* Ordem de Serviço */}
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="workOrderNumber" className="text-sm font-medium text-gray-200">
+                <div className="md:col-span-4 space-y-1">
+                  <Label htmlFor="workOrderNumber" className="text-xs font-medium text-gray-300">
                     Nº da OS (Manutenção)
                   </Label>
                   <Input
@@ -1255,23 +1743,23 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
                     value={partDetails.workOrderNumber}
                     onChange={(e) => handlePartDetailChange('workOrderNumber', e.target.value)}
                     placeholder="Ex: OS-1045"
-                    className="bg-zinc-900 border-gray-600 text-white focus:border-seguranca-yellow h-11 font-mono"
+                    className="bg-zinc-900 border-gray-700 text-white focus:border-seguranca-yellow h-9 font-mono text-xs"
                   />
                 </div>
               </div>
 
               {/* Justificativa / Motivo da Troca */}
-              <div className="space-y-2 pt-1">
-                <Label htmlFor="partJustification" className="text-sm font-medium text-gray-200">
+              <div className="space-y-1 pt-1">
+                <Label htmlFor="partJustification" className="text-xs font-medium text-gray-300">
                   Motivo da Troca / Sintomas / Observações Técnicas para o Fornecedor
                 </Label>
                 <Textarea
                   id="partJustification"
                   value={partDetails.justification}
                   onChange={(e) => handlePartDetailChange('justification', e.target.value)}
-                  placeholder="Ex: Peça com vazamento de óleo e estalos durante o curso da suspensão detectado na revisão preventiva."
+                  placeholder="Ex: Reposição periódica ou sintomas detectados na manutenção preventiva."
                   rows={2}
-                  className="bg-zinc-900 border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow"
+                  className="bg-zinc-900 border-gray-700 text-seguranca-lightgray focus:border-seguranca-yellow text-xs"
                 />
               </div>
             </CardContent>

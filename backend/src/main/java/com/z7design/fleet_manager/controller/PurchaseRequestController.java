@@ -20,26 +20,26 @@ public class PurchaseRequestController {
     private final PurchaseRequestService purchaseRequestService;
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO', 'ROLE_ALMOXARIFADO', 'ROLE_SST', 'ROLE_ESTOQUE', 'ROLE_RH', 'ROLE_COORDENADOR_ALMOXARIFADO')")
     public ResponseEntity<List<PurchaseRequestDTO>> getAllPurchaseRequests() {
-        log.info("Buscando todas as requisiÃ§Ãµes de compra");
+        log.info("Buscando todas as requisições de compra");
         List<PurchaseRequestDTO> requests = purchaseRequestService.getAllPurchaseRequests();
         return ResponseEntity.ok(requests);
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO', 'ROLE_ALMOXARIFADO', 'ROLE_SST', 'ROLE_ESTOQUE', 'ROLE_RH', 'ROLE_COORDENADOR_ALMOXARIFADO')")
     public ResponseEntity<PurchaseRequestDTO> getPurchaseRequestById(@PathVariable("id") UUID id) {
-        log.info("Buscando requisiÃ§Ã£o de compra com ID: {}", id);
+        log.info("Buscando requisição de compra com ID: {}", id);
         return purchaseRequestService.getPurchaseRequestById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_ALMOXARIFADO', 'ROLE_SST', 'ROLE_ESTOQUE', 'ROLE_RH', 'ROLE_COORDENADOR_ALMOXARIFADO')")
     public ResponseEntity<PurchaseRequestDTO> createPurchaseRequest(@RequestBody PurchaseRequestDTO requestDTO) {
-        log.info("Criando nova requisiÃ§Ã£o de compra: {}", requestDTO.getTitle());
+        log.info("Criando nova requisição de compra: {}", requestDTO.getTitle());
         PurchaseRequestDTO createdRequest = purchaseRequestService.createPurchaseRequest(requestDTO);
         return ResponseEntity.ok(createdRequest);
     }

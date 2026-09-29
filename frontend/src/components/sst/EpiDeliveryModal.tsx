@@ -28,7 +28,9 @@ import {
   FileSpreadsheet,
   Save,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
+  ShoppingCart
 } from 'lucide-react';
 import { employeeService, Employee } from '@/services/employeeService';
 import { stockService } from '@/services/stockService';
@@ -36,6 +38,7 @@ import { StockItem } from '@/types/stock';
 import { epiDeliveryFormService, EPIDeliveryForm } from '@/services/epiDeliveryFormService';
 import { epiPdfGeneratorService, EpiFormItemData } from '@/services/epiPdfGeneratorService';
 import { companyService } from '@/services/companyService';
+import { purchaseRequestService } from '@/services/purchaseRequestService';
 import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -78,6 +81,17 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
     new Date().toISOString().split('T')[0]
   );
   const [epiList, setEpiList] = useState<EpiFormItemData[]>([]);
+
+  // Estado para Item Sem Estoque e Solicitação de Compras ao Almoxarifado
+  const [outOfStockItem, setOutOfStockItem] = useState<{
+    itemName: string;
+    caNumber?: string;
+    quantity: number;
+    availableStock: number;
+    stockItemId?: string;
+  } | null>(null);
+  const [isOutOfStockDialogOpen, setIsOutOfStockDialogOpen] = useState<boolean>(false);
+  const [isSubmittingPurchaseRequest, setIsSubmittingPurchaseRequest] = useState<boolean>(false);
 
   // Canvas de Assinatura Digital
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -232,7 +246,7 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
     }
   };
 
-  // Adicionar EPI na lista
+  // Adicionar EPI na lista com verificação rigorosa de saldo em estoque
   const handleAddEpi = () => {
     if (!customEpiName.trim()) {
       toast({
@@ -249,6 +263,27 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
         description: 'A quantidade deve ser de no mínimo 1.',
         variant: 'destructive',
       });
+      return;
+    }
+
+    // Verificar se o item possui estoque disponível no Almoxarifado
+    const matchedStockItem = stockItems.find(i => 
+      (selectedStockItemId && i.id === selectedStockItemId) ||
+      (i.name && customEpiName && i.name.trim().toLowerCase() === customEpiName.trim().toLowerCase())
+    );
+
+    const availableStock = matchedStockItem ? (matchedStockItem.currentQuantity ?? 0) : null;
+
+    // Se o item estiver cadastrado no estoque e o saldo for zerado ou insuficiente:
+    if (availableStock !== null && (availableStock <= 0 || availableStock < itemQuantity)) {
+      setOutOfStockItem({
+        itemName: customEpiName.trim(),
+        caNumber: itemCa.trim() || matchedStockItem?.caNumber || '',
+        quantity: itemQuantity,
+        availableStock: availableStock,
+        stockItemId: matchedStockItem?.id,
+      });
+      setIsOutOfStockDialogOpen(true);
       return;
     }
 
@@ -273,6 +308,58 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
       title: 'EPI adicionado',
       description: `${newItem.name} incluído na ficha.`,
     });
+  };
+
+  const handleConfirmPurchaseRequest = async () => {
+    if (!outOfStockItem) return;
+    try {
+      setIsSubmittingPurchaseRequest(true);
+
+      const reqPayload = {
+        title: `Aquisição de EPI em Falta: ${outOfStockItem.itemName}`,
+        description: `Solicitação gerada automaticamente a partir da Entrega de EPI para o colaborador ${activeEmployee?.name || 'Geral'}. Item solicitado: ${outOfStockItem.itemName} (${outOfStockItem.quantity} un). Saldo atual no almoxarifado: ${outOfStockItem.availableStock} un.`,
+        priority: 'HIGH',
+        urgency: 'URGENT',
+        status: 'SUBMITTED',
+        department: 'SST / Almoxarifado',
+        requesterName: activeEmployee?.name ? `SST / Almoxarifado (p/ ${activeEmployee.name})` : 'SST / Almoxarifado',
+        justification: `Falta de estoque no Almoxarifado para entrega obrigatória de EPI (NR-06) ao colaborador ${activeEmployee?.name || 'Geral'}. Saldo atual: ${outOfStockItem.availableStock} un.`,
+        items: [
+          {
+            itemName: outOfStockItem.itemName,
+            quantity: outOfStockItem.quantity,
+            unit: 'UN',
+            specification: outOfStockItem.caNumber ? `C.A.: ${outOfStockItem.caNumber}` : undefined,
+            justification: `Falta de estoque para entrega de EPI ao colaborador ${activeEmployee?.name || 'Geral'}`,
+            currentStock: outOfStockItem.availableStock,
+          }
+        ]
+      };
+
+      const created = await purchaseRequestService.createPurchaseRequest(reqPayload as any);
+
+      toast({
+        title: '✅ Solicitação de Compras Criada!',
+        description: `Solicitação ${created?.requestNumber ? `#${created.requestNumber}` : ''} gerada com sucesso e encaminhada ao setor de Compras para aquisição de ${outOfStockItem.quantity} un de "${outOfStockItem.itemName}".`,
+      });
+
+      // Limpar campos de entrada do item em falta
+      setSelectedStockItemId('');
+      setCustomEpiName('');
+      setItemCa('');
+      setItemQuantity(1);
+      setIsOutOfStockDialogOpen(false);
+      setOutOfStockItem(null);
+    } catch (err: any) {
+      console.error('Erro ao gerar solicitação de compras:', err);
+      toast({
+        title: 'Erro ao gerar solicitação de compras',
+        description: err.response?.data?.message || err.message || 'Não foi possível registrar a solicitação de compras.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmittingPurchaseRequest(false);
+    }
   };
 
   const handleRemoveEpi = (index: number) => {
@@ -934,6 +1021,80 @@ export const EpiDeliveryModal: React.FC<EpiDeliveryModalProps> = ({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Dialog de Item sem Estoque -> Solicitação de Compras */}
+      <Dialog open={isOutOfStockDialogOpen} onOpenChange={setIsOutOfStockDialogOpen}>
+        <DialogContent className="max-w-md bg-seguranca-graphite border-seguranca-yellow/50 text-seguranca-lightgray shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-seguranca-yellow text-base font-bold">
+              <AlertTriangle className="h-5 w-5 text-seguranca-yellow shrink-0" />
+              Item Sem Estoque no Almoxarifado
+            </DialogTitle>
+            <DialogDescription className="text-gray-300 text-xs mt-2 space-y-2">
+              <p>
+                O item <strong className="text-white">"{outOfStockItem?.itemName}"</strong> não possui saldo suficiente para entrega.
+              </p>
+              <div className="bg-seguranca-black/60 p-3 rounded-lg border border-gray-700/60 text-xs space-y-1.5 my-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Saldo Disponível:</span>
+                  <Badge variant="destructive" className="font-mono text-xs px-2 py-0.5">
+                    {outOfStockItem?.availableStock ?? 0} un
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Quantidade Solicitada:</span>
+                  <span className="font-bold text-white font-mono">{outOfStockItem?.quantity} un</span>
+                </div>
+                {outOfStockItem?.caNumber && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Nº do C.A.:</span>
+                    <span className="text-gray-200 font-mono">{outOfStockItem.caNumber}</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-amber-200/90 font-medium">
+                Deseja solicitar ao Almoxarifado a compra deste item?
+              </p>
+              <p className="text-[11px] text-gray-400">
+                Ao confirmar, o sistema gerará uma <strong>Solicitação de Compras</strong> para o setor responsável, e você poderá continuar preenchendo a ficha de EPI com os outros itens disponíveis.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex gap-2 sm:justify-end mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSubmittingPurchaseRequest}
+              onClick={() => {
+                setIsOutOfStockDialogOpen(false);
+                setOutOfStockItem(null);
+              }}
+              className="border-gray-600 text-gray-300 hover:bg-seguranca-black text-xs h-9"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={isSubmittingPurchaseRequest}
+              onClick={handleConfirmPurchaseRequest}
+              className="bg-seguranca-yellow hover:bg-yellow-600 text-black font-semibold text-xs h-9 flex items-center gap-1.5"
+            >
+              {isSubmittingPurchaseRequest ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Gerando Solicitação...
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="h-4 w-4 text-black" />
+                  Sim, Solicitar Compra
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
