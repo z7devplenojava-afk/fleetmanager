@@ -182,6 +182,26 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
       return;
     }
 
+    const cleanWhatsapp = formData.whatsapp ? formData.whatsapp.replace(/\D/g, '') : '';
+    if (cleanWhatsapp && (cleanWhatsapp.length < 9 || cleanWhatsapp.length > 20)) {
+      toast({
+        title: 'Erro!',
+        description: 'O número de WhatsApp deve conter entre 9 e 20 dígitos.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const cleanPhone = formData.phone ? formData.phone.replace(/\D/g, '') : '';
+    if (cleanPhone && (cleanPhone.length < 9 || cleanPhone.length > 20)) {
+      toast({
+        title: 'Erro!',
+        description: 'O telefone deve conter entre 9 e 20 dígitos.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const updateData: {
@@ -190,7 +210,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         username: string;
         roles: string[];
         active: boolean;
-        whatsapp: string;
+        whatsapp?: string;
         password?: string;
         avatar?: string;
         department?: string;
@@ -200,19 +220,19 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         address?: string;
         companyId?: string;
       } = {
-        name: formData.name,
-        email: formData.email,
-        username: formData.username,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        username: formData.username.trim(),
         roles: formData.roles,
         active: formData.active,
-        whatsapp: formData.whatsapp,
+        whatsapp: cleanWhatsapp || undefined,
         avatar: formData.avatar || '',
         department: formData.department || '',
         position: formData.position || '',
         employeeCode: formData.employeeCode || '',
-        phone: formData.phone || '',
+        phone: cleanPhone || undefined,
         address: formData.address || '',
-        companyId: formData.companyId || undefined,
+        companyId: formData.companyId && formData.companyId.trim() !== '' ? formData.companyId.trim() : undefined,
       };
 
       // Apenas ADMINS podem alterar senha via UI de edição
@@ -732,7 +752,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isLoading || !formData.name || !formData.email || !formData.username || !formData.role}
+            disabled={isLoading || !formData.name?.trim() || !formData.email?.trim() || !formData.username?.trim() || formData.roles.length === 0}
             className="bg-seguranca-red hover:bg-seguranca-darkred"
           >
             <Save className="h-4 w-4 mr-2" />
