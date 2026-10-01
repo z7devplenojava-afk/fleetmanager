@@ -45,9 +45,6 @@ public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
     private final LogService logService;
-    // Temporary injections for debugging/fixing
-    private final com.z7design.fleet_manager.repository.UserRepository userRepository;
-    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Operation(summary = "Realiza o login de um usuÃ¡rio", description = "Autentica um usuÃ¡rio com nome de usuÃ¡rio e senha e retorna tokens de acesso e refresh.")
     @ApiResponses(value = {
@@ -105,8 +102,7 @@ public class AuthenticationController {
                     .body(Map.of("error", "Unauthorized", "message", "Invalid username or password."));
         } catch (Exception e) {
             // Log detalhado do erro
-            log.error("ðŸ’¥ ERRO CRÃTICO ao processar login para usuÃ¡rio {}: {}", username, e.getMessage(), e);
-            log.error("ðŸ’¥ Stack trace completo:", e);
+            log.error("ðŸ’¥ ERRO ao processar login para usuÃ¡rio {}: {}", username, e.getMessage(), e);
 
             // Retornar erro 500 como Ãºltimo recurso, mas garantir que seja tratado
             try {
@@ -116,18 +112,12 @@ public class AuthenticationController {
                 log.warn("âš ï¸ Erro ao registrar log de falha (nÃ£o crÃ­tico): {}", logError.getMessage());
             }
 
-            // Retornar erro estruturado com mais detalhes para diagnÃ³stico
-            String errorMessage = "Erro ao processar login. Tente novamente mais tarde.";
-            errorMessage += " Detalhes: " + e.getMessage() + " | Cause: "
-                    + (e.getCause() != null ? e.getCause().toString() : "null");
-            if (e.getStackTrace().length > 0) {
-                errorMessage += " | Stack: " + e.getStackTrace()[0].toString();
-            }
-
+            // SEGURANÇA: mensagem genérica — sem message/cause/stack na resposta
+            // (information disclosure).
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of(
                             "error", "Internal Server Error",
-                            "message", errorMessage,
+                            "message", "Erro ao processar login. Tente novamente mais tarde.",
                             "timestamp", java.time.Instant.now().toString()));
         }
     }
@@ -177,29 +167,9 @@ public class AuthenticationController {
         return ResponseEntity.ok(Map.of("status", "ok", "message", "API is running"));
     }
 
-    @GetMapping("/test/hash")
-    public ResponseEntity<String> generateHash(@org.springframework.web.bind.annotation.RequestParam String password) {
-        // Obter o encoder do contexto se possÃ­vel, ou criar um novo para teste
-        org.springframework.security.crypto.password.PasswordEncoder encoder = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
-        return ResponseEntity.ok(encoder.encode(password));
-    }
-
-    @GetMapping("/test/fix-jose-ramos")
-    public ResponseEntity<String> fixJoseRamos() {
-        try {
-            com.z7design.fleet_manager.model.User user = userRepository.findByUsername("jose.ramos")
-                    .orElseThrow(() -> new RuntimeException("User jose.ramos not found"));
-
-            user.setPassword(passwordEncoder.encode("FluxBus@2026"));
-            user.setActive(true);
-            user.setStatus(com.z7design.fleet_manager.model.enums.UserStatus.ACTIVE);
-            userRepository.save(user);
-
-            return ResponseEntity.ok("User jose.ramos fixed successfully. Password set to FluxBus@2026");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
-        }
-    }
+    // SEGURANÇA: Endpoints /test/hash e /test/fix-jose-ramos removidos.
+    // Eram públicos (permitAll em /api/auth/**) e permitiam gerar hashes BCrypt
+    // e resetar a senha de usuários reais sem autenticação (account takeover).
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getCurrentUser(Authentication authentication) {

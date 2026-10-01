@@ -371,9 +371,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       if (response.data.refreshToken) {
         localStorage.setItem('refreshToken', response.data.refreshToken);
-      } else if (response.data.token) {
-        localStorage.setItem('refreshToken', response.data.token);
       }
+      // SEGURANÇA: não usar o access token como refresh token (o backend agora
+      // valida typ=refresh no endpoint de renovação)
       localStorage.setItem('user', JSON.stringify(userData));
       if (response.data.empresa) {
         const emp = response.data.empresa;

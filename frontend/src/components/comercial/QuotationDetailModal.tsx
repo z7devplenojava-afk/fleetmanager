@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 import {
   Dialog,
   DialogContent,
@@ -345,7 +346,7 @@ export const QuotationDetailModal: React.FC<QuotationDetailModalProps> = ({
           ) : (
             <div
               className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 text-xs text-slate-300 max-h-48 overflow-y-auto leading-relaxed select-text"
-              dangerouslySetInnerHTML={{ __html: quotation.bodyHtml || quotation.bodyText || '' }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(quotation.bodyHtml || '') }}
             />
           )}
         </div>

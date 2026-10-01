@@ -31,6 +31,23 @@ public class PdfMergeController {
     private final PdfMergeService pdfMergeService;
 
     /**
+     * SEGURANÇA: Resolve o arquivo dentro do diretório base, bloqueando path
+     * traversal (ex.: "../../application.properties").
+     */
+    private Path resolveSafePath(String fileName) {
+        if (fileName == null || fileName.isBlank()
+                || fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
+            throw new IllegalArgumentException("Nome de arquivo inválido");
+        }
+        Path baseDir = Paths.get("uploads/merged-documents/").toAbsolutePath().normalize();
+        Path resolved = baseDir.resolve(fileName).normalize();
+        if (!resolved.startsWith(baseDir)) {
+            throw new IllegalArgumentException("Nome de arquivo inválido");
+        }
+        return resolved;
+    }
+
+    /**
      * Une um holerite e um comprovante em um Ãºnico PDF
      */
     @PostMapping("/payslip-receipt")
@@ -165,7 +182,7 @@ public class PdfMergeController {
     @GetMapping("/download/{fileName}")
     public ResponseEntity<Resource> downloadFile(@PathVariable("fileName") String fileName) {
         try {
-            Path filePath = Paths.get("uploads/merged-documents/" + fileName);
+            Path filePath = resolveSafePath(fileName);
             
             if (!Files.exists(filePath)) {
                 return ResponseEntity.notFound().build();
@@ -176,11 +193,13 @@ public class PdfMergeController {
             return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION, 
-                    "attachment; filename=\"" + fileName + "\"")
+                    "attachment; filename=\"" + filePath.getFileName().toString() + "\"")
                 .body(resource);
                 
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
-            log.error("âŒ Erro ao fazer download do arquivo {}: {}", fileName, e.getMessage());
+            log.error("âŒ Erro ao fazer download do arquivo: {}", e.getMessage());
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -191,7 +210,7 @@ public class PdfMergeController {
     @GetMapping("/view/{fileName}")
     public ResponseEntity<Resource> viewFile(@PathVariable("fileName") String fileName) {
         try {
-            Path filePath = Paths.get("uploads/merged-documents/" + fileName);
+            Path filePath = resolveSafePath(fileName);
             
             if (!Files.exists(filePath)) {
                 return ResponseEntity.notFound().build();
@@ -202,11 +221,13 @@ public class PdfMergeController {
             return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION, 
-                    "inline; filename=\"" + fileName + "\"")
+                    "inline; filename=\"" + filePath.getFileName().toString() + "\"")
                 .body(resource);
                 
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
-            log.error("âŒ Erro ao visualizar arquivo {}: {}", fileName, e.getMessage());
+            log.error("âŒ Erro ao visualizar arquivo: {}", e.getMessage());
             return ResponseEntity.internalServerError().build();
         }
     }

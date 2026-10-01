@@ -108,3 +108,14 @@ backend/nul
 scripts/_tmp_*
 *.log*
 *.tsbuildinfo
+
+# Arquivos com credenciais — nunca commitar
+config/database/
+hash_result.txt
+token_temp.txt
+SENHAS_*.md
+SECRETS_*.md
+DESCOBRIR_SENHAS*.md
+ATUALIZAR_*SENHA*.sql
+qr-temp.json
+.secrets-rotation.local

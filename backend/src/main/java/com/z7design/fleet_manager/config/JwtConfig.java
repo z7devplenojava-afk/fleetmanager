@@ -8,22 +8,28 @@ import jakarta.annotation.PostConstruct;
 @ConfigurationProperties(prefix = "jwt")
 public class JwtConfig {
     private static final Logger log = LoggerFactory.getLogger(JwtConfig.class);
-    private String secret = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"; // Valor padrÃ£o como
-                                                                                                // fallback
-    private Long expiration = 604800000L; // 7 dias
+
+    // SEGURANÇA: Sem default hardcoded. O secret DEVE vir de env var/JWT_SECRET.
+    // Se ausente, a aplicação falha na inicialização (fail-fast) em vez de rodar
+    // com uma chave conhecida publicamente (permite forjar tokens de qualquer usuário).
+    private String secret;
+    private Long expiration = 3600000L; // 1 hora (access token)
     private Long refreshTokenExpiration = 604800000L; // 7 dias
     private String header = "Authorization";
     private String prefix = "Bearer";
 
     @PostConstruct
     public void init() {
-        log.info("ðŸ” JwtConfig inicializado - Secret presente: {}, Expiration: {}, RefreshExpiration: {}",
-                secret != null && !secret.trim().isEmpty(), expiration, refreshTokenExpiration);
         if (secret == null || secret.trim().isEmpty()) {
-            log.error("âŒ JWT secret estÃ¡ null ou vazio!");
-        } else {
-            log.info("âœ… JWT secret configurado (tamanho: {} caracteres)", secret.length());
+            log.error("❌ JWT secret não configurado! Defina a variável de ambiente JWT_SECRET (mínimo 64 caracteres aleatórios).");
+            throw new IllegalStateException(
+                    "JWT secret não configurado. Defina a env var JWT_SECRET (gere com: openssl rand -hex 64).");
         }
+        if (secret.trim().length() < 64) {
+            log.warn("⚠️ JWT secret com menos de 64 caracteres — recomendado gerar com: openssl rand -hex 64");
+        }
+        log.info("🔐 JwtConfig inicializado - Secret configurado ({} caracteres), Expiration: {} ms, RefreshExpiration: {} ms",
+                secret.trim().length(), expiration, refreshTokenExpiration);
     }
 
     public String getSecret() {
@@ -31,11 +37,7 @@ public class JwtConfig {
     }
 
     public void setSecret(String secret) {
-        // SÃ³ substitui se o valor fornecido nÃ£o for null ou vazio
-        if (secret != null && !secret.trim().isEmpty()) {
-            this.secret = secret;
-        }
-        // Caso contrÃ¡rio, mantÃ©m o valor padrÃ£o
+        this.secret = secret;
     }
 
     public Long getExpiration() {

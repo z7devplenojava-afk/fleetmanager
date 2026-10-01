@@ -34,13 +34,16 @@ public class SecurityConfig {
         @Lazy
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
         private final JwtTenantFilter jwtTenantFilter;
+        private final com.z7design.fleet_manager.security.LoginRateLimitFilter loginRateLimitFilter;
 
         public SecurityConfig(CustomUserDetailsService customUserDetailsService,
                         @Lazy JwtAuthenticationFilter jwtAuthenticationFilter,
-                        JwtTenantFilter jwtTenantFilter) {
+                        JwtTenantFilter jwtTenantFilter,
+                        com.z7design.fleet_manager.security.LoginRateLimitFilter loginRateLimitFilter) {
                 this.customUserDetailsService = customUserDetailsService;
                 this.jwtAuthenticationFilter = jwtAuthenticationFilter;
                 this.jwtTenantFilter = jwtTenantFilter;
+                this.loginRateLimitFilter = loginRateLimitFilter;
         }
 
         @Bean
@@ -60,10 +63,10 @@ public class SecurityConfig {
                                                 // Endpoints pÃºblicos (sem autenticaÃ§Ã£o)
                                                 .requestMatchers("/api/auth/**").permitAll()
                                                 .requestMatchers("/api/files/**").permitAll()
-                                                .requestMatchers("/api/test/**").permitAll()
+                                                // SEGURANÇA: /api/test/**, /api/diagnostic/** e /api/debug/** agora
+                                                // exigem autenticação (eram portas abertas para inspeção do sistema).
+                                                .requestMatchers("/api/test/**", "/api/diagnostic/**", "/api/debug/**").authenticated()
                                                 .requestMatchers("/api/health").permitAll()
-                                                .requestMatchers("/api/diagnostic/**").permitAll()
-                                                .requestMatchers("/api/debug/**").permitAll()
                                                 // WebSocket endpoints - permitir todos os transportes do SockJS (info,
                                                 // websocket, xhr, eventsource, htmlfile, jsonp, iframe)
                                                 // O SockJS faz requisiÃ§Ãµes HTTP iniciais que nÃ£o incluem o token JWT
@@ -107,11 +110,11 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/public/**").permitAll()
                                                 // WhatsApp controller - pÃºblico para pareamento/health em dev
                                                 .requestMatchers("/api/whatsapp/**").permitAll()
-                                                .requestMatchers("/api/payslips/test-download/**").permitAll()
-                                                .requestMatchers("/api/invoices/public/test-cost-centers").permitAll()
-                                                .requestMatchers("/api/invoices/public/debug-cost-centers").permitAll()
+                                                .requestMatchers("/api/payslips/test-download/**").authenticated()
+                                                .requestMatchers("/api/invoices/public/test-cost-centers").authenticated()
+                                                .requestMatchers("/api/invoices/public/debug-cost-centers").authenticated()
                                                 .requestMatchers("/api/invoices/cost-centers").permitAll()
-                                                .requestMatchers("/api/accounts-receivable/public/test").permitAll()
+                                                .requestMatchers("/api/accounts-receivable/public/test").authenticated()
                                                 .requestMatchers("/error").permitAll()
                                                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**",
                                                                 "/swagger-ui.html")
@@ -243,13 +246,13 @@ public class SecurityConfig {
                                                 // para
                                                 // desenvolvimento)
                                                 .requestMatchers("/api/vehicles/**").authenticated()
-                                                // Endpoints de work-posts - temporariamente pÃºblicos para debug
-                                                .requestMatchers("/api/work-posts/**").permitAll()
+                                                // Endpoints de work-posts - requerem autenticação (antes público para debug)
+                                                .requestMatchers("/api/work-posts/**").authenticated()
                                                 // Endpoints de guias de transporte - requerem autenticaÃ§Ã£o
                                                 .requestMatchers("/api/transport-guides/**").authenticated()
                                                 // Endpoints de reconhecimento facial - requerem apenas autenticaÃ§Ã£o
                                                 .requestMatchers("/api/facial-recognition/recognize").authenticated()
-                                                .requestMatchers("/api/facial-recognition/test").permitAll()
+                                                .requestMatchers("/api/facial-recognition/test").authenticated()
                                                 .requestMatchers("/api/facial-recognition/**")
                                                 .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "HR_READ", "HR_WRITE",
                                                                 "ROLE_SUPER_ADMIN",
@@ -367,8 +370,8 @@ public class SecurityConfig {
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_RH",
                                                                 "ROLE_FINANCEIRO", "ROLE_COLABORADOR", "ROLE_MOTORISTA",
                                                                 "ROLE_MECANICO", "ROLE_PORTARIA")
-                                                // Endpoints de organizaÃ§Ã£o por setor - temporariamente pÃºblico para
-                                                .requestMatchers("/api/sector-organization/**").permitAll()
+                                                // SEGURANÇA: organização por setor agora requer autenticação (antes público para debug)
+                                                .requestMatchers("/api/sector-organization/**").authenticated()
                                                 // Endpoints de relatÃ³rios - requerem permissÃµes especÃ­ficas
                                                 .requestMatchers("/api/reports/**")
                                                 .hasAnyAuthority("REPORTS_READ", "REPORTS_GENERATE", "REPORTS_EXPORT",
@@ -421,22 +424,15 @@ public class SecurityConfig {
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_RH",
                                                                 "ROLE_DEPARTAMENTO_PESSOAL",
                                                                 "ROLE_FINANCEIRO", "ROLE_COMERCIAL", "ROLE_SUPERVISOR")
-                                                // Endpoints de funcionÃ¡rios - temporariamente pÃºblicos para debug
-                                                .requestMatchers("/api/employees/**").permitAll()
-                                                // Endpoints de unidades - temporariamente pÃºblicos para debug
-                                                .requestMatchers("/api/units/**").permitAll()
-                                                // Endpoints de empresas - permitAll para leitura e gerenciamento
-                                                .requestMatchers("/api/companies", "/api/companies/**").permitAll()
-                                                // Endpoints de cargos/posiÃ§Ãµes - temporariamente pÃºblicos para debug
-                                                .requestMatchers("/api/positions/**").permitAll()
-                                                // Endpoints de clientes - temporariamente pÃºblicos para debug
-                                                .requestMatchers("/api/clients/**").permitAll()
-                                                // Endpoints de documentos - temporariamente pÃºblicos para debug
-                                                .requestMatchers("/api/documents/**").permitAll()
-                                                // Endpoints de certificaÃ§Ãµes de funcionÃ¡rios - temporariamente
-                                                // pÃºblicos
-                                                // para debug
-                                                .requestMatchers("/api/employee-certifications/**").permitAll()
+                                                // SEGURANÇA: módulos com dados pessoais que estavam "temporariamente públicos
+                                                // para debug" agora exigem autenticação (LGPD).
+                                                .requestMatchers("/api/employees/**").authenticated()
+                                                .requestMatchers("/api/units/**").authenticated()
+                                                .requestMatchers("/api/companies", "/api/companies/**").authenticated()
+                                                .requestMatchers("/api/positions/**").authenticated()
+                                                .requestMatchers("/api/clients/**").authenticated()
+                                                .requestMatchers("/api/documents/**").authenticated()
+                                                .requestMatchers("/api/employee-certifications/**").authenticated()
                                                 // Endpoints de multas - requerem apenas autenticaÃ§Ã£o (temporÃ¡rio
                                                 // para
                                                 // desenvolvimento)
@@ -452,20 +448,20 @@ public class SecurityConfig {
                                                 // usuÃ¡rios
                                                 // logados
                                                 .requestMatchers("/api/dashboard/**").authenticated()
-                                                // Endpoints operacionais - temporariamente pÃºblicos para teste de
-                                                // integraÃ§Ã£o
-                                                .requestMatchers("/api/schedules/**").permitAll()
-                                                .requestMatchers("/api/activity-reports/**").permitAll()
-                                                .requestMatchers("/api/orders-of-service/**").permitAll()
-                                                .requestMatchers("/api/operational/**").permitAll()
-                                                .requestMatchers("/api/occurrences/**").permitAll()
-                                                .requestMatchers("/api/vacation-coverages/**").permitAll()
-                                                .requestMatchers("/api/work-post-assignments/**").permitAll()
-                                                .requestMatchers("/api/specific-activities/**").permitAll()
-                                                .requestMatchers("/api/absences/**").permitAll()
-                                                // Endpoints operacionais - temporariamente pÃºblicos para debug
-                                                .requestMatchers("/api/equipment/**").permitAll()
-                                                .requestMatchers("/api/alerts/**").permitAll()
+                                                // SEGURANÇA: endpoints operacionais que estavam públicos para teste de
+                                                // integração agora exigem autenticação.
+                                                .requestMatchers("/api/schedules/**").authenticated()
+                                                .requestMatchers("/api/activity-reports/**").authenticated()
+                                                .requestMatchers("/api/orders-of-service/**").authenticated()
+                                                .requestMatchers("/api/operational/**").authenticated()
+                                                .requestMatchers("/api/occurrences/**").authenticated()
+                                                .requestMatchers("/api/vacation-coverages/**").authenticated()
+                                                .requestMatchers("/api/work-post-assignments/**").authenticated()
+                                                .requestMatchers("/api/specific-activities/**").authenticated()
+                                                .requestMatchers("/api/absences/**").authenticated()
+                                                // SEGURANÇA: endpoints operacionais que estavam públicos para debug
+                                                .requestMatchers("/api/equipment/**").authenticated()
+                                                .requestMatchers("/api/alerts/**").authenticated()
                                                 .requestMatchers("/api/visit-controls/**")
                                                 .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_PORTARIA")
                                                 // Endpoints de relatÃ³rios de visitas - requerem autenticaÃ§Ã£o
@@ -473,8 +469,8 @@ public class SecurityConfig {
                                                                 "/api/visit-control-reports/**")
                                                 .permitAll()
                                                 .requestMatchers("/api/visit-control-reports/**").authenticated()
-                                                // Endpoints de dados de teste - pÃºblicos para desenvolvimento
-                                                .requestMatchers("/api/test-data/**").permitAll()
+                                                // Endpoints de dados de teste - requerem autenticação (antes públicos para desenvolvimento)
+                                                .requestMatchers("/api/test-data/**").authenticated()
                                                 // Endpoints de medições e retenções contratuais - requerem autenticação
                                                 .requestMatchers("/api/measurements/test-pdf").permitAll()
                                                 .requestMatchers("/api/measurements/*/pdf").permitAll()
@@ -493,14 +489,10 @@ public class SecurityConfig {
                                                                 "STOCK_DELETE", "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
                                                                 "ROLE_COMPANY_ADMIN", "ROLE_FLEX_ADMIN",
                                                                 "ROLE_GESTOR", "ROLE_SUPERVISOR")
-                                                // Endpoints de modelos de documentos - temporariamente pÃºblico para
-                                                // teste
-                                                .requestMatchers("/api/modelos-documentos/**").permitAll()
-                                                // Endpoints de documentos gerados - temporariamente pÃºblico para teste
-                                                .requestMatchers("/api/documentos-gerados/**").permitAll()
-                                                // Endpoints de assinaturas de documentos - temporariamente pÃºblico
-                                                // para teste
-                                                .requestMatchers("/api/assinaturas-documentos/**").permitAll()
+                                                // SEGURANÇA: módulos de documentos que estavam públicos para teste agora exigem autenticação
+                                                .requestMatchers("/api/modelos-documentos/**").authenticated()
+                                                .requestMatchers("/api/documentos-gerados/**").authenticated()
+                                                .requestMatchers("/api/assinaturas-documentos/**").authenticated()
                                                 // Endpoints de dependentes - leitura requer permissÃµes bÃ¡sicas,
                                                 // escrita
                                                 // requer permissÃµes especÃ­ficas
@@ -537,7 +529,9 @@ public class SecurityConfig {
                                                 .anyRequest().authenticated())
                                 .authenticationProvider(authenticationProvider())
                                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                                .addFilterAfter(jwtTenantFilter, UsernamePasswordAuthenticationFilter.class);
+                                .addFilterAfter(jwtTenantFilter, UsernamePasswordAuthenticationFilter.class)
+                                // SEGURANÇA: rate limiting de tentativas de login (10/15min por IP)
+                                .addFilterBefore(loginRateLimitFilter, JwtAuthenticationFilter.class);
 
                 return http.build();
         }

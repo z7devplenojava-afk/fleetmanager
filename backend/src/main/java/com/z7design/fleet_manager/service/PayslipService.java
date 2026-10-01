@@ -2448,7 +2448,13 @@ public class PayslipService {
         }
         try {
             if (payslip.getFileName() != null) {
-                java.nio.file.Path path = java.nio.file.Paths.get("uploads/holerites/" + payslip.getFileName());
+                // SEGURANÇA: bloqueia path traversal no fileName vindo do banco/request
+                java.nio.file.Path baseDir = java.nio.file.Paths.get("uploads/holerites/").toAbsolutePath().normalize();
+                java.nio.file.Path path = baseDir.resolve(payslip.getFileName()).normalize();
+                if (!path.startsWith(baseDir)) {
+                    log.warn("Path traversal bloqueado no payslip {}: {}", payslipId, payslip.getFileName());
+                    return new byte[0];
+                }
                 if (java.nio.file.Files.exists(path)) {
                     return java.nio.file.Files.readAllBytes(path);
                 }

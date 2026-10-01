@@ -87,25 +87,10 @@ public class WebSocketSecurityConfig implements WebSocketMessageBrokerConfigurer
                             log.warn("Header Authorization nÃ£o encontrado ou formato invÃ¡lido na conexÃ£o WebSocket");
                         }
                     } else {
-                        // Tentar extrair do header X-Username (fallback)
-                        List<String> usernameHeaders = accessor.getNativeHeader("X-Username");
-                        if (usernameHeaders != null && !usernameHeaders.isEmpty()) {
-                            String username = usernameHeaders.get(0);
-                            try {
-                                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                                Authentication authentication = new UsernamePasswordAuthenticationToken(
-                                        userDetails,
-                                        null,
-                                        userDetails.getAuthorities());
-                                accessor.setUser(authentication);
-                                log.info("WebSocket autenticado via X-Username para usuÃ¡rio: {}", username);
-                            } catch (Exception e) {
-                                log.error("Erro ao autenticar via X-Username: {}", e.getMessage(), e);
-                            }
-                        } else {
-                            log.warn("Nenhum mÃ©todo de autenticaÃ§Ã£o encontrado para conexÃ£o WebSocket");
+                            // SEGURANÇA: Fallback X-Username removido — aceitava qualquer username
+                            // sem token (personificação de usuário). Exigir JWT sempre.
+                            log.warn("Conexão WebSocket sem header Authorization rejeitada");
                         }
-                    }
                 }
 
                 return message;

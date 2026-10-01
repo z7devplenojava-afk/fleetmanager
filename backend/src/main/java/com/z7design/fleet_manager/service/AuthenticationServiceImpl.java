@@ -67,19 +67,19 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new IllegalArgumentException("Full name is required");
         }
 
-        java.util.List<String> requestedRoles = request.getRoles();
+        // SEGURANÇA: O endpoint /api/auth/register é público (permitAll). NÃO aceitar
+        // roles do corpo da requisição — isso permitia auto-registro como SUPER_ADMIN
+        // (escalação de privilégio). Todo novo usuário recebe o role padrão.
+        // Atribuição de roles administrativos deve ocorrer apenas via UserController
+        // (autenticado e com permissão USERS_CREATE/ADMIN).
         java.util.Set<Role> userRoles;
-        if (requestedRoles != null && !requestedRoles.isEmpty()) {
-            userRoles = new java.util.HashSet<>(roleRepository.findByNames(requestedRoles));
-            if (userRoles.isEmpty()) {
-                log.error("Nenhum dos roles informados foi encontrado: {}", requestedRoles);
-                throw new IllegalArgumentException("Nenhum dos roles informados foi encontrado: " + requestedRoles);
-            }
-        } else {
-            Role defaultRole = roleRepository.findByName("COLABORADOR")
-                    .orElseThrow(() -> new IllegalArgumentException("Role padrÃ£o COLABORADOR nÃ£o encontrado"));
-            userRoles = java.util.Set.of(defaultRole);
+        if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+            log.warn("⚠️ Registro de '{}' ignorou roles solicitadas no body ({}). Roles só podem ser atribuídas por administradores.",
+                    request.getUsername(), request.getRoles());
         }
+        Role defaultRole = roleRepository.findByName("COLABORADOR")
+                .orElseThrow(() -> new IllegalArgumentException("Role padrão COLABORADOR não encontrado"));
+        userRoles = java.util.Set.of(defaultRole);
 
         User user = User.builder()
                 .username(request.getUsername())
@@ -141,8 +141,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuário não encontrado: " + target));
 
             log.info("✅ Usuário encontrado: {} (ID: {})", user.getUsername(), user.getId());
-            log.info("🔐 DEBUG LOGIN - Stored Hash: {}", user.getPassword());
-            log.info("🔐 DEBUG LOGIN - Active: {}, Status: {}, CompanyID: {}", user.isActive(), user.getStatus(),
+            // SEGURANÇA: log do hash BCrypt da senha removido (vazava credencial em logs)
+            log.info("🔐 Login - Active: {}, Status: {}, CompanyID: {}", user.isActive(), user.getStatus(),
                     user.getCompanyId());
 
             // Valida se o usuário tem permissão de login (exige empresa ou ser Admin)
@@ -248,7 +248,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         if (username != null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-            if (jwtService.isTokenValid(refreshToken, userDetails)) {
+            // SEGURANÇA: exige typ=refresh — um access token (ou refresh roubado em API
+            // de login) não pode ser usado aqui
+            if (jwtService.isTokenValid(refreshToken, userDetails, JwtService.TOKEN_TYPE_REFRESH)) {
                 User user = (User) userDetails; // Cast to your User model if necessary
                 String accessToken = jwtService.generateToken(user);
                 String newRefreshToken = jwtService.generateRefreshToken(user);

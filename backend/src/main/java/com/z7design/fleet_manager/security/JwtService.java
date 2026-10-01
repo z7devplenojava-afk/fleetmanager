@@ -39,6 +39,9 @@ public class JwtService {
     public static final String CLAIM_EMPRESA_ID = "empresaId";
     public static final String CLAIM_USER_ID = "userId";
     public static final String CLAIM_ROLE = "role";
+    public static final String CLAIM_TOKEN_TYPE = "typ";
+    public static final String TOKEN_TYPE_ACCESS = "access";
+    public static final String TOKEN_TYPE_REFRESH = "refresh";
 
     public String extractUsername(String token) {
         try {
@@ -108,7 +111,9 @@ public class JwtService {
     }
 
     public String generateRefreshToken(User user) {
-        return generateToken(new HashMap<>(), user, jwtConfig.getRefreshTokenExpiration());
+        // SEGURANÇA: refresh token marcado com typ=refresh e validade própria
+        return generateToken(new HashMap<>(Map.of(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH)), user,
+                jwtConfig.getRefreshTokenExpiration());
     }
 
     public String generateToken(
@@ -121,6 +126,8 @@ public class JwtService {
 
             Map<String, Object> claims = new HashMap<>(extraClaims);
             claims.put(CLAIM_USER_ID, user.getId() != null ? user.getId().toString() : null);
+            // Access token marcado explicitamente; refresh sobrescreve com typ=refresh
+            claims.putIfAbsent(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
             Company company = userCompanyResolver.resolveCompany(user).orElse(null);
             if (company != null && company.getId() != null) {
                 claims.put(CLAIM_EMPRESA_ID, company.getId().toString());
@@ -176,15 +183,26 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
+        return isTokenValid(token, userDetails, TOKEN_TYPE_ACCESS);
+    }
+
+    /**
+     * SEGURANÇA: valida o token e o seu tipo (access vs refresh).
+     * Um refresh token NÃO pode ser usado como access token e vice-versa.
+     */
+    public boolean isTokenValid(String token, UserDetails userDetails, String expectedType) {
         try {
             final String username = extractUsername(token);
             boolean isExpired = isTokenExpired(token);
             boolean isUsernameValid = username.equals(userDetails.getUsername());
 
-            log.info("Validação do token para usuário {}: username válido: {}, token expirado: {}",
-                    username, isUsernameValid, isExpired);
+            String tokenType = extractClaim(token, c -> (String) c.get(CLAIM_TOKEN_TYPE));
+            boolean typeMatches = expectedType.equals(tokenType);
 
-            return isUsernameValid && !isExpired;
+            log.info("Validação do token para usuário {}: username válido: {}, token expirado: {}, tipo: {}",
+                    username, isUsernameValid, isExpired, tokenType);
+
+            return isUsernameValid && !isExpired && typeMatches;
         } catch (Exception e) {
             log.error("Erro ao validar token: {}", e.getMessage());
             return false;

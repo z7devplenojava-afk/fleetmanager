@@ -27,6 +27,21 @@ public class PdfMergeService {
     private static final String DATE_FORMAT = "yyyy-MM-dd_HH-mm-ss";
 
     /**
+     * SEGURANÇA: Sanitiza o nome base do arquivo gerado, removendo separadores
+     * de path e caracteres perigosos (evita path traversal na escrita).
+     */
+    private String sanitizeFileNamePart(String input) {
+        if (input == null || input.isBlank()) {
+            return "documento";
+        }
+        String clean = input.replaceAll("[^A-Za-z0-9_-]", "_");
+        if (clean.length() > 80) {
+            clean = clean.substring(0, 80);
+        }
+        return clean.isBlank() ? "documento" : clean;
+    }
+
+    /**
      * Une um holerite e um comprovante em um Ãºnico PDF
      * 
      * @param payslipFile Arquivo do holerite
@@ -48,12 +63,15 @@ public class PdfMergeService {
             log.info("ðŸ“ DiretÃ³rio criado: {}", mergePath.toAbsolutePath());
         }
 
-        // Gerar nome do arquivo unificado
+        // Gerar nome do arquivo unificado (sanitizado contra path traversal)
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern(DATE_FORMAT));
         String fileName = String.format("%s_%s_%d_%d_merged.pdf", 
-            employeeName.replaceAll("\\s+", "_"), timestamp, year, month);
+            sanitizeFileNamePart(employeeName), timestamp, year, month);
         
-        Path outputPath = mergePath.resolve(fileName);
+        Path outputPath = mergePath.resolve(fileName).normalize();
+        if (!outputPath.startsWith(mergePath.toAbsolutePath().normalize())) {
+            throw new IllegalArgumentException("Nome de arquivo inválido");
+        }
         
         try {
             // Criar o merger
@@ -113,12 +131,15 @@ public class PdfMergeService {
             Files.createDirectories(mergePath);
         }
 
-        // Gerar nome do arquivo unificado
+        // Gerar nome do arquivo unificado (sanitizado contra path traversal)
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern(DATE_FORMAT));
         String fileName = String.format("%s_%s_%d_%d_merged.pdf", 
-            employeeName.replaceAll("\\s+", "_"), timestamp, year, month);
+            sanitizeFileNamePart(employeeName), timestamp, year, month);
         
-        Path outputPath = mergePath.resolve(fileName);
+        Path outputPath = mergePath.resolve(fileName).normalize();
+        if (!outputPath.startsWith(mergePath.toAbsolutePath().normalize())) {
+            throw new IllegalArgumentException("Nome de arquivo inválido");
+        }
         
         try {
             PDFMergerUtility merger = new PDFMergerUtility();
