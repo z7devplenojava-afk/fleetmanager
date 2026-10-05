@@ -73,33 +73,33 @@ public class FinancialClosingController {
 
     @GetMapping("/dre/vehicles")
     public ResponseEntity<List<VehicleDreDTO>> getFleetDre(
-            @RequestParam String referenceMonth) {
+            @RequestParam("referenceMonth") String referenceMonth) {
         return ResponseEntity.ok(vehicleDreService.getFleetDre(referenceMonth));
     }
 
     @GetMapping("/dre/clients")
-    public ResponseEntity<Map<String, Object>> getDreByClient(@RequestParam String referenceMonth) {
+    public ResponseEntity<Map<String, Object>> getDreByClient(@RequestParam("referenceMonth") String referenceMonth) {
         return ResponseEntity.ok(vehicleDreService.getDreByClient(referenceMonth));
     }
 
     // ══════════════════ RF-07.4 — Caução & Boleto ══════════════════
 
     @GetMapping("/retention-ledger/{contractId}")
-    public ResponseEntity<Map<String, Object>> getRetentionLedger(@PathVariable UUID contractId) {
+    public ResponseEntity<Map<String, Object>> getRetentionLedger(@PathVariable("contractId") UUID contractId) {
         return ResponseEntity.ok(financialClosingService.getRetentionLedger(contractId));
     }
 
     @PostMapping("/retentions/{retentionId}/release")
     public ResponseEntity<ContractRetention> releaseRetention(
-            @PathVariable UUID retentionId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate releaseDate) {
+            @PathVariable("retentionId") UUID retentionId,
+            @RequestParam(name = "releaseDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate releaseDate) {
         return ResponseEntity.ok(financialClosingService.releaseRetention(retentionId, releaseDate));
     }
 
     @PostMapping("/receivables/{receivableId}/boleto")
     public ResponseEntity<Object> registerBoleto(
-            @PathVariable UUID receivableId,
-            @RequestParam(required = false) Integer contractualDays) {
+            @PathVariable("receivableId") UUID receivableId,
+            @RequestParam(name = "contractualDays", required = false) Integer contractualDays) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(financialClosingService.registerBoleto(receivableId, contractualDays));
     }
