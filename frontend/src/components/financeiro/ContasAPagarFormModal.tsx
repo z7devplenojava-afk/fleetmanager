@@ -339,6 +339,7 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
   const [formData, setFormData] = useState<ContaAPagar>({
     dataEmissao: new Date(),
     vencimento: new Date(),
+    invoiceNumber: '',
     fornecedor: '',
     fornecedorId: '',
     empresa: '',
@@ -366,6 +367,108 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
   const [valorDisplay, setValorDisplay] = useState<string>('0,00');
   const [supplierModalOpen, setSupplierModalOpen] = useState(false);
   const [paymentConfirmDate, setPaymentConfirmDate] = useState<Date | null>(new Date());
+
+  // Campos Específicos para Locação de Veículos, Rastreadores e Seguros de Frota
+  const [periodoLocacao, setPeriodoLocacao] = useState<string>('');
+  const [placasVeiculos, setPlacasVeiculos] = useState<string>('');
+  const [dadosBancariosFornecedor, setDadosBancariosFornecedor] = useState<string>('');
+  const [pixChave, setPixChave] = useState<string>('');
+  const [apoliceNumber, setApoliceNumber] = useState<string>('');
+  const [endossoNumber, setEndossoNumber] = useState<string>('');
+  const [qtdVeiculosSegurados, setQtdVeiculosSegurados] = useState<string>('');
+
+  // Identificadores Dinâmicos por Categoria ou Descrição
+  const isLocacaoVeiculos = useMemo(() => {
+    const cat = (formData.categoria || '').toUpperCase();
+    const desc = (formData.descricao || '').toUpperCase();
+    const forn = (formData.fornecedor || '').toUpperCase();
+    return cat.includes('LOCAC') || desc.includes('LOCAC') || forn.includes('A&D LOCADORA') || forn.includes('LOCADORA');
+  }, [formData.categoria, formData.descricao, formData.fornecedor]);
+
+  const isRastreadores = useMemo(() => {
+    const cat = (formData.categoria || '').toUpperCase();
+    const desc = (formData.descricao || '').toUpperCase();
+    const forn = (formData.fornecedor || '').toUpperCase();
+    return cat.includes('RASTREA') || desc.includes('RASTREA') || desc.includes('TELEMETRIA') || forn.includes('GLOBALRV');
+  }, [formData.categoria, formData.descricao, formData.fornecedor]);
+
+  const isSeguroFrota = useMemo(() => {
+    const cat = (formData.categoria || '').toUpperCase();
+    const desc = (formData.descricao || '').toUpperCase();
+    const forn = (formData.fornecedor || '').toUpperCase();
+    return cat.includes('SEGURO') || desc.includes('SEGURO') || desc.includes('APOLICE') || forn.includes('EZZE');
+  }, [formData.categoria, formData.descricao, formData.fornecedor]);
+
+  // Funções de Preenchimento Rápido (Presets dos Documentos em Anexo)
+  const fillADLocadoraPreset = () => {
+    setFormData(prev => ({
+      ...prev,
+      fornecedor: 'A&D LOCADORA DE VEÍCULOS LTDA.',
+      categoria: '1.03 - LOCACAO DE VEICULOS',
+      descricao: 'LOCAÇÃO DE 1 VEÍCULO (VAN) PLACA: OPP0A67 - SETEMBRO/2026',
+      invoiceNumber: '193/2026',
+      valor: 9555.00,
+      vencimento: new Date(2026, 9, 9),
+      dataEmissao: new Date(2026, 9, 2),
+      status: 'ABERTA'
+    }));
+    setValorDisplay('9.555,00');
+    setPeriodoLocacao('SETEMBRO/2026');
+    setPlacasVeiculos('OPP0A67');
+    setDadosBancariosFornecedor('BANCO DO BRASIL, Ag: 750-1, CC: 207.779-5');
+    setPixChave('33.479.529/0001-99');
+    setPaymentMethod('PIX');
+    toast({
+      title: 'Preset A&D Locadora Aplicado!',
+      description: 'Fatura Nº 193/2026 (R$ 9.555,00) preenchida com placas, dados bancários e PIX.'
+    });
+  };
+
+  const fillGlobalRVPreset = () => {
+    setFormData(prev => ({
+      ...prev,
+      fornecedor: 'GLOBALRV RASTREAMENTO',
+      categoria: '1.06 - RASTREADORES DE VEICULOS',
+      descricao: 'Monitoramento & Rastreamento de Frota - Boleto Itaú Doc nº 99030068',
+      invoiceNumber: '99030068',
+      codigoBarras: '34191099900300689093779927170005116100000020700',
+      valor: 207.00,
+      vencimento: new Date(2026, 9, 25),
+      dataEmissao: new Date(2026, 9, 1),
+      status: 'ABERTA'
+    }));
+    setValorDisplay('207,00');
+    setPaymentMethod('BOLETO');
+    setPixChave('00020101021226770014BR.GOV.BCB.PIX2555api.itau/pix/qr/v2/f92258b0-5120-46b3-9659-d8587c34aa675204000053039865802BR5921GLOBALRV RASTREAMENTO6014BELO HORIZONTE62070503***6304C995');
+    toast({
+      title: 'Preset GlobalRV Rastreadores Aplicado!',
+      description: 'Boleto nº 99030068 (R$ 207,00) preenchido com linha digitável Itaú e PIX.'
+    });
+  };
+
+  const fillEzzeSegurosPreset = () => {
+    setFormData(prev => ({
+      ...prev,
+      fornecedor: 'EZZE SEGUROS S/A',
+      categoria: 'FROTA (PEÇAS,SERVIÇOS,IPVA)',
+      descricao: 'Seguro RC Veicular Coletivo Rodoviário - Apólice 1062800034517',
+      invoiceNumber: '1062800034517',
+      codigoBarras: '23792.37205 50000.230669 96033.178300 7 16090000159237',
+      valor: 1592.37,
+      vencimento: new Date(2026, 9, 24),
+      dataEmissao: new Date(2026, 9, 5),
+      status: 'ABERTA'
+    }));
+    setValorDisplay('1.592,37');
+    setApoliceNumber('1062800034517');
+    setEndossoNumber('1078611');
+    setQtdVeiculosSegurados('18');
+    setPaymentMethod('BOLETO');
+    toast({
+      title: 'Preset Ezze Seguros Aplicado!',
+      description: 'Faturamento de Seguro (R$ 1.592,37) preenchido com apólice, endosso e linha digitável Bradesco.'
+    });
+  };
 
   // Recalcular parcelas quando o valor total, número de parcelas ou data de vencimento mudar
   useEffect(() => {
@@ -721,15 +824,35 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
     try {
       const finalFornecedor = formData.fornecedor || (isPersonnelExpense ? 'Despesa com Pessoal (RH/DPE)' : 'Não informado');
       
+      // Montar informações bancárias / PIX
+      const bankParts = [];
+      if (dadosBancariosFornecedor) bankParts.push(`Dados Bancários: ${dadosBancariosFornecedor}`);
+      if (pixChave) bankParts.push(`PIX: ${pixChave}`);
+      const assembledBankInfo = bankParts.length > 0 ? bankParts.join(' | ') : formData.bankAccountInfo;
+
+      // Montar observações estruturadas com meta-dados de locação e seguro
+      const obsParts = [];
+      if (formData.observacoes && formData.observacoes.trim()) obsParts.push(formData.observacoes.trim());
+      if (periodoLocacao || placasVeiculos) {
+        obsParts.push(`[LOCAÇÃO] Período: ${periodoLocacao || 'N/I'} | Placa(s): ${placasVeiculos || 'N/I'}`);
+      }
+      if (apoliceNumber || endossoNumber) {
+        obsParts.push(`[SEGURO] Apólice: ${apoliceNumber || 'N/I'} | Endosso: ${endossoNumber || 'N/I'} | Veículos: ${qtdVeiculosSegurados || 'N/I'}`);
+      }
+      const assembledObs = obsParts.join(' | ');
+
+      const commonPayload = {
+        ...formData,
+        fornecedor: finalFornecedor,
+        companySigla: formData.companySigla || siglas[0] || undefined,
+        paymentMethod,
+        bankAccountInfo: assembledBankInfo,
+        observacoes: assembledObs,
+        nfeKey: nfeKey || undefined
+      };
+
       if (editMode && initialData?.id) {
-        const payloadData = {
-          ...formData,
-          fornecedor: finalFornecedor,
-          companySigla: formData.companySigla || siglas[0] || undefined,
-          paymentMethod,
-          nfeKey: nfeKey || undefined
-        };
-        await contasAPagarService.updateContaAPagar(initialData.id, payloadData);
+        await contasAPagarService.updateContaAPagar(initialData.id, commonPayload);
         toast({
           title: "Sucesso",
           description: "Conta a pagar atualizada com sucesso!"
@@ -739,16 +862,12 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         for (let i = 0; i < parcelasDetails.length; i++) {
           const parc = parcelasDetails[i];
           const parcPayload = {
-            ...formData,
-            fornecedor: finalFornecedor,
-            companySigla: formData.companySigla || siglas[0] || undefined,
+            ...commonPayload,
             descricao: `${formData.descricao} (Parc. ${parc.seq}/${numParcelas})`,
             vencimento: parc.vencimento,
             valor: parc.valor,
-            paymentMethod,
             totalInstallments: numParcelas,
-            installmentSeq: parc.seq,
-            nfeKey: nfeKey || undefined
+            installmentSeq: parc.seq
           };
           await contasAPagarService.createContaAPagar(parcPayload);
         }
@@ -758,13 +877,9 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         });
       } else {
         const payloadData = {
-          ...formData,
-          fornecedor: finalFornecedor,
-          companySigla: formData.companySigla || siglas[0] || undefined,
-          paymentMethod,
+          ...commonPayload,
           totalInstallments: 1,
-          installmentSeq: 1,
-          nfeKey: nfeKey || undefined
+          installmentSeq: 1
         };
         await contasAPagarService.createContaAPagar(payloadData);
         toast({
@@ -815,6 +930,45 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-5 pt-2">
           
+          {/* Barra de Acesso Rápido a Modelos / Presets de Despesas dos Documentos */}
+          {!editMode && (
+            <div className="bg-gradient-to-r from-amber-500/10 via-zinc-900 to-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-md">
+              <div className="flex items-center gap-2">
+                <Sparkles className="text-amber-400 shrink-0" size={16} />
+                <span className="text-xs font-bold text-amber-300">Modelos Rápidos (Preencher Documentos em Anexo):</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={fillADLocadoraPreset}
+                  className="text-[11px] h-7 bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-200 font-semibold rounded-lg"
+                >
+                  🚗 Locação A&D (R$ 9.555,00)
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={fillGlobalRVPreset}
+                  className="text-[11px] h-7 bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/40 text-blue-200 font-semibold rounded-lg"
+                >
+                  📡 GlobalRV Rastreador (R$ 207,00)
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={fillEzzeSegurosPreset}
+                  className="text-[11px] h-7 bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-200 font-semibold rounded-lg"
+                >
+                  🛡️ Ezze Seguros (R$ 1.592,37)
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* PAINEL 1: Informações Financeiras Principais */}
           <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-inner">
             <div className="flex items-center justify-between">
@@ -824,7 +978,21 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
               <span className="text-[11px] text-zinc-500">* Campos obrigatórios</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Nº da Fatura / Documento */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText size={13} className="text-amber-400" />
+                  Nº Fatura / Doc
+                </label>
+                <Input
+                  value={formData.invoiceNumber || ''}
+                  onChange={(e) => handleInputChange('invoiceNumber', e.target.value)}
+                  placeholder="Ex: 193/2026, 99030068..."
+                  className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10 font-mono text-xs"
+                />
+              </div>
+
               {/* Data de Emissão */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -1848,6 +2016,105 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* PAINEL ESPECIALIZADO: Detalhamento de Locação de Veículos, Rastreadores ou Seguros de Frota */}
+          {(isLocacaoVeiculos || isRastreadores || isSeguroFrota || periodoLocacao || placasVeiculos || apoliceNumber) && (
+            <div className="bg-gradient-to-br from-amber-950/20 via-zinc-950/80 to-zinc-950 border border-amber-500/40 rounded-2xl p-4 sm:p-5 space-y-4 shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                  <Tag size={15} /> Detalhamento Específico (Locação, Rastreadores & Seguros)
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">
+                  Campos Estruturados
+                </span>
+              </div>
+
+              {/* Campos de Locação de Veículos */}
+              {(isLocacaoVeiculos || periodoLocacao || placasVeiculos || dadosBancariosFornecedor) && (
+                <div className="space-y-3 pt-1 border-t border-amber-500/20">
+                  <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                    🚗 Dados de Locação de Veículos (Ex: Fatura A&D Locadora)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Período de Referência</label>
+                      <Input
+                        value={periodoLocacao}
+                        onChange={(e) => setPeriodoLocacao(e.target.value)}
+                        placeholder="Ex: SETEMBRO/2026"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Placas dos Veículos Alugados</label>
+                      <Input
+                        value={placasVeiculos}
+                        onChange={(e) => setPlacasVeiculos(e.target.value)}
+                        placeholder="Ex: OPP0A67, ABC1D23..."
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs font-mono uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Dados Bancários p/ Depósito</label>
+                      <Input
+                        value={dadosBancariosFornecedor}
+                        onChange={(e) => setDadosBancariosFornecedor(e.target.value)}
+                        placeholder="Ex: BANCO DO BRASIL, Ag: 750-1 CC: 207.779-5"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Chave PIX / CNPJ</label>
+                      <Input
+                        value={pixChave}
+                        onChange={(e) => setPixChave(e.target.value)}
+                        placeholder="Ex: 33.479.529/0001-99 ou Copia e Cola"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Campos de Seguro de Frota */}
+              {(isSeguroFrota || apoliceNumber || endossoNumber) && (
+                <div className="space-y-3 pt-2 border-t border-amber-500/20">
+                  <div className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                    🛡️ Dados de Apólice & Seguros de Frota (Ex: Ezze Seguros)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Nº Apólice de Seguro</label>
+                      <Input
+                        value={apoliceNumber}
+                        onChange={(e) => setApoliceNumber(e.target.value)}
+                        placeholder="Ex: 1062800034517"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Nº do Endosso</label>
+                      <Input
+                        value={endossoNumber}
+                        onChange={(e) => setEndossoNumber(e.target.value)}
+                        placeholder="Ex: 1078611"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Qtd. Veículos Segurados</label>
+                      <Input
+                        value={qtdVeiculosSegurados}
+                        onChange={(e) => setQtdVeiculosSegurados(e.target.value)}
+                        placeholder="Ex: 18 ônibus/vans"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* PAINEL DE RASTREABILIDADE DE ORIGEM (LINHA DO TEMPO DA DESPESA) */}
           <div className="bg-zinc-950/60 border border-blue-500/30 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner">
