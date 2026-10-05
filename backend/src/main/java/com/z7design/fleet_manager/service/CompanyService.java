@@ -427,4 +427,22 @@ public class CompanyService {
                 .enabledFeatures(enabledFeatures)
                 .build();
     }
+
+    /**
+     * Buscar empresa associada ao usuário autenticado ou via TenantContext
+     */
+    public CompanyDTO getMyCompany(org.springframework.security.core.Authentication authentication) {
+        UUID companyId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        if (companyId != null) {
+            java.util.Optional<Company> comp = companyRepository.findById(companyId);
+            if (comp.isPresent()) {
+                return CompanyDTO.fromEntity(comp.get());
+            }
+        }
+        List<Company> active = companyRepository.findByStatusOrderByNameAsc(CompanyStatus.ACTIVE);
+        if (!active.isEmpty()) {
+            return CompanyDTO.fromEntity(active.get(0));
+        }
+        return null;
+    }
 }

@@ -341,6 +341,14 @@ public class MaterialRequisitionService {
     }
 
     @Transactional(readOnly = true)
+    public List<MaterialRequisitionDTO> getRequisitionsByWorkOrderId(UUID workOrderId) {
+        if (workOrderId == null) return java.util.Collections.emptyList();
+        List<MaterialRequisition> list = requisitionRepository.findByWorkOrderIdOrderByCreatedAtDesc(workOrderId);
+        if (list == null || list.isEmpty()) return java.util.Collections.emptyList();
+        return list.stream().map(this::toDTO).filter(dto -> dto != null).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<MaterialRequisitionDTO> listRequisitions(MaterialRequisition.RequisitionStatus status, UUID workOrderId) {
         if (workOrderId != null) {
             return getRequisitionsByWorkOrderId(workOrderId);
