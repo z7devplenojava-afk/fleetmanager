@@ -54,8 +54,8 @@ public class ContractTemplateController {
     @GetMapping("/generated")
     @Operation(summary = "Listar minutas por cliente ou simulação de custos")
     public ResponseEntity<List<GeneratedContractDTO>> listGenerated(
-            @RequestParam(required = false) UUID clientId,
-            @RequestParam(required = false) UUID costSimulationId) {
+            @RequestParam(name = "clientId", required = false) UUID clientId,
+            @RequestParam(name = "costSimulationId", required = false) UUID costSimulationId) {
         if (costSimulationId != null) {
             return ResponseEntity.ok(contractGenerationService.listBySimulation(costSimulationId));
         }
@@ -67,13 +67,13 @@ public class ContractTemplateController {
 
     @GetMapping("/generated/{id}")
     @Operation(summary = "Buscar minuta por ID")
-    public ResponseEntity<GeneratedContractDTO> getGenerated(@PathVariable UUID id) {
+    public ResponseEntity<GeneratedContractDTO> getGenerated(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(contractGenerationService.getById(id));
     }
 
     @GetMapping("/generated/{id}/pdf")
     @Operation(summary = "Baixar minuta em PDF pronta para assinatura")
-    public ResponseEntity<byte[]> downloadPdf(@PathVariable UUID id) {
+    public ResponseEntity<byte[]> downloadPdf(@PathVariable("id") UUID id) {
         byte[] pdf = contractGenerationService.generatePdf(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
@@ -85,21 +85,21 @@ public class ContractTemplateController {
     @PostMapping("/generated/{id}/send")
     @Operation(summary = "Enviar minuta para assinatura (DocuSign/Gov.br)")
     public ResponseEntity<GeneratedContractDTO> markSent(
-            @PathVariable UUID id,
-            @RequestParam(defaultValue = "DocuSign") String provider) {
+            @PathVariable("id") UUID id,
+            @RequestParam(name = "provider", defaultValue = "DocuSign") String provider) {
         return ResponseEntity.ok(contractGenerationService.markSent(id, provider));
     }
 
     /** RF-02.3: confirmar assinatura. */
     @PostMapping("/generated/{id}/sign")
     @Operation(summary = "Registrar assinatura da minuta")
-    public ResponseEntity<GeneratedContractDTO> markSigned(@PathVariable UUID id) {
+    public ResponseEntity<GeneratedContractDTO> markSigned(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(contractGenerationService.markSigned(id));
     }
 
     @DeleteMapping("/generated/{id}")
     @Operation(summary = "Excluir minuta")
-    public ResponseEntity<Void> deleteGenerated(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteGenerated(@PathVariable("id") UUID id) {
         contractGenerationService.delete(id);
         return ResponseEntity.noContent().build();
     }
