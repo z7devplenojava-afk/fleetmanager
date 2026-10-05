@@ -41,6 +41,7 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
     @Operation(summary = "Listar usuários", description = "Retorna uma lista de todos os usuários. Permite acesso para usuários autenticados (necessário para chat)")
     public ResponseEntity<List<UserListResponseDTO>> getAllUsers() {
         List<User> users = userService.findAll();
@@ -245,6 +246,7 @@ public class UserController {
 
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @Transactional(readOnly = true)
     @Operation(summary = "Buscar usuÃ¡rios", description = "Busca usuÃ¡rios por nome, email ou username com filtro dinÃ¢mico")
     public ResponseEntity<List<UserListResponseDTO>> searchUsers(
             @RequestParam(name = "query", required = false) String query) {
@@ -440,8 +442,13 @@ public class UserController {
         if (user.getCompanyId() != null) {
             dto.setCompanyId(user.getCompanyId().toString());
         }
-        if (user.getCompany() != null) {
-            dto.setCompanyName(user.getCompany().getName());
+        try {
+            if (user.getCompany() != null) {
+                dto.setCompanyName(user.getCompany().getName());
+            }
+        } catch (Exception e) {
+            log.warn("Erro ao carregar empresa do usuário {}: {}", user.getId(), e.getMessage());
+            dto.setCompanyId(user.getCompanyId() != null ? user.getCompanyId().toString() : null);
         }
 
         // Status online/offline

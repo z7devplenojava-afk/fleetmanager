@@ -225,7 +225,7 @@ export default defineConfig(({ mode }) => {
       global: 'window',
     },
     optimizeDeps: {
-      include: ['react-map-gl/mapbox', 'mapbox-gl'],
+      include: ['react-map-gl/mapbox', 'mapbox-gl', 'leaflet', 'react-leaflet'],
     },
   };
 });

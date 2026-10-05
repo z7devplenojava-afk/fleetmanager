@@ -53,8 +53,8 @@ public interface WorkPostRepository extends JpaRepository<WorkPost, java.util.UU
     List<WorkPost> findByStatusAndImplementationDateBetween(
         WorkPostStatus status, LocalDate startDate, LocalDate endDate);
     
-    // Buscar por nome (busca exata)
-    java.util.Optional<WorkPost> findByName(String name);
+    // Buscar por nome (busca exata; pode haver homônimos — usa o primeiro)
+    java.util.Optional<WorkPost> findFirstByNameOrderByIdAsc(String name);
     
     // Buscar por nome (busca parcial)
     List<WorkPost> findByNameContainingIgnoreCase(String name);

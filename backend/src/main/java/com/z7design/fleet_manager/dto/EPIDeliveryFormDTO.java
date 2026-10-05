@@ -56,6 +56,7 @@ public class EPIDeliveryFormDTO {
                 .items(form.getItems() != null ? form.getItems().stream()
                         .map(item -> EPIDeliveryFormItemDTO.builder()
                                 .id(item.getId())
+                                .stockItemId(item.getStockItemId())
                                 .epiName(item.getEpiName())
                                 .quantity(item.getQuantity())
                                 .ca(item.getCa())

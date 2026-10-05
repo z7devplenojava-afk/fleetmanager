@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "SecuredGuard - Sistema de Grupos",
+    "name": "FluxBus - Sistema de Grupos",
     "description": "Collection para testar o sistema de grupos de usuários da Promover Vigilância Patrimonial",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

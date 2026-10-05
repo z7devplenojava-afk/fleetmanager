@@ -82,7 +82,7 @@ evolution-api-ci:
     
     # Autenticação
     - AUTHENTICATION_TYPE=apikey
-    - AUTHENTICATION_API_KEY=B6D711FCDE4D4FD5936544120E713976
+    - AUTHENTICATION_API_KEY=CHANGE_THIS_EVOLUTION_API_KEY
     
     # Sessão
     - CONFIG_SESSION_PHONE_CLIENT=SecuredGuard
@@ -135,7 +135,7 @@ Se não houver loop mas QR Code estiver vazio:
 
 ```bash
 # Deletar instância
-curl -X DELETE -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+curl -X DELETE -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   http://185.225.233.18:9000/instance/delete/securedguard
 
 # Aguardar 5 segundos
@@ -143,7 +143,7 @@ sleep 5
 
 # Recriar
 curl -X POST http://185.225.233.18:9000/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"instanceName":"securedguard","integration":"WHATSAPP-BAILEYS"}'
 
@@ -151,7 +151,7 @@ curl -X POST http://185.225.233.18:9000/instance/create \
 sleep 15
 
 # Obter QR Code
-curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+curl -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   http://185.225.233.18:9000/instance/connect/securedguard
 ```
 

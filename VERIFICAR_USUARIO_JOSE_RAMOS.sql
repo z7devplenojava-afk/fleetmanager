@@ -1,7 +1,7 @@
 -- =====================================================
 -- VERIFICAR USUÁRIO jose.ramos
 -- =====================================================
--- Execute no DBeaver no banco: secured_guard_test
+-- Execute no DBeaver no banco: fluxbus_test
 
 -- 1. Verificar dados do usuário
 SELECT 

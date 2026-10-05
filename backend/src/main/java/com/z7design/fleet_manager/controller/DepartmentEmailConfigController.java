@@ -164,7 +164,7 @@ public class DepartmentEmailConfigController {
                             <p><strong>Data de Fim:</strong> %s</p>
                             <p><strong>Departamento:</strong> %s</p>
 
-                            <p>Este Ã© um alerta automÃ¡tico do sistema SecuredGuard.</p>
+                            <p>Este Ã© um alerta automÃ¡tico do sistema FluxBus.</p>
                             """, cliente, contrato, valor, dataInicio, dataFim, departamento);
 
                     boolean enviado = emailService.sendEmailWithAttachment(email, subject, body, null, null);

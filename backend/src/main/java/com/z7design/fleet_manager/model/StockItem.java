@@ -71,6 +71,18 @@ public class StockItem implements TenantAware {
     @Column(name = "qr_code")
     private String qrCode;
 
+    @Column(name = "ca_number", length = 50)
+    private String caNumber;
+
+    @Column(name = "ca_validity")
+    private java.time.LocalDate caValidity;
+
+    @Column(name = "manufacturer", length = 100)
+    private String manufacturer;
+
+    @Column(name = "epi_id")
+    private UUID epiId;
+
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 

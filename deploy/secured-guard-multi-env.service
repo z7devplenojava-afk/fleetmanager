@@ -1,5 +1,5 @@
 [Unit]
-Description=SecuredGuard Multi-Environment Services
+Description=FluxBus Multi-Environment Services
 Requires=docker.service
 After=docker.service
 StartLimitInterval=0
@@ -7,10 +7,10 @@ StartLimitInterval=0
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/opt/secured-guard
-ExecStart=/opt/secured-guard/deploy/manage-multi-env.sh start
-ExecStop=/opt/secured-guard/deploy/manage-multi-env.sh stop
-ExecReload=/opt/secured-guard/deploy/manage-multi-env.sh restart
+WorkingDirectory=/opt/fluxbus
+ExecStart=/opt/fluxbus/deploy/manage-multi-env.sh start
+ExecStop=/opt/fluxbus/deploy/manage-multi-env.sh stop
+ExecReload=/opt/fluxbus/deploy/manage-multi-env.sh restart
 TimeoutStartSec=300
 TimeoutStopSec=60
 Restart=on-failure

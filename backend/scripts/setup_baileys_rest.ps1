@@ -4,7 +4,7 @@
 # Este script configura o Baileys REST API para integração com o SecureGuard
 # Baseado no repositório: https://github.com/salman0ansari/whatsapp-api-nodejs.git
 
-Write-Host "🚀 CONFIGURANDO BAILEYS REST API PARA SECUREDGUARD" -ForegroundColor Green
+Write-Host "🚀 CONFIGURANDO BAILEYS REST API PARA FLUXBUS" -ForegroundColor Green
 Write-Host "==================================================" -ForegroundColor Green
 
 # ========================================
@@ -128,7 +128,7 @@ echo ========================================
 echo.
 echo Token: $token
 echo URL: http://localhost:3333
-echo QR Code: http://localhost:3333/instance/qr?key=securedguard
+echo QR Code: http://localhost:3333/instance/qr?key=fluxbus
 echo.
 echo Pressione Ctrl+C para parar
 echo ========================================
@@ -155,7 +155,7 @@ Write-Host "🧪 Testando Baileys REST API..." -ForegroundColor Yellow
 # 1. Verificar se o servidor está rodando
 Write-Host "`n1. Verificando status do servidor..." -ForegroundColor Cyan
 try {
-    `$response = Invoke-RestMethod -Uri "http://localhost:3333/instance/connectionState?key=securedguard" -Method GET
+    `$response = Invoke-RestMethod -Uri "http://localhost:3333/instance/connectionState?key=fluxbus" -Method GET
     Write-Host "✅ Servidor respondendo" -ForegroundColor Green
 } catch {
     Write-Host "❌ Servidor não está rodando!" -ForegroundColor Red
@@ -166,7 +166,7 @@ try {
 # 2. Inicializar instância
 Write-Host "`n2. Inicializando instância..." -ForegroundColor Cyan
 try {
-    `$response = Invoke-RestMethod -Uri "http://localhost:3333/instance/init?key=securedguard" -Method GET
+    `$response = Invoke-RestMethod -Uri "http://localhost:3333/instance/init?key=fluxbus" -Method GET
     Write-Host "✅ Instância inicializada" -ForegroundColor Green
 } catch {
     Write-Host "⚠️ Erro ao inicializar instância (pode já estar inicializada)" -ForegroundColor Yellow
@@ -174,7 +174,7 @@ try {
 
 # 3. Obter QR Code
 Write-Host "`n3. Obtendo QR Code..." -ForegroundColor Cyan
-Write-Host "   Acesse: http://localhost:3333/instance/qr?key=securedguard" -ForegroundColor Yellow
+Write-Host "   Acesse: http://localhost:3333/instance/qr?key=fluxbus" -ForegroundColor Yellow
 Write-Host "   Escaneie o QR Code com seu WhatsApp" -ForegroundColor Yellow
 
 # 4. Aguardar conexão
@@ -184,7 +184,7 @@ Write-Host "`n4. Aguardando conexão..." -ForegroundColor Cyan
 
 while (`$attempt -lt `$maxAttempts) {
     try {
-        `$response = Invoke-RestMethod -Uri "http://localhost:3333/instance/connectionState?key=securedguard" -Method GET
+        `$response = Invoke-RestMethod -Uri "http://localhost:3333/instance/connectionState?key=fluxbus" -Method GET
         if (`$response -like "*open*") {
             Write-Host "✅ WhatsApp conectado!" -ForegroundColor Green
             break
@@ -214,7 +214,7 @@ try {
         message = `$testMessage
     } | ConvertTo-Json
 
-    `$response = Invoke-RestMethod -Uri "http://localhost:3333/message/text?key=securedguard" -Method POST -Body `$body -ContentType "application/json"
+    `$response = Invoke-RestMethod -Uri "http://localhost:3333/message/text?key=fluxbus" -Method POST -Body `$body -ContentType "application/json"
     Write-Host "✅ Mensagem de teste enviada!" -ForegroundColor Green
 } catch {
     Write-Host "❌ Erro ao enviar mensagem de teste: `$(`$_.Exception.Message)" -ForegroundColor Red
@@ -232,7 +232,7 @@ Write-Host "✅ Script de teste criado" -ForegroundColor Green
 Write-Host "`n📖 Criando documentação..." -ForegroundColor Yellow
 
 $readmeContent = @"
-# BAILEYS REST API - SECUREDGUARD
+# BAILEYS REST API - FLUXBUS
 
 ## 📋 Configuração
 
@@ -246,7 +246,7 @@ Este diretório contém a instalação do Baileys REST API para integração com
 ```
 
 ### 2. Conectar WhatsApp
-1. Acesse: http://localhost:3333/instance/qr?key=securedguard
+1. Acesse: http://localhost:3333/instance/qr?key=fluxbus
 2. Escaneie o QR Code com seu WhatsApp
 3. Aguarde a conexão ser estabelecida
 
@@ -264,16 +264,16 @@ No arquivo `application-dev.properties`, habilite:
 baileys.rest.enabled=true
 baileys.rest.url=http://localhost:3333
 baileys.rest.token=TOKEN_AQUI
-baileys.rest.instance.key=securedguard
+baileys.rest.instance.key=fluxbus
 ```
 
 ## 📱 Endpoints disponíveis
 
-- `GET /instance/init?key=securedguard` - Inicializar instância
-- `GET /instance/qr?key=securedguard` - Obter QR Code
-- `GET /instance/connectionState?key=securedguard` - Verificar status
-- `POST /message/text?key=securedguard` - Enviar mensagem
-- `POST /message/document?key=securedguard` - Enviar arquivo
+- `GET /instance/init?key=fluxbus` - Inicializar instância
+- `GET /instance/qr?key=fluxbus` - Obter QR Code
+- `GET /instance/connectionState?key=fluxbus` - Verificar status
+- `POST /message/text?key=fluxbus` - Enviar mensagem
+- `POST /message/document?key=fluxbus` - Enviar arquivo
 
 ## 🔗 Integração com SecureGuard
 
@@ -315,13 +315,13 @@ Write-Host "" -ForegroundColor White
 Write-Host "📋 PRÓXIMOS PASSOS:" -ForegroundColor Yellow
 Write-Host "1. Entre no diretório: cd $baileysDir" -ForegroundColor Cyan
 Write-Host "2. Inicie o servidor: .\start_baileys.bat" -ForegroundColor Cyan
-Write-Host "3. Conecte o WhatsApp: http://localhost:3333/instance/qr?key=securedguard" -ForegroundColor Cyan
+Write-Host "3. Conecte o WhatsApp: http://localhost:3333/instance/qr?key=fluxbus" -ForegroundColor Cyan
 Write-Host "4. Teste a integração: .\test_baileys.ps1" -ForegroundColor Cyan
 Write-Host "5. Habilite no SecureGuard: baileys.rest.enabled=true" -ForegroundColor Cyan
 Write-Host "" -ForegroundColor White
 Write-Host "🔗 URLs importantes:" -ForegroundColor Yellow
 Write-Host "- Servidor: http://localhost:3333" -ForegroundColor Cyan
-Write-Host "- QR Code: http://localhost:3333/instance/qr?key=securedguard" -ForegroundColor Cyan
-Write-Host "- Status: http://localhost:3333/instance/connectionState?key=securedguard" -ForegroundColor Cyan
+Write-Host "- QR Code: http://localhost:3333/instance/qr?key=fluxbus" -ForegroundColor Cyan
+Write-Host "- Status: http://localhost:3333/instance/connectionState?key=fluxbus" -ForegroundColor Cyan
 Write-Host "" -ForegroundColor White
 Write-Host "📚 Documentação: $baileysDir\README.md" -ForegroundColor Cyan 

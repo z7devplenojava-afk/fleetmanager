@@ -34,6 +34,7 @@ import { UserDeleteDialog } from '@/components/usuarios/UserDeleteDialog';
 import { UserCreateModal } from '@/components/usuarios/UserCreateModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { getRoleDisplayName, getRoleColor, USER_ROLE_LIST } from '@/utils/permissions';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -153,33 +154,6 @@ const Usuarios: React.FC = () => {
     setFilteredUsers(filtered);
   };
 
-  const getRoleDisplayName = (role: string) => {
-    const roleNames: Record<string, string> = {
-      'SUPER_ADMIN': 'Super Admin',
-      'ADMIN': 'Administrador',
-      'RH': 'Recursos Humanos',
-      'SUPERVISOR': 'Supervisor',
-      'COLABORADOR': 'Colaborador',
-      'FINANCEIRO': 'Financeiro',
-      'TI_SUPORTE': 'TI / Suporte',
-      'AUDITOR': 'Auditor'
-    };
-    return roleNames[role] || role;
-  };
-
-  const getRoleColor = (role: string) => {
-    const roleColors: Record<string, string> = {
-      'SUPER_ADMIN': 'bg-red-100 text-red-800',
-      'ADMIN': 'bg-blue-100 text-blue-800',
-      'RH': 'bg-green-100 text-green-800',
-      'SUPERVISOR': 'bg-yellow-100 text-yellow-800',
-      'COLABORADOR': 'bg-gray-100 text-gray-800',
-      'FINANCEIRO': 'bg-indigo-100 text-indigo-800',
-      'TI_SUPORTE': 'bg-orange-100 text-orange-800',
-      'AUDITOR': 'bg-pink-100 text-pink-800'
-    };
-    return roleColors[role] || 'bg-gray-100 text-gray-800';
-  };
 
   const getStatusColor = (user: User) => {
     // Verificar se o usuário tem grupos (ativo) ou não

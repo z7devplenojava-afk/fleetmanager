@@ -10,7 +10,7 @@ echo "🗑️  Resetando banco de dados CI..."
 echo ""
 
 # Diretório do CI na VPS
-CI_DIR="/var/www/secured_guard/ci"
+CI_DIR="/var/www/fluxbus/ci"
 
 echo "📍 Diretório: $CI_DIR"
 echo ""
@@ -29,8 +29,8 @@ echo "🧹 Limpando arquivos de volume órfãos..."
 docker volume prune -f
 
 echo ""
-echo "🔍 Verificando se ainda existem volumes do secured-guard-ci..."
-docker volume ls | grep secured-guard-ci || echo "✅ Nenhum volume encontrado"
+echo "🔍 Verificando se ainda existem volumes do fluxbus-ci..."
+docker volume ls | grep fluxbus-ci || echo "✅ Nenhum volume encontrado"
 
 echo ""
 echo "🚀 Recriando containers do zero..."

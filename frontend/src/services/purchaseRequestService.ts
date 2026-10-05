@@ -105,6 +105,7 @@ export interface CreatePurchaseRequestRequest {
   unitId?: string;
   requesterId?: string;
   approverId?: string;
+  items?: Partial<PurchaseRequestItem>[];
 }
 
 export interface UpdatePurchaseRequestRequest extends CreatePurchaseRequestRequest {

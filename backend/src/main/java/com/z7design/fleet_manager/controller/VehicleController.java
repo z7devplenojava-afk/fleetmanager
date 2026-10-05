@@ -31,6 +31,7 @@ public class VehicleController {
 
     private final VehicleService vehicleService;
     private final VehicleExcelImportService vehicleExcelImportService;
+    private final com.z7design.fleet_manager.service.VehicleCrlvImportService vehicleCrlvImportService;
 
     @GetMapping
     @Operation(summary = "Listar todos os veÃ­culos", description = "Retorna uma lista de todos os veÃ­culos")
@@ -194,5 +195,23 @@ public class VehicleController {
         return ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, org.springframework.http.MediaType.IMAGE_PNG_VALUE)
                 .body(imageBytes);
+    }
+
+    @PostMapping(value = "/crlv/parse", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'GESTOR', 'GESTOR_FROTA', 'OPERACIONAL', 'ROLE_FLEET_WRITE', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL') or isAuthenticated()")
+    @Operation(summary = "Extrair dados de CRLV em PDF", description = "Analisa um arquivo PDF de CRLV e extrai os campos do veículo (Placa, Chassi, Renavam, Modelo, Ano, etc.)")
+    public ResponseEntity<com.z7design.fleet_manager.dto.CrlvParsedDataDTO> parseCrlv(@RequestParam("file") MultipartFile file) {
+        log.info("Recebida requisição de extração de CRLV: {}", file.getOriginalFilename());
+        com.z7design.fleet_manager.dto.CrlvParsedDataDTO parsed = vehicleCrlvImportService.parseSingleCrlv(file);
+        return ResponseEntity.ok(parsed);
+    }
+
+    @PostMapping(value = "/crlv/import", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'GESTOR', 'GESTOR_FROTA', 'OPERACIONAL', 'ROLE_FLEET_WRITE', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL') or isAuthenticated()")
+    @Operation(summary = "Importar veículos via CRLV em lote", description = "Importa um ou múltiplos arquivos PDF de CRLV. Se o veículo já existir pela placa, atualiza os campos em branco. Se não existir, cadastra como novo veículo.")
+    public ResponseEntity<com.z7design.fleet_manager.dto.CrlvImportResultDTO> importCrlvBatch(@RequestParam("files") List<MultipartFile> files) {
+        log.info("Recebida requisição de importação de CRLV em lote: {} arquivo(s)", files.size());
+        com.z7design.fleet_manager.dto.CrlvImportResultDTO result = vehicleCrlvImportService.importCrlvBatch(files);
+        return ResponseEntity.ok(result);
     }
 }

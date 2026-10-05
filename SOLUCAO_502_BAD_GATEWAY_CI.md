@@ -127,7 +127,7 @@ O backend pode estar esperando por serviços que não estão prontos:
 docker exec secured-guard-db-ci pg_isready -U secured_guard_ci
 
 # Verificar se Redis está saudável
-docker exec secured-guard-redis-ci redis-cli -a redis_ci_2025 ping
+docker exec secured-guard-redis-ci redis-cli -a CHANGE_THIS_REDIS_PASSWORD ping
 
 # Verificar logs de conexão do backend
 docker logs secured-guard-backend-ci | grep -i "database\|redis\|connection"

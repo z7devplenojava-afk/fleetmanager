@@ -2,12 +2,12 @@
 
 # ========================================
 # SCRIPT DE INSTALAÇÃO COMPLETA NA VPS
-# Ubuntu 20.04/22.04 - SecuredGuard
+# Ubuntu 20.04/22.04 - FluxBus
 # ========================================
 
 set -e  # Parar em caso de erro
 
-echo "🚀 Iniciando instalação do SecuredGuard na VPS..."
+echo "🚀 Iniciando instalação do FluxBus na VPS..."
 
 # Cores para output
 RED='\033[0;31m'
@@ -122,14 +122,14 @@ log "Docker Compose instalado com sucesso!"
 # ========================================
 # 5. CRIAR REDE DOCKER COMPARTILHADA
 # ========================================
-log "Criando rede Docker compartilhada 'secured-guard' (se não existir)..."
+log "Criando rede Docker compartilhada 'fluxbus' (se não existir)..."
 
 # Criar rede externa para todos os ambientes
-if ! docker network ls --format '{{.Name}}' | grep -q '^secured-guard$'; then
-  docker network create --driver bridge secured-guard || error "Falha ao criar a rede Docker 'secured-guard'"
-  log "Rede 'secured-guard' criada."
+if ! docker network ls --format '{{.Name}}' | grep -q '^fluxbus$'; then
+  docker network create --driver bridge fluxbus || error "Falha ao criar a rede Docker 'fluxbus'"
+  log "Rede 'fluxbus' criada."
 else
-  log "Rede 'secured-guard' já existe."
+  log "Rede 'fluxbus' já existe."
 fi
 
 # ========================================
@@ -190,17 +190,17 @@ log "Fail2Ban configurado!"
 log "Criando estrutura de diretórios..."
 
 # Criar diretório do projeto
-sudo mkdir -p /opt/secured-guard
-sudo chown $USER:$USER /opt/secured-guard
+sudo mkdir -p /opt/fluxbus
+sudo chown $USER:$USER /opt/fluxbus
 
 # Criar diretórios para logs e dados
-sudo mkdir -p /var/log/secured-guard
-sudo mkdir -p /opt/secured-guard/data
-sudo mkdir -p /opt/secured-guard/backups
-sudo mkdir -p /opt/secured-guard/ssl
+sudo mkdir -p /var/log/fluxbus
+sudo mkdir -p /opt/fluxbus/data
+sudo mkdir -p /opt/fluxbus/backups
+sudo mkdir -p /opt/fluxbus/ssl
 
-sudo chown -R $USER:$USER /var/log/secured-guard
-sudo chown -R $USER:$USER /opt/secured-guard
+sudo chown -R $USER:$USER /var/log/fluxbus
+sudo chown -R $USER:$USER /opt/fluxbus
 
 log "Estrutura de diretórios criada!"
 
@@ -214,11 +214,11 @@ sudo apt install -y openssl
 
 # Criar certificado self-signed
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout /opt/secured-guard/ssl/key.pem \
-    -out /opt/secured-guard/ssl/cert.pem \
-    -subj "/C=BR/ST=SP/L=SaoPaulo/O=SecuredGuard/CN=localhost"
+    -keyout /opt/fluxbus/ssl/key.pem \
+    -out /opt/fluxbus/ssl/cert.pem \
+    -subj "/C=BR/ST=SP/L=SaoPaulo/O=FluxBus/CN=localhost"
 
-sudo chown $USER:$USER /opt/secured-guard/ssl/*
+sudo chown $USER:$USER /opt/fluxbus/ssl/*
 
 log "Certificados SSL criados!"
 
@@ -227,17 +227,17 @@ log "Certificados SSL criados!"
 # ========================================
 log "Criando script de deploy..."
 
-sudo tee /opt/secured-guard/deploy.sh > /dev/null <<'EOF'
+sudo tee /opt/fluxbus/deploy.sh > /dev/null <<'EOF'
 #!/bin/bash
 
-# Script de deploy do SecuredGuard
+# Script de deploy do FluxBus
 set -e
 
-PROJECT_DIR="/opt/secured-guard"
+PROJECT_DIR="/opt/fluxbus"
 ENV_FILE="$PROJECT_DIR/.env"
 
 # Configurar Git para evitar problemas de propriedade
-git config --global --add safe.directory /opt/secured-guard
+git config --global --add safe.directory /opt/fluxbus
 
 # Cores
 GREEN='\033[0;32m'
@@ -269,9 +269,9 @@ log "2. Parando containers existentes..."
 docker compose -f $PROJECT_DIR/deploy/docker-compose.prod.yml down 2>/dev/null || true
 
 # Fazer backup do banco (se existir)
-if docker ps -q -f name=secured-guard-db-prod | grep -q .; then
+if docker ps -q -f name=fluxbus-db-prod | grep -q .; then
     log "3. Fazendo backup do banco de dados..."
-    docker exec secured-guard-db-prod pg_dump -U postgres secured_guard > $PROJECT_DIR/backups/backup_$(date +%Y%m%d_%H%M%S).sql
+    docker exec fluxbus-db-prod pg_dump -U postgres fluxbus > $PROJECT_DIR/backups/backup_$(date +%Y%m%d_%H%M%S).sql
 fi
 
 # Build e subir containers
@@ -291,8 +291,8 @@ log "Deploy concluído com sucesso!"
 log "Acesse: https://localhost"
 EOF
 
-sudo chmod +x /opt/secured-guard/deploy.sh
-sudo chown $USER:$USER /opt/secured-guard/deploy.sh
+sudo chmod +x /opt/fluxbus/deploy.sh
+sudo chown $USER:$USER /opt/fluxbus/deploy.sh
 
 log "Script de deploy criado!"
 
@@ -301,13 +301,13 @@ log "Script de deploy criado!"
 # ========================================
 log "Criando script de backup..."
 
-sudo tee /opt/secured-guard/backup.sh > /dev/null <<'EOF'
+sudo tee /opt/fluxbus/backup.sh > /dev/null <<'EOF'
 #!/bin/bash
 
-# Script de backup do SecuredGuard
+# Script de backup do FluxBus
 set -e
 
-PROJECT_DIR="/opt/secured-guard"
+PROJECT_DIR="/opt/fluxbus"
 BACKUP_DIR="$PROJECT_DIR/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 
@@ -324,15 +324,15 @@ mkdir -p $BACKUP_DIR
 
 # Backup do banco de dados
 log "Fazendo backup do banco de dados..."
-docker exec secured-guard-db-prod pg_dump -U postgres secured_guard > $BACKUP_DIR/db_backup_$DATE.sql
+docker exec fluxbus-db-prod pg_dump -U postgres fluxbus > $BACKUP_DIR/db_backup_$DATE.sql
 
 # Backup dos uploads
 log "Fazendo backup dos uploads..."
-docker run --rm -v secured-guard_backend_uploads_prod:/data -v $BACKUP_DIR:/backup alpine tar czf /backup/uploads_backup_$DATE.tar.gz -C /data .
+docker run --rm -v fluxbus_backend_uploads_prod:/data -v $BACKUP_DIR:/backup alpine tar czf /backup/uploads_backup_$DATE.tar.gz -C /data .
 
 # Backup dos logs
 log "Fazendo backup dos logs..."
-docker run --rm -v secured-guard_backend_logs_prod:/data -v $BACKUP_DIR:/backup alpine tar czf /backup/logs_backup_$DATE.tar.gz -C /data .
+docker run --rm -v fluxbus_backend_logs_prod:/data -v $BACKUP_DIR:/backup alpine tar czf /backup/logs_backup_$DATE.tar.gz -C /data .
 
 # Limpar backups antigos (manter últimos 7 dias)
 log "Limpando backups antigos..."
@@ -342,8 +342,8 @@ find $BACKUP_DIR -name "*.tar.gz" -mtime +7 -delete
 log "Backup concluído: $BACKUP_DIR"
 EOF
 
-sudo chmod +x /opt/secured-guard/backup.sh
-sudo chown $USER:$USER /opt/secured-guard/backup.sh
+sudo chmod +x /opt/fluxbus/backup.sh
+sudo chown $USER:$USER /opt/fluxbus/backup.sh
 
 log "Script de backup criado!"
 
@@ -353,7 +353,7 @@ log "Script de backup criado!"
 log "Configurando backup automático..."
 
 # Adicionar tarefa de backup diário
-(crontab -l 2>/dev/null; echo "0 2 * * * /opt/secured-guard/backup.sh >> /var/log/secured-guard/backup.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 2 * * * /opt/fluxbus/backup.sh >> /var/log/fluxbus/backup.log 2>&1") | crontab -
 
 log "Backup automático configurado!"
 
@@ -362,13 +362,13 @@ log "Backup automático configurado!"
 # ========================================
 log "Criando arquivo .env..."
 
-sudo tee /opt/secured-guard/.env > /dev/null <<EOF
+sudo tee /opt/fluxbus/.env > /dev/null <<EOF
 # ========================================
 # CONFIGURAÇÕES DE PRODUÇÃO
 # ========================================
 
 # Database
-POSTGRES_DB=secured_guard
+POSTGRES_DB=fluxbus
 POSTGRES_USER=postgressg
 POSTGRES_PASSWORD=$(openssl rand -base64 32)
 
@@ -388,8 +388,8 @@ LOG_LEVEL=INFO
 LOG_FILE_PATH=/app/logs
 EOF
 
-sudo chown $USER:$USER /opt/secured-guard/.env
-sudo chmod 600 /opt/secured-guard/.env
+sudo chown $USER:$USER /opt/fluxbus/.env
+sudo chmod 600 /opt/fluxbus/.env
 
 log "Arquivo .env criado com senhas seguras!"
 
@@ -400,13 +400,13 @@ log "Instalação concluída com sucesso!"
 echo ""
 info "Próximos passos:"
 echo "1. Faça logout e login novamente para aplicar as permissões do Docker"
-echo "2. Clone o repositório do SecuredGuard para /opt/secured-guard"
-echo "3. Execute: /opt/secured-guard/deploy.sh"
+echo "2. Clone o repositório do FluxBus para /opt/fluxbus"
+echo "3. Execute: /opt/fluxbus/deploy.sh"
 echo ""
 info "Comandos úteis:"
-echo "- Deploy: /opt/secured-guard/deploy.sh"
-echo "- Backup: /opt/secured-guard/backup.sh"
-echo "- Logs: docker compose -f /opt/secured-guard/deploy/docker-compose.prod.yml logs -f"
-echo "- Status: docker compose -f /opt/secured-guard/deploy/docker-compose.prod.yml ps"
+echo "- Deploy: /opt/fluxbus/deploy.sh"
+echo "- Backup: /opt/fluxbus/backup.sh"
+echo "- Logs: docker compose -f /opt/fluxbus/deploy/docker-compose.prod.yml logs -f"
+echo "- Status: docker compose -f /opt/fluxbus/deploy/docker-compose.prod.yml ps"
 echo ""
 warning "IMPORTANTE: Faça logout e login novamente antes de continuar!"

@@ -71,6 +71,9 @@ export interface Vehicle {
   documentationExpiryDate?: string;
   responsibleEmployeeId?: string;
   workPostId?: string;
+  workPostName?: string;
+  postoDeTrabalho?: string;
+  obraName?: string;
   companyId?: string;
   departmentId?: string;
   photos?: FileList | null;

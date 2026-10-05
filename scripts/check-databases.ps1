@@ -1,21 +1,21 @@
 # ===================== SCRIPT PARA VERIFICAR BANCOS DE DADOS (PowerShell) =====================
 
-Write-Host "🔍 Verificando bancos de dados SecuredGuard..." -ForegroundColor Green
+Write-Host "🔍 Verificando bancos de dados FluxBus..." -ForegroundColor Green
 Write-Host ""
 
 # Configurações
 $PostgresHost = $env:POSTGRES_HOST ?? "localhost"
 $PostgresPort = $env:POSTGRES_PORT ?? 5432
 $PostgresUser = $env:POSTGRES_USER ?? "postgressg"
-$PostgresPassword = $env:POSTGRES_PASSWORD ?? "S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx"
+$PostgresPassword = $env:POSTGRES_PASSWORD ?? "CHANGE_THIS_DB_MAIL_PASSWORD"
 
 # Lista de bancos esperados
 $ExpectedDatabases = @(
-    "secured_guard_dev",
-    "secured_guard_test",
-    "secured_guard_staging",
-    "secured_guard_prod",
-    "secured_guard_ci"
+    "fluxbus_dev",
+    "fluxbus_test",
+    "fluxbus_staging",
+    "fluxbus_prod",
+    "fluxbus_ci"
 )
 
 # Função para verificar banco

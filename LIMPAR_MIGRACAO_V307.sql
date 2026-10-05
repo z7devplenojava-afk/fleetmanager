@@ -1,4 +1,4 @@
--- Execute este script no banco secured_guard_test para limpar a migração V307
+-- Execute este script no banco fluxbus_test para limpar a migração V307
 
 -- 1. Deletar registro da migração V307 do histórico do Flyway
 DELETE FROM flyway_schema_history WHERE version = '307';

@@ -24,6 +24,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, java.util.UUID
     List<Invoice> findByStatus(ExpenseStatus status);
     Page<Invoice> findByStatus(ExpenseStatus status, Pageable pageable);
     
+    // Buscar por companyId
+    List<Invoice> findByCompanyId(UUID companyId);
+    
     // Buscar por tipo
     List<Invoice> findByType(ExpenseType type);
     Page<Invoice> findByType(ExpenseType type, Pageable pageable);
@@ -52,8 +55,17 @@ public interface InvoiceRepository extends JpaRepository<Invoice, java.util.UUID
     List<Invoice> findByCategory(String category);
     Page<Invoice> findByCategory(String category, Pageable pageable);
     
-    // Buscar por nÃºmero da fatura
+    // Buscar por número da fatura
     List<Invoice> findByInvoiceNumberContaining(String invoiceNumber);
+    Optional<Invoice> findFirstByInvoiceNumber(String invoiceNumber);
+
+    // Verificar se número de fatura existe no banco (query nativa sem filtro de tenant)
+    @Query(value = "SELECT COUNT(*) > 0 FROM invoices WHERE invoice_number = :invoiceNumber", nativeQuery = true)
+    boolean existsByInvoiceNumberNative(@Param("invoiceNumber") String invoiceNumber);
+
+    // Buscar por nÃºmero de despesa SIGLO
+    Optional<Invoice> findByExpenseNumberAndInstallmentSeq(String expenseNumber, Integer installmentSeq);
+    Optional<Invoice> findFirstByExpenseNumber(String expenseNumber);
     
     // Buscar por descriÃ§Ã£o
     List<Invoice> findByDescriptionContainingIgnoreCase(String description);

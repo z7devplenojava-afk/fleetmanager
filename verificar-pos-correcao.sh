@@ -8,14 +8,14 @@ echo "🔍 VERIFICAÇÃO PÓS-CORREÇÃO JWT_SECRET"
 echo "🔍 =========================================="
 echo ""
 
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 echo "1️⃣ Verificando status dos containers..."
 docker-compose -f docker-compose.ci.yml ps
 echo ""
 
 echo "2️⃣ Verificando JWT_SECRET no container backend..."
-JWT_SECRET=$(docker exec secured-guard-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
+JWT_SECRET=$(docker exec fluxbus-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
 if [ -n "$JWT_SECRET" ]; then
     JWT_LENGTH=${#JWT_SECRET}
     echo "   JWT_SECRET está definido: $JWT_LENGTH caracteres"
@@ -37,7 +37,7 @@ sleep 30
 echo ""
 
 echo "4️⃣ Testando health check do backend..."
-HEALTH=$(docker exec secured-guard-backend-ci curl -s http://localhost:8081/api/health 2>/dev/null || echo "ERROR")
+HEALTH=$(docker exec fluxbus-backend-ci curl -s http://localhost:8081/api/health 2>/dev/null || echo "ERROR")
 if echo "$HEALTH" | grep -q "status"; then
     echo "   ✅ Backend está respondendo"
     echo "   Resposta: $HEALTH"
@@ -47,7 +47,7 @@ fi
 echo ""
 
 echo "5️⃣ Verificando logs do backend para erros de JWT..."
-JWT_ERRORS=$(docker logs --tail=100 secured-guard-backend-ci 2>&1 | grep -i -E "(jwt|token|chave.*curta)" | tail -5)
+JWT_ERRORS=$(docker logs --tail=100 fluxbus-backend-ci 2>&1 | grep -i -E "(jwt|token|chave.*curta)" | tail -5)
 if [ -n "$JWT_ERRORS" ]; then
     echo "   ⚠️ Ainda há erros relacionados a JWT:"
     echo "$JWT_ERRORS"
@@ -57,7 +57,7 @@ fi
 echo ""
 
 echo "6️⃣ Testando login diretamente..."
-LOGIN_RESPONSE=$(docker exec secured-guard-backend-ci curl -s -X POST http://localhost:8081/api/auth/login \
+LOGIN_RESPONSE=$(docker exec fluxbus-backend-ci curl -s -X POST http://localhost:8081/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"test","password":"test"}' 2>/dev/null || echo "ERROR")
 

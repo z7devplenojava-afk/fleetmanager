@@ -1,6 +1,6 @@
 @echo off
 echo ================================================
-echo   Compilando Backend - Secured Guard
+echo   Compilando Backend - FluxBus
 echo ================================================
 echo.
 

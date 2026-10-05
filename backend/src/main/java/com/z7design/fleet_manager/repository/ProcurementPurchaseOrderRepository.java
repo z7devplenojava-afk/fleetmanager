@@ -17,5 +17,5 @@ public interface ProcurementPurchaseOrderRepository extends JpaRepository<Procur
 
     Optional<ProcurementPurchaseOrder> findByIdAndCompanyId(UUID id, UUID companyId);
 
-    Optional<ProcurementPurchaseOrder> findByRequisitionId(UUID requisitionId);
+    List<ProcurementPurchaseOrder> findByRequisitionId(UUID requisitionId);
 }

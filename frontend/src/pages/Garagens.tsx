@@ -34,6 +34,7 @@ import fleetService from '@/services/fleetService';
 import { QRCodeScanner, QRScanResult } from '@/components/frota/QRCodeScanner';
 import { VehicleQRCodeModal } from '@/components/frota/VehicleQRCodeModal';
 import { DriverCombobox } from '@/components/frota/DriverCombobox';
+import { OperacaoDoDiaDashboard } from '@/components/operacao/OperacaoDoDiaDashboard';
 
 interface FleetVehicle {
   id: string;
@@ -66,7 +67,7 @@ export const Garagens: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Navegação por Abas
-  const [activeTab, setActiveTab] = useState<'vehicles' | 'terminal' | 'garages' | 'history'>('vehicles');
+  const [activeTab, setActiveTab] = useState<'vehicles' | 'terminal' | 'garages' | 'history' | 'operacao'>('vehicles');
 
   // Filtros da aba Veículos no Pátio
   const [searchVehicle, setSearchVehicle] = useState('');
@@ -853,6 +854,21 @@ export const Garagens: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab('operacao')}
+            className={`flex items-center gap-2 py-3 px-4 font-semibold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all ${
+              activeTab === 'operacao'
+                ? 'border-blue-500 text-blue-400 bg-blue-500/10 rounded-t-lg'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <Sparkles size={17} className="text-blue-400" />
+            <span>Operação do Dia & Linhas</span>
+            <Badge className="ml-1 bg-blue-900/60 text-blue-300 font-mono text-[10px] px-1.5 py-0 border border-blue-500/30">
+              Ao Vivo
+            </Badge>
+          </button>
+
+          <button
             onClick={() => setActiveTab('history')}
             className={`flex items-center gap-2 py-3 px-4 font-semibold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all ${
               activeTab === 'history'
@@ -1570,6 +1586,15 @@ export const Garagens: React.FC = () => {
               </div>
             )}
           </Card>
+        )}
+
+        {/* ========================================================================= */}
+        {/* ABA 5: OPERAÇÃO DO DIA & LINHAS */}
+        {/* ========================================================================= */}
+        {activeTab === 'operacao' && (
+          <div className="pt-2">
+            <OperacaoDoDiaDashboard />
+          </div>
         )}
 
         {/* ========================================================================= */}

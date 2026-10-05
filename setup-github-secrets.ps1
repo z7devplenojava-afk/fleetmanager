@@ -41,7 +41,7 @@ $vpsPort = Read-Host "`nPorta SSH da VPS (padrão: 22)"
 if ([string]::IsNullOrWhiteSpace($vpsPort)) { $vpsPort = "22" }
 $secrets["VPS_PORT"] = $vpsPort
 
-$vpsUrl = Read-Host "URL pública do sistema (ex: https://secured-guard.com) [opcional]"
+$vpsUrl = Read-Host "URL pública do sistema (ex: https://fluxbus.com) [opcional]"
 if (![string]::IsNullOrWhiteSpace($vpsUrl)) {
     $secrets["VPS_URL"] = $vpsUrl
 }
@@ -52,11 +52,11 @@ if (![string]::IsNullOrWhiteSpace($vpsUrl)) {
 Write-Host "`n2️⃣ CONFIGURAÇÕES DO BANCO DE DADOS" -ForegroundColor Green
 Write-Host "─────────────────────────────────────`n" -ForegroundColor Gray
 
-$secrets["POSTGRES_DB"] = "secured_guard_prod"
+$secrets["POSTGRES_DB"] = "fluxbus_prod"
 $secrets["POSTGRES_USER"] = "postgressg"
 $secrets["POSTGRES_PASSWORD"] = New-SecurePassword
 
-Write-Host "✅ POSTGRES_DB: secured_guard_prod" -ForegroundColor Gray
+Write-Host "✅ POSTGRES_DB: fluxbus_prod" -ForegroundColor Gray
 Write-Host "✅ POSTGRES_USER: postgressg" -ForegroundColor Gray
 Write-Host "✅ POSTGRES_PASSWORD: [gerada automaticamente]" -ForegroundColor Gray
 
@@ -78,10 +78,10 @@ Write-Host "──────────────────────�
 $secrets["JWT_SECRET"] = New-SecurePassword -Length 64
 Write-Host "✅ JWT_SECRET: [gerada automaticamente - 64 bytes]" -ForegroundColor Gray
 
-$apiUrl = Read-Host "`nURL da API (ex: https://api.secured-guard.com/api ou http://${vpsHost}:8080/api)"
+$apiUrl = Read-Host "`nURL da API (ex: https://api.fluxbus.com/api ou http://${vpsHost}:8080/api)"
 $secrets["VITE_API_URL"] = $apiUrl
 
-$wsUrl = Read-Host "URL do WebSocket (ex: wss://api.secured-guard.com/ws ou ws://${vpsHost}:8080/ws)"
+$wsUrl = Read-Host "URL do WebSocket (ex: wss://api.fluxbus.com/ws ou ws://${vpsHost}:8080/ws)"
 $secrets["VITE_WS_URL"] = $wsUrl
 
 # ========================================
@@ -95,12 +95,12 @@ $secretsJson = "github-secrets.json"
 # Arquivo de texto
 $output = @"
 # ========================================
-# GitHub Secrets para Secured Guard
+# GitHub Secrets para FluxBus
 # Gerado em: $(Get-Date -Format "dd/MM/yyyy HH:mm:ss")
 # ========================================
 
 IMPORTANTE: Configure estes secrets em:
-https://github.com/zemarioramos/secured-guard/settings/secrets/actions
+https://github.com/zemarioramos/fluxbus/settings/secrets/actions
 
 ========================================
 SECRETS NECESSÁRIOS:
@@ -146,7 +146,7 @@ foreach ($key in $secrets.Keys | Sort-Object) {
     $value = $secrets[$key]
     # Escapar aspas duplas
     $value = $value -replace '"', '\"'
-    $ghCommands += "gh secret set $key --body `"$value`" --repo zemarioramos/secured-guard`n"
+    $ghCommands += "gh secret set $key --body `"$value`" --repo zemarioramos/fluxbus`n"
 }
 
 $ghCommandsFile = "github-secrets-gh-cli.sh"
@@ -188,7 +188,7 @@ Write-Host "`n🎯 PRÓXIMOS PASSOS" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Cyan
 
 Write-Host "1. Configure os secrets no GitHub:" -ForegroundColor White
-Write-Host "   https://github.com/zemarioramos/secured-guard/settings/secrets/actions`n" -ForegroundColor Gray
+Write-Host "   https://github.com/zemarioramos/fluxbus/settings/secrets/actions`n" -ForegroundColor Gray
 
 Write-Host "2. Copie os valores do arquivo: $secretsFile`n" -ForegroundColor White
 

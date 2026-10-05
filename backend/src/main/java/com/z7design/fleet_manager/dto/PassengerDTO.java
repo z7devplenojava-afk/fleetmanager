@@ -28,9 +28,19 @@ public class PassengerDTO {
     private UUID routeId;
     @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
     private UUID boardingPointId;
+    @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
+    private UUID disembarkPointId;
     private String shift;
     private Boolean active;
     private String costCenter;
+    private String cpf;
+    private String phone;
+    private String email;
+    /** COMUM, ESTUDANTE, IDOSO, PCD */
+    private String passengerType;
+    @JsonFormat(pattern = "HH:mm")
+    private java.time.LocalTime preferredTime;
+    private Boolean notificationsEnabled;
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")

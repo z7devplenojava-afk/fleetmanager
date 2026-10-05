@@ -13,11 +13,11 @@ O workflow do GitHub Actions usa `secrets.MAIL_PASSWORD` para definir a senha no
 **Verificar:**
 - Acesse: https://github.com/SEU_REPO/settings/secrets/actions
 - Verifique se existe o secret `MAIL_PASSWORD`
-- Se não existir, adicione com o valor: `D8rKeqSFZfaS$(y7`
+- Se não existir, adicione com o valor: `CHANGE_THIS_MAIL_PASSWORD`
 
 ### 2. **Senha com caracteres especiais**
 
-A senha `D8rKeqSFZfaS$(y7` contém caracteres especiais (`$`, `(`, `)`) que podem causar problemas no shell do GitHub Actions.
+A senha `CHANGE_THIS_MAIL_PASSWORD` contém caracteres especiais (`$`, `(`, `)`) que podem causar problemas no shell do GitHub Actions.
 
 **Solução:**
 O workflow já está usando `printf '%s'` para evitar interpretação de caracteres especiais, mas pode precisar de escape adicional.
@@ -55,7 +55,7 @@ Os timeouts estão configurados para 10 segundos, o que pode ser muito curto par
 1. **Acessar GitHub Secrets:**
    - Repositório → Settings → Secrets and variables → Actions
    - Verificar se `MAIL_PASSWORD` existe
-   - Se não existir, criar com valor: `D8rKeqSFZfaS$(y7`
+   - Se não existir, criar com valor: `CHANGE_THIS_MAIL_PASSWORD`
 
 2. **Verificar se o secret está sendo usado:**
    ```bash
@@ -67,7 +67,7 @@ Os timeouts estão configurados para 10 segundos, o que pode ser muito curto par
    - Executar o workflow do GitHub Actions novamente
    - Ou configurar manualmente na VPS:
      ```bash
-     echo 'MAIL_PASSWORD=D8rKeqSFZfaS$(y7' >> /var/www/secured_guard/ci/.env
+     echo 'MAIL_PASSWORD=CHANGE_THIS_MAIL_PASSWORD' >> /var/www/secured_guard/ci/.env
      docker-compose -f docker-compose.ci.yml restart backend-ci
      ```
 

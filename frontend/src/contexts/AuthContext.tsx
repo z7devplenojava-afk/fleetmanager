@@ -268,23 +268,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         'FLEX_ADMIN',
         'COMPANY_ADMIN',
         'ADMIN',
+        'GESTOR',
+        'GESTOR_COMERCIAL',
+        'COMERCIAL',
+        'VENDAS',
+        'GESTOR_DE_COMPRAS',
+        'COMPRAS',
+        'ALMOXARIFADO',
+        'GESTOR_DE_MANUTENCAO',
+        'ENCARREGADO_DE_MANUTENCAO',
+        'MANUTENCAO',
+        'MECANICO',
+        'GESTOR_OPERACIONAL',
+        'GESTOR_TRAFEGO',
+        'GESTOR_DE_TRAFEGO',
+        'OPERACIONAL',
+        'ASSISTENTE_OPERACIONAL',
+        'MOTORISTA',
+        'GESTOR_FINANCEIRO',
+        'FINANCEIRO',
+        'ASSISTENTE_FINANCEIRO',
         'RH',
         'ASSISTENCIA_RH',
+        'AUXILIAR_DE_RH',
         'DEPARTAMENTO_PESSOAL',
-        'GESTOR',
-        'GESTOR_TRAFEGO',
+        'AUXILIAR_DE_DEPARTAMENTO_PESSOAL',
+        'AUX_DEP',
         'SUPERVISOR',
-        'FINANCEIRO',
-        'OPERACIONAL',
         'TI_SUPORTE',
         'AUDITOR',
+        'PORTARIA',
         'VIGILANTE',
         'AUXI_ADMINISTRATIVO',
-        'AUX_DEP',
-        'MOTORISTA',
-        'MECANICO',
-        'PORTARIA',
+        'AUXILIAR_ADMINISTRATIVO',
+        'ASSISTENTE_LIMPEZA',
+        'LAVADOR',
         'COLABORADOR',
+        'EMPLOYEE',
+        'CLIENTE',
+        'CLIENT_USER',
       ];
       let userRole: User['role'] = 'COLABORADOR';
       for (const role of rolePriority) {
@@ -298,14 +320,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🔍 Login: Pulando carregamento de grupos para evitar loop');
       const userGroups = [];
 
-      // Gerar permissões apenas do role por enquanto
-      const rolePermissions = generatePermissions(userRole);
-      const combinedPermissions = rolePermissions; // Apenas permissões do role
+      // Gerar permissões combinadas de todas as roles atribuídas
+      let combinedPermissions = generatePermissions(userRole);
+      if (userRoles.length > 1) {
+        for (const r of userRoles) {
+          if (r !== userRole) {
+            const extraPerms = generatePermissions(r as UserRole);
+            combinedPermissions = combinePermissions(combinedPermissions, extraPerms);
+          }
+        }
+      }
 
       // Log para debug do SUPER_ADMIN
       if (userRole === 'SUPER_ADMIN') {
         console.log('🔴 SUPER_ADMIN detectado!');
-        console.log('Permissões do role:', rolePermissions);
         console.log('Permissões combinadas:', combinedPermissions);
       }
 
@@ -343,9 +371,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       if (response.data.refreshToken) {
         localStorage.setItem('refreshToken', response.data.refreshToken);
-      } else if (response.data.token) {
-        localStorage.setItem('refreshToken', response.data.token);
       }
+      // SEGURANÇA: não usar o access token como refresh token (o backend agora
+      // valida typ=refresh no endpoint de renovação)
       localStorage.setItem('user', JSON.stringify(userData));
       if (response.data.empresa) {
         const emp = response.data.empresa;
@@ -380,11 +408,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Definir para onde navegar
       let destination = getDashboardRouteForRole(userRole);
-      if (requiresPasswordChange || !firstAccessCompleted) {
+      const isSuperAdmin = (userRole ?? '').toUpperCase().includes('SUPER_ADMIN');
+      if (!isSuperAdmin && (requiresPasswordChange || !firstAccessCompleted)) {
         destination = '/first-access/change-password';
-      } else if (requires2FA) {
+      } else if (!isSuperAdmin && requires2FA) {
         destination = '/first-access/activate-2fa';
-      } else if (requiresLgpdConsent) {
+      } else if (!isSuperAdmin && requiresLgpdConsent) {
         destination = '/lgpd-consent';
       }
 

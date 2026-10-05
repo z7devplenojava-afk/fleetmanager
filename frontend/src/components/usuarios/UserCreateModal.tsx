@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { User, Mail, Shield, Save, X, Eye, EyeOff, Building } from 'lucide-react';
 import { UserRole } from '@/types/user';
 import { getRoleDisplayName, getRoleColor, USER_ROLE_LIST } from '@/utils/permissions';
+import { RoleMultiSelect } from './RoleMultiSelect';
 import { userService } from '@/services/userService';
 import { companyService } from '@/services/companyService';
 import { useToast } from '@/hooks/use-toast';
@@ -48,7 +49,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
     name: '',
     password: '',
     confirmPassword: '',
-    role: '' as UserRole,
+    roles: [] as UserRole[],
     whatsapp: '',
   });
 
@@ -77,7 +78,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
@@ -86,10 +87,10 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
 
   const handleSave = async () => {
     // Validações
-    if (!formData.username || !formData.email || !formData.name || !formData.password || !formData.role) {
+    if (!formData.username || !formData.email || !formData.name || !formData.password || formData.roles.length === 0) {
       toast({
         title: 'Erro!',
-        description: 'Todos os campos obrigatórios devem ser preenchidos.',
+        description: 'Todos os campos obrigatórios (incluindo ao menos uma função) devem ser preenchidos.',
         variant: 'destructive',
       });
       return;
@@ -131,7 +132,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
         email: formData.email,
         name: formData.name,
         password: formData.password,
-        roles: [formData.role], // Backend espera array de STRINGS!
+        roles: formData.roles, // Backend espera array de strings
         whatsapp: formData.whatsapp || undefined,
         status: "ACTIVE",
         active: true,
@@ -151,7 +152,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
         name: '',
         password: '',
         confirmPassword: '',
-        role: '' as UserRole,
+        roles: [] as UserRole[],
         whatsapp: '',
       });
 
@@ -177,7 +178,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
       name: '',
       password: '',
       confirmPassword: '',
-      role: '' as UserRole,
+      roles: [] as UserRole[],
       whatsapp: '',
     });
     onClose();
@@ -188,7 +189,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
     formData.name &&
     formData.password &&
     formData.confirmPassword &&
-    formData.role &&
+    formData.roles.length > 0 &&
     formData.password === formData.confirmPassword &&
     formData.password.length >= 6;
 
@@ -256,37 +257,12 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="role" className="text-seguranca-lightgray">
-                    Função *
-                  </Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value) => handleInputChange('role', value as UserRole)}
-                  >
-                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                      <SelectValue placeholder="Selecione a função" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-seguranca-black border-gray-600">
-                      {USER_ROLE_LIST
-                        .filter(role => {
-                          const isFlexAdmin = hasRole('FLEX_ADMIN') || hasRole('SUPER_ADMIN');
-                          if (!isFlexAdmin) {
-                            return role !== 'FLEX_ADMIN' && role !== 'SUPER_ADMIN' && role !== 'TI_SUPORTE';
-                          }
-                          return true;
-                        })
-                        .map((role) => (
-                          <SelectItem key={role} value={role}>
-                            <div className="flex items-center gap-2">
-                              <Badge className={getRoleColor(role)}>
-                                {getRoleDisplayName(role)}
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                <div className="col-span-full pt-1">
+                  <RoleMultiSelect
+                    selectedRoles={formData.roles}
+                    onChange={(roles) => handleInputChange('roles', roles)}
+                    isSuperAdmin={isSuperAdmin}
+                  />
                 </div>
 
                 {/* Seleção de Empresa */}

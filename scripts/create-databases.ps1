@@ -8,16 +8,16 @@ param(
     [string]$PostgresPassword = ""
 )
 
-Write-Host "🗄️ Criando bancos de dados para o projeto SecuredGuard..." -ForegroundColor Green
+Write-Host "🗄️ Criando bancos de dados para o projeto FluxBus..." -ForegroundColor Green
 Write-Host ""
 
 # Lista de bancos para criar
 $Databases = @(
-    "secured_guard_dev",
-    "secured_guard_test", 
-    "secured_guard_staging",
-    "secured_guard_prod",
-    "secured_guard_ci"
+    "fluxbus_dev",
+    "fluxbus_test", 
+    "fluxbus_staging",
+    "fluxbus_prod",
+    "fluxbus_ci"
 )
 
 # Função para executar comando psql

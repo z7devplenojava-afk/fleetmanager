@@ -41,7 +41,7 @@ export const DriverCombobox: React.FC<DriverComboboxProps> = ({
     if (!value || !value.trim()) return null;
     const cleanVal = value.trim().toLowerCase();
     return employees.find(
-      e => e.name.trim().toLowerCase() === cleanVal ||
+      e => (e.name || '').trim().toLowerCase() === cleanVal ||
            (e.cnhNumber && e.cnhNumber.trim() === value.trim())
     ) || null;
   }, [value, employees]);
@@ -84,7 +84,7 @@ export const DriverCombobox: React.FC<DriverComboboxProps> = ({
       if (aHasCnh && !bHasCnh) return -1;
       if (!aHasCnh && bHasCnh) return 1;
 
-      return a.name.localeCompare(b.name);
+      return (a.name || '').localeCompare(b.name || '');
     });
 
     return list;
@@ -245,7 +245,7 @@ export const DriverCombobox: React.FC<DriverComboboxProps> = ({
           <div className="overflow-y-auto max-h-56 divide-y divide-gray-800/60">
             {filteredEmployees.length > 0 ? (
               filteredEmployees.map(emp => {
-                const isSelected = selectedEmployee?.id === emp.id || value.toLowerCase().trim() === emp.name.toLowerCase().trim();
+                const isSelected = selectedEmployee?.id === emp.id || (value || '').toLowerCase().trim() === (emp.name || '').toLowerCase().trim();
                 const isDriverRole = (emp.positionDescription || '').toLowerCase().includes('motorista');
 
                 return (

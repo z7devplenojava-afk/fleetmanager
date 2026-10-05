@@ -128,7 +128,7 @@ const DepartamentosEmailConfig: React.FC<DepartamentosEmailConfigProps> = ({
           
           <p>Este é um email de teste para verificar se a configuração está funcionando corretamente.</p>
           
-          <p><strong>Sistema SecuredGuard</strong></p>
+          <p><strong>Sistema FluxBus</strong></p>
         `
       });
 

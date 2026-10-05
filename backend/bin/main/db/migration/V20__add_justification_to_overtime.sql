@@ -1,3 +1,0 @@
--- V20__add_justification_to_overtime.sql
--- Esta migração foi renomeada para V248 para executar após V230__create_overtime_table.sql
--- Arquivo movido para V248__add_justification_to_overtime.sql 

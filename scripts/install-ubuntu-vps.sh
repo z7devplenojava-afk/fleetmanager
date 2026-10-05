@@ -94,19 +94,19 @@ log "✅ PostgreSQL 15 instalado!"
 # 7. CONFIGURAR POSTGRESQL
 # ========================================
 log "7. Configurando PostgreSQL..."
-sudo -u postgres psql -c "CREATE DATABASE secured_guard;" || echo "Database já existe"
-sudo -u postgres psql -c "CREATE USER secured_guard WITH PASSWORD 'secured_guard_password';" || echo "User já existe"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE secured_guard TO secured_guard;"
-sudo -u postgres psql -c "ALTER USER secured_guard CREATEDB;"
+sudo -u postgres psql -c "CREATE DATABASE fluxbus;" || echo "Database já existe"
+sudo -u postgres psql -c "CREATE USER fluxbus WITH PASSWORD 'fluxbus_password';" || echo "User já existe"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE fluxbus TO fluxbus;"
+sudo -u postgres psql -c "ALTER USER fluxbus CREATEDB;"
 log "✅ PostgreSQL configurado!"
 
 # ========================================
 # 8. CRIAR DIRETÓRIO DO PROJETO
 # ========================================
 log "8. Criando diretório do projeto..."
-mkdir -p /opt/secured-guard
-chown -R $USER:$USER /opt/secured-guard
-log "✅ Diretório /opt/secured-guard criado!"
+mkdir -p /opt/fluxbus
+chown -R $USER:$USER /opt/fluxbus
+log "✅ Diretório /opt/fluxbus criado!"
 
 # ========================================
 # 9. CONFIGURAR SSH
@@ -165,10 +165,10 @@ echo "🌐 Nginx: $(nginx -v 2>&1)"
 echo "📁 Git: $(git --version)"
 
 log "🎉 Instalação completa no Ubuntu!"
-log "📁 Diretório do projeto: /opt/secured-guard"
-log "🐘 Banco de dados: secured_guard"
-log "👤 Usuário do banco: secured_guard"
-log "🔑 Senha do banco: secured_guard_password"
+log "📁 Diretório do projeto: /opt/fluxbus"
+log "🐘 Banco de dados: fluxbus"
+log "👤 Usuário do banco: fluxbus"
+log "🔑 Senha do banco: fluxbus_password"
 log "🌐 Nginx rodando na porta 80"
 log "🔒 Firewall UFW ativo"
 

@@ -5,14 +5,14 @@ set -e
 # Este script é executado automaticamente quando o container PostgreSQL é criado
 # Ele cria todos os bancos necessários para o projeto
 
-echo "🗄️ Inicializando bancos de dados SecuredGuard..."
+echo "🗄️ Inicializando bancos de dados FluxBus..."
 
 # Lista de bancos para criar (além do banco padrão)
 DATABASES=(
-    "secured_guard_dev"
-    "secured_guard_test"
-    "secured_guard_staging" 
-    "secured_guard_ci"
+    "fluxbus_dev"
+    "fluxbus_test"
+    "fluxbus_staging" 
+    "fluxbus_ci"
 )
 
 # Função para criar banco se não existir
@@ -42,7 +42,7 @@ done
 echo ""
 echo "✅ Inicialização dos bancos de dados concluída!"
 echo "📋 Bancos disponíveis:"
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -c "\l" | grep secured_guard
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -c "\l" | grep fluxbus
 
 echo ""
 echo "🚀 Pronto para receber conexões!"

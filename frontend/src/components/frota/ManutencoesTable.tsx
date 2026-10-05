@@ -118,6 +118,122 @@ const getTypeColor = (type: string) => {
   }
 };
 
+// Ações da linha no padrão da lista de Ordens de Serviço (botão PDF + dropdown)
+const MaintenanceActions: React.FC<{
+  maintenance: VehicleMaintenance;
+  onView?: (maintenance: VehicleMaintenance) => void;
+  onEdit?: (maintenance: VehicleMaintenance) => void;
+  onDelete?: (maintenance: VehicleMaintenance) => void;
+}> = ({ maintenance, onView, onEdit, onDelete }) => {
+  const { toast } = useToast();
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  const buildPdfBlob = async () => {
+    return fleetService.exportMaintenancesReportPDF({
+      startDate: maintenance.date,
+      endDate: maintenance.date,
+      vehicleId: maintenance.vehicleId,
+      status: maintenance.status,
+      maintenanceType: maintenance.maintenanceType,
+    });
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      setGeneratingPdf(true);
+      const blob = await buildPdfBlob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `manutencao_${maintenance.vehiclePlate || 'veiculo'}_${maintenance.date}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast({
+        title: 'PDF gerado',
+        description: `Relatório da manutenção de ${maintenance.vehiclePlate} baixado com sucesso.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: error?.message || 'Não foi possível gerar o PDF da manutenção.',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  const handleViewPdf = async () => {
+    try {
+      setGeneratingPdf(true);
+      const blob = await buildPdfBlob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: error?.message || 'Não foi possível gerar o PDF da manutenção.',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center gap-1">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleDownloadPdf}
+        disabled={generatingPdf}
+        className="h-8 px-2 border-red-500/60 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+        title="Gerar PDF da manutenção"
+      >
+        {generatingPdf ? (
+          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <FileText className="h-3.5 w-3.5" />
+        )}
+        PDF
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+            title="Mais ações"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="bg-seguranca-graphite border-gray-600 text-gray-200">
+          <DropdownMenuItem onClick={() => onView?.(maintenance)}>
+            <Eye className="mr-2 h-4 w-4" /> Visualizar
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleViewPdf} disabled={generatingPdf}>
+            <FileText className="mr-2 h-4 w-4" /> Visualizar PDF
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onEdit?.(maintenance)}>
+            <Pencil className="mr-2 h-4 w-4" /> Editar
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => onDelete?.(maintenance)}
+            className="text-red-400 focus:text-red-300"
+          >
+            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+};
+
 export const createColumns = (
   onView?: (maintenance: VehicleMaintenance) => void,
   onEdit?: (maintenance: VehicleMaintenance) => void,
@@ -240,64 +356,14 @@ export const createColumns = (
     {
       id: 'actions',
       header: 'Ações',
-      cell: ({ row, table }) => {
-        const maintenance = row.original;
-
-        // Debug log para verificar se as funções estão sendo passadas
-        console.log('🔍 Actions Cell - Funções disponíveis:', {
-          onView: typeof onView,
-          onEdit: typeof onEdit,
-          onDelete: typeof onDelete,
-          maintenance: maintenance.id
-        });
-
-        const handleView = () => {
-          console.log('👁️ Clicou em Visualizar:', maintenance);
-          onView?.(maintenance);
-        };
-
-        const handleEdit = () => {
-          console.log('✏️ Clicou em Editar:', maintenance);
-          onEdit?.(maintenance);
-        };
-
-        const handleDelete = () => {
-          console.log('🗑️ Clicou em Excluir:', maintenance);
-          onDelete?.(maintenance);
-        };
-
-        return (
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleView}
-              className="h-8 w-8 p-0 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
-              title="Visualizar detalhes"
-            >
-              <Eye size={14} />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleEdit}
-              className="h-8 w-8 p-0 border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-white"
-              title="Editar"
-            >
-              <Pencil size={14} />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDelete}
-              className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-              title="Excluir"
-            >
-              <Trash2 size={14} />
-            </Button>
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <MaintenanceActions
+          maintenance={row.original}
+          onView={onView}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      ),
     },
   ];
 
@@ -662,7 +728,7 @@ export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: 
                               header.id === 'description' ? 'w-64' : // Diminuído para Descrição
                                 header.id === 'status' ? 'w-32' :
                                   header.id === 'priority' ? 'w-32' :
-                                    header.id === 'actions' ? 'w-24' : 'w-auto'
+                                    header.id === 'actions' ? 'w-36' : 'w-auto'
                       }`}
                   >
                     {header.isPlaceholder
@@ -694,7 +760,7 @@ export function ManutencoesTable({ data, onRefresh, onView, onEdit, onDelete }: 
                                 cell.column.id === 'description' ? 'w-64' : // Diminuído para Descrição
                                   cell.column.id === 'status' ? 'w-32' :
                                     cell.column.id === 'priority' ? 'w-32' :
-                                      cell.column.id === 'actions' ? 'w-24' : 'w-auto'
+                                      cell.column.id === 'actions' ? 'w-36' : 'w-auto'
                         }`}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

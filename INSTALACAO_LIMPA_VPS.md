@@ -118,15 +118,15 @@ git branch --show-current
 cd /root/secured_guard
 cat > .env << 'EOF'
 # PostgreSQL
-POSTGRES_PASSWORD_CI=4KaCiJc6an@7sgbdcid2025
+POSTGRES_PASSWORD_CI=CHANGE_THIS_DB_PASSWORD
 POSTGRES_DB=secured_guard_ci
 POSTGRES_USER=secured_guard_ci
 
 # Redis
-REDIS_PASSWORD=redis_ci_2025
+REDIS_PASSWORD=CHANGE_THIS_REDIS_PASSWORD
 
 # JWT (mínimo 64 bytes para HS512)
-JWT_SECRET=jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key
+JWT_SECRET=CHANGE_THIS_JWT_SECRET
 
 # URLs
 API_URL=https://ci.z7botsolutions.com.br/api

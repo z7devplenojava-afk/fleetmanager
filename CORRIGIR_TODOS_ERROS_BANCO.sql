@@ -1,7 +1,7 @@
 -- =====================================================
 -- SCRIPT ÚNICO: CORRIGIR TODOS OS ERROS DO BANCO
 -- =====================================================
--- Execute no DBeaver/pgAdmin no banco: secured_guard_test
+-- Execute no DBeaver/pgAdmin no banco: fluxbus_test
 -- =====================================================
 
 -- ✅ PASSO 1: Converter tipo da coluna ip_address (INET → VARCHAR)

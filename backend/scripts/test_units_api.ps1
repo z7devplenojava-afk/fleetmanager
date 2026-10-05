@@ -1,4 +1,4 @@
-# Script para testar a API de Unidades do SecuredGuard
+# Script para testar a API de Unidades do FluxBus
 $baseUrl = "http://localhost:8081"
 $token = Get-Content "token.txt" -ErrorAction SilentlyContinue
 
@@ -35,7 +35,7 @@ $newUnitData = @{
     description = "Unidade criada via teste da API"
     address = "Rua Teste, 123 - Belo Horizonte, MG"
     phone = "(31) 88888-7777"
-    email = "teste.api@securedguard.com"
+    email = "teste.api@fluxbus.com"
     parentId = $null
     clientId = $null
 } | ConvertTo-Json
@@ -107,7 +107,7 @@ $updateUnitData = @{
     description = "Unidade atualizada via teste da API"
     address = "Rua Teste Atualizada, 456 - Belo Horizonte, MG"
     phone = "(31) 99999-6666"
-    email = "teste.atualizado@securedguard.com"
+    email = "teste.atualizado@fluxbus.com"
     parentId = $null
     clientId = $null
 } | ConvertTo-Json

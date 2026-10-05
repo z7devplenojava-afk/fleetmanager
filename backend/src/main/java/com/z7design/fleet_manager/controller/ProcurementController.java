@@ -25,7 +25,7 @@ public class ProcurementController {
 
     @GetMapping("/quotes/by-requisition/{requisitionId}")
     @Operation(summary = "Busca a comparação das 3 cotações de uma requisição")
-    public ResponseEntity<ProcurementQuoteComparisonDTO> getQuotesByRequisition(@PathVariable UUID requisitionId) {
+    public ResponseEntity<ProcurementQuoteComparisonDTO> getQuotesByRequisition(@PathVariable("requisitionId") UUID requisitionId) {
         return ResponseEntity.ok(procurementService.getComparisonByRequisitionId(requisitionId));
     }
 
@@ -44,8 +44,14 @@ public class ProcurementController {
     @GetMapping("/purchase-orders")
     @Operation(summary = "Lista ordens de compra para o Financeiro/Almoxarifado")
     public ResponseEntity<List<ProcurementPurchaseOrderDTO>> listPurchaseOrders(
-            @RequestParam(required = false) ProcurementPurchaseOrder.PurchaseOrderStatus status) {
-        return ResponseEntity.ok(procurementService.listPurchaseOrders(status));
+            @RequestParam(value = "status", required = false) String status) {
+        ProcurementPurchaseOrder.PurchaseOrderStatus statusEnum = null;
+        if (status != null && !status.trim().isEmpty() && !status.equalsIgnoreCase("ALL")) {
+            try {
+                statusEnum = ProcurementPurchaseOrder.PurchaseOrderStatus.valueOf(status.trim().toUpperCase());
+            } catch (Exception ignored) {}
+        }
+        return ResponseEntity.ok(procurementService.listPurchaseOrders(statusEnum));
     }
 
     @PostMapping("/purchase-orders/financial-approval")

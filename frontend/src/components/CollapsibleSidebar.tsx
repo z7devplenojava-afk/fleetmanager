@@ -84,7 +84,8 @@ import {
   Armchair,
   Truck,
   UserCircle,
-  Warehouse
+  Warehouse,
+  Droplets
 } from 'lucide-react';
 
 interface CollapsibleSidebarProps {
@@ -98,6 +99,7 @@ const mainMenuItems = [
   { icon: Home, text: 'Dashboard', to: '/dashboard', id: 'dashboard' },
   { icon: Building2, text: 'Portal do Cliente', to: '/portal-cliente', id: 'portal-cliente' },
   { icon: UserCircle, text: 'Portal do Funcionário', to: '/employee-portal', id: 'employee-portal' },
+  { icon: Users, text: 'Portal do Passageiro', to: '/passenger', id: 'passenger-portal' },
   { icon: User2, text: 'Portal do Motorista', to: '/driver-dashboard', id: 'driver-dashboard' },
   { icon: ClipboardCheck, text: 'Check-in / Check-out', to: '/driver/checklist', id: 'driver-checklist' },
   { icon: FileSpreadsheet, text: 'Holerites', to: '/holerites', id: 'holerites' },
@@ -117,6 +119,9 @@ const manutencaoMenuItems = [
   { icon: DoorOpen, text: 'Gestão de Portaria', to: '/manutencao/portaria', id: 'gestao-portaria' },
   { icon: ClipboardCheck, text: 'Gestão Checklist por Cliente', to: '/manutencao/checklist-cliente', id: 'gestao-checklist-cliente' },
   { icon: ClipboardCheck, text: 'Checklist por Veículo', to: '/manutencao/checklist-veiculo', id: 'gestao-checklist-veiculo' },
+  { icon: Sparkles, text: 'Gestão de Limpeza', to: '/manutencao/limpeza', id: 'gestao-limpeza' },
+  { icon: Droplets, text: 'Lavajato', to: '/manutencao/lavajato', id: 'lavajato' },
+  { icon: Award, text: 'Certificações CFME', to: '/manutencao/certificacoes-cfme', id: 'gestao-certificacoes-cfme' },
 ];
 
 // Módulo de Mobilização (Novo)
@@ -131,14 +136,21 @@ const ticketingMenuItems = [
   { icon: Calendar, text: 'Programar Viagens', to: '/ticketing/admin/trips', id: 'ticketing-trips' },
 ];
 
-// Módulo de Gestão de Tráfego (Novo)
+// Módulo de Gestão de Tráfego
 const trafegoMenuItems = [
   { icon: BarChart3, text: 'Gestão de Tráfego', to: '/fretamento', id: 'trafego-dashboard', permission: 'TRAFFIC_MANAGEMENT_READ' },
-  { icon: Route, text: 'Rotas e Pontos', to: '/fretamento/rotas', id: 'trafego-rotas', permission: 'TRAFFIC_MANAGEMENT_READ' },
+  { icon: Route, text: 'Linhas', to: '/fretamento/rotas', id: 'trafego-rotas', permission: 'TRAFFIC_MANAGEMENT_READ' },
+  { icon: Clock, text: 'Horários', to: '/saosilvestre/horarios', id: 'vss-horarios', permission: 'TRAFFIC_MANAGEMENT_READ' },
+  { icon: Truck, text: 'Veículos', to: '/frota', id: 'vss-veiculos', permission: 'TRAFFIC_MANAGEMENT_READ' },
+  { icon: UserCheck, text: 'Motoristas', to: '/motoristas', id: 'vss-motoristas', permission: 'TRAFFIC_MANAGEMENT_READ' },
+  { icon: Users, text: 'Passageiros', to: '/fretamento/passageiros', id: 'trafego-passageiros', permission: 'TRAFFIC_MANAGEMENT_READ' },
+  { icon: Bus, text: 'Escalas e Viagens', to: '/saosilvestre/escalas', id: 'vss-escalas', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: Bus, text: 'Gestão de Viagens', to: '/fretamento/viagens', id: 'trafego-viagens', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: Clock, text: 'Gestão de Turnos', to: '/fretamento/turnos', id: 'trafego-turnos', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: ClipboardList, text: 'Atribuições de Transportes', to: '/fretamento/atribuicoes', id: 'trafego-atribuicoes', permission: 'TRAFFIC_MANAGEMENT_READ' },
-  { icon: Users, text: 'Gestão de Passageiros', to: '/fretamento/passageiros', id: 'trafego-passageiros', permission: 'TRAFFIC_MANAGEMENT_READ' },
+  { icon: Activity, text: 'Parte Diária', to: '/operacional?tab=parte-diaria', id: 'vss-parte-diaria', permission: 'TRAFFIC_MANAGEMENT_READ' },
+  { icon: Ruler, text: 'Medições', to: '/operacional/medicao', id: 'vss-medicoes', permission: 'TRAFFIC_MANAGEMENT_READ' },
+  { icon: BarChart3, text: 'Relatórios', to: '/operacional/relatorios', id: 'vss-relatorios', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: Bus, text: 'Minhas Viagens', to: '/driver/trips', id: 'driver-trips', permission: 'TRIPS_READ' },
   { icon: QrCode, text: 'Meu Embarque', to: '/passenger/qrcode', id: 'passenger-qrcode', permission: 'BOARDING_READ' },
 ];
@@ -444,6 +456,9 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'mechanic-dashboard',
     'frota-os',
     'pneus',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
     'mobilizacao-transportes',
@@ -453,6 +468,8 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'dashboard',
     'gestao-portaria',
     'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
     'frota',
     'garagens',
     'chat-interno',
@@ -581,6 +598,9 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-medicao',
     'frota',
     'garagens',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
   ]),
@@ -603,6 +623,9 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-medicao',
     'frota',
     'garagens',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
   ]),
@@ -618,6 +641,9 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-parte-diaria',
     'controle-rondas',
     'garagens',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
   ]),
@@ -643,6 +669,9 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-checklist-cliente',
     'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
   ]),
@@ -659,6 +688,9 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-checklist-cliente',
     'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
   ]),
@@ -673,6 +705,9 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'pneus',
     'gestao-portaria',
     'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
   ]),
@@ -711,30 +746,56 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
   ]),
   GESTOR_TRAFEGO: new Set([
     'dashboard',
+    'vss-inicio',
     'trafego-dashboard',
     'trafego-rotas',
+    'vss-linhas',
+    'vss-horarios',
+    'vss-veiculos',
+    'vss-motoristas',
+    'trafego-passageiros',
+    'vss-passageiros',
+    'vss-escalas',
     'trafego-viagens',
     'trafego-turnos',
     'trafego-atribuicoes',
+    'vss-parte-diaria',
+    'vss-medicoes',
+    'vss-relatorios',
     'driver-trips',
     'passenger-qrcode',
     'frota',
     'garagens',
+    'gestao-limpeza',
+    'lavajato',
     'mobilizacao-transportes',
     'chat-interno',
     'mensagens',
   ]),
   GESTOR_DE_TRAFEGO: new Set([
     'dashboard',
+    'vss-inicio',
     'trafego-dashboard',
     'trafego-rotas',
+    'vss-linhas',
+    'vss-horarios',
+    'vss-veiculos',
+    'vss-motoristas',
+    'trafego-passageiros',
+    'vss-passageiros',
+    'vss-escalas',
     'trafego-viagens',
     'trafego-turnos',
     'trafego-atribuicoes',
+    'vss-parte-diaria',
+    'vss-medicoes',
+    'vss-relatorios',
     'driver-trips',
     'passenger-qrcode',
     'frota',
     'garagens',
+    'gestao-limpeza',
+    'lavajato',
     'mobilizacao-transportes',
     'chat-interno',
     'mensagens',
@@ -758,15 +819,31 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-checklist-cliente',
     'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
     'mobilizacao-transportes',
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    // Tráfego
+    'vss-inicio',
     'trafego-dashboard',
     'trafego-rotas',
+    'vss-linhas',
+    'vss-horarios',
+    'vss-veiculos',
+    'vss-motoristas',
+    'trafego-passageiros',
+    'vss-passageiros',
+    'vss-escalas',
     'trafego-viagens',
     'trafego-turnos',
     'trafego-atribuicoes',
+    'vss-parte-diaria',
+    'vss-medicoes',
+    'vss-relatorios',
+    'driver-trips',
+    'passenger-qrcode',
     'fiscal-dashboard',
     'fiscal-importar',
     'fiscal-impostos',
@@ -872,15 +949,31 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-checklist-cliente',
     'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
     'mobilizacao-transportes',
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    // Tráfego
+    'vss-inicio',
     'trafego-dashboard',
     'trafego-rotas',
+    'vss-linhas',
+    'vss-horarios',
+    'vss-veiculos',
+    'vss-motoristas',
+    'trafego-passageiros',
+    'vss-passageiros',
+    'vss-escalas',
     'trafego-viagens',
     'trafego-turnos',
     'trafego-atribuicoes',
+    'vss-parte-diaria',
+    'vss-medicoes',
+    'vss-relatorios',
+    'driver-trips',
+    'passenger-qrcode',
     'fiscal-dashboard',
     'fiscal-importar',
     'fiscal-impostos',
@@ -976,6 +1069,8 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'frota',
     'garagens',
     'frota-os',
+    'gestao-limpeza',
+    'lavajato',
     'operacional-dashboard',
     'operacional-servicos',
     'operacional-controle-visitas',
@@ -1016,6 +1111,8 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-checklist-cliente',
     'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
     
     // Mobilização
     'mobilizacao-transportes',
@@ -1026,11 +1123,22 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-trips',
     
     // Tráfego
+    'vss-inicio',
     'trafego-dashboard',
     'trafego-rotas',
+    'vss-linhas',
+    'vss-horarios',
+    'vss-veiculos',
+    'vss-motoristas',
+    'trafego-passageiros',
+    'vss-passageiros',
+    'vss-escalas',
     'trafego-viagens',
     'trafego-turnos',
     'trafego-atribuicoes',
+    'vss-parte-diaria',
+    'vss-medicoes',
+    'vss-relatorios',
     'driver-trips',
     'passenger-qrcode',
     
@@ -1164,11 +1272,37 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const { forceScrollToTop } = useScrollPreservation();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const normalizedRole = useMemo(
-    () => (user?.role ?? '').replace(/^ROLE_/, '').toUpperCase() as UserRole,
-    [user?.role]
-  );
-  const allowedItemIds = useMemo(() => ROLE_ALLOWED_ITEM_IDS[normalizedRole], [normalizedRole]);
+  const userRoles = useMemo(() => {
+    const rolesSet = new Set<string>();
+    if (user?.role) {
+      rolesSet.add(user.role.replace(/^ROLE_/, '').toUpperCase());
+    }
+    if (user?.roles && Array.isArray(user.roles)) {
+      user.roles.forEach((r: any) => {
+        const name = typeof r === 'string' ? r : r?.name;
+        if (name) {
+          rolesSet.add(name.replace(/^ROLE_/, '').toUpperCase());
+        }
+      });
+    }
+    return Array.from(rolesSet) as UserRole[];
+  }, [user?.role, user?.roles]);
+
+  const allowedItemIds = useMemo(() => {
+    if (userRoles.some(r => r === 'SUPER_ADMIN' || r === 'FLEX_ADMIN')) {
+      return null;
+    }
+    const combined = new Set<string>();
+    let hasMatchingRule = false;
+    for (const r of userRoles) {
+      const allowed = ROLE_ALLOWED_ITEM_IDS[r];
+      if (allowed) {
+        hasMatchingRule = true;
+        allowed.forEach(id => combined.add(id));
+      }
+    }
+    return hasMatchingRule ? combined : null;
+  }, [userRoles]);
 
   // Referências para controlar o scroll da própria sidebar
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);

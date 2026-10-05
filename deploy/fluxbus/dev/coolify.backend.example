@@ -18,8 +18,11 @@ REDIS_HOST=<HOST_REDIS_COOLIFY>
 REDIS_PORT=6379
 REDIS_PASSWORD=altere_para_senha_forte_gerada
 
-JWT_SECRET=altere_para_string_aleatoria_com_pelo_menos_32_caracteres
-JWT_EXPIRATION=604800000
+# OBRIGATORIO — o backend NAO sobe sem JWT_SECRET (fail-fast).
+# Gere com: openssl rand -hex 64
+JWT_SECRET=COLE_AQUI_UM_SEGREDO_ALEATORIO_DE_64_CARACTERES
+JWT_EXPIRATION=3600000
+JWT_REFRESH_EXPIRATION=604800000
 
 MAIL_HOST=mail.z7design.com.br
 MAIL_PORT=465
@@ -30,6 +33,9 @@ MAIL_FROM=securedguard@z7design.com.br
 BAILEYS_ENABLED=true
 BAILEYS_REST_URL=http://<HOST_WHATSAPP_COOLIFY>:3333
 WHATSAPP_INSTANCE_KEY=fluxbus_dev
+
+# Evolution API — chave OBRIGATORIA (sem valor padrao). Regenere no painel apos o vazamento.
+EVOLUTION_API_KEY=COLE_AQUI_A_CHAVE_DA_EVOLUTION_API
 
 RECAPTCHA_SECRET_KEY=
 N8N_ENABLED=false

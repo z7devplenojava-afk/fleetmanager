@@ -77,14 +77,27 @@ public class ClientController {
     }
     
     @GetMapping("/{id}")
-    @Operation(summary = "Buscar cliente por ID", description = "Retorna um cliente especÃ­fico pelo seu ID")
+    @Operation(summary = "Buscar cliente por ID", description = "Retorna um cliente específico pelo seu ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Cliente encontrado"),
-            @ApiResponse(responseCode = "404", description = "Cliente nÃ£o encontrado"),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado"),
+            @ApiResponse(responseCode = "400", description = "ID inválido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<ClientDTO> getById(@PathVariable("id") String id) {
-        return ResponseEntity.ok(clientService.getClientById(UUID.fromString(id)));
+        try {
+            UUID uuid = UUID.fromString(id);
+            return ResponseEntity.ok(clientService.getClientById(uuid));
+        } catch (IllegalArgumentException e) {
+            log.warn("ID de cliente inválido: {}", id);
+            return ResponseEntity.badRequest().build();
+        } catch (ResourceNotFoundException e) {
+            log.warn("Cliente não encontrado: {}", id);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("Erro inesperado ao buscar cliente {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
     
     @GetMapping("/select")

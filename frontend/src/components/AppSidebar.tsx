@@ -114,6 +114,8 @@ import {
   UserCircle,
   Ruler,
   Warehouse,
+  Sparkles,
+  Droplets,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -160,6 +162,9 @@ const manutencaoMenuItems = [
   { icon: Car, text: 'Gestão de Pneus', to: '/pneus', id: 'pneus' },
   { icon: DoorOpen, text: 'Gestão de Portaria', to: '/manutencao/portaria', id: 'gestao-portaria' },
   { icon: ClipboardCheck, text: 'Gestão Checklist por Cliente', to: '/manutencao/checklist-cliente', id: 'gestao-checklist-cliente' },
+  { icon: Sparkles, text: 'Gestão de Limpeza', to: '/manutencao/limpeza', id: 'gestao-limpeza' },
+  { icon: Droplets, text: 'Lavajato', to: '/manutencao/lavajato', id: 'lavajato' },
+  { icon: Award, text: 'Certificações CFME', to: '/manutencao/certificacoes-cfme', id: 'gestao-certificacoes-cfme' },
 ];
 
 // Módulo de Suporte
@@ -252,7 +257,6 @@ const operacionalMenuItems = [
   { icon: BarChart3, text: 'Dashboard Operacional', to: '/operacional-dashboard', id: 'operacional-dashboard' },
   { icon: Building2, text: 'Gestão de Postos', to: '/operacional/postos', id: 'operacional-postos' },
   { icon: Clock, text: 'Gestão de Escalas', to: '/operacional/escalas', id: 'operacional-escalas' },
-  { icon: Calendar, text: 'Gestão de Férias', to: '/operacional/ferias', id: 'operacional-ferias' },
   { icon: CheckSquare, text: 'Gestão de Tarefas', to: '/operacional/tarefas', id: 'operacional-tarefas' },
   { icon: FileText, text: 'Relatórios Operacionais', to: '/operacional/relatorios', id: 'operacional-relatorios' },
   { icon: CheckSquare, text: 'Controle de Visitas de Supervisor', to: '/gestao-visitas-supervisor', id: 'gestao-visitas-supervisor' },

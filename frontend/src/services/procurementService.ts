@@ -1,4 +1,5 @@
 import api from './api';
+import { silentErrorLog, withSilentFallback } from '@/utils/silentFallback';
 
 export type ComparisonStatus = 'IN_QUOTATION' | 'READY_FOR_EVALUATION' | 'APPROVED' | 'REJECTED';
 export type PurchaseOrderStatus =
@@ -165,6 +166,25 @@ export interface FinancialApprovalPayload {
   installmentDetails?: string;
 }
 
+export interface InvoiceEntryItemPayload {
+  code?: string;
+  name: string;
+  ncm?: string;
+  cfop?: string;
+  unit?: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  valorIcms?: number;
+  valorIpi?: number;
+}
+
+export interface InvoiceEntryInstallmentPayload {
+  number?: string;
+  dueDate: string;
+  amount: number;
+}
+
 export interface InvoiceEntryPayload {
   purchaseOrderId?: string;
   requisitionId?: string;
@@ -174,13 +194,28 @@ export interface InvoiceEntryPayload {
   invoiceKey?: string;
   supplierName: string;
   supplierCnpj?: string;
+  supplierIe?: string;
+  naturezaOperacao?: string;
+  protocoloAutorizacao?: string;
+  destName?: string;
+  destCnpj?: string;
   issueDate?: string;
   quantityReceived: number;
   unitCost: number;
   totalInvoiceCost: number;
-  entryType?: 'PURCHASE_ORDER' | 'MANUAL_ENTRY' | 'XML_IMPORT';
+  baseCalculoIcms?: number;
+  valorIcms?: number;
+  baseIcmsSt?: number;
+  valorIcmsSt?: number;
+  valorFrete?: number;
+  valorSeguro?: number;
+  valorDesconto?: number;
+  valorIpi?: number;
+  entryType?: 'PURCHASE_ORDER' | 'MANUAL_ENTRY' | 'XML_IMPORT' | 'DANFE_PDF_IMPORT';
   releaseToWorkOrder?: boolean;
   notes?: string;
+  items?: InvoiceEntryItemPayload[];
+  installments?: InvoiceEntryInstallmentPayload[];
 }
 
 export const procurementService = {
@@ -200,9 +235,19 @@ export const procurementService = {
   },
 
   listPurchaseOrders: async (status?: PurchaseOrderStatus): Promise<ProcurementPurchaseOrder[]> => {
-    const params = status ? `?status=${status}` : '';
-    const response = await api.get(`/api/procurement/purchase-orders${params}`);
-    return response.data;
+    return withSilentFallback(
+      async () => {
+        const params = status ? `?status=${status}` : '';
+        const response = await api.get(`/api/procurement/purchase-orders${params}`, silentErrorLog());
+        return Array.isArray(response.data) ? response.data : [];
+      },
+      [],
+      {
+        key: 'procurement:purchase-orders:list',
+        message:
+          '[procurementService] Endpoint /api/procurement/purchase-orders indisponível no backend. Exibindo lista vazia como fallback.'
+      }
+    );
   },
 
   financialApproval: async (payload: FinancialApprovalPayload): Promise<ProcurementPurchaseOrder> => {
@@ -216,7 +261,17 @@ export const procurementService = {
   },
 
   listInvoiceEntries: async (): Promise<StockInvoiceEntry[]> => {
-    const response = await api.get('/api/procurement/invoices/entries');
-    return response.data;
+    return withSilentFallback(
+      async () => {
+        const response = await api.get('/api/procurement/invoices/entries', silentErrorLog());
+        return Array.isArray(response.data) ? response.data : [];
+      },
+      [],
+      {
+        key: 'procurement:invoices:entries:list',
+        message:
+          '[procurementService] Endpoint /api/procurement/invoices/entries indisponível no backend. Exibindo lista vazia como fallback.'
+      }
+    );
   }
 };

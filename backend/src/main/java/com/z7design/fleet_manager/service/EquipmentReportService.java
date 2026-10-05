@@ -334,7 +334,7 @@ public class EquipmentReportService {
         
         // RodapÃ©
         html.append("<div class='footer'>");
-        html.append("<p>RelatÃ³rio gerado automaticamente pelo Sistema Secured Guard</p>");
+        html.append("<p>RelatÃ³rio gerado automaticamente pelo Sistema FluxBus</p>");
         html.append("<p>Data: ").append(java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))).append("</p>");
         html.append("</div>");
         

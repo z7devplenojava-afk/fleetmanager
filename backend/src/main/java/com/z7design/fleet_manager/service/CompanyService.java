@@ -161,17 +161,24 @@ public class CompanyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Empresa nao encontrada com ID: " + id));
 
         // Validar sigla unica (exceto para a propria empresa)
-        if (dto.getSigla() != null && !dto.getSigla().trim().isEmpty() &&
-                !existingCompany.getSigla().equalsIgnoreCase(dto.getSigla()) &&
-                companyRepository.existsBySigla(dto.getSigla())) {
-            throw new BusinessException("Ja existe uma empresa com a sigla: " + dto.getSigla());
+        if (dto.getSigla() != null && !dto.getSigla().trim().isEmpty()) {
+            companyRepository.findFirstBySiglaIgnoreCase(dto.getSigla().trim())
+                    .ifPresent(other -> {
+                        if (!other.getId().equals(id)) {
+                            throw new BusinessException("Ja existe uma empresa com a sigla: " + dto.getSigla());
+                        }
+                    });
         }
 
-        // Validar CNPJ unico (se fornecido)
-        if (dto.getCnpj() != null && !dto.getCnpj().trim().isEmpty() &&
-                (existingCompany.getCnpj() == null || !existingCompany.getCnpj().equals(dto.getCnpj())) &&
-                companyRepository.existsByCnpj(dto.getCnpj())) {
-            throw new BusinessException("Ja existe uma empresa com o CNPJ: " + dto.getCnpj());
+        // Validar CNPJ unico (se fornecido, exceto para a propria empresa)
+        if (dto.getCnpj() != null && !dto.getCnpj().trim().isEmpty()) {
+            String rawCnpj = dto.getCnpj().replaceAll("[^0-9]", "");
+            List<Company> byCnpj = companyRepository.findByNormalizedCnpj(rawCnpj);
+            for (Company other : byCnpj) {
+                if (!other.getId().equals(id)) {
+                    throw new BusinessException("Ja existe uma empresa com o CNPJ: " + dto.getCnpj());
+                }
+            }
         }
 
         // Atualizar campos apenas se fornecidos
@@ -222,10 +229,36 @@ public class CompanyService {
         log.info("Empresa atualizada com sucesso - ID: {}", existingCompany.getId());
 
         // Recarregar empresa com EPIs
-        existingCompany = companyRepository.findById(existingCompany.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Empresa nao encontrada"));
+        existingCompany = companyRepository.findByIdWithDefaultEpis(existingCompany.getId())
+                .orElse(existingCompany);
 
         return CompanyDTO.fromEntity(existingCompany);
+    }
+
+    /**
+     * Buscar empresa do usuário autenticado ou primeira empresa ativa
+     */
+    public CompanyDTO getMyCompany(org.springframework.security.core.Authentication authentication) {
+        UUID tenantCompanyId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        if (tenantCompanyId != null) {
+            Company comp = companyRepository.findByIdWithDefaultEpis(tenantCompanyId)
+                    .orElseGet(() -> companyRepository.findById(tenantCompanyId).orElse(null));
+            if (comp != null) {
+                return CompanyDTO.fromEntity(comp);
+            }
+        }
+        if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
+            String username = ((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal()).getUsername();
+            User user = userRepository.findByUsername(username).orElse(null);
+            if (user != null && user.getCompanyId() != null) {
+                Company company = companyRepository.findByIdWithDefaultEpis(user.getCompanyId())
+                        .orElseGet(() -> companyRepository.findById(user.getCompanyId()).orElse(null));
+                if (company != null) {
+                    return CompanyDTO.fromEntity(company);
+                }
+            }
+        }
+        return getActiveCompanies().stream().findFirst().orElse(null);
     }
 
     /**
@@ -279,15 +312,28 @@ public class CompanyService {
     }
 
     /**
-     * Alternar status ativo/inativo da empresa
+     * Alternar status ativo/inativo da empresa.
+     * Usa update direto (JPQL) para não disparar validações de bean validation
+     * em empresas legadas com sigla NULL, o que causava erro 500 no CI/VPS.
      */
+    @Transactional
     public CompanyDTO toggleCompanyStatus(UUID id) {
         log.info("Alternando status da empresa ID: {}", id);
-        Company company = companyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada com ID: " + id));
-        CompanyStatus newStatus = company.getStatus() == CompanyStatus.ACTIVE ? CompanyStatus.INACTIVE : CompanyStatus.ACTIVE;
-        company.setStatus(newStatus);
-        company = companyRepository.save(company);
+        Company company = companyRepository.findByIdWithDefaultEpis(id)
+                .orElseGet(() -> companyRepository.findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada com ID: " + id)));
+
+        CompanyStatus currentStatus = company.getStatus() != null ? company.getStatus() : CompanyStatus.ACTIVE;
+        CompanyStatus newStatus = currentStatus == CompanyStatus.ACTIVE ? CompanyStatus.INACTIVE : CompanyStatus.ACTIVE;
+
+        int updated = companyRepository.updateStatus(id, newStatus);
+        if (updated == 0) {
+            throw new BusinessException("Não foi possível alternar o status da empresa ID: " + id);
+        }
+
+        // Recarregar a entidade já atualizada (evita devolver estado stale do contexto de persistência)
+        company = companyRepository.findByIdWithDefaultEpis(id)
+                .orElseGet(() -> companyRepository.findById(id).orElseThrow());
         log.info("Status da empresa {} alterado para: {}", id, newStatus);
         return CompanyDTO.fromEntity(company);
     }

@@ -17,11 +17,11 @@ Write-Host ""
 # Executar comando remoto para ver logs
 ssh "${ServerUser}@${ServerHost}" @"
 echo '=== LOGS DO BACKEND (últimas 100 linhas com erros) ==='
-docker logs secured-guard-backend-ci --tail 100 2>&1 | grep -E 'ERROR|Exception|login|authenticate'
+docker logs fluxbus-backend-ci --tail 100 2>&1 | grep -E 'ERROR|Exception|login|authenticate'
 
 echo ''
 echo '=== USUÁRIOS SEM ROLES ==='
-docker exec secured-guard-postgres-ci psql -U secured_guard_user -d secured_guard -c \"
+docker exec fluxbus-postgres-ci psql -U fluxbus_user -d fluxbus -c \"
 SELECT u.username, u.email, COUNT(ur.role_id) as total_roles
 FROM users u
 LEFT JOIN user_roles ur ON u.id = ur.user_id
@@ -41,7 +41,7 @@ if ($aplicar -eq "S" -or $aplicar -eq "s") {
     Write-Host "Aplicando correção..." -ForegroundColor Yellow
     
     ssh "${ServerUser}@${ServerHost}" @"
-docker exec -i secured-guard-postgres-ci psql -U secured_guard_user -d secured_guard << 'EOF'
+docker exec -i fluxbus-postgres-ci psql -U fluxbus_user -d fluxbus << 'EOF'
 BEGIN;
 INSERT INTO roles (id, name, description, created_at)
 VALUES (gen_random_uuid(), 'COLABORADOR', 'Funcionário colaborador', NOW())

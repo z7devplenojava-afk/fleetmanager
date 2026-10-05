@@ -6,6 +6,7 @@ export enum MaintenanceType {
     PREDITIVA = 'PREDITIVA',
     INSPECAO = 'INSPECAO',
     LUBRIFICACAO = 'LUBRIFICACAO',
+    LIMPEZA = 'LIMPEZA',
     OUTROS = 'OUTROS'
 }
 
@@ -183,6 +184,10 @@ class FleetWorkOrderService {
     async findAll(): Promise<FleetWorkOrder[]> {
         const { data } = await api.get('/fleet-work-orders');
         return data;
+    }
+
+    async getAll(): Promise<FleetWorkOrder[]> {
+        return this.findAll();
     }
 
     async findById(id: string): Promise<FleetWorkOrder> {

@@ -29,7 +29,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"admin@securedguard.com\",\n  \"password\": \"admin123\"\n}"
+          "raw": "{\n  \"username\": \"admin@fluxbus.com\",\n  \"password\": \"admin123\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/auth/login",

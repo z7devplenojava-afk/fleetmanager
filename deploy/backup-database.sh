@@ -31,7 +31,7 @@ info() {
 }
 
 # Configurações
-BACKUP_DIR="/opt/secured-guard/backups"
+BACKUP_DIR="/opt/fluxbus/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 
 log "Iniciando backup do banco de dados..."
@@ -40,7 +40,7 @@ log "Iniciando backup do banco de dados..."
 # 1. BACKUP PRODUÇÃO
 # ========================================
 log "1. Fazendo backup do banco de produção..."
-if docker exec secured-guard-db-prod pg_dump -U postgres secured_guard > $BACKUP_DIR/prod_backup_$DATE.sql; then
+if docker exec fluxbus-db-prod pg_dump -U postgres fluxbus > $BACKUP_DIR/prod_backup_$DATE.sql; then
     log "✅ Backup de produção concluído: prod_backup_$DATE.sql"
 else
     warning "⚠️  Falha no backup de produção"
@@ -50,7 +50,7 @@ fi
 # 2. BACKUP DESENVOLVIMENTO
 # ========================================
 log "2. Fazendo backup do banco de desenvolvimento..."
-if docker exec secured-guard-db-dev pg_dump -U postgres secured_guard_dev > $BACKUP_DIR/dev_backup_$DATE.sql; then
+if docker exec fluxbus-db-dev pg_dump -U postgres fluxbus_dev > $BACKUP_DIR/dev_backup_$DATE.sql; then
     log "✅ Backup de desenvolvimento concluído: dev_backup_$DATE.sql"
 else
     warning "⚠️  Falha no backup de desenvolvimento"
@@ -60,7 +60,7 @@ fi
 # 3. BACKUP CI/TESTES
 # ========================================
 log "3. Fazendo backup do banco de CI/testes..."
-if docker exec secured-guard-db-ci pg_dump -U postgres secured_guard_test > $BACKUP_DIR/ci_backup_$DATE.sql; then
+if docker exec fluxbus-db-ci pg_dump -U postgres fluxbus_test > $BACKUP_DIR/ci_backup_$DATE.sql; then
     log "✅ Backup de CI concluído: ci_backup_$DATE.sql"
 else
     warning "⚠️  Falha no backup de CI"
@@ -75,8 +75,8 @@ log "4. Sincronizando dados de produção para desenvolvimento..."
 docker-compose -f deploy/docker-compose.dev-domains.yml stop backend frontend
 
 # Restaurar backup de produção no desenvolvimento
-if docker exec -i secured-guard-db-dev psql -U postgres -d secured_guard_dev -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" && \
-   docker exec -i secured-guard-db-dev psql -U postgres -d secured_guard_dev < $BACKUP_DIR/prod_backup_$DATE.sql; then
+if docker exec -i fluxbus-db-dev psql -U postgres -d fluxbus_dev -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" && \
+   docker exec -i fluxbus-db-dev psql -U postgres -d fluxbus_dev < $BACKUP_DIR/prod_backup_$DATE.sql; then
     log "✅ Dados de produção sincronizados para desenvolvimento"
 else
     warning "⚠️  Falha na sincronização"

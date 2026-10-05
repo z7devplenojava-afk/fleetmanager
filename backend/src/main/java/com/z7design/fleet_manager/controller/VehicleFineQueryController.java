@@ -47,7 +47,7 @@ public class VehicleFineQueryController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'GESTOR_FROTA')")
     @Operation(summary = "Importa manualmente infrações selecionadas para o módulo de multas do sistema")
     public ResponseEntity<Map<String, Object>> importFines(
-            @RequestParam String placa,
+            @RequestParam("placa") String placa,
             @RequestBody List<InfracaoDetalhadaDTO> infractions
     ) {
         int imported = vehicleFineQueryService.importSelectedFines(placa, infractions);
@@ -75,7 +75,7 @@ public class VehicleFineQueryController {
     @GetMapping("/historico/{placa}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'GESTOR_FROTA', 'OPERACIONAL', 'USER')")
     @Operation(summary = "Lista o histórico de consultas de um veículo por placa")
-    public ResponseEntity<List<VehicleQueryCache>> getHistoryByPlate(@PathVariable String placa) {
+    public ResponseEntity<List<VehicleQueryCache>> getHistoryByPlate(@PathVariable("placa") String placa) {
         String cleanPlate = placa.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
         List<VehicleQueryCache> history = cacheRepository.findByPlateOrderByCreatedAtDesc(cleanPlate);
         return ResponseEntity.ok(history);

@@ -148,7 +148,7 @@ nc -zv mail.z7design.com.br 465
 MAIL_HOST=mail.z7design.com.br
 MAIL_PORT=587
 MAIL_USERNAME=securedguard@z7design.com.br
-MAIL_PASSWORD=sg@2025promover
+MAIL_PASSWORD=REMOVIDO_POR_SEGURANCA
 MAIL_STARTTLS_ENABLE=true
 MAIL_STARTTLS_REQUIRED=true
 MAIL_SSL_ENABLE=false

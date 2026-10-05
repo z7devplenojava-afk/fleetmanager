@@ -2,7 +2,7 @@
 -- ATUALIZAR WHATSAPP PARA 31997142303
 -- ========================================
 -- Executar no DBeaver:
--- Banco: localhost:5432/secured_guard_dev
+-- Banco: localhost:5432/fluxbus_dev
 -- Usuario: postgres
 -- Senha: postgres (provavelmente)
 -- ========================================

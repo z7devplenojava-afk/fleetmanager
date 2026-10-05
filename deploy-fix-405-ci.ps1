@@ -33,7 +33,7 @@ Write-Host "🔧 PRÓXIMOS PASSOS (EXECUTAR NO SERVIDOR CI):" -ForegroundColor C
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "ssh usuario@seu-servidor-ci" -ForegroundColor White
-Write-Host "cd /var/www/secured_guard/ci" -ForegroundColor White
+Write-Host "cd /var/www/fluxbus/ci" -ForegroundColor White
 Write-Host "git pull origin ci" -ForegroundColor White
 Write-Host "docker-compose -f docker-compose.ci.yml up -d --force-recreate backend-ci" -ForegroundColor White
 Write-Host "docker-compose -f docker-compose.ci.yml logs -f backend-ci" -ForegroundColor White

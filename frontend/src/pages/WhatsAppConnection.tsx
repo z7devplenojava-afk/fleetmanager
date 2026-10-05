@@ -33,9 +33,9 @@ const WhatsAppConnection: React.FC = () => {
   const [qrCode, setQrCode] = useState<string>('');
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
     connected: false,
-    instance: 'securedguard'
+    instance: 'fluxbus'
   });
-  const [instanceName, setInstanceName] = useState('securedguard');
+  const [instanceName, setInstanceName] = useState('fluxbus');
   const [testPhone, setTestPhone] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
 
@@ -254,7 +254,7 @@ const WhatsAppConnection: React.FC = () => {
       // Usar o endpoint do WhatsAppTestController que já existe
       await api.post('/whatsapp/send-test', {
         telefone: testPhone,
-        mensagem: "✅ Teste SecuredGuard - WhatsApp conectado e funcionando!"
+        mensagem: "✅ Teste FluxBus - WhatsApp conectado e funcionando!"
       });
       
       toast({
@@ -432,7 +432,7 @@ const WhatsAppConnection: React.FC = () => {
                         Nome da Instância
                       </label>
                       <Input
-                        placeholder="securedguard"
+                        placeholder="fluxbus"
                         value={instanceName}
                         onChange={(e) => setInstanceName(e.target.value)}
                         className="bg-seguranca-black border-gray-600 text-white"

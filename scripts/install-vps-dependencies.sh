@@ -94,18 +94,18 @@ log "✅ PostgreSQL instalado!"
 # 8. CONFIGURAR POSTGRESQL
 # ========================================
 log "8. Configurando PostgreSQL..."
-sudo -u postgres psql -c "CREATE DATABASE secured_guard;"
-sudo -u postgres psql -c "CREATE USER secured_guard WITH PASSWORD 'secured_guard_password';"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE secured_guard TO secured_guard;"
-sudo -u postgres psql -c "ALTER USER secured_guard CREATEDB;"
+sudo -u postgres psql -c "CREATE DATABASE fluxbus;"
+sudo -u postgres psql -c "CREATE USER fluxbus WITH PASSWORD 'fluxbus_password';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE fluxbus TO fluxbus;"
+sudo -u postgres psql -c "ALTER USER fluxbus CREATEDB;"
 log "✅ PostgreSQL configurado!"
 
 # ========================================
 # 9. CRIAR DIRETÓRIO DO PROJETO
 # ========================================
 log "9. Criando diretório do projeto..."
-mkdir -p /opt/secured-guard
-chown -R $USER:$USER /opt/secured-guard
+mkdir -p /opt/fluxbus
+chown -R $USER:$USER /opt/fluxbus
 log "✅ Diretório criado!"
 
 # ========================================
@@ -152,7 +152,7 @@ echo "Docker Compose: $(docker compose version)"
 echo "PostgreSQL: $(sudo -u postgres psql -c 'SELECT version();' | head -n 3 | tail -n 1)"
 
 log "🎉 Instalação completa! VPS pronta para deploy!"
-log "📁 Diretório do projeto: /opt/secured-guard"
-log "🐘 Banco de dados: secured_guard"
-log "👤 Usuário do banco: secured_guard"
-log "🔑 Senha do banco: secured_guard_password"
+log "📁 Diretório do projeto: /opt/fluxbus"
+log "🐘 Banco de dados: fluxbus"
+log "👤 Usuário do banco: fluxbus"
+log "🔑 Senha do banco: fluxbus_password"

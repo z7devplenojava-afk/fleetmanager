@@ -96,21 +96,21 @@ docker rm whatsapp-service
 docker run -d \
   --name evolution-api \
   -p 8080:8080 \
-  -e AUTHENTICATION_API_KEY=B6D711FCDE4D4FD5936544120E713976 \
+  -e AUTHENTICATION_API_KEY=CHANGE_THIS_EVOLUTION_API_KEY \
   atendai/evolution-api:latest
 
 # 3. Criar instância
 curl -X POST http://localhost:8080/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"instanceName":"securedguard","integration":"WHATSAPP-BAILEYS"}'
 
 # 4. Conectar (gera QR Code)
 curl http://localhost:8080/instance/connect/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 
 # 5. Ver QR Code no navegador
-start http://localhost:8080/instance/qrcode/securedguard?apikey=B6D711FCDE4D4FD5936544120E713976
+start http://localhost:8080/instance/qrcode/securedguard?apikey=CHANGE_THIS_EVOLUTION_API_KEY
 ```
 
 **Adaptar BaileysRestService:**
@@ -120,7 +120,7 @@ start http://localhost:8080/instance/qrcode/securedguard?apikey=B6D711FCDE4D4FD5
 @Value("${baileys.rest.url:http://localhost:8080}")
 private String evolutionApiUrl;
 
-@Value("${baileys.rest.token:B6D711FCDE4D4FD5936544120E713976}")
+@Value("${baileys.rest.token:CHANGE_THIS_EVOLUTION_API_KEY}")
 private String apiKey;
 
 public boolean sendFileMessage(String phoneNumber, String message, String filePath) {

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =====================================================
-# Script para exportar dados do banco secured_guard_test
+# Script para exportar dados do banco fluxbus_test
 # e atualizar automaticamente a migration de CI
 # =====================================================
 
@@ -14,7 +14,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Configurações
-DB_NAME="secured_guard_test"
+DB_NAME="fluxbus_test"
 DB_USER="${DB_USER:-postgres}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
@@ -143,7 +143,7 @@ with open("$TEMP_DIR/users_only.sql", "r", encoding="utf-8") as f:
     users_data = f.read().strip()
 
 # Padrão para encontrar a seção 7.1
-pattern = r'(-- =====================================================\s*-- 7\.1\. USUÁRIOS DO BANCO secured_guard_test.*?-- COLE OS INSERTs DE USUÁRIOS EXPORTADOS AQUI ABAIXO:.*?\n)'
+pattern = r'(-- =====================================================\s*-- 7\.1\. USUÁRIOS DO BANCO fluxbus_test.*?-- COLE OS INSERTs DE USUÁRIOS EXPORTADOS AQUI ABAIXO:.*?\n)'
 
 if users_data:
     replacement = r'\1' + users_data + '\n\n'
@@ -171,7 +171,7 @@ with open("$TEMP_DIR/user_roles_only.sql", "r", encoding="utf-8") as f:
     roles_data = f.read().strip()
 
 # Padrão para encontrar a seção 7.2
-pattern = r'(-- =====================================================\s*-- 7\.2\. USER_ROLES DOS USUÁRIOS DO BANCO secured_guard_test.*?-- COLE OS INSERTs DE USER_ROLES EXPORTADOS AQUI ABAIXO:.*?\n)'
+pattern = r'(-- =====================================================\s*-- 7\.2\. USER_ROLES DOS USUÁRIOS DO BANCO fluxbus_test.*?-- COLE OS INSERTs DE USER_ROLES EXPORTADOS AQUI ABAIXO:.*?\n)'
 
 if roles_data:
     replacement = r'\1' + roles_data + '\n\n'
@@ -199,7 +199,7 @@ with open("$TEMP_DIR/employees_export.sql", "r", encoding="utf-8") as f:
     employees_data = f.read().strip()
 
 # Padrão para encontrar a seção 8
-pattern = r'(-- =====================================================\s*-- 8\. FUNCIONÁRIOS DO BANCO secured_guard_test.*?-- COLE OS INSERTs DE FUNCIONÁRIOS EXPORTADOS AQUI ABAIXO:.*?\n)'
+pattern = r'(-- =====================================================\s*-- 8\. FUNCIONÁRIOS DO BANCO fluxbus_test.*?-- COLE OS INSERTs DE FUNCIONÁRIOS EXPORTADOS AQUI ABAIXO:.*?\n)'
 
 if employees_data:
     replacement = r'\1' + employees_data + '\n\n'

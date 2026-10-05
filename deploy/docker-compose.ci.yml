@@ -4,9 +4,9 @@ services:
   # ========================================
   postgres:
     image: postgres:15-alpine
-    container_name: secured-guard-db-ci
+    container_name: fluxbus-db-ci
     environment:
-      POSTGRES_DB: secured_guard_test
+      POSTGRES_DB: fluxbus_test
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_CI}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
@@ -16,7 +16,7 @@ services:
       - postgres_data_ci:/var/lib/postgresql/data
       - ../backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d
     networks:
-      - secured-guard-ci
+      - fluxbus-ci
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -29,13 +29,13 @@ services:
   # ========================================
   redis:
     image: redis:7-alpine
-    container_name: secured-guard-redis-ci
+    container_name: fluxbus-redis-ci
     ports:
       - "6380:6379"
     volumes:
       - redis_data_ci:/data
     networks:
-      - secured-guard-ci
+      - fluxbus-ci
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD_CI}
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -51,10 +51,10 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile.prod
-    container_name: secured-guard-backend-ci
+    container_name: fluxbus-backend-ci
     environment:
       SPRING_PROFILES_ACTIVE: test
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/secured_guard_test
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fluxbus_test
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD_CI}
       SPRING_REDIS_HOST: redis
@@ -63,7 +63,7 @@ services:
       JWT_SECRET: ${JWT_SECRET_CI}
       # WhatsApp/Baileys REST API
       BAILEYS_REST_URL: http://whatsapp-service-ci:3333
-      BAILEYS_INSTANCE_KEY: securedguard
+      BAILEYS_INSTANCE_KEY: fluxbus
       # Configurações para testes
       TEST_SHOW_SQL: "false"
       TEST_HIBERNATE_DDL_AUTO: "create-drop"
@@ -80,7 +80,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - secured-guard-ci
+      - fluxbus-ci
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -95,7 +95,7 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile.prod
-    container_name: secured-guard-frontend-ci
+    container_name: fluxbus-frontend-ci
     environment:
       VITE_API_URL: http://localhost:8081/api
       VITE_WS_URL: ws://localhost:8081/ws
@@ -105,7 +105,7 @@ services:
     depends_on:
       - backend
     networks:
-      - secured-guard-ci
+      - fluxbus-ci
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 30s
@@ -117,11 +117,11 @@ services:
   # WHATSAPP SERVICE (Baileys REST API)
   # ========================================
   whatsapp-service:
-    image: z7design/secured-guard-whatsapp:ci
+    image: z7design/fluxbus-whatsapp:ci
     container_name: whatsapp-service-ci
     environment:
       PORT: 3333
-      INSTANCE_KEY: securedguard
+      INSTANCE_KEY: fluxbus
       SESSION_DIR: /app/sessions
     volumes:
       - whatsapp_sessions_ci:/app/sessions
@@ -129,7 +129,7 @@ services:
     ports:
       - "3333:3333"
     networks:
-      - secured-guard-ci
+      - fluxbus-ci
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -140,7 +140,7 @@ services:
   # ========================================
   nginx:
     image: nginx:alpine
-    container_name: secured-guard-nginx-ci
+    container_name: fluxbus-nginx-ci
     ports:
       - "8080:80"
     volumes:
@@ -149,7 +149,7 @@ services:
       - frontend
       - backend
     networks:
-      - secured-guard-ci
+      - fluxbus-ci
     restart: unless-stopped
 
 # ========================================
@@ -171,6 +171,6 @@ volumes:
 # NETWORKS
 # ========================================
 networks:
-  secured-guard-ci:
+  fluxbus-ci:
     external: true
-    name: secured-guard
+    name: fluxbus

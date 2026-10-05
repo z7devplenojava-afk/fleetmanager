@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "SecuredGuard - Dados de Teste",
+    "name": "FluxBus - Dados de Teste",
     "description": "Coleção para popular o banco de dados com dados de teste",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

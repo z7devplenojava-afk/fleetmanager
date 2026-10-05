@@ -1,6 +1,6 @@
 # Script para fazer commit e push das alterações
 Write-Host "🔄 Verificando status do Git..." -ForegroundColor Cyan
-cd c:\dev\secured-guard
+cd c:\dev\fluxbus
 
 # Verificar branch atual
 $branch = git branch --show-current

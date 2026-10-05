@@ -1,7 +1,7 @@
 # ===================== SCRIPT PARA GERAR SENHAS SEGURAS (PowerShell) =====================
 # Este script gera senhas seguras para todos os ambientes
 
-Write-Host "🔐 Gerando senhas seguras para o projeto SecuredGuard..." -ForegroundColor Green
+Write-Host "🔐 Gerando senhas seguras para o projeto FluxBus..." -ForegroundColor Green
 Write-Host ""
 
 # Função para gerar senha segura

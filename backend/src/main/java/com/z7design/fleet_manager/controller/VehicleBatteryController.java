@@ -49,6 +49,25 @@ public class VehicleBatteryController {
         return ResponseEntity.ok(service.update(id, dto, user.getCompanyId()));
     }
 
+    @PostMapping("/{id}/install")
+    public ResponseEntity<VehicleBatteryDTO> install(
+            @PathVariable("id") UUID id,
+            @RequestParam("vehicleId") UUID vehicleId,
+            @RequestParam(value = "installKm", required = false) Integer installKm,
+            @RequestParam(value = "installDate", required = false) java.time.LocalDate installDate,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(service.installOnVehicle(id, vehicleId, installKm, installDate, user.getCompanyId()));
+    }
+
+    @PostMapping("/{id}/remove")
+    public ResponseEntity<VehicleBatteryDTO> remove(
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "reason", required = false) String reason,
+            @RequestParam(value = "scrap", defaultValue = "false") boolean scrap,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(service.removeFromVehicle(id, reason, scrap, user.getCompanyId()));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
             @PathVariable("id") UUID id,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,10 @@ import {
   UserMinus,
   XCircle,
   ChevronRight,
-  FileUp
+  FileUp,
+  BarChart3,
+  LogIn,
+  LogOut
 } from 'lucide-react';
 import { useGSAP } from '@/hooks/use-gsap';
 import { useToast } from '@/hooks/use-toast';
@@ -46,9 +49,13 @@ import EmployeeDocumentsPanel from '@/components/funcionarios/EmployeeDocumentsP
 import DocumentosGerarTab from '@/components/funcionarios/DocumentosGerarTab';
 import { EmployeePdfImportModal } from '@/components/funcionarios/EmployeePdfImportModal';
 import DependenteModal from '@/components/dependentes/DependenteModal';
-import { FuncionariosTable } from '@/components/funcionarios/FuncionariosTable';
+import { FuncionariosTable, getEmployeeTerminationDate } from '@/components/funcionarios/FuncionariosTable';
 import ExcelImportModal from '@/components/funcionarios/ExcelImportModal';
 import { FileSpreadsheet } from 'lucide-react';
+import { workPostService, WorkPost } from '@/services/workPostService';
+import { clientService, Client } from '@/services/clientService';
+import { garageService, Garage } from '@/services/garageService';
+import { exportToPDF, exportToXLSX } from '@/utils/exportUtils';
 
 const Funcionarios: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -57,7 +64,18 @@ const Funcionarios: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ACTIVE' | 'INACTIVE' | 'VACATION' | 'MATERNITY_LEAVE' | 'MEDICAL_CERTIFICATE' | 'TERMINATED' | 'SUSPENDED'>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [workPostFilter, setWorkPostFilter] = useState<string>('all');
+  const [clientFilter, setClientFilter] = useState<string>('all');
+  const [garageFilter, setGarageFilter] = useState<string>('all');
+  const [hireStart, setHireStart] = useState('');
+  const [hireEnd, setHireEnd] = useState('');
+  const [termStart, setTermStart] = useState('');
+  const [termEnd, setTermEnd] = useState('');
+  const [workPosts, setWorkPosts] = useState<WorkPost[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [garages, setGarages] = useState<Garage[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [documentsModalOpen, setDocumentsModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -112,9 +130,18 @@ const Funcionarios: React.FC = () => {
     await loadEmployees(term);
   };
 
-  // Carregar funcionários iniciais
+  // Carregar funcionários iniciais + dados auxiliares dos filtros
   useEffect(() => {
     loadEmployees();
+    Promise.allSettled([
+      workPostService.getAllWorkPosts(),
+      clientService.getClientsForSelect(),
+      garageService.list()
+    ]).then(([wpRes, clRes, garRes]) => {
+      if (wpRes.status === 'fulfilled') setWorkPosts(wpRes.value);
+      if (clRes.status === 'fulfilled') setClients(clRes.value);
+      if (garRes.status === 'fulfilled') setGarages(garRes.value);
+    });
   }, []);
 
   // Aplicar busca com debounce
@@ -227,15 +254,61 @@ const Funcionarios: React.FC = () => {
     loadEmployeesWithFilters(); // Recarregar lista
   };
 
-  // Filtrar funcionários por departamento, status e busca (filtro local)
+  // Mapa workPostId -> clientId para filtro de cliente
+  const workPostClientMap = useMemo(() => {
+    const map = new Map<string, string>();
+    workPosts.forEach(wp => {
+      if (wp.id && wp.clientId) map.set(wp.id, wp.clientId);
+    });
+    return map;
+  }, [workPosts]);
+
+  const clientNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    clients.forEach(c => map.set(c.id, c.name));
+    return map;
+  }, [clients]);
+
+  // Conjunto de funcionários responsáveis por garagem
+  const employeeGarageIds = useMemo(() => {
+    const map = new Map<string, string>();
+    garages.forEach(g => {
+      if (g.responsibleEmployeeId) map.set(g.responsibleEmployeeId, g.id);
+    });
+    return map;
+  }, [garages]);
+
+  // Filtrar funcionários (filtros locais combinados)
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const searchDigits = searchTerm.replace(/\D/g, '');
   const filteredEmployees = employees.filter(employee => {
     const matchesDepartment = departmentFilter === 'all' || 
+      employee.department?.id === departmentFilter ||
       employee.unit?.id === departmentFilter || 
       employee.position?.id === departmentFilter;
     
     const matchesStatus = statusFilter === 'all' || employee.status === statusFilter;
+
+    const matchesWorkPost = workPostFilter === 'all' ||
+      employee.workPost?.id === workPostFilter ||
+      employee.department?.id === workPostFilter;
+
+    const matchesClient = clientFilter === 'all' || (() => {
+      const wpClientId = employee.workPost?.id
+        ? workPostClientMap.get(employee.workPost.id)
+        : undefined;
+      return wpClientId === clientFilter;
+    })();
+
+    const matchesGarage = garageFilter === 'all' ||
+      employeeGarageIds.get(employee.id) === garageFilter;
+
+    const hireDate = employee.hireDate || '';
+    const terminationDate = getEmployeeTerminationDate(employee) || '';
+    const matchesHireStart = !hireStart || (hireDate && hireDate >= hireStart);
+    const matchesHireEnd = !hireEnd || (hireDate && hireDate <= hireEnd);
+    const matchesTermStart = !termStart || (terminationDate && terminationDate >= termStart);
+    const matchesTermEnd = !termEnd || (terminationDate && terminationDate <= termEnd);
 
     const matchesSearch = !normalizedSearch || (() => {
       const nameMatch = (employee.name || '').toLowerCase().includes(normalizedSearch);
@@ -249,15 +322,105 @@ const Funcionarios: React.FC = () => {
       return nameMatch || emailMatch || registrationMatch || cpfMatch;
     })();
     
-    return matchesDepartment && matchesStatus && matchesSearch;
+    return matchesDepartment && matchesStatus && matchesSearch &&
+      matchesWorkPost && matchesClient && matchesGarage &&
+      matchesHireStart && matchesHireEnd && matchesTermStart && matchesTermEnd;
   });
+
+  // Departamentos/setores únicos com rótulo legível
+  const departments = useMemo(() => {
+    const byId = new Map<string, string>();
+    employees.forEach(emp => {
+      const entries: Array<[string | undefined, string | undefined]> = [
+        [emp.department?.id, emp.department?.name],
+        [emp.unit?.id, emp.unit?.name],
+        [emp.position?.id, emp.position?.name],
+      ];
+      entries.forEach(([id, name]) => {
+        if (id && !byId.has(id)) byId.set(id, name || id);
+      });
+    });
+    return Array.from(byId.entries()).map(([id, label]) => ({ id, label }));
+  }, [employees]);
+
+  // Última admissão e última demissão
+  const lastAdmission = useMemo(() => {
+    const withHire = employees.filter(e => e.hireDate);
+    if (!withHire.length) return null;
+    return [...withHire].sort((a, b) => (b.hireDate || '').localeCompare(a.hireDate || ''))[0];
+  }, [employees]);
+
+  const lastDismissal = useMemo(() => {
+    const withTerm = employees.filter(e => getEmployeeTerminationDate(e));
+    if (!withTerm.length) return null;
+    return [...withTerm].sort((a, b) =>
+      ((getEmployeeTerminationDate(b) || '')).localeCompare(getEmployeeTerminationDate(a) || '')
+    )[0];
+  }, [employees]);
 
   // Limpar filtros
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setDepartmentFilter('all');
+    setWorkPostFilter('all');
+    setClientFilter('all');
+    setGarageFilter('all');
+    setHireStart('');
+    setHireEnd('');
+    setTermStart('');
+    setTermEnd('');
     loadEmployees();
+  };
+
+  // Relatório completo (Excel + PDF) da lista filtrada
+  const handleFullReport = async () => {
+    if (!filteredEmployees.length) {
+      toast({
+        title: 'Nenhum funcionário',
+        description: 'Não há funcionários para exportar com os filtros atuais.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setExporting(true);
+    try {
+      const rows = filteredEmployees.map(emp => ({
+        Nome: emp.name || '',
+        CPF: emp.cpf || emp.document || '',
+        Matricula: emp.registrationNumber || '',
+        Cargo: emp.position?.name || '',
+        Setor: emp.department?.name || emp.workPost?.name || '',
+        Empresa: emp.company?.name || '',
+        Posto: emp.workPost?.name || '',
+        Status: emp.status || '',
+        Admissao: emp.hireDate || '',
+        Demissao: getEmployeeTerminationDate(emp) || '',
+        Genero: emp.gender || emp.sexo || '',
+        Salario: emp.salario ?? '',
+        Email: emp.email || '',
+        Telefone: emp.phone || '',
+      }));
+      const stamp = new Date().toISOString().slice(0, 10);
+      const filename = `relatorio-completo-funcionarios-${stamp}`;
+      await Promise.all([
+        exportToXLSX(rows, filename, 'Relatório Completo de Funcionários'),
+        exportToPDF(rows, filename, 'Relatório Completo de Funcionários'),
+      ]);
+      toast({
+        title: 'Relatório gerado',
+        description: `Excel e PDF exportados com ${rows.length} funcionário(s).`,
+      });
+    } catch (err) {
+      console.error('Erro ao gerar relatório completo:', err);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível gerar o relatório completo.',
+        variant: 'destructive',
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   // Atualizar status do funcionário
@@ -387,10 +550,7 @@ Confirma a exclusão?`)) {
     }
   };
 
-  // Obter departamentos únicos
-  const departments = Array.from(new Set(
-    employees.map(emp => emp.unit?.id || emp.position?.id).filter(Boolean)
-  ));
+  // Obter departamentos únicos (rótulos legíveis — removido; use `departments` derivado acima)
 
   const handleViewDocuments = (employee: Employee) => {
     setSelectedEmployee(employee);
@@ -648,6 +808,50 @@ Confirma a exclusão?`)) {
               </Card>
             </div>
 
+            {/* Última admissão / última demissão */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-animate="fadeDown">
+              <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 hover:border-emerald-500/50 transition-all duration-300 group">
+                <div className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <p className="text-gray-400 text-sm font-medium">Última Admissão</p>
+                      <p className="text-lg font-bold text-emerald-400 mt-2 truncate">
+                        {lastAdmission?.name || '—'}
+                      </p>
+                      {lastAdmission?.hireDate && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(lastAdmission.hireDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                    </div>
+                    <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 group-hover:bg-emerald-500/30 transition-colors">
+                      <LogIn className="h-6 w-6 text-emerald-400" />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+              <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 hover:border-orange-500/50 transition-all duration-300 group">
+                <div className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <p className="text-gray-400 text-sm font-medium">Última Demissão</p>
+                      <p className="text-lg font-bold text-orange-400 mt-2 truncate">
+                        {lastDismissal?.name || '—'}
+                      </p>
+                      {lastDismissal && getEmployeeTerminationDate(lastDismissal) && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date((getEmployeeTerminationDate(lastDismissal) as string) + 'T00:00:00').toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                    </div>
+                    <div className="p-3 rounded-xl bg-orange-500/20 border border-orange-500/30 group-hover:bg-orange-500/30 transition-colors">
+                      <LogOut className="h-6 w-6 text-orange-400" />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
             {/* Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" data-animate="fadeDown">
               <div className="flex flex-wrap gap-2">
@@ -679,6 +883,27 @@ Confirma a exclusão?`)) {
                 >
                   <FileUp size={20} className="mr-2" />
                   Importar Ficha PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-seguranca-yellow/50 text-seguranca-yellow hover:bg-seguranca-yellow/10"
+                  onClick={handleFullReport}
+                  disabled={exporting || !filteredEmployees.length}
+                >
+                  {exporting ? (
+                    <Loader2 size={20} className="mr-2 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet size={20} className="mr-2" />
+                  )}
+                  Relatório Completo
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-gray-500/50 text-seguranca-lightgray hover:bg-seguranca-graphite"
+                  onClick={() => navigate('/rh/relatorios/funcionarios')}
+                >
+                  <BarChart3 size={20} className="mr-2" />
+                  Relatórios
                 </Button>
                 <Button
                   className="bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red shadow-lg shadow-seguranca-red/20"
@@ -741,8 +966,8 @@ Confirma a exclusão?`)) {
               </div>
 
               {/* Search Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="relative sm:col-span-2 lg:col-span-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="relative sm:col-span-2 lg:col-span-2 xl:col-span-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                   <Input
                     placeholder="Digite o nome, CPF ou email..."
@@ -774,9 +999,79 @@ Confirma a exclusão?`)) {
                 >
                   <option value="all">🏢 Todos os departamentos</option>
                   {departments.map(dept => (
-                    <option key={dept} value={dept}>{dept}</option>
+                    <option key={dept.id} value={dept.id}>{dept.label}</option>
                   ))}
                 </select>
+
+                <select
+                  value={workPostFilter}
+                  onChange={(e) => setWorkPostFilter(e.target.value)}
+                  className="h-11 bg-seguranca-black/70 border border-gray-600 rounded-md px-3 py-2 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow/20 outline-none"
+                >
+                  <option value="all">📍 Obra / Setor (posto)</option>
+                  {workPosts.map(wp => (
+                    <option key={wp.id} value={wp.id}>{wp.name}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={clientFilter}
+                  onChange={(e) => setClientFilter(e.target.value)}
+                  className="h-11 bg-seguranca-black/70 border border-gray-600 rounded-md px-3 py-2 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow/20 outline-none"
+                >
+                  <option value="all">👥 Todos os clientes</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={garageFilter}
+                  onChange={(e) => setGarageFilter(e.target.value)}
+                  className="h-11 bg-seguranca-black/70 border border-gray-600 rounded-md px-3 py-2 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow/20 outline-none"
+                >
+                  <option value="all">🚗 Todas as garagens (responsável)</option>
+                  {garages.map(g => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-400">Admissão (início)</label>
+                  <Input
+                    type="date"
+                    value={hireStart}
+                    onChange={(e) => setHireStart(e.target.value)}
+                    className="h-11 bg-seguranca-black/70 border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-400">Admissão (fim)</label>
+                  <Input
+                    type="date"
+                    value={hireEnd}
+                    onChange={(e) => setHireEnd(e.target.value)}
+                    className="h-11 bg-seguranca-black/70 border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-400">Demissão (início)</label>
+                  <Input
+                    type="date"
+                    value={termStart}
+                    onChange={(e) => setTermStart(e.target.value)}
+                    className="h-11 bg-seguranca-black/70 border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-400">Demissão (fim)</label>
+                  <Input
+                    type="date"
+                    value={termEnd}
+                    onChange={(e) => setTermEnd(e.target.value)}
+                    className="h-11 bg-seguranca-black/70 border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow"
+                  />
+                </div>
               </div>
             </Card>
 

@@ -57,7 +57,7 @@ chmod +x deploy-evolution-ci-completo.sh
 📱 ACESSE PARA ESCANEAR:
 https://evolution.z7botsolutions.com.br/instance/connect/securedguard
 
-API Key: B6D711FCDE4D4FD5936544120E713976
+API Key: CHANGE_THIS_EVOLUTION_API_KEY
 Número: 31971731747
 ```
 
@@ -97,7 +97,7 @@ curl -X POST https://ci.z7botsolutions.com.br/api/auth/login \
 
 ### Obter QR Code manualmente:
 ```bash
-curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+curl -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   https://evolution.z7botsolutions.com.br/instance/connect/securedguard
 ```
 
@@ -106,7 +106,7 @@ curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
 ## 🎯 Após o Sucesso
 
 1. **Abra no navegador:** `https://evolution.z7botsolutions.com.br/instance/connect/securedguard`
-2. **Adicione header** (use extensão ModHeader): `apikey: B6D711FCDE4D4FD5936544120E713976`
+2. **Adicione header** (use extensão ModHeader): `apikey: CHANGE_THIS_EVOLUTION_API_KEY`
 3. **Escaneie com WhatsApp:** 31971731747
 4. **Teste envio de mensagem** via backend
 

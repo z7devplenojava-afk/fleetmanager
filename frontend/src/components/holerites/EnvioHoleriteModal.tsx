@@ -86,7 +86,7 @@ export const EnvioHoleriteModal: React.FC<EnvioHoleriteModalProps> = ({
   // Mensagens padrão
   const mensagensPadrao = {
     email: {
-      assunto: 'Holerite - SecuredGuard',
+      assunto: 'Holerite - FluxBus',
       mensagem: `Prezado(a) funcionário(a),
 
 Segue em anexo o seu holerite.
@@ -94,12 +94,12 @@ Segue em anexo o seu holerite.
 Em caso de dúvidas, entre em contato com o departamento de RH.
 
 Atenciosamente,
-Equipe SecuredGuard`
+Equipe FluxBus`
     },
     whatsapp: {
       mensagem: `Olá! Seu holerite está disponível para download.
 
-Acesse o sistema SecuredGuard para visualizar.
+Acesse o sistema FluxBus para visualizar.
 
 Em caso de dúvidas, entre em contato com o RH.
 

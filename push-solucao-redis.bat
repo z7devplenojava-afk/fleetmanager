@@ -19,7 +19,7 @@ echo ========================================
 echo.
 echo GitHub Actions vai fazer deploy automatico.
 echo Aguarde ~10 minutos e teste novamente:
-echo   http://185.225.233.18:9000/instance/connect/securedguard
+echo   http://185.225.233.18:9000/instance/connect/fluxbus
 echo.
 pause
 

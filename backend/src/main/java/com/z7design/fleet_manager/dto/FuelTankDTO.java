@@ -13,6 +13,8 @@ public class FuelTankDTO {
     private BigDecimal capacity;
     private BigDecimal currentLevel;
     private Vehicle.FuelType fuelType;
+    private UUID garageId;
+    private String garageName;
 
     public UUID getId() {
         return id;

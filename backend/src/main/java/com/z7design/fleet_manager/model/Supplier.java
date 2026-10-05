@@ -31,6 +31,7 @@ public class Supplier implements TenantAware {
     @Column(name = "company_id")
     private UUID companyId;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", insertable = false, updatable = false)
     private Company company;

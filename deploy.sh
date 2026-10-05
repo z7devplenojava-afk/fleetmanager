@@ -51,15 +51,15 @@ if [ ! -f ./.env ]; then
 fi
 
 # Chaves obrigatórias com defaults e senhas geradas contendo tokens
-ensure_kv POSTGRES_DB secured_guard_prod
+ensure_kv POSTGRES_DB fluxbus_prod
 ensure_kv POSTGRES_USER postgressg
 ensure_kv POSTGRES_PASSWORD "$(gen_pass SGprod@2025)"
 
-ensure_kv POSTGRES_DB_DEV secured_guard_dev
+ensure_kv POSTGRES_DB_DEV fluxbus_dev
 ensure_kv POSTGRES_USER_DEV postgressg
 ensure_kv POSTGRES_PASSWORD_DEV "$(gen_pass SGdev@2025no)"
 
-ensure_kv POSTGRES_DB_CI secured_guard_ci
+ensure_kv POSTGRES_DB_CI fluxbus_ci
 ensure_kv POSTGRES_USER_CI postgressg
 ensure_kv POSTGRES_PASSWORD_CI "$(gen_pass SGci@2025)"
 

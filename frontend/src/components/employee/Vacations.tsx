@@ -62,7 +62,8 @@ const Vacations: React.FC = () => {
     startDate: '',
     endDate: '',
     reason: '',
-    type: 'VACATION' as const
+    type: 'VACATION' as const,
+    diasAbono: ''
   });
 
   useEffect(() => {
@@ -147,7 +148,8 @@ const Vacations: React.FC = () => {
         dataInicio: formData.startDate,
         dataFim: formData.endDate,
         observacao: formData.reason,
-        tipo: formData.type
+        tipo: formData.type,
+        diasAbono: Number(formData.diasAbono) || 0
       });
       
       toast({
@@ -156,13 +158,17 @@ const Vacations: React.FC = () => {
       });
 
       setShowRequestForm(false);
-      setFormData({ startDate: '', endDate: '', reason: '', type: 'VACATION' });
+      setFormData({ startDate: '', endDate: '', reason: '', type: 'VACATION', diasAbono: '' });
       loadVacations();
+      loadVacationBalance();
     } catch (error) {
       console.error('Erro ao solicitar férias:', error);
       toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar os dados. Tente novamente.',
+        title: 'Erro na solicitação',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível enviar a solicitação. Tente novamente.',
         variant: 'destructive',
       });
     } finally {
@@ -373,6 +379,21 @@ const Vacations: React.FC = () => {
                   readOnly
                   className="bg-muted"
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="diasAbono">Abono Pecuniário (dias)</Label>
+                <Input
+                  id="diasAbono"
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  value={formData.diasAbono}
+                  onChange={(e) => setFormData({...formData, diasAbono: e.target.value})}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Máximo de 1/3 do saldo (Art. 143). Deixe 0 para não vender dias.
+                </p>
               </div>
               
               <div className="md:col-span-2">

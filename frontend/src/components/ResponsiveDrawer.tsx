@@ -78,12 +78,12 @@ export function ResponsiveDrawer({
                         {modalTrigger}
                     </DrawerTrigger>
                 )}
-                <DrawerContent className={className}>
+                <DrawerContent className={className} style={{ maxWidth: '100vw' }}>
                     <DrawerHeader className="text-left">
                         <DrawerTitle>{title}</DrawerTitle>
                         {description && <DrawerDescription>{description}</DrawerDescription>}
                     </DrawerHeader>
-                    <div className="px-4 pb-4 overflow-y-auto max-h-[70vh]">
+                    <div className="px-4 pb-4 overflow-y-auto overflow-x-hidden max-h-[70vh] min-w-0">
                         {modalContent}
                     </div>
                     <DrawerFooter className="pt-2">
@@ -104,7 +104,7 @@ export function ResponsiveDrawer({
                     {modalTrigger}
                 </DialogTrigger>
             )}
-            <DialogContent className={`sm:max-w-[425px] max-h-[85vh] overflow-y-auto ${className || ''}`}>
+            <DialogContent className={`sm:max-w-[425px] max-h-[85vh] overflow-y-auto max-w-[calc(100vw-2rem)] ${className || ''}`} style={{ overflowX: 'hidden' }}>
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     {description && <DialogDescription>{description}</DialogDescription>}

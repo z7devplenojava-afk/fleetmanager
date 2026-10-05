@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # ========================================
-# SECURED GUARD - Script de Inicialização Desenvolvimento
+# FLUXBUS - Script de Inicialização Desenvolvimento
 # ========================================
 
-echo "🚀 Iniciando Secured Guard - Ambiente de Desenvolvimento"
+echo "🚀 Iniciando FluxBus - Ambiente de Desenvolvimento"
 echo ""
 
 # Cores para output

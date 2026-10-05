@@ -35,7 +35,7 @@ VPS_HOST="185.225.233.18"
 VPS_USER="root"
 VPS_PORT="22"
 VPS_PASSWORD='$7?NMo8&Ua'
-NEW_USER="securedguard"
+NEW_USER="fluxbus"
 
 log "Criando usuário e fazendo deploy..."
 echo ""
@@ -146,7 +146,7 @@ log "Sincronizando arquivos..."
 sshpass -p "$VPS_PASSWORD" rsync -avz --delete \
     --exclude-from=.rsync-exclude.temp \
     -e "ssh -p $VPS_PORT -o StrictHostKeyChecking=no" \
-    ./ $VPS_USER@$VPS_HOST:/opt/secured-guard/
+    ./ $VPS_USER@$VPS_HOST:/opt/fluxbus/
 
 # Limpar arquivo temporário
 rm -f .rsync-exclude.temp
@@ -158,7 +158,7 @@ log "Código copiado para VPS!"
 # ========================================
 log "7. Executando deploy na VPS..."
 
-sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && ./deploy.sh"
+sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && ./deploy.sh"
 
 log "Deploy concluído!"
 
@@ -167,7 +167,7 @@ log "Deploy concluído!"
 # ========================================
 log "8. Verificando status dos serviços..."
 
-sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && docker compose -f deploy/docker-compose.prod.yml ps"
+sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && docker compose -f deploy/docker-compose.prod.yml ps"
 
 # ========================================
 # FINALIZAÇÃO
@@ -180,7 +180,7 @@ echo "🔒 https://$VPS_HOST (HTTPS - self-signed)"
 echo ""
 info "Comandos úteis:"
 echo "- Conectar na VPS: ssh $NEW_USER@$VPS_HOST"
-echo "- Ver logs: ssh $NEW_USER@$VPS_HOST 'docker compose -f /opt/secured-guard/deploy/docker-compose.prod.yml logs -f'"
-echo "- Status: ssh $NEW_USER@$VPS_HOST 'docker compose -f /opt/secured-guard/deploy/docker-compose.prod.yml ps'"
+echo "- Ver logs: ssh $NEW_USER@$VPS_HOST 'docker compose -f /opt/fluxbus/deploy/docker-compose.prod.yml logs -f'"
+echo "- Status: ssh $NEW_USER@$VPS_HOST 'docker compose -f /opt/fluxbus/deploy/docker-compose.prod.yml ps'"
 echo ""
 warning "IMPORTANTE: Configure seu domínio e certificados SSL reais para produção!"

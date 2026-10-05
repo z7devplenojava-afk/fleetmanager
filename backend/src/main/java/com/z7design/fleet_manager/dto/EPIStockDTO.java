@@ -19,6 +19,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class EPIStockDTO {
     private UUID id;
+    private UUID stockItemId;
     private String name;
     private String description;
     private String type; // HELMET, GLOVES, SAFETY_GLASSES, SAFETY_SHOES, UNIFORM, RESPIRATOR, OTHER

@@ -14,7 +14,7 @@ echo -e "${GREEN}🔧 Verificando e corrigindo mudanças locais no Git...${NC}"
 echo ""
 
 # Navegar para o diretório correto
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 # Verificar status atual
 echo -e "${YELLOW}📊 Status atual do Git:${NC}"

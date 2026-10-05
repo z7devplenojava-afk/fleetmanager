@@ -3,7 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Car, Building, DollarSign, Wrench, Save, Loader2, FileText, ImageIcon, X, Trash2, RefreshCw, Shield, Users, UserCheck, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Car, Building, DollarSign, Wrench, Save, Loader2, FileText, ImageIcon, X, Trash2, RefreshCw, Shield, Users, UserCheck, AlertTriangle, ShieldAlert, FileCheck, Upload } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import fleetService from '@/services/fleetService';
 import { VehicleFormData } from './types';
 import { VehicleGeneralInfo } from './sections/VehicleGeneralInfo';
 import { VehicleAllocationInfo } from './sections/VehicleAllocationInfo';
@@ -138,6 +140,114 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
     const [currentTab, setCurrentTab] = useState('general');
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const { validate, getFieldStatus } = useVehicleValidation();
+    const { toast } = useToast();
+    const [isExtractingCrlv, setIsExtractingCrlv] = useState(false);
+
+    const handleCrlvSingleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            toast({
+                title: 'Formato inválido',
+                description: 'Por favor, selecione um arquivo em formato PDF.',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        setIsExtractingCrlv(true);
+        try {
+            const parsed = await fleetService.parseCrlv(file);
+            const updatedFields: string[] = [];
+
+            setFormData(prev => {
+                const next = { ...prev };
+
+                if (!next.placa && parsed.plate) {
+                    next.placa = parsed.plate;
+                    updatedFields.push('Placa');
+                }
+                if ((!next.chassi || next.chassi.trim() === '') && parsed.chassisNumber) {
+                    next.chassi = parsed.chassisNumber;
+                    updatedFields.push('Chassi');
+                }
+                if ((!next.renavan || next.renavan.trim() === '') && parsed.renavam) {
+                    next.renavan = parsed.renavam;
+                    updatedFields.push('RENAVAN');
+                }
+                if ((!next.marca || next.marca.trim() === '' || next.marca === 'Outros') && parsed.brand) {
+                    next.marca = parsed.brand;
+                    updatedFields.push('Marca');
+                }
+                if ((!next.modelo || next.modelo.trim() === '' || next.modelo === 'Não Informado') && parsed.model) {
+                    next.modelo = parsed.model;
+                    updatedFields.push('Modelo');
+                }
+                if ((!next.ano || next.ano === 0) && (parsed.manufactureYear || parsed.modelYear)) {
+                    next.ano = parsed.manufactureYear || parsed.modelYear || next.ano;
+                    updatedFields.push('Ano Fabricação');
+                }
+                if ((!next.cor || next.cor.trim() === '') && parsed.color) {
+                    next.cor = parsed.color;
+                    updatedFields.push('Cor');
+                }
+                if ((!next.capacidade || next.capacidade === 0) && parsed.capacity) {
+                    next.capacidade = parsed.capacity;
+                    next.passengerCapacity = parsed.capacity;
+                    updatedFields.push('Capacidade');
+                }
+                if (parsed.fuelType && (!next.combustivel || next.combustivel === 'DIESEL')) {
+                    next.combustivel = parsed.fuelType as any;
+                    updatedFields.push('Combustível');
+                }
+                if (parsed.vehicleType && (!next.vehicleType || next.vehicleType === '')) {
+                    next.vehicleType = parsed.vehicleType as any;
+                    updatedFields.push('Tipo de Veículo');
+                }
+                if (parsed.busType && (!next.busType || next.busType === '')) {
+                    next.busType = parsed.busType as any;
+                }
+                if (parsed.enginePowerHp && (!next.enginePowerHp || next.enginePowerHp === 0)) {
+                    next.enginePowerHp = parsed.enginePowerHp;
+                }
+                if (parsed.totalWeightKg && (!next.totalWeightKg || next.totalWeightKg === 0)) {
+                    next.totalWeightKg = parsed.totalWeightKg;
+                }
+                if (parsed.axleCount && (!next.axleCount || next.axleCount === 0)) {
+                    next.axleCount = parsed.axleCount;
+                }
+                if (parsed.engineNumber && (!next.engineModel || next.engineModel.trim() === '')) {
+                    next.engineModel = parsed.engineNumber;
+                }
+
+                return next;
+            });
+
+            if (updatedFields.length > 0) {
+                toast({
+                    title: 'CRLV Extraído com Sucesso!',
+                    description: `Campos preenchidos automaticamente: ${updatedFields.join(', ')}.`,
+                    variant: 'default'
+                });
+            } else {
+                toast({
+                    title: 'CRLV Lido com Sucesso',
+                    description: 'Todos os campos do documento já estavam preenchidos neste veículo.',
+                    variant: 'default'
+                });
+            }
+        } catch (err: any) {
+            console.error('Erro ao ler CRLV:', err);
+            toast({
+                title: 'Erro na leitura do CRLV',
+                description: err?.response?.data?.message || err?.message || 'Não foi possível extrair dados do PDF.',
+                variant: 'destructive'
+            });
+        } finally {
+            setIsExtractingCrlv(false);
+            e.target.value = '';
+        }
+    };
 
     // Load initial data
     useEffect(() => {
@@ -267,12 +377,52 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
 
                     <TabsContent value="general" className="mt-0 focus-visible:ring-0 space-y-6">
                         <div className="space-y-6">
-                            <div className="flex items-center gap-2 mb-6">
-                                <div className="p-2 bg-blue-500/20 rounded-lg">
-                                    <Car className="h-5 w-5 text-blue-400" />
+                            {/* Card de Auto-preenchimento Inteligente via CRLV / DUT */}
+                            <div className="p-4 rounded-xl bg-gradient-to-r from-blue-950/70 via-indigo-950/50 to-gray-900 border border-blue-600/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 rounded-xl text-blue-400 shrink-0">
+                                        <FileCheck className="h-6 w-6" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h4 className="text-sm font-bold text-white">Auto-completar com CRLV (PDF)</h4>
+                                            <span className="text-[10px] bg-blue-900/60 text-blue-300 border border-blue-700/60 px-1.5 py-0.5 rounded font-medium">Oficial Gov/Detran</span>
+                                        </div>
+                                        <p className="text-xs text-gray-300 mt-0.5">
+                                            Importe o CRLV para preencher automaticamente Chassi, RENAVAM, Modelo, Ano e especificações técnicas sem perder o que já digitou.
+                                        </p>
+                                    </div>
                                 </div>
-                                <h3 className="text-lg font-semibold text-white">Informações do Veículo</h3>
+                                <div className="w-full sm:w-auto shrink-0">
+                                    <input
+                                        type="file"
+                                        accept=".pdf,application/pdf"
+                                        className="hidden"
+                                        id="crlv-single-input"
+                                        onChange={handleCrlvSingleUpload}
+                                        disabled={isExtractingCrlv}
+                                    />
+                                    <Button
+                                        type="button"
+                                        onClick={() => document.getElementById('crlv-single-input')?.click()}
+                                        disabled={isExtractingCrlv}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-9 px-3.5 flex items-center gap-1.5 font-semibold shadow w-full sm:w-auto justify-center"
+                                    >
+                                        {isExtractingCrlv ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                Lendo Documento...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload className="h-4 w-4" />
+                                                Importar CRLV (PDF)
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
+
                             <VehicleGeneralInfo formData={formData} handleInputChange={handleInputChange} />
 
                             {/* Controles de Desgaste, Troca de Óleo, Filtros, Correias e Garantia */}

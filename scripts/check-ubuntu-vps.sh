@@ -83,7 +83,7 @@ fi
 log "6. Verificando PostgreSQL..."
 if systemctl is-active --quiet postgresql; then
     echo "✅ PostgreSQL: Ativo"
-    echo "🐘 Banco secured_guard: $(sudo -u postgres psql -c "SELECT 1 FROM pg_database WHERE datname='secured_guard';" | grep -c "1" || echo "0")"
+    echo "🐘 Banco fluxbus: $(sudo -u postgres psql -c "SELECT 1 FROM pg_database WHERE datname='fluxbus';" | grep -c "1" || echo "0")"
 else
     error "❌ PostgreSQL não está rodando!"
 fi
@@ -115,21 +115,21 @@ fi
 # 9. VERIFICAR DIRETÓRIO DO PROJETO
 # ========================================
 log "9. Verificando diretório do projeto..."
-if [ -d "/opt/secured-guard" ]; then
-    echo "✅ Diretório /opt/secured-guard existe"
-    echo "📁 Tamanho: $(du -sh /opt/secured-guard 2>/dev/null | cut -f1 || echo "0B")"
-    echo "👤 Proprietário: $(ls -ld /opt/secured-guard | awk '{print $3":"$4}')"
+if [ -d "/opt/fluxbus" ]; then
+    echo "✅ Diretório /opt/fluxbus existe"
+    echo "📁 Tamanho: $(du -sh /opt/fluxbus 2>/dev/null | cut -f1 || echo "0B")"
+    echo "👤 Proprietário: $(ls -ld /opt/fluxbus | awk '{print $3":"$4}')"
 else
-    warn "⚠️ Diretório /opt/secured-guard não existe"
+    warn "⚠️ Diretório /opt/fluxbus não existe"
 fi
 
 # ========================================
 # 10. VERIFICAR APLICAÇÃO WEB
 # ========================================
 log "10. Verificando aplicação web..."
-if curl -f -s https://securedguard.z7botsolutions.com.br > /dev/null; then
+if curl -f -s https://fluxbus.z7botsolutions.com.br > /dev/null; then
     echo "✅ Aplicação web está funcionando"
-    echo "🌐 URL: https://securedguard.z7botsolutions.com.br"
+    echo "🌐 URL: https://fluxbus.z7botsolutions.com.br"
 else
     warn "⚠️ Aplicação web não está respondendo"
     echo "🔍 Tentando IP direto..."
@@ -144,8 +144,8 @@ fi
 # 11. VERIFICAR SERVIÇOS DOCKER
 # ========================================
 log "11. Verificando serviços Docker..."
-if [ -f "/opt/secured-guard/deploy/docker-compose.prod.yml" ]; then
-    cd /opt/secured-guard
+if [ -f "/opt/fluxbus/deploy/docker-compose.prod.yml" ]; then
+    cd /opt/fluxbus
     echo "🐳 Serviços Docker:"
     docker compose -f deploy/docker-compose.prod.yml ps
 else

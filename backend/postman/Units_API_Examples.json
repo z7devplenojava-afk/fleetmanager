@@ -13,7 +13,7 @@
         "description": "Unidade operacional no BH Shopping",
         "address": "Av. Cristiano Machado, 4000 - Belo Horizonte, MG",
         "phone": "(31) 99999-8888",
-        "email": "bhshopping@securedguard.com",
+        "email": "bhshopping@fluxbus.com",
         "parentId": null,
         "clientId": null
       }
@@ -31,7 +31,7 @@
         "description": "Subunidade do setor A do BH Shopping",
         "address": "Av. Cristiano Machado, 4000 - Setor A - Belo Horizonte, MG",
         "phone": "(31) 99999-7777",
-        "email": "setor.a@securedguard.com",
+        "email": "setor.a@fluxbus.com",
         "parentId": "{{parentUnitId}}",
         "clientId": null
       }
@@ -49,7 +49,7 @@
         "description": "Unidade dedicada ao cliente ABC",
         "address": "Rua do Cliente, 123 - Belo Horizonte, MG",
         "phone": "(31) 88888-9999",
-        "email": "cliente.abc@securedguard.com",
+        "email": "cliente.abc@fluxbus.com",
         "parentId": null,
         "clientId": 1
       }
@@ -67,7 +67,7 @@
         "description": "Unidade operacional no BH Shopping - Versão atualizada",
         "address": "Av. Cristiano Machado, 4000 - Belo Horizonte, MG",
         "phone": "(31) 99999-9999",
-        "email": "bhshopping.updated@securedguard.com",
+        "email": "bhshopping.updated@fluxbus.com",
         "parentId": null,
         "clientId": null
       }
@@ -82,7 +82,7 @@
       },
       "body": {
         "phone": "(31) 99999-0000",
-        "email": "novo.email@securedguard.com"
+        "email": "novo.email@fluxbus.com"
       }
     },
     "listUnits": {
@@ -149,7 +149,7 @@
       "description": "Unidade operacional no BH Shopping",
       "address": "Av. Cristiano Machado, 4000 - Belo Horizonte, MG",
       "phone": "(31) 99999-8888",
-      "email": "bhshopping@securedguard.com",
+      "email": "bhshopping@fluxbus.com",
       "parentId": null,
       "clientId": null,
       "createdAt": "2025-06-25T08:30:00",
@@ -162,7 +162,7 @@
         "description": "Unidade operacional no BH Shopping",
         "address": "Av. Cristiano Machado, 4000 - Belo Horizonte, MG",
         "phone": "(31) 99999-8888",
-        "email": "bhshopping@securedguard.com",
+        "email": "bhshopping@fluxbus.com",
         "parentId": null,
         "clientId": null,
         "createdAt": "2025-06-25T08:30:00",
@@ -174,7 +174,7 @@
         "description": "Unidade operacional no centro da cidade",
         "address": "Rua da Liberdade, 100 - Centro - Belo Horizonte, MG",
         "phone": "(31) 88888-7777",
-        "email": "centro@securedguard.com",
+        "email": "centro@fluxbus.com",
         "parentId": null,
         "clientId": 1,
         "createdAt": "2025-06-25T07:15:00",

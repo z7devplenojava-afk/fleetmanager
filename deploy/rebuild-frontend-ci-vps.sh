@@ -10,12 +10,12 @@ echo "🔨 Rebuild do Frontend CI na VPS"
 echo "=================================="
 
 # Caminho do projeto
-PROJECT_DIR="/var/www/secured_guard/ci"
+PROJECT_DIR="/var/www/fluxbus/ci"
 cd "$PROJECT_DIR" || exit 1
 
 echo ""
 echo "📦 Fazendo pull das novas imagens do Docker Hub..."
-docker pull z7design/secured-guard-frontend:ci
+docker pull z7design/fluxbus-frontend:ci
 
 echo ""
 echo "🔄 Reiniciando o container do frontend..."
@@ -31,5 +31,5 @@ docker ps | grep frontend-ci
 
 echo ""
 echo "📋 Logs do frontend (últimas 20 linhas):"
-docker logs --tail 20 secured-guard-frontend-ci
+docker logs --tail 20 fluxbus-frontend-ci
 

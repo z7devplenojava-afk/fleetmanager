@@ -22,6 +22,10 @@ export interface StockItem {
   notes?: string;
   isLowStock: boolean;
   fullName: string;
+  caNumber?: string;
+  caValidity?: string;
+  manufacturer?: string;
+  epiId?: string;
 }
 
 export interface StockMovement {
@@ -134,6 +138,10 @@ export interface CreateStockItemDTO {
   barcode?: string;
   unitId?: string;
   notes?: string;
+  caNumber?: string;
+  caValidity?: string;
+  manufacturer?: string;
+  epiId?: string;
 }
 
 export interface ImportStockResult {

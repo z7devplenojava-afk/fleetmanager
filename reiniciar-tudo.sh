@@ -10,7 +10,7 @@ echo "🔄 REINICIANDO TODOS OS SERVIÇOS"
 echo "🔄 =========================================="
 echo ""
 
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 echo "1️⃣ Parando todos os containers..."
 docker-compose -f docker-compose.ci.yml down
@@ -38,7 +38,7 @@ echo "6️⃣ Verificando se o backend está respondendo..."
 MAX_RETRIES=10
 RETRY=0
 while [ $RETRY -lt $MAX_RETRIES ]; do
-    RESPONSE=$(docker exec secured-guard-backend-ci curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/api/health 2>/dev/null || echo "000")
+    RESPONSE=$(docker exec fluxbus-backend-ci curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/api/health 2>/dev/null || echo "000")
     if [ "$RESPONSE" = "200" ]; then
         echo "   ✅ Backend está respondendo (HTTP $RESPONSE)"
         break
@@ -50,7 +50,7 @@ while [ $RETRY -lt $MAX_RETRIES ]; do
         else
             echo "   ❌ Backend não está respondendo após $MAX_RETRIES tentativas"
             echo "   Verificando logs..."
-            docker logs --tail=50 secured-guard-backend-ci
+            docker logs --tail=50 fluxbus-backend-ci
             exit 1
         fi
     fi
@@ -58,7 +58,7 @@ done
 
 echo ""
 echo "7️⃣ Verificando JWT_SECRET..."
-JWT_SECRET=$(docker exec secured-guard-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
+JWT_SECRET=$(docker exec fluxbus-backend-ci printenv JWT_SECRET 2>/dev/null || echo "")
 if [ -n "$JWT_SECRET" ]; then
     JWT_LENGTH=${#JWT_SECRET}
     echo "   JWT_SECRET: $JWT_LENGTH caracteres"

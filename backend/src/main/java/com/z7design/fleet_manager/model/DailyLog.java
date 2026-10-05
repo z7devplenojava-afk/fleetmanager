@@ -67,6 +67,11 @@ public class DailyLog {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    // PRD VSS Fase 3: viagem que gerou este log (finalizacao da viagem)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "trip_id")
+    private Trip trip;
+
     // PRD Módulo 3 (RF-03.5): vínculo da Parte Diária com a folha do talão
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id")

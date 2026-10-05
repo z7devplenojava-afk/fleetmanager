@@ -1,1 +1,0 @@
--- This migration is no longer needed as we're using created_at column 

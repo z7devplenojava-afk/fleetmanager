@@ -2,7 +2,7 @@
 Write-Host "🔍 Verificando configuração do GitHub Actions..." -ForegroundColor Cyan
 Write-Host ""
 
-cd c:\dev\secured-guard
+cd c:\dev\fluxbus
 
 # 1. Verificar branch atual
 Write-Host "1️⃣ Verificando branch atual..." -ForegroundColor Yellow
@@ -117,7 +117,7 @@ if ($branch -eq "ci" -and -not $unpushed -and -not $status) {
     Write-Host "✅ Tudo parece estar correto!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Se o GitHub Actions ainda não executou, verifique:" -ForegroundColor Yellow
-    Write-Host "   1. Acesse: https://github.com/[seu-usuario]/secured-guard/actions" -ForegroundColor Cyan
+    Write-Host "   1. Acesse: https://github.com/[seu-usuario]/fluxbus/actions" -ForegroundColor Cyan
     Write-Host "   2. Verifique se o workflow está habilitado" -ForegroundColor Cyan
     Write-Host "   3. Verifique se há erros de sintaxe no arquivo .yml" -ForegroundColor Cyan
     Write-Host "   4. Tente executar manualmente: Actions > Run workflow" -ForegroundColor Cyan
@@ -125,6 +125,6 @@ if ($branch -eq "ci" -and -not $unpushed -and -not $status) {
 }
 
 Write-Host "🔗 Links úteis:" -ForegroundColor Cyan
-Write-Host "   - GitHub Actions: https://github.com/[seu-usuario]/secured-guard/actions" -ForegroundColor Cyan
+Write-Host "   - GitHub Actions: https://github.com/[seu-usuario]/fluxbus/actions" -ForegroundColor Cyan
 Write-Host "   - Workflow: .github/workflows/deploy-ci-docker.yml" -ForegroundColor Cyan
 Write-Host ""

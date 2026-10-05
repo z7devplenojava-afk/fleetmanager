@@ -136,6 +136,7 @@ export interface PersonalProtectiveEquipment {
   caNumber?: string;
   caValidity?: string; // Data de validade do CA
   validityMonths?: number;
+  periodicityDays?: number;
   manufacturer?: string;
   model?: string;
   unitOfMeasurement?: string;
@@ -158,6 +159,16 @@ export interface EPIDelivery {
   reason: 'ADMISSAO' | 'REPOSICAO' | 'TROCA' | 'PERDA' | 'DANO';
   notes?: string;
   deliveredBy: string;
+  status?: 'PENDENTE_CONFERENCIA_ALMOXARIFADO' | 'CONCLUIDO' | 'CANCELADO' | string;
+  verifiedByAlmoxarifado?: boolean;
+  verifiedByAlmoxarifadoAt?: string;
+  returnedEpiId?: string;
+  returnedEpiName?: string;
+  returnedQuantity?: number;
+  returnedStockRefunded?: boolean;
+  returnedCondition?: 'REAPROVEITAVEL' | 'DESCARTE' | string;
+  nextExchangeDate?: string;
+  exchangeJustification?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -240,6 +251,11 @@ export interface CreateEPIDeliveryDTO {
   reason: string;
   deliveredByUserId?: string; // ID do usuário que está fazendo a entrega
   notes?: string;
+  returnedEpiId?: string;
+  returnedQuantity?: number;
+  returnedCondition?: 'REAPROVEITAVEL' | 'DESCARTE' | string;
+  exchangeJustification?: string;
+  nextExchangeDate?: string;
 }
 
 export interface AssociateRiskToEmployeeDTO {
@@ -259,17 +275,31 @@ export const sstService = {
 
   // Alertas
   async getAlerts(): Promise<SSTAlert[]> {
-    const response = await api.get('/api/sst/alerts');
+    const response = await api.get<any[]>('/api/sst/alerts');
+    // Normaliza o contrato do backend (alertType + employee objeto) para o formato do frontend
+    return (response.data || []).map((a: any) => ({
+      ...a,
+      type: a.type ?? a.alertType,
+      employeeId: a.employeeId ?? a.employee?.id,
+      employeeName: a.employeeName ?? a.employee?.name,
+    }));
+  },
+
+  /**
+   * Executa verificação manual de vencimentos SST (ASO, CNH, treinamentos, CA de EPI, CIPA)
+   */
+  async runAlertCheck(): Promise<Record<string, number>> {
+    const response = await api.post<Record<string, number>>('/api/sst-compliance/alerts/run');
     return response.data;
   },
 
   async getAlertsByEmployee(employeeId: string): Promise<SSTAlert[]> {
-    const response = await api.get(`/sst/alerts/employee/${employeeId}`);
+    const response = await api.get(`/api/sst/alerts/employee/${employeeId}`);
     return response.data;
   },
 
   async getUnreadAlerts(employeeId: string): Promise<SSTAlert[]> {
-    const response = await api.get(`/sst/alerts/unread/employee/${employeeId}`);
+    const response = await api.get(`/api/sst/alerts/unread/employee/${employeeId}`);
     return response.data;
   },
 
@@ -279,15 +309,15 @@ export const sstService = {
   },
 
   async markAlertAsRead(alertId: string): Promise<void> {
-    await api.post(`/sst/alerts/${alertId}/read`);
+    await api.post(`/api/sst/alerts/${alertId}/read`);
   },
 
   async markAlertAsResolved(alertId: string): Promise<void> {
-    await api.post(`/sst/alerts/${alertId}/resolve`);
+    await api.post(`/api/sst/alerts/${alertId}/resolve`);
   },
 
   async getUnreadAlertsCount(employeeId: string): Promise<number> {
-    const response = await api.get(`/sst/alerts/count/unread/employee/${employeeId}`);
+    const response = await api.get(`/api/sst/alerts/count/unread/employee/${employeeId}`);
     return response.data;
   },
 
@@ -422,37 +452,40 @@ export const sstService = {
   },
 
   async getTrainingParticipations(): Promise<TrainingParticipation[]> {
-    const response = await api.get('/api/sst/training-participations');
+    const response = await api.get('/api/sst/trainings/participations');
     return response.data;
   },
 
   async getTrainingParticipationById(id: string): Promise<TrainingParticipation> {
-    const response = await api.get(`/sst/training-participations/${id}`);
+    const response = await api.get(`/api/sst/trainings/participations/${id}`);
     return response.data;
   },
 
   async createTrainingParticipation(participation: CreateTrainingParticipationDTO): Promise<TrainingParticipation> {
-    const response = await api.post('/api/sst/training-participations', participation);
+    const response = await api.post('/api/sst/trainings/participations', participation);
     return response.data;
   },
 
   async updateTrainingParticipation(id: string, participation: Partial<TrainingParticipation>): Promise<TrainingParticipation> {
-    const response = await api.put(`/sst/training-participations/${id}`, participation);
+    const response = await api.put(`/api/sst/trainings/participations/${id}`, participation);
     return response.data;
   },
 
   async deleteTrainingParticipation(id: string): Promise<void> {
-    await api.delete(`/sst/training-participations/${id}`);
+    await api.delete(`/api/sst/trainings/participations/${id}`);
   },
 
   async getTrainingParticipationsByEmployee(employeeId: string): Promise<TrainingParticipation[]> {
-    const response = await api.get(`/sst/training-participations/employee/${employeeId}`);
+    const response = await api.get(`/api/sst/trainings/participations/employee/${employeeId}`);
     return response.data;
   },
 
   async getExpiredOrExpiringTrainings(days: number = 30): Promise<TrainingParticipation[]> {
-    const response = await api.get(`/sst/training-participations/expired-or-expiring/${days}`);
-    return response.data;
+    const [expired, expiring] = await Promise.all([
+      api.get<TrainingParticipation[]>('/api/sst/trainings/expired').then(r => r.data).catch(() => []),
+      api.get<TrainingParticipation[]>(`/api/sst/trainings/expiring?daysAhead=${days}`).then(r => r.data).catch(() => []),
+    ]);
+    return [...expired, ...expiring];
   },
 
   // Acidentes
@@ -537,6 +570,13 @@ export const sstService = {
 
   async createEPIDelivery(delivery: CreateEPIDeliveryDTO): Promise<EPIDelivery> {
     const response = await api.post('/api/sst/epi-deliveries', delivery);
+    return response.data;
+  },
+
+  async verifyDeliveryByAlmoxarifado(id: string, userId?: string): Promise<EPIDelivery> {
+    const response = await api.post(`/api/sst/epi-deliveries/${id}/verify-almoxarifado`, null, {
+      params: userId ? { userId } : {}
+    });
     return response.data;
   },
 

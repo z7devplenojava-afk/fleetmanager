@@ -13,7 +13,7 @@ public interface ProcurementQuoteComparisonRepository extends JpaRepository<Proc
 
     List<ProcurementQuoteComparison> findByCompanyIdOrderByCreatedAtDesc(UUID companyId);
 
-    Optional<ProcurementQuoteComparison> findByRequisitionId(UUID requisitionId);
+    List<ProcurementQuoteComparison> findByRequisitionId(UUID requisitionId);
 
     Optional<ProcurementQuoteComparison> findByIdAndCompanyId(UUID id, UUID companyId);
 }

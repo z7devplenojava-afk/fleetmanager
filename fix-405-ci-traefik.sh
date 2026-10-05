@@ -11,7 +11,7 @@ echo "🔧 Iniciando correção do erro 405 no ambiente CI..."
 # Verificar se está no diretório correto
 if [ ! -f "docker-compose.ci.yml" ]; then
     echo "❌ Erro: docker-compose.ci.yml não encontrado!"
-    echo "Execute este script no diretório /var/www/secured_guard"
+    echo "Execute este script no diretório /var/www/fluxbus"
     exit 1
 fi
 
@@ -40,7 +40,7 @@ sleep 10
 # Verificar se o backend está saudável
 echo "🏥 Verificando saúde do backend..."
 for i in {1..30}; do
-    if docker exec secured-guard-backend-ci curl -f http://localhost:8081/api/health 2>/dev/null; then
+    if docker exec fluxbus-backend-ci curl -f http://localhost:8081/api/health 2>/dev/null; then
         echo "✅ Backend está saudável!"
         break
     fi
@@ -77,5 +77,5 @@ echo "✅ Correção concluída!"
 echo ""
 echo "📝 Próximos passos:"
 echo "1. Teste o login no frontend: https://ci.z7botsolutions.com.br"
-echo "2. Verifique os logs se houver problemas: docker logs secured-guard-backend-ci"
+echo "2. Verifique os logs se houver problemas: docker logs fluxbus-backend-ci"
 echo "3. Se necessário, restaure o backup: cp docker-compose.ci.yml.backup.* docker-compose.ci.yml"

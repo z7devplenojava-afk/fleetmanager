@@ -2,7 +2,7 @@
 -- EXECUTAR AGORA - Criar tabela de logs
 -- ==========================================
 -- Execute este SQL no DBeaver conectado ao banco LOCAL
--- Base de dados: secured_guard (não secured_guard_ci)
+-- Base de dados: fluxbus (não fluxbus_ci)
 
 -- 1. Criar tabela payslip_delivery_logs
 CREATE TABLE IF NOT EXISTS payslip_delivery_logs (

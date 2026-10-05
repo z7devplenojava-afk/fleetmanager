@@ -265,7 +265,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         </header>
 
         {/* Conteúdo da página */}
-        <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-visible bg-background relative z-10">
+        <main className="flex-1 p-2 sm:p-3 md:p-4 overflow-visible bg-background relative z-10">
           {/* Fundo Personalizado VSS (Viação São Silvestre) */}
           {isVss && (
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none">

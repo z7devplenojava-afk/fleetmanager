@@ -45,7 +45,8 @@ import {
   FileSpreadsheet,
   Lock,
   Calculator,
-  BarChart3
+  BarChart3,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -54,6 +55,8 @@ import { clientService, Client } from '@/services/clientService';
 import leadService from '@/services/leadService';
 import ContractGenerationModal from '@/components/comercial/ContractGenerationModal';
 import ProposalDocumentModal from '@/components/comercial/ProposalDocumentModal';
+import CommercialEmailQuotationsTab from '@/components/comercial/CommercialEmailQuotationsTab';
+import { CommercialQuotation } from '@/services/commercialEmailService';
 import { ContractRetentionTab } from '@/components/financeiro/ContractRetentionTab';
 import CostSimulationTab, { SelectedSimulationFleetItem } from '@/components/financeiro/CostSimulationTab';
 import { ProposalFleetItem } from '@/services/proposalService';
@@ -210,6 +213,43 @@ const Propostas = () => {
     toast({
       title: "Proposta de Frota Gerada",
       description: `Proposta comercial com ${totalVehicles} veículo(s) gerada com sucesso.`,
+    });
+  };
+
+  // Handler para gerar proposta comercial a partir de uma cotação recebida por e-mail
+  const handleGenerateProposalFromQuotation = (quotation: CommercialQuotation) => {
+    const descParts = [
+      `Origem da Solicitação: E-mail Comercial (${quotation.senderEmail})`,
+      quotation.senderName ? `Contato: ${quotation.senderName}` : '',
+      `Assunto: ${quotation.subject}`,
+      quotation.extractedOrigin || quotation.extractedDestination ? `• Rota: ${quotation.extractedOrigin || 'A definir'} ➔ ${quotation.extractedDestination || 'A definir'}` : '',
+      quotation.extractedTripDate ? `• Data Ida: ${quotation.extractedTripDate}` : '',
+      quotation.extractedReturnDate ? `• Data Retorno: ${quotation.extractedReturnDate}` : '',
+      quotation.extractedPassengers ? `• Passageiros: ${quotation.extractedPassengers}` : '',
+      quotation.extractedVehicleType ? `• Veículo Sugerido: ${quotation.extractedVehicleType}` : '',
+      quotation.attachments && quotation.attachments.length > 0 ? `• Documentos Anexos: ${quotation.attachments.map(a => a.fileName).join(', ')}` : '',
+      '',
+      '--- Detalhes Extraídos do E-mail ---',
+      quotation.bodyText ? quotation.bodyText.substring(0, 1000) : ''
+    ].filter(Boolean);
+
+    const generatedProposal: Proposal = {
+      id: quotation.id,
+      proposalNumber: `PROP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      title: `Proposta Comercial - ${quotation.subject || 'Cotação Solicitada'}`,
+      clientName: quotation.clientName || quotation.senderName || quotation.senderEmail,
+      description: descParts.join('\n'),
+      totalValue: 0,
+      validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+      status: 'DRAFT',
+    };
+
+    setDocumentProposal(generatedProposal);
+    setIsDocumentModalOpen(true);
+    toast({
+      title: "Proposta Pré-Preenchida da Cotação",
+      description: "A proposta comercial foi aberta com os dados extraídos do e-mail para precificação e envio.",
     });
   };
 
@@ -617,6 +657,13 @@ const Propostas = () => {
             <BarChart3 className="h-4 w-4" />
             <span>DRE por Placa</span>
           </TabsTrigger>
+          <TabsTrigger
+            value="cotacoes-email"
+            className="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold tracking-wide transition-all duration-200 data-[state='active']:bg-red-600 data-[state='active']:text-white data-[state='active']:shadow-md data-[state='active']:shadow-red-600/20 text-muted-foreground hover:text-foreground hover:bg-accent/50 flex items-center justify-center gap-2"
+          >
+            <Mail className="h-4 w-4" />
+            <span>Cotações por E-mail</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="precificacao" className="mt-4">
@@ -632,6 +679,12 @@ const Propostas = () => {
 
         <TabsContent value="dre" className="mt-4">
           <DrePanel />
+        </TabsContent>
+
+        <TabsContent value="cotacoes-email" className="mt-4">
+          <CommercialEmailQuotationsTab
+            onGenerateProposalFromQuotation={handleGenerateProposalFromQuotation}
+          />
         </TabsContent>
       </Tabs>
     </StandardLayout>

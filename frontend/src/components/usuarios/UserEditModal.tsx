@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { User, Mail, Shield, Users, Save, X } from 'lucide-react';
 import { User as UserType, UserRole, UserGroupData } from '@/types/user';
 import { getRoleDisplayName, getRoleColor, USER_ROLE_LIST } from '@/utils/permissions';
+import { RoleMultiSelect } from './RoleMultiSelect';
 import { userService } from '@/services/userService';
 import { companyService } from '@/services/companyService';
 import { useToast } from '@/hooks/use-toast';
@@ -45,7 +46,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
     name: '',
     email: '',
     username: '',
-    role: '',
+    roles: [] as UserRole[],
     active: true,
     whatsapp: '',
     password: '',
@@ -68,11 +69,24 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
   useEffect(() => {
     if (user) {
+      const extractedRoles: UserRole[] = [];
+      if (user.roles && Array.isArray(user.roles)) {
+        user.roles.forEach((r: any) => {
+          const roleName = typeof r === 'string' ? r : r?.name;
+          if (roleName) {
+            extractedRoles.push(roleName.replace(/^ROLE_/, '') as UserRole);
+          }
+        });
+      }
+      if (extractedRoles.length === 0 && user.role) {
+        extractedRoles.push((user.role as string).replace(/^ROLE_/, '') as UserRole);
+      }
+
       setFormData({
         name: user.name || '',
         email: user.email || '',
         username: user.username || '',
-        role: user.roles && user.roles.length > 0 ? (typeof user.roles[0] === 'string' ? user.roles[0] as string : (user.roles[0] as { name: string }).name) : '',
+        roles: extractedRoles,
         active: user.active !== false,
         whatsapp: user.whatsapp || '',
         password: '',
@@ -159,6 +173,35 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
       }
     }
 
+    if (formData.roles.length === 0) {
+      toast({
+        title: 'Erro!',
+        description: 'O usuário deve possuir ao menos uma função (role) atribuída.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const cleanWhatsapp = formData.whatsapp ? formData.whatsapp.replace(/\D/g, '') : '';
+    if (cleanWhatsapp && (cleanWhatsapp.length < 9 || cleanWhatsapp.length > 20)) {
+      toast({
+        title: 'Erro!',
+        description: 'O número de WhatsApp deve conter entre 9 e 20 dígitos.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const cleanPhone = formData.phone ? formData.phone.replace(/\D/g, '') : '';
+    if (cleanPhone && (cleanPhone.length < 9 || cleanPhone.length > 20)) {
+      toast({
+        title: 'Erro!',
+        description: 'O telefone deve conter entre 9 e 20 dígitos.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const updateData: {
@@ -167,7 +210,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         username: string;
         roles: string[];
         active: boolean;
-        whatsapp: string;
+        whatsapp?: string;
         password?: string;
         avatar?: string;
         department?: string;
@@ -177,19 +220,19 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         address?: string;
         companyId?: string;
       } = {
-        name: formData.name,
-        email: formData.email,
-        username: formData.username,
-        roles: formData.role ? [formData.role] : [],
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        username: formData.username.trim(),
+        roles: formData.roles,
         active: formData.active,
-        whatsapp: formData.whatsapp,
+        whatsapp: cleanWhatsapp || undefined,
         avatar: formData.avatar || '',
         department: formData.department || '',
         position: formData.position || '',
         employeeCode: formData.employeeCode || '',
-        phone: formData.phone || '',
+        phone: cleanPhone || undefined,
         address: formData.address || '',
-        companyId: formData.companyId || undefined,
+        companyId: formData.companyId && formData.companyId.trim() !== '' ? formData.companyId.trim() : undefined,
       };
 
       // Apenas ADMINS podem alterar senha via UI de edição
@@ -380,37 +423,12 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="role" className="text-seguranca-lightgray">
-                    Função *
-                  </Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value) => handleInputChange('role', value as UserRole)}
-                  >
-                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                      <SelectValue placeholder="Selecione a função" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-seguranca-black border-gray-600">
-                      {USER_ROLE_LIST
-                        .filter(role => {
-                          const isFlexAdmin = hasRole('FLEX_ADMIN') || hasRole('SUPER_ADMIN');
-                          if (!isFlexAdmin) {
-                            return role !== 'FLEX_ADMIN' && role !== 'SUPER_ADMIN' && role !== 'TI_SUPORTE';
-                          }
-                          return true;
-                        })
-                        .map((role) => (
-                          <SelectItem key={role} value={role}>
-                            <div className="flex items-center gap-2">
-                              <Badge className={getRoleColor(role)}>
-                                {getRoleDisplayName(role)}
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                <div className="col-span-full">
+                  <RoleMultiSelect
+                    selectedRoles={formData.roles}
+                    onChange={(roles) => handleInputChange('roles', roles)}
+                    isSuperAdmin={hasRole('FLEX_ADMIN') || hasRole('SUPER_ADMIN')}
+                  />
                 </div>
 
                 {/* Seleção de Empresa */}
@@ -734,7 +752,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isLoading || !formData.name || !formData.email || !formData.username || !formData.role}
+            disabled={isLoading || !formData.name?.trim() || !formData.email?.trim() || !formData.username?.trim() || formData.roles.length === 0}
             className="bg-seguranca-red hover:bg-seguranca-darkred"
           >
             <Save className="h-4 w-4 mr-2" />

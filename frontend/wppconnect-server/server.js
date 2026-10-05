@@ -8,7 +8,7 @@ app.use(express.json());
 // Simular status do WhatsApp
 let whatsappStatus = {
     connected: false,
-    session: 'securedguard'
+    session: 'fluxbus'
 };
 
 // Simular QR Code

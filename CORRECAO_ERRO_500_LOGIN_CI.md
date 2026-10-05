@@ -23,7 +23,7 @@ O endpoint `/api/auth/login` estava retornando erro 500 (Internal Server Error) 
 jwt.secret=${JWT_SECRET}
 
 # Depois:
-jwt.secret=${JWT_SECRET:jwt_secret_ci_2025_secure_key_256bits_minimum_required_by_hmac_sha}
+jwt.secret=${JWT_SECRET:CHANGE_THIS_JWT_SECRET}
 ```
 
 Isso garante que, mesmo se a variável de ambiente `JWT_SECRET` não estiver definida, o sistema usará um valor padrão seguro.

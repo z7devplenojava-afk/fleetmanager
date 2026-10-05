@@ -28,11 +28,31 @@ export const VehicleFinesSection: React.FC<VehicleFormSectionProps> = ({ formDat
     const { data: fines, isLoading, refetch, isFetching } = useQuery({
         queryKey: ['vehicle-fines', vehicleId, plate],
         queryFn: async () => {
-            const allFines = await fleetService.getFines(vehicleId || undefined);
-            if (!vehicleId && plate) {
-                return allFines.filter(f => f.licensePlate?.toUpperCase() === plate);
+            let finesList: Fine[] = [];
+            if (vehicleId) {
+                try {
+                    finesList = await fleetService.getFines(vehicleId);
+                } catch (err) {
+                    console.warn('Erro ao buscar multas por vehicleId:', err);
+                }
             }
-            return allFines;
+            // Se não encontrou por vehicleId ou não tem vehicleId, tenta buscar e cruzar por placa/ID
+            if ((!finesList || finesList.length === 0) && (plate || vehicleId)) {
+                try {
+                    const allFines = await fleetService.getFines();
+                    const cleanPlate = plate.replace(/[^A-Z0-9]/g, '');
+                    finesList = (allFines || []).filter(f => {
+                        if (vehicleId && (f as any).vehicleId === vehicleId) return true;
+                        if (cleanPlate && f.licensePlate) {
+                            return f.licensePlate.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanPlate;
+                        }
+                        return false;
+                    });
+                } catch (err) {
+                    console.warn('Erro ao buscar multas gerais:', err);
+                }
+            }
+            return finesList || [];
         },
         enabled: Boolean(vehicleId || plate),
         retry: 1

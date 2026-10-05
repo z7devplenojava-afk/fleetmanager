@@ -118,7 +118,7 @@ class NotificationService {
           <li>Documentar ações tomadas</li>
         </ul>
         
-        <p><strong>Este é um alerta automático do sistema SecuredGuard.</strong></p>
+        <p><strong>Este é um alerta automático do sistema FluxBus.</strong></p>
       `,
       priority: 'alta'
     };
@@ -237,14 +237,14 @@ class NotificationService {
           
           <h3>Próximos Passos:</h3>
           <ol>
-            <li>Acesse o sistema SecuredGuard</li>
+            <li>Acesse o sistema FluxBus</li>
             <li>Navegue até o módulo correspondente</li>
             <li>Analise os detalhes do contrato</li>
             <li>Execute as ações necessárias</li>
             <li>Atualize o status no sistema</li>
           </ol>
           
-          <p><strong>Este é um alerta automático do sistema SecuredGuard.</strong></p>
+          <p><strong>Este é um alerta automático do sistema FluxBus.</strong></p>
         `,
         priority: notif.prioridade
       };
@@ -302,7 +302,7 @@ class NotificationService {
           <li>Definir estratégia de abordagem</li>
         </ul>
         
-        <p><strong>Este é um alerta automático do sistema SecuredGuard.</strong></p>
+        <p><strong>Este é um alerta automático do sistema FluxBus.</strong></p>
       `,
       priority: 'media'
     };
@@ -354,7 +354,7 @@ class NotificationService {
           <li>Documentar interações</li>
         </ul>
         
-        <p><strong>Este é um alerta automático do sistema SecuredGuard.</strong></p>
+        <p><strong>Este é um alerta automático do sistema FluxBus.</strong></p>
       `,
       priority: 'media'
     };

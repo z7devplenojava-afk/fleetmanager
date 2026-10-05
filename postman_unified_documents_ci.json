@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Secured Guard - Documentos Unificados CI",
+    "name": "FluxBus - Documentos Unificados CI",
     "description": "Coleção para testar endpoints de documentos unificados no ambiente CI",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

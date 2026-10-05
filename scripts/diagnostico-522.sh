@@ -6,12 +6,12 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # Verificar se está rodando na VPS
-if [ ! -d "/var/www/secured_guard/ci" ]; then
-    echo "⚠️ Este script deve ser executado na VPS no diretório /var/www/secured_guard/ci"
+if [ ! -d "/var/www/fluxbus/ci" ]; then
+    echo "⚠️ Este script deve ser executado na VPS no diretório /var/www/fluxbus/ci"
     exit 1
 fi
 
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 echo "1️⃣ Status dos Containers Docker:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -20,7 +20,7 @@ echo ""
 
 echo "2️⃣ Verificando Backend (últimas 30 linhas de log):"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-docker logs --tail 30 secured-guard-backend-ci 2>&1 | tail -30
+docker logs --tail 30 fluxbus-backend-ci 2>&1 | tail -30
 echo ""
 
 echo "3️⃣ Testando Backend Internamente:"
@@ -41,7 +41,7 @@ if [ "$NGINX_STATUS" = "200" ] || [ "$NGINX_STATUS" = "302" ]; then
 else
     echo "❌ Nginx NÃO está respondendo (HTTP $NGINX_STATUS)"
     echo "📋 Logs do Nginx (últimas 20 linhas):"
-    docker logs --tail 20 secured-guard-nginx-ci 2>&1 | tail -20
+    docker logs --tail 20 fluxbus-nginx-ci 2>&1 | tail -20
 fi
 echo ""
 
@@ -59,7 +59,7 @@ echo ""
 
 echo "6️⃣ Verificando Redis:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-REDIS_STATUS=$(docker exec secured-guard-redis-ci redis-cli ping 2>&1 || echo "ERROR")
+REDIS_STATUS=$(docker exec fluxbus-redis-ci redis-cli ping 2>&1 || echo "ERROR")
 if [ "$REDIS_STATUS" = "PONG" ]; then
     echo "✅ Redis está respondendo"
 else
@@ -69,7 +69,7 @@ echo ""
 
 echo "7️⃣ Verificando PostgreSQL:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-PG_STATUS=$(docker exec secured-guard-db-ci pg_isready -U postgressg 2>&1 || echo "ERROR")
+PG_STATUS=$(docker exec fluxbus-db-ci pg_isready -U postgressg 2>&1 || echo "ERROR")
 if echo "$PG_STATUS" | grep -q "accepting connections"; then
     echo "✅ PostgreSQL está aceitando conexões"
 else
@@ -106,7 +106,7 @@ else
     echo ""
     echo "🔧 Ações sugeridas:"
     echo "   1. Reiniciar containers: docker-compose -f docker-compose.ci.yml restart"
-    echo "   2. Verificar logs: docker logs secured-guard-backend-ci"
+    echo "   2. Verificar logs: docker logs fluxbus-backend-ci"
     echo "   3. Verificar se há erros de compilação ou configuração"
 fi
 

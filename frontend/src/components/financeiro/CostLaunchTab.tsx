@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,10 @@ import {
   costSimulationService,
 } from '@/services/costSimulationService';
 import { SEED_ROUTE_TEMPLATES, RouteCostTemplate } from '@/services/costSeedData';
+import { clientService } from '@/services/clientService';
+import workScaleService, { WorkScale } from '@/services/workScaleService';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
+import { ClientFormModal } from '@/components/clientes/ClientFormModal';
 import {
   Calculator,
   DollarSign,
@@ -42,6 +46,8 @@ import {
   Clock,
   Car,
   Bus,
+  PlusCircle,
+  Clock4,
 } from 'lucide-react';
 
 interface ClientOption {
@@ -129,6 +135,15 @@ export const CostLaunchTab: React.FC<CostLaunchTabProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string>('');
 
+  // Clientes e Escalas carregados da base (para busca a partir de 3 caracteres)
+  const [clientOptions, setClientOptions] = useState<ClientOption[]>(clients);
+  const [scaleOptions, setScaleOptions] = useState<WorkScale[]>([]);
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [showScaleModal, setShowScaleModal] = useState(false);
+  const [newScaleName, setNewScaleName] = useState('');
+  const [newScaleType, setNewScaleType] = useState('CUSTOM');
+  const [savingScale, setSavingScale] = useState(false);
+
   // Atualizar quando initialData mudar
   React.useEffect(() => {
     if (initialData) {
@@ -138,6 +153,89 @@ export const CostLaunchTab: React.FC<CostLaunchTabProps> = ({
 
   const setField = (field: keyof CostSimulation, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // ── Carregamento de Clientes e Escalas (busca com 3+ caracteres) ──────
+  const loadClients = useCallback(async () => {
+    try {
+      const res: any = await clientService.getClients();
+      const list = Array.isArray(res) ? res : res?.content || [];
+      const fresh: ClientOption[] = list.map((c: any) => ({ id: String(c.id), name: c.name || c.nome }));
+      // Preserva leads/opções do pai que não venham da listagem de clientes
+      setClientOptions((prev) => {
+        const ids = new Set(fresh.map((c) => c.id));
+        const extras = prev.filter((c) => !ids.has(c.id));
+        return [...fresh, ...extras];
+      });
+    } catch {
+      // mantém os clients recebidos via props como fallback
+    }
+  }, []);
+
+  const loadScales = useCallback(async () => {
+    try {
+      const list = await workScaleService.list();
+      setScaleOptions(list);
+    } catch {
+      setScaleOptions([]);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadClients();
+    loadScales();
+  }, [loadClients, loadScales]);
+
+  // Sincroniza com a lista recebida do componente pai
+  React.useEffect(() => {
+    if (clients.length > 0) {
+      setClientOptions((prev) => (prev.length > 0 ? prev : clients));
+    }
+  }, [clients]);
+
+  const handleClientCreated = async (createdClient?: any) => {
+    setShowClientModal(false);
+    if (createdClient?.id) {
+      await loadClients();
+      setField('clientId', String(createdClient.id));
+      setField('clientName', createdClient.name || null);
+      toast({
+        title: 'Cliente vinculado',
+        description: `Cliente "${createdClient.name}" cadastrado e vinculado à simulação.`,
+      });
+    }
+  };
+
+  const handleCreateScale = async () => {
+    if (!newScaleName.trim()) {
+      toast({
+        title: 'Campo Obrigatório',
+        description: 'Informe o nome da escala de trabalho.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSavingScale(true);
+    try {
+      const created = await workScaleService.create({ name: newScaleName.trim(), type: newScaleType });
+      await loadScales();
+      setField('scale', created.name);
+      setShowScaleModal(false);
+      setNewScaleName('');
+      setNewScaleType('CUSTOM');
+      toast({
+        title: 'Escala Cadastrada',
+        description: `Escala "${created.name}" criada e selecionada com sucesso.`,
+      });
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao Cadastrar Escala',
+        description: e?.response?.data?.message || 'Não foi possível cadastrar a escala de trabalho.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingScale(false);
+    }
   };
 
   // Cálculo reativo em tempo real (espelho do Excel / backend)
@@ -371,23 +469,36 @@ export const CostLaunchTab: React.FC<CostLaunchTabProps> = ({
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold">Escala de Trabalho *</Label>
-                      <Select
-                        value={form.scale || 'SEG Á SAB'}
-                        onValueChange={(v) => setField('scale', v)}
-                      >
-                        <SelectTrigger className="text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="SEG Á SAB">SEG Á SAB (Segunda a Sábado - 26 dias)</SelectItem>
-                          <SelectItem value="SEG Á SEX">SEG Á SEX (Segunda a Sexta - 22 dias)</SelectItem>
-                          <SelectItem value="5x2">Escala 5x2 Comercial</SelectItem>
-                          <SelectItem value="6x1">Escala 6x1 Operacional</SelectItem>
-                          <SelectItem value="12x36">Escala 12x36 Contínua</SelectItem>
-                          <SelectItem value="DOM A DOM">DOM A DOM (30 dias ininterruptos)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold">Escala de Trabalho *</Label>
+                        <button
+                          type="button"
+                          onClick={() => setShowScaleModal(true)}
+                          className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                          title="Cadastrar nova escala de trabalho"
+                        >
+                          <PlusCircle className="h-3 w-3" />
+                          Nova Escala
+                        </button>
+                      </div>
+                      <SearchableSelect
+                        value={form.scale || ''}
+                        onChange={(value) => setField('scale', value)}
+                        options={scaleOptions.map((s): SearchableOption => ({
+                          value: s.name,
+                          label: s.name,
+                          subtitle: s.type === 'WEEKLY' ? 'Semanal'
+                            : s.type === 'ROTATING_12X36' ? 'Rotativo 12x36'
+                            : s.type === 'ROTATING_24X48' ? 'Rotativo 24x48'
+                            : 'Customizada',
+                        }))}
+                        placeholder="Digite 3 caracteres para buscar ou selecione..."
+                        searchPlaceholder="Buscar escala por nome..."
+                        emptyText="Nenhuma escala encontrada. Clique em 'Nova Escala' para cadastrar."
+                        minSearchLength={3}
+                        minSearchHint="Digite pelo menos 3 caracteres para buscar."
+                        className="text-xs"
+                      />
                     </div>
 
                     <div className="sm:col-span-2 space-y-1.5">
@@ -401,32 +512,44 @@ export const CostLaunchTab: React.FC<CostLaunchTabProps> = ({
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold">Cliente / Lead Vinculado (Opcional)</Label>
-                      <Select
-                        value={form.clientId || 'none'}
-                        onValueChange={(v) => {
-                          if (v === 'none') {
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold">Cliente / Lead Vinculado (Opcional)</Label>
+                        <button
+                          type="button"
+                          onClick={() => setShowClientModal(true)}
+                          className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                          title="Cadastrar novo cliente sem sair da tela"
+                        >
+                          <PlusCircle className="h-3 w-3" />
+                          Novo Cliente
+                        </button>
+                      </div>
+                      <SearchableSelect
+                        value={form.clientId || ''}
+                        onChange={(value) => {
+                          if (!value) {
                             setField('clientId', null);
                             setField('clientName', null);
                           } else {
-                            const found = clients.find((c) => String(c.id) === v);
-                            setField('clientId', v);
+                            const found = clientOptions.find((c) => String(c.id) === value);
+                            setField('clientId', value);
                             setField('clientName', found ? found.name : null);
                           }
                         }}
-                      >
-                        <SelectTrigger className="text-xs">
-                          <SelectValue placeholder="Selecione um cliente / lead..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Sem cliente vinculado</SelectItem>
-                          {clients.map((c) => (
-                            <SelectItem key={c.id} value={String(c.id)} className="text-xs">
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        options={[
+                          { value: '', label: 'Sem cliente vinculado' },
+                          ...clientOptions.map((c): SearchableOption => ({
+                            value: String(c.id),
+                            label: c.name,
+                          })),
+                        ]}
+                        placeholder="Digite 3 caracteres para buscar o cliente..."
+                        searchPlaceholder="Buscar cliente por nome..."
+                        emptyText="Nenhum cliente encontrado. Clique em 'Novo Cliente' para cadastrar."
+                        minSearchLength={3}
+                        minSearchHint="Digite pelo menos 3 caracteres para buscar."
+                        className="text-xs"
+                      />
                     </div>
 
                     <div className="space-y-1.5">
@@ -997,6 +1120,79 @@ export const CostLaunchTab: React.FC<CostLaunchTabProps> = ({
           </Card>
         </div>
       </div>
+
+      {/* Modal de Cadastro Rápido de Cliente (sem sair da tela) */}
+      <ClientFormModal
+        isOpen={showClientModal}
+        onClose={() => setShowClientModal(false)}
+        onSuccess={handleClientCreated}
+      />
+
+      {/* Modal de Cadastro Rápido de Escala de Trabalho */}
+      {showScaleModal && (
+        <div className="fixed inset-0 z-[10090] bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-card border border-border/70 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-5 border-b border-border/50 flex items-center gap-3">
+              <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
+                <Clock4 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Cadastrar Nova Escala de Trabalho</h3>
+                <p className="text-xs text-muted-foreground">A escala ficará disponível para todas as simulações.</p>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Nome da Escala *</Label>
+                <Input
+                  autoFocus
+                  placeholder="Ex.: SEG Á SAB, 5x2, 12x36, DOM A DOM..."
+                  value={newScaleName}
+                  onChange={(e) => setNewScaleName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateScale())}
+                  className="text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Tipo da Escala</Label>
+                <Select value={newScaleType} onValueChange={setNewScaleType}>
+                  <SelectTrigger className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CUSTOM">Customizada</SelectItem>
+                    <SelectItem value="WEEKLY">Semanal</SelectItem>
+                    <SelectItem value="ROTATING_12X36">Rotativo 12x36</SelectItem>
+                    <SelectItem value="ROTATING_24X48">Rotativo 24x48</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="p-5 pt-0 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowScaleModal(false)}
+                disabled={savingScale}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleCreateScale}
+                disabled={savingScale || !newScaleName.trim()}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+              >
+                {savingScale ? 'Salvando...' : 'Cadastrar Escala'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

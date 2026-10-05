@@ -1,7 +1,0 @@
--- V1006__rename_activity_report_valid_until_columns.sql
-
-ALTER TABLE activity_reports
-RENAME COLUMN ballistic_plate_valid_until TO ballistic_plate_ballistic_plate_valid_until;
-
-ALTER TABLE activity_reports
-RENAME COLUMN weapon_registry_valid_until TO weapon_registry_weapon_registry_valid_until;

@@ -247,7 +247,8 @@ export default function ServiceOrderIntegrated() {
           email: 'contato@fluxbus.com.br'
         },
         generatedBy: 'Sistema FluxBus',
-        generatedAt: new Date().toISOString()
+        generatedAt: new Date().toISOString(),
+        evidencePhotos: (order as any).evidencePhotos || []
       };
 
       if (action === 'download') {

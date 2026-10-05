@@ -23,6 +23,42 @@ export interface CreateContaAPagarRequest {
   notes?: string;
   centroCusto?: string;
   companySigla?: string;
+  paymentMethod?: string;
+  totalInstallments?: number;
+  parentInvoiceId?: string;
+  nfeKey?: string;
+  ddaInvoiceId?: string;
+}
+
+export interface BankCredential {
+  id?: string;
+  companyId?: string;
+  bankCode: string;
+  bankName: string;
+  clientId?: string;
+  clientSecret?: string;
+  certificatePath?: string;
+  environment?: 'SANDBOX' | 'PRODUCTION';
+  isActive?: boolean;
+}
+
+export interface DdaInvoice {
+  id: string;
+  companyId: string;
+  barcode: string;
+  linhaDigitavel?: string;
+  issuerCnpj: string;
+  issuerName: string;
+  payerCnpj: string;
+  payerName: string;
+  amount: number;
+  dueDate: string;
+  issueDate?: string;
+  status: 'DETECTED' | 'LINKED' | 'PAID' | 'DISCARDED';
+  linkedInvoiceId?: string;
+  transactionId?: string;
+  syncedAt?: string;
+  paidAt?: string;
 }
 
 export interface UpdateContaAPagarRequest extends Partial<CreateContaAPagarRequest> {
@@ -92,6 +128,15 @@ export interface ImportResultDto {
   skipped: number;
   totalRows: number;
   errors: string[];
+}
+
+export interface ExpensePdfImportResultDTO {
+  totalRead: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+  items: any[];
 }
 
 export interface ContasAPagarReport {
@@ -277,7 +322,19 @@ export const contasAPagarService = {
         dataPagamento: parseDateFromBackend(invoice.paymentDate),
         observacoes: invoice.notes,
         categoria: invoice.category,
-        centroCusto: invoice.centroCusto
+        centroCusto: invoice.centroCusto,
+        expenseNumber: invoice.expenseNumber,
+        installmentSeq: invoice.installmentSeq,
+        supplierCode: invoice.supplierCode,
+        supplierName: invoice.supplierName,
+        interestAmount: invoice.interestAmount != null ? parseFloat(invoice.interestAmount) : undefined,
+        fineAmount: invoice.fineAmount != null ? parseFloat(invoice.fineAmount) : undefined,
+        discountAmount: invoice.discountAmount != null ? parseFloat(invoice.discountAmount) : undefined,
+        adjustmentAmount: invoice.adjustmentAmount != null ? parseFloat(invoice.adjustmentAmount) : undefined,
+        paidAmount: invoice.paidAmount != null ? parseFloat(invoice.paidAmount) : undefined,
+        balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
+        bankAccountInfo: invoice.bankAccountInfo,
+        isCanceled: invoice.isCanceled
       };
     });
   },
@@ -320,7 +377,19 @@ export const contasAPagarService = {
       dataPagamento: parseDateFromBackend(invoice.paymentDate),
       observacoes: invoice.notes,
       categoria: invoice.category,
-      centroCusto: invoice.centroCusto
+      centroCusto: invoice.centroCusto,
+      expenseNumber: invoice.expenseNumber,
+      installmentSeq: invoice.installmentSeq,
+      supplierCode: invoice.supplierCode,
+      supplierName: invoice.supplierName,
+      interestAmount: invoice.interestAmount != null ? parseFloat(invoice.interestAmount) : undefined,
+      fineAmount: invoice.fineAmount != null ? parseFloat(invoice.fineAmount) : undefined,
+      discountAmount: invoice.discountAmount != null ? parseFloat(invoice.discountAmount) : undefined,
+      adjustmentAmount: invoice.adjustmentAmount != null ? parseFloat(invoice.adjustmentAmount) : undefined,
+      paidAmount: invoice.paidAmount != null ? parseFloat(invoice.paidAmount) : undefined,
+      balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
+      bankAccountInfo: invoice.bankAccountInfo,
+      isCanceled: invoice.isCanceled
     };
   },
 
@@ -459,29 +528,48 @@ export const contasAPagarService = {
   },
 
   async getCostCenters(): Promise<string[]> {
+    const DEFAULT_LIST = [
+      'Administrativo',
+      'Operacional',
+      'Manutenção e Frotas',
+      'Comercial',
+      'Financeiro',
+      'Recursos Humanos',
+      'Tecnologia da Informação',
+      'Marketing',
+      'Vendas',
+      'Produção',
+      'Logística'
+    ];
+
     try {
-      const response = await api.get('/api/cost-centers');
-      // Verificar se a resposta é um array válido
+      const response = await api.get('/cost-centers');
+      let items: string[] = [];
+
       if (Array.isArray(response.data)) {
-        return response.data.map((center: any) => center.name);
+        items = response.data
+          .map((center: any) => typeof center === 'string' ? center : (center.name || center.code || center.id || center))
+          .filter(Boolean);
+      } else if (response.data && Array.isArray((response.data as any).content)) {
+        items = (response.data as any).content
+          .map((center: any) => typeof center === 'string' ? center : (center.name || center.code || center.id || center))
+          .filter(Boolean);
       }
-      // Se não for array ou for HTML, usar fallback
-      throw new Error('Resposta inválida da API');
+
+      if (items.length === 0) {
+        try {
+          const responseInvoices = await api.get('/invoices/cost-centers');
+          if (Array.isArray(responseInvoices.data) && responseInvoices.data.length > 0) {
+            items = responseInvoices.data.filter(Boolean);
+          }
+        } catch (_) {}
+      }
+
+      const merged = Array.from(new Set([...items, ...DEFAULT_LIST]));
+      return merged;
     } catch (error) {
       console.error('Erro ao carregar centros de custo:', error);
-      // Retornar centros de custo padrão
-      return [
-        'Administrativo',
-        'Operacional',
-        'Comercial',
-        'Financeiro',
-        'Recursos Humanos',
-        'Tecnologia da Informação',
-        'Marketing',
-        'Vendas',
-        'Produção',
-        'Logística'
-      ];
+      return DEFAULT_LIST;
     }
   },
 
@@ -491,6 +579,69 @@ export const contasAPagarService = {
       paymentDate: formatDateForBackend(dataPagamento)
     });
     return this.getContaAPagarById(response.data.id);
+  },
+
+  mapInvoiceToContaAPagar(invoice: any): ContaAPagar {
+    const fornecedorId = invoice.supplierId 
+      ? (typeof invoice.supplierId === 'string' ? invoice.supplierId : String(invoice.supplierId))
+      : undefined;
+    const fornecedorNome = invoice.supplierName || 'Não informado';
+
+    return {
+      id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      dataEmissao: parseDateFromBackend(invoice.issueDate),
+      vencimento: parseDateFromBackend(invoice.dueDate) || new Date(),
+      fornecedor: fornecedorNome,
+      fornecedorId: fornecedorId || '',
+      empresa: invoice.companyName || (invoice.company && invoice.company.name) || undefined,
+      empresaId: invoice.companyId || (invoice.company && invoice.company.id) || undefined,
+      companySigla: invoice.companySigla || (invoice.company && invoice.company.sigla) || undefined,
+      cliente: invoice.clientName,
+      clienteId: invoice.clientId,
+      contrato: invoice.contractNumber,
+      contratoId: invoice.contractId,
+      obra: invoice.workPostName,
+      obraId: invoice.workPostId,
+      garagem: invoice.garageName,
+      garagemId: invoice.garageId,
+      descricao: invoice.description,
+      tipo: invoice.type || 'VARIAVEL',
+      valor: parseFloat(invoice.amount),
+      codigoBarras: invoice.barcode,
+      status: mapBackendStatusToFrontend(invoice.status),
+      baixa: invoice.baixa || false,
+      dataPagamento: parseDateFromBackend(invoice.paymentDate),
+      observacoes: invoice.notes,
+      categoria: invoice.category,
+      centroCusto: invoice.centroCusto,
+      expenseNumber: invoice.expenseNumber,
+      installmentSeq: invoice.installmentSeq,
+      supplierCode: invoice.supplierCode,
+      supplierName: invoice.supplierName,
+      interestAmount: invoice.interestAmount != null ? parseFloat(invoice.interestAmount) : undefined,
+      fineAmount: invoice.fineAmount != null ? parseFloat(invoice.fineAmount) : undefined,
+      discountAmount: invoice.discountAmount != null ? parseFloat(invoice.discountAmount) : undefined,
+      adjustmentAmount: invoice.adjustmentAmount != null ? parseFloat(invoice.adjustmentAmount) : undefined,
+      paidAmount: invoice.paidAmount != null ? parseFloat(invoice.paidAmount) : undefined,
+      balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
+      bankAccountInfo: invoice.bankAccountInfo,
+      isCanceled: invoice.isCanceled
+    };
+  },
+
+  // Importar relatório de despesas PDF
+  async importarDespesasPdf(file: File): Promise<ExpensePdfImportResultDTO> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post('/api/invoices/import-expenses-pdf', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data;
   },
 
   // Buscar contas vencidas
@@ -510,29 +661,19 @@ export const contasAPagarService = {
   // Buscar todos os fornecedores
   async getFornecedores(): Promise<Supplier[]> {
     try {
-      console.log('📦 contasAPagarService.getFornecedores: Iniciando chamada para /api/suppliers/all');
       const response = await api.get('/api/suppliers/all');
-      console.log('📦 contasAPagarService.getFornecedores: Resposta recebida:', {
-        status: response.status,
-        data: response.data,
-        dataType: typeof response.data,
-        isArray: Array.isArray(response.data),
-        length: Array.isArray(response.data) ? response.data.length : 'N/A'
-      });
       const data = response.data;
       const result = Array.isArray(data) ? data : [];
-      console.log('📦 contasAPagarService.getFornecedores: Retornando', result.length, 'fornecedores');
+      console.log('contasAPagarService.getFornecedores:', result.length, 'fornecedores');
       return result;
     } catch (error: any) {
-      console.error('❌ contasAPagarService.getFornecedores: Erro ao buscar fornecedores:', {
+      console.error('contasAPagarService.getFornecedores error:', {
         message: error?.message,
-        response: error?.response?.data,
         status: error?.response?.status,
         statusText: error?.response?.statusText,
-        error
       });
       if (isConnectionError(error)) {
-        console.warn('⚠️ Backend não está disponível. Retornando array vazio para fornecedores.');
+        console.warn('Backend indisponível. Retornando array vazio para fornecedores.');
       }
       return [];
     }
@@ -873,26 +1014,74 @@ export const contasAPagarService = {
     }
   },
 
-  // Método auxiliar para mapear invoice para ContaAPagar
-  mapInvoiceToContaAPagar(invoice: any): ContaAPagar {
-    return {
-      id: invoice.id,
-      dataEmissao: parseDateFromBackend(invoice.issueDate),
-      vencimento: parseDateFromBackend(invoice.dueDate) || new Date(),
-      fornecedor: invoice.supplierName || 'Não informado',
-      fornecedorId: invoice.supplierId,
-      descricao: invoice.description,
-      tipo: invoice.type || 'VARIAVEL',
-      valor: parseFloat(invoice.amount),
-      codigoBarras: invoice.barcode,
-      status: mapBackendStatusToFrontend(invoice.status),
-      baixa: invoice.baixa || false,
-      dataPagamento: parseDateFromBackend(invoice.paymentDate),
-      observacoes: invoice.notes,
-      categoria: invoice.category,
-      centroCusto: invoice.centroCusto,
-      createdAt: parseDateFromBackend(invoice.createdAt)
-    };
+  // Buscar lista de classificações de despesas
+  getClassificacoes: async (): Promise<string[]> => {
+    try {
+      const response = await api.get('/expense-classifications/names');
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        return response.data;
+      }
+    } catch (e) {
+      console.warn('Fallback para classificações locais:', e);
+    }
+    const { CLASSIFICACOES_SIGLO } = await import('@/constants/classificacaoContasPagar');
+    return Array.from(CLASSIFICACOES_SIGLO);
+  },
+
+  // ===== CREDENCIAIS BANCÁRIAS =====
+  getBankCredentials: async (): Promise<BankCredential[]> => {
+    try {
+      const response = await api.get('/api/bank-credentials');
+      return response.data;
+    } catch (e) {
+      console.error('Erro ao buscar credenciais bancárias:', e);
+      return [];
+    }
+  },
+
+  saveBankCredential: async (credential: BankCredential): Promise<BankCredential> => {
+    const response = await api.post('/api/bank-credentials', credential);
+    return response.data;
+  },
+
+  deleteBankCredential: async (id: string): Promise<void> => {
+    await api.delete(`/api/bank-credentials/${id}`);
+  },
+
+  testBankConnection: async (id: string): Promise<any> => {
+    const response = await api.post(`/api/bank-credentials/${id}/test`);
+    return response.data;
+  },
+
+  // ===== MOTOR DDA (DÉBITO DIRETO AUTORIZADO) =====
+  getDdaInvoices: async (): Promise<DdaInvoice[]> => {
+    try {
+      const response = await api.get('/api/dda/invoices');
+      return response.data;
+    } catch (e) {
+      console.error('Erro ao buscar boletos DDA:', e);
+      return [];
+    }
+  },
+
+  syncDdaInvoices: async (): Promise<DdaInvoice[]> => {
+    const response = await api.post('/api/dda/sync');
+    return response.data;
+  },
+
+  linkDdaToInvoice: async (ddaId: string, invoiceId: string): Promise<DdaInvoice> => {
+    const response = await api.post(`/api/dda/${ddaId}/link`, { invoiceId });
+    return response.data;
+  },
+
+  importDdaAsInvoice: async (ddaId: string): Promise<any> => {
+    const response = await api.post(`/api/dda/${ddaId}/import`);
+    return response.data;
+  },
+
+  payDdaInvoice: async (ddaId: string, paymentMethod?: string): Promise<DdaInvoice> => {
+    const response = await api.post(`/api/dda/${ddaId}/pay`, { paymentMethod: paymentMethod || 'PIX' });
+    return response.data;
   }
 };
 

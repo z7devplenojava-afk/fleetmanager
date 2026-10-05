@@ -284,6 +284,18 @@ public class EmployeeService {
             if (dto.getExameMedicoData() != null) {
                 existingEmployee.setExameMedicoData(dto.getExameMedicoData());
             }
+            // Recalcular proximo exame (validade de 1 ano)
+            if (dto.getNextExameMedico() != null) {
+                existingEmployee.setNextExameMedico(dto.getNextExameMedico());
+            } else if (dto.getExameMedicoData() != null) {
+                existingEmployee.setNextExameMedico(dto.getExameMedicoData().plusYears(1));
+            }
+            if (dto.getLaudoPsicologicoData() != null) {
+                existingEmployee.setLaudoPsicologicoData(dto.getLaudoPsicologicoData());
+                existingEmployee.setNextLaudoPsicologico(dto.getNextLaudoPsicologico() != null
+                        ? dto.getNextLaudoPsicologico()
+                        : dto.getLaudoPsicologicoData().plusYears(1));
+            }
             if (dto.getExameMedicoTipo() != null) {
                 existingEmployee.setExameMedicoTipo(dto.getExameMedicoTipo());
             }
@@ -927,6 +939,18 @@ public class EmployeeService {
             if (dto.getRneValidade() != null) {
                 e.setRneValidade(dto.getRneValidade());
             }
+            if (dto.getNumeroPortaria() != null) {
+                e.setNumeroPortaria(dto.getNumeroPortaria());
+            }
+            if (dto.getDataPortaria() != null) {
+                e.setDataPortaria(dto.getDataPortaria());
+            }
+            if (dto.getFgtsConta() != null) {
+                e.setFgtsConta(dto.getFgtsConta());
+            }
+            if (dto.getContaCorrenteDigito() != null) {
+                e.setContaCorrenteDigito(dto.getContaCorrenteDigito());
+            }
             if (dto.getRicNumero() != null) {
                 e.setRicNumero(dto.getRicNumero());
             }
@@ -984,6 +1008,18 @@ public class EmployeeService {
             // Mapear dados do exame mÃ©dico (ASO)
             if (dto.getExameMedicoData() != null) {
                 e.setExameMedicoData(dto.getExameMedicoData());
+            }
+            // Recalcular proximo exame (validade de 1 ano)
+            if (dto.getNextExameMedico() != null) {
+                e.setNextExameMedico(dto.getNextExameMedico());
+            } else if (dto.getExameMedicoData() != null) {
+                e.setNextExameMedico(dto.getExameMedicoData().plusYears(1));
+            }
+            if (dto.getLaudoPsicologicoData() != null) {
+                e.setLaudoPsicologicoData(dto.getLaudoPsicologicoData());
+                e.setNextLaudoPsicologico(dto.getNextLaudoPsicologico() != null
+                        ? dto.getNextLaudoPsicologico()
+                        : dto.getLaudoPsicologicoData().plusYears(1));
             }
             if (dto.getExameMedicoTipo() != null) {
                 e.setExameMedicoTipo(dto.getExameMedicoTipo());
@@ -1286,6 +1322,12 @@ public class EmployeeService {
                     dto.setCompany(null);
                 }
             }
+            
+            // Dados de exames (ASO, Laudo Psicológico e próximos vencimentos)
+            dto.setExameMedicoData(e.getExameMedicoData());
+            dto.setNextExameMedico(e.getNextExameMedico());
+            dto.setLaudoPsicologicoData(e.getLaudoPsicologicoData());
+            dto.setNextLaudoPsicologico(e.getNextLaudoPsicologico());
             
             System.out.println("[DEBUG] DTO criado com sucesso para: " + dto.getName());
             return dto;

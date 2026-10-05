@@ -15,7 +15,7 @@ if [ -z "$ENVIRONMENT" ] || [ -z "$ACTION" ]; then
     echo "Uso: $0 [ambiente] [ação]"
     echo ""
     echo "Ambientes disponíveis:"
-    echo "  prod   - Produção (securedguard.z7botsolutions.com.br)"
+    echo "  prod   - Produção (fluxbus.z7botsolutions.com.br)"
     echo "  dev    - Desenvolvimento (dev.z7botsolutions.com.br)"
     echo "  ci     - CI/CD (ci.z7botsolutions.com.br)"
     echo "  test   - Testes (test.z7botsolutions.com.br)"

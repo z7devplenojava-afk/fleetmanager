@@ -30,9 +30,9 @@ git remote -v
 if ! git remote | grep -q "^origin$"; then
     echo ""
     echo "⚠️ Remote 'origin' não encontrado. Adicionando..."
-    read -p "Digite a URL do repositório (ex: https://github.com/zmarioramos/secured-guard.git): " REPO_URL
+    read -p "Digite a URL do repositório (ex: https://github.com/zmarioramos/fluxbus.git): " REPO_URL
     if [ -z "$REPO_URL" ]; then
-        REPO_URL="https://github.com/zmarioramos/secured-guard.git"
+        REPO_URL="https://github.com/zmarioramos/fluxbus.git"
         echo "Usando URL padrão: $REPO_URL"
     fi
     git remote add origin "$REPO_URL"
@@ -119,7 +119,7 @@ fi
 
 echo ""
 echo "📋 Próximos passos:"
-echo "   cd /root/secured_guard/ci"
+echo "   cd /root/fluxbus/ci"
 echo "   docker-compose -f docker-compose.ci.yml up -d"
 echo ""
 

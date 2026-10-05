@@ -3,7 +3,7 @@
 # ===================== SCRIPT PARA VERIFICAR STATUS DA VPS =====================
 # Execute este script na VPS para verificar o status completo
 
-echo "🔍 Verificando status da VPS SecuredGuard..."
+echo "🔍 Verificando status da VPS FluxBus..."
 echo ""
 
 # Verificar containers Docker
@@ -13,17 +13,17 @@ echo ""
 
 # Verificar logs do backend
 echo "📋 Logs do Backend (últimas 20 linhas):"
-docker logs --tail 20 secured-guard-backend-1 2>/dev/null || echo "   ❌ Backend não encontrado"
+docker logs --tail 20 fluxbus-backend-1 2>/dev/null || echo "   ❌ Backend não encontrado"
 echo ""
 
 # Verificar logs do PostgreSQL
 echo "🗄️ Logs do PostgreSQL (últimas 10 linhas):"
-docker logs --tail 10 secured-guard-postgres-1 2>/dev/null || echo "   ❌ PostgreSQL não encontrado"
+docker logs --tail 10 fluxbus-postgres-1 2>/dev/null || echo "   ❌ PostgreSQL não encontrado"
 echo ""
 
 # Verificar bancos de dados
 echo "📊 Bancos de dados disponíveis:"
-docker exec secured-guard-postgres-1 psql -U postgressg -d postgres -c "SELECT datname FROM pg_database WHERE datname LIKE 'secured_guard%';" 2>/dev/null || echo "   ❌ Não foi possível conectar no PostgreSQL"
+docker exec fluxbus-postgres-1 psql -U postgressg -d postgres -c "SELECT datname FROM pg_database WHERE datname LIKE 'fluxbus%';" 2>/dev/null || echo "   ❌ Não foi possível conectar no PostgreSQL"
 echo ""
 
 # Verificar se backend está respondendo

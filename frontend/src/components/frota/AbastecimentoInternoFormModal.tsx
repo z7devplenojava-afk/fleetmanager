@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -36,10 +36,15 @@ import {
   FileText,
 } from 'lucide-react';
 import fleetService from '@/services/fleetService';
-import driverService from '@/services/driverService';
-import { garageService, Garage } from '@/services/garageService';
+import { employeeService } from '@/services/employeeService';
+import { garageService } from '@/services/garageService';
 import fuelPumpService, { FuelPump, FuelTank } from '@/services/fuelPumpService';
 import { Vehicle } from '@/types/fleet';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
+import { EmployeeCombobox } from '@/components/ui/employee-combobox';
+import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
+import { workPostService, WorkPost } from '@/services/workPostService';
+import { clientService, Client } from '@/services/clientService';
 
 interface InternalFuelFormData {
   // Localização
@@ -134,6 +139,7 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
   const [formData, setFormData] = useState<InternalFuelFormData>(DEFAULT_FORM);
   const [mileageError, setMileageError] = useState<string | null>(null);
   const [mileageWarning, setMileageWarning] = useState<string | null>(null);
+  const [selectedVehicleObj, setSelectedVehicleObj] = useState<any>(null);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -142,6 +148,7 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
       setFormData({ ...DEFAULT_FORM, date: new Date().toISOString().split('T')[0] });
       setMileageError(null);
       setMileageWarning(null);
+      setSelectedVehicleObj(null);
     }
   }, [isOpen]);
 
@@ -164,14 +171,29 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
     enabled: isOpen,
   });
 
-  const { data: drivers = [] } = useQuery({
-    queryKey: ['drivers', 'active'],
-    queryFn: async () => {
-      const res = await driverService.getDrivers();
-      return Array.isArray(res) ? res : [];
-    },
+  const { data: workPostsData = [] } = useQuery({
+    queryKey: ['workPostsAll'],
+    queryFn: () => workPostService.getAllWorkPosts(),
     enabled: isOpen,
   });
+
+  const { data: clientsData = [] } = useQuery({
+    queryKey: ['clientsAll'],
+    queryFn: () => clientService.getAllClients(),
+    enabled: isOpen,
+  });
+
+  const workPosts: WorkPost[] = useMemo(() => {
+    if (Array.isArray(workPostsData)) return workPostsData;
+    if (workPostsData && Array.isArray((workPostsData as any).content)) return (workPostsData as any).content;
+    return [];
+  }, [workPostsData]);
+
+  const clients: Client[] = useMemo(() => {
+    if (Array.isArray(clientsData)) return clientsData;
+    if (clientsData && Array.isArray((clientsData as any).content)) return (clientsData as any).content;
+    return [];
+  }, [clientsData]);
 
   const { data: lastFuelRecord } = useQuery({
     queryKey: ['lastFuelRecord', formData.vehicleId],
@@ -186,23 +208,101 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
     enabled: !!formData.vehicleId,
   });
 
-  // Auto-fill vehicle info when vehicle changes
+  // Função inteligente para resolver Cliente e Obra/Setor do veículo
+  const resolveVehicleClientAndObra = React.useCallback((vehicle: any, lastFuel?: any) => {
+    if (!vehicle) return { clientName: '', obraName: '' };
+
+    // 1. Resolver Cliente
+    let resolvedClient = vehicle.clientName || vehicle.client?.name || vehicle.cliente || '';
+
+    // Se não veio nome direto, tentar pelo clientId
+    if (!resolvedClient && vehicle.clientId && clients.length > 0) {
+      const foundClient = clients.find((c: any) => c.id === vehicle.clientId);
+      if (foundClient) {
+        resolvedClient = foundClient.name || (foundClient as any).corporateReason || (foundClient as any).tradeName || '';
+      }
+    }
+
+    // Se o veículo tem workPostId e ainda não tem cliente, pegar do workPost
+    if (vehicle.workPostId && workPosts.length > 0) {
+      const foundWp = workPosts.find((w: any) => w.id === vehicle.workPostId);
+      if (foundWp && foundWp.clientName) {
+        resolvedClient = foundWp.clientName;
+      }
+    }
+
+    // Se ainda não achou cliente, tentar pelo último abastecimento do veículo
+    if (!resolvedClient && (lastFuel?.clientName || lastFuelRecord?.clientName)) {
+      resolvedClient = lastFuel?.clientName || lastFuelRecord?.clientName || '';
+    }
+
+    // 2. Resolver Obra / Setor
+    let resolvedObra = vehicle.workPostName || vehicle.postoDeTrabalho || vehicle.obraName || (vehicle as any).workPostEntity?.name || '';
+
+    // Se tem workPostId, buscar nome nos workPosts
+    if (!resolvedObra && vehicle.workPostId && workPosts.length > 0) {
+      const foundWp = workPosts.find((w: any) => w.id === vehicle.workPostId);
+      if (foundWp) {
+        resolvedObra = foundWp.name || foundWp.description || '';
+      }
+    }
+
+    // Se tem location, projectName ou operationName no veículo
+    if (!resolvedObra) {
+      resolvedObra = vehicle.location || vehicle.projectName || vehicle.operationName || '';
+    }
+
+    // Se achou o cliente, mas a obra continua vazia: procurar nos workPosts a obra associada a esse cliente
+    if (!resolvedObra && resolvedClient && workPosts.length > 0) {
+      const clientUpper = resolvedClient.trim().toUpperCase();
+      const matchingWp = workPosts.find((w: any) => {
+        const wpClient = (w.clientName || '').toUpperCase();
+        return wpClient && (wpClient.includes(clientUpper) || clientUpper.includes(wpClient));
+      });
+      if (matchingWp) {
+        resolvedObra = matchingWp.name || matchingWp.description || '';
+      }
+    }
+
+    // Se ainda não achou obra, tentar pelo último abastecimento
+    if (!resolvedObra && (lastFuel?.obraName || lastFuelRecord?.obraName)) {
+      resolvedObra = lastFuel?.obraName || lastFuelRecord?.obraName || '';
+    }
+
+    // Fallback operacional para veículos de garagem sem alocação externa
+    if (!resolvedClient && vehicle.garageName) {
+      resolvedClient = 'OPERACIONAL';
+      resolvedObra = resolvedObra || vehicle.garageName;
+    }
+
+    return {
+      clientName: resolvedClient,
+      obraName: resolvedObra,
+    };
+  }, [clients, workPosts, lastFuelRecord]);
+
+  // Auto-fill do veículo quando o vehicleId ou lastFuelRecord mudam
   useEffect(() => {
     if (!formData.vehicleId) return;
-    const vehicle = veiculos.find(v => v.id === formData.vehicleId);
+    const vehicle = (selectedVehicleObj && selectedVehicleObj.id === formData.vehicleId)
+      ? selectedVehicleObj
+      : veiculos.find(v => v.id === formData.vehicleId);
+
     if (vehicle) {
       const autoKm = lastFuelRecord?.mileage ?? vehicle.currentMileage ?? 0;
+      const { clientName, obraName } = resolveVehicleClientAndObra(vehicle, lastFuelRecord);
+
       setFormData(prev => ({
         ...prev,
-        vehiclePlate: vehicle.plate || '',
-        clientName: vehicle.clientName || (vehicle as any).client?.name || '',
-        obraName: vehicle.postoDeTrabalho || (vehicle as any).workPostEntity?.name || '',
+        vehiclePlate: vehicle.plate || (vehicle as any).placa || '',
+        clientName: clientName || prev.clientName || '',
+        obraName: obraName || prev.obraName || '',
         fuelType: (vehicle.fuelType as any) || prev.fuelType,
         initialMileage: autoKm,
         mileage: prev.mileage > 0 ? prev.mileage : autoKm,
       }));
     }
-  }, [formData.vehicleId, lastFuelRecord]);
+  }, [formData.vehicleId, selectedVehicleObj, veiculos, lastFuelRecord, resolveVehicleClientAndObra]);
 
   // Auto-fill pump/tank name
   useEffect(() => {
@@ -213,6 +313,17 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
       }
     }
   }, [formData.pumpId, pumps]);
+
+  // Auto-fill responsible name when responsibleId changes
+  useEffect(() => {
+    if (!formData.responsibleId) {
+      setField('responsibleName', '');
+      return;
+    }
+    employeeService.getEmployeeById(formData.responsibleId).then(emp => {
+      if (emp) setField('responsibleName', emp.name || emp.fullName || '');
+    }).catch(() => {});
+  }, [formData.responsibleId]);
 
   // Validate mileage
   useEffect(() => {
@@ -236,6 +347,25 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
       }
     }
   }, [formData.mileage, lastFuelRecord]);
+
+  // --- Filtered pump/tank options ---
+  const pumpOptions: SearchableOption[] = useMemo(() =>
+    pumps.map(p => ({
+      value: p.id,
+      label: p.name,
+      subtitle: p.fuelTankName || '',
+      keywords: [p.name, p.fuelTankName || ''].filter(Boolean),
+    })),
+  [pumps]);
+
+  const tankOptions: SearchableOption[] = useMemo(() =>
+    tanks.map(t => ({
+      value: t.id,
+      label: t.name,
+      subtitle: `${FUEL_TYPE_LABELS[t.fuelType] || t.fuelType} • ${t.currentLevel?.toFixed(0)}L disponíveis`,
+      keywords: [t.name, t.fuelType, FUEL_TYPE_LABELS[t.fuelType] || ''].filter(Boolean),
+    })),
+  [tanks]);
 
   const setField = <K extends keyof InternalFuelFormData>(field: K, value: InternalFuelFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -315,7 +445,44 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
     if (prevStep) setStep(prevStep.id);
   };
 
-  const selectedVehicle = veiculos.find(v => v.id === formData.vehicleId);
+  const selectedVehicle = (selectedVehicleObj && selectedVehicleObj.id === formData.vehicleId)
+    ? selectedVehicleObj
+    : veiculos.find(v => v.id === formData.vehicleId);
+
+  const clientOptions = useMemo(() => {
+    const set = new Set<string>();
+    clients.forEach((c: any) => {
+      const n = c.name || c.corporateReason || c.tradeName;
+      if (n) set.add(n);
+    });
+    workPosts.forEach((w: any) => {
+      if (w.clientName) set.add(w.clientName);
+    });
+    return Array.from(set).sort();
+  }, [clients, workPosts]);
+
+  const obraOptions = useMemo(() => {
+    const currentClient = formData.clientName?.trim().toUpperCase();
+    const set = new Set<string>();
+
+    workPosts.forEach((w: any) => {
+      const wpClient = (w.clientName || '').toUpperCase();
+      if (!currentClient || wpClient.includes(currentClient) || currentClient.includes(wpClient)) {
+        if (w.name) set.add(w.name);
+        if (w.description) set.add(w.description);
+      }
+    });
+
+    if (set.size === 0) {
+      workPosts.forEach((w: any) => {
+        if (w.name) set.add(w.name);
+        if (w.description) set.add(w.description);
+      });
+    }
+
+    return Array.from(set).sort();
+  }, [workPosts, formData.clientName]);
+
   const selectedTank = tanks.find(t => t.id === formData.tankId);
 
   // Pre-compute to avoid > operator confusing Rollup's JSX parser
@@ -332,7 +499,7 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!max-w-3xl !h-[92vh] flex flex-col !p-0 overflow-hidden bg-gray-950 text-white border border-gray-800 shadow-2xl">
+      <DialogContent className="!max-w-5xl !h-[92vh] flex flex-col !p-0 overflow-hidden bg-gray-950 text-white border border-gray-800 shadow-2xl">
         
         {/* ── HEADER ── */}
         <DialogHeader className="px-6 pt-5 pb-0 flex-none">
@@ -430,21 +597,24 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                     <Droplets className="h-4 w-4 text-cyan-400" />
                     Bomba / Dispensador
                   </Label>
-                  <Select
+                  <SearchableSelect
                     value={formData.pumpId}
-                    onValueChange={(val) => setField('pumpId', val)}
-                  >
-                    <SelectTrigger className="bg-gray-900/80 border-gray-700 text-white h-11">
-                      <SelectValue placeholder="Selecione a bomba..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-gray-700">
-                      {pumps.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name} — {p.fuelTankName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(val, opt) => {
+                      setField('pumpId', val);
+                      if (opt) {
+                        const pump = pumps.find(p => p.id === val);
+                        setField('pumpName', pump?.name || opt.label);
+                        if (pump) {
+                          setField('tankId', pump.fuelTankId || '');
+                          setField('tankName', pump.fuelTankName || '');
+                        }
+                      }
+                    }}
+                    options={pumpOptions}
+                    placeholder="Selecione a bomba..."
+                    searchPlaceholder="Buscar bomba..."
+                    emptyText="Nenhuma bomba encontrada."
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -452,28 +622,18 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                     <Fuel className="h-4 w-4 text-amber-400" />
                     Tanque
                   </Label>
-                  <Select
+                  <SearchableSelect
                     value={formData.tankId}
-                    onValueChange={(val) => {
-                      const tank = tanks.find(t => t.id === val);
+                    onChange={(val, opt) => {
                       setField('tankId', val);
-                      setField('tankName', tank?.name || '');
+                      const tank = tanks.find(t => t.id === val);
+                      setField('tankName', tank?.name || opt?.label || '');
                     }}
-                  >
-                    <SelectTrigger className="bg-gray-900/80 border-gray-700 text-white h-11">
-                      <SelectValue placeholder="Selecione o tanque..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-gray-700">
-                      {tanks.map(t => (
-                        <SelectItem key={t.id} value={t.id}>
-                          <span className="flex flex-col">
-                            <span>{t.name}</span>
-                            <span className="text-gray-500 text-xs">{FUEL_TYPE_LABELS[t.fuelType] || t.fuelType} • {t.currentLevel?.toFixed(0)}L disponíveis</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={tankOptions}
+                    placeholder="Selecione o tanque..."
+                    searchPlaceholder="Buscar tanque..."
+                    emptyText="Nenhum tanque encontrado."
+                  />
                 </div>
               </div>
 
@@ -528,28 +688,15 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                   <User className="h-4 w-4 text-green-400" />
                   Quem Abasteceu (Responsável) *
                 </Label>
-                <Select
+                <EmployeeCombobox
                   value={formData.responsibleId}
-                  onValueChange={(val) => {
-                    const driver = drivers.find(d => d.id === val);
+                  onChange={(val) => {
                     setField('responsibleId', val);
-                    setField('responsibleName', driver?.name || '');
                   }}
-                >
-                  <SelectTrigger className="bg-gray-900/80 border-gray-700 text-white h-11">
-                    <SelectValue placeholder="Selecione o responsável..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-700">
-                    {drivers.map(d => (
-                      <SelectItem key={d.id} value={d.id}>
-                        <span className="flex items-center gap-2">
-                          <User className="h-3.5 w-3.5 text-green-400" />
-                          {d.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Selecione o responsável..."
+                  searchPlaceholder="Buscar funcionário..."
+                  emptyPlaceholder="Nenhum funcionário encontrado."
+                />
               </div>
             </div>
           )}
@@ -570,28 +717,26 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                   <Car className="h-4 w-4 text-blue-400" />
                   Veículo *
                 </Label>
-                <Select
+                <VehicleCombobox
                   value={formData.vehicleId}
-                  onValueChange={(val) => setField('vehicleId', val)}
-                >
-                  <SelectTrigger className="bg-gray-900/80 border-gray-700 text-white h-11">
-                    <SelectValue placeholder="Selecione o veículo..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-700 max-h-60">
-                    {veiculos
-                      .filter(v => v.status === 'ACTIVE' || v.status === 'ATIVO')
-                      .map(v => (
-                        <SelectItem key={v.id} value={v.id}>
-                          <span className="flex items-center gap-2">
-                            <Car className="h-3.5 w-3.5 text-blue-400" />
-                            <strong>{v.plate}</strong>
-                            <span className="text-gray-400">—</span>
-                            {v.brand} {v.model}
-                          </span>
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(val, veh) => {
+                    setSelectedVehicleObj(veh);
+                    setField('vehicleId', val);
+                    if (veh) {
+                      const { clientName, obraName } = resolveVehicleClientAndObra(veh);
+                      setFormData(prev => ({
+                        ...prev,
+                        vehicleId: val,
+                        vehiclePlate: veh.plate || (veh as any).placa || '',
+                        clientName: clientName || prev.clientName || '',
+                        obraName: obraName || prev.obraName || '',
+                        fuelType: (veh.fuelType as any) || prev.fuelType,
+                        initialMileage: veh.currentMileage || prev.initialMileage,
+                        mileage: prev.mileage > 0 ? prev.mileage : (veh.currentMileage || 0),
+                      }));
+                    }
+                  }}
+                />
               </div>
 
               {/* Auto-fill info card */}
@@ -638,22 +783,38 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
               {selectedVehicle && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-gray-400 font-medium text-sm">Cliente (editável)</Label>
+                    <Label className="text-gray-300 font-medium text-sm flex items-center justify-between">
+                      <span>Cliente <span className="text-xs text-emerald-400 font-normal">(autocompletado / editável)</span></span>
+                    </Label>
                     <Input
+                      list="clients-list-modal"
                       value={formData.clientName}
                       onChange={e => setField('clientName', e.target.value)}
                       placeholder="Nome do cliente"
-                      className="bg-gray-900/80 border-gray-700 text-white h-10"
+                      className="bg-gray-900/80 border-gray-700 text-white h-10 focus:border-emerald-500/50"
                     />
+                    <datalist id="clients-list-modal">
+                      {clientOptions.map((opt, i) => (
+                        <option key={i} value={opt} />
+                      ))}
+                    </datalist>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-gray-400 font-medium text-sm">Obra / Setor (editável)</Label>
+                    <Label className="text-gray-300 font-medium text-sm flex items-center justify-between">
+                      <span>Obra / Setor <span className="text-xs text-emerald-400 font-normal">(autocompletado / editável)</span></span>
+                    </Label>
                     <Input
+                      list="obras-list-modal"
                       value={formData.obraName}
                       onChange={e => setField('obraName', e.target.value)}
                       placeholder="Nome da obra ou setor"
-                      className="bg-gray-900/80 border-gray-700 text-white h-10"
+                      className="bg-gray-900/80 border-gray-700 text-white h-10 focus:border-emerald-500/50"
                     />
+                    <datalist id="obras-list-modal">
+                      {obraOptions.map((opt, i) => (
+                        <option key={i} value={opt} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
               )}

@@ -16,7 +16,7 @@ echo.
 echo ========================================
 echo.
 
-cd /d C:\dev\secured-guard
+cd /d C:\dev\fluxbus
 
 echo 📝 1. Adicionando arquivos...
 git add .
@@ -35,10 +35,10 @@ echo   DEPLOY INICIADO!
 echo ========================================
 echo.
 echo ⏱️  Aguarde ~10 minutos para GitHub Actions
-echo 🔗 Acesse: https://github.com/SEU_USER/secured-guard/actions
+echo 🔗 Acesse: https://github.com/SEU_USER/fluxbus/actions
 echo.
 echo 🎯 Após deploy, teste:
-echo    https://securedguard.z7botsolutions.com.br:3333/instance/qr
+echo    https://fluxbus.z7botsolutions.com.br:3333/instance/qr
 echo.
 echo ========================================
 echo.

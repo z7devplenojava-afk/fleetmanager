@@ -1,10 +1,10 @@
 # ============================================
-# SECURED GUARD - Ambiente Local (PowerShell)
+# FLUXBUS - Ambiente Local (PowerShell)
 # Inicia TODO o sistema dockerizado
 # ============================================
 
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Blue
-Write-Host "🏠 SECURED GUARD - Ambiente Local" -ForegroundColor Green
+Write-Host "🏠 FLUXBUS - Ambiente Local" -ForegroundColor Green
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Blue
 Write-Host ""
 
@@ -59,16 +59,16 @@ Write-Host ""
 
 # Verificar PostgreSQL
 try {
-    docker exec secured-guard-local-db pg_isready -U dev_user | Out-Null
-    Write-Host "✅ PostgreSQL: secured-guard-local-db (porta 5432)" -ForegroundColor Green
+    docker exec fluxbus-local-db pg_isready -U dev_user | Out-Null
+    Write-Host "✅ PostgreSQL: fluxbus-local-db (porta 5432)" -ForegroundColor Green
 } catch {
     Write-Host "⏳ PostgreSQL: Iniciando..." -ForegroundColor Yellow
 }
 
 # Verificar Redis
 try {
-    docker exec secured-guard-local-redis redis-cli ping | Out-Null
-    Write-Host "✅ Redis: secured-guard-local-redis (porta 6379)" -ForegroundColor Green
+    docker exec fluxbus-local-redis redis-cli ping | Out-Null
+    Write-Host "✅ Redis: fluxbus-local-redis (porta 6379)" -ForegroundColor Green
 } catch {
     Write-Host "⏳ Redis: Iniciando..." -ForegroundColor Yellow
 }
@@ -77,7 +77,7 @@ try {
 try {
     $response = Invoke-WebRequest -Uri "http://localhost:9000/minio/health/live" -UseBasicParsing -TimeoutSec 2
     if ($response.StatusCode -eq 200) {
-        Write-Host "✅ MinIO: secured-guard-local-minio (portas 9000, 9001)" -ForegroundColor Green
+        Write-Host "✅ MinIO: fluxbus-local-minio (portas 9000, 9001)" -ForegroundColor Green
     }
 } catch {
     Write-Host "⏳ MinIO: Iniciando..." -ForegroundColor Yellow
@@ -87,7 +87,7 @@ try {
 try {
     $response = Invoke-WebRequest -Uri "http://localhost:3333/health" -UseBasicParsing -TimeoutSec 2
     if ($response.StatusCode -eq 200) {
-        Write-Host "✅ WhatsApp: secured-guard-local-whatsapp (porta 3333)" -ForegroundColor Green
+        Write-Host "✅ WhatsApp: fluxbus-local-whatsapp (porta 3333)" -ForegroundColor Green
     }
 } catch {
     Write-Host "⏳ WhatsApp: Iniciando..." -ForegroundColor Yellow
@@ -98,7 +98,7 @@ Start-Sleep -Seconds 20
 try {
     $response = Invoke-WebRequest -Uri "http://localhost:8083/api/health" -UseBasicParsing -TimeoutSec 2
     if ($response.StatusCode -eq 200) {
-        Write-Host "✅ Backend: secured-guard-local-backend (porta 8083)" -ForegroundColor Green
+        Write-Host "✅ Backend: fluxbus-local-backend (porta 8083)" -ForegroundColor Green
     }
 } catch {
     Write-Host "⏳ Backend: Iniciando (pode demorar ~60s)..." -ForegroundColor Yellow
@@ -108,7 +108,7 @@ try {
 try {
     $response = Invoke-WebRequest -Uri "http://localhost:3000" -UseBasicParsing -TimeoutSec 2
     if ($response.StatusCode -eq 200) {
-        Write-Host "✅ Frontend: secured-guard-local-frontend (porta 3000)" -ForegroundColor Green
+        Write-Host "✅ Frontend: fluxbus-local-frontend (porta 3000)" -ForegroundColor Green
     }
 } catch {
     Write-Host "⏳ Frontend: Iniciando..." -ForegroundColor Yellow
@@ -132,7 +132,7 @@ Write-Host "💾 Banco de Dados:" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Host:     localhost"
 Write-Host "  Port:     5432"
-Write-Host "  Database: secured_guard_local"
+Write-Host "  Database: fluxbus_local"
 Write-Host "  User:     dev_user"
 Write-Host "  Password: dev_pass"
 Write-Host ""

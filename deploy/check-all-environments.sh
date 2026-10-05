@@ -40,9 +40,9 @@ check_environment() {
 }
 
 # Verificar cada ambiente
-check_environment "DEV" "8081" "secured-guard-backend-dev"
-check_environment "PROD" "8080" "secured-guard-backend-prod"
-check_environment "CI" "8082" "secured-guard-backend-ci"
+check_environment "DEV" "8081" "fluxbus-backend-dev"
+check_environment "PROD" "8080" "fluxbus-backend-prod"
+check_environment "CI" "8082" "fluxbus-backend-ci"
 
 echo ""
 echo "🔧 Comandos para corrigir:"
@@ -63,5 +63,5 @@ echo "4. Recriar ambiente PROD:"
 echo "   docker-compose -f deploy/docker-compose.prod.yml up -d --build"
 echo ""
 echo "5. Verificar logs:"
-echo "   docker logs secured-guard-backend-dev"
-echo "   docker logs secured-guard-backend-prod"
+echo "   docker logs fluxbus-backend-dev"
+echo "   docker logs fluxbus-backend-prod"

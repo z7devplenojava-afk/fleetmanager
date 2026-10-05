@@ -59,13 +59,13 @@ log "✅ Conexão SSH funcionando!"
 log "2. Copiando arquivos para VPS..."
 
 # Criar diretório se não existir
-ssh -p $VPS_PORT $VPS_USER@$VPS_HOST "mkdir -p /opt/secured-guard"
+ssh -p $VPS_PORT $VPS_USER@$VPS_HOST "mkdir -p /opt/fluxbus"
 
 # Copiar script de deploy
-scp -P $VPS_PORT deploy.sh $VPS_USER@$VPS_HOST:/opt/secured-guard/
+scp -P $VPS_PORT deploy.sh $VPS_USER@$VPS_HOST:/opt/fluxbus/
 
 # Copiar docker-compose
-scp -P $VPS_PORT deploy/docker-compose.prod.yml $VPS_USER@$VPS_HOST:/opt/secured-guard/
+scp -P $VPS_PORT deploy/docker-compose.prod.yml $VPS_USER@$VPS_HOST:/opt/fluxbus/
 
 log "✅ Arquivos copiados!"
 
@@ -74,7 +74,7 @@ log "✅ Arquivos copiados!"
 # ========================================
 log "3. Executando deploy na VPS..."
 ssh -p $VPS_PORT $VPS_USER@$VPS_HOST "
-    cd /opt/secured-guard &&
+    cd /opt/fluxbus &&
     chmod +x deploy.sh &&
     ./deploy.sh
 "
@@ -86,7 +86,7 @@ log "✅ Deploy executado na VPS!"
 # ========================================
 log "4. Verificando deployment..."
 ssh -p $VPS_PORT $VPS_USER@$VPS_HOST "
-    cd /opt/secured-guard &&
+    cd /opt/fluxbus &&
     echo '📊 Status dos serviços:' &&
     docker compose -f deploy/docker-compose.prod.yml ps &&
     echo '📝 Último commit:' &&
@@ -99,13 +99,13 @@ log "✅ Verificação concluída!"
 # 5. TESTAR APLICAÇÃO
 # ========================================
 log "5. Testando aplicação..."
-if curl -f -s https://securedguard.z7botsolutions.com.br > /dev/null; then
+if curl -f -s https://fluxbus.z7botsolutions.com.br > /dev/null; then
     log "✅ Aplicação web está funcionando!"
-    log "🌐 URL: https://securedguard.z7botsolutions.com.br"
+    log "🌐 URL: https://fluxbus.z7botsolutions.com.br"
 else
     warn "⚠️ Aplicação web pode estar com problema, mas VPS está funcionando"
 fi
 
 log "🎉 Deploy concluído com sucesso!"
-log "📱 Aplicação disponível em: https://securedguard.z7botsolutions.com.br"
+log "📱 Aplicação disponível em: https://fluxbus.z7botsolutions.com.br"
 log "📊 Status: VPS atualizada com sucesso"

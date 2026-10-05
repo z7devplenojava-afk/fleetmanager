@@ -61,6 +61,22 @@ public class EPIDeliveryForm {
     @Column(name = "pdf_url")
     private String pdfUrl;
 
+    @Builder.Default
+    @Column(name = "status", length = 50)
+    private String status = "CONCLUIDO";
+
+    @Builder.Default
+    @Column(name = "verified_by_almoxarifado")
+    private Boolean verifiedByAlmoxarifado = false;
+
+    @Column(name = "verified_by_almoxarifado_at")
+    private LocalDateTime verifiedByAlmoxarifadoAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "verified_by_almoxarifado_user_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private User verifiedByAlmoxarifadoUser;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_user_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})

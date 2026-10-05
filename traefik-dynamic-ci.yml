@@ -49,12 +49,27 @@ http:
         retryExpression: "IsNetworkError() && Attempts() < 2"
 
   routers:
+    # Router específico para WebSocket (sem buffering para não quebrar handshake HTTP Upgrade)
+    ci-websocket:
+      rule: "(Host(`ci.fluxbus.com.br`) || Host(`ci.z7botsolutions.com.br`)) && PathPrefix(`/ws`)"
+      entryPoints:
+        - websecure
+        - web
+      service: ci-backend-service
+      middlewares:
+        - ci-cors
+        - allow-all-methods
+      tls:
+        certResolver: letsencryptresolver
+      priority: 2000
+
     # Router HTTPS específico para o ambiente CI
     # O redirecionamento HTTP → HTTPS é feito pelo entrypoint 'web' do Traefik
     ci-backend:
-      rule: "Host(`ci.z7botsolutions.com.br`)"
+      rule: "Host(`ci.fluxbus.com.br`) || Host(`ci.z7botsolutions.com.br`)"
       entryPoints:
         - websecure
+        - web
       service: ci-backend-service
       middlewares:
         - ci-cors
@@ -68,7 +83,7 @@ http:
     ci-backend-service:
       loadBalancer:
         servers:
-          - url: "http://secured-guard-nginx-ci:80"
+          - url: "http://fluxbus-nginx-ci:80"
         passHostHeader: true
         # Timeouts aumentados para uploads grandes (5 minutos)
         responseForwarding:

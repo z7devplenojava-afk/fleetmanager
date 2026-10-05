@@ -2,7 +2,7 @@
 
 # ========================================
 # INSTALAÇÃO COMPLETA MULTI-AMBIENTE
-# SecuredGuard - VPS Multi-Environment Setup
+# FluxBus - VPS Multi-Environment Setup
 # ========================================
 
 set -e
@@ -36,7 +36,7 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-log "Iniciando instalação completa do SecuredGuard Multi-Environment..."
+log "Iniciando instalação completa do FluxBus Multi-Environment..."
 
 # 1. Instalar dependências
 log "Instalando dependências..."
@@ -67,16 +67,16 @@ fi
 
 # 4. Criar diretórios necessários
 log "Criando diretórios..."
-mkdir -p /opt/secured-guard/{backups,logs,ssl}
-mkdir -p /opt/secured-guard/deploy/nginx/{ssl,logs}
+mkdir -p /opt/fluxbus/{backups,logs,ssl}
+mkdir -p /opt/fluxbus/deploy/nginx/{ssl,logs}
 
 # 5. Configurar SSL self-signed
 log "Configurando SSL self-signed..."
-if [ ! -f /opt/secured-guard/deploy/nginx/ssl/cert.pem ]; then
+if [ ! -f /opt/fluxbus/deploy/nginx/ssl/cert.pem ]; then
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout /opt/secured-guard/deploy/nginx/ssl/key.pem \
-        -out /opt/secured-guard/deploy/nginx/ssl/cert.pem \
-        -subj "/C=BR/ST=SP/L=SaoPaulo/O=SecuredGuard/CN=localhost"
+        -keyout /opt/fluxbus/deploy/nginx/ssl/key.pem \
+        -out /opt/fluxbus/deploy/nginx/ssl/cert.pem \
+        -subj "/C=BR/ST=SP/L=SaoPaulo/O=FluxBus/CN=localhost"
     log "Certificados SSL criados"
 else
     log "Certificados SSL já existem"
@@ -84,14 +84,14 @@ fi
 
 # 6. Tornar scripts executáveis
 log "Configurando permissões..."
-chmod +x /opt/secured-guard/deploy/manage-multi-env.sh
-chmod +x /opt/secured-guard/deploy/*.sh
+chmod +x /opt/fluxbus/deploy/manage-multi-env.sh
+chmod +x /opt/fluxbus/deploy/*.sh
 
 # 7. Instalar serviço systemd
 log "Instalando serviço systemd..."
-cp /opt/secured-guard/deploy/secured-guard-multi-env.service /etc/systemd/system/
+cp /opt/fluxbus/deploy/fluxbus-multi-env.service /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable secured-guard-multi-env.service
+systemctl enable fluxbus-multi-env.service
 
 # 8. Configurar firewall
 log "Configurando firewall..."
@@ -110,7 +110,7 @@ ufw allow 5434/tcp # CI Database
 
 # 9. Parar serviços existentes se estiverem rodando
 log "Parando serviços existentes..."
-cd /opt/secured-guard
+cd /opt/fluxbus
 docker compose -f deploy/docker-compose.prod.yml down 2>/dev/null || true
 docker compose -f deploy/docker-compose.dev.yml down 2>/dev/null || true
 docker compose -f deploy/docker-compose.ci.yml down 2>/dev/null || true
@@ -122,7 +122,7 @@ docker volume prune -f
 
 # 11. Reparar Flyway em todos os ambientes
 log "Reparando Flyway em todos os ambientes..."
-cd /opt/secured-guard
+cd /opt/fluxbus
 ./deploy/manage-multi-env.sh repair-flyway
 
 # 12. Iniciar todos os ambientes
@@ -142,7 +142,7 @@ log "Instalação concluída! Status dos serviços:"
 ./deploy/manage-multi-env.sh status
 
 echo ""
-log "🎉 Instalação completa do SecuredGuard Multi-Environment!"
+log "🎉 Instalação completa do FluxBus Multi-Environment!"
 echo ""
 info "URLs dos ambientes:"
 echo "  🟢 DESENVOLVIMENTO:"
@@ -161,10 +161,10 @@ echo "    - Backend:  http://localhost:8082"
 echo "    - Database: localhost:5434"
 echo ""
 info "Comandos úteis:"
-echo "  sudo systemctl start secured-guard-multi-env    # Iniciar serviços"
-echo "  sudo systemctl stop secured-guard-multi-env     # Parar serviços"
-echo "  sudo systemctl restart secured-guard-multi-env  # Reiniciar serviços"
-echo "  sudo systemctl status secured-guard-multi-env   # Status do serviço"
+echo "  sudo systemctl start fluxbus-multi-env    # Iniciar serviços"
+echo "  sudo systemctl stop fluxbus-multi-env     # Parar serviços"
+echo "  sudo systemctl restart fluxbus-multi-env  # Reiniciar serviços"
+echo "  sudo systemctl status fluxbus-multi-env   # Status do serviço"
 echo ""
 echo "  ./deploy/manage-multi-env.sh status             # Status dos containers"
 echo "  ./deploy/manage-multi-env.sh logs prod backend  # Logs do backend prod"

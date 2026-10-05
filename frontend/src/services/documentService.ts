@@ -128,3 +128,4 @@ class DocumentService {
 }
 
 export const documentService = new DocumentService();
+export default documentService;

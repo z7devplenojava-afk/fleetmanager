@@ -4,7 +4,7 @@ echo   CORRIGINDO TESTE E FAZENDO PUSH
 echo ========================================
 echo.
 
-git add backend\src\test\java\com\z7design\secured_guard\service\EnvioServiceTest.java
+git add backend\src\test\java\com\z7design\fluxbus\service\EnvioServiceTest.java
 git add deploy-evolution-ci-completo.sh
 git add COMO_EXECUTAR_NO_CI.md
 

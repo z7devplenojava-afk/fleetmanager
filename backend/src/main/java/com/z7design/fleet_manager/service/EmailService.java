@@ -167,7 +167,7 @@ public class EmailService {
             </head>
             <body>
                 <div class="header">
-                    <h1>ðŸ¢ SecuredGuard</h1>
+                    <h1>ðŸ¢ FluxBus</h1>
                     <h2>Documento Unificado</h2>
                 </div>
                 
@@ -194,9 +194,9 @@ public class EmailService {
                 </div>
                 
                 <div class="footer">
-                    <p>Este Ã© um email automÃ¡tico do sistema SecuredGuard.</p>
+                    <p>Este Ã© um email automÃ¡tico do sistema FluxBus.</p>
                     <p>Em caso de dÃºvidas, entre em contato com o departamento de RH.</p>
-                    <p>Â© 2025 SecuredGuard - Todos os direitos reservados</p>
+                    <p>Â© 2025 FluxBus - Todos os direitos reservados</p>
                 </div>
             </body>
             </html>
@@ -215,7 +215,7 @@ public class EmailService {
             SimpleMailMessage testMessage = new SimpleMailMessage();
             testMessage.setFrom(fromEmail);
             testMessage.setTo("test@example.com");
-            testMessage.setSubject("Teste de ConfiguraÃ§Ã£o - SecuredGuard");
+            testMessage.setSubject("Teste de ConfiguraÃ§Ã£o - FluxBus");
             testMessage.setText("Este Ã© um email de teste para verificar a configuraÃ§Ã£o do sistema.");
             
             mailSender.send(testMessage);

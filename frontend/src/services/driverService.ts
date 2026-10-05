@@ -8,6 +8,11 @@ export interface CreateDriverDTO {
   licenseNumber?: string;
   phone?: string;
   status?: 'ATIVO' | 'INATIVO';
+  cpf?: string;
+  cnhCategory?: string;
+  cnhExpiration?: string;
+  photoUrl?: string;
+  userId?: string;
 }
 
 const driverService = {

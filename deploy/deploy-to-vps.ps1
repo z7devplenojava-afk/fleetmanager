@@ -43,7 +43,7 @@ function Write-Info {
 
 # Verificar se estamos no diretório correto
 if (-not (Test-Path "deploy/install-vps.sh")) {
-    Write-Error "Execute este script a partir do diretório raiz do projeto SecuredGuard"
+    Write-Error "Execute este script a partir do diretório raiz do projeto FluxBus"
 }
 
 Write-Log "Iniciando deploy para VPS: $VpsUser@$VpsHost`:$VpsPort"
@@ -100,7 +100,7 @@ backups/
 try {
     # Usar rsync para copiar apenas arquivos necessários
     Write-Log "Sincronizando arquivos..."
-    rsync -avz --delete --exclude-from=$excludeFile -e "ssh -p $VpsPort" ./ ${VpsUser}@${VpsHost}:/opt/secured-guard/
+    rsync -avz --delete --exclude-from=$excludeFile -e "ssh -p $VpsPort" ./ ${VpsUser}@${VpsHost}:/opt/fluxbus/
 } finally {
     # Limpar arquivo temporário
     Remove-Item $excludeFile -ErrorAction SilentlyContinue
@@ -113,7 +113,7 @@ Write-Log "Código copiado para VPS!"
 # ========================================
 Write-Log "Executando deploy na VPS..."
 
-ssh -p $VpsPort $VpsUser@$VpsHost "cd /opt/secured-guard && ./deploy.sh"
+ssh -p $VpsPort $VpsUser@$VpsHost "cd /opt/fluxbus && ./deploy.sh"
 
 Write-Log "Deploy concluído!"
 
@@ -122,7 +122,7 @@ Write-Log "Deploy concluído!"
 # ========================================
 Write-Log "Verificando status dos serviços..."
 
-ssh -p $VpsPort $VpsUser@$VpsHost "cd /opt/secured-guard && docker compose -f deploy/docker-compose.prod.yml ps"
+ssh -p $VpsPort $VpsUser@$VpsHost "cd /opt/fluxbus && docker compose -f deploy/docker-compose.prod.yml ps"
 
 # ========================================
 # FINALIZAÇÃO
@@ -133,9 +133,9 @@ Write-Info "Acesse sua aplicação em:"
 Write-Host "🌐 https://$VpsHost" -ForegroundColor $Green
 Write-Host ""
 Write-Info "Comandos úteis na VPS:"
-Write-Host "- Ver logs: docker compose -f /opt/secured-guard/deploy/docker-compose.prod.yml logs -f"
-Write-Host "- Status: docker compose -f /opt/secured-guard/deploy/docker-compose.prod.yml ps"
-Write-Host "- Backup: /opt/secured-guard/backup.sh"
-Write-Host "- Restart: cd /opt/secured-guard && ./deploy.sh"
+Write-Host "- Ver logs: docker compose -f /opt/fluxbus/deploy/docker-compose.prod.yml logs -f"
+Write-Host "- Status: docker compose -f /opt/fluxbus/deploy/docker-compose.prod.yml ps"
+Write-Host "- Backup: /opt/fluxbus/backup.sh"
+Write-Host "- Restart: cd /opt/fluxbus && ./deploy.sh"
 Write-Host ""
 Write-Warning "IMPORTANTE: Configure seu domínio e certificados SSL reais para produção!"

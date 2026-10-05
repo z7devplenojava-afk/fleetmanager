@@ -17,11 +17,11 @@ sleep 5
 
 # Conectar ao banco e liberar locks
 echo "🔓 Liberando advisory locks..."
-docker exec secured-guard-db-ci psql -U secured_guard_ci -d secured_guard_ci -c "SELECT pg_advisory_unlock_all();"
+docker exec fluxbus-db-ci psql -U fluxbus_ci -d fluxbus_ci -c "SELECT pg_advisory_unlock_all();"
 
 # Verificar locks restantes
 echo "🔍 Verificando locks restantes..."
-docker exec secured-guard-db-ci psql -U secured_guard_ci -d secured_guard_ci -c "
+docker exec fluxbus-db-ci psql -U fluxbus_ci -d fluxbus_ci -c "
 SELECT 
     locktype,
     database,
@@ -37,5 +37,5 @@ docker-compose -f docker-compose.ci.yml start backend-ci
 
 echo "✅ Processo concluído!"
 echo "📋 Verifique os logs do backend:"
-echo "   docker logs -f secured-guard-backend-ci"
+echo "   docker logs -f fluxbus-backend-ci"
 

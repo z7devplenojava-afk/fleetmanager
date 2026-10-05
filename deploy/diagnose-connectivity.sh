@@ -34,16 +34,16 @@ info() {
 }
 
 # Verificar se estamos na VPS
-if [ -f "/opt/secured-guard/deploy.sh" ]; then
+if [ -f "/opt/fluxbus/deploy.sh" ]; then
     log "Executando na VPS - verificando serviços locais..."
     
     log "1. Verificando status dos containers..."
-    cd /opt/secured-guard
+    cd /opt/fluxbus
     docker compose -f deploy/docker-compose.prod.yml ps
     
     log "2. Verificando logs do backend..."
-    if docker ps -q -f name=secured-guard-backend-prod | grep -q .; then
-        docker logs --tail=20 secured-guard-backend-prod
+    if docker ps -q -f name=fluxbus-backend-prod | grep -q .; then
+        docker logs --tail=20 fluxbus-backend-prod
     else
         error "Backend não está rodando"
     fi

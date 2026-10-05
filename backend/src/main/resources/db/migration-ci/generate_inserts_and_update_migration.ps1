@@ -1,11 +1,11 @@
-# Script PowerShell para gerar INSERTs do banco secured_guard_test e atualizar a migration V999
+# Script PowerShell para gerar INSERTs do banco fluxbus_test e atualizar a migration V999
 
 param(
     [string]$DB_HOST = "localhost",
     [int]$DB_PORT = 5432,
     [string]$DB_USER = "postgressg",
     [string]$DB_PASSWORD = "1234567",
-    [string]$DB_NAME = "secured_guard_test"
+    [string]$DB_NAME = "fluxbus_test"
 )
 
 $ErrorActionPreference = "Stop"

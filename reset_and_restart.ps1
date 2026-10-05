@@ -12,7 +12,7 @@ $env:PGPASSWORD = "root"
 
 try {
     # Testar conexão
-    $testConnection = & psql -U postgres -h localhost -d secured_guard -c "SELECT 1;" 2>&1
+    $testConnection = & psql -U postgres -h localhost -d fluxbus -c "SELECT 1;" 2>&1
     
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERRO: Não foi possível conectar ao banco de dados!" -ForegroundColor Red
@@ -25,7 +25,7 @@ try {
     
     # Executar script de reset
     Write-Host "Executando reset do banco de dados..." -ForegroundColor Yellow
-    $resetResult = & psql -U postgres -h localhost -d secured_guard -f reset_flyway_migrations.sql 2>&1
+    $resetResult = & psql -U postgres -h localhost -d fluxbus -f reset_flyway_migrations.sql 2>&1
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✓ Banco de dados resetado com sucesso!" -ForegroundColor Green

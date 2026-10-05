@@ -14,8 +14,8 @@ fi
 # Verificar se POSTGRES_PASSWORD_CI está definido
 if [ -z "$POSTGRES_PASSWORD_CI" ]; then
     echo "❌ POSTGRES_PASSWORD_CI não está definido!"
-    echo "💡 Usando senha padrão: 4KaCiJc6an@7sgbdcid2025"
-    POSTGRES_PASSWORD_CI="4KaCiJc6an@7sgbdcid2025"
+    echo "💡 Usando senha padrão: CHANGE_THIS_DB_PASSWORD"
+    POSTGRES_PASSWORD_CI="CHANGE_THIS_DB_PASSWORD"
 fi
 
 echo "🔐 Senha do PostgreSQL: ${POSTGRES_PASSWORD_CI:0:10}..."
@@ -34,7 +34,7 @@ if [[ ! $REPLY =~ ^[Ss]$ ]]; then
 fi
 
 echo "🗑️ Removendo volume do PostgreSQL..."
-docker volume rm secured-guard_postgres_data_ci 2>/dev/null || true
+docker volume rm fluxbus_postgres_data_ci 2>/dev/null || true
 
 # Atualizar .env se necessário
 if [ -f .env ]; then
@@ -58,14 +58,14 @@ echo "⏳ Aguardando PostgreSQL iniciar (30s)..."
 sleep 30
 
 # Verificar se está rodando
-if docker ps | grep -q "secured-guard-db-ci"; then
+if docker ps | grep -q "fluxbus-db-ci"; then
     echo "✅ PostgreSQL está rodando!"
     echo "💡 A senha foi resetada. O banco foi recriado."
     echo "⚠️ Todos os dados anteriores foram perdidos!"
 else
     echo "❌ PostgreSQL não está rodando!"
     echo "📋 Verificando logs..."
-    docker logs secured-guard-db-ci --tail 50
+    docker logs fluxbus-db-ci --tail 50
     exit 1
 fi
 

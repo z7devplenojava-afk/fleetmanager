@@ -61,7 +61,7 @@ ssh-keyscan -p $VPS_PORT $VPS_HOST >> ~/.ssh/known_hosts
 log "3. Verificando chave SSH..."
 if [ ! -f ~/.ssh/id_rsa ]; then
     log "Gerando chave SSH..."
-    ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N "" -C "secured-guard-deploy"
+    ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N "" -C "fluxbus-deploy"
     log "✅ Chave SSH gerada!"
 else
     log "✅ Chave SSH já existe!"

@@ -1,7 +1,7 @@
 -- Script para adicionar coluna company_sigla na tabela invoices
--- Execute este script diretamente no banco secured_guard_test
+-- Execute este script diretamente no banco fluxbus_test
 
--- Conectar ao banco: secured_guard_test
+-- Conectar ao banco: fluxbus_test
 -- Usuário: postgres
 -- Senha: 1234567
 

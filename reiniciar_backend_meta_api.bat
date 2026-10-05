@@ -4,7 +4,7 @@ echo  REINICIANDO BACKEND COM META CLOUD API
 echo ========================================
 echo.
 
-cd /d C:\dev\secured-guard\backend
+cd /d C:\dev\fluxbus\backend
 
 echo [PASSO 1] Limpando compilacao anterior...
 call mvnw clean

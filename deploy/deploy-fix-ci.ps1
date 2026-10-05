@@ -4,7 +4,7 @@
 param(
     [string]$ServerUser = "root",
     [string]$ServerHost = "ci.z7botsolutions.com.br",
-    [string]$ProjectPath = "/var/www/secured_guard"
+    [string]$ProjectPath = "/var/www/fluxbus"
 )
 
 Write-Host "=== DEPLOY CORREÇÃO JWT - CI ===" -ForegroundColor Cyan

@@ -1,8 +1,8 @@
 #!/bin/bash
-# Script Bash para iniciar serviços locais do Secured Guard
+# Script Bash para iniciar serviços locais do FluxBus
 # Uso: ./start-local-services.sh
 
-echo "🚀 Iniciando serviços locais do Secured Guard..."
+echo "🚀 Iniciando serviços locais do FluxBus..."
 echo ""
 
 # Verificar se Docker está rodando
@@ -38,7 +38,7 @@ echo "🔍 Verificando saúde dos serviços..."
 
 # Verificar PostgreSQL
 echo -n "  PostgreSQL... "
-if docker exec secured-guard-local-db pg_isready -U dev_user > /dev/null 2>&1; then
+if docker exec fluxbus-local-db pg_isready -U dev_user > /dev/null 2>&1; then
     echo "✅"
 else
     echo "⚠️  Ainda inicializando..."
@@ -46,7 +46,7 @@ fi
 
 # Verificar Redis
 echo -n "  Redis... "
-if docker exec secured-guard-local-redis redis-cli ping > /dev/null 2>&1; then
+if docker exec fluxbus-local-redis redis-cli ping > /dev/null 2>&1; then
     echo "✅"
 else
     echo "⚠️  Ainda inicializando..."

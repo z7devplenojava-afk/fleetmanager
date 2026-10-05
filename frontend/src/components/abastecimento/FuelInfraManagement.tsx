@@ -45,6 +45,7 @@ export const FuelInfraManagement: React.FC = () => {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Nome</TableHead>
+                                    <TableHead>Garagem</TableHead>
                                     <TableHead>Combustível</TableHead>
                                     <TableHead>Capacidade</TableHead>
                                     <TableHead>Nível Atual</TableHead>
@@ -53,12 +54,13 @@ export const FuelInfraManagement: React.FC = () => {
                             <TableBody>
                                 {tanks.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center text-gray-500 py-4">Nenhum tanque cadastrado</TableCell>
+                                        <TableCell colSpan={5} className="text-center text-gray-500 py-4">Nenhum tanque cadastrado</TableCell>
                                     </TableRow>
                                 ) : (
                                     tanks.map(tank => (
                                         <TableRow key={tank.id}>
                                             <TableCell className="font-medium">{tank.name}</TableCell>
+                                            <TableCell className="text-gray-300 text-sm">{tank.garageName || '—'}</TableCell>
                                             <TableCell>
                                                 <Badge variant="outline">{tank.fuelType}</Badge>
                                             </TableCell>
@@ -98,6 +100,7 @@ export const FuelInfraManagement: React.FC = () => {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Nome</TableHead>
+                                    <TableHead>Garagem</TableHead>
                                     <TableHead>Tanque</TableHead>
                                     <TableHead>Última Leitura</TableHead>
                                 </TableRow>
@@ -105,12 +108,13 @@ export const FuelInfraManagement: React.FC = () => {
                             <TableBody>
                                 {pumps.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="text-center text-gray-500 py-4">Nenhuma bomba cadastrada</TableCell>
+                                        <TableCell colSpan={4} className="text-center text-gray-500 py-4">Nenhuma bomba cadastrada</TableCell>
                                     </TableRow>
                                 ) : (
                                     pumps.map(pump => (
                                         <TableRow key={pump.id}>
                                             <TableCell className="font-medium">{pump.name}</TableCell>
+                                            <TableCell className="text-gray-300 text-sm">{pump.garageName || '—'}</TableCell>
                                             <TableCell>{pump.fuelTankName}</TableCell>
                                             <TableCell>{pump.lastMeterReading.toLocaleString()} L</TableCell>
                                         </TableRow>

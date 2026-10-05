@@ -1,6 +1,6 @@
 package com.z7design.fleet_manager.controller;
 
-import com.z7design.fleet_manager.service.BaileysRestService;
+import com.z7design.fleet_manager.service.EvolutionApiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +15,7 @@ import java.util.Map;
 @Slf4j
 public class WhatsAppTestController {
     
-    private final BaileysRestService baileysRestService;
+    private final EvolutionApiService evolutionApiService;
     
     @PostMapping("/test")
     public ResponseEntity<Map<String, Object>> testConnection() {
@@ -63,13 +63,13 @@ public class WhatsAppTestController {
             
             String mensagem = request.getMensagem() != null && !request.getMensagem().trim().isEmpty()
                 ? request.getMensagem()
-                : "âœ… Teste SecuredGuard - WhatsApp conectado e funcionando!";
+                : "âœ… Teste FluxBus - WhatsApp conectado e funcionando!";
             
-            log.info("ðŸ“± Enviando mensagem de teste via Baileys REST para: {} - Mensagem: {}", 
+            log.info("ðŸ“± Enviando mensagem de teste via Evolution REST para: {} - Mensagem: {}", 
                 request.getTelefone(), mensagem);
             
-            // Enviar mensagem via Baileys REST Service
-            boolean success = baileysRestService.sendTextMessage(request.getTelefone(), mensagem);
+            // Enviar mensagem via Evolution REST Service
+            boolean success = evolutionApiService.sendTextMessage(request.getTelefone(), mensagem);
             
             Map<String, Object> result = new HashMap<>();
             result.put("sucesso", success);
@@ -80,7 +80,7 @@ public class WhatsAppTestController {
                 result.put("message", "Mensagem de teste enviada com sucesso");
                 log.info("âœ… Mensagem de teste enviada com sucesso para: {}", request.getTelefone());
             } else {
-                String errorMsg = baileysRestService.getLastErrorMessage();
+                String errorMsg = evolutionApiService.getLastErrorMessage();
                 result.put("message", errorMsg != null ? errorMsg : "Erro ao enviar mensagem de teste");
                 log.error("âŒ Falha ao enviar mensagem de teste para: {}. Erro: {}", 
                     request.getTelefone(), errorMsg);

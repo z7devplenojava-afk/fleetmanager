@@ -544,7 +544,7 @@ VIGILANTE: 6
 # Verificar configurações em application.properties
 spring.mail.host=mail.z7design.com.br
 spring.mail.username=securedguard@z7design.com.br
-spring.mail.password=sg@2025promover
+spring.mail.password=REMOVIDO_POR_SEGURANCA
 ```
 
 ### **WhatsApp não envia:**

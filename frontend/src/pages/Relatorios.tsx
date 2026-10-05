@@ -1,16 +1,18 @@
 import React from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import ReportGenerator from '@/components/reports/ReportGenerator';
-import { FileText, BarChart3, TrendingUp, Users, Building, Package, DollarSign } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileText, BarChart3, TrendingUp, Users, Building, Package, DollarSign, ChevronRight } from 'lucide-react';
 
 const Relatorios: React.FC = () => {
+  const navigate = useNavigate();
   const reportCategories = [
     {
       title: 'Recursos Humanos',
       description: 'Relatórios relacionados a funcionários e gestão de pessoal',
       icon: Users,
       reports: [
-        { name: 'Relatório de Funcionários', description: 'Lista completa de funcionários' },
+        { name: 'Relatório de Funcionários', description: 'Lista completa de funcionários', path: '/rh/relatorios/funcionarios' },
         { name: 'Relatório de Empresas', description: 'Empresas cadastradas no sistema' }
       ]
     },
@@ -66,11 +68,38 @@ const Relatorios: React.FC = () => {
               
               <div className="space-y-2">
                 {category.reports.map((report, reportIndex) => (
-                  <div key={reportIndex} className="flex items-center gap-2">
+                  <div
+                    key={reportIndex}
+                    className={
+                      'path' in report && report.path
+                        ? 'flex items-center gap-2 rounded-lg p-2 -m-1 cursor-pointer hover:bg-seguranca-black/60 transition-colors'
+                        : 'flex items-center gap-2'
+                    }
+                    onClick={
+                      'path' in report && report.path
+                        ? () => navigate((report as { path: string }).path)
+                        : undefined
+                    }
+                    role={'path' in report && report.path ? 'button' : undefined}
+                    tabIndex={'path' in report && report.path ? 0 : undefined}
+                    onKeyDown={
+                      'path' in report && report.path
+                        ? e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              navigate((report as { path: string }).path);
+                            }
+                          }
+                        : undefined
+                    }
+                  >
                     <FileText className="text-gray-400" size={16} />
-                    <div>
-                      <div className="text-seguranca-lightgray text-sm font-medium">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-seguranca-lightgray text-sm font-medium flex items-center gap-1">
                         {report.name}
+                        {'path' in report && report.path && (
+                          <ChevronRight className="text-seguranca-yellow h-3.5 w-3.5" />
+                        )}
                       </div>
                       <div className="text-gray-400 text-xs">
                         {report.description}

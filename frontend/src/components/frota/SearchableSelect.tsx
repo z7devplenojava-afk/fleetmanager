@@ -116,11 +116,14 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const handleSelect = (option: SearchableOption) => {
     if (option.disabled) return;
     onChange(option.value, option);
-    setOpen(false);
-    setSearchQuery('');
+    setTimeout(() => {
+      setOpen(false);
+      setSearchQuery('');
+    }, 30);
   };
 
-  const handleClear = (e: React.MouseEvent) => {
+  const handleClear = (e: React.MouseEvent | React.PointerEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     onChange('', null);
     setSearchQuery('');
@@ -129,7 +132,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const isBelowMin = minSearchLength && searchQuery.trim().length > 0 && searchQuery.trim().length < minSearchLength;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild disabled={disabled}>
         <button
           type="button"
@@ -163,6 +166,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
             {value && !disabled && (
               <span
                 role="button"
+                onPointerDown={handleClear}
                 onClick={handleClear}
                 className="p-1 hover:bg-gray-800 rounded text-gray-400 hover:text-white transition-colors"
                 title="Limpar seleção"
@@ -178,6 +182,11 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       <PopoverContent
         align="start"
         sideOffset={4}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          setTimeout(() => inputRef.current?.focus(), 60);
+        }}
+        onCloseAutoFocus={(e) => e.preventDefault()}
         className="w-[var(--radix-popover-trigger-width)] min-w-[280px] p-0 bg-seguranca-graphite border border-gray-700 rounded-lg shadow-2xl z-[10070] overflow-hidden flex flex-col"
       >
         {/* Barra de Pesquisa */}
@@ -193,7 +202,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           {searchQuery && (
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setSearchQuery(''); }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSearchQuery(''); }}
               className="text-gray-400 hover:text-white p-1"
             >
               <X className="w-3.5 h-3.5" />
@@ -218,12 +228,30 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               return (
                 <div
                   key={opt.value}
-                  onClick={() => handleSelect(opt)}
+                  role="button"
+                  tabIndex={0}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSelect(opt);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSelect(opt);
+                    }
+                  }}
                   className={cn(
-                    'px-3 py-2 flex items-center justify-between gap-2 cursor-pointer transition-colors text-xs',
+                    'px-3 py-2 flex items-center justify-between gap-2 cursor-pointer transition-colors text-xs select-none',
                     isSelected
                       ? 'bg-seguranca-yellow/20 text-white font-medium'
-                      : 'hover:bg-white/5 text-gray-200',
+                      : 'hover:bg-white/5 text-gray-200 active:bg-white/10',
                     opt.disabled && 'opacity-50 cursor-not-allowed pointer-events-none'
                   )}
                 >

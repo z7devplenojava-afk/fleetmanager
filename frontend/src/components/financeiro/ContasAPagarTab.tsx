@@ -29,6 +29,7 @@ import { ContasAPagarFormModal, ContaAPagar } from '@/components/financeiro/Cont
 import { ContasAPagarTable } from '@/components/financeiro/ContasAPagarTable';
 import { ContasAPagarDashboard } from '@/components/financeiro/ContasAPagarDashboard';
 import { ContasAPagarViewModal } from '@/components/financeiro/ContasAPagarViewModal';
+import { DdaBoletosTab } from '@/components/financeiro/DdaBoletosTab';
 import { contasAPagarService } from '@/services/contasAPagarService';
 import { CLASSIFICACOES_PADRAO, GRUPOS_CLASSIFICACAO, getClassificacaoStyle } from '@/constants/classificacaoContasPagar';
 import { format, addDays, isBefore } from 'date-fns';
@@ -36,6 +37,7 @@ import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import api from '@/lib/axios';
+import { Landmark } from 'lucide-react';
 
 const ContasAPagarTab: React.FC = () => {
   const { toast } = useToast();
@@ -59,8 +61,8 @@ const ContasAPagarTab: React.FC = () => {
   const [tipoFilter, setTipoFilter] = useState<string>('TODOS');
   const [classificacaoFilter, setClassificacaoFilter] = useState<string>('TODAS');
   
-  // Estados para relatórios
-  const [activeTab, setActiveTab] = useState<'contas' | 'relatorios'>('contas');
+  // Estados para relatórios e DDA
+  const [activeTab, setActiveTab] = useState<'contas' | 'relatorios' | 'dda'>('contas');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportData, setReportData] = useState<any>(null);
   const [reportFilters, setReportFilters] = useState({
@@ -1013,11 +1015,15 @@ const ContasAPagarTab: React.FC = () => {
       )}
 
       {/* Abas principais */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'contas' | 'relatorios')}>
-        <TabsList className="grid w-full grid-cols-2 bg-seguranca-graphite border-gray-600">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'contas' | 'relatorios' | 'dda')}>
+        <TabsList className="grid w-full grid-cols-3 bg-seguranca-graphite border-gray-600">
           <TabsTrigger value="contas" className="flex items-center gap-2 text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
             <FileText size={16} />
             Contas a Pagar
+          </TabsTrigger>
+          <TabsTrigger value="dda" className="flex items-center gap-2 text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
+            <Landmark size={16} />
+            Boletos DDA (CIP / Bancos)
           </TabsTrigger>
           <TabsTrigger value="relatorios" className="flex items-center gap-2 text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
             <BarChart3 size={16} />
@@ -1783,6 +1789,11 @@ const ContasAPagarTab: React.FC = () => {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* Aba de Boletos DDA */}
+        <TabsContent value="dda" className="space-y-6">
+          <DdaBoletosTab />
         </TabsContent>
       </Tabs>
 

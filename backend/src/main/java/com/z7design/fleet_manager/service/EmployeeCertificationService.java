@@ -43,7 +43,7 @@ public class EmployeeCertificationService {
             workPost = workPostRepository.findById(request.getWorkPostId()).orElse(null);
         } else if (request.getWorkPostName() != null && !request.getWorkPostName().trim().isEmpty()) {
             // Buscar por nome exato
-            workPost = workPostRepository.findByName(request.getWorkPostName()).orElse(null);
+            workPost = workPostRepository.findFirstByNameOrderByIdAsc(request.getWorkPostName()).orElse(null);
         }
         
         // Criar entidade EmployeeCertification
@@ -102,7 +102,7 @@ public class EmployeeCertificationService {
             com.z7design.fleet_manager.model.WorkPost workPost = workPostRepository.findById(request.getWorkPostId()).orElse(null);
             existingCertification.setWorkPost(workPost);
         } else if (request.getWorkPostName() != null && !request.getWorkPostName().trim().isEmpty()) {
-            com.z7design.fleet_manager.model.WorkPost workPost = workPostRepository.findByName(request.getWorkPostName()).orElse(null);
+            com.z7design.fleet_manager.model.WorkPost workPost = workPostRepository.findFirstByNameOrderByIdAsc(request.getWorkPostName()).orElse(null);
             existingCertification.setWorkPost(workPost);
         }
         

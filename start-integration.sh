@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "========================================"
-echo "   Iniciando Secured Guard Integration"
+echo "   Iniciando FluxBus Integration"
 echo "========================================"
 echo
 

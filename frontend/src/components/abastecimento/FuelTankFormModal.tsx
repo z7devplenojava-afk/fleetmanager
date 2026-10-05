@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import fuelPumpService, { FuelTank } from '@/services/fuelPumpService';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { garageService, Garage } from '@/services/garageService';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface FuelTankFormModalProps {
     isOpen: boolean;
@@ -21,8 +22,19 @@ const FuelTankFormModal: React.FC<FuelTankFormModalProps> = ({ isOpen, onClose, 
         name: '',
         capacity: '',
         currentLevel: '',
-        fuelType: 'DIESEL'
+        fuelType: 'DIESEL',
+        garageId: ''
     });
+
+    const { data: garages = [] } = useQuery({
+        queryKey: ['garages'],
+        queryFn: () => garageService.list(),
+        enabled: isOpen
+    });
+
+    useEffect(() => {
+        if (isOpen) setFormData({ name: '', capacity: '', currentLevel: '', fuelType: 'DIESEL', garageId: '' });
+    }, [isOpen]);
 
     const mutation = useMutation({
         mutationFn: (data: any) => fuelPumpService.createTank(data),
@@ -38,6 +50,10 @@ const FuelTankFormModal: React.FC<FuelTankFormModalProps> = ({ isOpen, onClose, 
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!formData.garageId) {
+            toast({ title: 'Erro', description: 'Selecione a garagem onde o tanque está instalado.', variant: 'destructive' });
+            return;
+        }
         mutation.mutate({
             ...formData,
             capacity: parseFloat(formData.capacity),
@@ -102,6 +118,23 @@ const FuelTankFormModal: React.FC<FuelTankFormModalProps> = ({ isOpen, onClose, 
                                 <SelectItem value="ARLA">Arla 32</SelectItem>
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Garagem de Instalação *</Label>
+                        <Select
+                            value={formData.garageId}
+                            onValueChange={val => setFormData({ ...formData, garageId: val })}
+                        >
+                            <SelectTrigger className="bg-seguranca-black border-gray-600">
+                                <SelectValue placeholder="Selecione a garagem" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-seguranca-graphite border-gray-600">
+                                {garages.map((g: Garage) => (
+                                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-500">Informe em qual garagem o tanque está instalado.</p>
                     </div>
                     <DialogFooter className="pt-4">
                         <Button type="button" variant="ghost" onClick={onClose} className="text-gray-400">Cancelar</Button>

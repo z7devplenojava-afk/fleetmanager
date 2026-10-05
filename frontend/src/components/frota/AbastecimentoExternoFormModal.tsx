@@ -14,7 +14,7 @@ import { clientService } from '@/services/clientService';
 import { contractService } from '@/services/contractService';
 import { workPostService } from '@/services/workPostService';
 import { employeeService } from '@/services/employeeService';
-import { Vehicle } from '@/types/fleet';
+import { FuelRecord, Vehicle } from '@/types/fleet';
 import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
 import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
 import { EmployeeCombobox } from '@/components/ui/employee-combobox';
@@ -29,6 +29,7 @@ interface AbastecimentoExternoFormModalProps {
   onClose: () => void;
   onSuccess: () => void;
   veiculos: Vehicle[];
+  abastecimento?: FuelRecord | null;
 }
 
 interface ExternoFormData {
@@ -81,14 +82,18 @@ const DEFAULT_FORM: ExternoFormData = {
   receiptFile: null,
 };
 
+const EMPTY_LIST: any[] = [];
+
 const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  veiculos
+  veiculos,
+  abastecimento = null,
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEditing = !!abastecimento;
   const [formData, setFormData] = useState<ExternoFormData>(DEFAULT_FORM);
   const [isTotalManual, setIsTotalManual] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
@@ -96,33 +101,76 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Preencher formulário quando em modo de edição
+  useEffect(() => {
+    if (!abastecimento || !isOpen) return;
+
+    let dataFormatada = abastecimento.date || '';
+    if (dataFormatada && !dataFormatada.includes('-')) {
+      try {
+        const d = new Date(abastecimento.date);
+        if (!isNaN(d.getTime())) dataFormatada = d.toISOString().split('T')[0];
+      } catch { /* mantém valor original */ }
+    }
+
+    const notesStr = abastecimento.notes || '';
+    const garageMatch = notesStr.match(/Garagem: ([^|]+)/);
+    const respMatch = notesStr.match(/Resp: ([^|]+)/);
+
+    setFormData({
+      vehicleId: abastecimento.vehicleId || '',
+      date: dataFormatada,
+      fuelType: abastecimento.fuelType || 'DIESEL',
+      liters: abastecimento.quantity || 0,
+      pricePerLiter: abastecimento.pricePerLiter || 0,
+      totalValue: abastecimento.cost || 0,
+      station: abastecimento.station || '',
+      supplierId: '',
+      mileage: abastecimento.mileage || 0,
+      initialMileage: abastecimento.initialMileage || 0,
+      clientName: abastecimento.clientName || '',
+      clientId: abastecimento.clientId || '',
+      obraName: abastecimento.obraName || '',
+      workPostId: abastecimento.workPostId || '',
+      contractNumber: abastecimento.contractNumber || '',
+      contractId: abastecimento.contractId || '',
+      garageId: '',
+      garageName: garageMatch?.[1]?.trim() || '',
+      responsibleName: respMatch?.[1]?.trim() || '',
+      responsibleEmployeeId: '',
+      notes: notesStr.includes('|') ? notesStr : notesStr,
+      receiptFile: null,
+    });
+    setIsTotalManual(true);
+  }, [abastecimento, isOpen]);
+
   // --- Data Queries ---
 
-  const { data: garages = [] } = useQuery({
+  const { data: garages = EMPTY_LIST } = useQuery({
     queryKey: ['garages'],
     queryFn: () => garageService.list(),
     enabled: isOpen
   });
 
-  const { data: suppliers = [], refetch: refetchSuppliers } = useQuery({
+  const { data: suppliers = EMPTY_LIST, refetch: refetchSuppliers } = useQuery({
     queryKey: ['suppliers', 'active'],
     queryFn: contasAPagarService.getFornecedoresAtivos,
     enabled: isOpen
   });
 
-  const { data: clients = [] } = useQuery({
+  const { data: clients = EMPTY_LIST } = useQuery({
     queryKey: ['clients-for-externo'],
     queryFn: () => clientService.getClientsForSelect(),
     enabled: isOpen
   });
 
-  const { data: allWorkPosts = [] } = useQuery({
+  const { data: allWorkPosts = EMPTY_LIST } = useQuery({
     queryKey: ['workPosts-for-externo'],
     queryFn: () => workPostService.getAllWorkPosts(),
     enabled: isOpen
   });
 
-  const { data: allContracts = [] } = useQuery({
+  const { data: allContracts = EMPTY_LIST } = useQuery({
     queryKey: ['contracts-for-externo'],
     queryFn: () => contractService.getAllContracts(),
     enabled: isOpen
@@ -167,22 +215,39 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
   [clients]);
 
   const workPostOptions: SearchableOption[] = useMemo(() =>
-    filteredWorkPosts.map(wp => ({
-      value: wp.id,
-      label: wp.name,
-      subtitle: wp.postCode ? `Cód: ${wp.postCode}` : wp.address || '',
-      keywords: [wp.name, wp.postCode || '', wp.address || ''].filter(Boolean),
-    })),
-  [filteredWorkPosts]);
+    filteredWorkPosts.map(wp => {
+      const cName = wp.clientName || clients.find(c => c.id === wp.clientId)?.name;
+      const subtitleParts = [
+        cName ? `Cliente: ${cName}` : '',
+        wp.postCode ? `Cód: ${wp.postCode}` : '',
+        wp.address || '',
+      ].filter(Boolean);
+
+      return {
+        value: wp.id,
+        label: wp.name,
+        subtitle: subtitleParts.join(' | '),
+        keywords: [wp.name, cName || '', wp.postCode || '', wp.address || ''].filter(Boolean),
+      };
+    }),
+  [filteredWorkPosts, clients]);
 
   const contractOptions: SearchableOption[] = useMemo(() =>
-    filteredContracts.map(c => ({
-      value: c.id,
-      label: c.contractNumber,
-      subtitle: c.description || c.obraName || '',
-      keywords: [c.contractNumber, c.description || '', c.obraName || ''].filter(Boolean),
-    })),
-  [filteredContracts]);
+    filteredContracts.map(c => {
+      const cName = c.clientName || c.client?.name || clients.find(cl => cl.id === c.clientId)?.name;
+      const subtitleParts = [
+        cName ? `Cliente: ${cName}` : '',
+        c.description || c.obraName || '',
+      ].filter(Boolean);
+
+      return {
+        value: c.id,
+        label: c.contractNumber,
+        subtitle: subtitleParts.join(' | '),
+        keywords: [c.contractNumber, cName || '', c.description || '', c.obraName || ''].filter(Boolean),
+      };
+    }),
+  [filteredContracts, clients]);
 
   const garageOptions: SearchableOption[] = useMemo(() =>
     garages.map(g => ({
@@ -205,48 +270,82 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
   // --- Effects ---
 
   useEffect(() => {
+    // Em modo de edição, não sobrescrever os dados pré-preenchidos do registro
+    if (isEditing) return;
     if (!formData.vehicleId || !veiculos.length) return;
     const v = veiculos.find(x => x.id === formData.vehicleId);
     if (!v) return;
 
     const prevKm = lastFuelRecord?.mileage ?? v.currentMileage ?? 0;
 
-    setFormData(prev => ({
-      ...prev,
-      clientId: prev.clientId || v.clientId || '',
-      clientName: prev.clientName || v.clientName || (v as any).client?.name || '',
-      obraName: prev.obraName || (v as any).workPostEntity?.name || v.location || '',
-      contractId: prev.contractId || v.contractId || '',
-      contractNumber: prev.contractNumber || v.allocationContractNumber || '',
-      initialMileage: prevKm,
-      mileage: prev.mileage > 0 ? prev.mileage : prevKm,
-      fuelType: v.fuelType || 'DIESEL',
-    }));
-  }, [formData.vehicleId, veiculos, lastFuelRecord]);
+    setFormData(prev => {
+      const nextClientName = prev.clientName || v.clientName || (v as any).client?.name || '';
+      const nextClientId = prev.clientId || v.clientId || '';
+      const nextObra = prev.obraName || (v as any).workPostEntity?.name || v.location || '';
+      const nextContractId = prev.contractId || v.contractId || '';
+      const nextContractNum = prev.contractNumber || v.allocationContractNumber || '';
+      const nextMileage = prev.mileage > 0 ? prev.mileage : prevKm;
+      const nextFuelType = v.fuelType || 'DIESEL';
+
+      if (
+        prev.initialMileage === prevKm &&
+        prev.mileage === nextMileage &&
+        prev.clientId === nextClientId &&
+        prev.clientName === nextClientName &&
+        prev.obraName === nextObra &&
+        prev.contractId === nextContractId &&
+        prev.contractNumber === nextContractNum &&
+        prev.fuelType === nextFuelType
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        clientId: nextClientId,
+        clientName: nextClientName,
+        obraName: nextObra,
+        contractId: nextContractId,
+        contractNumber: nextContractNum,
+        initialMileage: prevKm,
+        mileage: nextMileage,
+        fuelType: nextFuelType,
+      };
+    });
+  }, [formData.vehicleId, veiculos, lastFuelRecord, isEditing]);
 
   useEffect(() => {
     if (!formData.garageId || !garages.length) {
-      setFormData(prev => ({ ...prev, responsibleName: '' }));
+      setFormData(prev => (prev.responsibleName ? { ...prev, responsibleName: '' } : prev));
       return;
     }
     const garage = garages.find(g => g.id === formData.garageId);
     if (garage) {
-      setFormData(prev => ({
-        ...prev,
-        garageName: garage.name,
-        responsibleName: prev.responsibleName || garage.responsibleName || ''
-      }));
+      setFormData(prev => {
+        const nextResp = prev.responsibleName || garage.responsibleName || '';
+        if (prev.garageName === garage.name && prev.responsibleName === nextResp) return prev;
+        return {
+          ...prev,
+          garageName: garage.name,
+          responsibleName: nextResp
+        };
+      });
     }
   }, [formData.garageId, garages]);
 
   useEffect(() => {
     if (!formData.responsibleEmployeeId) return;
     employeeService.getEmployeeById(formData.responsibleEmployeeId).then(emp => {
-      if (emp) setFormData(prev => ({ ...prev, responsibleName: emp.name }));
+      if (emp) setFormData(prev => (prev.responsibleName === emp.name ? prev : { ...prev, responsibleName: emp.name }));
     }).catch(() => {});
   }, [formData.responsibleEmployeeId]);
 
   useEffect(() => {
+    // Em edição, ignorar o próprio registro como "KM anterior" (a API pode retorná-lo)
+    if (isEditing) {
+      setMileageError(null);
+      return;
+    }
     if (!formData.mileage || !lastFuelRecord?.mileage) {
       setMileageError(null);
       return;
@@ -258,42 +357,120 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
     } else {
       setMileageError(null);
     }
-  }, [formData.mileage, lastFuelRecord]);
+  }, [formData.mileage, lastFuelRecord, isEditing]);
 
   useEffect(() => {
     if (!isTotalManual && formData.liters > 0 && formData.pricePerLiter > 0) {
-      setFormData(prev => ({ ...prev, totalValue: Number((prev.liters * prev.pricePerLiter).toFixed(2)) }));
+      const calc = Number((formData.liters * formData.pricePerLiter).toFixed(2));
+      setFormData(prev => (prev.totalValue === calc ? prev : { ...prev, totalValue: calc }));
     }
   }, [formData.liters, formData.pricePerLiter, isTotalManual]);
 
   // --- Handlers ---
 
-  const createMutation = useMutation({
-    mutationFn: (data: FormData) => fleetService.createFuelRecord(data),
+  const saveMutation = useMutation({
+    mutationFn: (data: FormData) =>
+      isEditing && abastecimento
+        ? fleetService.updateFuelRecord(abastecimento.id, data as any)
+        : fleetService.createFuelRecord(data),
     onSuccess: () => {
-      toast({ title: 'Sucesso', description: 'Abastecimento externo registrado!' });
+      toast({
+        title: 'Sucesso',
+        description: isEditing ? 'Abastecimento externo atualizado!' : 'Abastecimento externo registrado!',
+      });
       queryClient.invalidateQueries({ queryKey: ['fuelRecords'] });
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       onSuccess();
       onClose();
       setFormData(DEFAULT_FORM);
+      setIsTotalManual(false);
     },
     onError: (err: any) => {
       toast({ title: 'Erro', description: err.response?.data?.message || 'Erro ao salvar', variant: 'destructive' });
     }
   });
 
+  const handleSelectClient = (clientId: string) => {
+    setFormData(prev => {
+      if (!clientId) {
+        return {
+          ...prev,
+          clientId: '',
+          clientName: '',
+        };
+      }
+      const client = clients.find(c => c.id === clientId);
+      const currentWp = allWorkPosts.find(wp => wp.id === prev.workPostId);
+      const keepWp = currentWp && currentWp.clientId === clientId;
+      const currentCt = allContracts.find(ct => ct.id === prev.contractId);
+      const keepCt = currentCt && (currentCt.clientId === clientId || currentCt.client?.id === clientId);
+
+      return {
+        ...prev,
+        clientId,
+        clientName: client?.name || '',
+        workPostId: keepWp ? prev.workPostId : '',
+        obraName: keepWp ? prev.obraName : '',
+        contractId: keepCt ? prev.contractId : '',
+        contractNumber: keepCt ? prev.contractNumber : '',
+      };
+    });
+  };
+
+  const handleSelectWorkPost = (workPostId: string, option?: SearchableOption | null) => {
+    if (!workPostId) {
+      setFormData(prev => ({
+        ...prev,
+        workPostId: '',
+        obraName: '',
+      }));
+      return;
+    }
+
+    const wp = allWorkPosts.find(p => p.id === workPostId);
+    const matchedClient = wp?.clientId ? clients.find(c => c.id === wp.clientId) : null;
+    const matchedContract = wp?.contractId ? allContracts.find(c => c.id === wp.contractId) : null;
+
+    setFormData(prev => ({
+      ...prev,
+      workPostId,
+      obraName: wp?.name || option?.label || '',
+      clientId: wp?.clientId || prev.clientId,
+      clientName: matchedClient?.name || wp?.clientName || prev.clientName,
+      contractId: prev.contractId || (wp?.contractId || ''),
+      contractNumber: prev.contractNumber || (matchedContract?.contractNumber || ''),
+    }));
+  };
+
+  const handleSelectContract = (contractId: string, option?: SearchableOption | null) => {
+    if (!contractId) {
+      setFormData(prev => ({
+        ...prev,
+        contractId: '',
+        contractNumber: '',
+      }));
+      return;
+    }
+
+    const ct = allContracts.find(c => c.id === contractId);
+    const ctClientId = ct?.clientId || ct?.client?.id;
+    const matchedClient = ctClientId ? clients.find(c => c.id === ctClientId) : null;
+
+    setFormData(prev => ({
+      ...prev,
+      contractId,
+      contractNumber: ct?.contractNumber || option?.label || '',
+      clientId: ctClientId || prev.clientId,
+      clientName: matchedClient?.name || ct?.clientName || ct?.client?.name || prev.clientName,
+    }));
+  };
+
   const handleField = (field: keyof ExternoFormData, value: any) => {
     setFormData(prev => {
       const next = { ...prev, [field]: value };
-      // When client changes, clear obra and contract
       if (field === 'clientId') {
         const client = clients.find(c => c.id === value);
         next.clientName = client?.name || '';
-        next.workPostId = '';
-        next.obraName = '';
-        next.contractId = '';
-        next.contractNumber = '';
       }
       return next;
     });
@@ -314,12 +491,19 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
     }
     if (mileageError) return;
 
+    const computedCost = formData.totalValue || formData.liters * formData.pricePerLiter;
+    if (!computedCost || computedCost <= 0) {
+      toast({ title: 'Erro', description: 'Informe o Valor Total ou o Valor Unitário (R$/L) maior que zero', variant: 'destructive' });
+      return;
+    }
+    const safeCost = Math.max(computedCost, 0.01);
+
     const payload = {
       vehicleId: formData.vehicleId,
       date: formData.date,
       fuelType: formData.fuelType,
       quantity: formData.liters,
-      cost: formData.totalValue || formData.liters * formData.pricePerLiter,
+      cost: safeCost,
       pricePerLiter: formData.pricePerLiter || null,
       mileage: formData.mileage,
       initialMileage: formData.initialMileage || null,
@@ -341,7 +525,7 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
     if (formData.receiptFile) {
       fd.append('receipt', formData.receiptFile);
     }
-    createMutation.mutate(fd as any);
+    saveMutation.mutate(fd as any);
   };
 
   const selectedVehicle = veiculos.find(v => v.id === formData.vehicleId);
@@ -353,10 +537,12 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
           <DialogHeader className="p-6 pb-3 border-b border-gray-700/50">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               <Droplets className="h-5 w-5 text-green-400" />
-              Abastecimento Externo - Posto de Gasolina
+              {isEditing ? 'Editar Abastecimento Externo' : 'Abastecimento Externo - Posto de Gasolina'}
             </DialogTitle>
             <DialogDescription className="text-gray-400 text-sm">
-              Registro de abastecimento realizado em posto externo. Dados do veículo, cliente e contrato.
+              {isEditing
+                ? 'Altere os dados do registro de abastecimento realizado em posto externo.'
+                : 'Registro de abastecimento realizado em posto externo. Dados do veículo, cliente e contrato.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -389,7 +575,7 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                   <Label className="text-gray-400 text-xs">Cliente</Label>
                   <SearchableSelect
                     value={formData.clientId}
-                    onChange={(val) => handleField('clientId', val)}
+                    onChange={(val) => handleSelectClient(val)}
                     options={clientOptions}
                     placeholder="Buscar cliente..."
                     searchPlaceholder="Digite o nome do cliente..."
@@ -400,30 +586,22 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                   <Label className="text-gray-400 text-xs">Obra / Setor</Label>
                   <SearchableSelect
                     value={formData.workPostId}
-                    onChange={(val, opt) => {
-                      handleField('workPostId', val);
-                      handleField('obraName', opt?.label || '');
-                    }}
+                    onChange={(val, opt) => handleSelectWorkPost(val, opt)}
                     options={workPostOptions}
-                    placeholder={formData.clientId ? "Buscar obra..." : "Selecione o cliente primeiro"}
-                    searchPlaceholder="Digite o nome da obra..."
+                    placeholder="Buscar obra / setor..."
+                    searchPlaceholder="Digite o nome da obra, código ou cliente..."
                     emptyText="Nenhuma obra encontrada"
-                    disabled={!formData.clientId}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-gray-400 text-xs">Contrato</Label>
                   <SearchableSelect
                     value={formData.contractId}
-                    onChange={(val, opt) => {
-                      handleField('contractId', val);
-                      handleField('contractNumber', opt?.label || '');
-                    }}
+                    onChange={(val, opt) => handleSelectContract(val, opt)}
                     options={contractOptions}
-                    placeholder={formData.clientId ? "Buscar contrato..." : "Selecione o cliente primeiro"}
-                    searchPlaceholder="Digite o nº do contrato..."
+                    placeholder="Buscar contrato..."
+                    searchPlaceholder="Digite o nº do contrato ou cliente..."
                     emptyText="Nenhum contrato encontrado"
-                    disabled={!formData.clientId}
                   />
                 </div>
               </div>
@@ -658,13 +836,13 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={createMutation.isPending || !!mileageError || !formData.vehicleId || !formData.liters || !formData.station}
+              disabled={saveMutation.isPending || !!mileageError || !formData.vehicleId || !formData.liters || !formData.station}
               className="bg-green-600 hover:bg-green-700 text-white min-w-[160px]"
             >
-              {createMutation.isPending ? (
+              {saveMutation.isPending ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</>
               ) : (
-                <><Save className="mr-2 h-4 w-4" /> Registrar Abastecimento</>
+                <><Save className="mr-2 h-4 w-4" /> {isEditing ? 'Salvar Alterações' : 'Registrar Abastecimento'}</>
               )}
             </Button>
           </div>

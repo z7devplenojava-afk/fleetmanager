@@ -6,13 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
-import { Plus, Search, Filter, Download, Eye, Edit, Trash2, AlertTriangle, Calendar, DollarSign, FileText, TrendingUp, BarChart3, PieChart } from 'lucide-react';
+import { Plus, Search, Filter, Download, Eye, Edit, Trash2, AlertTriangle, Calendar, DollarSign, FileText, TrendingUp, BarChart3, PieChart, Package, Wrench } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { ContasAPagarTable } from './ContasAPagarTable';
 import { ContasAPagarDashboard } from './ContasAPagarDashboard';
 import { ContasAPagarFormModal } from './ContasAPagarFormModal';
 import { ContasAPagarViewModal } from './ContasAPagarViewModal';
+import { StockNfeImportModal } from '@/components/stock/StockNfeImportModal';
+import { ServiceNfeImportModal } from './ServiceNfeImportModal';
 import { ContaAPagar } from './ContasAPagarFormModal';
 import { contasAPagarService } from '@/services/contasAPagarService';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +27,8 @@ export const ContasAPagar: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showStockNfeModal, setShowStockNfeModal] = useState(false);
+  const [showServiceNfeModal, setShowServiceNfeModal] = useState(false);
   const [editingConta, setEditingConta] = useState<ContaAPagar | null>(null);
   const [viewingConta, setViewingConta] = useState<ContaAPagar | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -149,7 +153,7 @@ export const ContasAPagar: React.FC = () => {
       // Preparar dados da tabela
       const tableData = contasParaExportar.map(conta => [
         format(new Date(conta.vencimento), 'dd/MM/yyyy', { locale: ptBR }),
-        conta.fornecedor?.nome || 'Não informado',
+        conta.employeeName || conta.fornecedor?.nome || (typeof conta.fornecedor === 'string' ? conta.fornecedor : '') || 'Não informado',
         conta.descricao || '',
         conta.empresa || '',
         conta.tipo || '',
@@ -160,7 +164,7 @@ export const ContasAPagar: React.FC = () => {
 
       // Adicionar tabela
       (doc as any).autoTable({
-        head: [['Vencimento', 'Fornecedor', 'Descrição', 'Empresa', 'Tipo', 'Valor', 'Status', 'Dt. Pagamento']],
+        head: [['Vencimento', 'Fornecedor/Funcionário', 'Descrição', 'Empresa', 'Tipo', 'Valor', 'Status', 'Dt. Pagamento']],
         body: tableData,
         startY: 38,
         styles: { fontSize: 8 },
@@ -305,10 +309,30 @@ export const ContasAPagar: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Contas a Pagar</h1>
           <p className="text-gray-600">Gerencie suas contas a pagar e controle de vencimentos</p>
         </div>
-        <Button onClick={() => setShowFormModal(true)} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Nova Conta
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowStockNfeModal(true)}
+            className="flex items-center gap-2 border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+          >
+            <Package className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            Importar NF-e (Estoque)
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => setShowServiceNfeModal(true)}
+            className="flex items-center gap-2 border-blue-600/30 text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30"
+          >
+            <Wrench className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            Importar NFS-e (Serviços/OS)
+          </Button>
+
+          <Button onClick={() => setShowFormModal(true)} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Nova Conta
+          </Button>
+        </div>
       </div>
 
 
@@ -482,6 +506,20 @@ export const ContasAPagar: React.FC = () => {
         onClose={handleCloseViewModal}
         conta={viewingConta}
         onEdit={handleEdit}
+      />
+
+      {/* Modal de Importação de NF-e (Estoque/Produtos) */}
+      <StockNfeImportModal
+        open={showStockNfeModal}
+        onOpenChange={setShowStockNfeModal}
+        onSuccess={loadContas}
+      />
+
+      {/* Modal de Importação de NFS-e (Serviços/OS) */}
+      <ServiceNfeImportModal
+        open={showServiceNfeModal}
+        onOpenChange={setShowServiceNfeModal}
+        onSuccess={loadContas}
       />
     </div>
   );

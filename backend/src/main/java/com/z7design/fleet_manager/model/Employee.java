@@ -435,6 +435,9 @@ public class Employee implements TenantAware {
     @Column(name = "conta_corrente", length = 20)
     private String contaCorrente;
 
+    @Column(name = "conta_corrente_digito", length = 10)
+    private String contaCorrenteDigito;
+
     // Estrangeiros
     @Column(name = "carteira_modelo_19", length = 30)
     private String carteiraModelo19;
@@ -443,11 +446,21 @@ public class Employee implements TenantAware {
     private String registroGeralEstrangeiro;
 
     @Column(name = "rne_numero", length = 30)
-    private String rneNumero; // RNE nÂº
+    private String rneNumero; // RNE nº
 
     @Column(name = "rne_validade")
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate rneValidade; // Validade do RNE
+
+    @Column(name = "numero_portaria", length = 50)
+    private String numeroPortaria;
+
+    @Column(name = "data_portaria")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate dataPortaria;
+
+    @Column(name = "fgts_conta", length = 50)
+    private String fgtsConta;
 
     @Column(name = "casado_brasileiro")
     private Boolean casadoBrasileiro;
@@ -506,6 +519,16 @@ public class Employee implements TenantAware {
     @Column(name = "decreto_naturalizacao", length = 50)
     private String decretoNaturalizacao;
 
+    // Laudo Psicologico (exame psicotecnico)
+    @Column(name = "laudo_psicologico_data")
+    private LocalDate laudoPsicologicoData;
+
+    @Column(name = "next_laudo_psicologico")
+    private LocalDate nextLaudoPsicologico;
+
+    @Column(name = "next_exame_medico")
+    private LocalDate nextExameMedico;
+
     // Assinaturas e controle
     @Column(name = "assinatura_funcionario", columnDefinition = "TEXT")
     private String assinaturaFuncionario;
@@ -515,6 +538,7 @@ public class Employee implements TenantAware {
     private LocalDate dataRescisao;
 
     // Dados do Exame MÃ©dico (ASO)
+
     @Column(name = "exame_medico_data")
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate exameMedicoData;

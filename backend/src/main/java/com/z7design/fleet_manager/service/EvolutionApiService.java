@@ -31,21 +31,19 @@ public class EvolutionApiService {
     @Value("${evolution.api.key:}")
     private String apiKey;
 
-    @Value("${evolution.api.instance:securedguard}")
+    @Value("${evolution.api.instance:fluxbus}")
     private String instanceName;
 
-    @Value("${evolution.api.enabled:false}")
+    @Value("${evolution.api.enabled:true}")
     private boolean evolutionEnabled;
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
-    private final BaileysRestService baileysRestService;
     private String lastErrorMessage;
 
-    public EvolutionApiService(RestTemplate restTemplate, ObjectMapper objectMapper, BaileysRestService baileysRestService) {
+    public EvolutionApiService(RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
-        this.baileysRestService = baileysRestService;
         this.lastErrorMessage = null;
     }
 
@@ -454,24 +452,6 @@ public class EvolutionApiService {
         } catch (Exception e) {
             logger.warn("Erro ao buscar instâncias: {}", e.getMessage());
             return null;
-        }
-    }
-
-    private String sendViaBaileysFallback(String phoneNumber, String message, String filePath) {
-        try {
-            boolean ok;
-            if (filePath != null && !filePath.isEmpty()) {
-                ok = baileysRestService.sendFileMessage(phoneNumber, message, filePath);
-            } else {
-                ok = baileysRestService.sendTextMessage(phoneNumber, message);
-            }
-            if (ok) {
-                return "sent_via_baileys";
-            }
-            return "fallback_failed";
-        } catch (Exception e) {
-            logger.error("Fallback Baileys também falhou: {}", e.getMessage());
-            return "fallback_failed";
         }
     }
 

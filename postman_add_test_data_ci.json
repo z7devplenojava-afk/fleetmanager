@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Secured Guard - Adicionar Dados Teste CI",
+    "name": "FluxBus - Adicionar Dados Teste CI",
     "description": "Requests para adicionar holerites e comprovantes no ambiente CI",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

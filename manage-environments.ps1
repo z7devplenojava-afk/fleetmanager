@@ -1,5 +1,5 @@
 # ========================================
-# GERENCIADOR DE AMBIENTES SECUREDGUARD
+# GERENCIADOR DE AMBIENTES FLUXBUS
 # Script unificado para gerenciar todos os ambientes
 # ========================================
 
@@ -38,7 +38,7 @@ function Write-ColorOutput {
 }
 
 function Show-Header {
-    Write-ColorOutput "🚀 SecuredGuard - Gerenciador de Ambientes" "Green"
+    Write-ColorOutput "🚀 FluxBus - Gerenciador de Ambientes" "Green"
     Write-ColorOutput "===========================================" "Green"
     Write-ColorOutput "" "White"
 }
@@ -213,7 +213,7 @@ function Deploy-ToVPS {
             
             # Executar via WSL
             $wslScript = @"
-cd /mnt/c/dev/secured-guard
+cd /mnt/c/dev/fluxbus
 chmod +x deploy/deploy-to-vps-wsl.sh
 ./deploy/deploy-to-vps-wsl.sh
 "@
@@ -307,7 +307,7 @@ Show-Header
 
 # Verificar se estamos no diretório correto
 if (-not (Test-Path "docker-compose.yml") -and -not (Test-Path "deploy")) {
-    Write-ColorOutput "❌ Execute este script na raiz do projeto SecuredGuard" "Red"
+    Write-ColorOutput "❌ Execute este script na raiz do projeto FluxBus" "Red"
     exit 1
 }
 

@@ -12,6 +12,8 @@ public class FuelPumpDTO {
     private UUID fuelTankId;
     private String fuelTankName;
     private BigDecimal lastMeterReading;
+    private UUID garageId;
+    private String garageName;
 
     public UUID getId() {
         return id;

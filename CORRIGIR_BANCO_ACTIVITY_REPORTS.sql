@@ -1,7 +1,7 @@
 -- =====================================================
--- CORRIGIR TABELA activity_reports (secured_guard_test)
+-- CORRIGIR TABELA activity_reports (fluxbus_test)
 -- =====================================================
--- Execute este script no DBeaver/pgAdmin no banco secured_guard_test
+-- Execute este script no DBeaver/pgAdmin no banco fluxbus_test
 
 -- 1. Limpar registro da migração V307 (se existir)
 DELETE FROM flyway_schema_history WHERE version = '307';

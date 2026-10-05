@@ -13,7 +13,7 @@ if (-not (Test-Path $sqlFile)) {
 }
 
 # Comando para executar o SQL
-$command = "psql -h localhost -p 5432 -U postgres -d secured_guard -f $sqlFile"
+$command = "psql -h localhost -p 5432 -U postgres -d fluxbus -f $sqlFile"
 
 Write-Host "Executando comando: $command" -ForegroundColor Cyan
 

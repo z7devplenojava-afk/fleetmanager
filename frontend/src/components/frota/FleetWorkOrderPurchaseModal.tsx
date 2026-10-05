@@ -40,7 +40,7 @@ export const FleetWorkOrderPurchaseModal: React.FC<FleetWorkOrderPurchaseModalPr
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [autoUpdateStatus, setAutoUpdateStatus] = useState(true);
 
-    if (!order) return null;
+    if (!isOpen || !order) return null;
 
     const parts = (order.items || []).filter(
         i => (i.type ?? WorkOrderItemType.PART) === WorkOrderItemType.PART

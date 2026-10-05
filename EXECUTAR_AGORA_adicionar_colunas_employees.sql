@@ -2,10 +2,10 @@
 -- Adiciona TODAS as colunas faltantes na tabela employees
 -- Data: 2025-10-17
 
--- Conectar no banco: psql -U postgres -d secured_guard_test -p 5432
+-- Conectar no banco: psql -U postgres -d fluxbus_test -p 5432
 -- Executar: \i EXECUTAR_AGORA_adicionar_colunas_employees.sql
 
-\c secured_guard_test
+\c fluxbus_test
 
 -- Adicionar todas as colunas faltantes
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS gender VARCHAR(1);

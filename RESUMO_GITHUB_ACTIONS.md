@@ -57,7 +57,7 @@ curl -X POST https://ci.z7botsolutions.com.br/api/auth/login \
 ### **3. Criar Instância Evolution**
 ```bash
 curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"instanceName":"securedguard","integration":"WHATSAPP-BAILEYS"}'
 ```
@@ -74,14 +74,14 @@ Procure por:
 
 ### **5. Obter QR Code**
 ```bash
-curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+curl -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   https://evolution.z7botsolutions.com.br/instance/connect/securedguard
 ```
 
 Ou acessar no navegador (com extensão ModHeader):
 ```
 https://evolution.z7botsolutions.com.br/instance/connect/securedguard
-Header: apikey: B6D711FCDE4D4FD5936544120E713976
+Header: apikey: CHANGE_THIS_EVOLUTION_API_KEY
 ```
 
 ---

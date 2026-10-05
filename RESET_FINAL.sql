@@ -26,7 +26,7 @@ SELECT 'DATABASE RESET COMPLETO!' as status,
 -- 4. ✓ Verifique o log - deve mostrar:
 --      ✓ "Successfully validated X migrations"
 --      ✓ "Successfully applied X migrations"  
---      ✓ "Started SecuredGuardApplication"
+--      ✓ "Started FluxBusApplication"
 --
 -- ═══════════════════════════════════════════════════════════════
 

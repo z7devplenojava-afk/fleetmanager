@@ -36,12 +36,12 @@ docker stop whatsapp-service
 docker run -d \
   --name evolution-api \
   -p 8080:8080 \
-  -e AUTHENTICATION_API_KEY=B6D711FCDE4D4FD5936544120E713976 \
+  -e AUTHENTICATION_API_KEY=CHANGE_THIS_EVOLUTION_API_KEY \
   atendai/evolution-api:latest
 
 # 3. Criar instância
 curl -X POST http://localhost:8080/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "instanceName": "securedguard",
@@ -50,7 +50,7 @@ curl -X POST http://localhost:8080/instance/create \
 
 # 4. Obter QR Code
 curl http://localhost:8080/instance/connect/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 ```
 
 **Atualizar BaileysRestService:**
@@ -202,7 +202,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - AUTHENTICATION_API_KEY=B6D711FCDE4D4FD5936544120E713976
+      - AUTHENTICATION_API_KEY=CHANGE_THIS_EVOLUTION_API_KEY
       - DATABASE_ENABLED=true
       - DATABASE_CONNECTION_URI=mongodb://mongo:27017/evolution
     volumes:
@@ -227,7 +227,7 @@ volumes:
 ```properties
 # Evolution API
 baileys.rest.url=http://localhost:8080
-baileys.rest.token=B6D711FCDE4D4FD5936544120E713976
+baileys.rest.token=CHANGE_THIS_EVOLUTION_API_KEY
 baileys.rest.instance.key=securedguard
 ```
 
@@ -249,17 +249,17 @@ docker-compose up -d evolution-api mongo
 
 # Criar instância
 curl -X POST http://localhost:8080/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"instanceName":"securedguard","integration":"WHATSAPP-BAILEYS"}'
 
 # Obter QR Code
 curl http://localhost:8080/instance/connect/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 
 # Enviar mensagem de teste
 curl -X POST http://localhost:8080/message/sendText/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "number": "5531971731747",

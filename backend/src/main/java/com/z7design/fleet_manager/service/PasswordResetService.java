@@ -25,7 +25,7 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
-    private final BaileysRestService baileysRestService;
+    private final EvolutionApiService evolutionApiService;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.url:http://localhost:3000}")
@@ -130,7 +130,7 @@ public class PasswordResetService {
      * Envia email de recuperaÃ§Ã£o de senha
      */
     private boolean sendPasswordResetEmail(String email, String userName, String resetLink, String token) {
-        String subject = "ðŸ”‘ RecuperaÃ§Ã£o de Senha - Secured Guard";
+        String subject = "ðŸ”‘ RecuperaÃ§Ã£o de Senha - FluxBus";
         String htmlBody = String.format("""
                 <!DOCTYPE html>
                 <html>
@@ -150,11 +150,11 @@ public class PasswordResetService {
                     <div class="container">
                         <div class="header">
                             <h1>ðŸ”‘ RecuperaÃ§Ã£o de Senha</h1>
-                            <p>Secured Guard</p>
+                            <p>FluxBus</p>
                         </div>
                         <div class="content">
                             <p>OlÃ¡, <strong>%s</strong>!</p>
-                            <p>VocÃª solicitou a recuperaÃ§Ã£o de senha da sua conta no Secured Guard.</p>
+                            <p>VocÃª solicitou a recuperaÃ§Ã£o de senha da sua conta no FluxBus.</p>
                             <p>Clique no botÃ£o abaixo para criar uma nova senha:</p>
                             <div style="text-align: center;">
                                 <a href="%s" class="button">Redefinir Senha</a>
@@ -172,7 +172,7 @@ public class PasswordResetService {
                             <p>Se vocÃª nÃ£o solicitou a recuperaÃ§Ã£o de senha, ignore este email. Sua senha atual permanecerÃ¡ ativa.</p>
                         </div>
                         <div class="footer">
-                            <p>Secured Guard &copy; 2025 - Sistema de GestÃ£o de SeguranÃ§a</p>
+                            <p>FluxBus &copy; 2025 - Sistema de GestÃ£o de SeguranÃ§a</p>
                             <p>Este Ã© um email automÃ¡tico. NÃ£o responda.</p>
                         </div>
                     </div>
@@ -293,13 +293,13 @@ public class PasswordResetService {
      * Envia link de recuperaÃ§Ã£o via WhatsApp
      */
     private boolean sendPasswordResetWhatsApp(String whatsapp, String userName, String resetLink) {
-        if (baileysRestService == null) {
-            log.error("âŒ BaileysRestService nÃ£o disponÃ­vel!");
+        if (evolutionApiService == null) {
+            log.error("âŒ EvolutionApiService nÃ£o disponÃ­vel!");
             return false;
         }
 
         String message = String.format(
-                "ðŸ”‘ *RecuperaÃ§Ã£o de Senha - Secured Guard*\n\n" +
+                "ðŸ”‘ *RecuperaÃ§Ã£o de Senha - FluxBus*\n\n" +
                 "OlÃ¡, *%s*!\n\n" +
                 "VocÃª solicitou a recuperaÃ§Ã£o de senha da sua conta.\n\n" +
                 "Clique no link abaixo para criar uma nova senha:\n" +
@@ -309,7 +309,7 @@ public class PasswordResetService {
                 "â€¢ Use-o apenas uma vez\n" +
                 "â€¢ NÃ£o compartilhe com ninguÃ©m\n\n" +
                 "Se vocÃª nÃ£o solicitou a recuperaÃ§Ã£o de senha, ignore esta mensagem.\n\n" +
-                "_Secured Guard Â© 2025_",
+                "_FluxBus Â© 2025_",
                 userName, resetLink);
 
         try {
@@ -319,7 +319,7 @@ public class PasswordResetService {
                 normalized = "55" + normalized;
             }
             
-            return baileysRestService.sendTextMessage(normalized, message);
+            return evolutionApiService.sendTextMessage(normalized, message);
         } catch (Exception e) {
             log.error("âŒ Erro ao enviar WhatsApp de recuperaÃ§Ã£o: {}", e.getMessage(), e);
             return false;

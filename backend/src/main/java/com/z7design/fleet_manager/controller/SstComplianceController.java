@@ -36,15 +36,16 @@ public class SstComplianceController {
     private final OpacityTestService opacityTestService;
     private final ComplianceDossierService dossierService;
     private final AsoAlertScheduler asoAlertScheduler;
+    private final com.z7design.fleet_manager.scheduler.SSTExpirationAlertScheduler sstExpirationAlertScheduler;
 
     // ===== RF-04.3: Fumaça preta / Opacidade =====
 
     @GetMapping("/opacity-tests")
     @Operation(summary = "Listar laudos de fumaça preta")
     public ResponseEntity<List<OpacityTest>> listOpacityTests(
-            @RequestParam(required = false) UUID vehicleId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+            @RequestParam(value = "vehicleId", required = false) UUID vehicleId,
+            @RequestParam(value = "start", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam(value = "end", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
         if (vehicleId != null) {
             return ResponseEntity.ok(opacityTestService.findByVehicle(vehicleId));
         }
@@ -62,12 +63,12 @@ public class SstComplianceController {
 
     @GetMapping("/opacity-tests/coverage/{yearMonth}")
     @Operation(summary = "Cobertura mensal de laudos (100% da frota em operação)")
-    public ResponseEntity<Map<String, Object>> getCoverage(@PathVariable String yearMonth) {
+    public ResponseEntity<Map<String, Object>> getCoverage(@PathVariable("yearMonth") String yearMonth) {
         return ResponseEntity.ok(opacityTestService.getMonthlyCoverage(YearMonth.parse(yearMonth)));
     }
 
     @DeleteMapping("/opacity-tests/{id}")
-    public ResponseEntity<Void> deleteOpacityTest(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteOpacityTest(@PathVariable("id") UUID id) {
         opacityTestService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -76,7 +77,7 @@ public class SstComplianceController {
 
     @GetMapping("/dossiers")
     @Operation(summary = "Listar dossiês de conformidade")
-    public ResponseEntity<List<ComplianceDossier>> listDossiers(@RequestParam(required = false) UUID clientId) {
+    public ResponseEntity<List<ComplianceDossier>> listDossiers(@RequestParam(value = "clientId", required = false) UUID clientId) {
         if (clientId != null) {
             return ResponseEntity.ok(dossierService.findByClient(clientId));
         }
@@ -86,14 +87,14 @@ public class SstComplianceController {
     @PostMapping("/dossiers")
     @Operation(summary = "Criar/obter dossiê do mês (referência = mês anterior ao BM)")
     public ResponseEntity<ComplianceDossier> createOrGetDossier(
-            @RequestParam String referenceMonth,
-            @RequestParam UUID clientId) {
+            @RequestParam("referenceMonth") String referenceMonth,
+            @RequestParam("clientId") UUID clientId) {
         return ResponseEntity.ok(dossierService.createOrGet(referenceMonth, clientId));
     }
 
     @PutMapping("/dossiers/{id}")
     @Operation(summary = "Atualizar checklist do kit (fumaça preta validada automaticamente)")
-    public ResponseEntity<ComplianceDossier> updateDossier(@PathVariable UUID id, @RequestBody ComplianceDossier input) {
+    public ResponseEntity<ComplianceDossier> updateDossier(@PathVariable("id") UUID id, @RequestBody ComplianceDossier input) {
         input.setId(id);
         return ResponseEntity.ok(dossierService.updateChecklist(input));
     }
@@ -101,14 +102,14 @@ public class SstComplianceController {
     @PostMapping("/dossiers/{id}/generate")
     @Operation(summary = "Gerar dossiê 1-clique (bloqueia se kit incompleto)")
     public ResponseEntity<ComplianceDossier> generateDossier(
-            @PathVariable UUID id,
-            @RequestParam(defaultValue = "sistema") String generatedBy) {
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "generatedBy", defaultValue = "sistema") String generatedBy) {
         return ResponseEntity.ok(dossierService.generate(id, generatedBy));
     }
 
     @GetMapping("/dossiers/{id}/pdf")
     @Operation(summary = "Baixar Dossiê Mensal de Conformidade em PDF")
-    public ResponseEntity<byte[]> dossierPdf(@PathVariable UUID id) {
+    public ResponseEntity<byte[]> dossierPdf(@PathVariable("id") UUID id) {
         byte[] pdf = dossierService.generatePdf(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
@@ -119,10 +120,22 @@ public class SstComplianceController {
     // ===== RF-04.2: Alertas SST (execução manual do scheduler) =====
 
     @PostMapping("/alerts/run")
-    @Operation(summary = "Executar verificação manual de ASO/CNH vencendo em 30 dias")
+    @Operation(summary = "Executar verificação manual de vencimentos SST (ASO, CNH, treinamentos, CA de EPI e mandato CIPA)")
     public ResponseEntity<Map<String, Integer>> runSstAlerts() {
         int aso = asoAlertScheduler.notifyExpiringAso();
         int cnh = asoAlertScheduler.notifyExpiringCnh();
-        return ResponseEntity.ok(Map.of("asoAlerts", aso, "cnhAlerts", cnh));
+        int treinamentos = sstExpirationAlertScheduler.notifyExpiringTrainings();
+        int casEpi = sstExpirationAlertScheduler.notifyExpiringCaEPIs();
+        int cipa = sstExpirationAlertScheduler.notifyExpiringCipaMandates();
+        int psico = sstExpirationAlertScheduler.notifyExpiringLaudoPsicologico();
+        int asoCadastro = sstExpirationAlertScheduler.notifyExpiringAsoCadastro();
+        return ResponseEntity.ok(Map.of(
+                "asoAlerts", aso,
+                "cnhAlerts", cnh,
+                "trainingAlerts", treinamentos,
+                "epiCaAlerts", casEpi,
+                "cipaAlerts", cipa,
+                "laudoPsicologicoAlerts", psico,
+                "asoCadastroAlerts", asoCadastro));
     }
 }

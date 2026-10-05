@@ -26,7 +26,7 @@ function fixFile(filePath) {
       [/usestáááate\(/g, 'useState('],
       [/'Olá! Seu holerite estááá disponível/g, "'Olá! Seu holerite está disponível"],
       [/estááá/g, 'está'],
-      [/disponível para download\. Acesse o sistema SecuredGuard para visualizar\. Em caso de d[^\x20-\x7E]vidas/g, 'disponível para download. Acesse o sistema SecuredGuard para visualizar. Em caso de dúvidas'],
+      [/disponível para download\. Acesse o sistema FluxBus para visualizar\. Em caso de d[^\x20-\x7E]vidas/g, 'disponível para download. Acesse o sistema FluxBus para visualizar. Em caso de dúvidas'],
       
       // Comentários com caracteres corrompidos
       [/\/\/ Estados para unio[^\x20-\x7E] de documentos/g, '// Estados para união de documentos'],

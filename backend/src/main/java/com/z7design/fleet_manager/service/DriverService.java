@@ -5,6 +5,7 @@ import com.z7design.fleet_manager.dto.DriverDTO;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.model.Driver;
 import com.z7design.fleet_manager.repository.DriverRepository;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DriverService {
     private final DriverRepository driverRepository;
+    private final com.z7design.fleet_manager.repository.UserRepository userRepository;
 
     public List<DriverDTO> getAllDrivers() {
         return driverRepository.findAll().stream()
@@ -44,7 +46,15 @@ public class DriverService {
                 .licenseNumber(dto.getLicenseNumber())
                 .phone(dto.getPhone())
                 .status(dto.getStatus() != null ? dto.getStatus() : "ATIVO")
+                .cpf(dto.getCpf())
+                .cnhCategory(dto.getCnhCategory())
+                .cnhExpiration(dto.getCnhExpiration())
+                .photoUrl(dto.getPhotoUrl())
+                .companyId(TenantContext.get())
                 .build();
+        if (dto.getUserId() != null) {
+            driver.setUser(userRepository.findById(dto.getUserId()).orElse(null));
+        }
         driverRepository.save(driver);
         return DriverDTO.fromEntity(driver);
     }
@@ -57,6 +67,17 @@ public class DriverService {
         driver.setLicenseNumber(dto.getLicenseNumber());
         driver.setPhone(dto.getPhone());
         if (dto.getStatus() != null) driver.setStatus(dto.getStatus());
+        driver.setCpf(dto.getCpf());
+        driver.setCnhCategory(dto.getCnhCategory());
+        driver.setCnhExpiration(dto.getCnhExpiration());
+        driver.setPhotoUrl(dto.getPhotoUrl());
+        if (dto.getUserId() != null) {
+            driver.setUser(userRepository.findById(dto.getUserId()).orElse(null));
+        }
+        // Garantir vínculo com a empresa do tenant (motoristas órfãos ficam invisíveis ao tenantFilter)
+        if (driver.getCompanyId() == null && TenantContext.get() != null) {
+            driver.setCompanyId(TenantContext.get());
+        }
         driverRepository.save(driver);
         return DriverDTO.fromEntity(driver);
     }

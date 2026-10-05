@@ -41,7 +41,7 @@ Verifique se TODOS estes secrets estão configurados em:
 
 8. **`JWT_SECRET`**
    - Descrição: Chave secreta JWT (mínimo 64 caracteres)
-   - Exemplo: `jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key`
+   - Exemplo: `CHANGE_THIS_JWT_SECRET`
 
 ## 🚨 IMPORTANTE: Segurança do Token
 

@@ -317,19 +317,23 @@ public class SupplierService {
 
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet == null || sheet.getPhysicalNumberOfRows() < 2) {
+                log.error("[IMPORT-SUPPLIERS] Planilha vazia ou sem linhas de dados.");
                 result.getErrors().add("Planilha vazia ou sem linhas de dados.");
                 return result;
             }
 
             int headerRowIndex = findHeaderRow(sheet);
             if (headerRowIndex < 0) {
+                log.error("[IMPORT-SUPPLIERS] Cabeçalho não identificado na planilha.");
                 result.getErrors().add("Cabeçalho não identificado na planilha.");
                 return result;
             }
 
             Row headerRow = sheet.getRow(headerRowIndex);
             Map<Integer, String> colMap = mapHeaders(headerRow);
+            log.info("[IMPORT-SUPPLIERS] Cabeçalho linha {}: {}", headerRowIndex + 1, colMap);
             if (!colMap.containsValue("NAME") && !colMap.containsValue("TRADE_NAME")) {
+                log.error("[IMPORT-SUPPLIERS] Coluna de Nome/Razão Social não encontrada. Mapeado: {}", colMap);
                 result.getErrors().add("Coluna de Nome/Razão Social do Fornecedor não encontrada.");
                 return result;
             }
@@ -348,17 +352,23 @@ public class SupplierService {
                     String regNumber = null;
                     String cnpj = null;
                     String email = null;
-                    String phone = null;
-                    String address = null;
+                    String tel = null;
+                    String cel = null;
+                    String street = null;
+                    String number = null;
+                    String complement = null;
+                    String neighborhood = null;
                     String city = null;
                     String state = null;
                     String zipCode = null;
                     String notes = null;
+                    String stateRegistration = null;
+                    String municipalRegistration = null;
 
                     for (Map.Entry<Integer, String> entry : colMap.entrySet()) {
                         Cell cell = row.getCell(entry.getKey());
                         String val = getCellValueAsString(cell);
-                        if (val == null || val.isBlank()) continue;
+                        if (val == null || val.isBlank() || val.equalsIgnoreCase("null")) continue;
                         val = val.trim();
 
                         switch (entry.getValue()) {
@@ -368,12 +378,18 @@ public class SupplierService {
                             case "REG_NUM": regNumber = val; break;
                             case "CNPJ": cnpj = val; break;
                             case "EMAIL": email = val; break;
-                            case "PHONE": phone = val; break;
-                            case "ADDRESS": address = val; break;
+                            case "TEL": tel = val; break;
+                            case "CEL": cel = val; break;
+                            case "ADDRESS": street = val; break;
+                            case "NUMERO": number = val; break;
+                            case "COMPLEMENTO": complement = val; break;
+                            case "BAIRRO": neighborhood = val; break;
                             case "CITY": city = val; break;
                             case "STATE": state = normalizeState(val); break;
                             case "ZIP_CODE": zipCode = val.replaceAll("\\D", ""); break;
                             case "NOTES": notes = val; break;
+                            case "IE": stateRegistration = val; break;
+                            case "IM": municipalRegistration = val; break;
                         }
                     }
 
@@ -382,11 +398,19 @@ public class SupplierService {
                     }
 
                     if (name != null && !name.isBlank()) {
+                        String phone = (cel != null && !cel.isBlank()) ? cel : tel;
+                        String address = composeAddress(street, number, complement, neighborhood);
+                        String registrationNumber = firstNonBlank(stateRegistration, regNumber);
+                        String composedNotes = composeImportNotes(notes, municipalRegistration, stateRegistration);
+                        if (composedNotes == null && registrationNumber != null && stateRegistration == null && regNumber != null) {
+                            composedNotes = "NUMCAD: " + regNumber;
+                        }
+
                         SupplierDTO dto = new SupplierDTO();
                         dto.setName(name);
                         dto.setTradeName(tradeName);
                         dto.setContactName(contactName);
-                        dto.setRegistrationNumber(regNumber);
+                        dto.setRegistrationNumber(registrationNumber);
                         dto.setCnpj(cnpj);
                         dto.setEmail(email);
                         dto.setPhone(phone);
@@ -394,7 +418,7 @@ public class SupplierService {
                         dto.setCity(city);
                         dto.setState(state);
                         dto.setZipCode(zipCode);
-                        dto.setNotes(notes);
+                        dto.setNotes(composedNotes);
                         listToImport.add(dto);
                     }
                 } catch (Exception e) {
@@ -403,7 +427,12 @@ public class SupplierService {
                 }
             }
 
-            return importBatch(listToImport);
+            log.info("[IMPORT-SUPPLIERS] Planilha processada: {} linhas com nome para importar", listToImport.size());
+            ImportResultDto batchResult = importBatch(listToImport);
+            log.info("[IMPORT-SUPPLIERS] Concluído: total={}, inserted={}, updated={}, skipped={}, errors={}",
+                    batchResult.getTotalRows(), batchResult.getInserted(), batchResult.getUpdated(),
+                    batchResult.getSkipped(), batchResult.getErrors().size());
+            return batchResult;
 
         } catch (Exception e) {
             log.error("Erro ao ler planilha de fornecedores: ", e);
@@ -432,20 +461,47 @@ public class SupplierService {
             String val = getCellValueAsString(c);
             if (val == null || val.isBlank()) continue;
             String norm = normalizeText(val);
+            if (norm.isEmpty()) continue;
 
-            if (norm.equals("razao social") || norm.equals("razaosocial") || norm.contains("fantasia")) {
-                map.put(c.getColumnIndex(), "TRADE_NAME");
-            } else if (norm.contains("razao") || norm.contains("fornecedor") || norm.equals("nome") || norm.startsWith("nome")) {
-                map.put(c.getColumnIndex(), "NAME");
-            } else if (norm.contains("numcad") || norm.contains("inscricao") || norm.contains("cod_fornec") || norm.contains("codigo")) {
+            if (containsAny(norm, "inscricao estadual", "inscricao est", "insc estadual") || norm.equals("ie")) {
+                map.put(c.getColumnIndex(), "IE");
+            } else if (containsAny(norm, "inscricao municipal", "inscricao mun", "insc municipal") || norm.equals("im")) {
+                map.put(c.getColumnIndex(), "IM");
+            } else if (containsAny(norm, "cod_fornec", "codigo fornec") || norm.equals("codigo") || norm.equals("cod")) {
                 map.put(c.getColumnIndex(), "REG_NUM");
+            } else if (norm.contains("fantasia") || norm.contains("apelido")) {
+                map.put(c.getColumnIndex(), "TRADE_NAME");
+            } else if (norm.equals("razao social") || norm.equals("razaosocial") || norm.contains("razao")
+                    || norm.equals("nome") || norm.startsWith("nome ") || norm.contains("nome do fornecedor")
+                    || norm.contains("fornecedor") || norm.equals("nomcad") || norm.equals("nomres")) {
+                // Prioriza nome/razão social para NAME; se já houver NAME e este for "razão", promove a NAME
+                Integer existingNameIdx = findKeyByValue(map, "NAME");
+                if (existingNameIdx == null) {
+                    map.put(c.getColumnIndex(), "NAME");
+                } else if (norm.contains("razao") && findKeyByValue(map, "TRADE_NAME") == null) {
+                    map.put(existingNameIdx, "TRADE_NAME");
+                    map.put(c.getColumnIndex(), "NAME");
+                } else if (findKeyByValue(map, "TRADE_NAME") == null) {
+                    map.put(c.getColumnIndex(), "TRADE_NAME");
+                }
             } else if (norm.contains("cnpj") || norm.contains("cpf") || norm.contains("documento")) {
                 map.put(c.getColumnIndex(), "CNPJ");
             } else if (norm.contains("email") || norm.contains("e-mail")) {
                 map.put(c.getColumnIndex(), "EMAIL");
-            } else if (norm.contains("telefone") || norm.contains("celular") || norm.contains("fone") || norm.contains("contato")) {
-                map.put(c.getColumnIndex(), "PHONE");
-            } else if (norm.contains("endereco") || norm.contains("endereço") || norm.contains("rua") || norm.contains("logradouro")) {
+            } else if (containsAny(norm, "celular", "cell", "whatsapp") || norm.equals("cel")) {
+                map.put(c.getColumnIndex(), "CEL");
+            } else if (containsAny(norm, "telefone", "fone") || norm.equals("tel") || norm.equals("tel.")) {
+                map.put(c.getColumnIndex(), "TEL");
+            } else if (norm.contains("contato") || norm.contains("representante") || norm.equals("nomcnt")) {
+                map.put(c.getColumnIndex(), "CONTACT_NAME");
+            } else if (containsAny(norm, "complemento") || norm.equals("compl.") || norm.equals("compl") || norm.equals("cmplto")) {
+                map.put(c.getColumnIndex(), "COMPLEMENTO");
+            } else if (containsAny(norm, "bairro", "distrito") || norm.equals("bai")) {
+                map.put(c.getColumnIndex(), "BAIRRO");
+            } else if (containsAny(norm, "numero", "número", "nro") || norm.equals("n°") || norm.equals("nº") || norm.equals("num") || norm.equals("no") || norm.equals("numcad")) {
+                map.put(c.getColumnIndex(), "NUMERO");
+            } else if (norm.contains("endereco") || norm.contains("endereço") || norm.contains("rua") || norm.contains("logradouro")
+                    || norm.contains("avenida") || norm.equals("av.") || norm.equals("endcad")) {
                 map.put(c.getColumnIndex(), "ADDRESS");
             } else if (norm.contains("cidade") || norm.contains("municipio")) {
                 map.put(c.getColumnIndex(), "CITY");
@@ -458,6 +514,58 @@ public class SupplierService {
             }
         }
         return map;
+    }
+
+    private boolean containsAny(String norm, String... needles) {
+        for (String n : needles) {
+            if (norm.contains(n)) return true;
+        }
+        return false;
+    }
+
+    private Integer findKeyByValue(Map<Integer, String> map, String value) {
+        for (Map.Entry<Integer, String> e : map.entrySet()) {
+            if (value.equals(e.getValue())) return e.getKey();
+        }
+        return null;
+    }
+
+    private String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) return a.trim();
+        if (b != null && !b.isBlank()) return b.trim();
+        return null;
+    }
+
+    private String composeAddress(String street, String number, String complement, String neighborhood) {
+        List<String> parts = new ArrayList<>();
+        String base = street != null ? street.trim() : "";
+        if (!base.isEmpty()) {
+            parts.add(base);
+        }
+        String baseNorm = normalizeText(base);
+        for (String piece : new String[] { number, complement, neighborhood }) {
+            String p = piece != null ? piece.trim() : "";
+            if (p.isEmpty()) continue;
+            if (!baseNorm.isEmpty() && baseNorm.contains(normalizeText(p))) continue;
+            parts.add(p);
+        }
+        return parts.isEmpty() ? null : String.join(", ", parts);
+    }
+
+    private String composeImportNotes(String notes, String municipalRegistration, String stateRegistration) {
+        List<String> parts = new ArrayList<>();
+        String base = notes != null ? notes.trim() : "";
+        if (!base.isEmpty()) parts.add(base);
+        String baseNorm = normalizeText(base);
+        String im = municipalRegistration != null ? municipalRegistration.trim() : "";
+        if (!im.isEmpty() && !baseNorm.contains(normalizeText(im))) {
+            parts.add("Inscrição Municipal: " + im);
+        }
+        String ie = stateRegistration != null ? stateRegistration.trim() : "";
+        if (!ie.isEmpty() && !baseNorm.contains(normalizeText(ie))) {
+            parts.add("Inscrição Estadual: " + ie);
+        }
+        return parts.isEmpty() ? null : String.join(" | ", parts);
     }
 
     private boolean isRowEmpty(Row row) {

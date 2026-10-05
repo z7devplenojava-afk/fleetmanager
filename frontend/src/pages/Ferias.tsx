@@ -21,12 +21,17 @@ import {
   Eye,
   Edit,
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  History,
+  Play,
+  Ban
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { employeeService, Employee } from '@/services/employeeService';
 import { feriasService } from '@/services/feriasService';
+import { PeriodoAquisitivo, FeriasColetiva, AlertaConcessivo } from '@/types/ferias';
 import FeriasFormModal from '@/components/ferias/FeriasFormModal';
+import FeriasColetivasModal from '@/components/ferias/FeriasColetivasModal';
 import AfastamentoFormModal from '@/components/ferias/AfastamentoFormModal';
 import FeriasReportModal from '@/components/ferias/FeriasReportModal';
 import ApprovalModal from '@/components/ferias/ApprovalModal';
@@ -69,6 +74,12 @@ const FeriasPage: React.FC = () => {
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<FeriasPeriodo | Afastamento | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  // Período aquisitivo: colaborador selecionado na aba dedicada
+  const [paEmployeeId, setPaEmployeeId] = useState<string>('');
+  // Férias coletivas (Fase 2)
+  const [coletivaModalOpen, setColetivaModalOpen] = useState(false);
+  const [coletivaEditing, setColetivaEditing] = useState<FeriasColetiva | null>(null);
+  const [coletivaActionId, setColetivaActionId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { canApproveVacations, canApproveAbsences, canAccessReports } = useUserPermissions();
@@ -92,6 +103,34 @@ const FeriasPage: React.FC = () => {
   const { data: employees } = useQuery<Employee[]>({
     queryKey: ['employees'],
     queryFn: () => employeeService.getAllEmployees(),
+  });
+
+  // Período aquisitivo do colaborador selecionado (RF-01)
+  const { data: periodosAquisitivos = [], isLoading: paLoading } = useQuery<PeriodoAquisitivo[]>({
+    queryKey: ['periodo-aquisitivo', paEmployeeId],
+    queryFn: () => feriasService.getPeriodosAquisitivos(paEmployeeId),
+    enabled: !!paEmployeeId,
+    retry: 1
+  });
+
+  const { data: saldoFerias } = useQuery({
+    queryKey: ['saldo-ferias', paEmployeeId],
+    queryFn: () => feriasService.getSaldoFerias(paEmployeeId),
+    enabled: !!paEmployeeId,
+    retry: 1
+  });
+
+  // Férias coletivas e alertas de período concessivo (RF-04 e RF-07 — Fase 2)
+  const { data: coletivas = [], isLoading: coletivasLoading } = useQuery<FeriasColetiva[]>({
+    queryKey: ['ferias-coletivas'],
+    queryFn: () => feriasService.getColetivas(),
+    retry: 1
+  });
+
+  const { data: alertasConcessivo = [] } = useQuery<AlertaConcessivo[]>({
+    queryKey: ['alertas-concessivo'],
+    queryFn: () => feriasService.getAlertasConcessivo(),
+    retry: 1
   });
 
   // Calcular estatísticas dos dados carregados
@@ -152,10 +191,16 @@ const FeriasPage: React.FC = () => {
     setEditModalOpen(false);
     setReportModalOpen(false);
     setApprovalModalOpen(false);
+    setColetivaModalOpen(false);
+    setColetivaEditing(null);
     setSelectedItem(null);
     // Recarregar dados após criar/editar
     queryClient.invalidateQueries({ queryKey: ['ferias'] });
     queryClient.invalidateQueries({ queryKey: ['afastamentos'] });
+    queryClient.invalidateQueries({ queryKey: ['ferias-coletivas'] });
+    queryClient.invalidateQueries({ queryKey: ['alertas-concessivo'] });
+    queryClient.invalidateQueries({ queryKey: ['periodo-aquisitivo'] });
+    queryClient.invalidateQueries({ queryKey: ['saldo-ferias'] });
   };
 
   const handleView = (item: FeriasPeriodo | Afastamento) => {
@@ -240,6 +285,102 @@ const FeriasPage: React.FC = () => {
     }
   };
 
+  // ------------------------------------------------------------------
+  // Férias coletivas (RF-04 — Fase 2)
+  // ------------------------------------------------------------------
+
+  const handleNovaColetiva = () => {
+    setColetivaEditing(null);
+    setColetivaModalOpen(true);
+  };
+
+  const handleEditarColetiva = (item: FeriasColetiva) => {
+    setColetivaEditing(item);
+    setColetivaModalOpen(true);
+  };
+
+  const executarAcaoColetiva = async (
+    acao: () => Promise<void>,
+    sucesso: string
+  ) => {
+    try {
+      await acao();
+      toast({
+        title: 'Sucesso',
+        description: sucesso,
+        variant: 'default'
+      });
+      queryClient.invalidateQueries({ queryKey: ['ferias-coletivas'] });
+      queryClient.invalidateQueries({ queryKey: ['ferias'] });
+      queryClient.invalidateQueries({ queryKey: ['periodo-aquisitivo'] });
+      queryClient.invalidateQueries({ queryKey: ['saldo-ferias'] });
+    } catch (error) {
+      console.error('Erro na ação de férias coletivas:', error);
+      toast({
+        title: 'Erro',
+        description:
+          error instanceof Error ? error.message : 'Não foi possível concluir a ação.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleProcessarColetiva = async (item: FeriasColetiva) => {
+    if (
+      !confirm(
+        `Processar "${item.titulo}"?\n\nOs colaboradores elegíveis serão afastados em ${formatDate(
+          item.dataInicio
+        )} e o saldo dos períodos aquisitivos será abatido (regras de 1º ano, maternidade e licença remunerada aplicadas).`
+      )
+    ) {
+      return;
+    }
+    setColetivaActionId(item.id);
+    try {
+      const resultado = await feriasService.processarColetiva(item.id);
+      toast({
+        title: 'Coletiva processada',
+        description: `${resultado.processados} processados, ${resultado.pulados} pulados (${resultado.afastadasMaternidade} em maternidade), ${resultado.diasLicencaRemunerada} dias de licença remunerada.`
+      });
+      queryClient.invalidateQueries({ queryKey: ['ferias-coletivas'] });
+      queryClient.invalidateQueries({ queryKey: ['ferias'] });
+      queryClient.invalidateQueries({ queryKey: ['periodo-aquisitivo'] });
+      queryClient.invalidateQueries({ queryKey: ['saldo-ferias'] });
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description:
+          error instanceof Error ? error.message : 'Erro ao processar a coletiva.',
+        variant: 'destructive'
+      });
+    } finally {
+      setColetivaActionId(null);
+    }
+  };
+
+  const handleConcluirColetiva = (item: FeriasColetiva) => {
+    executarAcaoColetiva(
+      () => feriasService.concluirColetiva(item.id),
+      'Férias coletivas concluídas.'
+    );
+  };
+
+  const handleCancelarColetiva = (item: FeriasColetiva) => {
+    if (!confirm(`Cancelar "${item.titulo}"? As férias geradas serão descartadas.`)) return;
+    executarAcaoColetiva(
+      () => feriasService.cancelarColetiva(item.id),
+      'Coletiva cancelada.'
+    );
+  };
+
+  const handleExcluirColetiva = (item: FeriasColetiva) => {
+    if (!confirm(`Excluir definitivamente "${item.titulo}"?`)) return;
+    executarAcaoColetiva(
+      () => feriasService.excluirColetiva(item.id),
+      'Coletiva excluída.'
+    );
+  };
+
   return (
     <StandardLayout title="Férias e Afastamentos">
       <div className="space-y-6">
@@ -263,7 +404,13 @@ const FeriasPage: React.FC = () => {
             <div className="relative">
               <Button 
                 className="bg-seguranca-yellow text-black hover:bg-yellow-500"
-                onClick={activeTab === 'ferias' ? handleOpenFeriasModal : handleOpenAfastamentoModal}
+                onClick={
+                  activeTab === 'coletivas'
+                    ? handleNovaColetiva
+                    : activeTab === 'ferias'
+                      ? handleOpenFeriasModal
+                      : handleOpenAfastamentoModal
+                }
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Nova Solicitação
@@ -325,10 +472,18 @@ const FeriasPage: React.FC = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 bg-seguranca-graphite">
+          <TabsList className="grid w-full grid-cols-4 bg-seguranca-graphite">
             <TabsTrigger value="ferias" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-black">
               <Calendar className="mr-2 h-4 w-4" />
               Férias
+            </TabsTrigger>
+            <TabsTrigger value="coletivas" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-black">
+              <Users className="mr-2 h-4 w-4" />
+              Coletivas
+            </TabsTrigger>
+            <TabsTrigger value="periodo-aquisitivo" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-black">
+              <History className="mr-2 h-4 w-4" />
+              Período Aquisitivo
             </TabsTrigger>
             <TabsTrigger value="afastamentos" className="data-[state='active']:bg-seguranca-yellow data-[state='active']:text-black">
               <AlertTriangle className="mr-2 h-4 w-4" />
@@ -465,6 +620,382 @@ const FeriasPage: React.FC = () => {
                     </table>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tab Período Aquisitivo (CLT Art. 129-137) */}
+          <TabsContent value="periodo-aquisitivo" className="space-y-4">
+            {/* Seleção de colaborador */}
+            <Card className="bg-seguranca-graphite border-gray-600">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-4 items-end">
+                  <div className="flex-1">
+                    <label className="block text-gray-400 text-sm mb-1">Colaborador</label>
+                    <div className="relative">
+                      <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <select
+                        value={paEmployeeId}
+                        onChange={(e) => setPaEmployeeId(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-seguranca-black border border-gray-600 rounded text-seguranca-lightgray focus:border-seguranca-yellow focus:outline-none text-sm"
+                      >
+                        <option value="">Selecione um colaborador...</option>
+                        {employees?.map(emp => (
+                          <option key={emp.id} value={emp.id}>{emp.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Resumo do saldo */}
+            {paEmployeeId && saldoFerias && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="bg-seguranca-graphite border-gray-600">
+                  <CardContent className="p-4">
+                    <p className="text-gray-400 text-sm">Saldo Disponível</p>
+                    <p className="text-3xl font-bold text-seguranca-yellow">{saldoFerias.diasSaldo ?? 0}</p>
+                    <p className="text-gray-400 text-xs">dias</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-seguranca-graphite border-gray-600">
+                  <CardContent className="p-4">
+                    <p className="text-gray-400 text-sm">Dias Utilizados</p>
+                    <p className="text-3xl font-bold text-green-400">{saldoFerias.diasUtilizados ?? 0}</p>
+                    <p className="text-gray-400 text-xs">de {saldoFerias.diasDireito ?? 30} dias</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-seguranca-graphite border-gray-600">
+                  <CardContent className="p-4">
+                    <p className="text-gray-400 text-sm">Abono Máximo</p>
+                    <p className="text-3xl font-bold text-purple-400">{saldoFerias.maximoAbonoPecuniario ?? 0}</p>
+                    <p className="text-gray-400 text-xs">dias (1/3 do saldo — Art. 143)</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-seguranca-graphite border-gray-600">
+                  <CardContent className="p-4">
+                    <p className="text-gray-400 text-sm">Limite Concessivo</p>
+                    <p className="text-xl font-bold text-red-300">
+                      {saldoFerias.limiteConcessivo
+                        ? new Date(saldoFerias.limiteConcessivo).toLocaleDateString('pt-BR')
+                        : '—'}
+                    </p>
+                    <p className="text-gray-400 text-xs">
+                      {saldoFerias.diasAteLimiteConcessivo != null
+                        ? `${saldoFerias.diasAteLimiteConcessivo} dias restantes`
+                        : ''}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Alertas de período concessivo (RF-07 — Fase 2) */}
+            <Card className="bg-seguranca-graphite border-gray-600">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-seguranca-lightgray flex items-center gap-2 text-base">
+                  <AlertTriangle className="h-4 w-4 text-seguranca-yellow" />
+                  Períodos Concessivos a Vencer (90 dias)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {alertasConcessivo.length === 0 ? (
+                  <p className="text-gray-400 text-sm">
+                    Nenhum período concessivo vencendo nos próximos 90 dias.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-seguranca-yellow text-left border-b border-gray-700">
+                          <th className="p-3 text-sm">Colaborador</th>
+                          <th className="p-3 text-sm">Período Aquisitivo</th>
+                          <th className="p-3 text-sm">Limite Concessivo</th>
+                          <th className="p-3 text-sm">Saldo</th>
+                          <th className="p-3 text-sm">Prazo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {alertasConcessivo.map(alerta => {
+                          const diasRestantes = Math.max(
+                            0,
+                            Math.ceil(
+                              (new Date(alerta.limiteConcessivo).getTime() - Date.now()) /
+                                (1000 * 60 * 60 * 24)
+                            )
+                          );
+                          return (
+                            <tr
+                              key={alerta.id}
+                              className="border-b border-gray-700 text-seguranca-lightgray hover:bg-seguranca-black transition-colors"
+                            >
+                              <td className="p-3 text-sm">{alerta.employeeName || '—'}</td>
+                              <td className="p-3 text-sm">
+                                {formatDate(alerta.dataInicio)} — {formatDate(alerta.dataFim)}
+                              </td>
+                              <td className="p-3 text-sm">
+                                {formatDate(alerta.limiteConcessivo)}
+                              </td>
+                              <td className="p-3 text-sm font-bold text-seguranca-yellow">
+                                {alerta.diasSaldo} dias
+                              </td>
+                              <td className="p-3 text-sm">
+                                <Badge
+                                  className={
+                                    diasRestantes <= 30
+                                      ? 'bg-red-500 text-white'
+                                      : diasRestantes <= 60
+                                        ? 'bg-orange-500 text-black'
+                                        : 'bg-yellow-500 text-black'
+                                  }
+                                >
+                                  {diasRestantes} dias
+                                </Badge>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Histórico de períodos aquisitivos */}
+            <Card className="bg-seguranca-graphite border-gray-600">
+              <CardHeader>
+                <CardTitle className="text-seguranca-lightgray">Períodos Aquisitivos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!paEmployeeId ? (
+                  <div className="p-8 text-center text-gray-400">
+                    Selecione um colaborador para ver os períodos aquisitivos.
+                  </div>
+                ) : paLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-seguranca-yellow"></div>
+                    <span className="ml-2 text-seguranca-lightgray">Carregando períodos...</span>
+                  </div>
+                ) : periodosAquisitivos.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">
+                    Nenhum período aquisitivo encontrado para este colaborador.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-seguranca-yellow text-left border-b border-gray-700">
+                          <th className="p-3 text-sm">Início</th>
+                          <th className="p-3 text-sm">Fim</th>
+                          <th className="p-3 text-sm">Limite Concessivo</th>
+                          <th className="p-3 text-sm">Dias de Direito</th>
+                          <th className="p-3 text-sm">Saldo</th>
+                          <th className="p-3 text-sm">Utilizados</th>
+                          <th className="p-3 text-sm">Faltas</th>
+                          <th className="p-3 text-sm">Origem</th>
+                          <th className="p-3 text-sm">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {periodosAquisitivos.map((pa) => (
+                          <tr key={pa.id} className="border-b border-gray-700 text-seguranca-lightgray hover:bg-seguranca-black transition-colors">
+                            <td className="p-3 text-sm">{new Date(pa.dataInicio).toLocaleDateString('pt-BR')}</td>
+                            <td className="p-3 text-sm">{new Date(pa.dataFim).toLocaleDateString('pt-BR')}</td>
+                            <td className="p-3 text-sm">{new Date(pa.limiteConcessivo).toLocaleDateString('pt-BR')}</td>
+                            <td className="p-3 text-sm">{pa.diasDireito} dias</td>
+                            <td className="p-3 text-sm font-bold text-seguranca-yellow">{pa.diasSaldo} dias</td>
+                            <td className="p-3 text-sm">{pa.diasUtilizados} dias</td>
+                            <td className="p-3 text-sm">{pa.faltasInjustificadas}</td>
+                            <td className="p-3 text-sm">{pa.origem}</td>
+                            <td className="p-3 text-sm">
+                              <Badge className={
+                                pa.status === 'CONCESSIVO' ? 'bg-seguranca-yellow text-black' :
+                                pa.status === 'EM_ANDAMENTO' ? 'bg-blue-500 text-white' :
+                                pa.status === 'QUITADO' ? 'bg-green-500 text-white' :
+                                'bg-red-500 text-white'
+                              }>
+                                {pa.status}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tab Coletivas (RF-04 — Fase 2) */}
+          <TabsContent value="coletivas" className="space-y-4">
+            <Card className="bg-seguranca-graphite border-gray-600">
+              <CardHeader>
+                <CardTitle className="text-seguranca-lightgray flex items-center justify-between">
+                  <span>Férias Coletivas (CLT Art. 139/140)</span>
+                  <Button
+                    size="sm"
+                    className="bg-seguranca-yellow text-black hover:bg-yellow-500"
+                    onClick={handleNovaColetiva}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nova Coletiva
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {coletivasLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-seguranca-yellow"></div>
+                    <span className="ml-2 text-seguranca-lightgray">Carregando coletivas...</span>
+                  </div>
+                ) : coletivas.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">
+                    Nenhuma feria coletiva cadastrada. Crie uma para afastar grupos de
+                    colaboradores no mesmo periodo.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-seguranca-yellow text-left border-b border-gray-700">
+                          <th className="p-3 text-sm">Titulo</th>
+                          <th className="p-3 text-sm">Periodo</th>
+                          <th className="p-3 text-sm">Dias</th>
+                          <th className="p-3 text-sm">Abrangencia</th>
+                          <th className="p-3 text-sm">Status</th>
+                          <th className="p-3 text-sm">Acoes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {coletivas.map(coletiva => (
+                          <tr
+                            key={coletiva.id}
+                            className="border-b border-gray-700 text-seguranca-lightgray hover:bg-seguranca-black transition-colors"
+                          >
+                            <td className="p-3 text-sm font-medium">{coletiva.titulo}</td>
+                            <td className="p-3 text-sm">
+                              {formatDate(coletiva.dataInicio)} — {formatDate(coletiva.dataFim)}
+                            </td>
+                            <td className="p-3 text-sm">{coletiva.diasDuracao} dias</td>
+                            <td className="p-3 text-sm">
+                              {coletiva.abrangeTodaEmpresa
+                                ? 'Toda a empresa'
+                                : `${coletiva.departamentoIds?.length || 0} departamento(s)`}
+                            </td>
+                            <td className="p-3 text-sm">
+                              <Badge
+                                className={
+                                  coletiva.status === 'Planejado'
+                                    ? 'bg-blue-500 text-white'
+                                    : coletiva.status === 'Em Andamento'
+                                      ? 'bg-seguranca-yellow text-black'
+                                      : coletiva.status === 'Concluido'
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-red-500 text-white'
+                                }
+                              >
+                                {coletiva.status}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-sm">
+                              <div className="flex gap-2">
+                                {coletiva.status !== 'Concluido' &&
+                                  coletiva.status !== 'Cancelado' && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-blue-400 border-blue-400 hover:bg-blue-400 hover:text-seguranca-black"
+                                      onClick={() => handleEditarColetiva(coletiva)}
+                                      title="Editar"
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                {coletiva.status !== 'Cancelado' &&
+                                  coletiva.status !== 'Concluido' && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-purple-400 border-purple-400 hover:bg-purple-400 hover:text-seguranca-black disabled:opacity-50"
+                                      onClick={() => handleProcessarColetiva(coletiva)}
+                                      disabled={coletivaActionId === coletiva.id}
+                                      title="Processar (gera as ferias em massa)"
+                                    >
+                                      <Play className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                {coletiva.status === 'Em Andamento' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-green-400 border-green-400 hover:bg-green-400 hover:text-seguranca-black"
+                                    onClick={() => handleConcluirColetiva(coletiva)}
+                                    title="Concluir"
+                                  >
+                                    <CheckCircle2 className="h-3 w-3" />
+                                  </Button>
+                                )}
+                                {coletiva.status !== 'Concluido' &&
+                                  coletiva.status !== 'Cancelado' && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-red-400 border-red-400 hover:bg-red-400 hover:text-seguranca-black"
+                                      onClick={() => handleCancelarColetiva(coletiva)}
+                                      title="Cancelar"
+                                    >
+                                      <Ban className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                {coletiva.status === 'Planejado' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-400 border-red-400 hover:bg-red-400 hover:text-seguranca-black"
+                                    onClick={() => handleExcluirColetiva(coletiva)}
+                                    title="Excluir"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Fluxo de processamento */}
+            <Card className="bg-seguranca-graphite border-gray-600">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-seguranca-lightgray text-base">
+                  Como funciona o processamento
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-gray-400 text-sm space-y-1">
+                <p>
+                  <strong className="text-seguranca-lightgray">Processar:</strong> gera as
+                  ferias de cada colaborador elegivel no periodo, abate o saldo do periodo
+                  aquisitivo e cria licencas remuneradas para o excedente do 1º ano.
+                </p>
+                <p>
+                  <strong className="text-seguranca-lightgray">Regras aplicadas:</strong>{' '}
+                  colaboradores em licenca maternidade nao sao afastados (saldo preservado);
+                  admissao com menos de 12 meses recebe 2,5 dia por mes trabalhado (fracao
+                  acima de 14 dias conta) e, apos o gozo, ganha um novo periodo aquisitivo.
+                </p>
+                <p>
+                  <strong className="text-seguranca-lightgray">Concluir:</strong> encerra a
+                  coletiva depois que todos os afastamentos terminarem.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
@@ -724,6 +1255,15 @@ const FeriasPage: React.FC = () => {
           onClose={handleApprovalClose}
           item={selectedItem}
           type={selectedItem && 'tipo' in selectedItem && (selectedItem.tipo === 'FERIAS_NORMAIS' || selectedItem.tipo === 'FERIAS_VENDIDAS' || selectedItem.tipo === 'ABONO_PECUNIARIO') ? 'ferias' : 'afastamento'}
+        />
+      )}
+      {/* Modal de Férias Coletivas (Fase 2) */}
+      {coletivaModalOpen && (
+        <FeriasColetivasModal
+          onSuccess={handleCloseModals}
+          onClose={handleCloseModals}
+          editingId={coletivaEditing?.id}
+          initialData={coletivaEditing || undefined}
         />
       )}
     </StandardLayout>

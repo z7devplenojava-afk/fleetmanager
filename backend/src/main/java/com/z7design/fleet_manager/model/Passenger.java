@@ -71,6 +71,31 @@ public class Passenger implements TenantAware {
     @Column(length = 100)
     private String costCenter; // Centro de custo (opcional)
 
+    @Column(name = "cpf", length = 14)
+    private String cpf;
+
+    @Column(name = "phone", length = 20)
+    private String phone;
+
+    @Column(name = "email", length = 150)
+    private String email;
+
+    /** COMUM, ESTUDANTE, IDOSO, PCD */
+    @Column(name = "passenger_type", length = 20)
+    private String passengerType = "COMUM";
+
+    @Column(name = "preferred_time")
+    private java.time.LocalTime preferredTime;
+
+    @Column(name = "notifications_enabled", nullable = false)
+    private Boolean notificationsEnabled = true;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @NotFound(action = NotFoundAction.IGNORE)
+    @JoinColumn(name = "disembark_point_id")
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    private RoutePoint disembarkPoint; // Ponto de desembarque autorizado
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

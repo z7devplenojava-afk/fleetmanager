@@ -55,11 +55,11 @@ else
             if [ -z "$token" ]; then
                 error "Token não fornecido"
             fi
-            git remote add origin "https://${token}@github.com/zmarioramos/secured-guard.git"
+            git remote add origin "https://${token}@github.com/zmarioramos/fluxbus.git"
             log "✅ Remote 'origin' adicionado com HTTPS"
             ;;
         2)
-            git remote add origin "git@github.com:zmarioramos/secured-guard.git"
+            git remote add origin "git@github.com:zmarioramos/fluxbus.git"
             log "✅ Remote 'origin' adicionado com SSH"
             # Verificar se a chave SSH está configurada
             if ! ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then

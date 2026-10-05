@@ -9,7 +9,7 @@ O sistema de envio de emails já está implementado e configurado com as credenc
 ### **Credenciais:**
 ```properties
 Email: securedguard@z7design.com.br
-Senha: sg@2025promover
+Senha: REMOVIDO_POR_SEGURANCA
 Servidor SMTP: mail.z7design.com.br
 Porta: 465 (SSL/TLS)
 ```
@@ -188,7 +188,7 @@ environment:
   MAIL_HOST: mail.z7design.com.br
   MAIL_PORT: 465
   MAIL_USERNAME: securedguard@z7design.com.br
-  MAIL_PASSWORD: sg@2025promover
+  MAIL_PASSWORD: REMOVIDO_POR_SEGURANCA
 ```
 
 ## 🚀 Após Deploy

@@ -17,13 +17,12 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CreateEPIDeliveryFormDTO {
     
-    @NotNull(message = "FuncionÃ¡rio Ã© obrigatÃ³rio")
+    @NotNull(message = "Funcionário é obrigatório")
     private UUID employeeId;
     
-    @NotNull(message = "Empresa Ã© obrigatÃ³ria")
     private UUID companyId;
     
-    @NotNull(message = "Data de entrega Ã© obrigatÃ³ria")
+    @NotNull(message = "Data de entrega é obrigatória")
     private LocalDate deliveryDate;
     
     private UUID responsibleEmployeeId;
@@ -32,7 +31,6 @@ public class CreateEPIDeliveryFormDTO {
     
     private String pdfUrl;
     
-    @NotEmpty(message = "Ã‰ necessÃ¡rio pelo menos um item de EPI")
     private List<EPIDeliveryFormItemDTO> items;
 }
 

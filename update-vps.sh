@@ -8,8 +8,8 @@ set -e  # Parar em caso de erro
 echo "🚀 Iniciando atualização do projeto na VPS..."
 
 # Navegar para o diretório do projeto
-cd ~/secured_guard || {
-    echo "❌ Diretório ~/secured_guard não encontrado!"
+cd ~/fluxbus || {
+    echo "❌ Diretório ~/fluxbus não encontrado!"
     exit 1
 }
 
@@ -82,17 +82,17 @@ if [ -f "docker-compose.ci.yml" ]; then
     docker-compose -f docker-compose.ci.yml rm -f 2>/dev/null || true
     
     # Remover containers individuais se ainda existirem
-    docker rm -f secured-guard-db-ci 2>/dev/null || true
-    docker rm -f secured-guard-redis-ci 2>/dev/null || true
-    docker rm -f secured-guard-backend-ci 2>/dev/null || true
-    docker rm -f secured-guard-frontend-ci 2>/dev/null || true
-    docker rm -f secured-guard-nginx-ci 2>/dev/null || true
-    docker rm -f secured-guard-whatsapp-ci 2>/dev/null || true
-    docker rm -f secured-guard-evolution-api-ci 2>/dev/null || true
+    docker rm -f fluxbus-db-ci 2>/dev/null || true
+    docker rm -f fluxbus-redis-ci 2>/dev/null || true
+    docker rm -f fluxbus-backend-ci 2>/dev/null || true
+    docker rm -f fluxbus-frontend-ci 2>/dev/null || true
+    docker rm -f fluxbus-nginx-ci 2>/dev/null || true
+    docker rm -f fluxbus-whatsapp-ci 2>/dev/null || true
+    docker rm -f fluxbus-evolution-api-ci 2>/dev/null || true
     
     # Remover redes
     echo "🌐 Limpando redes..."
-    docker network rm secured-guard-ci 2>/dev/null || true
+    docker network rm fluxbus-ci 2>/dev/null || true
     docker network prune -f
     
     # Aguardar um pouco

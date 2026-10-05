@@ -1,23 +1,134 @@
 import { UserRole, UserPermissions, UserGroupData } from '@/types/user';
 
+export interface RoleCategory {
+  id: string;
+  name: string;
+  roles: UserRole[];
+}
+
+export const ROLE_CATEGORIES: RoleCategory[] = [
+  {
+    id: 'diretoria',
+    name: 'Diretoria & Gestão Geral',
+    roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'AUDITOR', 'TI_SUPORTE', 'FLEX_ADMIN'],
+  },
+  {
+    id: 'rh_dp',
+    name: 'Recursos Humanos & Depto. Pessoal',
+    roles: ['RH', 'ASSISTENCIA_RH', 'AUXILIAR_DE_RH', 'DEPARTAMENTO_PESSOAL', 'AUXILIAR_DE_DEPARTAMENTO_PESSOAL', 'AUX_DEP', 'COLABORADOR', 'EMPLOYEE'],
+  },
+  {
+    id: 'comercial',
+    name: 'Comercial & CRM (Vendas)',
+    roles: ['GESTOR_COMERCIAL', 'COMERCIAL', 'VENDAS'],
+  },
+  {
+    id: 'compras',
+    name: 'Compras & Suprimentos',
+    roles: ['GESTOR_DE_COMPRAS', 'COMPRAS'],
+  },
+  {
+    id: 'almoxarifado',
+    name: 'Almoxarifado & Estoque',
+    roles: ['ALMOXARIFADO'],
+  },
+  {
+    id: 'manutencao',
+    name: 'Manutenção & Oficina',
+    roles: ['GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'MANUTENCAO', 'MECANICO'],
+  },
+  {
+    id: 'operacional',
+    name: 'Operação, Tráfego & Fretamento',
+    roles: ['GESTOR_OPERACIONAL', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'OPERACIONAL', 'ASSISTENTE_OPERACIONAL', 'MOTORISTA'],
+  },
+  {
+    id: 'financeiro',
+    name: 'Financeiro & Controladoria',
+    roles: ['GESTOR_FINANCEIRO', 'FINANCEIRO', 'ASSISTENTE_FINANCEIRO'],
+  },
+  {
+    id: 'portaria',
+    name: 'Portaria & Segurança Patrimonial',
+    roles: ['PORTARIA', 'VIGILANTE', 'AUXI_ADMINISTRATIVO', 'AUXILIAR_ADMINISTRATIVO'],
+  },
+  {
+    id: 'limpeza',
+    name: 'Higienização & Limpeza de Frota',
+    roles: ['ASSISTENTE_LIMPEZA', 'LAVADOR'],
+  },
+  {
+    id: 'clientes',
+    name: 'Portal do Cliente / Passageiro',
+    roles: ['CLIENTE', 'CLIENT_USER'],
+  },
+];
+
 export const USER_ROLE_LIST: UserRole[] = [
-  'FLEX_ADMIN',
-  'COMPANY_ADMIN',
+  // Diretoria & Gestão Geral
   'SUPER_ADMIN',
+  'COMPANY_ADMIN',
   'ADMIN',
   'GESTOR',
   'SUPERVISOR',
-  'RH',
-  'ASSISTENCIA_RH',
-  'DEPARTAMENTO_PESSOAL',
-  'FINANCEIRO',
-  'OPERACIONAL',
   'TI_SUPORTE',
   'AUDITOR',
+  'FLEX_ADMIN',
+
+  // Recursos Humanos & DP
+  'RH',
+  'ASSISTENCIA_RH',
+  'AUXILIAR_DE_RH',
+  'DEPARTAMENTO_PESSOAL',
+  'AUXILIAR_DE_DEPARTAMENTO_PESSOAL',
+  'AUX_DEP',
   'COLABORADOR',
+  'EMPLOYEE',
+
+  // Comercial & CRM
+  'GESTOR_COMERCIAL',
+  'COMERCIAL',
+  'VENDAS',
+
+  // Compras & Suprimentos
+  'GESTOR_DE_COMPRAS',
+  'COMPRAS',
+
+  // Estoque & Almoxarifado
+  'ALMOXARIFADO',
+
+  // Manutenção & Oficina
+  'GESTOR_DE_MANUTENCAO',
+  'ENCARREGADO_DE_MANUTENCAO',
+  'MANUTENCAO',
+  'MECANICO',
+
+  // Operação, Tráfego & Fretamento
+  'GESTOR_OPERACIONAL',
+  'GESTOR_TRAFEGO',
+  'GESTOR_DE_TRAFEGO',
+  'OPERACIONAL',
+  'ASSISTENTE_OPERACIONAL',
+  'MOTORISTA',
+
+  // Financeiro & Controladoria
+  'GESTOR_FINANCEIRO',
+  'FINANCEIRO',
+  'ASSISTENTE_FINANCEIRO',
+
+  // Portaria & Segurança
+  'PORTARIA',
   'VIGILANTE',
   'AUXI_ADMINISTRATIVO',
-  'AUX_DEP',
+  'AUXILIAR_ADMINISTRATIVO',
+
+  // Higienização & Conservação
+  'ASSISTENTE_LIMPEZA',
+  'LAVADOR',
+
+  // Portal do Cliente
+  'CLIENTE',
+  'CLIENT_USER',
 ];
 
 // Função para gerar permissões baseadas no role principal
@@ -660,9 +771,9 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
       };
 
     case 'AUX_DEP':
+    case 'AUXILIAR_DE_DEPARTAMENTO_PESSOAL':
       return {
         ...basePermissions,
-        // Auxiliar de Departamento Pessoal - Suporte ao RH
         EMPLOYEES_READ: true,
         PAYSLIPS_READ: true,
         CONTRACTS_READ: true,
@@ -674,6 +785,246 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         MESSAGES_WRITE: true,
         MESSAGES_CREATE: true,
         ATTENDANCE_READ: true,
+      };
+
+    case 'AUXILIAR_DE_RH':
+      return {
+        ...basePermissions,
+        EMPLOYEES_READ: true,
+        CONTRACTS_READ: true,
+        REPORTS_READ: true,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        ATTENDANCE_READ: true,
+      };
+
+    case 'AUXILIAR_ADMINISTRATIVO':
+      return {
+        ...basePermissions,
+        EMPLOYEES_READ: true,
+        CLIENTS_READ: true,
+        CONTRACTS_READ: true,
+        REPORTS_READ: true,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+      };
+
+    case 'COMERCIAL':
+    case 'GESTOR_COMERCIAL':
+    case 'VENDAS':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        CLIENTS_READ: true,
+        CLIENTS_WRITE: true,
+        CLIENTS_CREATE: true,
+        CONTRACTS_READ: true,
+        CONTRACTS_WRITE: role !== 'VENDAS',
+        CONTRACTS_CREATE: true,
+        LEADS_READ: true,
+        LEADS_WRITE: true,
+        LEADS_CREATE: true,
+        LEADS_DELETE: role === 'GESTOR_COMERCIAL',
+        PROPOSALS_READ: true,
+        PROPOSALS_WRITE: true,
+        PROPOSALS_CREATE: true,
+        PROPOSALS_DELETE: role === 'GESTOR_COMERCIAL',
+        QUOTES_READ: true,
+        QUOTES_WRITE: true,
+        QUOTES_CREATE: true,
+        QUOTES_DELETE: role === 'GESTOR_COMERCIAL',
+        REPORTS_READ: true,
+        REPORTS_GENERATE: role === 'GESTOR_COMERCIAL',
+        REPORTS_EXPORT: role === 'GESTOR_COMERCIAL',
+      };
+
+    case 'ALMOXARIFADO':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        STOCK_READ: true,
+        STOCK_WRITE: true,
+        STOCK_CREATE: true,
+        STOCK_DELETE: true,
+        STOCK_MANAGE: true,
+        EQUIPMENTS_READ: true,
+        REPORTS_READ: true,
+      };
+
+    case 'COMPRAS':
+    case 'GESTOR_DE_COMPRAS':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        STOCK_READ: true,
+        STOCK_WRITE: true,
+        CONTRACTS_READ: true,
+        CONTRACTS_WRITE: role === 'GESTOR_DE_COMPRAS',
+        REPORTS_READ: true,
+        REPORTS_GENERATE: true,
+      };
+
+    case 'MANUTENCAO':
+    case 'GESTOR_DE_MANUTENCAO':
+    case 'ENCARREGADO_DE_MANUTENCAO':
+    case 'MECANICO':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        EQUIPMENTS_READ: true,
+        EQUIPMENTS_WRITE: true,
+        EQUIPMENTS_CREATE: role === 'GESTOR_DE_MANUTENCAO',
+        EQUIPMENTS_ASSIGN: true,
+        STOCK_READ: true,
+        STOCK_WRITE: true,
+        REPORTS_READ: true,
+      };
+
+    case 'GESTOR_OPERACIONAL':
+    case 'GESTOR_TRAFEGO':
+    case 'GESTOR_DE_TRAFEGO':
+    case 'ASSISTENTE_OPERACIONAL':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        EQUIPMENTS_READ: true,
+        EQUIPMENTS_WRITE: true,
+        EQUIPMENTS_ASSIGN: true,
+        EMPLOYEES_READ: true,
+        CONTRACTS_READ: true,
+        TRAFFIC_MANAGEMENT_READ: true,
+        TRAFFIC_MANAGEMENT_WRITE: true,
+        TRAFFIC_MANAGEMENT_CREATE: true,
+        TRAFFIC_MANAGEMENT_DELETE: role === 'GESTOR_OPERACIONAL' || role === 'GESTOR_TRAFEGO',
+        TRIPS_READ: true,
+        TRIPS_WRITE: true,
+        TRIPS_EXECUTE: true,
+        BOARDING_READ: true,
+        BOARDING_EXECUTE: true,
+        ROUTES_READ: true,
+        ROUTES_WRITE: true,
+        ROUTES_CREATE: true,
+        ROUTES_DELETE: role === 'GESTOR_OPERACIONAL' || role === 'GESTOR_TRAFEGO',
+        REPORTS_READ: true,
+        REPORTS_GENERATE: true,
+      };
+
+    case 'MOTORISTA':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        PAYSLIPS_READ: true,
+        TRIPS_READ: true,
+        TRIPS_EXECUTE: true,
+        BOARDING_READ: true,
+        BOARDING_EXECUTE: true,
+      };
+
+    case 'GESTOR_FINANCEIRO':
+    case 'ASSISTENTE_FINANCEIRO':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        FINANCIAL_READ: true,
+        FINANCIAL_WRITE: true,
+        FINANCIAL_CREATE: true,
+        FINANCIAL_DELETE: role === 'GESTOR_FINANCEIRO',
+        CONTRACTS_READ: true,
+        REPORTS_READ: true,
+        REPORTS_GENERATE: true,
+        REPORTS_EXPORT: role === 'GESTOR_FINANCEIRO',
+      };
+
+    case 'PORTARIA':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        EQUIPMENTS_READ: true,
+        VISITS_READ: true,
+        VISITS_WRITE: true,
+        VISITS_CREATE: true,
+        VISITS_UPDATE: true,
+      };
+
+    case 'ASSISTENTE_LIMPEZA':
+    case 'LAVADOR':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        EQUIPMENTS_READ: true,
+      };
+
+    case 'EMPLOYEE':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        PAYSLIPS_READ: true,
+      };
+
+    case 'CLIENTE':
+    case 'CLIENT_USER':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        CLIENTS_READ: true,
+        CONTRACTS_READ: true,
+        QUOTES_READ: true,
+        QUOTES_CREATE: true,
       };
 
     default:
@@ -1071,6 +1422,11 @@ export const getRoleDisplayName = (role: UserRole): string => {
     LAVADOR: 'Lavador',
     ASSISTENTE_FINANCEIRO: 'Assistente Financeiro',
     EMPLOYEE: 'Funcionário / Colaborador',
+    COMERCIAL: 'Comercial / CRM',
+    GESTOR_COMERCIAL: 'Gestor Comercial',
+    VENDAS: 'Vendas / Atendimento',
+    CLIENTE: 'Cliente / Portal do Cliente',
+    CLIENT_USER: 'Usuário Cliente',
   };
   return roleNames[role] || role;
 };
@@ -1115,6 +1471,12 @@ export const getRoleColor = (role: UserRole): string => {
     ASSISTENTE_LIMPEZA: 'bg-teal-600 text-white',
     LAVADOR: 'bg-sky-600 text-white',
     ASSISTENTE_FINANCEIRO: 'bg-green-600 text-white',
+    EMPLOYEE: 'bg-slate-200 text-slate-800',
+    COMERCIAL: 'bg-blue-600 text-white',
+    GESTOR_COMERCIAL: 'bg-blue-700 text-white',
+    VENDAS: 'bg-sky-500 text-white',
+    CLIENTE: 'bg-emerald-500 text-white',
+    CLIENT_USER: 'bg-emerald-600 text-white',
   };
   return roleColors[role] || 'bg-gray-100 text-gray-800';
 };

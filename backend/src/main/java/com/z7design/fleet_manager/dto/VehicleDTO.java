@@ -47,6 +47,8 @@ public class VehicleDTO {
     private UUID departmentId;
     private UUID companyId;
     private UUID workPostId;
+    private String workPostName;
+    private String postoDeTrabalho;
     private String location;
     private LocalDate acquisitionDate;
     private BigDecimal acquisitionValue;
@@ -238,8 +240,40 @@ public class VehicleDTO {
         dto.setInsuranceSecondExpiryDate(vehicle.getInsuranceSecondExpiryDate());
 
         // Cliente / Alocação
-        dto.setClientName(vehicle.getClientName());
-        dto.setClientId(vehicle.getClientId());
+        String clientName = vehicle.getClientName();
+        UUID clientId = vehicle.getClientId();
+        try {
+            if ((clientName == null || clientName.isBlank()) && vehicle.getClientEntity() != null) {
+                clientName = vehicle.getClientEntity().getName();
+                if (clientId == null) clientId = vehicle.getClientEntity().getId();
+            }
+        } catch (Exception ignored) {}
+
+        String workPostName = null;
+        try {
+            if (vehicle.getWorkPostEntity() != null) {
+                workPostName = vehicle.getWorkPostEntity().getName();
+                if ((clientName == null || clientName.isBlank()) && vehicle.getWorkPostEntity().getClient() != null) {
+                    clientName = vehicle.getWorkPostEntity().getClient().getName();
+                    if (clientId == null) clientId = vehicle.getWorkPostEntity().getClient().getId();
+                }
+            }
+        } catch (Exception ignored) {}
+
+        if (workPostName == null || workPostName.isBlank()) {
+            if (vehicle.getLocation() != null && !vehicle.getLocation().isBlank()) {
+                workPostName = vehicle.getLocation();
+            } else if (vehicle.getProjectName() != null && !vehicle.getProjectName().isBlank()) {
+                workPostName = vehicle.getProjectName();
+            } else if (vehicle.getOperationName() != null && !vehicle.getOperationName().isBlank()) {
+                workPostName = vehicle.getOperationName();
+            }
+        }
+
+        dto.setWorkPostName(workPostName);
+        dto.setPostoDeTrabalho(workPostName);
+        dto.setClientName(clientName);
+        dto.setClientId(clientId);
         dto.setAllocationContractNumber(vehicle.getAllocationContractNumber());
         dto.setAllocationStartDate(vehicle.getAllocationStartDate());
         dto.setAllocationEndDate(vehicle.getAllocationEndDate());

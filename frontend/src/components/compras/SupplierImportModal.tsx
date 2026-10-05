@@ -161,9 +161,9 @@ export const SupplierImportModal: React.FC<SupplierImportModalProps> = ({
         name: r.name,
         tradeName: r.tradeName,
         contactName: r.contactName,
-        registrationNumber: r.registrationNumber,
+        registrationNumber: r.stateRegistration || r.registrationNumber,
         cnpj: r.cnpj,
-        phone: r.phone,
+        phone: r.mobile || r.phone,
         email: r.email,
         address: r.address,
         city: r.city,
@@ -202,8 +202,13 @@ export const SupplierImportModal: React.FC<SupplierImportModalProps> = ({
       (r.tradeName && r.tradeName.toLowerCase().includes(q)) ||
       (r.cnpj && r.cnpj.includes(q)) ||
       (r.phone && r.phone.includes(q)) ||
+      (r.mobile && r.mobile.includes(q)) ||
       (r.address && r.address.toLowerCase().includes(q)) ||
-      (r.registrationNumber && r.registrationNumber.includes(q))
+      (r.neighborhood && r.neighborhood.toLowerCase().includes(q)) ||
+      (r.email && r.email.toLowerCase().includes(q)) ||
+      (r.registrationNumber && r.registrationNumber.includes(q)) ||
+      (r.stateRegistration && r.stateRegistration.includes(q)) ||
+      (r.municipalRegistration && r.municipalRegistration.includes(q))
     );
   });
 
@@ -297,7 +302,7 @@ export const SupplierImportModal: React.FC<SupplierImportModalProps> = ({
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-zinc-400">
                   <div className="p-1.5 bg-zinc-950/60 rounded border border-zinc-800">
-                    <span className="font-semibold text-zinc-200">Nome / Razão:</span>
+                    <span className="font-semibold text-zinc-200">Nome / Razão Social:</span>
                     <p className="text-[10px] text-zinc-500">name / trade_name</p>
                   </div>
                   <div className="p-1.5 bg-zinc-950/60 rounded border border-zinc-800">
@@ -305,12 +310,28 @@ export const SupplierImportModal: React.FC<SupplierImportModalProps> = ({
                     <p className="text-[10px] text-zinc-500">cnpj (com/sem máscara)</p>
                   </div>
                   <div className="p-1.5 bg-zinc-950/60 rounded border border-zinc-800">
-                    <span className="font-semibold text-zinc-200">Endereço:</span>
-                    <p className="text-[10px] text-zinc-500">address / city / state</p>
+                    <span className="font-semibold text-zinc-200">ENDEREÇO / Nº / COMPL. / BAIRRO:</span>
+                    <p className="text-[10px] text-zinc-500">address (composto)</p>
                   </div>
                   <div className="p-1.5 bg-zinc-950/60 rounded border border-zinc-800">
-                    <span className="font-semibold text-zinc-200">Telefone / NUMCAD:</span>
-                    <p className="text-[10px] text-zinc-500">phone / reg_number</p>
+                    <span className="font-semibold text-zinc-200">TEL / CEL / EMAIL:</span>
+                    <p className="text-[10px] text-zinc-500">phone (CEL ok) / email</p>
+                  </div>
+                  <div className="p-1.5 bg-zinc-950/60 rounded border border-zinc-800">
+                    <span className="font-semibold text-zinc-200">INSCRIÇÃO ESTADUAL:</span>
+                    <p className="text-[10px] text-zinc-500">registration_number</p>
+                  </div>
+                  <div className="p-1.5 bg-zinc-950/60 rounded border border-zinc-800">
+                    <span className="font-semibold text-zinc-200">INSCRIÇÃO MUNICIPAL:</span>
+                    <p className="text-[10px] text-zinc-500">notes (IM)</p>
+                  </div>
+                  <div className="p-1.5 bg-zinc-950/60 rounded border border-zinc-800">
+                    <span className="font-semibold text-zinc-200">Cidade / UF / CEP:</span>
+                    <p className="text-[10px] text-zinc-500">city / state / zip_code</p>
+                  </div>
+                  <div className="p-1.5 bg-zinc-950/60 rounded border border-zinc-800">
+                    <span className="font-semibold text-zinc-200">Contato / Obs:</span>
+                    <p className="text-[10px] text-zinc-500">contact_name / notes</p>
                   </div>
                 </div>
               </CardContent>

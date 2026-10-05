@@ -63,7 +63,7 @@
           "parameters": [
             {
               "name": "sessionName",
-              "value": "={{ $json.sessionName || 'securedguard' }}"
+              "value": "={{ $json.sessionName || 'fluxbus' }}"
             },
             {
               "name": "number",
@@ -108,7 +108,7 @@
           "parameters": [
             {
               "name": "sessionId",
-              "value": "={{ $json.sessionId || 'securedguard-session' }}"
+              "value": "={{ $json.sessionId || 'fluxbus-session' }}"
             },
             {
               "name": "to",
@@ -226,7 +226,7 @@
           "parameters": [
             {
               "name": "sessionName",
-              "value": "={{ $json.sessionName || 'securedguard' }}"
+              "value": "={{ $json.sessionName || 'fluxbus' }}"
             },
             {
               "name": "number",
@@ -275,7 +275,7 @@
           "parameters": [
             {
               "name": "sessionId",
-              "value": "={{ $json.sessionId || 'securedguard-session' }}"
+              "value": "={{ $json.sessionId || 'fluxbus-session' }}"
             },
             {
               "name": "to",

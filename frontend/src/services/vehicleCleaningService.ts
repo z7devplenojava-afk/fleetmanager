@@ -6,6 +6,8 @@ export type RequesterSector = 'DRIVER' | 'TRAFFIC' | 'OPERATIONAL' | 'MAINTENANC
 export type Priority = 'NORMAL' | 'MEDIA' | 'ALTA' | 'URGENTE';
 export type CleaningPhase = 'AGUARDANDO' | 'EXTERNA' | 'INTERNA' | 'INSPECAO' | 'LIBERADO';
 
+export type ExecutionLocation = 'INTERNAL' | 'EXTERNAL';
+
 export interface ChecklistItem {
   key: string;
   title: string;
@@ -50,8 +52,18 @@ export interface VehicleCleaningOrder {
   qualityInspectedAt?: string;
   qualityChecklist?: string;
   releaseSpot?: string;
+  executionLocation?: ExecutionLocation;
+  carWashId?: string;
+  carWashName?: string;
+  cleaningCost?: number;
+  photoBeforeInternal?: string;
+  photoBeforeExternal?: string;
+  photoAfterInternal?: string;
+  photoAfterExternal?: string;
   releasedAt?: string;
   completedAt?: string;
+  workOrderId?: string;
+  osNumber?: string;
   companyId?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -69,12 +81,15 @@ export interface CreateCleaningOrderRequest {
   priority?: Priority;
   releaseDeadline?: string;
   releaseSpot?: string;
+  executionLocation?: ExecutionLocation;
+  carWashId?: string;
+  cleaningCost?: number;
 }
 
-const CLEANING_TYPE_LABELS: Record<CleaningType, string> = {
-  INTERNAL: 'Limpeza Interna',
-  EXTERNAL: 'Limpeza Externa',
-  COMPLETE: 'Limpeza Completa',
+export const CLEANING_TYPE_LABELS: Record<CleaningType, string> = {
+  INTERNAL: 'Higienização Interna',
+  EXTERNAL: 'Limpeza Externa (Lavajato)',
+  COMPLETE: 'Higienização Completa',
   SANITARY: 'Sanitário / Descarte',
 };
 
@@ -160,19 +175,55 @@ const DEFAULT_QUALITY_CHECKLIST: QualityChecklistItem[] = [
   { key: 'lixo', title: 'Lixeiras esvaziadas', checked: false },
 ];
 
+export interface CleaningSupplyItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+}
+
+export const DEFAULT_SUPPLIES: CleaningSupplyItem[] = [
+  { id: 'shampoo', name: 'Shampoo Automotivo Concentrado', quantity: 300, unit: 'ml' },
+  { id: 'pretinho', name: 'Pretinho / Silicone para Pneus', quantity: 150, unit: 'ml' },
+  { id: 'desinfetante', name: 'Desinfetante Sanitário / Químico', quantity: 200, unit: 'ml' },
+  { id: 'aromatizante', name: 'Aromatizante Floral Veicular', quantity: 50, unit: 'ml' },
+  { id: 'desengraxante', name: 'Desengraxante de Rodas e Chassi', quantity: 250, unit: 'ml' },
+  { id: 'cera', name: 'Cera Líquida Protetora', quantity: 100, unit: 'ml' },
+];
+
 export function parseChecklist(data?: string): ChecklistItem[] {
   if (!data) return DEFAULT_CHECKLIST_ITEMS.map(i => ({ ...i }));
   try {
     const parsed = JSON.parse(data);
     if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.items) && parsed.items.length > 0) {
+      return parsed.items;
+    }
     return DEFAULT_CHECKLIST_ITEMS.map(i => ({ ...i }));
   } catch {
     return DEFAULT_CHECKLIST_ITEMS.map(i => ({ ...i }));
   }
 }
 
+export function parseSupplies(data?: string): CleaningSupplyItem[] {
+  if (!data) return [];
+  try {
+    const parsed = JSON.parse(data);
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.supplies)) {
+      return parsed.supplies;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
 export function stringifyChecklist(items: ChecklistItem[]): string {
   return JSON.stringify(items);
+}
+
+export function stringifyChecklistWithSupplies(items: ChecklistItem[], supplies?: CleaningSupplyItem[]): string {
+  return JSON.stringify({ items, supplies: supplies || [] });
 }
 
 export function parseQualityChecklist(data?: string): QualityChecklistItem[] {
@@ -288,6 +339,16 @@ class VehicleCleaningService {
     return response.data;
   }
 
+  async uploadEvidencePhoto(id: string, category: string, file: File): Promise<VehicleCleaningOrder> {
+    const formData = new FormData();
+    formData.append('category', category);
+    formData.append('photo', file);
+    const response = await api.post(`/frota/vehicle-cleanings/${id}/evidence-photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
   async complete(id: string): Promise<VehicleCleaningOrder> {
     const response = await api.post(`/frota/vehicle-cleanings/${id}/complete`);
     return response.data;
@@ -299,4 +360,4 @@ class VehicleCleaningService {
 }
 
 export const vehicleCleaningService = new VehicleCleaningService();
-export { CLEANING_TYPE_LABELS, STATUS_LABELS };
+export { STATUS_LABELS };

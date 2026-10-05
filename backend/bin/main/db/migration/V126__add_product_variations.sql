@@ -1,3 +1,0 @@
--- V126__add_product_variations.sql
--- Esta migração foi renomeada para V249 para executar após V166__create_products_table.sql
--- Arquivo movido para V249__add_product_variations.sql 

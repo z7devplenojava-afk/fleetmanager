@@ -92,15 +92,15 @@ fi
 # Teste 3: Verificar se Baileys está conectado
 log_step "Teste 3: Verificando conexão Baileys..."
 BAILEYS_URL="${BAILEYS_URL:-http://localhost:3333}"
-if curl -s -f "$BAILEYS_URL/instance/connectionState?key=securedguard" > /dev/null 2>&1; then
-    BAILEYS_STATE=$(curl -s "$BAILEYS_URL/instance/connectionState?key=securedguard")
+if curl -s -f "$BAILEYS_URL/instance/connectionState?key=fluxbus" > /dev/null 2>&1; then
+    BAILEYS_STATE=$(curl -s "$BAILEYS_URL/instance/connectionState?key=fluxbus")
     if echo "$BAILEYS_STATE" | grep -q "open"; then
         log_info "Baileys está conectado"
     else
         log_warn "Baileys não está conectado. Estado: $BAILEYS_STATE"
         echo ""
         echo "Para conectar o Baileys:"
-        echo "  1. Acesse: $BAILEYS_URL/instance/qr?key=securedguard"
+        echo "  1. Acesse: $BAILEYS_URL/instance/qr?key=fluxbus"
         echo "  2. Escaneie o QR Code com WhatsApp"
     fi
 else
@@ -186,13 +186,13 @@ echo ""
 echo -e "${BLUE}Comandos úteis:${NC}"
 echo ""
 echo "  # Verificar logs do backend"
-echo "  docker logs secured-guard-backend-ci --tail 50 | grep '📤\\|❌\\|✅'"
+echo "  docker logs fluxbus-backend-ci --tail 50 | grep '📤\\|❌\\|✅'"
 echo ""
 echo "  # Verificar conexão Baileys"
-echo "  curl $BAILEYS_URL/instance/connectionState?key=securedguard"
+echo "  curl $BAILEYS_URL/instance/connectionState?key=fluxbus"
 echo ""
 echo "  # Obter QR Code"
-echo "  curl $BAILEYS_URL/instance/qr?key=securedguard"
+echo "  curl $BAILEYS_URL/instance/qr?key=fluxbus"
 echo ""
 echo "  # Listar todos os logs de envio"
 echo "  curl -H 'Authorization: Bearer \$TOKEN' '$API_URL/api/envio/logs?cpf=$CPF_TESTE' | jq"

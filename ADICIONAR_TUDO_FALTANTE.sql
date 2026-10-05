@@ -1,6 +1,6 @@
 -- SCRIPT FINAL - Adiciona TODAS as colunas e relações faltantes
 -- Data: 2025-10-17
--- Execute no DBeaver no banco secured_guard_test
+-- Execute no DBeaver no banco fluxbus_test
 
 -- 1. Adicionar coluna company_id (RELAÇÃO)
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS company_id UUID;

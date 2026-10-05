@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script para gerar INSERTs do banco secured_guard_test e atualizar a migration V999
+Script para gerar INSERTs do banco fluxbus_test e atualizar a migration V999
 """
 
 import psycopg2
@@ -13,7 +13,7 @@ from pathlib import Path
 DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'localhost'),
     'port': os.getenv('DB_PORT', '5432'),
-    'database': 'secured_guard_test',
+    'database': 'fluxbus_test',
     'user': os.getenv('DB_USER', 'postgressg'),
     'password': os.getenv('DB_PASSWORD', '1234567')  # Ajuste conforme necessário
 }
@@ -225,7 +225,7 @@ def update_migration(users_inserts, user_roles_inserts, employees_inserts):
     print(f"✅ Migration atualizada: {MIGRATION_FILE}")
 
 def main():
-    print("🚀 Gerando INSERTs do banco secured_guard_test")
+    print("🚀 Gerando INSERTs do banco fluxbus_test")
     print("=" * 50)
     print()
     

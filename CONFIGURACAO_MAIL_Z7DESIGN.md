@@ -4,7 +4,7 @@
 
 ### **Credenciais:**
 - **Email:** securedguard@z7design.com.br
-- **Senha:** D8rKeqSFZfaS$(y7
+- **Senha:** CHANGE_THIS_MAIL_PASSWORD
 - **Servidor SMTP:** mail.z7design.com.br
 - **Porta SMTP:** 465
 - **Protocolo:** SSL/TLS (Secure SSL/TLS Settings - Recomendado)
@@ -45,7 +45,7 @@ spring.mail.properties.mail.smtp.socketFactory.fallback=false
 - ✅ `MAIL_HOST=mail.z7design.com.br`
 - ✅ `MAIL_PORT=465`
 - ✅ `MAIL_USERNAME=securedguard@z7design.com.br`
-- ✅ `MAIL_PASSWORD=D8rKeqSFZfaS$(y7`
+- ✅ `MAIL_PASSWORD=CHANGE_THIS_MAIL_PASSWORD`
 
 ## 🔍 Análise do Problema
 

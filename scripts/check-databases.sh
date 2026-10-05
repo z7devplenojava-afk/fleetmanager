@@ -2,22 +2,22 @@
 
 # ===================== SCRIPT PARA VERIFICAR BANCOS DE DADOS =====================
 
-echo "🔍 Verificando bancos de dados SecuredGuard..."
+echo "🔍 Verificando bancos de dados FluxBus..."
 echo ""
 
 # Configurações
 POSTGRES_HOST=${POSTGRES_HOST:-localhost}
 POSTGRES_PORT=${POSTGRES_PORT:-5432}
 POSTGRES_USER=${POSTGRES_USER:-postgressg}
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-CHANGE_THIS_DB_MAIL_PASSWORD}
 
 # Lista de bancos esperados
 EXPECTED_DATABASES=(
-    "secured_guard_dev"
-    "secured_guard_test"
-    "secured_guard_staging"
-    "secured_guard_prod"
-    "secured_guard_ci"
+    "fluxbus_dev"
+    "fluxbus_test"
+    "fluxbus_staging"
+    "fluxbus_prod"
+    "fluxbus_ci"
 )
 
 # Função para verificar banco

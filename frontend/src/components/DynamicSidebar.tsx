@@ -55,7 +55,8 @@ import {
   Armchair,
   Droplets,
   Ruler,
-  Warehouse
+  Warehouse,
+  ShieldCheck
 } from 'lucide-react';
 import {
   Sidebar,
@@ -270,6 +271,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-checklist-cliente',
     'gestao-limpeza',
     'lavajato',
+    'gestao-certificacoes-cfme',
     'mobilizacao-transportes',
     'filiais',
     'relatorios',
@@ -308,6 +310,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-checklist-cliente',
     'gestao-limpeza',
     'lavajato',
+    'gestao-certificacoes-cfme',
     'mobilizacao-transportes',
     'relatorios',
     'mensagens',
@@ -335,6 +338,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-limpeza',
     'lavajato',
+    'gestao-certificacoes-cfme',
     'mobilizacao-transportes',
     'relatorios',
     'supervisao',
@@ -484,6 +488,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-limpeza',
     'lavajato',
+    'gestao-certificacoes-cfme',
     'mobilizacao-transportes',
     'supervisao',
     'chat-interno',
@@ -504,6 +509,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-limpeza',
     'lavajato',
+    'gestao-certificacoes-cfme',
     'mobilizacao-transportes',
     'supervisao',
     'chat-interno',
@@ -529,6 +535,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-checklist-cliente',
     'gestao-checklist-veiculo',
+    'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
   ]),
@@ -545,6 +552,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-portaria',
     'gestao-checklist-cliente',
     'gestao-checklist-veiculo',
+    'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
   ]),
@@ -559,6 +567,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'pneus',
     'gestao-portaria',
     'gestao-checklist-veiculo',
+    'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
   ]),
@@ -1095,6 +1104,13 @@ export function DynamicSidebar() {
       text: 'Lavajato',
       to: '/manutencao/lavajato',
       id: 'lavajato',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
+    {
+      icon: ShieldCheck,
+      text: 'Certificações CFME',
+      to: '/manutencao/certificacoes-cfme',
+      id: 'gestao-certificacoes-cfme',
       requiredPermission: 'EQUIPMENTS_READ'
     },
     {

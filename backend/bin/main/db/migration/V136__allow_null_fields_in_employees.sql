@@ -1,9 +1,0 @@
--- Permite campos obrigatórios nulos temporariamente na tabela employees
-ALTER TABLE employees ALTER COLUMN user_id DROP NOT NULL;
-ALTER TABLE employees ALTER COLUMN position_id DROP NOT NULL;
-ALTER TABLE employees ALTER COLUMN registration_number DROP NOT NULL;
-ALTER TABLE employees ALTER COLUMN hire_date DROP NOT NULL;
-ALTER TABLE employees ALTER COLUMN status DROP NOT NULL;
-ALTER TABLE employees ALTER COLUMN name DROP NOT NULL;
-ALTER TABLE employees ALTER COLUMN cpf DROP NOT NULL;
-ALTER TABLE employees ALTER COLUMN rg DROP NOT NULL; 

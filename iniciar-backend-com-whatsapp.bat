@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo   SECURED GUARD - BACKEND + WHATSAPP
+echo   FLUXBUS - BACKEND + WHATSAPP
 echo ========================================
 echo.
 

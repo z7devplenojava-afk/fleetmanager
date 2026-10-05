@@ -12,7 +12,7 @@ echo.
 echo ========================================
 echo.
 
-cd /d C:\dev\secured-guard
+cd /d C:\dev\fluxbus
 
 echo 📝 1. Adicionando arquivos...
 git add docker-compose.ci.yml CORRIGIR_405_CI_AGORA.md

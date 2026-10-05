@@ -21,6 +21,7 @@ import com.z7design.fleet_manager.model.Vacation;
 import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.model.enums.VacationStatus;
 import com.z7design.fleet_manager.service.VacationService;
+import com.z7design.fleet_manager.service.VacationValidationService;
 import com.z7design.fleet_manager.service.EmployeeService;
 import com.z7design.fleet_manager.dto.ErrorResponse;
 import com.z7design.fleet_manager.dto.VacationDTO;
@@ -158,6 +159,22 @@ public class VacationController {
             .toList();
         return ResponseEntity.ok(vacationDTOs);
     }
+
+    @Operation(summary = "Saldo de ferias consolidado do funcionario",
+               description = "Retorna total de dias, dias usados, dias disponiveis e dias em andamento "
+                   + "calculados sobre o periodo aquisitivo vigente (RF-01).")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Saldo de ferias calculado",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = com.z7design.fleet_manager.dto.VacationBalanceDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Funcionario nao encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @GetMapping("/employee/{employeeId}/balance")
+    public ResponseEntity<com.z7design.fleet_manager.dto.VacationBalanceDTO> getBalance(
+            @PathVariable("employeeId") UUID employeeId) {
+        return ResponseEntity.ok(vacationService.calculateBalance(employeeId));
+    }
     
     @Operation(summary = "Busca solicitaÃ§Ãµes de fÃ©rias por ID de funcionÃ¡rio e status",
                description = "Retorna uma lista de solicitaÃ§Ãµes de fÃ©rias de um funcionÃ¡rio com um status especÃ­fico. Requer o papel de ADMIN, GESTOR ou SUPERVISOR.")
@@ -213,12 +230,42 @@ public class VacationController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping
-    public ResponseEntity<List<VacationDTO>> findAll() {
-        List<Vacation> vacations = vacationService.findAll();
+    public ResponseEntity<List<VacationDTO>> findAll(
+            @RequestParam(value = "employeeId", required = false) UUID employeeId,
+            @RequestParam(value = "status", required = false) VacationStatus status,
+            @RequestParam(value = "startDate", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        List<Vacation> vacations = vacationService.findFiltered(employeeId, status, startDate, endDate);
         List<VacationDTO> vacationDTOs = vacations.stream()
             .map(VacationDTO::fromEntity)
             .toList();
         return ResponseEntity.ok(vacationDTOs);
+    }
+
+    /**
+     * Validacao em tempo real das regras CLT (RF-02, RF-03, RF-05).
+     * Nao persiste nada; usado pelo formulario antes da submissao.
+     */
+    @Operation(summary = "Valida uma solicitacao de ferias sem persistir",
+               description = "Executa o motor de validacao CLT: fracionamento (Art. 134 §1º), "
+                   + "restricao de inicio nos 2 dias anteriores a DSR/feriado (Art. 134 §3º), "
+                   + "limite do periodo concessivo (Art. 134/137), saldo do PA e abono pecuniario (Art. 143).")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Resultado da validacao"),
+        @ApiResponse(responseCode = "400", description = "Requisicao invalida")
+    })
+    @PostMapping("/validation")
+    public ResponseEntity<VacationValidationService.ValidacaoFerias> validar(
+            @RequestBody ValidationRequest request) {
+        VacationValidationService.ValidacaoFerias resultado = vacationService.validarSolicitacao(
+            request.getEmployeeId(),
+            request.getDataInicio(),
+            request.getBlocos(),
+            request.getDiasAbono() != null ? request.getDiasAbono() : 0,
+            request.getPeriodoAquisitivoId());
+        return ResponseEntity.ok(resultado);
     }
 
     @Operation(summary = "Aprova uma solicitaÃ§Ã£o de fÃ©rias",
@@ -282,7 +329,7 @@ public class VacationController {
         }
     }
 
-    // Classe interna para requests de aprovaÃ§Ã£o
+    // Classe interna para requests de aprovacao
     public static class ApprovalRequest {
         private String observacoes;
 
@@ -293,5 +340,25 @@ public class VacationController {
         public void setObservacoes(String observacoes) {
             this.observacoes = observacoes;
         }
+    }
+
+    /** Payload da validacao em tempo real (RF-02/RF-03/RF-05). */
+    public static class ValidationRequest {
+        private UUID employeeId;
+        private LocalDate dataInicio;
+        private List<com.z7design.fleet_manager.model.VacationBloco> blocos;
+        private Integer diasAbono;
+        private UUID periodoAquisitivoId;
+
+        public UUID getEmployeeId() { return employeeId; }
+        public void setEmployeeId(UUID employeeId) { this.employeeId = employeeId; }
+        public LocalDate getDataInicio() { return dataInicio; }
+        public void setDataInicio(LocalDate dataInicio) { this.dataInicio = dataInicio; }
+        public List<com.z7design.fleet_manager.model.VacationBloco> getBlocos() { return blocos; }
+        public void setBlocos(List<com.z7design.fleet_manager.model.VacationBloco> blocos) { this.blocos = blocos; }
+        public Integer getDiasAbono() { return diasAbono; }
+        public void setDiasAbono(Integer diasAbono) { this.diasAbono = diasAbono; }
+        public UUID getPeriodoAquisitivoId() { return periodoAquisitivoId; }
+        public void setPeriodoAquisitivoId(UUID periodoAquisitivoId) { this.periodoAquisitivoId = periodoAquisitivoId; }
     }
 } 

@@ -17,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -29,8 +30,9 @@ import java.util.UUID;
 @RequestMapping("/api/epi-delivery-forms")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Fichas de Entrega de EPI", description = "Endpoints para gestÃ£o de fichas de entrega de EPI")
+@Tag(name = "Fichas de Entrega de EPI", description = "Endpoints para gestão de fichas de entrega de EPI")
 @SecurityRequirement(name = "bearerAuth")
+@PreAuthorize("hasAnyRole('RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN') or hasAnyAuthority('RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN')")
 public class EPIDeliveryFormController {
 
     private final EPIDeliveryFormService epiDeliveryFormService;
@@ -109,6 +111,21 @@ public class EPIDeliveryFormController {
         return ResponseEntity.ok(forms);
     }
 
+    @Operation(summary = "Atualiza uma ficha de entrega de EPI existente")
+    @PutMapping("/{id}")
+    public ResponseEntity<EPIDeliveryFormDTO> update(
+            @PathVariable("id") UUID id,
+            @RequestBody CreateEPIDeliveryFormDTO dto,
+            Authentication authentication) {
+        log.info("📝 Recebendo requisição para atualizar ficha de entrega de EPI: {}", id);
+        UUID updatedByUserId = null;
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetails) {
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        }
+        EPIDeliveryFormDTO updated = epiDeliveryFormService.update(id, dto, updatedByUserId);
+        return ResponseEntity.ok(updated);
+    }
+
     @Operation(summary = "Deleta uma ficha de entrega de EPI")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
@@ -121,35 +138,35 @@ public class EPIDeliveryFormController {
     @PostMapping("/generate-pdf")
     public ResponseEntity<byte[]> generateAndSaveEPIDeliveryPdf(
             @RequestBody CreateEPIDeliveryFormDTO dto,
+            @RequestParam(value = "orientation", defaultValue = "portrait") String orientation,
             Authentication authentication) {
         try {
-            log.info("ðŸ“„ Gerando PDF de ficha de entrega de EPI para funcionÃ¡rio: {}", dto.getEmployeeId());
+            log.info("📄 Gerando PDF de ficha de entrega de EPI para funcionário: {} (orientação: {})", dto.getEmployeeId(), orientation);
             
             UUID createdByUserId = null;
             if (authentication != null && authentication.getPrincipal() instanceof UserDetails) {
                 UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-                // Buscar UUID do usuÃ¡rio pelo username se necessÃ¡rio
             }
             
             // Primeiro, salvar a ficha no banco
             EPIDeliveryFormDTO savedForm = epiDeliveryFormService.create(dto, createdByUserId);
-            log.info("âœ… Ficha de entrega de EPI salva no banco com ID: {}", savedForm.getId());
+            log.info("✅ Ficha de entrega de EPI salva no banco com ID: {}", savedForm.getId());
             
             // Buscar a ficha completa para gerar o PDF
             com.z7design.fleet_manager.model.EPIDeliveryForm form = 
                 epiDeliveryFormService.findByIdEntity(savedForm.getId());
             
-            // Gerar PDF
-            byte[] pdf = epiDeliveryPdfService.generateEPIDeliveryPdfFromForm(form);
+            boolean landscape = "landscape".equalsIgnoreCase(orientation) || "paisagem".equalsIgnoreCase(orientation);
+            byte[] pdf = epiDeliveryPdfService.generateEPIDeliveryPdfFromForm(form, landscape);
             
-            String fileName = "ficha-entrega-epi-" + savedForm.getId() + ".pdf";
+            String fileName = "ficha-entrega-epi-" + savedForm.getId() + (landscape ? "-paisagem" : "-retrato") + ".pdf";
             
             return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)
                 .body(pdf);
         } catch (Exception e) {
-            log.error("âŒ Erro ao gerar PDF de ficha de entrega de EPI: {}", e.getMessage(), e);
+            log.error("❌ Erro ao gerar PDF de ficha de entrega de EPI: {}", e.getMessage(), e);
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -161,16 +178,15 @@ public class EPIDeliveryFormController {
             @RequestBody CreateEPIDeliveryFormDTO dto,
             Authentication authentication) {
         try {
-            log.info("ðŸ“Š Gerando Excel de ficha de entrega de EPI para funcionÃ¡rio: {}", dto.getEmployeeId());
+            log.info("📊 Gerando Excel de ficha de entrega de EPI para funcionário: {}", dto.getEmployeeId());
 
             UUID createdByUserId = null;
             if (authentication != null && authentication.getPrincipal() instanceof UserDetails) {
                 UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-                // Buscar UUID do usuÃ¡rio pelo username se necessÃ¡rio
             }
 
             EPIDeliveryFormDTO savedForm = epiDeliveryFormService.create(dto, createdByUserId);
-            log.info("âœ… Ficha de entrega de EPI salva no banco com ID: {}", savedForm.getId());
+            log.info("✅ Ficha de entrega de EPI salva no banco com ID: {}", savedForm.getId());
 
             com.z7design.fleet_manager.model.EPIDeliveryForm form =
                 epiDeliveryFormService.findByIdEntity(savedForm.getId());
@@ -191,11 +207,14 @@ public class EPIDeliveryFormController {
 
     @Operation(summary = "Download do PDF de uma ficha existente para assinatura")
     @GetMapping("/{id}/pdf")
-    public ResponseEntity<byte[]> getPdfById(@PathVariable("id") UUID id) {
+    public ResponseEntity<byte[]> getPdfById(
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "orientation", defaultValue = "portrait") String orientation) {
         try {
             com.z7design.fleet_manager.model.EPIDeliveryForm form = epiDeliveryFormService.findByIdEntity(id);
-            byte[] pdf = epiDeliveryPdfService.generateEPIDeliveryPdfFromForm(form);
-            String fileName = "ficha-entrega-epi-" + id + ".pdf";
+            boolean landscape = "landscape".equalsIgnoreCase(orientation) || "paisagem".equalsIgnoreCase(orientation);
+            byte[] pdf = epiDeliveryPdfService.generateEPIDeliveryPdfFromForm(form, landscape);
+            String fileName = "ficha-entrega-epi-" + id + (landscape ? "-paisagem" : "-retrato") + ".pdf";
             return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)

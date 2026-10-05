@@ -94,7 +94,7 @@ POST http://localhost:8081/api/envio/individual
 ### Via Evolution API direta:
 ```bash
 curl http://localhost:9000/instance/connectionState/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 ```
 
 ### Via Controller interno:
@@ -198,7 +198,7 @@ http://localhost:9000/manager
 
 ### Ver status Evolution:
 ```
-http://localhost:9000/instance/connectionState/securedguard?apikey=B6D711FCDE4D4FD5936544120E713976
+http://localhost:9000/instance/connectionState/securedguard?apikey=CHANGE_THIS_EVOLUTION_API_KEY
 ```
 
 ### Testar via seu backend:

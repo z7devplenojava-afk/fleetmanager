@@ -13,7 +13,7 @@ $historicoUrl = "$baseUrl/api/remanejamentos-historico"
 
 # Dados de login
 $loginData = @{
-    username = "admin@securedguard.com"
+    username = "admin@fluxbus.com"
     password = "admin123"
 } | ConvertTo-Json
 

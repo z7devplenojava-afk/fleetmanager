@@ -161,9 +161,15 @@ api.interceptors.response.use(
       return Promise.reject(errorOrigin);
     }
 
-    console.error('❌ Axios Response Error:', error.response?.status, error.config?.url);
-    if (isHttpDebugMode()) {
-      console.error('❌ Error details:', error.response?.data);
+    // Endpoints que degradam silenciosamente (ex.: backend desatualizado) podem
+    // marcar a requisição com { silentErrorLog: true } para não poluir o console.
+    const requestConfig = error?.config as { silentErrorLog?: boolean } | undefined;
+    const silentErrorLog = requestConfig?.silentErrorLog === true;
+    if (!silentErrorLog) {
+      console.error('❌ Axios Response Error:', error.response?.status, error.config?.url);
+      if (isHttpDebugMode()) {
+        console.error('❌ Error details:', error.response?.data);
+      }
     }
     const originalRequest = error.config;
 

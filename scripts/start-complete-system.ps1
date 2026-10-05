@@ -203,7 +203,7 @@ if (Test-Port -Port $DatabasePort) {
     # Tentar iniciar com Docker
     if (Get-Command docker -ErrorAction SilentlyContinue) {
         docker run -d --name envio-holerites-postgres `
-            -e POSTGRES_DB=secured_guard `
+            -e POSTGRES_DB=fluxbus `
             -e POSTGRES_USER=postgres `
             -e POSTGRES_PASSWORD=postgres `
             -p $DatabasePort`:5432 `
@@ -260,7 +260,7 @@ if (Test-Port -Port $BackendPort) {
     
     # Configurar variáveis de ambiente
     $env:SPRING_PROFILES_ACTIVE = $Environment
-    $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:$DatabasePort/secured_guard"
+    $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:$DatabasePort/fluxbus"
     $env:SPRING_DATASOURCE_USERNAME = "postgres"
     $env:SPRING_DATASOURCE_PASSWORD = "postgres"
     $env:SPRING_REDIS_HOST = "localhost"

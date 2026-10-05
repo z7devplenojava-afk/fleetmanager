@@ -222,7 +222,9 @@ public class FleetWorkOrderDTO {
                 .checklistItems(entity.getChecklistItems() != null
                         ? entity.getChecklistItems().stream().map(FleetWorkOrderChecklistDTO::fromEntity).collect(Collectors.toList())
                         : null)
-                .photoAttachments(entity.getPhotoAttachments())
+                .photoAttachments(entity.getPhotoAttachments() != null
+                        ? new java.util.ArrayList<>(entity.getPhotoAttachments())
+                        : new java.util.ArrayList<>())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

@@ -1,5 +1,5 @@
 # Script para testar integração n8n com WhatsApp
-# Autor: Sistema SecuredGuard
+# Autor: Sistema FluxBus
 # Data: 2024
 
 Write-Host "=== TESTE DE INTEGRAÇÃO N8N WHATSAPP ===" -ForegroundColor Green
@@ -10,7 +10,7 @@ $n8nUrl = "http://localhost:5678"
 $wppconnectUrl = "http://localhost:21465"
 $backendUrl = "http://localhost:8080"
 $testPhone = "5511999999999"
-$testMessage = "Teste de integração n8n - SecuredGuard"
+$testMessage = "Teste de integração n8n - FluxBus"
 
 # Função para testar conectividade
 function Test-Connectivity {
@@ -34,7 +34,7 @@ function Test-N8nWebhook {
         phoneNumber = $testPhone
         message = $testMessage
         provider = "wppconnect"
-        sessionName = "securedguard"
+        sessionName = "fluxbus"
         timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
     } | ConvertTo-Json
     
@@ -55,21 +55,21 @@ function Test-WPPConnect {
     
     try {
         # Testar status da sessão
-        $response = Invoke-WebRequest -Uri "$wppconnectUrl/api/sessions/status/securedguard" -TimeoutSec 5
+        $response = Invoke-WebRequest -Uri "$wppconnectUrl/api/sessions/status/fluxbus" -TimeoutSec 5
         Write-Host "✓ WPPConnect está acessível" -ForegroundColor Green
         
         # Verificar se a sessão existe
         if ($response.Content -like "*not found*") {
-            Write-Host "⚠ Sessão 'securedguard' não encontrada. Criando..." -ForegroundColor Yellow
+            Write-Host "⚠ Sessão 'fluxbus' não encontrada. Criando..." -ForegroundColor Yellow
             
             $createSession = @{
-                sessionName = "securedguard"
+                sessionName = "fluxbus"
             } | ConvertTo-Json
             
             $createResponse = Invoke-WebRequest -Uri "$wppconnectUrl/api/sessions/add" -Method POST -Body $createSession -ContentType "application/json"
             Write-Host "✓ Sessão criada" -ForegroundColor Green
         } else {
-            Write-Host "✓ Sessão 'securedguard' existe" -ForegroundColor Green
+            Write-Host "✓ Sessão 'fluxbus' existe" -ForegroundColor Green
         }
         
         return $true

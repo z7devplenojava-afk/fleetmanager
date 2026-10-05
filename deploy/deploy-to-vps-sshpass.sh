@@ -32,7 +32,7 @@ info() {
 
 # Verificar se estamos no diretório correto
 if [ ! -f "deploy/install-vps.sh" ]; then
-    error "Execute este script a partir do diretório raiz do projeto SecuredGuard"
+    error "Execute este script a partir do diretório raiz do projeto FluxBus"
 fi
 
 # Configurações (usar variáveis de ambiente se disponíveis)
@@ -131,7 +131,7 @@ log "Sincronizando arquivos..."
 sshpass -p "$VPS_PASSWORD" rsync -avz --delete \
     --exclude-from=.rsync-exclude.temp \
     -e "ssh -p $VPS_PORT -o StrictHostKeyChecking=no" \
-    ./ $VPS_USER@$VPS_HOST:/opt/secured-guard/
+    ./ $VPS_USER@$VPS_HOST:/opt/fluxbus/
 
 # Limpar arquivo temporário
 rm -f .rsync-exclude.temp
@@ -144,7 +144,7 @@ log "Código copiado para VPS!"
 log "6. Executando deploy na VPS..."
 
 # Recriar script deploy.sh com correção e executar
-sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && cp deploy/deploy-to-vps.sh deploy.sh && chmod +x deploy.sh && VPS_LOCAL=1 ./deploy.sh"
+sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && cp deploy/deploy-to-vps.sh deploy.sh && chmod +x deploy.sh && VPS_LOCAL=1 ./deploy.sh"
 
 log "Deploy concluído!"
 
@@ -153,7 +153,7 @@ log "Deploy concluído!"
 # ========================================
 log "7. Verificando status dos serviços..."
 
-sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && docker compose -f deploy/docker-compose.prod.yml ps"
+sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && docker compose -f deploy/docker-compose.prod.yml ps"
 
 # ========================================
 # FINALIZAÇÃO
@@ -166,7 +166,7 @@ echo "🔒 https://$VPS_HOST (HTTPS - self-signed)"
 echo ""
 info "Comandos úteis:"
 echo "- Conectar na VPS: ssh root@$VPS_HOST"
-echo "- Ver logs: ssh root@$VPS_HOST 'docker compose -f /opt/secured-guard/deploy/docker-compose.prod.yml logs -f'"
-echo "- Status: ssh root@$VPS_HOST 'docker compose -f /opt/secured-guard/deploy/docker-compose.prod.yml ps'"
+echo "- Ver logs: ssh root@$VPS_HOST 'docker compose -f /opt/fluxbus/deploy/docker-compose.prod.yml logs -f'"
+echo "- Status: ssh root@$VPS_HOST 'docker compose -f /opt/fluxbus/deploy/docker-compose.prod.yml ps'"
 echo ""
 warning "IMPORTANTE: Configure seu domínio e certificados SSL reais para produção!"

@@ -35,10 +35,10 @@ VPS_HOST="185.225.233.18"
 VPS_USER="root"
 VPS_PORT="22"
 VPS_PASSWORD='$7?NMo8&Ua'
-NEW_USER="securedguard"
+NEW_USER="fluxbus"
 
 # Domínios configurados
-PROD_DOMAIN="securedguard.z7botsolutions.com.br"
+PROD_DOMAIN="fluxbus.z7botsolutions.com.br"
 DEV_DOMAIN="dev.z7botsolutions.com.br"
 CI_DOMAIN="ci.z7botsolutions.com.br"
 
@@ -150,7 +150,7 @@ log "Sincronizando arquivos..."
 sshpass -p "$VPS_PASSWORD" rsync -avz --delete \
     --exclude-from=.rsync-exclude.temp \
     -e "ssh -p $VPS_PORT -o StrictHostKeyChecking=no" \
-    ./ $VPS_USER@$VPS_HOST:/opt/secured-guard/
+    ./ $VPS_USER@$VPS_HOST:/opt/fluxbus/
 
 # Limpar arquivo temporário
 rm -f .rsync-exclude.temp
@@ -164,13 +164,13 @@ log "7. Configurando variáveis de ambiente..."
 
 # Configurar arquivo .env com domínios
 sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "
-    cat > /opt/secured-guard/.env << 'EOF'
+    cat > /opt/fluxbus/.env << 'EOF'
 # ========================================
 # CONFIGURAÇÕES DE PRODUÇÃO
 # ========================================
 
 # Database
-POSTGRES_DB=secured_guard
+POSTGRES_DB=fluxbus
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=$(openssl rand -base64 32)
 
@@ -204,7 +204,7 @@ log "✅ Variáveis de ambiente configuradas!"
 # ========================================
 echo ""
 info "Qual ambiente você quer fazer deploy?"
-echo "1) Produção (securedguard.z7botsolutions.com.br)"
+echo "1) Produção (fluxbus.z7botsolutions.com.br)"
 echo "2) Desenvolvimento (dev.z7botsolutions.com.br)"
 echo "3) CI/Testes (ci.z7botsolutions.com.br)"
 echo "4) Todos os ambientes"
@@ -240,12 +240,12 @@ log "9. Executando deploy para $ENV_NAME..."
 
 if [ "$ENV_FILE" = "all" ]; then
     # Deploy todos os ambientes
-    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && docker-compose -f deploy/docker-compose.prod-domains.yml up -d"
-    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && docker-compose -f deploy/docker-compose.dev-domains.yml up -d"
-    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && docker-compose -f deploy/docker-compose.ci-domains.yml up -d"
+    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && docker-compose -f deploy/docker-compose.prod-domains.yml up -d"
+    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && docker-compose -f deploy/docker-compose.dev-domains.yml up -d"
+    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && docker-compose -f deploy/docker-compose.ci-domains.yml up -d"
 else
     # Deploy ambiente específico
-    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && docker-compose -f deploy/$ENV_FILE up -d"
+    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && docker-compose -f deploy/$ENV_FILE up -d"
 fi
 
 log "Deploy concluído!"
@@ -256,9 +256,9 @@ log "Deploy concluído!"
 log "10. Verificando status dos serviços..."
 
 if [ "$ENV_FILE" = "all" ]; then
-    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && docker ps --filter 'name=secured-guard'"
+    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && docker ps --filter 'name=fluxbus'"
 else
-    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && docker-compose -f deploy/$ENV_FILE ps"
+    sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && docker-compose -f deploy/$ENV_FILE ps"
 fi
 
 # ========================================
@@ -277,8 +277,8 @@ echo "🔧 Traefik Dashboard: https://$VPS_HOST:8080"
 echo ""
 info "Comandos úteis:"
 echo "- Conectar na VPS: ssh $NEW_USER@$VPS_HOST"
-echo "- Ver logs produção: ssh $NEW_USER@$VPS_HOST 'docker-compose -f /opt/secured-guard/deploy/docker-compose.prod-domains.yml logs -f'"
-echo "- Ver logs desenvolvimento: ssh $NEW_USER@$VPS_HOST 'docker-compose -f /opt/secured-guard/deploy/docker-compose.dev-domains.yml logs -f'"
-echo "- Ver logs CI: ssh $NEW_USER@$VPS_HOST 'docker-compose -f /opt/secured-guard/deploy/docker-compose.ci-domains.yml logs -f'"
+echo "- Ver logs produção: ssh $NEW_USER@$VPS_HOST 'docker-compose -f /opt/fluxbus/deploy/docker-compose.prod-domains.yml logs -f'"
+echo "- Ver logs desenvolvimento: ssh $NEW_USER@$VPS_HOST 'docker-compose -f /opt/fluxbus/deploy/docker-compose.dev-domains.yml logs -f'"
+echo "- Ver logs CI: ssh $NEW_USER@$VPS_HOST 'docker-compose -f /opt/fluxbus/deploy/docker-compose.ci-domains.yml logs -f'"
 echo ""
 warning "IMPORTANTE: Configure os DNS dos domínios para apontar para o IP da VPS: $VPS_HOST"

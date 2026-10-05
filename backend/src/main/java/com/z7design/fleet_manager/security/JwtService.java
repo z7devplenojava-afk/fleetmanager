@@ -31,7 +31,7 @@ public class JwtService {
         this.jwtConfig = jwtConfig;
         this.userCompanyResolver = userCompanyResolver;
         if (jwtConfig.getSecret() == null || jwtConfig.getSecret().trim().isEmpty()) {
-            throw new IllegalStateException("JWT secret nÃ£o estÃ¡ configurado");
+            throw new IllegalStateException("JWT secret não está configurado");
         }
         log.info("JwtService initialized with expiration: {} ms", jwtConfig.getExpiration());
     }
@@ -39,15 +39,18 @@ public class JwtService {
     public static final String CLAIM_EMPRESA_ID = "empresaId";
     public static final String CLAIM_USER_ID = "userId";
     public static final String CLAIM_ROLE = "role";
+    public static final String CLAIM_TOKEN_TYPE = "typ";
+    public static final String TOKEN_TYPE_ACCESS = "access";
+    public static final String TOKEN_TYPE_REFRESH = "refresh";
 
     public String extractUsername(String token) {
         try {
             String username = extractClaim(token, Claims::getSubject);
-            log.debug("Username extraÃ­do do token: {}", username);
+            log.debug("Username extraído do token: {}", username);
             return username;
         } catch (Exception e) {
             log.error("Erro ao extrair username do token: {}", e.getMessage());
-            throw new RuntimeException("Token JWT invÃ¡lido: " + e.getMessage());
+            throw new RuntimeException("Token JWT inválido: " + e.getMessage());
         }
     }
 
@@ -58,7 +61,7 @@ public class JwtService {
             if (claim instanceof String) return UUID.fromString((String) claim);
             return null;
         } catch (Exception e) {
-            log.debug("EmpresaId nÃ£o presente no token: {}", e.getMessage());
+            log.debug("EmpresaId não presente no token: {}", e.getMessage());
             return null;
         }
     }
@@ -70,7 +73,7 @@ public class JwtService {
             if (claim instanceof String) return UUID.fromString((String) claim);
             return null;
         } catch (Exception e) {
-            log.debug("UserId nÃ£o presente no token: {}", e.getMessage());
+            log.debug("UserId não presente no token: {}", e.getMessage());
             return null;
         }
     }
@@ -79,7 +82,7 @@ public class JwtService {
         try {
             final Claims claims = extractAllClaims(token);
             T result = claimsResolver.apply(claims);
-            log.debug("Claim extraÃ­do do token: {}", result);
+            log.debug("Claim extraído do token: {}", result);
             return result;
         } catch (Exception e) {
             log.error("Erro ao extrair claim do token: {}", e.getMessage());
@@ -95,8 +98,6 @@ public class JwtService {
         return generateToken(extraClaims, user, jwtConfig.getExpiration());
     }
 
-    // Overloads to support generating tokens without a User entity (e.g.,
-    // supervisors)
     public String generateToken(String subject) {
         return generateToken(new HashMap<>(), subject, jwtConfig.getExpiration());
     }
@@ -110,7 +111,9 @@ public class JwtService {
     }
 
     public String generateRefreshToken(User user) {
-        return generateToken(new HashMap<>(), user, jwtConfig.getRefreshTokenExpiration());
+        // SEGURANÇA: refresh token marcado com typ=refresh e validade própria
+        return generateToken(new HashMap<>(Map.of(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH)), user,
+                jwtConfig.getRefreshTokenExpiration());
     }
 
     public String generateToken(
@@ -123,6 +126,8 @@ public class JwtService {
 
             Map<String, Object> claims = new HashMap<>(extraClaims);
             claims.put(CLAIM_USER_ID, user.getId() != null ? user.getId().toString() : null);
+            // Access token marcado explicitamente; refresh sobrescreve com typ=refresh
+            claims.putIfAbsent(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
             Company company = userCompanyResolver.resolveCompany(user).orElse(null);
             if (company != null && company.getId() != null) {
                 claims.put(CLAIM_EMPRESA_ID, company.getId().toString());
@@ -132,7 +137,7 @@ public class JwtService {
                 claims.put(CLAIM_ROLE, firstRole);
             }
 
-            log.info("Gerando token para usuÃ¡rio: {}, expira em: {} ({} ms)", user.getUsername(), expiryDate,
+            log.info("Gerando token para usuário: {}, expira em: {} ({} ms)", user.getUsername(), expiryDate,
                     expirationTime);
 
             String token = Jwts.builder()
@@ -143,7 +148,7 @@ public class JwtService {
                     .signWith(getSigningKey(), SignatureAlgorithm.HS512)
                     .compact();
 
-            log.info("Token gerado com sucesso para usuÃ¡rio: {}", user.getUsername());
+            log.info("Token gerado com sucesso para usuário: {}", user.getUsername());
             return token;
         } catch (Exception e) {
             log.error("Erro ao gerar token: {}", e.getMessage());
@@ -151,7 +156,6 @@ public class JwtService {
         }
     }
 
-    // Internal generator allowing raw subject (no User object)
     private String generateToken(
             Map<String, Object> extraClaims,
             String subject,
@@ -179,15 +183,26 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
+        return isTokenValid(token, userDetails, TOKEN_TYPE_ACCESS);
+    }
+
+    /**
+     * SEGURANÇA: valida o token e o seu tipo (access vs refresh).
+     * Um refresh token NÃO pode ser usado como access token e vice-versa.
+     */
+    public boolean isTokenValid(String token, UserDetails userDetails, String expectedType) {
         try {
             final String username = extractUsername(token);
             boolean isExpired = isTokenExpired(token);
             boolean isUsernameValid = username.equals(userDetails.getUsername());
 
-            log.info("ValidaÃ§Ã£o do token para usuÃ¡rio {}: username vÃ¡lido: {}, token expirado: {}",
-                    username, isUsernameValid, isExpired);
+            String tokenType = extractClaim(token, c -> (String) c.get(CLAIM_TOKEN_TYPE));
+            boolean typeMatches = expectedType.equals(tokenType);
 
-            return isUsernameValid && !isExpired;
+            log.info("Validação do token para usuário {}: username válido: {}, token expirado: {}, tipo: {}",
+                    username, isUsernameValid, isExpired, tokenType);
+
+            return isUsernameValid && !isExpired && typeMatches;
         } catch (Exception e) {
             log.error("Erro ao validar token: {}", e.getMessage());
             return false;
@@ -197,7 +212,7 @@ public class JwtService {
     private boolean isTokenExpired(String token) {
         Date expiration = extractExpiration(token);
         boolean isExpired = expiration.before(new Date());
-        log.info("VerificaÃ§Ã£o de expiraÃ§Ã£o do token: data de expiraÃ§Ã£o: {}, estÃ¡ expirado: {}",
+        log.info("Verificação de expiração do token: data de expiração: {}, está expirado: {}",
                 expiration, isExpired);
         return isExpired;
     }
@@ -213,7 +228,7 @@ public class JwtService {
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-            log.debug("Claims extraÃ­dos do token: {}", claims);
+            log.debug("Claims extraídos do token: {}", claims);
             return claims;
         } catch (Exception e) {
             log.error("Erro ao analisar token JWT: {}", e.getMessage());
@@ -224,37 +239,34 @@ public class JwtService {
     private Key getSigningKey() {
         try {
             if (jwtConfig.getSecret() == null || jwtConfig.getSecret().trim().isEmpty()) {
-                log.error("âŒ Chave secreta JWT nÃ£o estÃ¡ configurada (null ou vazia)");
-                throw new IllegalStateException("Chave secreta JWT nÃ£o estÃ¡ configurada");
+                log.error("❌ Chave secreta JWT não está configurada (null ou vazia)");
+                throw new IllegalStateException("Chave secreta JWT não está configurada");
             }
             String secret = jwtConfig.getSecret().trim();
-            byte[] keyBytes = secret.getBytes();
+            byte[] keyBytes = secret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
-            // Log do tamanho da chave (sem mostrar o valor completo por seguranÃ§a)
-            log.info("ðŸ”‘ Configurando chave JWT: tamanho = {} bytes (primeiros 10 caracteres: {}...)",
-                    keyBytes.length, secret.substring(0, Math.min(10, secret.length())));
+            log.info("🔑 Configurando chave JWT: tamanho = {} bytes", keyBytes.length);
 
-            // HS512 requires at least 64 bytes (512 bits)
+            // HS512 requer pelo menos 64 bytes (512 bits) - aplica SHA-512 key stretching se menor
             if (keyBytes.length < 64) {
-                log.error("âŒ Chave JWT muito curta: {} bytes. HS512 requer pelo menos 64 bytes (512 bits).",
-                        keyBytes.length);
-                log.error("âŒ Valor da chave (primeiros 20 caracteres): {}",
-                        secret.substring(0, Math.min(20, secret.length())));
-                log.error(
-                        "âŒ Por favor, verifique a variÃ¡vel de ambiente JWT_SECRET no docker-compose.ci.yml ou no host");
-                throw new IllegalStateException(
-                        String.format("Chave JWT muito curta: %d bytes. HS512 requer pelo menos 64 bytes (512 bits). " +
-                                "Por favor, configure uma chave com pelo menos 64 caracteres ASCII. " +
-                                "Verifique a variÃ¡vel de ambiente JWT_SECRET.", keyBytes.length));
+                log.info("🔑 Chave JWT menor que 64 bytes ({} bytes). Aplicando SHA-512 key stretching para HS512.", keyBytes.length);
+                try {
+                    java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-512");
+                    keyBytes = md.digest(keyBytes);
+                } catch (Exception e) {
+                    byte[] padded = new byte[64];
+                    System.arraycopy(keyBytes, 0, padded, 0, Math.min(keyBytes.length, 64));
+                    keyBytes = padded;
+                }
             }
 
-            log.debug("âœ… Criando chave de assinatura JWT com {} bytes", keyBytes.length);
+            log.debug("✅ Criando chave de assinatura JWT com {} bytes", keyBytes.length);
             return Keys.hmacShaKeyFor(keyBytes);
         } catch (IllegalStateException e) {
-            log.error("âŒ Erro de configuraÃ§Ã£o na chave de assinatura: {}", e.getMessage());
+            log.error("❌ Erro de configuração na chave de assinatura: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("âŒ Erro ao criar chave de assinatura: {}", e.getMessage(), e);
+            log.error("❌ Erro ao criar chave de assinatura: {}", e.getMessage(), e);
             throw new RuntimeException("Erro ao criar chave de assinatura: " + e.getMessage(), e);
         }
     }

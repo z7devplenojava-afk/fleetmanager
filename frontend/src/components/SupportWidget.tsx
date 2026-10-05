@@ -36,7 +36,7 @@ export function SupportWidget({ isOpen, onToggle }: SupportWidgetProps) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      content: 'Olá! Sou o assistente virtual do SecuredGuard. Como posso ajudá-lo hoje?',
+      content: 'Olá! Sou o assistente virtual do FluxBus. Como posso ajudá-lo hoje?',
       isBot: true,
       timestamp: new Date().toISOString()
     }
@@ -114,7 +114,7 @@ export function SupportWidget({ isOpen, onToggle }: SupportWidgetProps) {
     }
     
     if (message.includes('atendente') || message.includes('humano')) {
-      return 'Vou conectá-lo com um de nossos atendentes. Você pode:\n\n📞 Ligar para: (11) 9999-9999\n📧 Enviar e-mail: suporte@securedguard.com\n🎫 Criar um ticket de suporte\n\nNosso horário de atendimento é de segunda a sexta, das 8h às 18h.';
+      return 'Vou conectá-lo com um de nossos atendentes. Você pode:\n\n📞 Ligar para: (11) 9999-9999\n📧 Enviar e-mail: suporte@fluxbus.com\n🎫 Criar um ticket de suporte\n\nNosso horário de atendimento é de segunda a sexta, das 8h às 18h.';
     }
     
     return 'Obrigado pela sua mensagem! Para melhor atendê-lo, recomendo:\n\n1. Consultar nossa Central de Ajuda\n2. Criar um ticket de suporte detalhado\n3. Entrar em contato pelo telefone para urgências\n\nComo posso ajudá-lo especificamente?';
@@ -140,7 +140,7 @@ export function SupportWidget({ isOpen, onToggle }: SupportWidgetProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <MessageCircle className="w-5 h-5" />
-              <CardTitle className="text-sm">Suporte SecuredGuard</CardTitle>
+              <CardTitle className="text-sm">Suporte FluxBus</CardTitle>
               <Badge variant="secondary" className="text-xs bg-green-500 text-white">
                 Online
               </Badge>

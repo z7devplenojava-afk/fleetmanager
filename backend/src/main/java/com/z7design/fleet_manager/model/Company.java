@@ -34,9 +34,10 @@ public class Company {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @NotBlank(message = "Company sigla is required")
-    @Size(min = 2, max = 10, message = "Company sigla must be between 2 and 10 characters")
-    @Column(nullable = false, unique = true, length = 10)
+    // Sigla opcional: empresas legadas/seed podem ter sigla NULL.
+    // Validação de obrigatoriedade fica no DTO (quando enviada pela API).
+    @Size(max = 10, message = "Company sigla must not exceed 10 characters")
+    @Column(unique = true, length = 10)
     private String sigla;
 
     @Column(columnDefinition = "TEXT")
@@ -139,6 +140,7 @@ public class Company {
     public enum CompanyStatus {
         ACTIVE("Ativo"),
         INACTIVE("Inativo"),
+        PENDING("Pendente"),
         SUSPENDED("Suspenso");
 
         private final String description;

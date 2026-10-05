@@ -145,7 +145,17 @@ const AbastecimentoDashboard: React.FC = () => {
                             <CardContent className="p-0">
                                 <AbastecimentosTable
                                     abastecimentos={fuelRecords}
-                                    veiculos={vehicles}
+                                    veiculos={vehicles.map((v) => ({
+                                        id: v.id,
+                                        placa: v.plate || (v as any).placa || '',
+                                        fleetNumber: v.fleetNumber || (v as any).prefixo || '',
+                                        prefixo: (v as any).prefixo || v.fleetNumber || '',
+                                        marca: v.brand || (v as any).marca || '',
+                                        modelo: v.model || (v as any).modelo || '',
+                                        status: v.status || (v as any).status || 'ATIVO',
+                                        garageId: v.garageId || (v as any).garage?.id || '',
+                                        garageName: v.garageName || (v as any).garage?.name || '',
+                                    }))}
                                     onRefresh={handleSuccess}
                                 />
                             </CardContent>
@@ -183,6 +193,8 @@ const AbastecimentoDashboard: React.FC = () => {
                         </div>
                         <AbastecimentoExternoReport
                             fuelRecords={fuelRecords}
+                            veiculos={vehicles}
+                            onRefresh={handleSuccess}
                             activeSubTab={externoSubTab}
                             onSubTabChange={setExternoSubTab}
                         />
@@ -213,12 +225,14 @@ const AbastecimentoDashboard: React.FC = () => {
                 veiculos={vehicles}
             />
 
-            <AbastecimentoExternoFormModal
-                isOpen={isExternoModalOpen}
-                onClose={() => setIsExternoModalOpen(false)}
-                onSuccess={handleSuccess}
-                veiculos={vehicles}
-            />
+            {isExternoModalOpen && (
+              <AbastecimentoExternoFormModal
+                  isOpen={isExternoModalOpen}
+                  onClose={() => setIsExternoModalOpen(false)}
+                  onSuccess={handleSuccess}
+                  veiculos={vehicles}
+              />
+            )}
         </StandardLayout>
     );
 };

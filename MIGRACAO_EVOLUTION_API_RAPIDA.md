@@ -40,7 +40,7 @@ curl https://evolution.z7botsolutions.com.br/health
 
 ```bash
 curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "instanceName": "securedguard",
@@ -66,7 +66,7 @@ curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
 
 #### Opção A: Via Browser
 
-1. Abra: `https://evolution.z7botsolutions.com.br/instance/qrcode/securedguard?apikey=B6D711FCDE4D4FD5936544120E713976`
+1. Abra: `https://evolution.z7botsolutions.com.br/instance/qrcode/securedguard?apikey=CHANGE_THIS_EVOLUTION_API_KEY`
 2. Escaneie com WhatsApp
 3. WhatsApp > Aparelhos conectados > Conectar aparelho
 
@@ -75,14 +75,14 @@ curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
 ```bash
 # Obter QR Code em base64
 curl https://evolution.z7botsolutions.com.br/instance/qrcode/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 ```
 
 ### 4. Verificar Conexão
 
 ```bash
 curl https://evolution.z7botsolutions.com.br/instance/connectionState/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 ```
 
 **Resposta esperada:**
@@ -103,7 +103,7 @@ curl https://evolution.z7botsolutions.com.br/instance/connectionState/securedgua
 # Evolution API (CI)
 baileys.rest.url=https://evolution.z7botsolutions.com.br
 baileys.rest.instance.key=securedguard
-baileys.rest.token=B6D711FCDE4D4FD5936544120E713976
+baileys.rest.token=CHANGE_THIS_EVOLUTION_API_KEY
 ```
 
 #### 5.2. Atualizar BaileysRestService.java
@@ -226,7 +226,7 @@ const app = express();
 app.use(express.json());
 
 const EVOLUTION_URL = 'https://evolution.z7botsolutions.com.br';
-const EVOLUTION_KEY = 'B6D711FCDE4D4FD5936544120E713976';
+const EVOLUTION_KEY = 'CHANGE_THIS_EVOLUTION_API_KEY';
 const INSTANCE = 'securedguard';
 
 // Adapter: Baileys format → Evolution format
@@ -283,7 +283,7 @@ app.listen(3333, () => console.log('Adapter rodando na porta 3333'));
 
 ```bash
 curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"instanceName": "securedguard", "qrcode": true}'
 ```
@@ -295,7 +295,7 @@ curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
 ```bash
 # Obter novo QR Code
 curl https://evolution.z7botsolutions.com.br/instance/qrcode/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 ```
 
 ### Erro: "Unauthorized"
@@ -304,7 +304,7 @@ curl https://evolution.z7botsolutions.com.br/instance/qrcode/securedguard \
 
 ```bash
 # Verificar se apikey está correta
-echo "B6D711FCDE4D4FD5936544120E713976"
+echo "CHANGE_THIS_EVOLUTION_API_KEY"
 ```
 
 ## 📊 Comparação
@@ -340,15 +340,15 @@ Após a migração:
 ```bash
 # Listar instâncias
 curl https://evolution.z7botsolutions.com.br/instance/fetchInstances \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 
 # Desconectar instância
 curl -X DELETE https://evolution.z7botsolutions.com.br/instance/logout/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 
 # Reiniciar instância
 curl -X PUT https://evolution.z7botsolutions.com.br/instance/restart/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 ```
 
 ---

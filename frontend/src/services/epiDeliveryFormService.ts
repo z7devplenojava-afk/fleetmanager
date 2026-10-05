@@ -2,6 +2,7 @@ import api from '@/lib/axios';
 
 export interface EPIDeliveryFormItem {
   id?: string;
+  stockItemId?: string;
   epiName: string;
   quantity: number;
   ca?: string; // Número do CA
@@ -71,6 +72,19 @@ export const epiDeliveryFormService = {
       return response.data;
     } catch (error) {
       console.error('Erro ao criar ficha de entrega de EPI:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Atualizar uma ficha de entrega de EPI existente
+   */
+  async update(id: string, data: Partial<CreateEPIDeliveryForm>): Promise<EPIDeliveryForm> {
+    try {
+      const response = await api.put(`/api/epi-delivery-forms/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao atualizar ficha de entrega de EPI:', error);
       throw error;
     }
   },
@@ -190,11 +204,27 @@ export const epiDeliveryFormService = {
   },
 
   /**
+   * Gerar Excel da ficha de entrega de EPI e salvar no banco
+   */
+  async generateAndSaveExcel(data: CreateEPIDeliveryForm): Promise<Blob> {
+    try {
+      const response = await api.post('/api/epi-delivery-forms/generate-excel', data, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao gerar Excel da ficha de entrega de EPI:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Baixar PDF de uma ficha existente
    */
-  async downloadPdf(id: string): Promise<Blob> {
+  async downloadPdf(id: string, orientation: 'portrait' | 'landscape' = 'portrait'): Promise<Blob> {
     try {
       const response = await api.get(`/api/epi-delivery-forms/${id}/pdf`, {
+        params: { orientation },
         responseType: 'blob'
       });
       return response.data;

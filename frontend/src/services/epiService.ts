@@ -69,6 +69,7 @@ class EPIService {
       let epis = response.data.map((epi: any) => ({
         id: typeof epi.id === 'string' ? parseInt(epi.id.replace(/-/g, '').substring(0, 8), 16) : (epi.id || 0),
         uuid: typeof epi.id === 'string' ? epi.id : undefined, // Manter UUID original
+        stockItemId: epi.stockItemId || undefined,
         name: epi.name || 'EPI',
         description: epi.description || '',
         type: epi.type || 'OTHER',

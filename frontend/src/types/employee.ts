@@ -289,6 +289,12 @@ export interface Employee {
     rg?: string;
   }>;
   
+  // Dados de exames (ASO e Laudo Psicológico)
+  exameMedicoData?: string;
+  laudoPsicologicoData?: string;
+  nextExameMedico?: string;
+  nextLaudoPsicologico?: string;
+  
   createdAt?: string;
   updatedAt?: string;
 }
@@ -432,6 +438,12 @@ export interface CreateEmployeeDTO {
   exameMedicoObservacoes?: string;
   exameMedicoPrimeiroEmprego?: boolean; // true = Sim, false = Não
   exameMedicoContribuicaoSindicalPaga?: boolean; // true = Sim, false = Não
+  
+  // Laudo Psicológico (exame psicotecnico)
+  laudoPsicologicoData?: string;
+  // Próximos vencimentos (calculados pelo backend: data + 1 ano)
+  nextExameMedico?: string;
+  nextLaudoPsicologico?: string;
   
   // Dados do cônjuge
   spouseName?: string;

@@ -25,7 +25,7 @@ if [ ! -f "docker-compose.ci.yml" ]; then
 fi
 
 echo -e "${YELLOW}🔗 Criando redes Docker...${NC}"
-docker network create secured-guard-ci-network 2>/dev/null || true
+docker network create fluxbus-ci-network 2>/dev/null || true
 docker network create z7network 2>/dev/null || true
 
 echo -e "${YELLOW}📦 Parando containers existentes...${NC}"
@@ -45,7 +45,7 @@ echo -e "${YELLOW}📊 Verificando status dos containers...${NC}"
 docker-compose -f docker-compose.ci.yml ps
 
 echo -e "${YELLOW}📋 Verificando logs do backend (últimas 50 linhas)...${NC}"
-docker logs --tail 50 secured-guard-backend-ci
+docker logs --tail 50 fluxbus-backend-ci
 
 echo -e "${YELLOW}🔍 Verificando health check do backend...${NC}"
 sleep 5
@@ -53,17 +53,17 @@ if curl -f http://localhost:8081/api/health > /dev/null 2>&1; then
     echo -e "${GREEN}✅ Backend está respondendo!${NC}"
 else
     echo -e "${RED}❌ Backend não está respondendo ainda${NC}"
-    echo "Verifique os logs: docker logs -f secured-guard-backend-ci"
+    echo "Verifique os logs: docker logs -f fluxbus-backend-ci"
 fi
 
 echo -e "${YELLOW}📊 Verificando migrations executadas no banco...${NC}"
-docker exec secured-guard-db-ci psql -U secured_guard_ci -d secured_guard_ci -c "SELECT COUNT(*) as total_migrations, MAX(version) as ultima_migration FROM flyway_schema_history;" 2>/dev/null || echo "Aguardando banco estar pronto..."
+docker exec fluxbus-db-ci psql -U fluxbus_ci -d fluxbus_ci -c "SELECT COUNT(*) as total_migrations, MAX(version) as ultima_migration FROM flyway_schema_history;" 2>/dev/null || echo "Aguardando banco estar pronto..."
 
 echo -e "${GREEN}✅ Teste concluído!${NC}"
 echo ""
 echo "Comandos úteis:"
-echo "  - Ver logs do backend: docker logs -f secured-guard-backend-ci"
-echo "  - Ver logs do banco: docker logs -f secured-guard-db-ci"
-echo "  - Verificar migrations: docker exec -it secured-guard-db-ci psql -U secured_guard_ci -d secured_guard_ci -c \"SELECT version, description FROM flyway_schema_history ORDER BY installed_rank;\""
+echo "  - Ver logs do backend: docker logs -f fluxbus-backend-ci"
+echo "  - Ver logs do banco: docker logs -f fluxbus-db-ci"
+echo "  - Verificar migrations: docker exec -it fluxbus-db-ci psql -U fluxbus_ci -d fluxbus_ci -c \"SELECT version, description FROM flyway_schema_history ORDER BY installed_rank;\""
 echo "  - Parar containers: docker-compose -f docker-compose.ci.yml down"
 echo "  - Ver status: docker-compose -f docker-compose.ci.yml ps"

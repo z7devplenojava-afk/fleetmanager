@@ -124,7 +124,7 @@ version : 2.1.1
 #### **Do seu PC:**
 
 ```powershell
-$headers = @{ apikey = "B6D711FCDE4D4FD5936544120E713976" }
+$headers = @{ apikey = "CHANGE_THIS_EVOLUTION_API_KEY" }
 $body = @{ 
     instanceName = "securedguard"
     integration = "WHATSAPP-BAILEYS"
@@ -160,7 +160,7 @@ Write-Host "Instância criada: $($create.hash)" -ForegroundColor Green
 # Aguardar 15 segundos após criar instância
 Start-Sleep 15
 
-$headers = @{ apikey = "B6D711FCDE4D4FD5936544120E713976" }
+$headers = @{ apikey = "CHANGE_THIS_EVOLUTION_API_KEY" }
 $qr = Invoke-RestMethod -Uri "http://185.225.233.18:9000/instance/connect/securedguard" -Method GET -Headers $headers
 
 if ($qr.code.length -gt 100) {
@@ -175,7 +175,7 @@ if ($qr.code.length -gt 100) {
     Write-Host "http://185.225.233.18:9000/instance/connect/securedguard" -ForegroundColor White -BackgroundColor Blue
     Write-Host "Ou: https://evolution.z7botsolutions.com.br/instance/connect/securedguard" -ForegroundColor White
     Write-Host ""
-    Write-Host "Header: apikey: B6D711FCDE4D4FD5936544120E713976" -ForegroundColor Cyan
+    Write-Host "Header: apikey: CHANGE_THIS_EVOLUTION_API_KEY" -ForegroundColor Cyan
     Write-Host "Numero: 31971731747" -ForegroundColor Yellow
 } else {
     Write-Host ""
@@ -199,7 +199,7 @@ if ($qr.code.length -gt 100) {
 2. Instale extensão **ModHeader** no Chrome
 3. Adicione header:
    - **Name:** `apikey`
-   - **Value:** `B6D711FCDE4D4FD5936544120E713976`
+   - **Value:** `CHANGE_THIS_EVOLUTION_API_KEY`
 4. Recarregue a página
 5. **Veja o QR Code**
 6. Abra WhatsApp no celular: **31971731747**
@@ -275,7 +275,7 @@ services:
     environment:
       - SERVER_URL=https://evolution.z7botsolutions.com.br
       - AUTHENTICATION_TYPE=apikey
-      - AUTHENTICATION_API_KEY=B6D711FCDE4D4FD5936544120E713976
+      - AUTHENTICATION_API_KEY=CHANGE_THIS_EVOLUTION_API_KEY
       - CONFIG_SESSION_PHONE_CLIENT=SecuredGuard
       - CONFIG_SESSION_PHONE_NAME=chrome
       - QRCODE_LIMIT=30
@@ -326,7 +326,7 @@ Write-Host ""
 
 # Criar instância
 Write-Host "2. Criando instância..." -ForegroundColor Yellow
-$headers = @{ apikey = "B6D711FCDE4D4FD5936544120E713976" }
+$headers = @{ apikey = "CHANGE_THIS_EVOLUTION_API_KEY" }
 $body = '{"instanceName":"securedguard","integration":"WHATSAPP-BAILEYS"}'
 Invoke-RestMethod -Uri "http://185.225.233.18:9000/instance/create" -Method POST -Headers $headers -Body $body -ContentType "application/json" | Out-Null
 Write-Host "   ✅ Criada!" -ForegroundColor Green
@@ -406,7 +406,7 @@ if ($qr.code.length -gt 100) {
 ## 🔑 CREDENCIAIS
 
 - **Portainer:** https://portainer2.z7botsolutions.com.br
-- **Evolution API Key:** `B6D711FCDE4D4FD5936544120E713976`
+- **Evolution API Key:** `CHANGE_THIS_EVOLUTION_API_KEY`
 - **Instance Name:** `securedguard`
 - **WhatsApp Number:** `31971731747`
 

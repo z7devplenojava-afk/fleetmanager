@@ -20,7 +20,7 @@ public class WPPConnectService {
     @Value("${wppconnect.url:http://localhost:8080}")
     private String wppconnectUrl;
     
-    @Value("${wppconnect.session:securedguard}")
+    @Value("${wppconnect.session:fluxbus}")
     private String session;
     
     private final RestTemplate restTemplate;

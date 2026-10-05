@@ -5,7 +5,7 @@
 # Script para verificar status do backend na VPS
 # ========================================
 
-echo "🔍 DIAGNÓSTICO BACKEND VPS - SecuredGuard"
+echo "🔍 DIAGNÓSTICO BACKEND VPS - FluxBus"
 echo "=========================================="
 
 # Cores
@@ -33,12 +33,12 @@ info() {
 
 echo ""
 log "1. Verificando containers Docker..."
-docker ps -a | grep secured-guard || echo "Nenhum container secured-guard encontrado"
+docker ps -a | grep fluxbus || echo "Nenhum container fluxbus encontrado"
 
 echo ""
 log "2. Verificando status dos serviços..."
-if [ -f "/opt/secured-guard/deploy/docker-compose.prod.yml" ]; then
-    cd /opt/secured-guard
+if [ -f "/opt/fluxbus/deploy/docker-compose.prod.yml" ]; then
+    cd /opt/fluxbus
     docker compose -f deploy/docker-compose.prod.yml ps
 else
     warning "Arquivo docker-compose.prod.yml não encontrado"
@@ -46,36 +46,36 @@ fi
 
 echo ""
 log "3. Verificando logs do backend..."
-if docker ps -q -f name=secured-guard-backend-prod | grep -q .; then
+if docker ps -q -f name=fluxbus-backend-prod | grep -q .; then
     echo "=== ÚLTIMAS 50 LINHAS DO LOG DO BACKEND ==="
-    docker logs --tail=50 secured-guard-backend-prod
+    docker logs --tail=50 fluxbus-backend-prod
 else
     error "Container backend-prod não está rodando"
 fi
 
 echo ""
 log "4. Verificando logs do Postgres..."
-if docker ps -q -f name=secured-guard-db-prod | grep -q .; then
+if docker ps -q -f name=fluxbus-db-prod | grep -q .; then
     echo "=== ÚLTIMAS 20 LINHAS DO LOG DO POSTGRES ==="
-    docker logs --tail=20 secured-guard-db-prod
+    docker logs --tail=20 fluxbus-db-prod
 else
     error "Container db-prod não está rodando"
 fi
 
 echo ""
 log "5. Verificando conectividade do banco..."
-if docker ps -q -f name=secured-guard-db-prod | grep -q .; then
-    docker exec secured-guard-db-prod pg_isready -U postgressg || error "Postgres não está respondendo"
+if docker ps -q -f name=fluxbus-db-prod | grep -q .; then
+    docker exec fluxbus-db-prod pg_isready -U postgressg || error "Postgres não está respondendo"
 else
     error "Postgres não está rodando"
 fi
 
 echo ""
 log "6. Verificando arquivo .env..."
-if [ -f "/opt/secured-guard/.env" ]; then
+if [ -f "/opt/fluxbus/.env" ]; then
     echo "Arquivo .env existe"
     echo "Variáveis principais:"
-    grep -E "POSTGRES_|REDIS_" /opt/secured-guard/.env | head -5
+    grep -E "POSTGRES_|REDIS_" /opt/fluxbus/.env | head -5
 else
     error "Arquivo .env não encontrado"
 fi
@@ -86,7 +86,7 @@ netstat -tlnp | grep -E ":(8080|8081|5432|5433)" || echo "Portas não encontrada
 
 echo ""
 log "8. Verificando espaço em disco..."
-df -h /opt/secured-guard 2>/dev/null || df -h /
+df -h /opt/fluxbus 2>/dev/null || df -h /
 
 echo ""
 log "9. Verificando memória..."
@@ -97,13 +97,13 @@ log "10. Verificando GitHub Actions recentes..."
 if command -v gh &> /dev/null; then
     gh run list --limit 5
 else
-    echo "GitHub CLI não instalado. Verifique manualmente em: https://github.com/zemarioramos/secured-guard/actions"
+    echo "GitHub CLI não instalado. Verifique manualmente em: https://github.com/zemarioramos/fluxbus/actions"
 fi
 
 echo ""
 log "11. Tentando reiniciar backend..."
-if [ -f "/opt/secured-guard/deploy/docker-compose.prod.yml" ]; then
-    cd /opt/secured-guard
+if [ -f "/opt/fluxbus/deploy/docker-compose.prod.yml" ]; then
+    cd /opt/fluxbus
     echo "Parando backend..."
     docker compose -f deploy/docker-compose.prod.yml stop backend
     sleep 3
@@ -123,9 +123,9 @@ curl -f http://localhost:8080/actuator/health 2>/dev/null && echo "✅ Backend r
 
 echo ""
 log "13. Verificando logs após reinício..."
-if docker ps -q -f name=secured-guard-backend-prod | grep -q .; then
+if docker ps -q -f name=fluxbus-backend-prod | grep -q .; then
     echo "=== LOGS APÓS REINÍCIO ==="
-    docker logs --tail=20 secured-guard-backend-prod
+    docker logs --tail=20 fluxbus-backend-prod
 fi
 
 echo ""

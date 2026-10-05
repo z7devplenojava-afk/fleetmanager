@@ -51,23 +51,23 @@ public class ProspectingController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar lead prospectado por ID")
-    public ResponseEntity<ProspectingLead> findById(@PathVariable UUID id) {
+    public ResponseEntity<ProspectingLead> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(prospectingAgentService.findById(id));
     }
 
     @GetMapping("/filters")
     @Operation(summary = "Buscar com filtros", description = "Busca leads prospectados por cidade, CNAE, atividade e status")
     public ResponseEntity<List<ProspectingLead>> findByFilters(
-            @RequestParam(required = false) String city,
-            @RequestParam(required = false) String cnae,
-            @RequestParam(required = false) String activity,
-            @RequestParam(required = false) String status) {
+            @RequestParam(value = "city", required = false) String city,
+            @RequestParam(value = "cnae", required = false) String cnae,
+            @RequestParam(value = "activity", required = false) String activity,
+            @RequestParam(value = "status", required = false) String status) {
         return ResponseEntity.ok(prospectingAgentService.findByFilters(city, cnae, activity, status));
     }
 
     @GetMapping("/search")
     @Operation(summary = "Buscar por texto", description = "Busca em todos os campos de leads prospectados")
-    public ResponseEntity<List<ProspectingLead>> searchLeads(@RequestParam String term) {
+    public ResponseEntity<List<ProspectingLead>> searchLeads(@RequestParam("term") String term) {
         return ResponseEntity.ok(prospectingAgentService.searchLeads(term));
     }
 
@@ -79,7 +79,7 @@ public class ProspectingController {
 
     @PostMapping("/{id}/enrich")
     @Operation(summary = "Enriquecer lead", description = "Enriquece um lead prospectado com dados adicionais do Google Places")
-    public ResponseEntity<ProspectingLead> enrich(@PathVariable UUID id) {
+    public ResponseEntity<ProspectingLead> enrich(@PathVariable("id") UUID id) {
         log.info("🔄 Enriquecendo lead: {}", id);
         ProspectingLead enriched = prospectingAgentService.enrich(id);
         return ResponseEntity.ok(enriched);
@@ -87,7 +87,7 @@ public class ProspectingController {
 
     @PostMapping("/{id}/qualify")
     @Operation(summary = "Qualificar lead", description = "Avalia e qualifica um lead prospectado com base nos dados disponíveis")
-    public ResponseEntity<ProspectingLead> qualify(@PathVariable UUID id) {
+    public ResponseEntity<ProspectingLead> qualify(@PathVariable("id") UUID id) {
         log.info("✅ Qualificando lead: {}", id);
         ProspectingLead qualified = prospectingAgentService.qualify(id);
         return ResponseEntity.ok(qualified);
@@ -95,7 +95,7 @@ public class ProspectingController {
 
     @PostMapping("/{id}/send-to-kanban")
     @Operation(summary = "Enviar para Kanban", description = "Envia um lead qualificado para o Kanban CRM (cria Lead + Opportunity)")
-    public ResponseEntity<ProspectingLead> sendToKanban(@PathVariable UUID id) {
+    public ResponseEntity<ProspectingLead> sendToKanban(@PathVariable("id") UUID id) {
         log.info("📤 Enviando lead para Kanban: {}", id);
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUser = authentication != null ? authentication.getName() : "system";
@@ -116,7 +116,7 @@ public class ProspectingController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir lead prospectado")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         prospectingAgentService.delete(id);
         return ResponseEntity.noContent().build();
     }

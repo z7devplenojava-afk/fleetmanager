@@ -1,4 +1,5 @@
 import api from './api';
+import { silentErrorLog, withSilentFallback } from '@/utils/silentFallback';
 
 export type RequisitionUrgency = 'NORMAL' | 'EMERGENCIA';
 
@@ -72,6 +73,10 @@ export interface MaterialRequisition {
   purchaseOrderId?: string;
   ocNumber?: string;
   quoteComparisonId?: string;
+  quotesCount?: number;
+  supplierName?: string;
+  totalAmount?: number;
+  deliveryEstimatedDate?: string;
   deliveryDate?: string;
   deliveredAt?: string;
   deliveredById?: string;
@@ -150,9 +155,27 @@ export const materialRequisitionService = {
   },
 
   listRequisitions: async (status?: RequisitionStatus): Promise<MaterialRequisition[]> => {
-    const params = status ? `?status=${status}` : '';
-    const response = await api.get(`/api/material-requisitions${params}`);
-    return response.data;
+    return withSilentFallback(
+      async () => {
+        const params = status ? `?status=${status}` : '';
+        const response = await api.get(`/api/material-requisitions${params}`, silentErrorLog());
+        return Array.isArray(response.data) ? response.data : [];
+      },
+      [],
+      {
+        key: 'material-requisitions:list',
+        message:
+          '[materialRequisitionService] Endpoint /api/material-requisitions indisponível no backend. Exibindo lista vazia como fallback.',
+      }
+    );
+  },
+
+  getAll: async (status?: RequisitionStatus): Promise<MaterialRequisition[]> => {
+    return materialRequisitionService.listRequisitions(status);
+  },
+
+  findAll: async (status?: RequisitionStatus): Promise<MaterialRequisition[]> => {
+    return materialRequisitionService.listRequisitions(status);
   },
 
   getById: async (id: string): Promise<MaterialRequisition> => {
@@ -173,5 +196,23 @@ export const materialRequisitionService = {
   confirmDelivery: async (id: string, payload?: ConfirmDeliveryPayload): Promise<MaterialRequisition> => {
     const response = await api.post(`/api/material-requisitions/${id}/deliver`, payload || {});
     return response.data;
+  },
+
+  listByWorkOrder: async (workOrderId: string): Promise<MaterialRequisition[]> => {
+    return withSilentFallback(
+      async () => {
+        try {
+          const response = await api.get(`/api/material-requisitions/by-work-order/${workOrderId}`, silentErrorLog());
+          if (Array.isArray(response.data)) return response.data;
+        } catch (_) {}
+        const fallback = await api.get(`/api/material-requisitions?workOrderId=${workOrderId}`, silentErrorLog());
+        return Array.isArray(fallback.data) ? fallback.data : [];
+      },
+      [],
+      {
+        key: `material-requisitions:work-order:${workOrderId}`,
+        message: '[materialRequisitionService] Endpoint /by-work-order indisponível.',
+      }
+    );
   }
 };

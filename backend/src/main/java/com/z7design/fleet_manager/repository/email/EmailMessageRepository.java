@@ -19,6 +19,8 @@ public interface EmailMessageRepository extends JpaRepository<EmailMessage, UUID
 
     Optional<EmailMessage> findByFolder_IdAndUid(UUID folderId, Long uid);
 
+    List<EmailMessage> findByAccount_IdOrderByDateDesc(UUID accountId);
+
     List<EmailMessage> findByFolder_Id(UUID folderId);
 
     Page<EmailMessage> findByFolder_IdOrderByDateDesc(UUID folderId, Pageable pageable);

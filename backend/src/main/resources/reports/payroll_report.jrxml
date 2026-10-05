@@ -7,14 +7,14 @@
     <parameter name="REFERENCE_MONTH" class="java.lang.String"/>
     <parameter name="TOTAL_NET" class="java.lang.Double"/>
 
-    <!-- Fields from com.z7design.secured_guard.model.Payroll -->
+    <!-- Fields from com.z7design.fluxbus.model.Payroll -->
     <field name="id" class="java.lang.Object"/>
-    <field name="employee" class="com.z7design.secured_guard.model.Employee"/>
-    <field name="unit" class="com.z7design.secured_guard.model.Unit"/>
+    <field name="employee" class="com.z7design.fluxbus.model.Employee"/>
+    <field name="unit" class="com.z7design.fluxbus.model.Unit"/>
     <field name="referenceMonth" class="java.lang.String"/>
     <field name="grossSalary" class="java.lang.Double"/>
     <field name="netSalary" class="java.lang.Double"/>
-    <field name="status" class="com.z7design.secured_guard.model.enums.PayrollStatus"/>
+    <field name="status" class="com.z7design.fluxbus.model.enums.PayrollStatus"/>
 
     <title>
         <band height="70">

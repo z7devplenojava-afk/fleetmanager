@@ -46,6 +46,9 @@ import {
 import { vehicleFuelEfficiencyService, VehicleFuelEfficiency } from '@/services/vehicleFuelEfficiencyService';
 import { FuelRecord, Vehicle } from '@/types/fleet';
 import fleetService from '@/services/fleetService';
+import { useAuth } from '@/contexts/AuthContext';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
+import { downloadFuelReportsPDF, computeFuelReportsKpis } from '@/utils/fuelReportsPDFGenerator';
 
 interface EfficiencyAlertsHistoryProps {
   vehicles?: { id: string; plate: string; model: string; brand: string }[];
@@ -83,6 +86,7 @@ function formatCurrency(value: number): string {
 }
 
 const EfficiencyAlertsHistory: React.FC<EfficiencyAlertsHistoryProps> = ({ vehicles = [] }) => {
+  const { user, empresa } = useAuth();
   const [fuelRecords, setFuelRecords] = useState<FuelRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [periodView, setPeriodView] = useState<PeriodView>('monthly');
@@ -408,16 +412,27 @@ const EfficiencyAlertsHistory: React.FC<EfficiencyAlertsHistoryProps> = ({ vehic
         a.click();
         URL.revokeObjectURL(url);
       } else {
-        const blob = await fleetService.exportFuelRecordsPDF({
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
+        if (filteredRecords.length === 0) return;
+        await downloadFuelReportsPDF({
+          reportView: 'all',
+          fuelRecords: filteredRecords,
+          vehicles: vehicles as any,
+          kpis: computeFuelReportsKpis(filteredRecords),
+          filters: {
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+          },
+          company: {
+            name: empresa?.nome || (user as any)?.companyName || undefined,
+            tradeName: (empresa as any)?.sigla || empresa?.nome || undefined,
+            cnpj: (empresa as any)?.cnpj || (user as any)?.companyCnpj || undefined,
+            logoUrl: resolveCompanyLogoUrl(empresa?.logoUrl),
+            phone: (empresa as any)?.telefone,
+            email: (empresa as any)?.email,
+            address: (empresa as any)?.endereco,
+          },
+          userName: (user as any)?.name || (user as any)?.username || undefined,
         });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `historico-alertas-eficiencia-${new Date().toISOString().split('T')[0]}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
       }
     } catch (err) {
       console.error('Erro ao exportar:', err);

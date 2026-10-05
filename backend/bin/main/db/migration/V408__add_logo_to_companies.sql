@@ -1,5 +1,0 @@
--- Adicionar campo logo na tabela companies
-ALTER TABLE companies
-ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500);
-
-

@@ -254,10 +254,10 @@ public class PurchaseRequestService {
 
     // Métodos auxiliares
     private String generateRequestNumber() {
-        // Formato: REQ-YYYYMMDD-XXXX
+        // Formato: REQ-YYYYMMDD-XXXXXXXX — usa UUID para garantir unicidade absoluta
         String date = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String random = String.format("%04d", (int) (Math.random() * 10000));
-        return "REQ-" + date + "-" + random;
+        String uniqueSuffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        return "REQ-" + date + "-" + uniqueSuffix;
     }
 
     // MÃ©todos de conversÃ£o

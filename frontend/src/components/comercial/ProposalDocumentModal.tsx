@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Proposal } from '@/services/proposalService';
 import { companyConfigService, CompanyConfig } from '@/services/companyConfigService';
+import { companyService } from '@/services/companyService';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import { clientService, Client } from '@/services/clientService';
 import leadService, { Lead } from '@/services/leadService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,9 +52,11 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
   proposal,
   onGenerateContract
 }) => {
-  const { user } = useAuth();
+  const { user, empresa } = useAuth();
   const printRef = useRef<HTMLDivElement>(null);
+  const [userCompany, setUserCompany] = useState<any | null>(null);
   const [companyConfig, setCompanyConfig] = useState<CompanyConfig | null>(null);
+  const [imgError, setImgError] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedRecipientType, setSelectedRecipientType] = useState<'client' | 'lead'>('client');
@@ -63,24 +67,74 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
 
   useEffect(() => {
     if (open) {
-      // Carregar configurações ativas da empresa (Logo, Razão Social, CNPJ, etc.)
-      companyConfigService.getActiveConfig().then((cfg) => {
-        if (cfg) setCompanyConfig(cfg);
-      }).catch(() => {});
+      setImgError(false);
+      let isMounted = true;
+
+      // 🏢 Identificar e carregar dinamicamente a empresa a qual o usuário pertence
+      const loadUserCompany = async () => {
+        // 1. Tentar endpoint da empresa do usuário logado
+        try {
+          const myComp = await companyService.getMyCompany();
+          if (myComp && isMounted) {
+            setUserCompany(myComp);
+            return;
+          }
+        } catch {}
+
+        // 2. Tentar por ID da empresa vinculada no token/contexto
+        const companyId = (user as any)?.companyId || (user as any)?.company?.id || empresa?.id;
+        if (companyId) {
+          try {
+            const comp = await companyService.getCompanyById(companyId);
+            if (comp && isMounted) {
+              setUserCompany(comp);
+              return;
+            }
+          } catch {}
+        }
+
+        // 3. Tentar encontrar por nome entre as empresas cadastradas
+        try {
+          const companies = await companyService.getAllCompanies();
+          const targetName = empresa?.nome || (user as any)?.companyName || (user as any)?.company?.name;
+          if (Array.isArray(companies) && targetName) {
+            const match = companies.find(
+              (c: any) =>
+                (c.name && c.name.toLowerCase() === targetName.toLowerCase()) ||
+                (c.sigla && targetName.toLowerCase().includes(c.sigla.toLowerCase()))
+            );
+            if (match && isMounted) {
+              setUserCompany(match);
+              return;
+            }
+          }
+        } catch {}
+
+        // 4. Fallback de configuração ativa do sistema
+        companyConfigService.getActiveConfig().then((cfg) => {
+          if (cfg && isMounted) setCompanyConfig(cfg);
+        }).catch(() => {});
+      };
+
+      loadUserCompany();
 
       // Carregar lista de clientes para seleção dinâmica
       clientService.getAllClients().then((data: any) => {
         const list = Array.isArray(data) ? data : data?.content || [];
-        setClients(list);
+        if (isMounted) setClients(list);
       }).catch(() => {});
 
       // Carregar lista de leads
       leadService.getAllLeads().then((data: any) => {
         const list = Array.isArray(data) ? data : data?.content || [];
-        setLeads(list);
+        if (isMounted) setLeads(list);
       }).catch(() => {});
+
+      return () => {
+        isMounted = false;
+      };
     }
-  }, [open]);
+  }, [open, user, empresa]);
 
   // Inicializar destinatário com dados da proposta
   useEffect(() => {
@@ -93,30 +147,89 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
 
   if (!proposal) return null;
 
-  // Resolução dos dados da Empresa
+  // Resolução dinâmica dos dados da Empresa a qual o usuário pertence
   const companyName =
-    companyConfig?.name ||
-    user?.company?.name ||
+    userCompany?.name ||
+    empresa?.nome ||
+    (user as any)?.company?.name ||
     (user as any)?.companyName ||
-    'FLUXBUS SISTEMA DE TRANSPORTE LTDA';
+    companyConfig?.name ||
+    'EMPRESA CONTRATADA';
 
-  const companyLogo =
+  const companySigla =
+    userCompany?.sigla ||
+    empresa?.sigla ||
+    (user as any)?.company?.sigla ||
+    (companyName && companyName !== 'EMPRESA CONTRATADA'
+      ? companyName
+          .split(' ')
+          .filter((w: string) => w.length > 2)
+          .map((w: string) => w[0])
+          .join('')
+          .slice(0, 4)
+          .toUpperCase()
+      : 'EMP');
+
+  const rawCompanyLogo =
+    userCompany?.logoUrl ||
+    empresa?.logoUrl ||
+    (user as any)?.company?.logoUrl ||
+    (user as any)?.companyLogo ||
+    (user as any)?.companyLogoUrl ||
     companyConfig?.logoUrl ||
-    '/fluxbus-logo.png';
+    null;
 
-  const companyCnpj =
+  const companyLogo = resolveCompanyLogoUrl(rawCompanyLogo);
+
+  const formatCnpj = (cnpjRaw?: string) => {
+    if (!cnpjRaw) return '';
+    const clean = cnpjRaw.replace(/\D/g, '');
+    if (clean.length === 14) {
+      return clean.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    }
+    return cnpjRaw;
+  };
+
+  const companyCnpj = formatCnpj(
+    userCompany?.cnpj ||
+    (user as any)?.company?.cnpj ||
     companyConfig?.cnpj ||
-    '43.576.260/0001-12';
+    ''
+  );
 
-  const companyAddress =
-    companyConfig?.address
-      ? `${companyConfig.address}, ${companyConfig.city || ''} - ${companyConfig.state || ''}`
-      : 'R. Coronel João Camargos, 267 - Centro - Contagem/MG';
+  const buildCompanyAddress = () => {
+    if (userCompany) {
+      const parts: string[] = [];
+      const street = userCompany.enderecoRua || userCompany.address;
+      if (street) {
+        let st = street;
+        if (userCompany.enderecoNumero) st += `, ${userCompany.enderecoNumero}`;
+        if (userCompany.enderecoComplemento) st += ` - ${userCompany.enderecoComplemento}`;
+        parts.push(st);
+      }
+      if (userCompany.enderecoBairro) parts.push(userCompany.enderecoBairro);
+      const cityState = [userCompany.city, userCompany.state].filter(Boolean).join('/');
+      if (cityState) parts.push(cityState);
+      if (userCompany.zipCode) parts.push(`CEP: ${userCompany.zipCode}`);
+      if (parts.length > 0) return parts.join(' · ');
+    }
+    if (companyConfig?.address) {
+      const parts = [companyConfig.address];
+      const cityState = [companyConfig.city, companyConfig.state].filter(Boolean).join(' - ');
+      if (cityState) parts.push(cityState);
+      if (companyConfig.zipCode) parts.push(`CEP: ${companyConfig.zipCode}`);
+      return parts.join(' · ');
+    }
+    return '';
+  };
 
-  const companyContact =
-    companyConfig?.phone || companyConfig?.email
-      ? `${companyConfig.phone || ''} · ${companyConfig.email || ''}`
-      : '(31) 2559-1245 · comercial@fluxbus.com.br';
+  const companyAddress = buildCompanyAddress();
+
+  const companyContact = (() => {
+    const phone = userCompany?.phone || companyConfig?.phone;
+    const email = userCompany?.email || companyConfig?.email;
+    return [phone, email].filter(Boolean).join(' · ');
+  })();
 
   const handleSelectClient = (clientId: string) => {
     setSelectedRecipientId(clientId);
@@ -160,8 +273,39 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[95vw] sm:w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[92vh] overflow-y-auto">
-        <DialogHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800/80 gap-3">
+      <DialogContent className="max-w-4xl w-[95vw] sm:w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[92vh] overflow-y-auto print:max-h-none print:overflow-visible print:border-none print:p-0 print:m-0 print:shadow-none print:bg-white print:text-black">
+        {/* Estilo Dedicado para Impressão / PDF A4 com Paginação Completa */}
+        <style>{`
+          @media print {
+            body * {
+              visibility: hidden !important;
+            }
+            #printable-proposal-doc, #printable-proposal-doc * {
+              visibility: visible !important;
+            }
+            #printable-proposal-doc {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              display: block !important;
+              box-shadow: none !important;
+              border: none !important;
+              overflow: visible !important;
+              max-height: none !important;
+            }
+            @page {
+              size: A4 portrait;
+              margin: 12mm 15mm 15mm 15mm;
+            }
+          }
+        `}</style>
+
+        <DialogHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800/80 gap-3 print:hidden">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 shrink-0">
               <FileText className="h-6 w-6" />
@@ -254,33 +398,48 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
         {/* Folha Oficial da Proposta (Área de Impressão) */}
         <div
           ref={printRef}
+          id="printable-proposal-doc"
           className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 sm:p-8 space-y-6 text-slate-200 print:bg-white print:text-black print:p-0 print:border-0"
         >
-          {/* Cabeçalho da Empresa Emitente */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 border-b border-slate-800 print:border-black/20 gap-4">
-            <div className="flex items-center gap-4">
-              <img
-                src={companyLogo}
-                alt={`${companyName} Logo`}
-                className="h-12 w-auto max-w-[140px] object-contain print:h-12"
-                onError={(e) => {
-                  // Fallback se a imagem falhar
-                  (e.target as HTMLImageElement).src = '/fluxbus-logo.png';
-                }}
-              />
-              <div className="border-l-2 border-red-600 pl-3.5 print:border-black/40">
-                <h3 className="font-extrabold text-base text-white print:text-black uppercase tracking-tight leading-tight">
+          {/* Cabeçalho da Empresa Emitente (Dinâmico: Empresa a qual o usuário pertence) */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 border-b border-slate-800 print:border-black/30 gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              {companyLogo && !imgError ? (
+                <div className="shrink-0 flex items-center justify-center p-1 bg-white/5 rounded-xl border border-slate-800/60 print:border-none print:p-0 print:bg-transparent">
+                  <img
+                    src={companyLogo}
+                    alt={`${companyName} Logo`}
+                    className="h-12 sm:h-14 w-auto max-w-[170px] object-contain print:h-12"
+                    onError={() => setImgError(true)}
+                  />
+                </div>
+              ) : (
+                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-gradient-to-br from-red-600 to-red-800 border border-red-500/40 flex items-center justify-center text-white font-extrabold text-sm sm:text-base shadow-md print:bg-white print:border-2 print:border-black print:text-black shrink-0">
+                  {companySigla || <Building2 className="h-6 w-6" />}
+                </div>
+              )}
+              <div className="border-l-2 border-red-600 pl-3.5 print:border-black/50 min-w-0">
+                <h3 className="font-extrabold text-base sm:text-lg text-white print:text-black uppercase tracking-tight leading-tight">
                   {companyName}
                 </h3>
-                <p className="text-xs text-slate-400 print:text-gray-600 font-medium mt-0.5">
-                  CNPJ: {companyCnpj}
-                </p>
-                <p className="text-[11px] text-slate-400 print:text-gray-500">
-                  {companyAddress}
-                </p>
+                {companyCnpj && (
+                  <p className="text-xs text-slate-400 print:text-gray-800 font-medium mt-0.5">
+                    CNPJ: <strong>{companyCnpj}</strong>
+                  </p>
+                )}
+                {companyAddress && (
+                  <p className="text-[11px] text-slate-400 print:text-gray-600 leading-snug mt-0.5">
+                    {companyAddress}
+                  </p>
+                )}
+                {companyContact && (
+                  <p className="text-[10px] text-slate-400 print:text-gray-500 mt-0.5">
+                    {companyContact}
+                  </p>
+                )}
               </div>
             </div>
-            <div className="text-right text-xs text-slate-400 print:text-gray-600 space-y-0.5">
+            <div className="text-left sm:text-right text-xs text-slate-400 print:text-gray-700 space-y-0.5 shrink-0 min-w-[210px] print:min-w-0">
               <p>Data de Emissão: <strong className="text-slate-200 print:text-black">{formatDate(proposal.createdAt || new Date().toISOString())}</strong></p>
               <p>Validade da Proposta: <strong className="text-amber-400 print:text-black">{formatDate(proposal.validUntil) || '30 dias'}</strong></p>
               <p>Status: <strong className="text-emerald-400 print:text-black">{proposal.status || 'EMITIDA'}</strong></p>
@@ -510,7 +669,7 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
           </div>
         </div>
 
-        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-between pt-4 border-t border-slate-800">
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-between pt-4 border-t border-slate-800 print:hidden">
           <Button
             type="button"
             variant="outline"

@@ -7,6 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   GraduationCap, 
   Plus, 
@@ -46,6 +56,7 @@ const SSTTreinamentos: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTraining, setSelectedTraining] = useState<SSTTraining | null>(null);
+  const [trainingToDelete, setTrainingToDelete] = useState<SSTTraining | null>(null);
 
   // Carregar treinamentos
   useEffect(() => {
@@ -146,6 +157,27 @@ const SSTTreinamentos: React.FC = () => {
   const handleEditTraining = (training: SSTTraining) => {
     setSelectedTraining(training);
     setShowCreateModal(true);
+  };
+
+  // Excluir treinamento
+  const confirmDeleteTraining = async () => {
+    if (!trainingToDelete) return;
+    try {
+      await sstService.deleteSSTTraining(trainingToDelete.id);
+      toast({
+        title: "Treinamento Excluído",
+        description: `O treinamento "${trainingToDelete.name}" foi excluído com sucesso.`,
+      });
+      setTrainingToDelete(null);
+      loadTrainings();
+    } catch (err) {
+      console.error('Erro ao excluir treinamento:', err);
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir o treinamento.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -337,8 +369,17 @@ const SSTTreinamentos: React.FC = () => {
                                 onClick={() => handleEditTraining(training)}
                                 className="border-gray-600 text-seguranca-lightgray text-xs sm:text-sm"
                               >
-                                <Edit className="h-4 w-4 mr-1" />
+                                <Edit className="h-4 w-4 mr-1 text-blue-400" />
                                 Editar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setTrainingToDelete(training)}
+                                className="border-gray-600 text-red-400 hover:text-red-300 hover:bg-red-950/40 text-xs sm:text-sm"
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Excluir
                               </Button>
                             </div>
                           </div>
@@ -409,6 +450,33 @@ const SSTTreinamentos: React.FC = () => {
           training={selectedTraining}
           onSubmit={handleSubmitTraining}
         />
+        {/* AlertDialog de Confirmação de Exclusão de Treinamento */}
+        <AlertDialog open={!!trainingToDelete} onOpenChange={(open) => !open && setTrainingToDelete(null)}>
+          <AlertDialogContent className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+                Confirmar Exclusão de Treinamento
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-300">
+                Tem certeza que deseja excluir o treinamento{' '}
+                <strong className="text-white font-semibold">"{trainingToDelete?.name}"</strong>?
+                Esta ação removerá o treinamento do sistema.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-gray-700 hover:bg-gray-600 text-white border-none">
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeleteTraining}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold"
+              >
+                Excluir Treinamento
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </StandardLayout>
   );

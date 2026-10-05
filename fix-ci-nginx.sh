@@ -17,8 +17,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configurações
-NGINX_CONTAINER="secured-guard-nginx-ci"
-BACKEND_CONTAINER="secured-guard-backend-ci"
+NGINX_CONTAINER="fluxbus-nginx-ci"
+BACKEND_CONTAINER="fluxbus-backend-ci"
 COMPOSE_FILE="docker-compose.ci.yml"
 
 # Função para verificar se container existe

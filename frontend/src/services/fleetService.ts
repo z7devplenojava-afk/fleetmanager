@@ -175,8 +175,13 @@ class FleetService {
     return response.data;
   }
 
-  async updateFuelRecord(id: string, record: Partial<FuelRecord>): Promise<FuelRecord> {
-    const response = await api.put(`/api/fuel-records/${id}`, record);
+  async updateFuelRecord(id: string, record: FormData | Partial<FuelRecord>): Promise<FuelRecord> {
+    const isFormData = typeof FormData !== 'undefined' && record instanceof FormData;
+    const response = await api.put(`/api/fuel-records/${id}`, record, isFormData ? {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    } : undefined);
     return response.data;
   }
 
@@ -270,6 +275,15 @@ class FleetService {
 
     const response = await api.get(`/api/fuel-records/report/filtered?${params.toString()}`);
     return response.data;
+  }
+
+  async getFilteredFuelRecords(filters: {
+    vehicleId?: string;
+    driverId?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<FuelRecord[]> {
+    return this.getFuelRecordsReport(filters);
   }
 
   async exportFuelRecordsPDF(filters: {
@@ -507,6 +521,79 @@ class FleetService {
   getVehicleQRCodeImageUrl(vehicleId: string, width = 350, height = 350): string {
     return `/api/vehicles/${vehicleId}/qrcode/image?width=${width}&height=${height}`;
   }
+
+  // Importação e Extração de CRLV / DUT Digital (PDF)
+  async parseCrlv(file: File): Promise<CrlvParsedData> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/vehicles/crlv/parse', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  async importCrlvBatch(files: File[]): Promise<CrlvImportResult> {
+    const formData = new FormData();
+    files.forEach(f => formData.append('files', f));
+    const response = await api.post('/api/vehicles/crlv/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+}
+
+export interface CrlvParsedData {
+  plate?: string;
+  renavam?: string;
+  chassisNumber?: string;
+  brand?: string;
+  model?: string;
+  manufactureYear?: number;
+  modelYear?: number;
+  color?: string;
+  fuelTypeRaw?: string;
+  fuelType?: string;
+  capacity?: number;
+  category?: string;
+  enginePowerHp?: number;
+  totalWeightKg?: number;
+  engineNumber?: string;
+  cmt?: string;
+  axleCount?: number;
+  bodyType?: string;
+  ownerName?: string;
+  ownerCpfCnpj?: string;
+  cityState?: string;
+  issueDate?: string;
+  vehicleType?: string;
+  busType?: string;
+  rawText?: string;
+}
+
+export interface CrlvImportItem {
+  fileName: string;
+  plate?: string;
+  renavam?: string;
+  chassisNumber?: string;
+  brand?: string;
+  model?: string;
+  year?: number;
+  action: 'CREATED' | 'UPDATED' | 'SKIPPED' | 'ERROR';
+  updatedFields?: string[];
+  message: string;
+}
+
+export interface CrlvImportResult {
+  totalFiles: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+  items: CrlvImportItem[];
 }
 
 export interface VehicleQRCodeData {

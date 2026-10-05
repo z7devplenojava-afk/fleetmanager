@@ -1,4 +1,4 @@
-# Script de Inicialização Completo - Secured Guard
+# Script de Inicialização Completo - FluxBus
 # Execute: .\iniciar-tudo.ps1
 
 param(
@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = "Continue"
 
 Write-Host "`n════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "   SECURED GUARD - INICIALIZAÇÃO" -ForegroundColor Cyan
+Write-Host "   FLUXBUS - INICIALIZAÇÃO" -ForegroundColor Cyan
 Write-Host "════════════════════════════════════════`n" -ForegroundColor Cyan
 
 # 1. Verificar se Docker está rodando
@@ -44,7 +44,7 @@ if (-not (Test-Path "backend\holerites\9-2025")) {
 
 # 4. Criar rede Docker
 Write-Host "4️⃣ Criando rede Docker..." -ForegroundColor Yellow
-docker network create secured-guard 2>$null
+docker network create fluxbus 2>$null
 if ($LASTEXITCODE -eq 0) {
     Write-Host "   ✅ Rede criada`n" -ForegroundColor Green
 } else {

@@ -31,7 +31,7 @@ info() {
     echo -e "${BLUE}[INFO] $1${NC}"
 }
 
-log "🐧 Configurando ambiente WSL para SecuredGuard..."
+log "🐧 Configurando ambiente WSL para FluxBus..."
 
 # Verificar se estamos no WSL
 if [[ ! -f /proc/version ]] || ! grep -q Microsoft /proc/version; then
@@ -40,7 +40,7 @@ fi
 
 # Verificar se estamos no diretório correto
 if [ ! -f "docker-compose.yml" ]; then
-    error "Execute este script na raiz do projeto SecuredGuard"
+    error "Execute este script na raiz do projeto FluxBus"
 fi
 
 # ========================================
@@ -68,13 +68,13 @@ log "✅ Pré-requisitos OK!"
 # ========================================
 # 2. CRIAR REDE DOCKER COMPARTILHADA
 # ========================================
-log "2. Criando rede Docker compartilhada 'secured-guard' (se não existir)..."
+log "2. Criando rede Docker compartilhada 'fluxbus' (se não existir)..."
 
-if ! docker network ls --format '{{.Name}}' | grep -q '^secured-guard$'; then
-    docker network create --driver bridge secured-guard || error "Falha ao criar a rede Docker 'secured-guard'"
-    log "Rede 'secured-guard' criada."
+if ! docker network ls --format '{{.Name}}' | grep -q '^fluxbus$'; then
+    docker network create --driver bridge fluxbus || error "Falha ao criar a rede Docker 'fluxbus'"
+    log "Rede 'fluxbus' criada."
 else
-    log "Rede 'secured-guard' já existe."
+    log "Rede 'fluxbus' já existe."
 fi
 
 # ========================================
@@ -99,7 +99,7 @@ SPRING_PROFILES_ACTIVE=dev
 # ===================== BANCO DE DADOS =====================
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
-POSTGRES_DB=secured_guard_dev
+POSTGRES_DB=fluxbus_dev
 POSTGRES_USER=postgressg
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 

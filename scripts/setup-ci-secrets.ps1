@@ -69,12 +69,12 @@ Cole o conteúdo COMPLETO do arquivo ~/.ssh/github_ci_key aqui
 ──────────────────────────────────────────────
 DB_CI_URL
 ──────────────────────────────────────────────
-jdbc:postgresql://localhost:5432/secured_guard_ci
+jdbc:postgresql://localhost:5432/fluxbus_ci
 
 ──────────────────────────────────────────────
 DB_CI_USERNAME
 ──────────────────────────────────────────────
-secured_guard_ci
+fluxbus_ci
 
 ──────────────────────────────────────────────
 DB_CI_PASSWORD
@@ -93,16 +93,16 @@ $jwtSecret
 
 # 1. Criar banco de dados
 sudo -u postgres psql << 'SQLEOF'
-CREATE DATABASE secured_guard_ci;
-CREATE USER secured_guard_ci WITH ENCRYPTED PASSWORD '$dbPassword';
-GRANT ALL PRIVILEGES ON DATABASE secured_guard_ci TO secured_guard_ci;
-\c secured_guard_ci
-GRANT ALL ON SCHEMA public TO secured_guard_ci;
+CREATE DATABASE fluxbus_ci;
+CREATE USER fluxbus_ci WITH ENCRYPTED PASSWORD '$dbPassword';
+GRANT ALL PRIVILEGES ON DATABASE fluxbus_ci TO fluxbus_ci;
+\c fluxbus_ci
+GRANT ALL ON SCHEMA public TO fluxbus_ci;
 SQLEOF
 
 # 2. Criar estrutura de diretórios
-sudo mkdir -p /var/www/secured-guard/ci/{backend,frontend,logs,uploads,backups}
-sudo chown -R $vpsUser:$vpsUser /var/www/secured-guard/ci
+sudo mkdir -p /var/www/fluxbus/ci/{backend,frontend,logs,uploads,backups}
+sudo chown -R $vpsUser:$vpsUser /var/www/fluxbus/ci
 
 # 3. Configurar firewall (se necessário)
 sudo ufw allow 8082/tcp

@@ -2,330 +2,416 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8"/>
-  <title>Ficha de Entrega de EPI</title>
+  <title>Ficha de Controle e Entrega de EPI</title>
   <style>
     @page {
-      size: A4;
-      margin: 15mm 10mm;
+      size: A4 portrait;
+      margin: 8mm 10mm 8mm 10mm;
     }
-    
+
     body { 
       font-family: Arial, sans-serif; 
-      font-size: 10px; 
+      font-size: 8.5px; 
       margin: 0;
-      padding: 0;
-      color: #333;
+      color: #222;
+      line-height: 1.25;
     }
     
-    .header { 
-      text-align: center; 
-      margin-bottom: 12px;
-      border-bottom: 2px solid #333;
-      padding-bottom: 8px;
-      page-break-after: avoid;
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 6px;
+      border-bottom: 2px solid #d32f2f;
+      padding-bottom: 4px;
     }
     
-    .header h1 { 
-      font-size: 16px; 
-      margin: 0 0 3px 0;
-      text-transform: uppercase;
+    .header-left {
+      width: 55%;
+      vertical-align: middle;
+      text-align: left;
+    }
+    
+    .header-right {
+      width: 45%;
+      vertical-align: middle;
+      text-align: right;
+    }
+
+    .brand-logo {
+      height: 34px;
+      max-height: 34px;
+      max-width: 160px;
+      width: auto;
+      margin-bottom: 2px;
+      display: block;
+    }
+    
+    .brand-name {
+      font-size: 10.5px;
       font-weight: bold;
+      text-transform: uppercase;
+      color: #222;
+      letter-spacing: 0.3px;
+      line-height: 1.2;
     }
     
-    .header p {
-      margin: 1px 0;
-      font-size: 9px;
+    .brand-details {
+      font-size: 7.5px;
+      color: #555;
+      margin-top: 1px;
+      line-height: 1.25;
+    }
+
+    .doc-title {
+      font-size: 12.5px;
+      font-weight: bold;
+      color: #d32f2f;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+      line-height: 1.2;
+    }
+    
+    .type-badge {
+      display: inline-block;
+      padding: 1px 7px;
+      font-size: 8.5px;
+      font-weight: bold;
+      color: #fff;
+      background-color: #2e7d32;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    
+    .numero-os-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: bold;
+      color: #d32f2f;
+      background-color: #fdf2f2;
+      border: 1px solid #d32f2f;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-top: 2px;
+    }
+    
+    .data-emissao-compact {
+      font-size: 8px;
       color: #666;
+      margin-top: 2px;
     }
-    
+
     .secao { 
-      margin-bottom: 12px;
+      margin-bottom: 6px;
       page-break-inside: avoid;
     }
     
     .secao-titulo {
       background-color: #f5f5f5;
-      padding: 4px 8px;
+      padding: 2.5px 6px;
       font-weight: bold;
-      font-size: 11px;
-      border-left: 3px solid #333;
-      margin-bottom: 6px;
+      font-size: 9px;
+      border-left: 3px solid #d32f2f;
+      margin-bottom: 3px;
       text-transform: uppercase;
+      color: #d32f2f;
     }
-    
-    .info-grid {
-      display: table;
+
+    table.info-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 10px;
+      margin-bottom: 4px;
     }
     
-    .info-grid-row {
-      display: table-row;
-    }
-    
-    .info-item {
-      display: table-cell;
-      padding: 5px 8px;
+    table.info-table td {
+      padding: 2.5px 5px;
       border: 1px solid #ddd;
       background-color: #fafafa;
-      width: 50%;
-      vertical-align: top;
+      vertical-align: middle;
     }
     
-    .info-grid .info-item:first-child {
-      border-right: none;
-    }
-    
-    .info-grid .info-item:last-child {
-      border-left: 1px solid #ddd;
-    }
-    
-    .info-item label {
+    table.info-table td.label {
       font-weight: bold;
-      display: block;
-      margin-bottom: 2px;
-      font-size: 8px;
+      font-size: 7.5px;
       text-transform: uppercase;
       color: #666;
+      width: 18%;
     }
     
-    .info-item .valor {
-      font-size: 10px;
+    table.info-table td.valor {
+      font-size: 8.5px;
+      color: #222;
+      width: 32%;
+    }
+
+    table.termo-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 4px;
+    }
+
+    table.termo-table td {
+      border: 1px solid #e0e0e0;
+      background-color: #fcfcfc;
+      padding: 4px 6px;
+      vertical-align: top;
+      font-size: 7px;
+      line-height: 1.25;
+      text-align: justify;
       color: #333;
     }
-    
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
-      margin: 10px 0;
-      -fs-table-paginate: paginate;
+
+    .termo-subtitulo {
+      font-weight: bold;
+      color: #b71c1c;
+      font-size: 7.5px;
+      margin-bottom: 2px;
+      text-transform: uppercase;
     }
-    
-    thead {
-      display: table-header-group;
+
+    table.epi-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 4px;
     }
-    
-    thead tr {
-      page-break-inside: avoid;
-      page-break-after: avoid;
-    }
-    
-    tbody {
-      display: table-row-group;
-    }
-    
-    tbody tr {
-      page-break-inside: avoid;
-    }
-    
-    th { 
+
+    table.epi-table th {
       background-color: #333;
-      color: white;
-      padding: 6px 5px;
-      text-align: left;
-      font-size: 9px;
+      color: #fff;
+      padding: 3px 4px;
+      font-size: 7.5px;
       font-weight: bold;
       text-transform: uppercase;
+      text-align: center;
       border: 1px solid #222;
     }
-    
-    td { 
+
+    table.epi-table td {
+      padding: 2.5px 4px;
       border: 1px solid #ddd;
-      padding: 5px;
-      text-align: left;
-      font-size: 9px;
-      background-color: white;
+      font-size: 7.5px;
+      line-height: 1.2;
     }
-    
-    tr:nth-child(even) td {
-      background-color: #f9f9f9;
+
+    table.epi-table tr:nth-child(even) td {
+      background-color: #fafafa;
     }
-    
-    .observacoes {
-      margin-top: 12px;
-      padding: 8px;
+
+    .observacoes-box {
       border: 1px solid #ddd;
       background-color: #fafafa;
-      page-break-inside: avoid;
-    }
-    
-    .observacoes label {
-      font-weight: bold;
-      display: block;
+      padding: 3px 6px;
+      font-size: 7.5px;
+      color: #444;
       margin-bottom: 4px;
-      font-size: 10px;
-      text-transform: uppercase;
+      border-radius: 2px;
     }
-    
-    .assinatura-container {
-      margin-top: 20px;
-      display: table;
+
+    .assinatura-table {
       width: 100%;
-      border-collapse: separate;
-      border-spacing: 30px 0;
+      margin-top: 8px;
+      border-collapse: collapse;
       page-break-inside: avoid;
     }
     
-    .assinatura {
-      display: table-cell;
+    .assinatura-table td {
       text-align: center;
-      padding-top: 30px;
+      padding: 4px 10px 0 10px;
+      vertical-align: top;
       width: 50%;
     }
     
     .linha-assinatura {
-      border-top: 2px solid #333;
-      margin-bottom: 6px;
-      padding-top: 6px;
+      border-top: 1.2px solid #333;
+      margin-bottom: 2px;
+      padding-top: 3px;
     }
     
     .assinatura-nome {
       font-weight: bold;
-      font-size: 10px;
+      font-size: 8px;
     }
     
     .assinatura-info {
-      font-size: 8px;
+      font-size: 7px;
       color: #666;
-      margin-top: 2px;
+      margin-top: 1px;
+    }
+
+    .assinatura-digital-img {
+      max-height: 28px;
+      margin-bottom: -4px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
     }
     
     .footer {
-      margin-top: 15px;
+      margin-top: 8px;
       text-align: center;
-      font-size: 8px;
+      font-size: 6.8px;
       color: #999;
-      border-top: 1px solid #ddd;
-      padding-top: 6px;
-      page-break-inside: avoid;
-    }
-    
-    .data-local {
-      text-align: right;
-      font-size: 9px;
-      margin-bottom: 10px;
-      color: #666;
-    }
-    
-    .table-wrapper {
-      page-break-inside: auto;
+      border-top: 1px solid #eee;
+      padding-top: 3px;
     }
   </style>
 </head>
 <body>
-  
-  <!-- Cabeçalho -->
-  <div class="header">
-    <h1>Ficha de Entrega de EPI</h1>
-    <p>Equipamentos de Proteção Individual</p>
-  </div>
-  
-  <!-- Data e Local -->
-  <div class="data-local">
-    <b>Data de Entrega:</b> <span th:text="${dataEntrega}"></span>
-  </div>
-  
-  <!-- Dados do Funcionário e Empresa -->
+
+  <!-- Cabeçalho Oficial no Padrão OS (Lado a Lado) -->
+  <table class="header-table">
+    <tr>
+      <td class="header-left">
+        <div th:if="${companyLogo != null and companyLogo != ''}">
+          <img class="brand-logo" th:src="${companyLogo}" alt="Logo da Empresa" height="40" style="height: 40px; max-height: 40px; max-width: 180px;" />
+        </div>
+        <div class="brand-name" th:if="${companyName != null and companyName != ''}" th:text="${companyName}">NOME DA EMPRESA</div>
+        <div class="brand-details">
+          <span th:if="${companyCnpj != null and companyCnpj != ''}" th:text="${companyCnpj}">CNPJ: --</span>
+          <span th:if="${companyAddress != null and companyAddress != ''}" th:text="' &#8226; ' + ${companyAddress}">Endereço</span>
+        </div>
+      </td>
+      <td class="header-right">
+        <div class="doc-title">ORDEM DE FORNECIMENTO &#8212; EPI</div>
+        <div style="margin: 2px 0;">
+          <span class="type-badge">NR-06 / SST</span>
+        </div>
+        <div class="numero-os-badge" th:if="${formNumber != null and formNumber != ''}">
+          FICHA Nº <span th:text="${formNumber}">EPI-0000</span>
+        </div>
+        <div class="data-emissao-compact">
+          <b>Data de Emissão:</b> <span th:text="${dataEmissao}">--</span>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Seção 1: Identificação do Colaborador e Empresa -->
   <div class="secao">
-    <div class="secao-titulo">Dados do Funcionário</div>
-    <div class="info-grid">
-      <div class="info-item">
-        <label>Nome Completo</label>
-        <div class="valor" th:text="${funcionario}">-</div>
-      </div>
-      <div class="info-item">
-        <label>CPF</label>
-        <div class="valor" th:text="${cpf} ?: '-'">-</div>
-      </div>
-    </div>
-    <div class="info-grid">
-      <div class="info-item">
-        <label>Cargo</label>
-        <div class="valor" th:text="${cargo} ?: '-'">-</div>
-      </div>
-      <div class="info-item">
-        <label>Setor</label>
-        <div class="valor" th:text="${setor} ?: '-'">-</div>
-      </div>
-    </div>
-    <div class="secao-titulo" style="margin-top: 8px;">Dados da Empresa</div>
-    <div class="info-grid">
-      <div class="info-item">
-        <label>Razão Social</label>
-        <div class="valor" th:text="${empresa}">-</div>
-      </div>
-      <div class="info-item">
-        <label>CNPJ</label>
-        <div class="valor" th:text="${cnpj} ?: '-'">-</div>
-      </div>
-    </div>
+    <div class="secao-titulo">| IDENTIFICAÇÃO DO COLABORADOR E EMPRESA</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">COLABORADOR:</td>
+        <td class="valor"><b><span th:text="${funcionarioNome} ?: '-'">-</span></b></td>
+        <td class="label">CPF:</td>
+        <td class="valor"><span th:text="${funcionarioCpf} ?: '-'">-</span></td>
+      </tr>
+      <tr>
+        <td class="label">CARGO / FUNÇÃO:</td>
+        <td class="valor"><span th:text="${funcionarioCargo} ?: '-'">-</span></td>
+        <td class="label">MATRÍCULA:</td>
+        <td class="valor"><span th:text="${funcionarioMatricula} ?: '-'">-</span></td>
+      </tr>
+      <tr>
+        <td class="label">SETOR / UNIDADE:</td>
+        <td class="valor"><span th:text="${funcionarioSetor} ?: '-'">-</span></td>
+        <td class="label">DATA ADMISSÃO:</td>
+        <td class="valor"><span th:text="${funcionarioAdmissao} ?: '__/__/____'">__/__/____</span></td>
+      </tr>
+    </table>
   </div>
-  
-  <!-- Lista de EPIs Entregues -->
-  <div class="table-wrapper">
-    <div class="secao-titulo">Relação de EPIs Entregues</div>
-    <table>
+
+  <!-- Seção 2: Termo de Compromisso e Legislação Vigente -->
+  <div class="secao">
+    <div class="secao-titulo">| TERMO DE COMPROMISSO E RESPONSABILIDADE (NR-06 / NR-01 - PORTARIA 3.214/78)</div>
+    <table class="termo-table">
+      <tr>
+        <td style="width: 50%;">
+          <div class="termo-subtitulo">Declaração do Colaborador</div>
+          Declaro ter recebido da empresa, a título de empréstimo gratuito para uso exclusivo no desempenho de minhas funções, 
+          os Equipamentos de Proteção Individual (EPIs) relacionados nesta ficha, em perfeito estado de conservação e funcionamento, 
+          tendo sido instruído e treinado quanto ao seu uso adequado, guarda, higienização e conservação, de acordo com a 
+          <b>Portaria 3.214/78 do MTE (NR-1 e NR-6)</b>.
+        </td>
+        <td style="width: 50%;">
+          <div class="termo-subtitulo">Obrigações e Consciência Legal</div>
+          Comprometo-me a: a) Usar o EPI apenas para a finalidade destinada; b) Responsabilizar-me pela sua guarda e conservação; 
+          c) Comunicar imediatamente qualquer alteração ou dano; d) Cumprir as normas de segurança estabelecidas. 
+          Declaro ciência de que a recusa injustificada constitui ato faltoso (NR-1, 1.8.1) e que, em caso de extravio ou dano doloso, 
+          o desconto será lícito conforme o <b>Art. 462, §1º da CLT</b>.
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Seção 3: Relação de Equipamentos Entregues -->
+  <div class="secao">
+    <div class="secao-titulo">| REGISTRO DE ENTREGA E DEVOLUÇÃO DE EPI</div>
+    <table class="epi-table">
       <thead>
         <tr>
-          <th style="width: 4%;">#</th>
-          <th style="width: 38%;">Equipamento</th>
-          <th style="width: 6%;">Nº</th>
-          <th style="width: 12%;">CA</th>
-          <th style="width: 12%;">Validade</th>
-          <th style="width: 15%;">Entrega</th>
-          <th style="width: 13%;">Devolução</th>
+          <th style="width: 5%;">ITEM</th>
+          <th style="width: 38%; text-align: left;">DESCRIÇÃO DO EQUIPAMENTO</th>
+          <th style="width: 12%;">Nº CA</th>
+          <th style="width: 7%;">QTD</th>
+          <th style="width: 12%;">DATA ENTREGA</th>
+          <th style="width: 13%;">RUBRICA EMPREGADO</th>
+          <th style="width: 13%;">DATA DEVOLUÇÃO</th>
         </tr>
       </thead>
       <tbody>
-        <tr th:each="epi, iterStat : ${epis}">
+        <tr th:each="item, iterStat : ${itens}">
           <td style="text-align: center;" th:text="${iterStat.count}">1</td>
-          <td th:text="${epi.nome}">-</td>
-          <td style="text-align: center;" th:text="${epi.quantidade}">-</td>
-          <td style="text-align: center;" th:text="${epi.ca} ?: '-'">-</td>
-          <td style="text-align: center;" th:text="${epi.validade} ?: '-'">-</td>
-          <td style="text-align: center;" th:text="${dataEntrega}">-</td>
-          <td style="text-align: center;">-</td>
+          <td style="font-weight: 500;" th:text="${item.epiName} ?: '-'">-</td>
+          <td style="text-align: center; font-weight: bold;" th:text="${item.ca} ?: 'N/A'">-</td>
+          <td style="text-align: center;" th:text="${item.quantity} ?: 1">1</td>
+          <td style="text-align: center;" th:text="${item.deliveryDate} ?: ${dataEmissao}">-</td>
+          <td style="text-align: center; color: #888;">
+            <span th:if="${assinaturaDigital != null}">[Assinado]</span>
+            <span th:if="${assinaturaDigital == null}">&#160;</span>
+          </td>
+          <td style="text-align: center; color: #888;">&#160;</td>
+        </tr>
+        <!-- Linhas vazias se a lista for pequena para preenchimento manual -->
+        <tr th:each="i : ${#numbers.sequence(1, emptyRowsCount)}" th:if="${emptyRowsCount > 0}">
+          <td style="text-align: center; color: #aaa;" th:text="${itensCount + i}">-</td>
+          <td>&#160;</td>
+          <td>&#160;</td>
+          <td>&#160;</td>
+          <td>&#160;</td>
+          <td>&#160;</td>
+          <td>&#160;</td>
         </tr>
       </tbody>
     </table>
   </div>
-  
-  <!-- Observações Gerais -->
-  <div class="observacoes" th:if="${observacoes != null and observacoes != ''}">
-    <label>Observações Gerais:</label>
-    <div th:text="${observacoes}"></div>
-  </div>
-  
-  <!-- Responsável pela Entrega -->
-  <div class="secao" th:if="${responsavelEntrega != null and responsavelEntrega != ''}">
-    <div class="info-item">
-      <label>Responsável pela Entrega</label>
-      <div class="valor" th:text="${responsavelEntrega}">-</div>
+
+  <!-- Observações -->
+  <div class="secao" th:if="${observacoes != null and observacoes != ''}">
+    <div class="observacoes-box">
+      <b>Observações:</b> <span th:text="${observacoes}">Nenhuma observação.</span>
     </div>
   </div>
-  
-  <!-- Assinaturas -->
-  <div class="assinatura-container">
-    <div class="assinatura">
-      <div class="linha-assinatura">
-        <div class="assinatura-nome" th:text="${funcionario}">Funcionário</div>
-        <div class="assinatura-info">Assinatura do Funcionário</div>
-      </div>
-    </div>
-    <div class="assinatura">
-      <div class="linha-assinatura">
-        <div class="assinatura-nome" th:text="${responsavelEntrega} ?: 'Responsável'">Responsável</div>
-        <div class="assinatura-info">Assinatura do Responsável</div>
-      </div>
-    </div>
+
+  <!-- Seção 4: Assinaturas -->
+  <div class="secao">
+    <div class="secao-titulo">| ASSINATURAS E CIÊNCIA</div>
+    <table class="assinatura-table">
+      <tr>
+        <td>
+          <div th:if="${assinaturaDigital != null and assinaturaDigital != ''}">
+            <img class="assinatura-digital-img" th:src="${assinaturaDigital}" alt="Assinatura Digital" />
+          </div>
+          <div class="linha-assinatura">
+            <div class="assinatura-nome" th:text="${funcionarioNome} ?: 'Empregado'">Colaborador</div>
+            <div class="assinatura-info">Assinatura do Colaborador (Recebimento)</div>
+          </div>
+        </td>
+        <td>
+          <div style="height: 24px;"></div>
+          <div class="linha-assinatura">
+            <div class="assinatura-nome" th:text="${responsavelEntrega} ?: 'Almoxarifado / Segurança do Trabalho'">Responsável</div>
+            <div class="assinatura-info">Responsável pela Entrega / Técnico SST</div>
+          </div>
+        </td>
+      </tr>
+    </table>
   </div>
-  
+
   <!-- Rodapé -->
   <div class="footer">
-    <p>Documento gerado em <span th:text="${dataAtual}"></span></p>
-    <p>Este documento comprova o recebimento dos Equipamentos de Proteção Individual (EPIs) listados acima.</p>
+    Ficha de Controle Individual de EPI conforme Norma Regulamentadora NR-06 (Portaria GM nº 3.214/78 do MTE) &#8226; Gerado eletronicamente em <span th:text="${dataEmissao}">--</span>
   </div>
-  
+
 </body>
 </html>

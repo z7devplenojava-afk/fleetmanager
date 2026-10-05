@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -28,6 +29,8 @@ import java.util.UUID;
 public class CompanyController {
 
     private final CompanyService companyService;
+    private final com.z7design.fleet_manager.service.UserCompanyResolver userCompanyResolver;
+
 
     @GetMapping
     @Operation(summary = "Listar todas as empresas", description = "Retorna uma lista de todas as empresas")
@@ -106,6 +109,26 @@ public class CompanyController {
         log.debug("Buscando empresas ativas");
         List<CompanyDTO> companies = companyService.getActiveCompanies();
         return ResponseEntity.ok(companies);
+    }
+
+    @GetMapping("/my-company")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Buscar empresa do usuário logado", description = "Retorna a empresa associada ao usuário autenticado ou a principal ativa")
+    public ResponseEntity<CompanyDTO> getMyCompany(Authentication authentication) {
+        try {
+            CompanyDTO company = companyService.getMyCompany(authentication);
+            if (company != null) {
+                return ResponseEntity.ok(company);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("Erro ao buscar empresa do usuário: ", e);
+            List<CompanyDTO> active = companyService.getActiveCompanies();
+            if (!active.isEmpty()) {
+                return ResponseEntity.ok(active.get(0));
+            }
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping("/{id}")
@@ -189,10 +212,16 @@ public class CompanyController {
     @PatchMapping("/{id}/toggle-status")
     @PreAuthorize("hasAnyAuthority('HR_WRITE','SUPER_ADMIN','ROLE_SUPER_ADMIN','ADMIN','ROLE_ADMIN','COMPANY_ADMIN','ROLE_COMPANY_ADMIN')")
     @Operation(summary = "Alternar status da empresa", description = "Alterna o status da empresa entre ACTIVE e INACTIVE")
-    public ResponseEntity<CompanyDTO> toggleCompanyStatus(
+    public ResponseEntity<?> toggleCompanyStatus(
             @Parameter(description = "ID da empresa") @PathVariable("id") UUID id) {
         log.debug("Recebida requisição para alternar status da empresa ID: {}", id);
-        CompanyDTO updatedCompany = companyService.toggleCompanyStatus(id);
-        return ResponseEntity.ok(updatedCompany);
+        try {
+            CompanyDTO updatedCompany = companyService.toggleCompanyStatus(id);
+            return ResponseEntity.ok(updatedCompany);
+        } catch (Exception e) {
+            log.error("Erro ao alternar status da empresa ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(java.util.Map.of("error", e.getMessage() != null ? e.getMessage() : "Erro ao alternar status da empresa"));
+        }
     }
 }

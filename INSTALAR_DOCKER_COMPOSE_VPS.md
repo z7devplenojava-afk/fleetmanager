@@ -49,7 +49,7 @@ docker run -d --name secured-guard-db-ci \
   --network secured-guard-ci \
   -e POSTGRES_DB=secured_guard_ci \
   -e POSTGRES_USER=secured_guard_ci \
-  -e POSTGRES_PASSWORD=4KaCiJc6an@7sgbdcid2025 \
+  -e POSTGRES_PASSWORD=CHANGE_THIS_DB_PASSWORD \
   -v postgres_data_ci:/var/lib/postgresql/data \
   postgres:15-alpine
 
@@ -57,9 +57,9 @@ docker run -d --name secured-guard-db-ci \
 docker run -d --name secured-guard-redis-ci \
   --network z7network \
   --network secured-guard-ci \
-  -e REDIS_PASSWORD=redis_ci_2025 \
+  -e REDIS_PASSWORD=CHANGE_THIS_REDIS_PASSWORD \
   -v redis_data_ci:/data \
-  redis:7-alpine redis-server --appendonly yes --requirepass redis_ci_2025
+  redis:7-alpine redis-server --appendonly yes --requirepass CHANGE_THIS_REDIS_PASSWORD
 
 # Subir Backend
 docker run -d --name secured-guard-backend-ci \

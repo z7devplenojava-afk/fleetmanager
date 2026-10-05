@@ -64,13 +64,20 @@ services:
       REDIS_HOST: redis-prod
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD_PROD:-prodredispass}
-      JWT_SECRET: ${JWT_SECRET_PROD:-prodjwtsecret1234567890123456789012}
+      JWT_SECRET: ${JWT_SECRET_PROD:?JWT_SECRET_PROD is required}
       # Email Configuration
       MAIL_HOST: ${MAIL_HOST:-186.209.113.105}
       MAIL_PORT: ${MAIL_PORT:-465}
       MAIL_USERNAME: ${MAIL_USERNAME:-securedguard@z7design.com.br}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-D8rKeqSFZfaS$(y7}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-CHANGE_THIS_MAIL_PASSWORD}
       MAIL_SSL_ENABLE: true
+      # JVM Memory Optimization (evita OOM Killer na VPS)
+      JAVA_OPTS: "-Xms256m -Xmx768m -XX:+UseG1GC -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom"
+      # WhatsApp Configuration (Evolution API)
+      EVOLUTION_API_URL: http://evolution-api-prod:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY_PROD:-CHANGE_THIS_EVOLUTION_API_KEY}
+      EVOLUTION_API_INSTANCE: ${EVOLUTION_API_INSTANCE_PROD:-fluxbus_prod}
+      EVOLUTION_API_ENABLED: "true"
     ports:
       - "8085:8083"
     depends_on:
@@ -78,10 +85,9 @@ services:
         condition: service_healthy
       redis-prod:
         condition: service_healthy
-      whatsapp-service-prod:
-        condition: service_started
     networks:
       - fluxbus-prod-network
+      - z7network
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8083/api/health || exit 1"]
       interval: 30s
@@ -91,28 +97,34 @@ services:
     restart: unless-stopped
 
   # ========================================
-  # WHATSAPP SERVICE (Baileys) PROD
+  # WHATSAPP SERVICE (Evolution API) PROD
   # ========================================
-  whatsapp-service-prod:
-    image: z7design/fluxbus-whatsapp:prod
-    container_name: fluxbus-whatsapp-prod
+  evolution-api-prod:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: fluxbus-evolution-api-prod
     environment:
-      PORT: 3335
-      INSTANCE_KEY: fluxbus_prod
-      SESSION_DIR: /app/sessions
-      WEBHOOK_URL: http://backend-prod:8083/api/whatsapp/webhook
-      NODE_ENV: production
+      - SERVER_URL=http://localhost:8080
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY_PROD:-CHANGE_THIS_EVOLUTION_API_KEY}
+      - CONFIG_SESSION_PHONE_CLIENT=FluxBus
+      - CONFIG_SESSION_PHONE_NAME=chrome
+      - QRCODE_LIMIT=30
+      - DATABASE_ENABLED=false
+      - CACHE_REDIS_ENABLED=false
+      - CACHE_LOCAL_ENABLED=true
+      - TYPEBOT_ENABLED=false
+      - CHATWOOT_ENABLED=false
+      - RABBITMQ_ENABLED=false
+      - WEBHOOK_GLOBAL_ENABLED=false
+      - LOG_LEVEL=ERROR,WARN,INFO
     ports:
-      - "3335:3333"
+      # Porta 8088 para evitar conflito com fluxbus-nginx-ci (que usa 8082)
+      - "8088:8080"
     volumes:
-      - whatsapp_sessions_prod:/app/sessions
-    depends_on:
-      redis-prod:
-        condition: service_healthy
+      - evolution_instances_prod:/evolution/instances
     networks:
       - fluxbus-prod-network
     restart: unless-stopped
-    shm_size: 256mb
 
   # ========================================
   # FRONTEND PROD
@@ -127,6 +139,7 @@ services:
         condition: service_started
     networks:
       - fluxbus-prod-network
+      - z7network
     healthcheck:
       # 127.0.0.1: localhost resolve ::1 (IPv6) e o nginx escuta so IPv4 -> wget busybox nao faz fallback
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1 || exit 1"]
@@ -144,7 +157,7 @@ volumes:
     driver: local
   redis_data_prod:
     driver: local
-  whatsapp_sessions_prod:
+  evolution_instances_prod:
     driver: local
 
 # ========================================
@@ -154,3 +167,7 @@ networks:
   fluxbus-prod-network:
     driver: bridge
     name: fluxbus-prod
+  z7network:
+    external: true
+    name: z7network
+

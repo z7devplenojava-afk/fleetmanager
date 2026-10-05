@@ -1,6 +1,6 @@
 package com.z7design.fleet_manager.controller;
 
-import com.z7design.fleet_manager.service.BaileysRestService;
+import com.z7design.fleet_manager.service.EvolutionApiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +15,7 @@ import java.util.Map;
 @Slf4j
 public class BaileysRestController {
     
-    private final BaileysRestService baileysRestService;
+    private final EvolutionApiService evolutionApiService;
     
     /**
      * Inicializa uma nova instÃ¢ncia do Baileys REST API
@@ -25,7 +25,7 @@ public class BaileysRestController {
         try {
             log.info("ðŸš€ Inicializando instÃ¢ncia Baileys REST API");
             
-            boolean success = baileysRestService.initializeInstance();
+            boolean success = evolutionApiService.initializeInstance();
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", success);
@@ -52,7 +52,7 @@ public class BaileysRestController {
         try {
             log.info("ðŸ” Verificando status da conexÃ£o Baileys REST");
             
-            boolean connected = baileysRestService.checkConnection();
+            boolean connected = evolutionApiService.checkConnection();
             
             Map<String, Object> response = new HashMap<>();
             response.put("connected", connected);
@@ -79,7 +79,7 @@ public class BaileysRestController {
         try {
             log.info("ðŸ“± Obtendo QR Code para conexÃ£o");
             
-            String qrCode = baileysRestService.getQRCode();
+            String qrCode = evolutionApiService.getQRCode();
             
             Map<String, Object> response = new HashMap<>();
             if (qrCode != null) {
@@ -122,7 +122,7 @@ public class BaileysRestController {
             
             log.info("ðŸ“± Enviando mensagem de teste via Baileys REST para: {}", phoneNumber);
             
-            boolean success = baileysRestService.sendTextMessage(phoneNumber, message);
+            boolean success = evolutionApiService.sendTextMessage(phoneNumber, message);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", success);
@@ -149,7 +149,7 @@ public class BaileysRestController {
         try {
             log.info("ðŸ”Œ Desconectando instÃ¢ncia Baileys REST");
             
-            boolean success = baileysRestService.disconnectInstance();
+            boolean success = evolutionApiService.disconnectInstance();
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", success);

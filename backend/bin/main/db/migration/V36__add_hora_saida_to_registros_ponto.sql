@@ -1,1 +1,0 @@
-ALTER TABLE registros_ponto ADD COLUMN hora_saida TIME; 

@@ -47,6 +47,7 @@ import FuelEfficiencyRanking from '@/components/frota/FuelEfficiencyRanking';
 import EfficiencyAlertsHistory from '@/components/frota/EfficiencyAlertsHistory';
 import { downloadFuelReportsPDF } from '@/utils/fuelReportsPDFGenerator';
 import { useAuth } from '@/contexts/AuthContext';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 
 interface FuelReportsDashboardProps {
   fuelRecords: FuelRecord[];
@@ -80,7 +81,7 @@ function formatLiters(value: number): string {
 }
 
 const FuelReportsDashboard: React.FC<FuelReportsDashboardProps> = ({ fuelRecords, vehicles }) => {
-  const { user } = useAuth();
+  const { user, empresa } = useAuth();
 
   // Filtros
   const [reportView, setReportView] = useState<ReportView>('period');
@@ -360,9 +361,12 @@ const FuelReportsDashboard: React.FC<FuelReportsDashboardProps> = ({ fuelRecords
           fuelType: selectedFuelType,
         },
         company: {
-          name: (user as any)?.companyName || (user as any)?.empresa || undefined,
-          cnpj: (user as any)?.companyCnpj || undefined,
-          logoUrl: (user as any)?.companyLogoUrl || null,
+          name: empresa?.nome || (user as any)?.companyName || (user as any)?.empresa || undefined,
+          cnpj: (empresa as any)?.cnpj || (user as any)?.companyCnpj || undefined,
+          logoUrl: resolveCompanyLogoUrl(empresa?.logoUrl),
+          phone: (empresa as any)?.telefone,
+          email: (empresa as any)?.email,
+          address: (empresa as any)?.endereco,
         },
         userName: (user as any)?.name || (user as any)?.username || undefined,
       });

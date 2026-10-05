@@ -28,13 +28,17 @@ import {
 } from '@/components/ui/popover';
 import { 
   StockItem, 
+  CreateStockItemDTO,
   CreateStockMovementDTO, 
   MovementType, 
   MovementReason, 
   MovementTypeLabels, 
-  MovementReasonLabels 
+  MovementReasonLabels,
+  StockCategory,
+  StockCategoryLabels
 } from '@/types/stock';
 import { stockService } from '@/services/stockService';
+import { stockNfeService } from '@/services/stockNfeService';
 import { employeeService } from '@/services/employeeService';
 import { contasAPagarService, Supplier } from '@/services/contasAPagarService';
 import { SupplierFormModal } from '@/components/estoque/SupplierFormModal';
@@ -54,7 +58,13 @@ import {
   ChevronsUpDown,
   ArrowRight,
   ArrowLeft,
-  Box
+  Box,
+  Zap,
+  CircleDot,
+  Tag,
+  Barcode,
+  Upload,
+  Loader2
 } from 'lucide-react';
 
 interface StockMovementModalProps {
@@ -85,6 +95,18 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [supplierComboboxOpen, setSupplierComboboxOpen] = useState(false);
   const [unitCostDisplay, setUnitCostDisplay] = useState('');
+  const [xmlLoading, setXmlLoading] = useState(false);
+  const xmlInputRef = React.useRef<HTMLInputElement>(null);
+  const [newItem, setNewItem] = useState<CreateStockItemDTO>({
+    code: '',
+    name: '',
+    category: StockCategory.PECAS_MECANICA,
+    sizeVariation: '',
+    description: '',
+    currentQuantity: 0,
+    minimumQuantity: 0,
+    barcode: ''
+  });
   const [formData, setFormData] = useState<CreateStockMovementDTO>({
     stockItemId: '',
     movementType: MovementType.ENTRADA,
@@ -96,6 +118,19 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
     unitCost: 0,
     notes: ''
   });
+
+  const isBattery = React.useMemo(() => {
+    if (!selectedItem) return false;
+    const text = `${selectedItem.name || ''} ${selectedItem.description || ''}`.toLowerCase();
+    return selectedItem.category === 'PECAS_ELETRICA' || text.includes('bateria') || text.includes('battery');
+  }, [selectedItem]);
+
+  const isTire = React.useMemo(() => {
+    if (!selectedItem) return false;
+    const text = `${selectedItem.name || ''} ${selectedItem.description || ''}`.toLowerCase();
+    if (text.includes('camara') || text.includes('câmara') || text.includes('roda ') || text.includes('valvula')) return false;
+    return selectedItem.category === 'PNEUS_RODAS' || text.includes('pneu') || text.includes('tire');
+  }, [selectedItem]);
 
   const formatCurrency = (value: string): string => {
     const digits = value.replace(/\D/g, '');
@@ -180,6 +215,12 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
       setUnitCostDisplay('');
     }
   }, [formData.movementType, open]);
+
+  useEffect(() => {
+    if (!selectedItem && formData.movementType === MovementType.ENTRADA) {
+      setNewItem(prev => (prev.code === itemCodeSearch ? prev : { ...prev, code: itemCodeSearch }));
+    }
+  }, [itemCodeSearch, selectedItem, formData.movementType]);
 
   const loadEmployees = async () => {
     setEmployeeLoading(true);
@@ -300,16 +341,43 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
     return type === MovementType.ENTRADA ? entradaReasons : saidaReasons;
   };
 
+  const isCreatingNewEntryItem = React.useMemo(
+    () => formData.movementType === MovementType.ENTRADA && !selectedItem,
+    [formData.movementType, selectedItem]
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.stockItemId || !formData.quantity || formData.quantity <= 0) {
+    if ((!formData.stockItemId && !isCreatingNewEntryItem) || !formData.quantity || formData.quantity <= 0) {
       toast({
         title: 'Erro',
         description: 'Item e quantidade são obrigatórios.',
         variant: 'destructive'
       });
       return;
+    }
+
+    if (isCreatingNewEntryItem) {
+      if (!newItem.code.trim() || !newItem.name.trim()) {
+        toast({
+          title: 'Erro',
+          description: 'Código e nome do novo item são obrigatórios.',
+          variant: 'destructive'
+        });
+        return;
+      }
+      const duplicate = allItems.find(
+        i => i.code.trim().toLowerCase() === newItem.code.trim().toLowerCase()
+      );
+      if (duplicate) {
+        toast({
+          title: 'Código já cadastrado',
+          description: `Já existe um item com o código ${duplicate.code}. Selecione o item existente na busca.`,
+          variant: 'destructive'
+        });
+        return;
+      }
     }
 
     if (formData.movementType === MovementType.SAIDA && 
@@ -325,9 +393,34 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
 
     setLoading(true);
     try {
+      let stockItemId = formData.stockItemId;
+
+      if (isCreatingNewEntryItem) {
+        const created = await stockService.createItem({
+          code: newItem.code.trim(),
+          name: newItem.name.trim(),
+          category: newItem.category,
+          sizeVariation: newItem.sizeVariation?.trim() || undefined,
+          description: newItem.description?.trim() || undefined,
+          currentQuantity: 0,
+          minimumQuantity: newItem.minimumQuantity || 0,
+          barcode: newItem.barcode?.trim() || undefined,
+          unitCost: (formData.unitCost && formData.unitCost > 0) ? formData.unitCost : undefined,
+          supplier: formData.supplier?.trim() || undefined,
+          invoiceNumber: formData.documentNumber?.trim() || undefined,
+          notes: formData.notes?.trim() || undefined
+        });
+        stockItemId = created.id;
+        setSelectedItem(created);
+        toast({
+          title: 'Item criado',
+          description: `Item "${created.fullName}" cadastrado no estoque.`,
+        });
+      }
+
       // Preparar dados para envio, garantindo tipos corretos
       const dataToSend: CreateStockMovementDTO = {
-        stockItemId: formData.stockItemId,
+        stockItemId,
         movementType: formData.movementType,
         reason: formData.reason,
         quantity: formData.quantity,
@@ -353,6 +446,7 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
         description: 'Movimentação registrada com sucesso.',
       });
       
+      window.dispatchEvent(new CustomEvent('stock-data-changed'));
       onSave();
       onOpenChange(false);
       
@@ -372,6 +466,16 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
       setItemCodeSearch(item?.code || '');
       setUnitCostDisplay('');
       setItemComboboxOpen(false);
+      setNewItem({
+        code: '',
+        name: '',
+        category: StockCategory.PECAS_MECANICA,
+        sizeVariation: '',
+        description: '',
+        currentQuantity: 0,
+        minimumQuantity: 0,
+        barcode: ''
+      });
     } catch (error: any) {
       console.error('Erro ao registrar movimentação:', error);
       const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao registrar movimentação.';
@@ -411,6 +515,75 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
         description: 'Código não corresponde a nenhum item cadastrado.',
         variant: 'destructive'
       });
+    }
+  };
+
+  const handleNewItemClick = (field: keyof CreateStockItemDTO, value: string | number) => {
+    setNewItem(prev => ({ ...prev, [field]: value }));
+    if (field === 'code') {
+      setItemCodeSearch(String(value || ''));
+    }
+  };
+
+  const handleNfeFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setXmlLoading(true);
+    try {
+      const parsed = await stockNfeService.parseNfe(file);
+      const first = parsed.items?.[0];
+      if (!first) {
+        throw new Error('Nenhum item encontrado no arquivo.');
+      }
+
+      const existingMatch = allItems.find(
+        i => i.code.trim().toLowerCase() === (first.productCode || '').trim().toLowerCase()
+      );
+      if (existingMatch) {
+        handleItemSelect(existingMatch);
+        toast({
+          title: 'Item já cadastrado',
+          description: `${existingMatch.fullName} encontrado na NF-e. Movimentação para o item existente.`,
+        });
+        return;
+      }
+
+      const suggested = first.suggestedCategory as StockCategory;
+      setNewItem(prev => ({
+        ...prev,
+        code: first.productCode || prev.code,
+        name: first.description || prev.name,
+        barcode: first.barcode || prev.barcode,
+        category: (suggested && Object.values(StockCategory).includes(suggested)) ? suggested : prev.category
+      }));
+      setItemCodeSearch(first.productCode || '');
+
+      setFormData(prev => ({
+        ...prev,
+        documentNumber: parsed.invoiceNumber || prev.documentNumber,
+        supplier: parsed.supplierName || prev.supplier,
+        quantity: first.quantity > 0 ? first.quantity : prev.quantity,
+        unitCost: first.unitPrice > 0 ? first.unitPrice : prev.unitCost
+      }));
+      if (first.unitPrice > 0) {
+        setUnitCostDisplay(formatCurrencyFromNumber(first.unitPrice));
+      }
+
+      toast({
+        title: 'NF-e importada',
+        description: `${parsed.invoiceNumber ? `NF ${parsed.invoiceNumber} - ` : ''}${parsed.items.length} item(ns) lido(s).`,
+      });
+    } catch (error) {
+      const err = error as { message?: string; response?: { data?: { message?: string } } };
+      toast({
+        title: 'Erro ao importar',
+        description: err?.response?.data?.message || err?.message || 'Não foi possível ler o arquivo XML/PDF.',
+        variant: 'destructive'
+      });
+    } finally {
+      setXmlLoading(false);
     }
   };
 
@@ -587,6 +760,24 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
                         Estoque Atual: <span className="font-medium text-seguranca-yellow">{selectedItem.currentQuantity}</span>
                       </span>
                     </div>
+
+                    {formData.movementType === MovementType.ENTRADA && isBattery && (
+                      <div className="mt-3 flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-xs">
+                        <Zap className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <span>
+                          <strong>Sincronização com Controle de Baterias:</strong> Ao confirmar esta entrada, <strong>{formData.quantity || 1}</strong> unidade(s) individual(is) serão criadas automaticamente na aba <strong>Baterias</strong> com status <em>Em Estoque</em>, disponíveis para instalação na frota.
+                        </span>
+                      </div>
+                    )}
+
+                    {formData.movementType === MovementType.ENTRADA && isTire && (
+                      <div className="mt-3 flex items-start gap-2 p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-300 text-xs">
+                        <CircleDot className="h-4 w-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                        <span>
+                          <strong>Sincronização com Pneus da Frota:</strong> Ao confirmar esta entrada, <strong>{formData.quantity || 1}</strong> unidade(s) individual(is) serão criadas automaticamente na aba <strong>Pneus da Frota</strong> com status <em>Disponível</em>, prontas para montagem nos veículos.
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -710,6 +901,187 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
                   <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-seguranca-red flex-shrink-0" />
                   <span className="truncate">Informações da Entrada</span>
                 </h3>
+
+                {/* Cadastro de novo item de estoque */}
+                {(
+                  <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 rounded-xl bg-gradient-to-r from-seguranca-graphite/60 to-seguranca-black/40 border border-seguranca-red/20">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="text-sm sm:text-base font-semibold text-white flex items-center gap-2">
+                        <Plus className="h-4 w-4 text-seguranca-red flex-shrink-0" />
+                        <span className="truncate">Cadastrar Novo Item de Estoque</span>
+                      </h4>
+                      {selectedItem && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const previousCode = selectedItem?.code || '';
+                            setSelectedItem(null);
+                            setFormData(prev => ({ ...prev, stockItemId: '' }));
+                            setNewItem(prev => (prev.code ? prev : { ...prev, code: previousCode }));
+                            setItemCodeSearch(previousCode);
+                          }}
+                          className="border-seguranca-red/50 text-seguranca-red hover:bg-seguranca-red/10 hover:text-white h-8 text-xs"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Novo item em vez deste
+                        </Button>
+                      )}
+                    </div>
+
+                    {selectedItem ? (
+                      <div className="p-3 bg-seguranca-black/40 border border-gray-600/30 rounded-lg text-xs sm:text-sm text-gray-300">
+                        Item existente selecionado: <span className="font-medium text-white">{selectedItem.code} - {selectedItem.fullName}</span>.
+                        A movimentação será registrada para este item. Para cadastrar um item novo, clique em <span className="text-seguranca-red font-medium">Novo item em vez deste</span>.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs text-gray-400">
+                            O código do item é o mesmo código do produto, digitado manualmente ou importado do XML/PDF da NF-e.
+                          </p>
+                          <input
+                            ref={xmlInputRef}
+                            type="file"
+                            accept=".xml,.pdf,text/xml,application/pdf"
+                            className="hidden"
+                            onChange={handleNfeFileImport}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={xmlLoading}
+                            onClick={() => xmlInputRef.current?.click()}
+                            className="border-gray-600/60 text-white hover:bg-seguranca-graphite hover:border-seguranca-red/50 h-8 text-xs"
+                          >
+                            {xmlLoading ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <Upload className="h-3 w-3 mr-1" />
+                            )}
+                            {xmlLoading ? 'Importando...' : 'Importar XML/PDF da NF-e'}
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="newItemCode" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                              <Hash className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
+                              Código do Item (produto) *
+                            </Label>
+                            <Input
+                              id="newItemCode"
+                              value={newItem.code}
+                              onChange={(e) => handleNewItemClick('code', e.target.value)}
+                              placeholder="Ex: PNE-275-80-225"
+                              className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base font-mono font-semibold"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="newItemName" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                              <Package className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
+                              Nome / Descrição do Produto *
+                            </Label>
+                            <Input
+                              id="newItemName"
+                              value={newItem.name}
+                              onChange={(e) => handleNewItemClick('name', e.target.value)}
+                              placeholder="Ex: Pneu aro 22.5 275/80"
+                              className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="newItemCategory" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                              <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
+                              Categoria *
+                            </Label>
+                            <Select
+                              value={newItem.category}
+                              onValueChange={(value) => handleNewItemClick('category', value as StockCategory)}
+                            >
+                              <SelectTrigger className="bg-seguranca-black/50 border-gray-600/30 text-white focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base">
+                                <SelectValue placeholder="Selecione a categoria" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-seguranca-graphite border-gray-600">
+                                {Object.entries(StockCategoryLabels).map(([key, label]) => (
+                                  <SelectItem key={key} value={key} className="text-white hover:bg-seguranca-black focus:bg-seguranca-black">
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="newItemBarcode" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                              <Barcode className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
+                              Código de Barras
+                            </Label>
+                            <Input
+                              id="newItemBarcode"
+                              value={newItem.barcode || ''}
+                              onChange={(e) => handleNewItemClick('barcode', e.target.value)}
+                              placeholder="Opcional"
+                              className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="newItemMinimumQuantity" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                              <Box className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
+                              Estoque Mínimo
+                            </Label>
+                            <Input
+                              id="newItemMinimumQuantity"
+                              type="number"
+                              min="0"
+                              value={newItem.minimumQuantity || 0}
+                              onChange={(e) => handleNewItemClick('minimumQuantity', parseInt(e.target.value) || 0)}
+                              className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="newItemSizeVariation" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                              <CircleDot className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
+                              Tamanho / Numeração
+                            </Label>
+                            <Input
+                              id="newItemSizeVariation"
+                              value={newItem.sizeVariation || ''}
+                              onChange={(e) => handleNewItemClick('sizeVariation', e.target.value)}
+                              placeholder="Opcional (ex: 38, 39, GG...)"
+                              className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="newItemDescription" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                            <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
+                            Observações do Item
+                          </Label>
+                          <Textarea
+                            id="newItemDescription"
+                            value={newItem.description || ''}
+                            onChange={(e) => handleNewItemClick('description', e.target.value)}
+                            placeholder="Descrição complementar do item..."
+                            rows={2}
+                            className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 text-sm sm:text-base resize-none"
+                          />
+                        </div>
+
+                        <div className="p-2.5 bg-seguranca-red/10 border border-seguranca-red/30 rounded-lg text-xs text-gray-300">
+                          O item será criado com saldo zero; a quantidade digitada em <strong className="text-white">Quantidade</strong> será aplicada como primeira entrada (saldo final: {formData.quantity || 0}).
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="documentNumber" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
@@ -902,7 +1274,7 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
               </Button>
               <Button 
                 type="submit" 
-                disabled={loading || !selectedItem}
+                disabled={loading || (!selectedItem && !(isCreatingNewEntryItem && newItem.code.trim() && newItem.name.trim()))}
                 className="bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red shadow-lg shadow-seguranca-red/20 px-4 sm:px-6 h-10 sm:h-11 text-sm sm:text-base order-1 sm:order-2"
               >
                 {loading ? 'Registrando...' : 'Registrar Movimentação'}

@@ -101,7 +101,7 @@ $test = Invoke-RestMethod -Uri "http://185.225.233.18:9000" -Method GET
 Write-Host "API: v$($test.version)"
 
 # 2. Criar instância
-$headers = @{ apikey = "B6D711FCDE4D4FD5936544120E713976" }
+$headers = @{ apikey = "CHANGE_THIS_EVOLUTION_API_KEY" }
 $body = '{"instanceName":"securedguard","integration":"WHATSAPP-BAILEYS"}'
 Invoke-RestMethod -Uri "http://185.225.233.18:9000/instance/create" -Method POST -Headers $headers -Body $body -ContentType "application/json"
 
@@ -127,7 +127,7 @@ QR Code: 500+ caracteres
 
 **Acesse:**
 - http://185.225.233.18:9000/instance/connect/securedguard
-- Header: `apikey: B6D711FCDE4D4FD5936544120E713976`
+- Header: `apikey: CHANGE_THIS_EVOLUTION_API_KEY`
 - Escaneie com WhatsApp: **31971731747**
 
 ### ❌ **SE LOOP PERSISTIR:**

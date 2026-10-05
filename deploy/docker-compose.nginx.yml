@@ -4,7 +4,7 @@ services:
   # Nginx - Proxy Reverso para todos os ambientes
   nginx:
     image: nginx:alpine
-    container_name: secured-guard-nginx
+    container_name: fluxbus-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -18,10 +18,10 @@ services:
       - frontend-ci
       - frontend-test
     networks:
-      - secured-guard-network
+      - fluxbus-network
     restart: unless-stopped
 
 networks:
-  secured-guard-network:
+  fluxbus-network:
     external: true
-    name: secured-guard
+    name: fluxbus

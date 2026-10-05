@@ -5,7 +5,7 @@
 
 set -e  # Parar em caso de erro
 
-echo "🚀 Configurando ambiente de banco de dados SecuredGuard..."
+echo "🚀 Configurando ambiente de banco de dados FluxBus..."
 echo ""
 
 # Cores para output
@@ -68,7 +68,7 @@ generate_passwords() {
     print_status "Gerando senhas seguras..."
     
     # Criar arquivo temporário com senhas
-    cat > /tmp/secured_guard_passwords.txt << EOF
+    cat > /tmp/fluxbus_passwords.txt << EOF
 # Senhas geradas em $(date)
 POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
 REDIS_PASSWORD=$(openssl rand -base64 24 | tr -d "=+/" | cut -c1-24)
@@ -81,9 +81,9 @@ JWT_SECRET=$(openssl rand -hex 64)
 # 4. Salve em um gerenciador de senhas
 EOF
 
-    print_success "Senhas geradas em /tmp/secured_guard_passwords.txt"
+    print_success "Senhas geradas em /tmp/fluxbus_passwords.txt"
     echo ""
-    cat /tmp/secured_guard_passwords.txt
+    cat /tmp/fluxbus_passwords.txt
     echo ""
     print_warning "IMPORTANTE: Salve estas senhas em local seguro!"
 }
@@ -94,11 +94,11 @@ create_databases() {
     
     # Lista de bancos
     DATABASES=(
-        "secured_guard_dev"
-        "secured_guard_test" 
-        "secured_guard_staging"
-        "secured_guard_prod"
-        "secured_guard_ci"
+        "fluxbus_dev"
+        "fluxbus_test" 
+        "fluxbus_staging"
+        "fluxbus_prod"
+        "fluxbus_ci"
     )
     
     for db in "${DATABASES[@]}"; do
@@ -118,7 +118,7 @@ create_user() {
     print_status "Criando usuário postgressg..."
     
     # Ler senha do arquivo temporário
-    POSTGRES_PASSWORD=$(grep "POSTGRES_PASSWORD=" /tmp/secured_guard_passwords.txt | cut -d'=' -f2)
+    POSTGRES_PASSWORD=$(grep "POSTGRES_PASSWORD=" /tmp/fluxbus_passwords.txt | cut -d'=' -f2)
     
     # Verificar se usuário já existe
     if psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='postgressg'" | grep -q 1; then
@@ -136,11 +136,11 @@ grant_permissions() {
     print_status "Configurando permissões..."
     
     DATABASES=(
-        "secured_guard_dev"
-        "secured_guard_test" 
-        "secured_guard_staging"
-        "secured_guard_prod"
-        "secured_guard_ci"
+        "fluxbus_dev"
+        "fluxbus_test" 
+        "fluxbus_staging"
+        "fluxbus_prod"
+        "fluxbus_ci"
     )
     
     for db in "${DATABASES[@]}"; do
@@ -164,9 +164,9 @@ create_env_files() {
     print_status "Criando arquivos de configuração..."
     
     # Ler senhas
-    POSTGRES_PASSWORD=$(grep "POSTGRES_PASSWORD=" /tmp/secured_guard_passwords.txt | cut -d'=' -f2)
-    REDIS_PASSWORD=$(grep "REDIS_PASSWORD=" /tmp/secured_guard_passwords.txt | cut -d'=' -f2)
-    JWT_SECRET=$(grep "JWT_SECRET=" /tmp/secured_guard_passwords.txt | cut -d'=' -f2)
+    POSTGRES_PASSWORD=$(grep "POSTGRES_PASSWORD=" /tmp/fluxbus_passwords.txt | cut -d'=' -f2)
+    REDIS_PASSWORD=$(grep "REDIS_PASSWORD=" /tmp/fluxbus_passwords.txt | cut -d'=' -f2)
+    JWT_SECRET=$(grep "JWT_SECRET=" /tmp/fluxbus_passwords.txt | cut -d'=' -f2)
     
     # Criar .env.dev
     cat > config/environments/.env.dev << EOF
@@ -177,7 +177,7 @@ SPRING_PROFILES_ACTIVE=dev
 # ===================== BANCO DE DADOS =====================
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
-POSTGRES_DB=secured_guard_dev
+POSTGRES_DB=fluxbus_dev
 POSTGRES_USER=postgressg
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 
@@ -196,7 +196,7 @@ MAIL_HOST=localhost
 MAIL_PORT=25
 MAIL_USERNAME=dev@localhost
 MAIL_PASSWORD=dev
-MAIL_FROM=dev@securedguard.local
+MAIL_FROM=dev@fluxbus.local
 
 # ===================== SERVER CONFIGURATION =====================
 SERVER_PORT=8081
@@ -233,7 +233,7 @@ SPRING_PROFILES_ACTIVE=prod
 # ===================== BANCO DE DADOS =====================
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
-POSTGRES_DB=secured_guard_prod
+POSTGRES_DB=fluxbus_prod
 POSTGRES_USER=postgressg
 POSTGRES_PASSWORD=CHANGE_THIS_PRODUCTION_PASSWORD
 
@@ -286,15 +286,15 @@ test_connections() {
     print_status "Testando conexões com banco de dados..."
     
     # Testar conexão com usuário postgressg
-    if psql -h localhost -p 5432 -U postgressg -d secured_guard_dev -c "SELECT 1;" &> /dev/null; then
-        print_success "Conexão com secured_guard_dev funcionando"
+    if psql -h localhost -p 5432 -U postgressg -d fluxbus_dev -c "SELECT 1;" &> /dev/null; then
+        print_success "Conexão com fluxbus_dev funcionando"
     else
-        print_error "Erro na conexão com secured_guard_dev"
+        print_error "Erro na conexão com fluxbus_dev"
         return 1
     fi
     
     # Testar outros bancos
-    for db in secured_guard_test secured_guard_staging secured_guard_prod secured_guard_ci; do
+    for db in fluxbus_test fluxbus_staging fluxbus_prod fluxbus_ci; do
         if psql -h localhost -p 5432 -U postgressg -d $db -c "SELECT 1;" &> /dev/null; then
             print_success "Conexão com $db funcionando"
         else
@@ -321,7 +321,7 @@ show_summary() {
     echo "📁 Arquivos criados:"
     echo "  📄 config/environments/.env.dev"
     echo "  📄 config/environments/.env.prod"
-    echo "  📄 /tmp/secured_guard_passwords.txt"
+    echo "  📄 /tmp/fluxbus_passwords.txt"
     echo ""
     echo "🔐 Próximos passos:"
     echo "  1. Salve as senhas em um gerenciador de senhas"
@@ -339,7 +339,7 @@ show_summary() {
 
 # Função principal
 main() {
-    echo "🚀 Iniciando setup do banco de dados SecuredGuard..."
+    echo "🚀 Iniciando setup do banco de dados FluxBus..."
     echo ""
     
     check_postgresql
@@ -354,7 +354,7 @@ main() {
     
     # Limpar arquivo temporário
     print_status "Limpando arquivos temporários..."
-    rm -f /tmp/secured_guard_passwords.txt
+    rm -f /tmp/fluxbus_passwords.txt
     print_success "Setup concluído!"
 }
 

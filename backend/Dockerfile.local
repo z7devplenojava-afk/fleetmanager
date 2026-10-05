@@ -1,12 +1,12 @@
 # ============================================
-# SECURED GUARD BACKEND - AMBIENTE LOCAL
+# FLUXBUS BACKEND - AMBIENTE LOCAL
 # Hot Reload com Maven + Debug Remoto
 # ============================================
 
 FROM maven:3.9-eclipse-temurin-17-alpine AS development
 
 # Metadados
-LABEL maintainer="Secured Guard Team"
+LABEL maintainer="FluxBus Team"
 LABEL environment="local"
 LABEL version="1.0.0"
 

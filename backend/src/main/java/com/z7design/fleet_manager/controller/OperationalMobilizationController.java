@@ -41,14 +41,14 @@ public class OperationalMobilizationController {
 
     @GetMapping("/eligibility/{vehicleId}")
     @Operation(summary = "Verificar elegibilidade do veículo (idade ≤5 anos, ar, cinto, retarder, câmera, telemetria)")
-    public ResponseEntity<VehicleEligibilityDTO> checkEligibility(@PathVariable UUID vehicleId) {
+    public ResponseEntity<VehicleEligibilityDTO> checkEligibility(@PathVariable("vehicleId") UUID vehicleId) {
         return ResponseEntity.ok(fleetEligibilityService.checkVehicleById(vehicleId));
     }
 
     @GetMapping("/eligibility")
     @Operation(summary = "Filtro de frota elegível (includeIneligible=false retorna só os aprovados)")
     public ResponseEntity<List<VehicleEligibilityDTO>> filterEligibleFleet(
-            @RequestParam(defaultValue = "false") boolean includeIneligible) {
+            @RequestParam(value = "includeIneligible", defaultValue = "false") boolean includeIneligible) {
         return ResponseEntity.ok(fleetEligibilityService.filterEligibleFleet(includeIneligible));
     }
 
@@ -57,8 +57,8 @@ public class OperationalMobilizationController {
     @GetMapping("/inspections")
     @Operation(summary = "Listar vistorias de mobilização")
     public ResponseEntity<List<MobilizationInspection>> listInspections(
-            @RequestParam(required = false) UUID vehicleId,
-            @RequestParam(required = false) UUID clientId) {
+            @RequestParam(value = "vehicleId", required = false) UUID vehicleId,
+            @RequestParam(value = "clientId", required = false) UUID clientId) {
         if (vehicleId != null) {
             return ResponseEntity.ok(inspectionService.findByVehicle(vehicleId));
         }
@@ -70,7 +70,7 @@ public class OperationalMobilizationController {
 
     @GetMapping("/inspections/{id}")
     @Operation(summary = "Buscar vistoria por ID")
-    public ResponseEntity<MobilizationInspection> getInspection(@PathVariable UUID id) {
+    public ResponseEntity<MobilizationInspection> getInspection(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(inspectionService.findById(id));
     }
 
@@ -82,13 +82,13 @@ public class OperationalMobilizationController {
 
     @PostMapping("/inspections/{id}/approve")
     @Operation(summary = "Aprovar vistoria (exige checklist completo + assinaturas conjuntas)")
-    public ResponseEntity<MobilizationInspection> approveInspection(@PathVariable UUID id) {
+    public ResponseEntity<MobilizationInspection> approveInspection(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(inspectionService.approve(id));
     }
 
     @GetMapping("/inspections/{id}/pdf")
     @Operation(summary = "Baixar Termo de Vistoria e Mobilização em PDF")
-    public ResponseEntity<byte[]> inspectionPdf(@PathVariable UUID id) {
+    public ResponseEntity<byte[]> inspectionPdf(@PathVariable("id") UUID id) {
         byte[] pdf = inspectionService.generatePdf(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
@@ -98,7 +98,7 @@ public class OperationalMobilizationController {
 
     @DeleteMapping("/inspections/{id}")
     @Operation(summary = "Excluir vistoria")
-    public ResponseEntity<Void> deleteInspection(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteInspection(@PathVariable("id") UUID id) {
         inspectionService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -108,8 +108,8 @@ public class OperationalMobilizationController {
     @GetMapping("/books")
     @Operation(summary = "Listar talões de Parte Diária")
     public ResponseEntity<List<DailyLogBook>> listBooks(
-            @RequestParam(required = false) DailyLogBookStatus status,
-            @RequestParam(required = false) UUID vehicleId) {
+            @RequestParam(value = "status", required = false) DailyLogBookStatus status,
+            @RequestParam(value = "vehicleId", required = false) UUID vehicleId) {
         if (status != null) {
             return ResponseEntity.ok(bookService.findByStatus(status));
         }
@@ -121,7 +121,7 @@ public class OperationalMobilizationController {
 
     @GetMapping("/books/{id}")
     @Operation(summary = "Buscar talão por ID")
-    public ResponseEntity<DailyLogBook> getBook(@PathVariable UUID id) {
+    public ResponseEntity<DailyLogBook> getBook(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(bookService.findById(id));
     }
 
@@ -129,36 +129,36 @@ public class OperationalMobilizationController {
     @Operation(summary = "Emitir talão com faixa sequencial")
     public ResponseEntity<DailyLogBook> issueBook(
             @RequestBody DailyLogBook request,
-            @RequestParam(defaultValue = "50") int sheetsQuantity) {
+            @RequestParam(value = "sheetsQuantity", defaultValue = "50") int sheetsQuantity) {
         return ResponseEntity.status(HttpStatus.CREATED).body(bookService.issueBook(request, sheetsQuantity));
     }
 
     /** M3 → M5: consome a próxima folha e vincula à Parte Diária. */
     @PostMapping("/books/{id}/consume-sheet")
-    @Operation(summary = "Consumir próxima folha do talão e vincular à Parte Diária")
+    @Operation(summary = "Consumir próxima folha do talão e vincula à Parte Diária")
     public ResponseEntity<DailyLogBookEntry> consumeSheet(
-            @PathVariable UUID id,
-            @RequestParam(required = false) UUID dailyLogId,
-            @RequestParam(required = false) String usedBy) {
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "dailyLogId", required = false) UUID dailyLogId,
+            @RequestParam(value = "usedBy", required = false) String usedBy) {
         return ResponseEntity.ok(bookService.consumeNextSheet(id, dailyLogId, usedBy));
     }
 
     @GetMapping("/books/{id}/entries")
     @Operation(summary = "Folhas consumidas do talão")
-    public ResponseEntity<List<DailyLogBookEntry>> getBookEntries(@PathVariable UUID id) {
+    public ResponseEntity<List<DailyLogBookEntry>> getBookEntries(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(bookService.getBookEntries(id));
     }
 
     @PatchMapping("/books/{id}/status")
     @Operation(summary = "Atualizar status do talão (extraviado, cancelado...)")
-    public ResponseEntity<DailyLogBook> updateBookStatus(@PathVariable UUID id, @RequestBody Map<String, String> body) {
+    public ResponseEntity<DailyLogBook> updateBookStatus(@PathVariable("id") UUID id, @RequestBody Map<String, String> body) {
         DailyLogBookStatus status = DailyLogBookStatus.valueOf(body.get("status"));
         return ResponseEntity.ok(bookService.updateStatus(id, status));
     }
 
     @DeleteMapping("/books/{id}")
     @Operation(summary = "Excluir talão")
-    public ResponseEntity<Void> deleteBook(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteBook(@PathVariable("id") UUID id) {
         bookService.delete(id);
         return ResponseEntity.noContent().build();
     }

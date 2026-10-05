@@ -3,7 +3,7 @@
 // Para resolver, alterar o tipo do ID para UUID ou ajustar a migração
 
 /*
-package com.z7design.secured_guard.model;
+package com.z7design.fluxbus.model;
 
 import jakarta.persistence.*;
 import org.springframework.data.annotation.CreatedBy;

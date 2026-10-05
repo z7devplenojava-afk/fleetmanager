@@ -16,10 +16,10 @@ if ($ping) {
     # Verificar aplicação web
     Write-Host "🌐 Testando aplicação web..." -ForegroundColor Yellow
     try {
-        $response = Invoke-WebRequest -Uri "https://securedguard.z7botsolutions.com.br" -TimeoutSec 10
+        $response = Invoke-WebRequest -Uri "https://fluxbus.z7botsolutions.com.br" -TimeoutSec 10
         if ($response.StatusCode -eq 200) {
             Write-Host "✅ Aplicação web está funcionando" -ForegroundColor Green
-            Write-Host "🌐 Domínio: securedguard.z7botsolutions.com.br" -ForegroundColor Cyan
+            Write-Host "🌐 Domínio: fluxbus.z7botsolutions.com.br" -ForegroundColor Cyan
         }
     } catch {
         Write-Host "❌ Aplicação web não está respondendo" -ForegroundColor Red
@@ -36,11 +36,11 @@ if ($ping) {
     
     # Verificar último commit (se SSH estiver configurado)
     Write-Host "📝 Para verificar último commit, execute:" -ForegroundColor Cyan
-    Write-Host "ssh $VPS_USER@$VPS_HOST 'cd /opt/secured-guard && git log --oneline -1'" -ForegroundColor White
+    Write-Host "ssh $VPS_USER@$VPS_HOST 'cd /opt/fluxbus && git log --oneline -1'" -ForegroundColor White
     
 } else {
     Write-Host "❌ VPS não está respondendo" -ForegroundColor Red
 }
 
 Write-Host "`n📊 Para ver logs do GitHub Actions:" -ForegroundColor Cyan
-Write-Host "https://github.com/zemarioramos/secured-guard/actions" -ForegroundColor White
+Write-Host "https://github.com/zemarioramos/fluxbus/actions" -ForegroundColor White

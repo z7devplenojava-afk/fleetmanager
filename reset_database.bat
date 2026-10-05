@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ════════════════════════════════════════════════════════
-echo    RESET DO BANCO DE DADOS - SECURED GUARD
+echo    RESET DO BANCO DE DADOS - FLUXBUS
 echo ════════════════════════════════════════════════════════
 echo.
 echo ⚠️  ATENÇÃO: Este script vai RESETAR TUDO no banco!
@@ -26,7 +26,7 @@ echo.
 
 echo [3/3] Resetando banco de dados...
 set PGPASSWORD=root
-"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -h localhost -d secured_guard -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO postgres; GRANT ALL ON SCHEMA public TO public; SELECT 'BANCO RESETADO!' as status;"
+"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -h localhost -d fluxbus -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO postgres; GRANT ALL ON SCHEMA public TO public; SELECT 'BANCO RESETADO!' as status;"
 set PGPASSWORD=
 
 if %errorlevel% equ 0 (

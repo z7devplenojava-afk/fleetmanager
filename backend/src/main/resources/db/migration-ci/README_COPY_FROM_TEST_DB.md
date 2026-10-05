@@ -101,7 +101,7 @@ A migration V999 usa estas credenciais padrão para conectar ao `secured_guard_t
 
 ```sql
 test_db_user TEXT := 'postgressg';
-test_db_password TEXT := '4KaCiJc6an@7sgbdcid2025';
+test_db_password TEXT := 'CHANGE_THIS_DB_PASSWORD';
 ```
 
 **Para alterar:**

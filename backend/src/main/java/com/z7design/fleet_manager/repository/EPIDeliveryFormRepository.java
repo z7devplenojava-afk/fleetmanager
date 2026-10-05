@@ -26,9 +26,18 @@ public interface EPIDeliveryFormRepository extends JpaRepository<EPIDeliveryForm
     List<EPIDeliveryForm> findByEmployee(Employee employee);
 
     /**
-     * Busca fichas por ID do funcionÃ¡rio
+     * Busca fichas por ID do funcionário com dados carregados
      */
-    List<EPIDeliveryForm> findByEmployeeId(UUID employeeId);
+    @Query("""
+        SELECT DISTINCT f FROM EPIDeliveryForm f
+        LEFT JOIN FETCH f.employee
+        LEFT JOIN FETCH f.company
+        LEFT JOIN FETCH f.responsibleEmployee
+        LEFT JOIN FETCH f.items
+        WHERE f.employee.id = :employeeId
+        ORDER BY f.createdAt DESC
+        """)
+    List<EPIDeliveryForm> findByEmployeeId(@Param("employeeId") UUID employeeId);
 
     /**
      * Busca fichas por empresa
@@ -36,9 +45,18 @@ public interface EPIDeliveryFormRepository extends JpaRepository<EPIDeliveryForm
     List<EPIDeliveryForm> findByCompany(Company company);
 
     /**
-     * Busca fichas por ID da empresa
+     * Busca fichas por ID da empresa com dados carregados
      */
-    List<EPIDeliveryForm> findByCompanyId(UUID companyId);
+    @Query("""
+        SELECT DISTINCT f FROM EPIDeliveryForm f
+        LEFT JOIN FETCH f.employee
+        LEFT JOIN FETCH f.company
+        LEFT JOIN FETCH f.responsibleEmployee
+        LEFT JOIN FETCH f.items
+        WHERE f.company.id = :companyId
+        ORDER BY f.createdAt DESC
+        """)
+    List<EPIDeliveryForm> findByCompanyId(@Param("companyId") UUID companyId);
 
     /**
      * Busca fichas por perÃ­odo
@@ -88,7 +106,9 @@ public interface EPIDeliveryFormRepository extends JpaRepository<EPIDeliveryForm
 
     @Query("""
         SELECT f FROM EPIDeliveryForm f
-        LEFT JOIN FETCH f.employee
+        LEFT JOIN FETCH f.employee emp
+        LEFT JOIN FETCH emp.position
+        LEFT JOIN FETCH emp.unit
         LEFT JOIN FETCH f.company
         LEFT JOIN FETCH f.responsibleEmployee
         LEFT JOIN FETCH f.items

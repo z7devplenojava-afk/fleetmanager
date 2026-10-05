@@ -31,7 +31,7 @@ if ($PhoneNumber) {
     
     $body = @{
         id = $PhoneNumber
-        message = "🎉 Teste automático do Baileys WhatsApp!`n`n✅ Sistema: Secured Guard`n📅 Data: $(Get-Date -Format 'dd/MM/yyyy HH:mm')`n🚀 Status: Operacional"
+        message = "🎉 Teste automático do Baileys WhatsApp!`n`n✅ Sistema: FluxBus`n📅 Data: $(Get-Date -Format 'dd/MM/yyyy HH:mm')`n🚀 Status: Operacional"
     } | ConvertTo-Json
     
     try {

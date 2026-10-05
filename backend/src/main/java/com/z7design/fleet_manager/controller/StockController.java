@@ -20,6 +20,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -139,6 +142,21 @@ public class StockController {
         log.info("DELETE /api/stock/items/{} - Excluindo item", id);
         stockService.deleteItem(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping(value = "/items/{id}/qrcode-image", produces = MediaType.IMAGE_PNG_VALUE)
+    @Operation(summary = "Gerar imagem PNG do QR Code do item", description = "Retorna a imagem PNG do QR Code contendo as informações completas do item")
+    public ResponseEntity<byte[]> getItemQrCodeImage(
+            @Parameter(description = "ID do item") @PathVariable("id") UUID id,
+            @Parameter(description = "Largura da imagem em pixels") @RequestParam(value = "width", defaultValue = "300") int width,
+            @Parameter(description = "Altura da imagem em pixels") @RequestParam(value = "height", defaultValue = "300") int height) {
+        log.info("GET /api/stock/items/{}/qrcode-image - Gerando QR Code ({}x{})", id, width, height);
+        byte[] imageBytes = stockService.generateQrCodeImage(id, width, height);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.IMAGE_PNG);
+        headers.setContentLength(imageBytes.length);
+        headers.set("Content-Disposition", "inline; filename=\"qrcode-item-" + id + ".png\"");
+        return new ResponseEntity<>(imageBytes, headers, HttpStatus.OK);
     }
 
     @GetMapping("/items/category/{category}")

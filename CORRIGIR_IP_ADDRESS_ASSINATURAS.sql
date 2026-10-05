@@ -1,7 +1,7 @@
 -- =====================================================
--- CORRIGIR TIPO DA COLUNA ip_address (secured_guard_test)
+-- CORRIGIR TIPO DA COLUNA ip_address (fluxbus_test)
 -- =====================================================
--- Execute este script no DBeaver/pgAdmin no banco secured_guard_test
+-- Execute este script no DBeaver/pgAdmin no banco fluxbus_test
 
 -- 1. Verificar tipo atual
 SELECT column_name, data_type, udt_name 

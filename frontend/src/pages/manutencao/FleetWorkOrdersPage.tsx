@@ -27,8 +27,10 @@ import {
     Package,
     ArrowUpDown,
     ArrowUp,
-    ArrowDown
+    ArrowDown,
+    Sparkles
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -48,6 +50,7 @@ import fleetWorkOrderService, {
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
 import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewModal';
 import { FleetWorkOrderPurchaseModal } from '@/components/frota/FleetWorkOrderPurchaseModal';
+import { PartsProcurementHoverCard } from '@/components/frota/PartsProcurementHoverCard';
 import {
     Dialog,
     DialogContent,
@@ -81,6 +84,7 @@ const formatDisplayDate = (d?: string) => {
 };
 
 const FleetWorkOrdersPage: React.FC = () => {
+    const navigate = useNavigate();
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -177,34 +181,38 @@ const FleetWorkOrdersPage: React.FC = () => {
     };
 
     // Cards / Resumo conforme PRD Seção 23
-    const stats = {
+    const stats = useMemo(() => ({
         total: orders.length,
         open: orders.filter(o => o.status === WorkOrderStatus.OPEN || o.status === WorkOrderStatus.DRAFT).length,
         inProgress: orders.filter(o => o.status === WorkOrderStatus.IN_PROGRESS).length,
         waitingParts: orders.filter(o => o.status === WorkOrderStatus.WAITING_PARTS).length,
         completed: orders.filter(o => o.status === WorkOrderStatus.COMPLETED).length,
-    };
+    }), [orders]);
 
-    const filteredOrders = orders.filter(o => {
-        if (statusFilter !== 'ALL' && o.status !== statusFilter) return false;
-        if (typeFilter !== 'ALL' && o.maintenanceType !== typeFilter) return false;
-        // Filtro por garagem executora da OS
-        if (garageFilter !== 'ALL' && o.garageId !== garageFilter) return false;
-        // Gap 4 — Filtro por data de parada (PRD §24)
-        if (dateFrom && o.stopDate && o.stopDate < dateFrom) return false;
-        if (dateTo && o.stopDate && o.stopDate > dateTo) return false;
-        if (searchTerm.trim()) {
-            const term = searchTerm.toLowerCase();
-            const osNum = (o.osNumber || '').toLowerCase();
-            const plate = (o.vehiclePlate || '').toLowerCase();
-            const model = (o.vehicleModel || '').toLowerCase();
-            const mech = (o.mechanicName || '').toLowerCase();
-            if (!osNum.includes(term) && !plate.includes(term) && !model.includes(term) && !mech.includes(term)) {
-                return false;
+    const filteredOrders = useMemo(() => {
+        return orders.filter(o => {
+            if (statusFilter !== 'ALL' && o.status !== statusFilter) return false;
+            if (typeFilter !== 'ALL' && o.maintenanceType !== typeFilter) return false;
+            // Filtro por garagem executora da OS
+            if (garageFilter !== 'ALL' && o.garageId !== garageFilter) return false;
+            // Gap 4 — Filtro por data de parada (PRD §24)
+            if (dateFrom && o.stopDate && o.stopDate < dateFrom) return false;
+            if (dateTo && o.stopDate && o.stopDate > dateTo) return false;
+            if (searchTerm.trim()) {
+                const term = searchTerm.toLowerCase();
+                const osNum = (o.osNumber || '').toLowerCase();
+                const plate = (o.vehiclePlate || '').toLowerCase();
+                const model = (o.vehicleModel || '').toLowerCase();
+                const mech = (o.mechanicName || '').toLowerCase();
+                const client = (o.clientName || '').toLowerCase();
+                const wp = (o.workPostName || '').toLowerCase();
+                if (!osNum.includes(term) && !plate.includes(term) && !model.includes(term) && !mech.includes(term) && !client.includes(term) && !wp.includes(term)) {
+                    return false;
+                }
             }
-        }
-        return true;
-    });
+            return true;
+        });
+    }, [orders, statusFilter, typeFilter, garageFilter, dateFrom, dateTo, searchTerm]);
 
     const sortedOrders = useMemo(() => {
         const arr = [...filteredOrders];
@@ -283,12 +291,21 @@ const FleetWorkOrdersPage: React.FC = () => {
                         </h1>
                         <p className="text-gray-400">Controle completo de manutenção corretiva e preventiva de equipamentos e veículos.</p>
                     </div>
-                    <Button
-                        onClick={() => { setSelectedOrder(undefined); setIsFormOpen(true); }}
-                        className="bg-seguranca-red hover:bg-seguranca-darkred text-white font-bold"
-                    >
-                        <Plus className="mr-2 h-4 w-4" /> Nova Ordem de Serviço
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => navigate('/manutencao/limpeza')}
+                            className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 font-bold"
+                        >
+                            <Sparkles className="mr-2 h-4 w-4" /> Nova Solicitação de Limpeza
+                        </Button>
+                        <Button
+                            onClick={() => { setSelectedOrder(undefined); setIsFormOpen(true); }}
+                            className="bg-seguranca-red hover:bg-seguranca-darkred text-white font-bold"
+                        >
+                            <Plus className="mr-2 h-4 w-4" /> Nova Ordem de Serviço
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Cards/Resumo conforme PRD Seção 23 */}
@@ -463,9 +480,17 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                     </Badge>
                                                 </td>
                                                 <td className="p-4">
-                                                    <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-xs`}>
-                                                        {STATUS_CONFIG[order.status]?.label || order.status}
-                                                    </Badge>
+                                                    {order.status === WorkOrderStatus.WAITING_PARTS ? (
+                                                        <PartsProcurementHoverCard workOrderId={order.id} osNumber={order.osNumber}>
+                                                            <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-xs cursor-pointer hover:opacity-90 transition-opacity`}>
+                                                                {STATUS_CONFIG[order.status]?.label || order.status}
+                                                            </Badge>
+                                                        </PartsProcurementHoverCard>
+                                                    ) : (
+                                                        <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-xs`}>
+                                                            {STATUS_CONFIG[order.status]?.label || order.status}
+                                                        </Badge>
+                                                    )}
                                                 </td>
                                                 <td className="p-4">
                                                     <div className="font-semibold text-gray-200">{order.vehiclePlate || 'N/A'}</div>

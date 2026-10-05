@@ -73,12 +73,12 @@ services:
       REDIS_HOST: redis-dev
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD_DEV:-devredispass}
-      JWT_SECRET: ${JWT_SECRET_DEV:-devjwtsecret1234567890123456789012}
+      JWT_SECRET: ${JWT_SECRET_DEV:?JWT_SECRET_DEV is required}
       # Email Configuration
       MAIL_HOST: ${MAIL_HOST:-186.209.113.105}
       MAIL_PORT: ${MAIL_PORT:-465}
       MAIL_USERNAME: ${MAIL_USERNAME:-securedguard@z7design.com.br}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-D8rKeqSFZfaS$(y7}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-CHANGE_THIS_MAIL_PASSWORD}
       MAIL_SSL_ENABLE: true
     ports:
       - "8084:8083"
@@ -91,6 +91,7 @@ services:
         condition: service_started
     networks:
       - fluxbus-dev-network
+      - z7network
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8083/api/health || exit 1"]
       interval: 30s
@@ -130,18 +131,15 @@ services:
     image: z7design/fluxbus-frontend:dev
     container_name: fluxbus-frontend-dev
     ports:
-      - "81:443"
-    volumes:
-      # HTTPS via nginx (cert self-signed p/ localhost + config SSL que proxya /api para o backend)
-      - ./fluxbus-nginx/ssl.conf:/etc/nginx/conf.d/ssl.conf:ro
-      - ./fluxbus-nginx/certs:/etc/nginx/certs:ro
+      # Porta 8086 no host para não conflitar com a porta 80 do Traefik
+      - "8086:80"
     depends_on:
       backend-dev:
         condition: service_started
     networks:
       - fluxbus-dev-network
+      - z7network
     healthcheck:
-      # 127.0.0.1: localhost resolve ::1 (IPv6) e o nginx escuta so IPv4 -> wget busybox nao faz fallback
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1 || exit 1"]
       interval: 30s
       timeout: 10s
@@ -167,3 +165,6 @@ networks:
   fluxbus-dev-network:
     driver: bridge
     name: fluxbus-dev
+  z7network:
+    external: true
+    name: z7network

@@ -5,7 +5,7 @@ Write-Host "Executando migrações para funcionalidade de Supervisores..." -Fore
 $psqlPath = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
 $host = "localhost"
 $port = "5432"
-$database = "secured_guard"
+$database = "fluxbus"
 $username = "postgres"
 $password = "postgres"
 

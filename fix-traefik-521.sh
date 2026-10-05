@@ -12,7 +12,7 @@ echo "🔧 Iniciando correção do erro 521 (Cloudflare não consegue conectar a
 # Verificar se está no diretório correto
 if [ ! -f "docker-compose.traefik.yml" ]; then
     echo "❌ Erro: docker-compose.traefik.yml não encontrado!"
-    echo "Execute este script no diretório /var/www/secured_guard"
+    echo "Execute este script no diretório /var/www/fluxbus"
     exit 1
 fi
 
@@ -80,13 +80,13 @@ fi
 # ========================================
 echo ""
 echo "🔍 Verificando configuração dinâmica do Traefik..."
-if [ -f "/var/www/secured_guard/traefik/dynamic/ci.yml" ]; then
+if [ -f "/var/www/fluxbus/traefik/dynamic/ci.yml" ]; then
     echo "✅ Arquivo de configuração dinâmica existe"
 else
-    echo "⚠️  Arquivo de configuração dinâmica não existe em /var/www/secured_guard/traefik/dynamic/ci.yml"
+    echo "⚠️  Arquivo de configuração dinâmica não existe em /var/www/fluxbus/traefik/dynamic/ci.yml"
     echo "📝 Criando diretório se não existir..."
-    mkdir -p /var/www/secured_guard/traefik/dynamic
-    echo "⚠️  Você precisa transferir o arquivo traefik-dynamic-ci.yml para /var/www/secured_guard/traefik/dynamic/ci.yml"
+    mkdir -p /var/www/fluxbus/traefik/dynamic
+    echo "⚠️  Você precisa transferir o arquivo traefik-dynamic-ci.yml para /var/www/fluxbus/traefik/dynamic/ci.yml"
 fi
 
 # ========================================
@@ -95,7 +95,7 @@ fi
 if [ "$TRAEFIK_RUNNING" = false ]; then
     echo ""
     echo "🔄 Iniciando Traefik..."
-    cd /var/www/secured_guard
+    cd /var/www/fluxbus
     docker-compose -f docker-compose.traefik.yml up -d
     
     echo "⏳ Aguardando Traefik iniciar (15s)..."
@@ -112,7 +112,7 @@ if [ "$TRAEFIK_RUNNING" = false ]; then
 else
     echo ""
     echo "🔄 Reiniciando Traefik para garantir que está configurado corretamente..."
-    cd /var/www/secured_guard
+    cd /var/www/fluxbus
     docker-compose -f docker-compose.traefik.yml restart
     
     echo "⏳ Aguardando Traefik reiniciar (10s)..."
@@ -149,11 +149,11 @@ fi
 echo ""
 echo "🔍 Verificando se nginx-ci está na rede z7network..."
 if docker ps | grep -q "nginx-ci"; then
-    if docker inspect secured-guard-nginx-ci | grep -q "z7network"; then
+    if docker inspect fluxbus-nginx-ci | grep -q "z7network"; then
         echo "✅ nginx-ci está na rede z7network"
     else
         echo "⚠️  nginx-ci não está na rede z7network. Reconectando..."
-        docker network connect z7network secured-guard-nginx-ci || echo "⚠️  Falha ao conectar (pode já estar conectado)"
+        docker network connect z7network fluxbus-nginx-ci || echo "⚠️  Falha ao conectar (pode já estar conectado)"
     fi
 else
     echo "⚠️  nginx-ci não está rodando"
@@ -164,7 +164,7 @@ fi
 # ========================================
 echo ""
 echo "🧪 Testando conectividade entre Traefik e nginx-ci..."
-if docker exec traefik ping -c 1 secured-guard-nginx-ci > /dev/null 2>&1; then
+if docker exec traefik ping -c 1 fluxbus-nginx-ci > /dev/null 2>&1; then
     echo "✅ Traefik consegue alcançar nginx-ci"
 else
     echo "⚠️  Traefik não consegue alcançar nginx-ci"

@@ -1,8 +1,8 @@
-package com.z7design.secured_guard.controller;
+package com.z7design.fluxbus.controller;
 
-import com.z7design.secured_guard.dto.MessageResponseDTO;
-import com.z7design.secured_guard.service.EmailService;
-import com.z7design.secured_guard.service.BaileysRestService;
+import com.z7design.fluxbus.dto.MessageResponseDTO;
+import com.z7design.fluxbus.service.EmailService;
+import com.z7design.fluxbus.service.BaileysRestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -74,7 +74,7 @@ public class CommunicationTestController {
     @PostMapping("/email/simple")
     public ResponseEntity<MessageResponseDTO> testSimpleEmail(
             @RequestParam String toEmail,
-            @RequestParam(required = false, defaultValue = "Teste do Sistema SecuredGuard") String subject,
+            @RequestParam(required = false, defaultValue = "Teste do Sistema FluxBus") String subject,
             @RequestParam(required = false, defaultValue = "") String message
     ) {
         try {
@@ -180,7 +180,7 @@ public class CommunicationTestController {
     @PostMapping("/whatsapp")
     public ResponseEntity<MessageResponseDTO> testWhatsApp(
             @RequestParam String phoneNumber,
-            @RequestParam(required = false, defaultValue = "Teste do Sistema SecuredGuard") String message
+            @RequestParam(required = false, defaultValue = "Teste do Sistema FluxBus") String message
     ) {
         try {
             log.info("🧪 Iniciando teste de envio de WhatsApp para: {}", phoneNumber);
@@ -188,7 +188,7 @@ public class CommunicationTestController {
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
             // 🔒 ENCODING: Remover acentos e emojis para compatibilidade WhatsApp
             String testMessage = message.isEmpty()
-                ? String.format("*Teste do Sistema SecuredGuard*\n\nEsta e uma mensagem de teste.\n\nData/Hora: %s\n\nSe voce recebeu esta mensagem, o sistema de WhatsApp esta funcionando corretamente!", timestamp)
+                ? String.format("*Teste do Sistema FluxBus*\n\nEsta e uma mensagem de teste.\n\nData/Hora: %s\n\nSe voce recebeu esta mensagem, o sistema de WhatsApp esta funcionando corretamente!", timestamp)
                 : message;
 
             // Enviar via WhatsApp usando BaileysRestService

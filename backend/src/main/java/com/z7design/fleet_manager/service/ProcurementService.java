@@ -34,6 +34,7 @@ public class ProcurementService {
     private final StockItemRepository stockItemRepository;
     private final FleetWorkOrderRepository workOrderRepository;
     private final UserRepository userRepository;
+    private final SystemNotificationService notificationService;
 
     private User resolveCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -50,7 +51,7 @@ public class ProcurementService {
                 .orElseThrow(() -> new IllegalArgumentException("Requisição não encontrada: " + dto.getRequisitionId()));
 
         ProcurementQuoteComparison comparison = comparisonRepository.findByRequisitionId(dto.getRequisitionId())
-                .orElse(null);
+                .stream().findFirst().orElse(null);
 
         if (comparison == null) {
             String compNum = "COT-" + System.currentTimeMillis() % 1000000;
@@ -221,6 +222,23 @@ public class ProcurementService {
 
         requisition.setStatus(MaterialRequisition.RequisitionStatus.OC_GENERATED);
         requisitionRepository.save(requisition);
+
+        // Notificar usuários sobre a aprovação da compra
+        try {
+            String woInfo = requisition.getWorkOrder() != null ? " (OS #" + requisition.getWorkOrder().getOsNumber() + ")" : "";
+            SystemNotification notification = SystemNotification.builder()
+                    .type(SystemNotification.NotificationType.COTACOES_COMPRAS)
+                    .title("Compra Aprovada: " + requisition.getItemName())
+                    .description("A cotação do item '" + requisition.getItemName() + "' foi APROVADA" + woInfo + ". Fornecedor: " + chosenOption.getSupplierName() + " | Valor: R$ " + chosenOption.getTotalPrice() + ". Aguardando envio/entrega pelo fornecedor.")
+                    .priority(SystemNotification.NotificationPriority.MEDIA)
+                    .timestamp(LocalDateTime.now())
+                    .read(false)
+                    .value(chosenOption.getTotalPrice())
+                    .build();
+            notificationService.createNotification(notification);
+        } catch (Exception e) {
+            log.warn("Falha ao emitir notificação de aprovação de compra", e);
+        }
 
         return toPurchaseOrderDTO(po);
     }
@@ -399,7 +417,7 @@ public class ProcurementService {
     @Transactional(readOnly = true)
     public ProcurementQuoteComparisonDTO getComparisonByRequisitionId(UUID requisitionId) {
         ProcurementQuoteComparison comparison = comparisonRepository.findByRequisitionId(requisitionId)
-                .orElse(null);
+                .stream().findFirst().orElse(null);
         if (comparison == null) return null;
         return toComparisonDTO(comparison);
     }

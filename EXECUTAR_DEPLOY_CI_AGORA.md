@@ -90,7 +90,7 @@ curl -X POST https://ci.z7botsolutions.com.br/api/auth/login \
 ```bash
 # 1. Criar instância
 curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"instanceName":"securedguard","integration":"WHATSAPP-BAILEYS"}'
 
@@ -98,13 +98,13 @@ curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
 sleep 10
 
 # 3. Obter QR Code
-curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+curl -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   https://evolution.z7botsolutions.com.br/instance/connect/securedguard
 ```
 
 ### Ou acessar pelo navegador:
 1. Abra: `https://evolution.z7botsolutions.com.br/instance/connect/securedguard`
-2. Use extensão ModHeader para adicionar header: `apikey: B6D711FCDE4D4FD5936544120E713976`
+2. Use extensão ModHeader para adicionar header: `apikey: CHANGE_THIS_EVOLUTION_API_KEY`
 3. Escaneie com WhatsApp: **31971731747**
 
 ---
@@ -137,7 +137,7 @@ curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
 
 ## 🔑 Credenciais
 
-- **Evolution API Key:** `B6D711FCDE4D4FD5936544120E713976`
+- **Evolution API Key:** `CHANGE_THIS_EVOLUTION_API_KEY`
 - **Instance Name:** `securedguard`
 - **WhatsApp Number:** `31971731747`
 - **User Login:** `jose.ramos` / `Admin1234`

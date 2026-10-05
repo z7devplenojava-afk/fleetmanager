@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, DollarSign, Settings, FileText, Filter, RefreshCw, TrendingUp, Users, UserCheck, FileSpreadsheet } from 'lucide-react';
+import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, DollarSign, Settings, FileText, Filter, RefreshCw, TrendingUp, Users, UserCheck, FileSpreadsheet, FileCheck } from 'lucide-react';
 import { VehicleImportModal } from '@/components/frota/VehicleImportModal';
+import { VehicleCrlvImportModal } from '@/components/frota/VehicleCrlvImportModal';
+import { CrlvUploadTab } from '@/components/frota/CrlvUploadTab';
 import VeiculosTable from '@/components/frota/VeiculosTable';
 import AgregadosTable from '@/components/frota/AgregadosTable';
 import AgregadosDashboard from '@/components/frota/AgregadosDashboard';
@@ -18,7 +20,9 @@ import VehicleDocumentsTable from '@/components/frota/VehicleDocumentsTable';
 import MobilizationPanel from '@/components/frota/MobilizationPanel';
 import VeiculoFormModal from '@/components/frota/VeiculoFormModal';
 import VeiculoEditModal from '@/components/frota/VeiculoEditModal';
-import AbastecimentoFormModal from '@/components/frota/AbastecimentoFormModal';
+import AbastecimentoInternoFormModal from '@/components/frota/AbastecimentoInternoFormModal';
+import AbastecimentoExternoFormModal from '@/components/frota/AbastecimentoExternoFormModal';
+import AbastecimentoExternoReport from '@/components/frota/AbastecimentoExternoReport';
 import MultaFormModal from '@/components/frota/MultaFormModal';
 import MultaViewModal from '@/components/frota/MultaViewModal';
 import MultaDeleteDialog from '@/components/frota/MultaDeleteDialog';
@@ -28,6 +32,7 @@ import { DriverFuelConsumptionStats } from '@/components/frota/DriverFuelConsump
 import { DriverRankingStats } from '@/components/frota/DriverRankingStats';
 import { ManutencoesTable } from '@/components/frota/ManutencoesTable';
 import ManutencaoFormModal from '@/components/frota/ManutencaoFormModal';
+import OrdensServicoTable from '@/components/frota/OrdensServicoTable';
 import { ManutencaoViewModal } from '@/components/frota/ManutencaoViewModal';
 import { ManutencaoDeleteDialog } from '@/components/frota/ManutencaoDeleteDialog';
 import MotoristasTable from '@/components/frota/MotoristasTable';
@@ -44,6 +49,7 @@ import fleetService from '@/services/fleetService';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import driverService from '@/services/driverService';
+import { employeeService } from '@/services/employeeService';
 import maintenanceService from '@/services/maintenanceService';
 import kmControlService from '@/services/kmControlService';
 import { Vehicle, FuelRecord, Fine, KmControl } from '@/types/fleet';
@@ -58,6 +64,10 @@ import { companyService } from '@/services/companyService';
 interface VeiculoComponent {
   id: string; // UUID
   placa: string;
+  fleetNumber?: string;
+  prefixo?: string;
+  garageId?: string;
+  garageName?: string;
   marca: string;
   modelo: string;
   ano: number;
@@ -129,6 +139,10 @@ const mapVehicleToComponent = (vehicle: Vehicle): VeiculoComponent => {
   return {
     id: vehicle.id.toString(), // já é string UUID
     placa: vehicle.plate,
+    fleetNumber: vehicle.fleetNumber || (vehicle as any).prefixo || '',
+    prefixo: (vehicle as any).prefixo || vehicle.fleetNumber || '',
+    garageId: vehicle.garageId || (vehicle as any).garage?.id || '',
+    garageName: vehicle.garageName || (vehicle as any).garage?.name || '',
     marca: vehicle.brand,
     modelo: vehicle.model,
     ano: vehicle.year,
@@ -181,12 +195,16 @@ const Frota: React.FC = () => {
   const [isVeiculoModalOpen, setIsVeiculoModalOpen] = useState(false);
   const [isVeiculoEditModalOpen, setIsVeiculoEditModalOpen] = useState(false);
   const [isAbastecimentoModalOpen, setIsAbastecimentoModalOpen] = useState(false);
+  const [isAbastecimentoExternoModalOpen, setIsAbastecimentoExternoModalOpen] = useState(false);
+  const [abastecimentoTab, setAbastecimentoTab] = useState<'interno' | 'externo'>('interno');
   const [isManutencaoModalOpen, setIsManutencaoModalOpen] = useState(false);
   const [isManutencaoViewModalOpen, setIsManutencaoViewModalOpen] = useState(false);
+  const [manutencaoViewMode, setManutencaoViewMode] = useState<'os' | 'registros'>('os');
   const [isManutencaoDeleteDialogOpen, setIsManutencaoDeleteDialogOpen] = useState(false);
   const [isManutencaoDeleting, setIsManutencaoDeleting] = useState(false);
   const [isVehicleReportModalOpen, setIsVehicleReportModalOpen] = useState(false);
   const [isVehicleImportModalOpen, setIsVehicleImportModalOpen] = useState(false);
+  const [isCrlvModalOpen, setIsCrlvModalOpen] = useState(false);
   const [isMultaModalOpen, setIsMultaModalOpen] = useState(false);
   const [isAgregadoModalOpen, setIsAgregadoModalOpen] = useState(false);
   const [selectedAgregado, setSelectedAgregado] = useState<Vehicle | null>(null);
@@ -327,6 +345,46 @@ const Frota: React.FC = () => {
     retry: 2,
     retryDelay: 1000
   });
+
+  // Buscar funcionários com CNH para compor a aba Motoristas
+  const {
+    data: employeesWithCnh,
+    isLoading: employeesLoading
+  } = useQuery({
+    queryKey: ['employees-cnh'],
+    queryFn: async () => {
+      const list = await employeeService.getAllEmployees();
+      return (Array.isArray(list) ? list : []).filter(
+        (emp) => emp?.cnhNumber && String(emp.cnhNumber).trim() !== ''
+      );
+    },
+    retry: 2,
+    retryDelay: 1000
+  });
+
+  // Motoristas = cadastro de motoristas + funcionários com CNH (dedup por CNH)
+  const motoristas = React.useMemo<Driver[]>(() => {
+    const base: Driver[] = (drivers || []) as Driver[];
+    const knownCnh = new Set(
+      base
+        .map((d) => (d.licenseNumber || '').trim().toUpperCase())
+        .filter(Boolean)
+    );
+
+    const fromEmployees: Driver[] = (employeesWithCnh || [])
+      .filter((emp) => !knownCnh.has(String(emp.cnhNumber).trim().toUpperCase()))
+      .map((emp) => ({
+        id: `emp-${emp.id}`,
+        name: emp.name,
+        status: emp.status === 'TERMINATED' ? 'INATIVO' : 'ATIVO',
+        licenseNumber: String(emp.cnhNumber).trim(),
+        phone: emp.phone || undefined,
+        source: 'EMPLOYEE' as const,
+        employeeId: emp.id
+      }));
+
+    return [...base, ...fromEmployees];
+  }, [drivers, employeesWithCnh]);
 
   // Exclusão de motoristas
   const deleteDriverMutation = useMutation<void, any, string>({
@@ -1192,7 +1250,7 @@ const Frota: React.FC = () => {
         ${multasHTML}
         
         <div style="text-align: center; margin-top: 30px; color: #666; font-size: 12px;">
-          <p>Relatório gerado automaticamente pelo Sistema Secured Guard</p>
+          <p>Relatório gerado automaticamente pelo Sistema FluxBus</p>
           <p>Data: ${currentDate} | Hora: ${new Date().toLocaleTimeString('pt-BR')}</p>
         </div>
       `;
@@ -1403,6 +1461,9 @@ const Frota: React.FC = () => {
             <TabsTrigger value="mobilizacao" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               Mobilização (PRD)
             </TabsTrigger>
+            <TabsTrigger value="crlv" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-blue-600 data-[state='active']:text-white text-blue-300 font-semibold flex items-center gap-1.5">
+              <FileCheck size={15} /> Uploads CRLV / DUT
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="veiculos" className="mt-6 space-y-4">
@@ -1450,6 +1511,14 @@ const Frota: React.FC = () => {
               </div>
               <div className="flex gap-2">
                 <Button
+                  onClick={() => setIsCrlvModalOpen(true)}
+                  variant="outline"
+                  className="border-blue-500 text-blue-400 hover:bg-blue-600 hover:text-white font-semibold"
+                >
+                  <FileCheck size={16} className="mr-2" />
+                  Importar CRLV (PDF)
+                </Button>
+                <Button
                   onClick={() => setIsVehicleImportModalOpen(true)}
                   variant="outline"
                   className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black font-semibold"
@@ -1495,22 +1564,84 @@ const Frota: React.FC = () => {
           <TabsContent value="abastecimentos" className="mt-6 space-y-4">
             <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
               <h3 className="text-seguranca-lightgray font-semibold">Controle de Abastecimento</h3>
-              <Button
-                onClick={() => setIsAbastecimentoModalOpen(true)}
-                className="bg-seguranca-red hover:bg-seguranca-darkred"
-              >
-                <Plus size={16} className="mr-2" />
-                Novo Abastecimento
-              </Button>
+              <div className="flex gap-2">
+                {abastecimentoTab === 'interno' ? (
+                  <Button
+                    onClick={() => setIsAbastecimentoModalOpen(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Novo Abastecimento Interno
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => setIsAbastecimentoExternoModalOpen(true)}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Novo Abastecimento Externo
+                  </Button>
+                )}
+              </div>
             </div>
-            <AbastecimentosTable
-              abastecimentos={fuelRecords || []}
-              veiculos={veiculosComponent}
-              onRefresh={refetchFuelRecords}
-            />
+
+            <Tabs value={abastecimentoTab} onValueChange={(v) => setAbastecimentoTab(v as 'interno' | 'externo')}>
+              <TabsList className="grid w-full grid-cols-2 bg-seguranca-graphite border-gray-600 p-1">
+                <TabsTrigger value="interno" className="text-sm text-seguranca-lightgray data-[state='active']:bg-blue-600">
+                  <Fuel size={16} className="mr-2" /> Abastecimento Interno
+                </TabsTrigger>
+                <TabsTrigger value="externo" className="text-sm text-seguranca-lightgray data-[state='active']:bg-green-600">
+                  <Fuel size={16} className="mr-2" /> Abastecimento Externo
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="interno" className="mt-4">
+                <AbastecimentosTable
+                  abastecimentos={fuelRecords || []}
+                  veiculos={veiculosComponent}
+                  onRefresh={refetchFuelRecords}
+                />
+              </TabsContent>
+
+              <TabsContent value="externo" className="mt-4">
+                <AbastecimentoExternoReport
+                  fuelRecords={fuelRecords || []}
+                  veiculos={veiculosComponent}
+                  onRefresh={refetchFuelRecords}
+                  activeSubTab="lancamentos"
+                  onSubTabChange={() => {}}
+                />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="manutencoes" className="mt-6 space-y-4">
+            {/* Alternador: Ordens de Serviço / Registros de Manutenção */}
+            <div className="flex items-center gap-2 bg-seguranca-graphite border border-gray-600 rounded-lg p-2 w-fit">
+              <Button
+                variant={manutencaoViewMode === 'os' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setManutencaoViewMode('os')}
+                className={manutencaoViewMode === 'os' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-white'}
+              >
+                <FileText size={16} className="mr-2" />
+                Ordens de Serviço
+              </Button>
+              <Button
+                variant={manutencaoViewMode === 'registros' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setManutencaoViewMode('registros')}
+                className={manutencaoViewMode === 'registros' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-white'}
+              >
+                <Settings size={16} className="mr-2" />
+                Registros de Manutenção
+              </Button>
+            </div>
+
+            {manutencaoViewMode === 'os' ? (
+              <OrdensServicoTable />
+            ) : (
+            <>
             <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
               <h3 className="text-seguranca-lightgray font-semibold flex items-center gap-2">
                 <Settings className="h-5 w-5" />
@@ -1585,6 +1716,8 @@ const Frota: React.FC = () => {
               onEdit={handleEditManutencao}
               onDelete={handleDeleteManutencao}
             />
+            </>
+            )}
           </TabsContent>
 
           <TabsContent value="controle-km" className="mt-6 space-y-4">
@@ -1706,7 +1839,7 @@ const Frota: React.FC = () => {
               </Button>
             </div>
 
-            {driversLoading && (
+            {(driversLoading || employeesLoading) && (
               <div className="flex items-center justify-center p-8 bg-seguranca-black border border-gray-600 rounded-lg">
                 <Loader2 className="h-8 w-8 animate-spin text-seguranca-yellow" />
                 <span className="ml-2 text-seguranca-lightgray">Carregando motoristas...</span>
@@ -1720,11 +1853,11 @@ const Frota: React.FC = () => {
               </div>
             )}
 
-            {drivers && (
+            {drivers && !driversLoading && (
               <div className="space-y-6">
                 <div className="bg-seguranca-black border border-gray-600 rounded-lg overflow-hidden">
                   <MotoristasTable
-                    drivers={drivers || []}
+                    drivers={motoristas}
                     onAdd={() => handleOpenDriverModal()}
                     onEdit={handleOpenDriverModal}
                     onDelete={(driver) => {
@@ -1923,6 +2056,11 @@ const Frota: React.FC = () => {
           <TabsContent value="mobilizacao" className="mt-6">
             <MobilizationPanel />
           </TabsContent>
+
+          {/* Aba de Uploads e Importação de CRLV / DUT (PDF) */}
+          <TabsContent value="crlv" className="mt-6">
+            <CrlvUploadTab onSuccess={refetchVehicles} />
+          </TabsContent>
         </Tabs>
 
         {/* Modais */}
@@ -1942,26 +2080,11 @@ const Frota: React.FC = () => {
           veiculo={selectedVeiculo}
         />
 
-        <AbastecimentoFormModal
+        <AbastecimentoInternoFormModal
           isOpen={isAbastecimentoModalOpen}
           onClose={() => setIsAbastecimentoModalOpen(false)}
           onSuccess={handleAbastecimentoSuccess}
-          veiculos={vehicles ? vehicles.map(v => ({
-            id: v.id,
-            placa: v.plate,
-            marca: v.brand,
-            modelo: v.model,
-            ano: v.year,
-            cor: v.color || '',
-            combustivel: v.fuelType.toLowerCase(),
-            quilometragem: v.currentMileage || 0,
-            status: v.status.toLowerCase(),
-            data_aquisicao: v.acquisitionDate,
-            valor_aquisicao: v.acquisitionValue ? Number(v.acquisitionValue) : undefined,
-            photos: v.photos ? Array.from(v.photos).map(file => file.name).join(',') : undefined,
-            capacidade: v.capacity,
-            observacoes: v.notes
-          })) : []}
+          veiculos={vehicles || []}
         />
 
         <ManutencaoFormModal
@@ -2128,6 +2251,14 @@ const Frota: React.FC = () => {
           }}
         />
 
+        <VehicleCrlvImportModal
+          open={isCrlvModalOpen}
+          onOpenChange={setIsCrlvModalOpen}
+          onSuccess={() => {
+            refetchVehicles();
+          }}
+        />
+
         <VehicleFineQueryModal
           isOpen={isFineQueryModalOpen}
           onClose={() => setIsFineQueryModalOpen(false)}
@@ -2149,6 +2280,18 @@ const Frota: React.FC = () => {
           vehicle={selectedAgregado}
           vehicles={vehicles || []}
         />
+
+        {isAbastecimentoExternoModalOpen && (
+          <AbastecimentoExternoFormModal
+            isOpen={isAbastecimentoExternoModalOpen}
+            onClose={() => setIsAbastecimentoExternoModalOpen(false)}
+            onSuccess={() => {
+              refetchFuelRecords();
+              setIsAbastecimentoExternoModalOpen(false);
+            }}
+            veiculos={vehicles || []}
+          />
+        )}
 
       </div>
       {/* Printable Area (Hidden) */}

@@ -52,6 +52,10 @@ public class MaterialRequisitionDTO {
     private UUID purchaseOrderId;
     private String ocNumber;
     private UUID quoteComparisonId;
+    private Integer quotesCount;
+    private String supplierName;
+    private BigDecimal totalAmount;
+    private java.time.LocalDate deliveryEstimatedDate;
 
     // Campos de Entrega e Baixa
     private LocalDateTime deliveryDate;

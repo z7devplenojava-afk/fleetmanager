@@ -15,7 +15,7 @@ $unitsData = @(
         description = "Unidade operacional no BH Shopping - Centro de Belo Horizonte"
         address = "Av. Cristiano Machado, 4000 - Belo Horizonte, MG"
         phone = "(31) 99999-8888"
-        email = "bhshopping@securedguard.com"
+        email = "bhshopping@fluxbus.com"
         parentId = $null
         clientId = $null
     },
@@ -24,7 +24,7 @@ $unitsData = @(
         description = "Unidade operacional no centro da cidade"
         address = "Rua da Liberdade, 100 - Centro - Belo Horizonte, MG"
         phone = "(31) 88888-7777"
-        email = "centro@securedguard.com"
+        email = "centro@fluxbus.com"
         parentId = $null
         clientId = $null
     },
@@ -33,7 +33,7 @@ $unitsData = @(
         description = "Unidade operacional na região da Savassi"
         address = "Rua Pernambuco, 500 - Savassi - Belo Horizonte, MG"
         phone = "(31) 77777-6666"
-        email = "savassi@securedguard.com"
+        email = "savassi@fluxbus.com"
         parentId = $null
         clientId = $null
     },
@@ -42,7 +42,7 @@ $unitsData = @(
         description = "Unidade operacional na região da Pampulha"
         address = "Av. Antônio Abrahão Caram, 1000 - Pampulha - Belo Horizonte, MG"
         phone = "(31) 66666-5555"
-        email = "pampulha@securedguard.com"
+        email = "pampulha@fluxbus.com"
         parentId = $null
         clientId = $null
     },
@@ -51,7 +51,7 @@ $unitsData = @(
         description = "Unidade operacional no Barreiro"
         address = "Rua Padre Pedro Pinto, 200 - Barreiro - Belo Horizonte, MG"
         phone = "(31) 55555-4444"
-        email = "barreiro@securedguard.com"
+        email = "barreiro@fluxbus.com"
         parentId = $null
         clientId = $null
     },
@@ -60,7 +60,7 @@ $unitsData = @(
         description = "Unidade operacional em Venda Nova"
         address = "Av. Venda Nova, 1500 - Venda Nova - Belo Horizonte, MG"
         phone = "(31) 44444-3333"
-        email = "vendanova@securedguard.com"
+        email = "vendanova@fluxbus.com"
         parentId = $null
         clientId = $null
     },
@@ -69,7 +69,7 @@ $unitsData = @(
         description = "Unidade operacional em Contagem"
         address = "Av. João César de Oliveira, 800 - Contagem, MG"
         phone = "(31) 33333-2222"
-        email = "contagem@securedguard.com"
+        email = "contagem@fluxbus.com"
         parentId = $null
         clientId = $null
     },
@@ -78,7 +78,7 @@ $unitsData = @(
         description = "Unidade operacional em Betim"
         address = "Rua das Palmeiras, 300 - Betim, MG"
         phone = "(31) 22222-1111"
-        email = "betim@securedguard.com"
+        email = "betim@fluxbus.com"
         parentId = $null
         clientId = $null
     },
@@ -87,7 +87,7 @@ $unitsData = @(
         description = "Unidade operacional em Ribeirão das Neves"
         address = "Av. Principal, 600 - Ribeirão das Neves, MG"
         phone = "(31) 11111-0000"
-        email = "ribeirao@securedguard.com"
+        email = "ribeirao@fluxbus.com"
         parentId = $null
         clientId = $null
     },
@@ -96,7 +96,7 @@ $unitsData = @(
         description = "Unidade operacional em Santa Luzia"
         address = "Rua da Paz, 400 - Santa Luzia, MG"
         phone = "(31) 00000-9999"
-        email = "santaluzia@securedguard.com"
+        email = "santaluzia@fluxbus.com"
         parentId = $null
         clientId = $null
     }

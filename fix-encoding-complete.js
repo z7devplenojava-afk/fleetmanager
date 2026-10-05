@@ -13,8 +13,8 @@ function fixFile(filePath) {
       [/usestáááate/g, 'useState'],
       
       // Corrigir mensagem WhatsApp
-      [/'Olá! Seu holerite está disponível para download\. Acesse o sistema SecuredGuard para visualizar\. Em caso de dúvidas, entre em contato com o RH\.'/, 
-       "'Olá! Seu holerite está disponível para download. Acesse o sistema SecuredGuard para visualizar. Em caso de dúvidas, entre em contato com o RH.'"],
+      [/'Olá! Seu holerite está disponível para download\. Acesse o sistema FluxBus para visualizar\. Em caso de dúvidas, entre em contato com o RH\.'/, 
+       "'Olá! Seu holerite está disponível para download. Acesse o sistema FluxBus para visualizar. Em caso de dúvidas, entre em contato com o RH.'"],
       
       // Corrigir comentários
       [/\/\/ estáados para unio de documentos/g, '// Estados para união de documentos'],

@@ -302,7 +302,7 @@ public class FleetWorkOrderService {
 
         // RN01 — Número da OS
         String osNumber = dto.getOsNumber();
-        if (osNumber == null || osNumber.isBlank()) {
+        if (osNumber == null || osNumber.isBlank() || repository.existsByOsNumber(osNumber)) {
             osNumber = generateOsNumber();
         }
 
@@ -967,10 +967,14 @@ public class FleetWorkOrderService {
                 totalParts = totalParts.add(total);
             }
 
+            String itemDesc = (itemDto.getDescription() != null && !itemDto.getDescription().isBlank())
+                    ? itemDto.getDescription()
+                    : (itemDto.getCode() != null && !itemDto.getCode().isBlank() ? "Item " + itemDto.getCode() : "Item de Manutenção");
+
             if (itemDto.getId() != null && existingById.containsKey(itemDto.getId())) {
                 WorkOrderItem existing = existingById.get(itemDto.getId());
                 keptIds.add(existing.getId());
-                existing.setDescription(itemDto.getDescription());
+                existing.setDescription(itemDesc);
                 existing.setType(itemType);
                 existing.setQuantity(qty);
                 existing.setUnitPrice(price);
@@ -987,7 +991,7 @@ public class FleetWorkOrderService {
                 consumeItemStock(itemDto.getProductId(), qty);
                 WorkOrderItem newItem = WorkOrderItem.builder()
                         .workOrder(entity)
-                        .description(itemDto.getDescription())
+                        .description(itemDesc)
                         .type(itemType)
                         .quantity(qty)
                         .unitPrice(price)
@@ -1021,11 +1025,15 @@ public class FleetWorkOrderService {
         BigDecimal price = itemDto.getUnitPrice() != null ? itemDto.getUnitPrice() : BigDecimal.ZERO;
         BigDecimal total = price.multiply(qty);
 
+        String itemDesc = (itemDto.getDescription() != null && !itemDto.getDescription().isBlank())
+                ? itemDto.getDescription()
+                : (itemDto.getCode() != null && !itemDto.getCode().isBlank() ? "Item " + itemDto.getCode() : "Item de Manutenção");
+
         consumeItemStock(itemDto.getProductId(), qty);
 
         WorkOrderItem item = WorkOrderItem.builder()
                 .workOrder(workOrder)
-                .description(itemDto.getDescription())
+                .description(itemDesc)
                 .type(itemType)
                 .quantity(qty)
                 .unitPrice(price)

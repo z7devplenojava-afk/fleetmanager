@@ -99,7 +99,7 @@ fi
 # ========================================
 log "5. Verificando/criando usuário na VPS..."
 
-NEW_USER="securedguard"
+NEW_USER="fluxbus"
 
 # Criar usuário se não existir
 sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "
@@ -165,7 +165,7 @@ log "Sincronizando arquivos..."
 sshpass -p "$VPS_PASSWORD" rsync -avz --delete \
     --exclude-from=.rsync-exclude.temp \
     -e "ssh -p $VPS_PORT -o StrictHostKeyChecking=no" \
-    ./ $VPS_USER@$VPS_HOST:/opt/secured-guard/
+    ./ $VPS_USER@$VPS_HOST:/opt/fluxbus/
 
 # Limpar arquivo temporário
 rm -f .rsync-exclude.temp
@@ -186,7 +186,7 @@ if [ -n "$DOMAIN" ]; then
     
     # Adicionar domínio ao arquivo .env
     sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "
-        echo 'DOMAIN=$DOMAIN' >> /opt/secured-guard/.env
+        echo 'DOMAIN=$DOMAIN' >> /opt/fluxbus/.env
         echo '✅ Domínio configurado!'
     "
 else
@@ -198,7 +198,7 @@ fi
 # ========================================
 log "9. Executando deploy com Traefik..."
 
-sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && docker-compose -f deploy/docker-compose.prod-traefik.yml up -d"
+sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && docker-compose -f deploy/docker-compose.prod-traefik.yml up -d"
 
 log "Deploy com Traefik concluído!"
 
@@ -207,7 +207,7 @@ log "Deploy com Traefik concluído!"
 # ========================================
 log "10. Verificando status dos serviços..."
 
-sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/secured-guard && docker-compose -f deploy/docker-compose.prod-traefik.yml ps"
+sshpass -p "$VPS_PASSWORD" ssh -p $VPS_PORT -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/fluxbus && docker-compose -f deploy/docker-compose.prod-traefik.yml ps"
 
 # ========================================
 # FINALIZAÇÃO
@@ -229,7 +229,7 @@ echo "🔧 Traefik Dashboard: https://$VPS_HOST:8080"
 echo ""
 info "Comandos úteis:"
 echo "- Conectar na VPS: ssh $NEW_USER@$VPS_HOST"
-echo "- Ver logs: ssh $NEW_USER@$VPS_HOST 'docker-compose -f /opt/secured-guard/deploy/docker-compose.prod-traefik.yml logs -f'"
-echo "- Status: ssh $NEW_USER@$VPS_HOST 'docker-compose -f /opt/secured-guard/deploy/docker-compose.prod-traefik.yml ps'"
+echo "- Ver logs: ssh $NEW_USER@$VPS_HOST 'docker-compose -f /opt/fluxbus/deploy/docker-compose.prod-traefik.yml logs -f'"
+echo "- Status: ssh $NEW_USER@$VPS_HOST 'docker-compose -f /opt/fluxbus/deploy/docker-compose.prod-traefik.yml ps'"
 echo ""
 warning "IMPORTANTE: Configure seu domínio para apontar para o IP da VPS: $VPS_HOST"

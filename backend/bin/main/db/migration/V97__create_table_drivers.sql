@@ -1,8 +1,0 @@
-CREATE TABLE drivers (
-    id UUID PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    license_number VARCHAR(50) UNIQUE,
-    status VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-); 

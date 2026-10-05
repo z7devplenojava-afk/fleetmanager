@@ -1,4 +1,4 @@
-Write-Host "SECURED GUARD - WSL Ubuntu"
+Write-Host "FLUXBUS - WSL Ubuntu"
 Write-Host "----------------------------------------"
 
 # 1. Start Docker in WSL (as root)
@@ -12,23 +12,23 @@ if ($dockerOk -ne "OK") {
 
 # 2. Prepare project files inside WSL
 Write-Host "2) Preparing project files..."
-wsl -d Ubuntu-22.04 bash -c "mkdir -p ~/secured-guard"
-wsl -d Ubuntu-22.04 bash -c "cp /mnt/c/dev/secured-guard/docker-compose.yml ~/secured-guard/"
-wsl -d Ubuntu-22.04 bash -c "cp -r /mnt/c/dev/secured-guard/whatsapp-service ~/secured-guard/ 2>/dev/null || true"
-wsl -d Ubuntu-22.04 bash -c "mkdir -p ~/secured-guard/backend/holerites/9-2025"
+wsl -d Ubuntu-22.04 bash -c "mkdir -p ~/fluxbus"
+wsl -d Ubuntu-22.04 bash -c "cp /mnt/c/dev/fluxbus/docker-compose.yml ~/fluxbus/"
+wsl -d Ubuntu-22.04 bash -c "cp -r /mnt/c/dev/fluxbus/whatsapp-service ~/fluxbus/ 2>/dev/null || true"
+wsl -d Ubuntu-22.04 bash -c "mkdir -p ~/fluxbus/backend/holerites/9-2025"
 
 # 3. Create network
 Write-Host "3) Creating Docker network..."
-wsl -d Ubuntu-22.04 bash -c "cd ~/secured-guard; docker network create secured-guard 2>/dev/null || echo 'network ok'"
+wsl -d Ubuntu-22.04 bash -c "cd ~/fluxbus; docker network create fluxbus 2>/dev/null || echo 'network ok'"
 
 # 4. Restart stack
 Write-Host "4) Restarting containers..."
-wsl -d Ubuntu-22.04 bash -c "cd ~/secured-guard; docker compose down 2>/dev/null || true"
-wsl -d Ubuntu-22.04 bash -c "cd ~/secured-guard; docker compose up -d"
+wsl -d Ubuntu-22.04 bash -c "cd ~/fluxbus; docker compose down 2>/dev/null || true"
+wsl -d Ubuntu-22.04 bash -c "cd ~/fluxbus; docker compose up -d"
 
 # 5. Show status
 Write-Host "5) Containers status:"
-wsl -d Ubuntu-22.04 bash -c "cd ~/secured-guard; docker ps --format '{{.Names}} - {{.Status}}'"
+wsl -d Ubuntu-22.04 bash -c "cd ~/fluxbus; docker ps --format '{{.Names}} - {{.Status}}'"
 
 Write-Host "----------------------------------------"
 Write-Host "Next: run .\\get-qr-rapido.ps1 to fetch the QR code"

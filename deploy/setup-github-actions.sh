@@ -39,7 +39,7 @@ log "1. Gerando chave SSH para GitHub Actions..."
 
 # Verificar se chave já existe
 if [ ! -f ~/.ssh/github_actions_key ]; then
-    ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_actions_key -N "" -C "github-actions-secured-guard"
+    ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_actions_key -N "" -C "github-actions-fluxbus"
     log "✅ Chave SSH gerada!"
 else
     log "✅ Chave SSH já existe!"
@@ -83,7 +83,7 @@ echo "   VPS_HOST:"
 echo "   185.225.233.18"
 echo ""
 echo "   VPS_USER:"
-echo "   securedguard"
+echo "   fluxbus"
 echo ""
 echo "   VPS_PORT:"
 echo "   22"
@@ -103,7 +103,7 @@ echo ""
 # 5. TESTAR CONEXÃO
 # ========================================
 log "5. Testando conexão SSH..."
-if ssh -i ~/.ssh/github_actions_key -o ConnectTimeout=10 -o StrictHostKeyChecking=no securedguard@185.225.233.18 "echo 'SSH Test OK'" 2>/dev/null; then
+if ssh -i ~/.ssh/github_actions_key -o ConnectTimeout=10 -o StrictHostKeyChecking=no fluxbus@185.225.233.18 "echo 'SSH Test OK'" 2>/dev/null; then
     log "✅ Conexão SSH funcionando!"
 else
     warning "⚠️  Conexão SSH não funcionou. Verifique se a chave foi adicionada na VPS."

@@ -52,6 +52,11 @@ public class RouteService {
         route.setCheckpointsRequired(routeDetails.isCheckpointsRequired());
         route.setGeofenceEnabled(routeDetails.isGeofenceEnabled());
         route.setDefaultRadiusMeters(routeDetails.getDefaultRadiusMeters());
+        route.setColor(routeDetails.getColor());
+        if (routeDetails.getStatus() != null && !routeDetails.getStatus().isBlank()) {
+            route.setStatus(routeDetails.getStatus());
+        }
+        route.setCapacity(routeDetails.getCapacity());
 
         if (routeDetails.getPoints() != null) {
             route.getPoints().clear();

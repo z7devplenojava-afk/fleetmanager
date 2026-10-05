@@ -57,6 +57,9 @@ public class EPIDeliveryFormItem {
     @Column(name = "uniform_piece", length = 50)
     private String uniformPiece; // CALCA, CAMISA, etc.
 
+    @Column(name = "stock_item_id")
+    private UUID stockItemId;
+
     @Column(columnDefinition = "TEXT")
     private String observations;
 }

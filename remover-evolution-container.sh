@@ -5,7 +5,7 @@
 
 echo "🗑️  Removendo container Evolution API..."
 
-cd /var/www/secured_guard/ci
+cd /var/www/fluxbus/ci
 
 # Parar e remover o container se estiver rodando
 if docker ps -a | grep -q evolution-api-ci; then
@@ -19,7 +19,7 @@ fi
 
 # Remover da rede se ainda estiver conectado
 echo "   Removendo da rede..."
-docker network disconnect secured-guard-ci evolution-api-ci 2>/dev/null || true
+docker network disconnect fluxbus-ci evolution-api-ci 2>/dev/null || true
 docker network disconnect z7network evolution-api-ci 2>/dev/null || true
 
 echo ""

@@ -43,6 +43,9 @@ import java.util.UUID;
  * O {@link VehicleCleaningDelayAlertScheduler} envia o alerta preventivo ao Gestor de
  * Tráfego quando faltam 20 minutos para a viagem e a ordem segue em execução.
  */
+import com.z7design.fleet_manager.dto.FleetWorkOrderDTO;
+import com.z7design.fleet_manager.model.FleetWorkOrder;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -54,8 +57,9 @@ public class VehicleCleaningService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final EvolutionApiService evolutionApiService;
-    private final BaileysRestService baileysRestService;
     private final ObjectMapper objectMapper;
+    private final FleetWorkOrderService fleetWorkOrderService;
+    private final CarWashRepository carWashRepository;
 
     private static final String PHOTOS_DIR = "uploads/vehicle-cleaning/";
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
@@ -185,6 +189,31 @@ public class VehicleCleaningService {
                 ? request.getChecklistData()
                 : DEFAULT_CHECKLIST_TEMPLATE;
 
+        VehicleCleaningOrder.ExecutionLocation execLocation = request.getExecutionLocation() != null
+                ? request.getExecutionLocation()
+                : VehicleCleaningOrder.ExecutionLocation.INTERNAL;
+
+        String carWashName = null;
+        java.math.BigDecimal cost = request.getCleaningCost() != null ? request.getCleaningCost() : java.math.BigDecimal.ZERO;
+        UUID carWashId = request.getCarWashId();
+
+        if (execLocation == VehicleCleaningOrder.ExecutionLocation.EXTERNAL && carWashId != null) {
+            var cwOpt = carWashRepository.findById(carWashId);
+            if (cwOpt.isPresent()) {
+                var cw = cwOpt.get();
+                carWashName = cw.getName();
+                if (cost.compareTo(java.math.BigDecimal.ZERO) == 0) {
+                    cost = switch (request.getCleaningType()) {
+                        case EXTERNAL -> cw.getPriceExternal();
+                        case INTERNAL -> cw.getPriceInternal();
+                        case SANITARY -> cw.getPriceSanitary();
+                        case COMPLETE -> cw.getPriceComplete();
+                    };
+                    if (cost == null) cost = java.math.BigDecimal.ZERO;
+                }
+            }
+        }
+
         VehicleCleaningOrder order = VehicleCleaningOrder.builder()
                 .vehicle(vehicle)
                 .driver(driver)
@@ -201,12 +230,48 @@ public class VehicleCleaningService {
                 .phase(VehicleCleaningOrder.CleaningPhase.AGUARDANDO)
                 .releaseDeadline(request.getReleaseDeadline())
                 .releaseSpot(request.getReleaseSpot())
+                .executionLocation(execLocation)
+                .carWashId(carWashId)
+                .carWashName(carWashName)
+                .cleaningCost(cost)
                 .companyId(userCompanyId != null ? userCompanyId : vehicle.getCompanyId())
                 .build();
 
         order = repository.save(order);
-        log.info("Ordem de limpeza criada: id={}, veículo={}, tipo={}, setor={}, prioridade={}, deadline={}",
-                order.getId(), vehicle.getPlate(), order.getCleaningType(), sector, priority, order.getReleaseDeadline());
+
+        // Gera automaticamente a Ordem de Serviço (OS) correspondente na Gestão de OS
+        try {
+            FleetWorkOrderDTO woDto = new FleetWorkOrderDTO();
+            woDto.setVehicleId(vehicle.getId());
+            woDto.setMaintenanceType(FleetWorkOrder.MaintenanceType.LIMPEZA);
+            woDto.setStatus(FleetWorkOrder.WorkOrderStatus.OPEN);
+            woDto.setAnomaliesDescription("Solicitação de Higienização/Limpeza (" + request.getCleaningType() + ")"
+                    + (execLocation == VehicleCleaningOrder.ExecutionLocation.EXTERNAL && carWashName != null ? " — Prestador: " + carWashName : "")
+                    + (request.getObservations() != null && !request.getObservations().isBlank() ? " — " + request.getObservations() : ""));
+            woDto.setNotes("Solicitado por: " + (currentUser.getName() != null ? currentUser.getName() : "Usuário") + " (" + sector + ")"
+                    + (execLocation == VehicleCleaningOrder.ExecutionLocation.EXTERNAL ? " [Lava-Jato Externo: " + (carWashName != null ? carWashName : "Terceirizado") + " - R$ " + cost + "]" : " [Garagem Própria]"));
+            if (cost.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                woDto.setLaborCost(cost);
+            }
+            if (carWashName != null) {
+                woDto.setMechanicName(carWashName);
+            }
+            if (vehicle.getGarageId() != null) woDto.setGarageId(vehicle.getGarageId());
+            if (vehicle.getWorkPostId() != null) woDto.setWorkPostId(vehicle.getWorkPostId());
+            if (vehicle.getClientId() != null) woDto.setClientId(vehicle.getClientId());
+
+            FleetWorkOrderDTO createdWo = fleetWorkOrderService.create(woDto);
+            if (createdWo != null) {
+                order.setWorkOrderId(createdWo.getId());
+                order.setOsNumber(createdWo.getOsNumber());
+                order = repository.save(order);
+            }
+        } catch (Exception e) {
+            log.warn("Não foi possível gerar a OS correspondente para a solicitação de limpeza {}: {}", order.getId(), e.getMessage());
+        }
+
+        log.info("Ordem de limpeza criada: id={}, OS={}, veículo={}, tipo={}, setor={}, local={}, lavajato={}, custo={}",
+                order.getId(), order.getOsNumber(), vehicle.getPlate(), order.getCleaningType(), sector, execLocation, carWashName, cost);
         return toDTO(order);
     }
 
@@ -622,13 +687,7 @@ public class VehicleCleaningService {
         } catch (Exception e) {
             log.warn("Evolution API falhou ao notificar limpeza {}: {}", orderId, e.getMessage());
         }
-        if (!sent) {
-            try {
-                sent = baileysRestService.sendTextMessage(phone, whatsappMessage);
-            } catch (Exception e) {
-                log.warn("Baileys falhou ao notificar limpeza {}: {}", orderId, e.getMessage());
-            }
-        }
+
         if (!sent) {
             log.warn("WhatsApp falhou para limpeza {} no número {}", orderId, phone);
         }
@@ -654,6 +713,43 @@ public class VehicleCleaningService {
             throw new ResourceNotFoundException("Ordem de limpeza não encontrada com ID: " + id);
         }
         return order;
+    }
+
+    @Transactional
+    public VehicleCleaningOrderDTO uploadEvidencePhoto(UUID id, String category, MultipartFile file, UUID companyId) {
+        VehicleCleaningOrder order = findOrderScoped(id, companyId);
+
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Arquivo de foto é obrigatório");
+        }
+
+        try {
+            Path uploadPath = Paths.get(PHOTOS_DIR);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+            String originalFilename = file.getOriginalFilename();
+            String extension = (originalFilename != null && originalFilename.contains("."))
+                    ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
+            String filename = category + "_" + order.getId() + "_" + System.currentTimeMillis() + extension;
+            Files.copy(file.getInputStream(), uploadPath.resolve(filename));
+            String photoUrl = "/uploads/vehicle-cleaning/" + filename;
+
+            switch (category.toLowerCase()) {
+                case "before_internal", "beforeinternal", "antes_interno" -> order.setPhotoBeforeInternal(photoUrl);
+                case "before_external", "beforeexternal", "antes_externo" -> order.setPhotoBeforeExternal(photoUrl);
+                case "after_internal", "afterinternal", "depois_interno" -> order.setPhotoAfterInternal(photoUrl);
+                case "after_external", "afterexternal", "depois_externo" -> order.setPhotoAfterExternal(photoUrl);
+                default -> throw new IllegalArgumentException("Categoria de foto de evidência inválida: " + category);
+            }
+
+            order = repository.save(order);
+            log.info("Foto de evidência ({}) salva para ordem de limpeza {}", category, id);
+            return toDTO(order);
+        } catch (IOException e) {
+            log.error("Erro ao salvar foto de evidência da limpeza: {}", e.getMessage());
+            throw new RuntimeException("Erro ao salvar foto de evidência da limpeza: " + e.getMessage());
+        }
     }
 
     private VehicleCleaningOrderDTO toDTO(VehicleCleaningOrder order) {
@@ -689,8 +785,18 @@ public class VehicleCleaningService {
         dto.setQualityInspectedAt(order.getQualityInspectedAt());
         dto.setQualityChecklist(order.getQualityChecklist());
         dto.setReleaseSpot(order.getReleaseSpot());
+        dto.setExecutionLocation(order.getExecutionLocation());
+        dto.setCarWashId(order.getCarWashId());
+        dto.setCarWashName(order.getCarWashName());
+        dto.setCleaningCost(order.getCleaningCost());
+        dto.setPhotoBeforeInternal(order.getPhotoBeforeInternal());
+        dto.setPhotoBeforeExternal(order.getPhotoBeforeExternal());
+        dto.setPhotoAfterInternal(order.getPhotoAfterInternal());
+        dto.setPhotoAfterExternal(order.getPhotoAfterExternal());
         dto.setReleasedAt(order.getReleasedAt());
         dto.setCompletedAt(order.getCompletedAt());
+        dto.setWorkOrderId(order.getWorkOrderId());
+        dto.setOsNumber(order.getOsNumber());
         dto.setCompanyId(order.getCompanyId());
         dto.setCreatedAt(order.getCreatedAt());
         dto.setUpdatedAt(order.getUpdatedAt());

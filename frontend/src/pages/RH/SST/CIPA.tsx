@@ -29,32 +29,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-
-interface CIPAMember {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  position: 'PRESIDENTE' | 'VICE_PRESIDENTE' | 'SECRETARIO' | 'MEMBRO';
-  department: string;
-  startDate: string;
-  endDate: string;
-  status: 'ATIVO' | 'INATIVO';
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface CIPAReunion {
-  id: string;
-  title: string;
-  date: string;
-  attendees: string[];
-  agenda: string[];
-  decisions: string[];
-  nextReunionDate?: string;
-  status: 'AGENDADA' | 'REALIZADA' | 'CANCELADA';
-  createdAt: string;
-  updatedAt: string;
-}
+import { cipaService, CIPAMember, CIPAReunion } from '@/services/cipaService';
+import { employeeService, Employee } from '@/services/employeeService';
 
 const CIPA: React.FC = () => {
   const navigate = useNavigate();
@@ -72,6 +48,8 @@ const CIPA: React.FC = () => {
   // Estados para modal de membro
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [editingMember, setEditingMember] = useState<CIPAMember | null>(null);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [savingMember, setSavingMember] = useState(false);
   const [memberForm, setMemberForm] = useState({
     employeeId: '',
     position: '',
@@ -93,60 +71,20 @@ const CIPA: React.FC = () => {
   // Carregar dados
   useEffect(() => {
     loadData();
+    employeeService.getAllEmployees()
+      .then(setEmployees)
+      .catch(err => console.error('Erro ao carregar funcionários:', err));
   }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      // TODO: Implementar chamadas para API
-      // const [membersData, reunionsData] = await Promise.all([
-      //   sstService.getCIPAMembers(),
-      //   sstService.getCIPAReunions()
-      // ]);
-      
-      // Mock data para demonstração
-      setMembers([
-        {
-          id: '1',
-          employeeId: 'emp1',
-          employeeName: 'João Silva',
-          position: 'PRESIDENTE',
-          department: 'Administrativo',
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          status: 'ATIVO',
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z'
-        },
-        {
-          id: '2',
-          employeeId: 'emp2',
-          employeeName: 'Maria Santos',
-          position: 'VICE_PRESIDENTE',
-          department: 'Operacional',
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          status: 'ATIVO',
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z'
-        }
+      const [membersData, reunionsData] = await Promise.all([
+        cipaService.getMembers(),
+        cipaService.getMeetings(),
       ]);
-
-      setReunions([
-        {
-          id: '1',
-          title: 'Reunião Mensal - Janeiro 2024',
-          date: '2024-01-15',
-          attendees: ['João Silva', 'Maria Santos'],
-          agenda: ['Análise de acidentes', 'Plano de ação'],
-          decisions: ['Implementar treinamento de segurança'],
-          nextReunionDate: '2024-02-15',
-          status: 'REALIZADA',
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-15T00:00:00Z'
-        }
-      ]);
-
+      setMembers(membersData);
+      setReunions(reunionsData);
       setError(null);
     } catch (err) {
       console.error('Erro ao carregar dados da CIPA:', err);
@@ -162,16 +100,35 @@ const CIPA: React.FC = () => {
   };
 
   const handleSaveMember = async () => {
+    if (!memberForm.employeeId || !memberForm.position || !memberForm.startDate || !memberForm.endDate) {
+      toast({
+        title: "Atenção",
+        description: "Preencha funcionário, cargo na CIPA e as datas do mandato.",
+        variant: "destructive"
+      });
+      return;
+    }
     try {
+      setSavingMember(true);
       if (editingMember) {
-        // TODO: Implementar atualização
+        await cipaService.updateMember(editingMember.id, {
+          employeeId: memberForm.employeeId,
+          position: memberForm.position,
+          startDate: memberForm.startDate,
+          endDate: memberForm.endDate,
+        });
         toast({
           title: "Sucesso",
           description: "Membro da CIPA atualizado com sucesso!",
           variant: "default"
         });
       } else {
-        // TODO: Implementar criação
+        await cipaService.createMember({
+          employeeId: memberForm.employeeId,
+          position: memberForm.position,
+          startDate: memberForm.startDate,
+          endDate: memberForm.endDate,
+        });
         toast({
           title: "Sucesso",
           description: "Membro da CIPA adicionado com sucesso!",
@@ -189,27 +146,53 @@ const CIPA: React.FC = () => {
         endDate: ''
       });
       await loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao salvar membro da CIPA:', err);
       toast({
         title: "Erro",
-        description: "Erro ao salvar membro da CIPA",
+        description: err?.response?.data?.message || "Erro ao salvar membro da CIPA",
         variant: "destructive"
       });
+    } finally {
+      setSavingMember(false);
     }
   };
 
   const handleSaveReunion = async () => {
+    if (!reunionForm.title || !reunionForm.date) {
+      toast({
+        title: "Atenção",
+        description: "Preencha o título e a data da reunião.",
+        variant: "destructive"
+      });
+      return;
+    }
     try {
+      const agendaList = reunionForm.agenda
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
       if (editingReunion) {
-        // TODO: Implementar atualização
+        await cipaService.updateMeeting(editingReunion.id, {
+          title: reunionForm.title,
+          date: reunionForm.date,
+          agenda: agendaList,
+          nextReunionDate: reunionForm.nextReunionDate || undefined,
+        });
         toast({
           title: "Sucesso",
           description: "Reunião da CIPA atualizada com sucesso!",
           variant: "default"
         });
       } else {
-        // TODO: Implementar criação
+        await cipaService.createMeeting({
+          title: reunionForm.title,
+          date: reunionForm.date,
+          agenda: agendaList,
+          nextReunionDate: reunionForm.nextReunionDate || undefined,
+          status: 'AGENDADA',
+        });
         toast({
           title: "Sucesso",
           description: "Reunião da CIPA agendada com sucesso!",
@@ -226,11 +209,11 @@ const CIPA: React.FC = () => {
         nextReunionDate: ''
       });
       await loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao salvar reunião da CIPA:', err);
       toast({
         title: "Erro",
-        description: "Erro ao salvar reunião da CIPA",
+        description: err?.response?.data?.message || "Erro ao salvar reunião da CIPA",
         variant: "destructive"
       });
     }
@@ -263,7 +246,7 @@ const CIPA: React.FC = () => {
     if (!window.confirm('Tem certeza que deseja remover este membro da CIPA?')) return;
     
     try {
-      // TODO: Implementar exclusão
+      await cipaService.deleteMember(id);
       toast({
         title: "Sucesso",
         description: "Membro da CIPA removido com sucesso!",
@@ -284,7 +267,7 @@ const CIPA: React.FC = () => {
     if (!window.confirm('Tem certeza que deseja excluir esta reunião?')) return;
     
     try {
-      // TODO: Implementar exclusão
+      await cipaService.deleteMeeting(id);
       toast({
         title: "Sucesso",
         description: "Reunião excluída com sucesso!",
@@ -594,12 +577,21 @@ const CIPA: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <Label className="text-seguranca-lightgray">Funcionário</Label>
-                  <Input
+                  <Select
                     value={memberForm.employeeId}
-                    onChange={(e) => setMemberForm({...memberForm, employeeId: e.target.value})}
-                    placeholder="ID do funcionário"
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  />
+                    onValueChange={(value) => setMemberForm({...memberForm, employeeId: value})}
+                  >
+                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                      <SelectValue placeholder="Selecione o funcionário" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-black border-gray-600">
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id} className="text-seguranca-lightgray">
+                          {emp.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div>

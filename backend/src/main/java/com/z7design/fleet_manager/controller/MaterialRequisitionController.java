@@ -33,8 +33,8 @@ public class MaterialRequisitionController {
     @GetMapping("/check-availability")
     @Operation(summary = "Verifica disponibilidade de item no estoque e conflitos de reserva por outros veículos")
     public ResponseEntity<StockItemAvailabilityDTO> checkAvailability(
-            @RequestParam UUID stockItemId,
-            @RequestParam(required = false) UUID excludeWorkOrderId) {
+            @RequestParam("stockItemId") UUID stockItemId,
+            @RequestParam(name = "excludeWorkOrderId", required = false) UUID excludeWorkOrderId) {
         return ResponseEntity.ok(requisitionService.checkStockItemAvailability(stockItemId, excludeWorkOrderId));
     }
 
@@ -45,35 +45,57 @@ public class MaterialRequisitionController {
     }
 
     @GetMapping
-    @Operation(summary = "Lista requisições com filtro opcional por status")
+    @Operation(summary = "Lista requisições com filtro opcional por status ou por OS")
     public ResponseEntity<List<MaterialRequisitionDTO>> listRequisitions(
-            @RequestParam(required = false) String status) {
+            @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "workOrderId", required = false) String workOrderId) {
         MaterialRequisition.RequisitionStatus statusEnum = null;
         if (status != null && !status.trim().isEmpty() && !status.equalsIgnoreCase("ALL")) {
             try {
                 statusEnum = MaterialRequisition.RequisitionStatus.valueOf(status.trim().toUpperCase());
             } catch (Exception ignored) {}
         }
-        return ResponseEntity.ok(requisitionService.listRequisitions(statusEnum));
+        UUID woId = null;
+        if (workOrderId != null && !workOrderId.trim().isEmpty()) {
+            try {
+                woId = UUID.fromString(workOrderId.trim());
+            } catch (Exception ignored) {}
+        }
+        return ResponseEntity.ok(requisitionService.listRequisitions(statusEnum, woId));
+    }
+
+    @GetMapping("/by-work-order/{workOrderId}")
+    @Operation(summary = "Lista requisições registradas para uma Ordem de Serviço específica")
+    public ResponseEntity<List<MaterialRequisitionDTO>> getByWorkOrderId(@PathVariable("workOrderId") String workOrderId) {
+        try {
+            if (workOrderId == null || workOrderId.trim().isEmpty()) {
+                return ResponseEntity.ok(List.of());
+            }
+            UUID woId = UUID.fromString(workOrderId.trim());
+            return ResponseEntity.ok(requisitionService.getRequisitionsByWorkOrderId(woId));
+        } catch (Exception e) {
+            log.error("⚠️ Erro no endpoint por OS: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Busca detalhes de uma requisição")
-    public ResponseEntity<MaterialRequisitionDTO> getById(@PathVariable UUID id) {
+    public ResponseEntity<MaterialRequisitionDTO> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(requisitionService.getRequisitionById(id));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualiza uma requisição pendente")
     public ResponseEntity<MaterialRequisitionDTO> updateRequisition(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody com.z7design.fleet_manager.dto.procurement.UpdateRequisitionRequestDTO dto) {
         return ResponseEntity.ok(requisitionService.updateRequisition(id, dto));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Exclui uma requisição pendente")
-    public ResponseEntity<Void> deleteRequisition(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteRequisition(@PathVariable("id") UUID id) {
         requisitionService.deleteRequisition(id);
         return ResponseEntity.noContent().build();
     }
@@ -91,7 +113,7 @@ public class MaterialRequisitionController {
     @PostMapping("/{id}/approve")
     @Operation(summary = "Aprovação da requisição pelo Almoxarifado")
     public ResponseEntity<MaterialRequisitionDTO> approveRequisition(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) Map<String, String> body) {
         String notes = body != null ? body.get("notes") : null;
         return ResponseEntity.ok(requisitionService.approveByAlmoxarifado(id, notes));
@@ -100,7 +122,7 @@ public class MaterialRequisitionController {
     @PostMapping("/{id}/reject")
     @Operation(summary = "Rejeição da requisição pelo Almoxarifado")
     public ResponseEntity<MaterialRequisitionDTO> rejectRequisition(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody Map<String, String> body) {
         String reason = body != null ? body.get("reason") : "Rejeitado pelo Almoxarifado";
         return ResponseEntity.ok(requisitionService.rejectByAlmoxarifado(id, reason));
@@ -120,7 +142,7 @@ public class MaterialRequisitionController {
     @PostMapping("/{id}/deliver")
     @Operation(summary = "Confirma a entrega do item pelo almoxarifado e executa a baixa automática no estoque físico")
     public ResponseEntity<MaterialRequisitionDTO> confirmDelivery(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) ConfirmDeliveryRequestDTO dto) {
         return ResponseEntity.ok(requisitionService.confirmDeliveryAndDeductStock(id, dto));
     }
