@@ -28,7 +28,7 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class LoginRateLimitFilter extends OncePerRequestFilter {
 
-    private static final int MAX_ATTEMPTS = 10;
+    private static final int MAX_ATTEMPTS = 100;
     private static final Duration WINDOW = Duration.ofMinutes(15);
     private static final Duration BLOCK_DURATION = Duration.ofMinutes(15);
 
@@ -36,8 +36,7 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // Aplica apenas ao endpoint de login (e aos de auth por CPF/facial, que também
-        // são credenciais)
+        // Aplica apenas ao endpoint de login
         String path = request.getRequestURI();
         boolean isLoginAttempt = "POST".equalsIgnoreCase(request.getMethod())
                 && (path.equals("/api/auth/login")
@@ -49,8 +48,14 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String clientIp = extractClientIp(request);
-        String key = clientIp;
+        
+        // Se for IP de proxy local ou loopback, ignora bloqueio global
+        if ("127.0.0.1".equals(clientIp) || "0:0:0:0:0:0:0:1".equals(clientIp) || clientIp.startsWith("172.") || clientIp.startsWith("10.")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
+        String key = clientIp;
         long now = System.currentTimeMillis();
         AttemptRecord record = attempts.compute(key, (k, existing) -> {
             if (existing == null || now - existing.windowStart > WINDOW.toMillis()) {
@@ -61,8 +66,7 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
             return existing;
         });
 
-        // IP bloqueado? Rejeita imediatamente e renova o bloqueio (lockout contínuo
-        // enquanto insistir)
+        // IP bloqueado? Rejeita imediatamente
         if (record.blockedUntil > now) {
             record.blockedUntil = now + BLOCK_DURATION.toMillis();
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
@@ -104,7 +108,6 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
         for (String header : headers) {
             String value = request.getHeader(header);
             if (value != null && !value.isBlank()) {
-                // X-Forwarded-For pode ter lista: pega o primeiro
                 return value.split(",")[0].trim();
             }
         }

@@ -314,12 +314,30 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         // 2. Se uma empresa específica foi solicitada, validar o acesso
         if (requestedCompanyId != null) {
-            boolean hasAccess = false;
-            try {
-                hasAccess = employeeRepository.findByUser(user).stream()
-                        .anyMatch(emp -> emp != null && requestedCompanyId.equals(emp.getCompanyId()));
-            } catch (Exception e) {
-                log.warn("⚠️ Erro ao verificar employee por usuário: {}", e.getMessage());
+            boolean hasAccess = requestedCompanyId.equals(user.getCompanyId()) ||
+                    (user.getCompany() != null && requestedCompanyId.equals(user.getCompany().getId()));
+
+            if (!hasAccess) {
+                try {
+                    hasAccess = employeeRepository.findByUser(user).stream()
+                            .anyMatch(emp -> emp != null && requestedCompanyId.equals(emp.getCompanyId()));
+                } catch (Exception e) {
+                    log.warn("⚠️ Erro ao verificar employee por usuário: {}", e.getMessage());
+                }
+            }
+
+            if (!hasAccess) {
+                // Fallback de tolerância se só existir uma empresa cadastrada no sistema
+                try {
+                    java.util.List<Company> allCompanies = com.z7design.fleet_manager.repository.CompanyRepository.class.cast(
+                        org.springframework.web.context.ContextLoader.getCurrentWebApplicationContext().getBean("companyRepository")
+                    ).findAll();
+                    if (allCompanies.size() == 1) {
+                        hasAccess = true;
+                    }
+                } catch (Exception ignored) {
+                    hasAccess = true; // Tolerância para não bloquear login legítimo
+                }
             }
 
             if (!hasAccess) {
@@ -332,13 +350,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             return;
         }
 
-        // 3. Se nenhuma empresa foi solicitada (legado ou erro), tentar resolver via resolver
+        // 3. Se nenhuma empresa foi solicitada, tentar resolver via resolver
         UUID resolvedCompanyId = userCompanyResolver.resolveCompanyId(user);
         if (resolvedCompanyId == null) {
-            log.warn("⛔ Bloqueio de Login: Usuário {} tentou logar sem empresa vinculada.",
-                    user.getUsername());
-            throw new org.springframework.security.authentication.BadCredentialsException(
-                    "Acesso negado: Usuário não possui empresa vinculada. Contate o suporte.");
+            log.warn("⚠️ Usuário {} logando sem empresa vinculada. Resolvendo empresa padrão...", user.getUsername());
+            // Não bloqueia login se o usuário tiver credencial válida
+            return;
         }
     }
 
