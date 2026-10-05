@@ -128,8 +128,8 @@ const environments: Record<string, EnvironmentConfig> = {
   },
   prod: {
     name: 'Produção',
-    apiUrl: 'https://api.fluxbus.com.br/api',
-    wsUrl: 'wss://api.fluxbus.com.br/ws',
+    apiUrl: 'https://fluxbus.com.br/api',
+    wsUrl: 'wss://fluxbus.com.br/ws',
     debug: false,
     features: {
       notifications: true,
