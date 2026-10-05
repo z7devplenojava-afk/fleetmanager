@@ -464,23 +464,6 @@ public class MaterialRequisitionService {
         return toDTO(req);
     }
 
-    @Transactional(readOnly = true)
-    public List<MaterialRequisitionDTO> getRequisitionsByWorkOrderId(UUID workOrderId) {
-        if (workOrderId == null) {
-            return List.of();
-        }
-        try {
-            List<MaterialRequisition> list = requisitionRepository.findByWorkOrderIdOrderByCreatedAtDesc(workOrderId);
-            if (list == null) return List.of();
-            return list.stream()
-                    .map(this::toDTO)
-                    .filter(dto -> dto != null)
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            log.error("⚠️ Erro ao buscar requisições por OS {}: {}", workOrderId, e.getMessage(), e);
-            return List.of();
-        }
-    }
 
     public MaterialRequisitionDTO toDTO(MaterialRequisition r) {
         if (r == null) return null;
