@@ -171,6 +171,8 @@ jobs:
             BAILEYS_REST_URL=${{ secrets.BAILEYS_REST_URL || 'http://whatsapp-service-ci:3333' }}
             BAILEYS_ENABLED=${{ secrets.BAILEYS_ENABLED || 'true' }}
             BAILEYS_INSTANCE_KEY=fluxbus_ci
+            EVOLUTION_API_KEY=${{ secrets.EVOLUTION_API_KEY || 'fluxbus_ci_key' }}
+            EVOLUTION_API_URL=http://whatsapp-service-ci:3333
             EOF
 
             echo ".env criado com sucesso!"
