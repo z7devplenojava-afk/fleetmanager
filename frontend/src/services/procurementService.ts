@@ -1,4 +1,5 @@
 import api from './api';
+import { silentErrorLog, withSilentFallback } from '@/utils/silentFallback';
 
 export type ComparisonStatus = 'IN_QUOTATION' | 'READY_FOR_EVALUATION' | 'APPROVED' | 'REJECTED';
 export type PurchaseOrderStatus =
@@ -234,9 +235,19 @@ export const procurementService = {
   },
 
   listPurchaseOrders: async (status?: PurchaseOrderStatus): Promise<ProcurementPurchaseOrder[]> => {
-    const params = status ? `?status=${status}` : '';
-    const response = await api.get(`/api/procurement/purchase-orders${params}`);
-    return response.data;
+    return withSilentFallback(
+      async () => {
+        const params = status ? `?status=${status}` : '';
+        const response = await api.get(`/api/procurement/purchase-orders${params}`, silentErrorLog());
+        return Array.isArray(response.data) ? response.data : [];
+      },
+      [],
+      {
+        key: 'procurement:purchase-orders:list',
+        message:
+          '[procurementService] Endpoint /api/procurement/purchase-orders indisponível no backend. Exibindo lista vazia como fallback.'
+      }
+    );
   },
 
   financialApproval: async (payload: FinancialApprovalPayload): Promise<ProcurementPurchaseOrder> => {
@@ -250,7 +261,17 @@ export const procurementService = {
   },
 
   listInvoiceEntries: async (): Promise<StockInvoiceEntry[]> => {
-    const response = await api.get('/api/procurement/invoices/entries');
-    return response.data;
+    return withSilentFallback(
+      async () => {
+        const response = await api.get('/api/procurement/invoices/entries', silentErrorLog());
+        return Array.isArray(response.data) ? response.data : [];
+      },
+      [],
+      {
+        key: 'procurement:invoices:entries:list',
+        message:
+          '[procurementService] Endpoint /api/procurement/invoices/entries indisponível no backend. Exibindo lista vazia como fallback.'
+      }
+    );
   }
 };
