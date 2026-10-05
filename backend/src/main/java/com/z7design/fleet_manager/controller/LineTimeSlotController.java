@@ -25,8 +25,8 @@ public class LineTimeSlotController {
 
     @GetMapping
     public ResponseEntity<List<LineTimeSlot>> getAll(
-            @RequestParam(required = false) UUID routeId,
-            @RequestParam(required = false) String dayType) {
+            @RequestParam(name = "routeId", required = false) UUID routeId,
+            @RequestParam(name = "dayType", required = false) String dayType) {
         if (routeId != null && dayType != null) {
             return ResponseEntity.ok(lineTimeSlotService.findByRouteAndDayType(routeId, dayType));
         }
@@ -37,7 +37,7 @@ public class LineTimeSlotController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<LineTimeSlot> getById(@PathVariable UUID id) {
+    public ResponseEntity<LineTimeSlot> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(lineTimeSlotService.findById(id));
     }
 
