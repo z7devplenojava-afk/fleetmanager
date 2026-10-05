@@ -239,6 +239,14 @@ public class CompanyService {
      * Buscar empresa do usuário autenticado ou primeira empresa ativa
      */
     public CompanyDTO getMyCompany(org.springframework.security.core.Authentication authentication) {
+        UUID tenantCompanyId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        if (tenantCompanyId != null) {
+            Company comp = companyRepository.findByIdWithDefaultEpis(tenantCompanyId)
+                    .orElseGet(() -> companyRepository.findById(tenantCompanyId).orElse(null));
+            if (comp != null) {
+                return CompanyDTO.fromEntity(comp);
+            }
+        }
         if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
             String username = ((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal()).getUsername();
             User user = userRepository.findByUsername(username).orElse(null);
@@ -426,23 +434,5 @@ public class CompanyService {
                 .theme(company.getTemaCor() != null ? company.getTemaCor() : "dark")
                 .enabledFeatures(enabledFeatures)
                 .build();
-    }
-
-    /**
-     * Buscar empresa associada ao usuário autenticado ou via TenantContext
-     */
-    public CompanyDTO getMyCompany(org.springframework.security.core.Authentication authentication) {
-        UUID companyId = com.z7design.fleet_manager.tenant.TenantContext.get();
-        if (companyId != null) {
-            java.util.Optional<Company> comp = companyRepository.findById(companyId);
-            if (comp.isPresent()) {
-                return CompanyDTO.fromEntity(comp.get());
-            }
-        }
-        List<Company> active = companyRepository.findByStatusOrderByNameAsc(CompanyStatus.ACTIVE);
-        if (!active.isEmpty()) {
-            return CompanyDTO.fromEntity(active.get(0));
-        }
-        return null;
     }
 }
