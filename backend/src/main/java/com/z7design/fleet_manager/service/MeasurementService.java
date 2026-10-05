@@ -706,7 +706,7 @@ public class MeasurementService {
                 ? dueDateOverride 
                 : (bulletin.getPeriodEnd() != null ? bulletin.getPeriodEnd().plusDays(30) : issueDate.plusDays(30));
         ar.setDueDate(dueDate);
-        ar.setCategory(com.z7design.fleet_manager.model.enums.ReceivableCategory.SERVICE);
+        ar.setCategory(com.z7design.fleet_manager.model.enums.ReceivableCategory.MEASUREMENT);
         ar.setPaymentMethod(com.z7design.fleet_manager.model.enums.PaymentMethod.TRANSFER);
         
         if (bulletin.getUnit() != null) {

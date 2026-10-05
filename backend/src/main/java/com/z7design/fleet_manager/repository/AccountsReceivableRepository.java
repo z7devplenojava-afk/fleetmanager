@@ -32,7 +32,8 @@ public interface AccountsReceivableRepository extends JpaRepository<AccountsRece
     @Query("SELECT ar FROM AccountsReceivable ar WHERE ar.dueDate < :currentDate AND ar.status != 'PAID'")
     List<AccountsReceivable> findOverdueAccounts(@Param("currentDate") LocalDate currentDate);
     
-    // Buscar por nÃºmero da fatura
+    // Buscar por número da fatura exato ou contendo
+    List<AccountsReceivable> findByInvoiceNumber(String invoiceNumber);
     List<AccountsReceivable> findByInvoiceNumberContainingIgnoreCase(String invoiceNumber);
     
     // Buscar por número da medição

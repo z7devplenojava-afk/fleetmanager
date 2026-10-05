@@ -35,11 +35,14 @@ export const CLASSIFICACOES_OFICIAIS = [
   'JUDICIAL',
   'LIMPEZA',
   'LOCACAO DE VEICULOS',
+  'MULTAS DE TRANSITO',
   'OBRAS',
   'PARTICULAR DIRETORIA',
   'PESSOAL',
   'PLANO DE SAUDE',
+  'RASTREADORES DE VEICULOS',
   'SEGURANCA',
+  'TAXAS COM MOBILIZACAO',
   'TRANSPORTE'
 ] as const;
 
@@ -50,13 +53,20 @@ export const CLASSIFICACOES_PADRAO: ClassificacaoContaItem[] = [
   { codigo: '1.01', nome: 'COMBUSTIVEL', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
   { codigo: '1.02', nome: 'FROTA (PEÇAS,SERVIÇOS,IPVA)', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
   { codigo: '1.03', nome: 'LOCACAO DE VEICULOS', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
-  { codigo: '1.04', nome: 'TRANSPORTE', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
-  { codigo: '1.05', nome: 'LIMPEZA', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
-  { codigo: '1.06', nome: 'Combustíveis e Lubrificantes', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
-  { codigo: '1.07', nome: 'Peças e Manutenção Mecânica', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
-  { codigo: '1.08', nome: 'Pneus e Serviços de Borracharia', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
-  { codigo: '1.09', nome: 'Lavagem e Higienização de Frotas', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
-  { codigo: '1.10', nome: 'Pedágios, Estacionamento e ConectCar', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.04', nome: 'MULTAS DE TRANSITO', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.05', nome: 'TAXAS COM MOBILIZACAO', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.06', nome: 'RASTREADORES DE VEICULOS', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.07', nome: 'TRANSPORTE', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.08', nome: 'LIMPEZA', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.09', nome: 'Combustíveis e Lubrificantes', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.10', nome: 'Peças e Manutenção Mecânica', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.11', nome: 'Pneus e Serviços de Borracharia', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.12', nome: 'Lavagem e Higienização de Frotas', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.13', nome: 'Pedágios, Estacionamento e ConectCar', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.14', nome: 'Locação de Veículos e Equipamentos', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.15', nome: 'Multas de Trânsito e Infrações de Frota', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.16', nome: 'Taxas com Mobilização e Desmobilização', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
+  { codigo: '1.17', nome: 'Rastreadores de Veículos e Telemetria GPS', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
 
   // 2. Despesas com Pessoal & Folha
   { codigo: '2.01', nome: 'FOLHA DE PAGAMENTO / SALÁRIOS', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
@@ -124,7 +134,9 @@ export function getClassificacaoStyle(classificacaoNome?: string) {
     clean.includes('COMBUSTIVEL') || clean.includes('COMBUST') ||
     clean.includes('FROTA') || clean.includes('PEÇAS') || clean.includes('MANUTEN') ||
     clean.includes('LOCACAO') || clean.includes('TRANSPORTE') ||
-    clean.includes('LIMPEZA') || clean.startsWith('1.')
+    clean.includes('LIMPEZA') || clean.includes('MULTA') ||
+    clean.includes('MOBILIZA') || clean.includes('RASTREADOR') ||
+    clean.includes('TELEMETRIA') || clean.startsWith('1.')
   ) {
     return {
       bg: 'bg-blue-500/15',

@@ -301,5 +301,40 @@ public class AccountsReceivableController {
         
         return ResponseEntity.ok(result);
     }
+
+    @PostMapping("/{id}/import-nfse")
+    @Operation(summary = "Importar NFS-e (XML/PDF) para conta a receber", description = "Lê arquivo XML ou PDF da NFS-e e atualiza número da nota, impostos retidos e valor líquido a receber")
+    public ResponseEntity<AccountsReceivableDTO> importNfse(
+            @PathVariable("id") String id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        log.info("POST /api/accounts-receivable/{}/import-nfse - Importando NFS-e: {}", id, file.getOriginalFilename());
+        AccountsReceivableDTO updated = accountsReceivableService.importNfse(UUID.fromString(id), file);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping("/parse-nfse")
+    @Operation(summary = "Parsear NFS-e para pré-visualização", description = "Parseia arquivo XML ou PDF da NFS-e sem salvar")
+    public ResponseEntity<com.z7design.fleet_manager.dto.NfseParsedDataDTO> parseNfse(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        log.info("POST /api/accounts-receivable/parse-nfse - Parseando NFS-e: {}", file.getOriginalFilename());
+        com.z7design.fleet_manager.dto.NfseParsedDataDTO parsed = accountsReceivableService.parseNfseFile(file);
+        return ResponseEntity.ok(parsed);
+    }
+
+    @PostMapping("/{id}/send-email")
+    @Operation(summary = "Enviar Fatura e XML para o cliente por e-mail", description = "Dispara e-mail de cobrança contendo os detalhes da fatura para o cliente")
+    public ResponseEntity<Void> sendEmail(@PathVariable("id") String id) {
+        log.info("POST /api/accounts-receivable/{}/send-email - Enviando e-mail da fatura para o cliente", id);
+        accountsReceivableService.sendClientEmail(UUID.fromString(id));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/sync-all")
+    @Operation(summary = "Sincronizar Medições, Locação e Turismo no Contas a Receber", description = "Varre medições de contratos e fretamentos sem títulos gerados e cria no Contas a Receber")
+    public ResponseEntity<java.util.Map<String, Object>> syncAll() {
+        log.info("POST /api/accounts-receivable/sync-all - Sincronizando todas as medições e contratos");
+        int count = accountsReceivableService.syncAllReceivables();
+        return ResponseEntity.ok(java.util.Map.of("syncedCount", count, "message", count + " novos títulos sincronizados com sucesso."));
+    }
 }
 
