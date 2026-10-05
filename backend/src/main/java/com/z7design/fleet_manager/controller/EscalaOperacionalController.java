@@ -34,13 +34,13 @@ public class EscalaOperacionalController {
     @GetMapping
     @PreAuthorize(READ_AUTH)
     public ResponseEntity<List<EscalaOperacionalDTO>> getAll(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam(name = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(escalaService.findAll(date));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize(READ_AUTH)
-    public ResponseEntity<EscalaOperacionalDTO> getById(@PathVariable UUID id) {
+    public ResponseEntity<EscalaOperacionalDTO> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(escalaService.findById(id));
     }
 
