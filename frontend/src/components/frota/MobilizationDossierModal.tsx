@@ -34,6 +34,7 @@ export const MobilizationDossierModal: React.FC<MobilizationDossierModalProps> =
   const [planoManutencaoOk, setPlanoManutencaoOk] = useState(true);
   const [artEngMecanicoOk, setArtEngMecanicoOk] = useState(true);
   const [atfOk, setAtfOk] = useState(true);
+  const [apreciacaoRiscoOk, setApreciacaoRiscoOk] = useState(true);
 
   // Estados dos documentos do Funcionário (Pastas das Imagens)
   const [fichaRegistroOk, setFichaRegistroOk] = useState(true);
@@ -90,6 +91,7 @@ export const MobilizationDossierModal: React.FC<MobilizationDossierModalProps> =
         planoManutencao: planoManutencaoOk,
         artEngenheiroMecanico: artEngMecanicoOk,
         atfAnttDer: atfOk,
+        apreciacaoRisco: apreciacaoRiscoOk,
         fichaRegistro: fichaRegistroOk,
         contratoTrabalho: contratoExpOk,
         fichaESocial: fichaESocialOk,
@@ -205,7 +207,7 @@ export const MobilizationDossierModal: React.FC<MobilizationDossierModalProps> =
                   { title: 'CRLV DO VEÍCULO 2026', desc: 'Licenciamento e Certificado Vigente (Detran-MG)', status: crlvOk, setter: setCrlvOk },
                   { title: 'LAUDO DE CONFORMIDADE TÉCNICA', desc: 'Vistoria Mecânica e Estrutural Completa com Fotos', status: laudoConformidadeOk, setter: setLaudoConformidadeOk },
                   { title: 'LAUDO DE FUMAÇA (OPACIDADE)', desc: 'Análise de Emissões e Fumaça Preta (Norma Ambiental)', status: laudoFumacaOk, setter: setLaudoFumacaOk },
-                  { title: 'APRECIAÇÃO DE RISCO DO EQUIPAMENTO', desc: 'APR Técnica de Operação do Ônibus / Van', status: apreciacaoRisco, setter: setPlanoManutencaoOk },
+                  { title: 'APRECIAÇÃO DE RISCO DO EQUIPAMENTO', desc: 'APR Técnica de Operação do Ônibus / Van', status: apreciacaoRiscoOk, setter: setApreciacaoRiscoOk },
                   { title: 'OS PREVENTIVA EXECUTADA', desc: 'Última Manutenção Preventiva Executada na Base', status: osPreventivaOk, setter: setOsPreventivaOk },
                   { title: 'PLANO DE MANUTENÇÃO PERIÓDICA', desc: 'PMP Detalhado por Quilometragem / Tempo', status: planoManutencaoOk, setter: setPlanoManutencaoOk },
                   { title: 'ART ASSINADA POR ENG. MECÂNICO', desc: 'Anotação de Resp. Técnica (Engenheiro Mecânico - CREA)', status: artEngMecanicoOk, setter: setArtEngMecanicoOk },
