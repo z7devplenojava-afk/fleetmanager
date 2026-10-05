@@ -184,6 +184,8 @@ jobs:
             printf 'BAILEYS_REST_URL=%s\n'     "${{ secrets.BAILEYS_REST_URL || 'http://whatsapp-service-ci:3333' }}"
             printf 'BAILEYS_ENABLED=%s\n'      "${{ secrets.BAILEYS_ENABLED || 'true' }}"
             printf 'BAILEYS_INSTANCE_KEY=%s\n' "fluxbus_ci"
+            printf 'EVOLUTION_API_KEY=%s\n'     "${{ secrets.EVOLUTION_API_KEY || 'fluxbus_ci_key' }}"
+            printf 'EVOLUTION_API_URL=%s\n'     "http://whatsapp-service-ci:3333"
           } > /tmp/ci.env
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp \
             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
