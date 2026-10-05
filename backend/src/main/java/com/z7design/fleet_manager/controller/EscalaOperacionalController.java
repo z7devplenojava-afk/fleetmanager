@@ -52,14 +52,14 @@ public class EscalaOperacionalController {
 
     @PutMapping("/{id}")
     @PreAuthorize(WRITE_AUTH)
-    public ResponseEntity<EscalaOperacionalDTO> update(@PathVariable UUID id,
+    public ResponseEntity<EscalaOperacionalDTO> update(@PathVariable("id") UUID id,
                                                        @RequestBody EscalaOperacional escala) {
         return ResponseEntity.ok(escalaService.update(id, escala));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize(WRITE_AUTH)
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         escalaService.delete(id);
         return ResponseEntity.noContent().build();
     }
