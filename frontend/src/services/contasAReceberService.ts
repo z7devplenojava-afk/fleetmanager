@@ -19,6 +19,27 @@ export type ContaAReceber = ContaAReceberForm & {
     id: string;
     name: string;
   };
+  grossAmount?: number;
+  netAmount?: number;
+  issqnRetido?: number;
+  inssRetido?: number;
+  irRetido?: number;
+  pisRetido?: number;
+  cofinsRetido?: number;
+  csllRetido?: number;
+  ibsCbsAmount?: number;
+  nfseNumber?: string;
+  nfseKey?: string;
+  nfseIssueDate?: string;
+  nfseXmlUrl?: string;
+  nfsePdfUrl?: string;
+  nfseServiceDescription?: string;
+  nfseStatus?: string;
+  faturaLocacaoNumber?: string;
+  pedidoNumber?: string;
+  periodoLocacao?: string;
+  placasVeiculos?: string;
+  dadosBancarios?: string;
 };
 
 export interface CreateContaAReceberRequest {
@@ -44,6 +65,11 @@ export interface CreateContaAReceberRequest {
   lateFee?: number; // Taxa de atraso
   latePenalty?: number; // Multa de atraso
   centroCusto?: string; // Centro de custo
+  faturaLocacaoNumber?: string;
+  pedidoNumber?: string;
+  periodoLocacao?: string;
+  placasVeiculos?: string;
+  dadosBancarios?: string;
 }
 
 export interface UpdateContaAReceberRequest extends Partial<CreateContaAReceberRequest> {
@@ -216,7 +242,23 @@ export const contasAReceberService = {
         client: account.client ? {
           id: account.client.id,
           name: account.client.name || account.clientName || 'Não informado'
-        } : undefined
+        } : undefined,
+        grossAmount: account.grossAmount ? parseFloat(account.grossAmount) : undefined,
+        netAmount: account.netAmount ? parseFloat(account.netAmount) : undefined,
+        issqnRetido: account.issqnRetido ? parseFloat(account.issqnRetido) : 0,
+        inssRetido: account.inssRetido ? parseFloat(account.inssRetido) : 0,
+        irRetido: account.irRetido ? parseFloat(account.irRetido) : 0,
+        pisRetido: account.pisRetido ? parseFloat(account.pisRetido) : 0,
+        cofinsRetido: account.cofinsRetido ? parseFloat(account.cofinsRetido) : 0,
+        csllRetido: account.csllRetido ? parseFloat(account.csllRetido) : 0,
+        ibsCbsAmount: account.ibsCbsAmount ? parseFloat(account.ibsCbsAmount) : 0,
+        nfseNumber: account.nfseNumber,
+        nfseKey: account.nfseKey,
+        nfseIssueDate: account.nfseIssueDate,
+        nfseXmlUrl: account.nfseXmlUrl,
+        nfsePdfUrl: account.nfsePdfUrl,
+        nfseServiceDescription: account.nfseServiceDescription,
+        nfseStatus: account.nfseStatus || 'PENDENTE_NFSE',
       }));
   },
 
@@ -284,7 +326,12 @@ export const contasAReceberService = {
       paymentMethod: paymentMethod,
       status: mapFrontendStatusToBackend(conta.status) || 'PENDING',
       notes: conta.observacoes,
-      centroCusto: conta.centroCusto || undefined
+      centroCusto: conta.centroCusto || undefined,
+      faturaLocacaoNumber: conta.faturaLocacaoNumber,
+      pedidoNumber: conta.pedidoNumber,
+      periodoLocacao: conta.periodoLocacao,
+      placasVeiculos: conta.placasVeiculos,
+      dadosBancarios: conta.dadosBancarios
     };
 
     // Adicionar invoiceNumber apenas se fornecido
@@ -326,6 +373,11 @@ export const contasAReceberService = {
       barcode: conta.codigoBarras !== undefined ? conta.codigoBarras : contaExistente.codigoBarras,
       notes: conta.observacoes !== undefined ? conta.observacoes : contaExistente.observacoes,
       centroCusto: conta.centroCusto !== undefined ? conta.centroCusto : contaExistente.centroCusto,
+      faturaLocacaoNumber: conta.faturaLocacaoNumber !== undefined ? conta.faturaLocacaoNumber : contaExistente.faturaLocacaoNumber,
+      pedidoNumber: conta.pedidoNumber !== undefined ? conta.pedidoNumber : contaExistente.pedidoNumber,
+      periodoLocacao: conta.periodoLocacao !== undefined ? conta.periodoLocacao : contaExistente.periodoLocacao,
+      placasVeiculos: conta.placasVeiculos !== undefined ? conta.placasVeiculos : contaExistente.placasVeiculos,
+      dadosBancarios: conta.dadosBancarios !== undefined ? conta.dadosBancarios : contaExistente.dadosBancarios,
       overdueDays: Number(contaExistente.overdueDays || 0),
       lateFee: Number(contaExistente.lateFee || 0),
       latePenalty: Number(contaExistente.latePenalty || 0)
@@ -664,6 +716,26 @@ export const contasAReceberService = {
     };
   },
 
+  // Importar NFS-e (XML ou PDF) para uma conta a receber
+  async importNfse(id: string, file: File): Promise<ContaAReceber> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/api/accounts-receivable/${id}/import-nfse`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return this.mapAccountToContaAReceber(response.data);
+  },
+
+  // Parsear NFS-e apenas para pré-visualização
+  async parseNfse(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/accounts-receivable/parse-nfse', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+
   // Método auxiliar para mapear account para ContaAReceber
   mapAccountToContaAReceber(account: any): ContaAReceber {
     return {
@@ -682,21 +754,54 @@ export const contasAReceberService = {
       status: mapBackendStatusToFrontend(account.status),
       baixa: account.baixa || false,
       dataPagamento: parseDateFromBackend(account.paymentDate),
-      observacoes: account.notes,
       categoria: account.category,
       centroCusto: account.centroCusto,
-      createdAt: parseDateFromBackend(account.createdAt)
+      createdAt: parseDateFromBackend(account.createdAt),
+      grossAmount: account.grossAmount ? parseFloat(account.grossAmount) : undefined,
+      netAmount: account.netAmount ? parseFloat(account.netAmount) : undefined,
+      issqnRetido: account.issqnRetido ? parseFloat(account.issqnRetido) : 0,
+      inssRetido: account.inssRetido ? parseFloat(account.inssRetido) : 0,
+      irRetido: account.irRetido ? parseFloat(account.irRetido) : 0,
+      pisRetido: account.pisRetido ? parseFloat(account.pisRetido) : 0,
+      cofinsRetido: account.cofinsRetido ? parseFloat(account.cofinsRetido) : 0,
+      csllRetido: account.csllRetido ? parseFloat(account.csllRetido) : 0,
+      ibsCbsAmount: account.ibsCbsAmount ? parseFloat(account.ibsCbsAmount) : 0,
+      nfseNumber: account.nfseNumber,
+      nfseKey: account.nfseKey,
+      nfseIssueDate: account.nfseIssueDate,
+      nfseXmlUrl: account.nfseXmlUrl,
+      nfsePdfUrl: account.nfsePdfUrl,
+      nfseServiceDescription: account.nfseServiceDescription,
+      nfseStatus: account.nfseStatus || 'PENDENTE_NFSE',
+      faturaLocacaoNumber: account.faturaLocacaoNumber,
+      pedidoNumber: account.pedidoNumber,
+      periodoLocacao: account.periodoLocacao,
+      placasVeiculos: account.placasVeiculos,
+      dadosBancarios: account.dadosBancarios
     };
+  },
+
+  async sendClientEmail(id: string): Promise<void> {
+    await api.post(`/api/accounts-receivable/${id}/send-email`);
+  },
+
+  async syncAll(): Promise<{ syncedCount: number; message: string }> {
+    const res = await api.post('/api/accounts-receivable/sync-all');
+    return res.data;
   }
 };
 
 // Função auxiliar para mapear tipo do frontend para categoria do backend
-function mapTypeToCategory(frontendType: 'FATURA' | 'MEDICAO' | 'SERVICO' | 'PRODUTO'): string {
+function mapTypeToCategory(frontendType: 'FATURA' | 'MEDICAO' | 'LOCACAO_VEICULOS' | 'FRETAMENTO_TURISMO' | 'SERVICO' | 'PRODUTO'): string {
   switch (frontendType) {
     case 'FATURA':
       return 'INVOICE';
     case 'MEDICAO':
-      return 'INVOICE'; // Measurement não existe no enum, usar INVOICE
+      return 'MEASUREMENT';
+    case 'LOCACAO_VEICULOS':
+      return 'VEHICLE_RENTAL';
+    case 'FRETAMENTO_TURISMO':
+      return 'CHARTER_TOURISM';
     case 'SERVICO':
       return 'SERVICE';
     case 'PRODUTO':

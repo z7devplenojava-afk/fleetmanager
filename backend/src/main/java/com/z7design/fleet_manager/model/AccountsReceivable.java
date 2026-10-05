@@ -136,6 +136,70 @@ public class AccountsReceivable implements TenantAware {
     @Column(name = "company_id")
     private UUID companyId;
 
+    // ── NFS-e & Retenções de Impostos ──────────────────────────
+    @Column(name = "gross_amount", precision = 15, scale = 2)
+    private BigDecimal grossAmount;
+
+    @Column(name = "net_amount", precision = 15, scale = 2)
+    private BigDecimal netAmount;
+
+    @Column(name = "issqn_retido", precision = 15, scale = 2)
+    private BigDecimal issqnRetido = BigDecimal.ZERO;
+
+    @Column(name = "inss_retido", precision = 15, scale = 2)
+    private BigDecimal inssRetido = BigDecimal.ZERO;
+
+    @Column(name = "ir_retido", precision = 15, scale = 2)
+    private BigDecimal irRetido = BigDecimal.ZERO;
+
+    @Column(name = "pis_retido", precision = 15, scale = 2)
+    private BigDecimal pisRetido = BigDecimal.ZERO;
+
+    @Column(name = "cofins_retido", precision = 15, scale = 2)
+    private BigDecimal cofinsRetido = BigDecimal.ZERO;
+
+    @Column(name = "csll_retido", precision = 15, scale = 2)
+    private BigDecimal csllRetido = BigDecimal.ZERO;
+
+    @Column(name = "ibs_cbs_amount", precision = 15, scale = 2)
+    private BigDecimal ibsCbsAmount = BigDecimal.ZERO;
+
+    @Column(name = "nfse_number", length = 50)
+    private String nfseNumber;
+
+    @Column(name = "nfse_key", length = 100)
+    private String nfseKey;
+
+    @Column(name = "nfse_issue_date")
+    private LocalDateTime nfseIssueDate;
+
+    @Column(name = "nfse_xml_url", length = 500)
+    private String nfseXmlUrl;
+
+    @Column(name = "nfse_pdf_url", length = 500)
+    private String nfsePdfUrl;
+
+    @Column(name = "nfse_service_description", columnDefinition = "TEXT")
+    private String nfseServiceDescription;
+
+    @Column(name = "nfse_status", length = 30)
+    private String nfseStatus = "PENDENTE_NFSE";
+
+    @Column(name = "fatura_locacao_number", length = 50)
+    private String faturaLocacaoNumber;
+
+    @Column(name = "pedido_number", length = 50)
+    private String pedidoNumber;
+
+    @Column(name = "periodo_locacao", length = 100)
+    private String periodoLocacao;
+
+    @Column(name = "placas_veiculos", columnDefinition = "TEXT")
+    private String placasVeiculos;
+
+    @Column(name = "dados_bancarios", length = 255)
+    private String dadosBancarios;
+
     // Constructors
     public AccountsReceivable() {
     }
@@ -403,5 +467,173 @@ public class AccountsReceivable implements TenantAware {
 
     public void setCompanyId(UUID companyId) {
         this.companyId = companyId;
+    }
+
+    public BigDecimal getGrossAmount() {
+        return grossAmount;
+    }
+
+    public void setGrossAmount(BigDecimal grossAmount) {
+        this.grossAmount = grossAmount;
+    }
+
+    public BigDecimal getNetAmount() {
+        return netAmount;
+    }
+
+    public void setNetAmount(BigDecimal netAmount) {
+        this.netAmount = netAmount;
+    }
+
+    public BigDecimal getIssqnRetido() {
+        return issqnRetido;
+    }
+
+    public void setIssqnRetido(BigDecimal issqnRetido) {
+        this.issqnRetido = issqnRetido;
+    }
+
+    public BigDecimal getInssRetido() {
+        return inssRetido;
+    }
+
+    public void setInssRetido(BigDecimal inssRetido) {
+        this.inssRetido = inssRetido;
+    }
+
+    public BigDecimal getIrRetido() {
+        return irRetido;
+    }
+
+    public void setIrRetido(BigDecimal irRetido) {
+        this.irRetido = irRetido;
+    }
+
+    public BigDecimal getPisRetido() {
+        return pisRetido;
+    }
+
+    public void setPisRetido(BigDecimal pisRetido) {
+        this.pisRetido = pisRetido;
+    }
+
+    public BigDecimal getCofinsRetido() {
+        return cofinsRetido;
+    }
+
+    public void setCofinsRetido(BigDecimal cofinsRetido) {
+        this.cofinsRetido = cofinsRetido;
+    }
+
+    public BigDecimal getCsllRetido() {
+        return csllRetido;
+    }
+
+    public void setCsllRetido(BigDecimal csllRetido) {
+        this.csllRetido = csllRetido;
+    }
+
+    public BigDecimal getIbsCbsAmount() {
+        return ibsCbsAmount;
+    }
+
+    public void setIbsCbsAmount(BigDecimal ibsCbsAmount) {
+        this.ibsCbsAmount = ibsCbsAmount;
+    }
+
+    public String getNfseNumber() {
+        return nfseNumber;
+    }
+
+    public void setNfseNumber(String nfseNumber) {
+        this.nfseNumber = nfseNumber;
+    }
+
+    public String getNfseKey() {
+        return nfseKey;
+    }
+
+    public void setNfseKey(String nfseKey) {
+        this.nfseKey = nfseKey;
+    }
+
+    public LocalDateTime getNfseIssueDate() {
+        return nfseIssueDate;
+    }
+
+    public void setNfseIssueDate(LocalDateTime nfseIssueDate) {
+        this.nfseIssueDate = nfseIssueDate;
+    }
+
+    public String getNfseXmlUrl() {
+        return nfseXmlUrl;
+    }
+
+    public void setNfseXmlUrl(String nfseXmlUrl) {
+        this.nfseXmlUrl = nfseXmlUrl;
+    }
+
+    public String getNfsePdfUrl() {
+        return nfsePdfUrl;
+    }
+
+    public void setNfsePdfUrl(String nfsePdfUrl) {
+        this.nfsePdfUrl = nfsePdfUrl;
+    }
+
+    public String getNfseServiceDescription() {
+        return nfseServiceDescription;
+    }
+
+    public void setNfseServiceDescription(String nfseServiceDescription) {
+        this.nfseServiceDescription = nfseServiceDescription;
+    }
+
+    public String getNfseStatus() {
+        return nfseStatus;
+    }
+
+    public void setNfseStatus(String nfseStatus) {
+        this.nfseStatus = nfseStatus;
+    }
+
+    public String getFaturaLocacaoNumber() {
+        return faturaLocacaoNumber;
+    }
+
+    public void setFaturaLocacaoNumber(String faturaLocacaoNumber) {
+        this.faturaLocacaoNumber = faturaLocacaoNumber;
+    }
+
+    public String getPedidoNumber() {
+        return pedidoNumber;
+    }
+
+    public void setPedidoNumber(String pedidoNumber) {
+        this.pedidoNumber = pedidoNumber;
+    }
+
+    public String getPeriodoLocacao() {
+        return periodoLocacao;
+    }
+
+    public void setPeriodoLocacao(String periodoLocacao) {
+        this.periodoLocacao = periodoLocacao;
+    }
+
+    public String getPlacasVeiculos() {
+        return placasVeiculos;
+    }
+
+    public void setPlacasVeiculos(String placasVeiculos) {
+        this.placasVeiculos = placasVeiculos;
+    }
+
+    public String getDadosBancarios() {
+        return dadosBancarios;
+    }
+
+    public void setDadosBancarios(String dadosBancarios) {
+        this.dadosBancarios = dadosBancarios;
     }
 }
