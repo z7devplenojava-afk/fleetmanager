@@ -80,7 +80,7 @@ curl https://evolution.z7botsolutions.com.br
 
 ```bash
 curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "instanceName": "securedguard",
@@ -91,14 +91,14 @@ curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
 ### **2. Obter QR Code**
 
 ```bash
-curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+curl -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   https://evolution.z7botsolutions.com.br/instance/connect/securedguard
 ```
 
 ### **3. Acessar via Navegador**
 
 1. Abra: `https://evolution.z7botsolutions.com.br/instance/connect/securedguard`
-2. Adicione o header `apikey: B6D711FCDE4D4FD5936544120E713976` (use extensão ModHeader ou similar)
+2. Adicione o header `apikey: CHANGE_THIS_EVOLUTION_API_KEY` (use extensão ModHeader ou similar)
 3. Escaneie o QR Code com o WhatsApp: **31971731747**
 
 ---
@@ -107,7 +107,7 @@ curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
 
 ```bash
 curl -X POST https://evolution.z7botsolutions.com.br/message/sendText/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "number": "5531971731747@s.whatsapp.net",
@@ -122,7 +122,7 @@ curl -X POST https://evolution.z7botsolutions.com.br/message/sendText/securedgua
 ## 🔍 Verificar Status da Conexão
 
 ```bash
-curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+curl -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   https://evolution.z7botsolutions.com.br/instance/connectionState/securedguard
 ```
 
@@ -145,7 +145,7 @@ docker logs secured-guard-backend-ci --tail 100 -f
 ### Ver todas as instâncias
 
 ```bash
-curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+curl -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   https://evolution.z7botsolutions.com.br/instance/fetchInstances
 ```
 
@@ -160,7 +160,7 @@ curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
 docker exec secured-guard-db-ci psql -U secured_guard_ci -l | grep evolution_ci
 
 # Verificar se Redis está rodando
-docker exec secured-guard-redis-ci redis-cli -a redis_ci_2025 ping
+docker exec secured-guard-redis-ci redis-cli -a CHANGE_THIS_REDIS_PASSWORD ping
 
 # Recriar container
 docker-compose -f docker-compose.ci.yml down evolution-api-ci
@@ -176,14 +176,14 @@ docker-compose -f docker-compose.ci.yml up -d evolution-api-ci
 
 ```bash
 # Deletar instância e recriar
-curl -X DELETE -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+curl -X DELETE -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   https://evolution.z7botsolutions.com.br/instance/delete/securedguard
 
 # Aguardar 5 segundos e recriar
 sleep 5
 
 curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"instanceName": "securedguard", "integration": "WHATSAPP-BAILEYS"}'
 ```
@@ -201,7 +201,7 @@ curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
 
 ## 🔑 Credenciais
 
-- **API Key:** `B6D711FCDE4D4FD5936544120E713976`
+- **API Key:** `CHANGE_THIS_EVOLUTION_API_KEY`
 - **Instance Name:** `securedguard`
 - **WhatsApp Number:** `31971731747`
 

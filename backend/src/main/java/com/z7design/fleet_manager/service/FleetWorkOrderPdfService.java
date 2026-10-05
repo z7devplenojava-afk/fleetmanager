@@ -405,11 +405,17 @@ public class FleetWorkOrderPdfService {
             }
 
             String lower = trimmed.toLowerCase();
+            // Remove query string/fragmento antes de detectar a extensão (ex: ".jpg?token=x")
+            String pathOnly = lower.split("[?#]")[0];
             String mime = "image/jpeg";
-            if (lower.endsWith(".png")) {
+            if (pathOnly.endsWith(".png")) {
                 mime = "image/png";
-            } else if (lower.endsWith(".gif")) {
+            } else if (pathOnly.endsWith(".gif")) {
                 mime = "image/gif";
+            } else if (pathOnly.endsWith(".webp")) {
+                mime = "image/webp";
+            } else if (pathOnly.endsWith(".bmp")) {
+                mime = "image/bmp";
             }
             return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
         } catch (Exception e) {
@@ -418,16 +424,51 @@ public class FleetWorkOrderPdfService {
         }
     }
 
+    /**
+     * Resolve o caminho em disco de uma foto da OS a partir da URL armazenada.
+     * Aceita as variações "/api/uploads/...", "api/uploads/...", "/uploads/...",
+     * "uploads/...", caminhos absolutos e nomes de arquivo simples, testando
+     * múltiplas raízes (diretório configurado, ../uploads e caminho puro).
+     */
     private Path resolvePhotoPath(String photoUrl) {
         try {
-            if (photoUrl.startsWith("/api/uploads/")) {
-                String relative = photoUrl.replace("/api/uploads/", "");
-                return Paths.get(uploadDir, relative);
+            String relative = photoUrl.replace("\\\\", "/").trim();
+
+            // Remove query string e fragmento (ex: "/api/uploads/maintenance/x.jpg?v=2")
+            int queryIdx = relative.indexOf('?');
+            if (queryIdx >= 0) {
+                relative = relative.substring(0, queryIdx);
             }
-            if (photoUrl.startsWith("uploads/")) {
-                return Paths.get(photoUrl);
+            int fragmentIdx = relative.indexOf('#');
+            if (fragmentIdx >= 0) {
+                relative = relative.substring(0, fragmentIdx);
             }
-            return Paths.get(uploadDir, photoUrl);
+
+            // Normaliza prefixos conhecidos para o caminho relativo dentro do diretório de uploads
+            if (relative.startsWith("/api/uploads/")) {
+                relative = relative.substring("/api/uploads/".length());
+            } else if (relative.startsWith("api/uploads/")) {
+                relative = relative.substring("api/uploads/".length());
+            } else if (relative.startsWith("/uploads/")) {
+                relative = relative.substring("/uploads/".length());
+            } else if (relative.startsWith("uploads/")) {
+                relative = relative.substring("uploads/".length());
+            }
+            relative = relative.replaceFirst("^/+", "");
+
+            java.util.List<Path> candidates = new ArrayList<>();
+            candidates.add(Paths.get(uploadDir, relative).toAbsolutePath().normalize());
+            candidates.add(Paths.get("..", "uploads", relative).toAbsolutePath().normalize());
+            candidates.add(Paths.get(relative).toAbsolutePath().normalize());
+
+            for (Path candidate : candidates) {
+                if (Files.exists(candidate)) {
+                    return candidate;
+                }
+            }
+            log.warn("Foto da OS não encontrada em nenhum diretório de uploads: {} (testado: {})",
+                    photoUrl, candidates);
+            return candidates.get(0);
         } catch (Exception e) {
             log.warn("Erro ao resolver caminho da foto ({}): {}", photoUrl, e.getMessage());
             return null;

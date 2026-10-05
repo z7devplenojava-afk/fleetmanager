@@ -61,7 +61,7 @@ docker logs secured-guard-db-ci --tail 20
 
 8. **Resetar senha do usuário (se necessário):**
 ```bash
-docker exec secured-guard-db-ci psql -U secured_guard_ci -d postgres -c "ALTER USER secured_guard_ci WITH PASSWORD '4KaCiJc6an@7sgbdcid2025';"
+docker exec secured-guard-db-ci psql -U secured_guard_ci -d postgres -c "ALTER USER secured_guard_ci WITH PASSWORD 'CHANGE_THIS_DB_PASSWORD';"
 ```
 
 9. **Reiniciar backend:**
@@ -94,7 +94,7 @@ cat .env | grep POSTGRES_PASSWORD_CI
 
 **Deve mostrar:**
 ```
-POSTGRES_PASSWORD_CI=4KaCiJc6an@7sgbdcid2025
+POSTGRES_PASSWORD_CI=CHANGE_THIS_DB_PASSWORD
 ```
 
 ### 2. Verificar se docker-compose está lendo o .env:
@@ -127,7 +127,7 @@ docker-compose -f docker-compose.ci.yml down
 docker volume rm secured-guard_postgres_data_ci
 
 # Garantir que .env está correto
-echo "POSTGRES_PASSWORD_CI=4KaCiJc6an@7sgbdcid2025" >> .env
+echo "POSTGRES_PASSWORD_CI=CHANGE_THIS_DB_PASSWORD" >> .env
 
 # Reiniciar
 docker-compose -f docker-compose.ci.yml up -d
@@ -135,8 +135,8 @@ docker-compose -f docker-compose.ci.yml up -d
 
 ## 🔐 Senhas Padrão (se não estiverem no secret)
 
-- **POSTGRES_PASSWORD_CI:** `4KaCiJc6an@7sgbdcid2025`
-- **REDIS_PASSWORD:** `redis_ci_2025`
+- **POSTGRES_PASSWORD_CI:** `CHANGE_THIS_DB_PASSWORD`
+- **REDIS_PASSWORD:** `CHANGE_THIS_REDIS_PASSWORD`
 
 ## 📝 Nota
 

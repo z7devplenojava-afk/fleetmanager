@@ -132,12 +132,48 @@ public class VehicleCleaningOrder {
     @Column(name = "release_spot", length = 20)
     private String releaseSpot;
 
+    /** Local de Execução: INTERNAL (Garagem Própria) ou EXTERNAL (Lava-jato Tercerizado). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "execution_location", length = 20)
+    @Builder.Default
+    private ExecutionLocation executionLocation = ExecutionLocation.INTERNAL;
+
+    @Column(name = "car_wash_id")
+    private UUID carWashId;
+
+    @Column(name = "car_wash_name", length = 150)
+    private String carWashName;
+
+    @Column(name = "cleaning_cost", precision = 15, scale = 2)
+    @Builder.Default
+    private java.math.BigDecimal cleaningCost = java.math.BigDecimal.ZERO;
+
+    // ── Fotos de Evidências (Antes e Depois) ──────────────────────────────────
+    @Column(name = "photo_before_internal", columnDefinition = "TEXT")
+    private String photoBeforeInternal;
+
+    @Column(name = "photo_before_external", columnDefinition = "TEXT")
+    private String photoBeforeExternal;
+
+    @Column(name = "photo_after_internal", columnDefinition = "TEXT")
+    private String photoAfterInternal;
+
+    @Column(name = "photo_after_external", columnDefinition = "TEXT")
+    private String photoAfterExternal;
+
     /** Momento da liberação final para viagem. */
     @Column(name = "released_at")
     private LocalDateTime releasedAt;
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
+
+    /** ID da Ordem de Serviço (OS) correspondente gerada na gestão de manutenção. */
+    @Column(name = "work_order_id")
+    private UUID workOrderId;
+
+    @Column(name = "os_number", length = 50)
+    private String osNumber;
 
     @Column(name = "company_id")
     private UUID companyId;
@@ -149,6 +185,13 @@ public class VehicleCleaningOrder {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public enum ExecutionLocation {
+        /** Higienização feita na própria garagem da empresa. */
+        INTERNAL,
+        /** Higienização terceirizada em lava-jato externo. */
+        EXTERNAL
+    }
 
     /** Setor solicitante da limpeza e prioridade padrão de cada gatilho. */
     public enum RequesterSector {

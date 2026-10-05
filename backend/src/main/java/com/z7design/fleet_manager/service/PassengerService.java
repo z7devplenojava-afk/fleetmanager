@@ -74,6 +74,29 @@ public class PassengerService {
         if (dto.getCostCenter() != null) {
             existing.setCostCenter(dto.getCostCenter());
         }
+        if (dto.getCpf() != null) {
+            existing.setCpf(dto.getCpf());
+        }
+        if (dto.getPhone() != null) {
+            existing.setPhone(dto.getPhone());
+        }
+        if (dto.getEmail() != null) {
+            existing.setEmail(dto.getEmail());
+        }
+        if (dto.getPassengerType() != null) {
+            existing.setPassengerType(dto.getPassengerType());
+        }
+        if (dto.getPreferredTime() != null) {
+            existing.setPreferredTime(dto.getPreferredTime());
+        }
+        if (dto.getNotificationsEnabled() != null) {
+            existing.setNotificationsEnabled(dto.getNotificationsEnabled());
+        }
+        if (dto.getDisembarkPointId() != null) {
+            RoutePoint disembarkPoint = routePointRepository.findById(dto.getDisembarkPointId())
+                    .orElseThrow(() -> new ResourceNotFoundException("RoutePoint not found with id: " + dto.getDisembarkPointId()));
+            existing.setDisembarkPoint(disembarkPoint);
+        }
 
         Passenger saved = passengerRepository.save(existing);
         return toDTO(saved);
@@ -125,6 +148,13 @@ public class PassengerService {
                 .shift(passenger.getShift())
                 .active(passenger.getActive())
                 .costCenter(passenger.getCostCenter())
+                .cpf(passenger.getCpf())
+                .phone(passenger.getPhone())
+                .email(passenger.getEmail())
+                .passengerType(passenger.getPassengerType())
+                .preferredTime(passenger.getPreferredTime())
+                .notificationsEnabled(passenger.getNotificationsEnabled())
+                .disembarkPointId(passenger.getDisembarkPoint() != null ? passenger.getDisembarkPoint().getId() : null)
                 .createdAt(passenger.getCreatedAt())
                 .updatedAt(passenger.getUpdatedAt())
                 .build();
@@ -138,6 +168,12 @@ public class PassengerService {
         passenger.setShift(dto.getShift());
         passenger.setActive(dto.getActive() != null ? dto.getActive() : true);
         passenger.setCostCenter(dto.getCostCenter());
+        passenger.setCpf(dto.getCpf());
+        passenger.setPhone(dto.getPhone());
+        passenger.setEmail(dto.getEmail());
+        passenger.setPassengerType(dto.getPassengerType() != null ? dto.getPassengerType() : "COMUM");
+        passenger.setPreferredTime(dto.getPreferredTime());
+        passenger.setNotificationsEnabled(dto.getNotificationsEnabled() != null ? dto.getNotificationsEnabled() : true);
 
         if (dto.getEmployeeId() != null) {
             Employee employee = employeeRepository.findById(dto.getEmployeeId())
@@ -155,6 +191,12 @@ public class PassengerService {
             RoutePoint boardingPoint = routePointRepository.findById(dto.getBoardingPointId())
                     .orElseThrow(() -> new ResourceNotFoundException("RoutePoint not found with id: " + dto.getBoardingPointId()));
             passenger.setBoardingPoint(boardingPoint);
+        }
+
+        if (dto.getDisembarkPointId() != null) {
+            RoutePoint disembarkPoint = routePointRepository.findById(dto.getDisembarkPointId())
+                    .orElseThrow(() -> new ResourceNotFoundException("RoutePoint not found with id: " + dto.getDisembarkPointId()));
+            passenger.setDisembarkPoint(disembarkPoint);
         }
 
         return passenger;

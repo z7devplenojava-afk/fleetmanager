@@ -24,7 +24,7 @@ grep JWT_SECRET docker-compose.ci.yml
 
 # 5. Se a linha não tiver o valor padrão correto, editar manualmente:
 # A linha deve ser:
-# JWT_SECRET: ${JWT_SECRET:-jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key}
+# JWT_SECRET: ${JWT_SECRET:-CHANGE_THIS_JWT_SECRET}
 
 # 6. Reiniciar containers
 docker-compose -f docker-compose.ci.yml up -d
@@ -46,7 +46,7 @@ docker logs --tail=50 secured-guard-backend-ci | grep -i jwt
 cd /var/www/secured_guard/ci && \
 unset JWT_SECRET && \
 docker-compose -f docker-compose.ci.yml down && \
-sed -i 's|JWT_SECRET:.*|JWT_SECRET: ${JWT_SECRET:-jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key}|g' docker-compose.ci.yml && \
+sed -i 's|JWT_SECRET:.*|JWT_SECRET: ${JWT_SECRET:-CHANGE_THIS_JWT_SECRET}|g' docker-compose.ci.yml && \
 docker-compose -f docker-compose.ci.yml up -d && \
 sleep 40 && \
 echo "Verificando JWT_SECRET:" && \

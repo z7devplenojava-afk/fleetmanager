@@ -64,18 +64,18 @@ services:
       REDIS_HOST: redis-prod
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD_PROD:-prodredispass}
-      JWT_SECRET: ${JWT_SECRET_PROD:-prodjwtsecret1234567890123456789012}
+      JWT_SECRET: ${JWT_SECRET_PROD:?JWT_SECRET_PROD is required}
       # Email Configuration
       MAIL_HOST: ${MAIL_HOST:-186.209.113.105}
       MAIL_PORT: ${MAIL_PORT:-465}
       MAIL_USERNAME: ${MAIL_USERNAME:-securedguard@z7design.com.br}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-D8rKeqSFZfaS$(y7}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-CHANGE_THIS_MAIL_PASSWORD}
       MAIL_SSL_ENABLE: true
       # JVM Memory Optimization (evita OOM Killer na VPS)
       JAVA_OPTS: "-Xms256m -Xmx768m -XX:+UseG1GC -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom"
       # WhatsApp Configuration (Evolution API)
       EVOLUTION_API_URL: http://evolution-api-prod:8080
-      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY_PROD:-B6D711FCDE4D4FD5936544120E713976}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY_PROD:-CHANGE_THIS_EVOLUTION_API_KEY}
       EVOLUTION_API_INSTANCE: ${EVOLUTION_API_INSTANCE_PROD:-fluxbus_prod}
       EVOLUTION_API_ENABLED: "true"
     ports:
@@ -105,7 +105,7 @@ services:
     environment:
       - SERVER_URL=http://localhost:8080
       - AUTHENTICATION_TYPE=apikey
-      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY_PROD:-B6D711FCDE4D4FD5936544120E713976}
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY_PROD:-CHANGE_THIS_EVOLUTION_API_KEY}
       - CONFIG_SESSION_PHONE_CLIENT=FluxBus
       - CONFIG_SESSION_PHONE_NAME=chrome
       - QRCODE_LIMIT=30

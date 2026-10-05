@@ -154,6 +154,8 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
     const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.2, 0.6));
     const handleRotate = () => setRotation(prev => (prev + 90) % 360);
 
+    if (!isOpen || (!order && !initialBlob)) return null;
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-6xl w-[95vw] h-[92vh] max-h-[95vh] overflow-hidden bg-seguranca-graphite border-gray-700 p-0 flex flex-col z-[10100]">

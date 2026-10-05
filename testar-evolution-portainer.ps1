@@ -8,7 +8,7 @@ Write-Host "  TESTANDO EVOLUTION API (PORTAINER)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-$API_KEY = "B6D711FCDE4D4FD5936544120E713976"
+$API_KEY = "CHANGE_THIS_EVOLUTION_API_KEY"
 $BASE_URL = "http://185.225.233.18:9000"
 $INSTANCE = "fluxbus"
 

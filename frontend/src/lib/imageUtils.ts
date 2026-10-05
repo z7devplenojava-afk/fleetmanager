@@ -24,7 +24,7 @@ export async function compressImageIfNeeded(
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (event) => {
-      const img = new Image();
+      const img = document.createElement('img');
       img.onload = () => {
         let width = img.width;
         let height = img.height;

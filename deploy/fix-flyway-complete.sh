@@ -66,7 +66,7 @@ if command -v mvn &> /dev/null; then
     mvn -f backend/pom.xml flyway:repair \
         -Dflyway.url=jdbc:postgresql://localhost:5432/fluxbus_prod \
         -Dflyway.user=postgressg \
-        -Dflyway.password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' \
+        -Dflyway.password='CHANGE_THIS_DB_MAIL_PASSWORD' \
         -Dflyway.schemas=public
     
     # Executar flyway:migrate com outOfOrder
@@ -74,7 +74,7 @@ if command -v mvn &> /dev/null; then
         -Dflyway.outOfOrder=true \
         -Dflyway.url=jdbc:postgresql://localhost:5432/fluxbus_prod \
         -Dflyway.user=postgressg \
-        -Dflyway.password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' \
+        -Dflyway.password='CHANGE_THIS_DB_MAIL_PASSWORD' \
         -Dflyway.schemas=public
     
     echo -e "${GREEN}✅ Migrações Flyway executadas${NC}"

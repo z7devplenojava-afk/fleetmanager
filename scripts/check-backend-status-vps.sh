@@ -49,7 +49,7 @@ if docker ps | grep -q "fluxbus-redis-ci"; then
     echo "✅ Redis está rodando"
     # Testar conexão
     echo "🔍 Testando conexão com Redis..."
-    docker exec fluxbus-redis-ci redis-cli -a "${REDIS_PASSWORD:-redis_ci_2025}" ping 2>&1 || echo "❌ Erro ao conectar ao Redis"
+    docker exec fluxbus-redis-ci redis-cli -a "${REDIS_PASSWORD:-CHANGE_THIS_REDIS_PASSWORD}" ping 2>&1 || echo "❌ Erro ao conectar ao Redis"
 else
     echo "❌ Redis NÃO está rodando!"
 fi

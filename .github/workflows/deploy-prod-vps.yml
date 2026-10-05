@@ -161,9 +161,9 @@ jobs:
             MAIL_PORT=465
             MAIL_USERNAME=securedguard@z7design.com.br
             MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
-            EVOLUTION_API_KEY_PROD=${{ secrets.EVOLUTION_API_KEY_PROD || 'B6D711FCDE4D4FD5936544120E713976' }}
+            EVOLUTION_API_KEY_PROD=${{ secrets.EVOLUTION_API_KEY_PROD  }}
             EVOLUTION_API_INSTANCE_PROD=fluxbus_prod
-EOF
+            EOF
 
             echo ".env e docker-compose.yml criados com sucesso em /var/www/fluxbus/prod!"
             ls -la /var/www/fluxbus/prod/

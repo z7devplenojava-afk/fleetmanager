@@ -84,7 +84,7 @@ sleep 30
 ### **2. Criar Instância**
 ```bash
 curl -X POST http://185.225.233.18:9000/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"instanceName":"securedguard","integration":"WHATSAPP-BAILEYS"}'
 ```
@@ -96,7 +96,7 @@ sleep 15
 
 ### **4. Obter QR Code**
 ```bash
-curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+curl -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   http://185.225.233.18:9000/instance/connect/securedguard
 ```
 

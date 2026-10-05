@@ -83,7 +83,7 @@ function loadImageAsBase64(url: string): Promise<string | null> {
       resolve(null);
       return;
     }
-    const img = new Image();
+    const img = document.createElement('img');
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
       try {

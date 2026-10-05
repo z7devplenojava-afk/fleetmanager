@@ -64,7 +64,21 @@ public interface AbsenceRepository extends JpaRepository<Absence, UUID> {
     Long countApprovedAbsencesByEmployeeAndDateRange(@Param("employeeId") UUID employeeId,
                                                     @Param("startDate") LocalDate startDate,
                                                     @Param("endDate") LocalDate endDate);
-    
+
+    /**
+     * Contagem de FALTAS INJUSTIFICADAS dentro do periodo aquisitivo.
+     * Base do Art. 130 da CLT para definir dias_direito (30/24/18/12/0).
+     * Considera apenas ausencias pendentes ou aprovadas (rejeitadas/canceladas nao contam).
+     */
+    @Query("SELECT COUNT(a) FROM Absence a WHERE " +
+           "a.employee.id = :employeeId AND " +
+           "a.absenceDate BETWEEN :startDate AND :endDate AND " +
+           "a.isJustified = false AND " +
+           "a.status IN (PENDING, APPROVED)")
+    Long countFaltasInjustificadasByEmployeeAndDateRange(@Param("employeeId") UUID employeeId,
+                                                         @Param("startDate") LocalDate startDate,
+                                                         @Param("endDate") LocalDate endDate);
+
     long countByStatus(Absence.AbsenceStatus status);
 }
 

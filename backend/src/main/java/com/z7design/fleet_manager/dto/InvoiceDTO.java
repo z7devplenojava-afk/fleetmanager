@@ -102,6 +102,11 @@ public class InvoiceDTO {
     private BigDecimal paidAmount;
     private BigDecimal balanceAmount;
     private String bankAccountInfo;
+    private String paymentMethod;
+    private Integer totalInstallments;
+    private java.util.UUID parentInvoiceId;
+    private String nfeKey;
+    private java.util.UUID ddaInvoiceId;
     private Boolean isCanceled;
     
     private LocalDateTime createdAt;
@@ -187,6 +192,11 @@ public class InvoiceDTO {
             dto.setPaidAmount(invoice.getPaidAmount());
             dto.setBalanceAmount(invoice.getBalanceAmount());
             dto.setBankAccountInfo(invoice.getBankAccountInfo());
+            dto.setPaymentMethod(invoice.getPaymentMethod());
+            dto.setTotalInstallments(invoice.getTotalInstallments());
+            dto.setParentInvoiceId(invoice.getParentInvoiceId());
+            dto.setNfeKey(invoice.getNfeKey());
+            dto.setDdaInvoiceId(invoice.getDdaInvoiceId());
             dto.setIsCanceled(invoice.getIsCanceled());
             
             // Tratamento seguro para relacionamentos (pode causar LazyInitializationException)

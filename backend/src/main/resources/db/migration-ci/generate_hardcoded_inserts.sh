@@ -15,7 +15,7 @@ NC='\033[0m'
 
 DB_NAME="fluxbus_test"
 DB_USER="${DB_USER:-postgressg}"
-DB_PASSWORD="${DB_PASSWORD:-4KaCiJc6an@7sgbdcid2025}"
+DB_PASSWORD="${DB_PASSWORD:-CHANGE_THIS_DB_PASSWORD}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 

@@ -271,7 +271,7 @@
 Host: mail.z7design.com.br
 Porta: 465 (SSL/TLS)
 Email: securedguard@z7design.com.br
-Senha: sg@2025promover
+Senha: REMOVIDO_POR_SEGURANCA
 Status: ✅ Configurado
 ```
 

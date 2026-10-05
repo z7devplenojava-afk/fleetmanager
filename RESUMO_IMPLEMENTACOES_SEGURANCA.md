@@ -235,7 +235,7 @@ UPDATE users SET whatsapp = '5511999999999' WHERE username = 'teste';
 spring.mail.host=mail.z7design.com.br
 spring.mail.port=465
 spring.mail.username=securedguard@z7design.com.br
-spring.mail.password=sg@2025promover
+spring.mail.password=REMOVIDO_POR_SEGURANCA
 ```
 
 ## 📱 Configuração de WhatsApp

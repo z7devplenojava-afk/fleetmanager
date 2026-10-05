@@ -49,6 +49,7 @@ import fleetService from '@/services/fleetService';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import driverService from '@/services/driverService';
+import { employeeService } from '@/services/employeeService';
 import maintenanceService from '@/services/maintenanceService';
 import kmControlService from '@/services/kmControlService';
 import { Vehicle, FuelRecord, Fine, KmControl } from '@/types/fleet';
@@ -344,6 +345,46 @@ const Frota: React.FC = () => {
     retry: 2,
     retryDelay: 1000
   });
+
+  // Buscar funcionários com CNH para compor a aba Motoristas
+  const {
+    data: employeesWithCnh,
+    isLoading: employeesLoading
+  } = useQuery({
+    queryKey: ['employees-cnh'],
+    queryFn: async () => {
+      const list = await employeeService.getAllEmployees();
+      return (Array.isArray(list) ? list : []).filter(
+        (emp) => emp?.cnhNumber && String(emp.cnhNumber).trim() !== ''
+      );
+    },
+    retry: 2,
+    retryDelay: 1000
+  });
+
+  // Motoristas = cadastro de motoristas + funcionários com CNH (dedup por CNH)
+  const motoristas = React.useMemo<Driver[]>(() => {
+    const base: Driver[] = (drivers || []) as Driver[];
+    const knownCnh = new Set(
+      base
+        .map((d) => (d.licenseNumber || '').trim().toUpperCase())
+        .filter(Boolean)
+    );
+
+    const fromEmployees: Driver[] = (employeesWithCnh || [])
+      .filter((emp) => !knownCnh.has(String(emp.cnhNumber).trim().toUpperCase()))
+      .map((emp) => ({
+        id: `emp-${emp.id}`,
+        name: emp.name,
+        status: emp.status === 'TERMINATED' ? 'INATIVO' : 'ATIVO',
+        licenseNumber: String(emp.cnhNumber).trim(),
+        phone: emp.phone || undefined,
+        source: 'EMPLOYEE' as const,
+        employeeId: emp.id
+      }));
+
+    return [...base, ...fromEmployees];
+  }, [drivers, employeesWithCnh]);
 
   // Exclusão de motoristas
   const deleteDriverMutation = useMutation<void, any, string>({
@@ -1798,7 +1839,7 @@ const Frota: React.FC = () => {
               </Button>
             </div>
 
-            {driversLoading && (
+            {(driversLoading || employeesLoading) && (
               <div className="flex items-center justify-center p-8 bg-seguranca-black border border-gray-600 rounded-lg">
                 <Loader2 className="h-8 w-8 animate-spin text-seguranca-yellow" />
                 <span className="ml-2 text-seguranca-lightgray">Carregando motoristas...</span>
@@ -1812,11 +1853,11 @@ const Frota: React.FC = () => {
               </div>
             )}
 
-            {drivers && (
+            {drivers && !driversLoading && (
               <div className="space-y-6">
                 <div className="bg-seguranca-black border border-gray-600 rounded-lg overflow-hidden">
                   <MotoristasTable
-                    drivers={drivers || []}
+                    drivers={motoristas}
                     onAdd={() => handleOpenDriverModal()}
                     onEdit={handleOpenDriverModal}
                     onDelete={(driver) => {

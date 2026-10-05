@@ -43,9 +43,9 @@ public class SstComplianceController {
     @GetMapping("/opacity-tests")
     @Operation(summary = "Listar laudos de fumaça preta")
     public ResponseEntity<List<OpacityTest>> listOpacityTests(
-            @RequestParam(required = false) UUID vehicleId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+            @RequestParam(value = "vehicleId", required = false) UUID vehicleId,
+            @RequestParam(value = "start", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam(value = "end", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
         if (vehicleId != null) {
             return ResponseEntity.ok(opacityTestService.findByVehicle(vehicleId));
         }
@@ -63,12 +63,12 @@ public class SstComplianceController {
 
     @GetMapping("/opacity-tests/coverage/{yearMonth}")
     @Operation(summary = "Cobertura mensal de laudos (100% da frota em operação)")
-    public ResponseEntity<Map<String, Object>> getCoverage(@PathVariable String yearMonth) {
+    public ResponseEntity<Map<String, Object>> getCoverage(@PathVariable("yearMonth") String yearMonth) {
         return ResponseEntity.ok(opacityTestService.getMonthlyCoverage(YearMonth.parse(yearMonth)));
     }
 
     @DeleteMapping("/opacity-tests/{id}")
-    public ResponseEntity<Void> deleteOpacityTest(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteOpacityTest(@PathVariable("id") UUID id) {
         opacityTestService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -77,7 +77,7 @@ public class SstComplianceController {
 
     @GetMapping("/dossiers")
     @Operation(summary = "Listar dossiês de conformidade")
-    public ResponseEntity<List<ComplianceDossier>> listDossiers(@RequestParam(required = false) UUID clientId) {
+    public ResponseEntity<List<ComplianceDossier>> listDossiers(@RequestParam(value = "clientId", required = false) UUID clientId) {
         if (clientId != null) {
             return ResponseEntity.ok(dossierService.findByClient(clientId));
         }
@@ -87,14 +87,14 @@ public class SstComplianceController {
     @PostMapping("/dossiers")
     @Operation(summary = "Criar/obter dossiê do mês (referência = mês anterior ao BM)")
     public ResponseEntity<ComplianceDossier> createOrGetDossier(
-            @RequestParam String referenceMonth,
-            @RequestParam UUID clientId) {
+            @RequestParam("referenceMonth") String referenceMonth,
+            @RequestParam("clientId") UUID clientId) {
         return ResponseEntity.ok(dossierService.createOrGet(referenceMonth, clientId));
     }
 
     @PutMapping("/dossiers/{id}")
     @Operation(summary = "Atualizar checklist do kit (fumaça preta validada automaticamente)")
-    public ResponseEntity<ComplianceDossier> updateDossier(@PathVariable UUID id, @RequestBody ComplianceDossier input) {
+    public ResponseEntity<ComplianceDossier> updateDossier(@PathVariable("id") UUID id, @RequestBody ComplianceDossier input) {
         input.setId(id);
         return ResponseEntity.ok(dossierService.updateChecklist(input));
     }
@@ -102,14 +102,14 @@ public class SstComplianceController {
     @PostMapping("/dossiers/{id}/generate")
     @Operation(summary = "Gerar dossiê 1-clique (bloqueia se kit incompleto)")
     public ResponseEntity<ComplianceDossier> generateDossier(
-            @PathVariable UUID id,
-            @RequestParam(defaultValue = "sistema") String generatedBy) {
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "generatedBy", defaultValue = "sistema") String generatedBy) {
         return ResponseEntity.ok(dossierService.generate(id, generatedBy));
     }
 
     @GetMapping("/dossiers/{id}/pdf")
     @Operation(summary = "Baixar Dossiê Mensal de Conformidade em PDF")
-    public ResponseEntity<byte[]> dossierPdf(@PathVariable UUID id) {
+    public ResponseEntity<byte[]> dossierPdf(@PathVariable("id") UUID id) {
         byte[] pdf = dossierService.generatePdf(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)

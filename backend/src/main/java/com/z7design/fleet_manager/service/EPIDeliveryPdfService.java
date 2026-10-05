@@ -92,10 +92,12 @@ public class EPIDeliveryPdfService {
         return generateEPIDeliveryPdfFromForm(form, false);
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public byte[] generateEPIDeliveryPdfFromForm(EPIDeliveryForm form) throws Exception {
         return generateEPIDeliveryPdfFromForm(form, false);
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public byte[] generateEPIDeliveryPdfFromForm(EPIDeliveryForm form, boolean landscape) throws Exception {
         log.info("📄 Gerando ficha de entrega de EPI a partir do formulário ID: {} (landscape: {})", form.getId(), landscape);
         
@@ -113,12 +115,32 @@ public class EPIDeliveryPdfService {
             data.put("landscape", landscape);
             
             if (employee != null) {
-                data.put("funcionarioNome", employee.getName());
-                data.put("funcionarioCpf", employee.getDocument() != null ? employee.getDocument() : "");
-                data.put("funcionarioCargo", employee.getPosition() != null ? employee.getPosition().getName() : "");
+                data.put("funcionarioNome", employee.getName() != null ? employee.getName() : "-");
+                String doc = employee.getDocument() != null ? employee.getDocument() : "";
+                data.put("funcionarioCpf", doc);
+                
+                String cargo = "";
+                try {
+                    if (employee.getPosition() != null) {
+                        cargo = employee.getPosition().getName();
+                    }
+                } catch (Exception e) {
+                    log.warn("Aviso ao carregar cargo do funcionário na ficha EPI: {}", e.getMessage());
+                }
+                data.put("funcionarioCargo", cargo != null ? cargo : "");
+
                 String matricula = employee.getRegistrationNumber() != null ? employee.getRegistrationNumber() : "N/D";
                 data.put("funcionarioMatricula", matricula);
-                data.put("funcionarioSetor", employee.getUnit() != null ? employee.getUnit().getName() : "");
+
+                String setor = "";
+                try {
+                    if (employee.getUnit() != null) {
+                        setor = employee.getUnit().getName();
+                    }
+                } catch (Exception e) {
+                    log.warn("Aviso ao carregar setor/unidade do funcionário na ficha EPI: {}", e.getMessage());
+                }
+                data.put("funcionarioSetor", setor != null ? setor : "");
                 data.put("funcionarioAdmissao", employee.getHireDate() != null ? employee.getHireDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "__/__/____");
             } else {
                 data.put("funcionarioNome", "-");
@@ -220,8 +242,9 @@ public class EPIDeliveryPdfService {
         }
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public byte[] generateEPIDeliveryExcelFromForm(EPIDeliveryForm form) throws Exception {
-        log.info("ðŸ“Š Gerando ficha de entrega de EPI (Excel) a partir do formulÃ¡rio ID: {}", form.getId());
+        log.info("📊 Gerando ficha de entrega de EPI (Excel) a partir do formulário ID: {}", form.getId());
 
         Employee employee = form.getEmployee();
         Company company = form.getCompany();
@@ -229,21 +252,36 @@ public class EPIDeliveryPdfService {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Ficha EPI");
             int lastColumn = 6;
-            int rowIndex = excelReportLayoutService.addHeader(sheet, workbook, company, "CONTROLE DE EQUIPAMENTOS DE PROTEÃ‡ÃƒO INDIVIDUAL (EPI)", lastColumn);
+            int rowIndex = excelReportLayoutService.addHeader(sheet, workbook, company, "CONTROLE DE EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL (EPI)", lastColumn);
 
             CellStyle labelStyle = createLabelStyle(workbook);
             CellStyle valueStyle = createValueStyle(workbook);
             CellStyle headerStyle = createHeaderStyle(workbook);
 
-            rowIndex = addRow(sheet, rowIndex, "Empresa:", company.getName(), labelStyle, valueStyle);
-            rowIndex = addRow(sheet, rowIndex, "CNPJ:", company.getCnpj(), labelStyle, valueStyle);
+            rowIndex = addRow(sheet, rowIndex, "Empresa:", company != null && company.getName() != null ? company.getName() : "", labelStyle, valueStyle);
+            rowIndex = addRow(sheet, rowIndex, "CNPJ:", company != null && company.getCnpj() != null ? company.getCnpj() : "", labelStyle, valueStyle);
             rowIndex++;
 
-            rowIndex = addRow(sheet, rowIndex, "FuncionÃ¡rio:", employee.getName(), labelStyle, valueStyle);
-            rowIndex = addRow(sheet, rowIndex, "CPF:", employee.getDocument(), labelStyle, valueStyle);
-            rowIndex = addRow(sheet, rowIndex, "FunÃ§Ã£o:", employee.getPosition() != null ? employee.getPosition().getName() : "", labelStyle, valueStyle);
-            rowIndex = addRow(sheet, rowIndex, "Setor:", employee.getUnit() != null ? employee.getUnit().getName() : "", labelStyle, valueStyle);
-            rowIndex = addRow(sheet, rowIndex, "AdmissÃ£o:", formatDate(employee.getHireDate()), labelStyle, valueStyle);
+            String empName = employee != null && employee.getName() != null ? employee.getName() : "";
+            String empDoc = employee != null && employee.getDocument() != null ? employee.getDocument() : "";
+            String empCargo = "";
+            try {
+                if (employee != null && employee.getPosition() != null) {
+                    empCargo = employee.getPosition().getName();
+                }
+            } catch (Exception ignored) {}
+            String empSetor = "";
+            try {
+                if (employee != null && employee.getUnit() != null) {
+                    empSetor = employee.getUnit().getName();
+                }
+            } catch (Exception ignored) {}
+
+            rowIndex = addRow(sheet, rowIndex, "Funcionário:", empName, labelStyle, valueStyle);
+            rowIndex = addRow(sheet, rowIndex, "CPF:", empDoc, labelStyle, valueStyle);
+            rowIndex = addRow(sheet, rowIndex, "Função:", empCargo, labelStyle, valueStyle);
+            rowIndex = addRow(sheet, rowIndex, "Setor:", empSetor, labelStyle, valueStyle);
+            rowIndex = addRow(sheet, rowIndex, "Admissão:", employee != null ? formatDate(employee.getHireDate()) : "", labelStyle, valueStyle);
             rowIndex = addRow(sheet, rowIndex, "Data de Entrega:", formatDate(form.getDeliveryDate()), labelStyle, valueStyle);
             rowIndex++;
 

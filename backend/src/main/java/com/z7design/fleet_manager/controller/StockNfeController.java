@@ -34,6 +34,16 @@ public class StockNfeController {
         return ResponseEntity.ok(stockNfeService.parseXml(file, user != null ? user.getCompanyId() : null));
     }
 
+    @PostMapping(value = "/parse-pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Realiza parse do arquivo PDF (DANFE) de NF-e para conferência prévia de itens e financeiro")
+    public ResponseEntity<StockNfeParsedDTO> parsePdf(
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal User user) {
+        log.info("POST /api/stock/nfe/parse-pdf - Arquivo: {}, Tamanho: {} bytes",
+                file.getOriginalFilename(), file.getSize());
+        return ResponseEntity.ok(stockNfeService.parsePdf(file, user != null ? user.getCompanyId() : null));
+    }
+
     @PostMapping("/process")
     @Operation(summary = "Processa e grava os itens no estoque e as parcelas no Contas a Pagar")
     public ResponseEntity<StockNfeProcessResponseDTO> processNfe(

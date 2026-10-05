@@ -13,7 +13,7 @@ DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-fluxbus}"
 DB_USER="${DB_USER:-postgres}"
-DB_PASSWORD="${DB_PASSWORD:-4KaCiJc6an@7sgbdcid2025}"
+DB_PASSWORD="${DB_PASSWORD:-CHANGE_THIS_DB_PASSWORD}"
 
 echo "📋 Configurações do banco:"
 echo "   Host: $DB_HOST"

@@ -5,10 +5,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface WorkScaleRepository extends JpaRepository<WorkScale, UUID> {
 
     List<WorkScale> findByCompanyId(UUID companyId);
+
+    List<WorkScale> findByNameContainingIgnoreCase(String name);
+
+    Optional<WorkScale> findByNameIgnoreCase(String name);
 }

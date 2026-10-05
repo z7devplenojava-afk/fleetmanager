@@ -257,7 +257,6 @@ const operacionalMenuItems = [
   { icon: BarChart3, text: 'Dashboard Operacional', to: '/operacional-dashboard', id: 'operacional-dashboard' },
   { icon: Building2, text: 'Gestão de Postos', to: '/operacional/postos', id: 'operacional-postos' },
   { icon: Clock, text: 'Gestão de Escalas', to: '/operacional/escalas', id: 'operacional-escalas' },
-  { icon: Calendar, text: 'Gestão de Férias', to: '/operacional/ferias', id: 'operacional-ferias' },
   { icon: CheckSquare, text: 'Gestão de Tarefas', to: '/operacional/tarefas', id: 'operacional-tarefas' },
   { icon: FileText, text: 'Relatórios Operacionais', to: '/operacional/relatorios', id: 'operacional-relatorios' },
   { icon: CheckSquare, text: 'Controle de Visitas de Supervisor', to: '/gestao-visitas-supervisor', id: 'gestao-visitas-supervisor' },

@@ -18,6 +18,7 @@ import { generateFleetWorkOrderPDFBlob } from '@/utils/fleetWorkOrderPDFGenerato
 import {
   Search, RefreshCw, MoreHorizontal, Eye, Pencil, Trash2, FileText, Copy, Package,
 } from 'lucide-react';
+import { PartsProcurementHoverCard } from '@/components/frota/PartsProcurementHoverCard';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -198,9 +199,17 @@ const OrdensServicoTable: React.FC<OrdensServicoTableProps> = ({ onRefresh }) =>
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-[10px]`}>
-                      {STATUS_CONFIG[order.status]?.label || order.status}
-                    </Badge>
+                    {order.status === WorkOrderStatus.WAITING_PARTS ? (
+                      <PartsProcurementHoverCard workOrderId={order.id} osNumber={order.osNumber}>
+                        <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-[10px] cursor-pointer hover:opacity-90 transition-opacity`}>
+                          {STATUS_CONFIG[order.status]?.label || order.status}
+                        </Badge>
+                      </PartsProcurementHoverCard>
+                    ) : (
+                      <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-[10px]`}>
+                        {STATUS_CONFIG[order.status]?.label || order.status}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="font-semibold text-gray-200 text-xs">{order.vehiclePlate || 'N/A'}</div>

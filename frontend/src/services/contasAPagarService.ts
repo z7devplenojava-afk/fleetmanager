@@ -23,6 +23,42 @@ export interface CreateContaAPagarRequest {
   notes?: string;
   centroCusto?: string;
   companySigla?: string;
+  paymentMethod?: string;
+  totalInstallments?: number;
+  parentInvoiceId?: string;
+  nfeKey?: string;
+  ddaInvoiceId?: string;
+}
+
+export interface BankCredential {
+  id?: string;
+  companyId?: string;
+  bankCode: string;
+  bankName: string;
+  clientId?: string;
+  clientSecret?: string;
+  certificatePath?: string;
+  environment?: 'SANDBOX' | 'PRODUCTION';
+  isActive?: boolean;
+}
+
+export interface DdaInvoice {
+  id: string;
+  companyId: string;
+  barcode: string;
+  linhaDigitavel?: string;
+  issuerCnpj: string;
+  issuerName: string;
+  payerCnpj: string;
+  payerName: string;
+  amount: number;
+  dueDate: string;
+  issueDate?: string;
+  status: 'DETECTED' | 'LINKED' | 'PAID' | 'DISCARDED';
+  linkedInvoiceId?: string;
+  transactionId?: string;
+  syncedAt?: string;
+  paidAt?: string;
 }
 
 export interface UpdateContaAPagarRequest extends Partial<CreateContaAPagarRequest> {
@@ -492,29 +528,48 @@ export const contasAPagarService = {
   },
 
   async getCostCenters(): Promise<string[]> {
+    const DEFAULT_LIST = [
+      'Administrativo',
+      'Operacional',
+      'Manutenção e Frotas',
+      'Comercial',
+      'Financeiro',
+      'Recursos Humanos',
+      'Tecnologia da Informação',
+      'Marketing',
+      'Vendas',
+      'Produção',
+      'Logística'
+    ];
+
     try {
-      const response = await api.get('/api/cost-centers');
-      // Verificar se a resposta é um array válido
+      const response = await api.get('/cost-centers');
+      let items: string[] = [];
+
       if (Array.isArray(response.data)) {
-        return response.data.map((center: any) => center.name);
+        items = response.data
+          .map((center: any) => typeof center === 'string' ? center : (center.name || center.code || center.id || center))
+          .filter(Boolean);
+      } else if (response.data && Array.isArray((response.data as any).content)) {
+        items = (response.data as any).content
+          .map((center: any) => typeof center === 'string' ? center : (center.name || center.code || center.id || center))
+          .filter(Boolean);
       }
-      // Se não for array ou for HTML, usar fallback
-      throw new Error('Resposta inválida da API');
+
+      if (items.length === 0) {
+        try {
+          const responseInvoices = await api.get('/invoices/cost-centers');
+          if (Array.isArray(responseInvoices.data) && responseInvoices.data.length > 0) {
+            items = responseInvoices.data.filter(Boolean);
+          }
+        } catch (_) {}
+      }
+
+      const merged = Array.from(new Set([...items, ...DEFAULT_LIST]));
+      return merged;
     } catch (error) {
       console.error('Erro ao carregar centros de custo:', error);
-      // Retornar centros de custo padrão
-      return [
-        'Administrativo',
-        'Operacional',
-        'Comercial',
-        'Financeiro',
-        'Recursos Humanos',
-        'Tecnologia da Informação',
-        'Marketing',
-        'Vendas',
-        'Produção',
-        'Logística'
-      ];
+      return DEFAULT_LIST;
     }
   },
 
@@ -575,7 +630,7 @@ export const contasAPagarService = {
     };
   },
 
-  // Importar relatório de despesas PDF (SIGLO)
+  // Importar relatório de despesas PDF
   async importarDespesasPdf(file: File): Promise<ExpensePdfImportResultDTO> {
     const formData = new FormData();
     formData.append('file', file);
@@ -962,7 +1017,7 @@ export const contasAPagarService = {
   // Buscar lista de classificações de despesas
   getClassificacoes: async (): Promise<string[]> => {
     try {
-      const response = await api.get('/api/expense-classifications/names');
+      const response = await api.get('/expense-classifications/names');
       if (Array.isArray(response.data) && response.data.length > 0) {
         return response.data;
       }
@@ -971,6 +1026,62 @@ export const contasAPagarService = {
     }
     const { CLASSIFICACOES_SIGLO } = await import('@/constants/classificacaoContasPagar');
     return Array.from(CLASSIFICACOES_SIGLO);
+  },
+
+  // ===== CREDENCIAIS BANCÁRIAS =====
+  getBankCredentials: async (): Promise<BankCredential[]> => {
+    try {
+      const response = await api.get('/api/bank-credentials');
+      return response.data;
+    } catch (e) {
+      console.error('Erro ao buscar credenciais bancárias:', e);
+      return [];
+    }
+  },
+
+  saveBankCredential: async (credential: BankCredential): Promise<BankCredential> => {
+    const response = await api.post('/api/bank-credentials', credential);
+    return response.data;
+  },
+
+  deleteBankCredential: async (id: string): Promise<void> => {
+    await api.delete(`/api/bank-credentials/${id}`);
+  },
+
+  testBankConnection: async (id: string): Promise<any> => {
+    const response = await api.post(`/api/bank-credentials/${id}/test`);
+    return response.data;
+  },
+
+  // ===== MOTOR DDA (DÉBITO DIRETO AUTORIZADO) =====
+  getDdaInvoices: async (): Promise<DdaInvoice[]> => {
+    try {
+      const response = await api.get('/api/dda/invoices');
+      return response.data;
+    } catch (e) {
+      console.error('Erro ao buscar boletos DDA:', e);
+      return [];
+    }
+  },
+
+  syncDdaInvoices: async (): Promise<DdaInvoice[]> => {
+    const response = await api.post('/api/dda/sync');
+    return response.data;
+  },
+
+  linkDdaToInvoice: async (ddaId: string, invoiceId: string): Promise<DdaInvoice> => {
+    const response = await api.post(`/api/dda/${ddaId}/link`, { invoiceId });
+    return response.data;
+  },
+
+  importDdaAsInvoice: async (ddaId: string): Promise<any> => {
+    const response = await api.post(`/api/dda/${ddaId}/import`);
+    return response.data;
+  },
+
+  payDdaInvoice: async (ddaId: string, paymentMethod?: string): Promise<DdaInvoice> => {
+    const response = await api.post(`/api/dda/${ddaId}/pay`, { paymentMethod: paymentMethod || 'PIX' });
+    return response.data;
   }
 };
 

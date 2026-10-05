@@ -12,7 +12,7 @@ set DB_HOST=localhost
 set DB_PORT=5432
 set DB_NAME=fluxbus
 set DB_USER=postgres
-set DB_PASSWORD=4KaCiJc6an@7sgbdcid2025
+set DB_PASSWORD=CHANGE_THIS_DB_PASSWORD
 
 echo Configuracoes do banco:
 echo    Host: %DB_HOST%

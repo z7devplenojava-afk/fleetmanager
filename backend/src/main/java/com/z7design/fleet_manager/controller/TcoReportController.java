@@ -39,9 +39,9 @@ public class TcoReportController {
     @GetMapping("/period")
     @Operation(summary = "Painel TCO por período e placa opcional")
     public ResponseEntity<List<VehicleTcoDTO>> getFleetTco(
-            @RequestParam(required = false) String plate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+            @RequestParam(value = "plate", required = false) String plate,
+            @RequestParam(value = "start", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam(value = "end", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
         return ResponseEntity.ok(tcoReportService.getFleetTco(plate, start, end));
     }
 
@@ -62,7 +62,7 @@ public class TcoReportController {
     @PostMapping("/odometer/vehicle/{vehicleId}/seed-prd-plans")
     @Operation(summary = "Semear planos padrão de PMP do PRD (RF-06.1)")
     public ResponseEntity<Map<String, Integer>> seedPrdPlans(
-            @PathVariable UUID vehicleId,
+            @PathVariable("vehicleId") UUID vehicleId,
             @RequestBody(required = false) Map<String, Integer> body) {
         int lastKm = (body != null && body.get("lastExecutionKm") != null) ? body.get("lastExecutionKm") : 0;
         int created = odometerService.seedDefaultPrdPlans(vehicleId, lastKm);

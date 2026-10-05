@@ -97,6 +97,9 @@ import {
   minutesUntilDeadline,
 } from '@/services/vehicleCleaningService';
 import { garageService, Garage } from '@/services/garageService';
+import { carWashService, CarWash } from '@/services/carWashService';
+import { CarWashManagerModal } from '@/components/limpeza/CarWashManagerModal';
+import { EvidencePhotosSection } from '@/components/limpeza/EvidencePhotosSection';
 import { exportToXLSX, exportToPDF } from '@/utils/exportUtils';
 import {
   downloadCleaningReleasePDF,
@@ -152,6 +155,13 @@ const GestaoLimpezaVeiculos: React.FC = () => {
   const [newObservations, setNewObservations] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Car Washes Terceirizados & Evidências
+  const [carWashes, setCarWashes] = useState<CarWash[]>([]);
+  const [showCarWashModal, setShowCarWashModal] = useState(false);
+  const [newExecutionLocation, setNewExecutionLocation] = useState<ExecutionLocation>('INTERNAL');
+  const [newCarWashId, setNewCarWashId] = useState('');
+  const [newCleaningCost, setNewCleaningCost] = useState('');
+
   // Detalhe / execução
   const [selectedOrder, setSelectedOrder] = useState<VehicleCleaningOrder | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -195,10 +205,11 @@ const GestaoLimpezaVeiculos: React.FC = () => {
 
   const loadVehiclesAndDrivers = useCallback(async () => {
     try {
-      const [vehData, drvData, garageData] = await Promise.all([
+      const [vehData, drvData, garageData, carWashData] = await Promise.all([
         fleetService.getVehicles(),
         driverService.getDrivers(),
         garageService.list().catch(() => []),
+        carWashService.list().catch(() => []),
       ]);
       setVehicles(vehData.map((v: any) => ({
         id: v.id,
@@ -209,6 +220,7 @@ const GestaoLimpezaVeiculos: React.FC = () => {
       })));
       setDrivers(drvData);
       setGarages(garageData);
+      setCarWashes(carWashData);
     } catch {
       // silencioso
     }
@@ -251,6 +263,23 @@ const GestaoLimpezaVeiculos: React.FC = () => {
     setNewPriority(SECTOR_DEFAULT_PRIORITY[sector]);
   };
 
+  const handleCarWashSelect = (carWashId: string, type: CleaningType) => {
+    setNewCarWashId(carWashId);
+    const cw = carWashes.find(c => c.id === carWashId);
+    if (cw) {
+      let val: number | undefined;
+      switch (type) {
+        case 'EXTERNAL': val = cw.priceExternal; break;
+        case 'INTERNAL': val = cw.priceInternal; break;
+        case 'SANITARY': val = cw.priceSanitary; break;
+        case 'COMPLETE': val = cw.priceComplete; break;
+      }
+      if (val != null) {
+        setNewCleaningCost(val.toString());
+      }
+    }
+  };
+
   const handleCreate = async () => {
     if (!newVehicleId) {
       toast({ title: 'Atenção', description: 'Selecione o veículo', variant: 'destructive' });
@@ -268,6 +297,9 @@ const GestaoLimpezaVeiculos: React.FC = () => {
         releaseDeadline: newDeadline ? new Date(newDeadline).toISOString() : undefined,
         releaseSpot: newReleaseSpot.trim() || undefined,
         observations: newObservations.trim() || undefined,
+        executionLocation: newExecutionLocation,
+        carWashId: newExecutionLocation === 'EXTERNAL' && newCarWashId ? newCarWashId : undefined,
+        cleaningCost: newExecutionLocation === 'EXTERNAL' && newCleaningCost ? parseFloat(newCleaningCost) : undefined,
       };
       const created = await vehicleCleaningService.create(payload);
       setShowNewDialog(false);
@@ -278,6 +310,9 @@ const GestaoLimpezaVeiculos: React.FC = () => {
       setNewDeadline('');
       setNewReleaseSpot('');
       setNewObservations('');
+      setNewExecutionLocation('INTERNAL');
+      setNewCarWashId('');
+      setNewCleaningCost('');
       toast({ title: 'Sucesso', description: 'Solicitação criada com sucesso!' });
       loadOrders();
       // Abre a OS de Higienização padronizada automaticamente
@@ -937,6 +972,14 @@ const GestaoLimpezaVeiculos: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setShowCarWashModal(true)}
+                className="bg-seguranca-graphite border-gray-700 text-sky-400 border-sky-600/50 hover:bg-sky-950/30 hover:text-sky-300 font-medium"
+              >
+                <Droplets size={14} className="mr-1.5" /> Gerenciar Lava-Jatos
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={loadOrders}
                 className="bg-seguranca-graphite border-gray-700 text-gray-300 hover:text-white"
               >
@@ -1030,8 +1073,90 @@ const GestaoLimpezaVeiculos: React.FC = () => {
                       </div>
                     </div>
                     <div>
+                      <label className="text-sm text-gray-400 mb-1.5 block font-semibold">Local de Execução da Limpeza *</label>
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        <button
+                          type="button"
+                          onClick={() => setNewExecutionLocation('INTERNAL')}
+                          className={`p-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                            newExecutionLocation === 'INTERNAL'
+                              ? 'bg-seguranca-yellow text-black border-seguranca-yellow shadow-md'
+                              : 'bg-seguranca-black text-gray-300 border-gray-700 hover:border-gray-500'
+                          }`}
+                        >
+                          <Warehouse size={15} /> Garagem Própria (Interna)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewExecutionLocation('EXTERNAL')}
+                          className={`p-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                            newExecutionLocation === 'EXTERNAL'
+                              ? 'bg-sky-500 text-white border-sky-500 shadow-md'
+                              : 'bg-seguranca-black text-gray-300 border-gray-700 hover:border-gray-500'
+                          }`}
+                        >
+                          <Droplets size={15} /> Lava-Jato Externo (Terceirizado)
+                        </button>
+                      </div>
+                    </div>
+
+                    {newExecutionLocation === 'EXTERNAL' && (
+                      <div className="space-y-3 bg-sky-950/20 border border-sky-500/30 p-3.5 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs text-sky-300 font-semibold block uppercase tracking-wide">
+                            Prestador de Serviço (Lava-Jato) *
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setShowCarWashModal(true)}
+                            className="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1 font-semibold"
+                          >
+                            <Plus size={12} /> Cadastrar Lava-Jato
+                          </button>
+                        </div>
+                        <Select
+                          value={newCarWashId}
+                          onValueChange={(v) => handleCarWashSelect(v, newCleaningType)}
+                        >
+                          <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
+                            <SelectValue placeholder="Selecione o Lava-Jato prestador" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
+                            {carWashes.map(cw => (
+                              <SelectItem key={cw.id} value={cw.id}>
+                                {cw.name} {cw.phone ? `(${cw.phone})` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 block">Valor do Serviço Terceirizado (R$)</label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={newCleaningCost}
+                            onChange={e => setNewCleaningCost(e.target.value)}
+                            placeholder="Ex.: 80,00"
+                            className="bg-seguranca-black border-gray-700 text-white"
+                          />
+                          <p className="text-[11px] text-gray-500 mt-1">Preenchido com o valor acordado cadastrado no Lava-Jato.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
                       <label className="text-sm text-gray-400 mb-1 block">Tipo de Serviço *</label>
-                      <Select value={newCleaningType} onValueChange={(v) => setNewCleaningType(v as CleaningType)}>
+                      <Select
+                        value={newCleaningType}
+                        onValueChange={(v) => {
+                          const type = v as CleaningType;
+                          setNewCleaningType(type);
+                          if (newExecutionLocation === 'EXTERNAL' && newCarWashId) {
+                            handleCarWashSelect(newCarWashId, type);
+                          }
+                        }}
+                      >
                         <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
                           <SelectValue />
                         </SelectTrigger>
@@ -1531,12 +1656,33 @@ const GestaoLimpezaVeiculos: React.FC = () => {
                   </div>
                 )}
 
+                {selectedOrder.executionLocation === 'EXTERNAL' && (
+                  <div className="bg-sky-950/30 border border-sky-500/40 rounded-lg p-3 text-xs flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-sky-300 font-semibold flex items-center gap-1.5">
+                      <Droplets size={15} className="text-sky-400" /> Prestador Terceirizado: {selectedOrder.carWashName || 'Lava-Jato Externo'}
+                    </span>
+                    {selectedOrder.cleaningCost != null && selectedOrder.cleaningCost > 0 && (
+                      <span className="text-emerald-400 font-bold font-mono text-sm">
+                        R$ {selectedOrder.cleaningCost.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {selectedOrder.observations && (
                   <div className="bg-seguranca-black/50 rounded-lg p-3 border border-gray-700/50">
                     <p className="text-xs text-gray-400 mb-1 font-semibold">Observações / Ocorrências Informadas:</p>
                     <p className="text-sm text-gray-200">{selectedOrder.observations}</p>
                   </div>
                 )}
+
+                <EvidencePhotosSection
+                  order={selectedOrder}
+                  onOrderUpdated={(updated) => {
+                    setSelectedOrder(updated);
+                    loadOrders();
+                  }}
+                />
 
                 {renderChecklistSection('INTERNAL', 'Limpeza Interna')}
                 {renderChecklistSection('EXTERNAL', 'Limpeza Externa')}
@@ -1621,6 +1767,16 @@ const GestaoLimpezaVeiculos: React.FC = () => {
           }}
           order={cleaningOrderForOsModal}
           supplies={supplies}
+        />
+
+        {/* Modal de Gestão de Lava-Jatos */}
+        <CarWashManagerModal
+          isOpen={showCarWashModal}
+          onClose={() => {
+            setShowCarWashModal(false);
+            loadVehiclesAndDrivers();
+          }}
+          onSelectCarWash={(cw) => handleCarWashSelect(cw.id, newCleaningType)}
         />
       </div>
     </StandardLayout>

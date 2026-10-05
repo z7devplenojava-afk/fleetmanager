@@ -24,6 +24,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, java.util.UUID
     List<Invoice> findByStatus(ExpenseStatus status);
     Page<Invoice> findByStatus(ExpenseStatus status, Pageable pageable);
     
+    // Buscar por companyId
+    List<Invoice> findByCompanyId(UUID companyId);
+    
     // Buscar por tipo
     List<Invoice> findByType(ExpenseType type);
     Page<Invoice> findByType(ExpenseType type, Pageable pageable);

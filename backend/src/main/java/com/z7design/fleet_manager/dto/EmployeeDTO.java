@@ -205,11 +205,17 @@ public class EmployeeDTO {
     private String vistoFiscalizacao;
     
     // Campos para Estrangeiro
-    private String rneNumero; // RNE nÂº
+    private String rneNumero; // RNE nº
     @JsonFormat(pattern = "yyyy-MM-dd")
     @JsonDeserialize(using = BlankStringToNullLocalDateDeserializer.class)
     private LocalDate rneValidade; // Validade do RNE
-    private String ricNumero; // NÂº RIC (para naturalizados)
+    private String numeroPortaria;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    @JsonDeserialize(using = BlankStringToNullLocalDateDeserializer.class)
+    private LocalDate dataPortaria;
+    private String fgtsConta;
+    private String contaCorrenteDigito;
+    private String ricNumero; // Nº RIC (para naturalizados)
     private String ricOrgaoEmissor; // Ã“rgÃ£o Emissor do RIC
     @JsonFormat(pattern = "yyyy-MM-dd")
     @JsonDeserialize(using = BlankStringToNullLocalDateDeserializer.class)

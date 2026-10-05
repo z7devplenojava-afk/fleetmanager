@@ -42,8 +42,18 @@ public class VehicleCleaningOrderDTO {
     private LocalDateTime qualityInspectedAt;
     private String qualityChecklist;
     private String releaseSpot;
+    private VehicleCleaningOrder.ExecutionLocation executionLocation;
+    private UUID carWashId;
+    private String carWashName;
+    private java.math.BigDecimal cleaningCost;
+    private String photoBeforeInternal;
+    private String photoBeforeExternal;
+    private String photoAfterInternal;
+    private String photoAfterExternal;
     private LocalDateTime releasedAt;
     private LocalDateTime completedAt;
+    private UUID workOrderId;
+    private String osNumber;
     private UUID companyId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

@@ -14,8 +14,8 @@ fi
 # Verificar se POSTGRES_PASSWORD_CI está definido
 if [ -z "$POSTGRES_PASSWORD_CI" ]; then
     echo "❌ POSTGRES_PASSWORD_CI não está definido!"
-    echo "💡 Usando senha padrão: 4KaCiJc6an@7sgbdcid2025"
-    POSTGRES_PASSWORD_CI="4KaCiJc6an@7sgbdcid2025"
+    echo "💡 Usando senha padrão: CHANGE_THIS_DB_PASSWORD"
+    POSTGRES_PASSWORD_CI="CHANGE_THIS_DB_PASSWORD"
 fi
 
 echo "🔐 Senha do PostgreSQL: ${POSTGRES_PASSWORD_CI:0:10}..."

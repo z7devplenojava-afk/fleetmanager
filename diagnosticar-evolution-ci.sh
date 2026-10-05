@@ -36,7 +36,7 @@ if [ "$LOOP_COUNT" -gt 10 ]; then
     
     # Verificar se é problema de Redis
     echo "   A) Testando Redis..."
-    docker exec fluxbus-redis-ci redis-cli -a redis_ci_2025 ping && echo "      ✅ Redis OK" || echo "      ❌ Redis com problema"
+    docker exec fluxbus-redis-ci redis-cli -a CHANGE_THIS_REDIS_PASSWORD ping && echo "      ✅ Redis OK" || echo "      ❌ Redis com problema"
     echo ""
     
     # Verificar se é problema de banco

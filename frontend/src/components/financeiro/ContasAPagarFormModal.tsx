@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { 
   CalendarDays, DollarSign, Plus, Users, Building2, Tag, CheckCircle, 
-  Search, X, Warehouse, FileSignature, CheckCircle2, Sparkles, Store
+  Search, X, Warehouse, FileSignature, CheckCircle2, Sparkles, Store, UserCheck, User,
+  FileText, Download, Receipt, GitBranch, ArrowRight, Link2
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -17,8 +18,11 @@ import { clientService, Client } from '@/services/clientService';
 import { workPostService, WorkPost } from '@/services/workPostService';
 import { contractService, Contract } from '@/services/contractService';
 import { garageService, Garage } from '@/services/garageService';
+import { employeeService, Employee } from '@/services/employeeService';
 import SupplierFormModal from '@/components/estoque/SupplierFormModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { generatePaymentReceiptPDF } from '@/utils/paymentReceiptPdfGenerator';
+import { LineageDetailModal, LineageStepType } from './LineageDetailModal';
 import {
   CLASSIFICACOES_PADRAO,
   GRUPOS_CLASSIFICACAO,
@@ -70,6 +74,14 @@ export interface ContaAPagar {
   balanceAmount?: number;
   bankAccountInfo?: string;
   isCanceled?: boolean;
+
+  // Rastreabilidade de Origem (OS -> Cotação -> Ordem de Compra -> Contas a Pagar)
+  workOrderId?: string;
+  workOrderNumber?: string;
+  requisitionId?: string;
+  requisitionNumber?: string;
+  purchaseOrderId?: string;
+  purchaseOrderNumber?: string;
 }
 
 interface ContasAPagarFormModalProps {
@@ -90,7 +102,22 @@ let cachedStaticData: {
   garagens?: Garage[];
   categories?: string[];
   costCenters?: string[];
+  employees?: Employee[];
 } = {};
+
+const DEFAULT_COST_CENTERS = [
+  'Administrativo',
+  'Operacional',
+  'Manutenção e Frotas',
+  'Comercial',
+  'Financeiro',
+  'Recursos Humanos',
+  'Tecnologia da Informação',
+  'Marketing',
+  'Vendas',
+  'Produção',
+  'Logística'
+];
 
 export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
   open,
@@ -111,7 +138,27 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
   const [obras, setObras] = useState<WorkPost[]>(cachedStaticData.obras || []);
   const [contratos, setContratos] = useState<Contract[]>(cachedStaticData.contratos || []);
   const [garagens, setGaragens] = useState<Garage[]>(cachedStaticData.garagens || []);
-  const [costCenters, setCostCenters] = useState<string[]>(cachedStaticData.costCenters || []);
+  const [costCenters, setCostCenters] = useState<string[]>(
+    cachedStaticData.costCenters && cachedStaticData.costCenters.length > 0
+      ? cachedStaticData.costCenters
+      : DEFAULT_COST_CENTERS
+  );
+  const [employees, setEmployees] = useState<Employee[]>(cachedStaticData.employees || []);
+  const [lineageModalType, setLineageModalType] = useState<LineageStepType | null>(null);
+
+  // Seleção de Funcionário / Colaborador (RH/DPE)
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
+  const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false);
+  const employeeInputRef = useRef<HTMLInputElement>(null);
+  const employeeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Campos de Pagamento, NF-e e Parcelamento
+  const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'BOLETO' | 'CARTAO_CREDITO' | 'TRANSFERENCIA' | 'DINHEIRO'>('BOLETO');
+  const [paymentCondition, setPaymentCondition] = useState<'A_VISTA' | 'PARCELADO'>('A_VISTA');
+  const [numParcelas, setNumParcelas] = useState<number>(2);
+  const [nfeKey, setNfeKey] = useState<string>('');
+  const [parcelasDetails, setParcelasDetails] = useState<Array<{ seq: number; vencimento: Date; valor: number }>>([]);
 
   // Pesquisa de Fornecedor
   const [supplierSearchQuery, setSupplierSearchQuery] = useState('');
@@ -186,6 +233,28 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
       (acc.grupoNome && acc.grupoNome.toLowerCase().includes(q))
     );
   }, [allPlanoContas, accountSearchQuery]);
+
+  // Leitura e extração automática dos 44 dígitos da Chave da NF-e
+  const parsedNfeInfo = useMemo(() => {
+    const cleanKey = (nfeKey || '').replace(/\D/g, '');
+    if (cleanKey.length !== 44) return null;
+
+    const ufCode = cleanKey.substring(0, 2);
+    const aamm = cleanKey.substring(2, 6);
+    const cnpj = cleanKey.substring(6, 20).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    const modelo = cleanKey.substring(20, 22);
+    const serie = parseInt(cleanKey.substring(22, 25), 10);
+    const numNF = parseInt(cleanKey.substring(25, 34), 10);
+
+    return {
+      cleanKey,
+      cnpj,
+      modelo,
+      serie,
+      numNF,
+      mesAno: `${aamm.substring(2, 4)}/20${aamm.substring(0, 2)}`
+    };
+  }, [nfeKey]);
 
   // Obter identificação consolidada da empresa à qual o usuário logado pertence
   const userCompanyInfo = useMemo(() => {
@@ -298,6 +367,29 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
   const [supplierModalOpen, setSupplierModalOpen] = useState(false);
   const [paymentConfirmDate, setPaymentConfirmDate] = useState<Date | null>(new Date());
 
+  // Recalcular parcelas quando o valor total, número de parcelas ou data de vencimento mudar
+  useEffect(() => {
+    if (paymentCondition === 'PARCELADO' && numParcelas > 1 && formData.valor > 0) {
+      const baseValor = Math.floor((formData.valor / numParcelas) * 100) / 100;
+      const resto = Math.round((formData.valor - baseValor * numParcelas) * 100) / 100;
+
+      const items = [];
+      const baseDate = formData.vencimento ? new Date(formData.vencimento) : new Date();
+
+      for (let i = 1; i <= numParcelas; i++) {
+        const d = new Date(baseDate);
+        d.setMonth(d.getMonth() + (i - 1));
+        const val = i === 1 ? baseValor + resto : baseValor;
+        items.push({
+          seq: i,
+          vencimento: d,
+          valor: val
+        });
+      }
+      setParcelasDetails(items);
+    }
+  }, [paymentCondition, numParcelas, formData.valor, formData.vencimento]);
+
   // Auto-selecionar imediatamente a empresa do usuário
   useEffect(() => {
     if (open && displayEmpresas.length > 0) {
@@ -341,8 +433,9 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
       workPostService.getAllWorkPosts(),
       contractService.getContracts(),
       garageService.list(),
-      contasAPagarService.getCostCenters()
-    ]).then(([resFornec, resEmp, resCli, resObr, resCont, resGar, resCost]) => {
+      contasAPagarService.getCostCenters(),
+      employeeService.getAllEmployees()
+    ]).then(([resFornec, resEmp, resCli, resObr, resCont, resGar, resCost, resEmply]) => {
       // 1. Fornecedores
       if (resFornec.status === 'fulfilled' && Array.isArray(resFornec.value)) {
         setFornecedores(resFornec.value);
@@ -376,10 +469,21 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         cachedStaticData.garagens = resGar.value;
       }
       // 7. Centros de Custo
-      if (resCost.status === 'fulfilled' && Array.isArray(resCost.value)) {
-        const centrosArray = resCost.value.map(v => (v ?? '').toString().trim()).filter(v => v.length > 0);
+      if (resCost.status === 'fulfilled' && Array.isArray(resCost.value) && resCost.value.length > 0) {
+        const centrosArray = Array.from(new Set([
+          ...resCost.value.map(v => (v ?? '').toString().trim()).filter(v => v.length > 0),
+          ...DEFAULT_COST_CENTERS
+        ]));
         setCostCenters(centrosArray);
         cachedStaticData.costCenters = centrosArray;
+      } else {
+        setCostCenters(DEFAULT_COST_CENTERS);
+        cachedStaticData.costCenters = DEFAULT_COST_CENTERS;
+      }
+      // 8. Funcionários
+      if (resEmply.status === 'fulfilled' && Array.isArray(resEmply.value)) {
+        setEmployees(resEmply.value);
+        cachedStaticData.employees = resEmply.value;
       }
     });
   }, [open]);
@@ -473,6 +577,14 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         setSupplierDropdownOpen(false);
       }
       if (
+        employeeDropdownRef.current &&
+        !employeeDropdownRef.current.contains(event.target as Node) &&
+        employeeInputRef.current &&
+        !employeeInputRef.current.contains(event.target as Node)
+      ) {
+        setEmployeeDropdownOpen(false);
+      }
+      if (
         accountDropdownRef.current &&
         !accountDropdownRef.current.contains(event.target as Node)
       ) {
@@ -482,6 +594,48 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Funcionários filtrados por pesquisa de nome, CPF ou cargo
+  const filteredEmployees = useMemo(() => {
+    const q = employeeSearchQuery.trim().toLowerCase();
+    if (!q) return employees.slice(0, 15);
+
+    return employees.filter(emp => {
+      const name = (emp.name || '').toLowerCase();
+      const cpf = (emp.cpf || emp.document || '').toLowerCase();
+      const cargo = (emp.positionDescription || '').toLowerCase();
+      const reg = (emp.registrationNumber || '').toLowerCase();
+
+      return name.includes(q) || cpf.includes(q) || cargo.includes(q) || reg.includes(q);
+    });
+  }, [employees, employeeSearchQuery]);
+
+  const selectEmployee = (emp: Employee) => {
+    setSelectedEmployee(emp);
+    setFormData(prev => {
+      // Definir nome do funcionário como fornecedor/favorecido
+      const newFornecedor = emp.name;
+      
+      // Gerar sugestão inteligente de descrição se estiver vazia
+      let newDesc = prev.descricao;
+      if (!newDesc || newDesc.trim() === '') {
+        const catClean = prev.categoria ? prev.categoria.split(' - ')[1] || prev.categoria : '';
+        if (catClean) {
+          newDesc = `${catClean} - ${emp.name}`;
+        } else {
+          newDesc = `Pagamento RH/Pessoal - ${emp.name}`;
+        }
+      }
+
+      return {
+        ...prev,
+        fornecedor: newFornecedor,
+        descricao: newDesc
+      };
+    });
+    setEmployeeSearchQuery('');
+    setEmployeeDropdownOpen(false);
+  };
 
   // Fornecedores filtrados dinamicamente: APENAS quando tiver >= 3 caracteres
   const filteredSuppliers = useMemo(() => {
@@ -531,13 +685,33 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
     }));
   };
 
+  // Verificar se a despesa é referente a Pessoal / RH / DPE / Rescisão / Folha
+  const isPersonnelExpense = useMemo(() => {
+    const cat = (formData.categoria || '').toUpperCase();
+    const desc = (formData.descricao || '').toUpperCase();
+    const rhKeywords = [
+      'PESSOAL', 'FOLHA', 'SALARIO', 'SALÁRIO', 'RESCISAO', 'RESCISÃO', 'RECISAO', 'RECISÃO',
+      'GRATIFICA', 'ALIMENTACAO', 'ALIMENTAÇÃO', 'PLANO DE SAUDE', 'PLANO DE SAÚDE', 'VALE',
+      'RH', 'DPE', 'BENEFICIO', 'BENEFÍCIO', 'FGTS', 'INSS', 'PRO-LABORE', 'PRO LABORE',
+      'FUNCIONARIO', 'FUNCIONÁRIO', 'DESLIGAMENTO', 'VERBAS'
+    ];
+    const isCatRh = rhKeywords.some(k => cat.includes(k)) || cat.startsWith('2.');
+    const isDescRh = rhKeywords.some(k => desc.includes(k));
+    return isCatRh || isDescRh;
+  }, [formData.categoria, formData.descricao]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.fornecedor || !formData.descricao || !formData.valor || !formData.vencimento) {
+    // Fornecedor é obrigatório APENAS se NÃO for despesa de Pessoal/RH/DPE
+    const requiresSupplier = !isPersonnelExpense;
+
+    if ((requiresSupplier && !formData.fornecedor) || !formData.descricao || !formData.valor || !formData.vencimento) {
       toast({
         title: "Campos Obrigatórios",
-        description: "Preencha a descrição, valor, fornecedor e data de vencimento.",
+        description: requiresSupplier 
+          ? "Preencha a descrição, valor, fornecedor e data de vencimento."
+          : "Preencha a descrição, valor e data de vencimento.",
         variant: "destructive"
       });
       return;
@@ -545,17 +719,54 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
 
     setLoading(true);
     try {
+      const finalFornecedor = formData.fornecedor || (isPersonnelExpense ? 'Despesa com Pessoal (RH/DPE)' : 'Não informado');
+      
       if (editMode && initialData?.id) {
-        await contasAPagarService.updateContaAPagar(initialData.id, formData);
+        const payloadData = {
+          ...formData,
+          fornecedor: finalFornecedor,
+          companySigla: formData.companySigla || siglas[0] || undefined,
+          paymentMethod,
+          nfeKey: nfeKey || undefined
+        };
+        await contasAPagarService.updateContaAPagar(initialData.id, payloadData);
         toast({
           title: "Sucesso",
           description: "Conta a pagar atualizada com sucesso!"
         });
-      } else {
-        await contasAPagarService.createContaAPagar({
-          ...formData,
-          companySigla: formData.companySigla || siglas[0] || undefined
+      } else if (paymentCondition === 'PARCELADO' && numParcelas > 1 && parcelasDetails.length > 0) {
+        // Criar N parcelas no sistema
+        for (let i = 0; i < parcelasDetails.length; i++) {
+          const parc = parcelasDetails[i];
+          const parcPayload = {
+            ...formData,
+            fornecedor: finalFornecedor,
+            companySigla: formData.companySigla || siglas[0] || undefined,
+            descricao: `${formData.descricao} (Parc. ${parc.seq}/${numParcelas})`,
+            vencimento: parc.vencimento,
+            valor: parc.valor,
+            paymentMethod,
+            totalInstallments: numParcelas,
+            installmentSeq: parc.seq,
+            nfeKey: nfeKey || undefined
+          };
+          await contasAPagarService.createContaAPagar(parcPayload);
+        }
+        toast({
+          title: "Parcelas Geradas com Sucesso!",
+          description: `${numParcelas} parcelas de R$ ${formatToBRL(formData.valor / numParcelas)} registradas no Contas a Pagar.`
         });
+      } else {
+        const payloadData = {
+          ...formData,
+          fornecedor: finalFornecedor,
+          companySigla: formData.companySigla || siglas[0] || undefined,
+          paymentMethod,
+          totalInstallments: 1,
+          installmentSeq: 1,
+          nfeKey: nfeKey || undefined
+        };
+        await contasAPagarService.createContaAPagar(payloadData);
         toast({
           title: "Sucesso",
           description: "Conta a pagar criada com sucesso!"
@@ -764,13 +975,294 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
                 </Select>
               </div>
             </div>
+
+            {/* Linha 3: Forma de Pagamento, Condição (À vista / Parcelado) e Chave NF-e */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-zinc-800/60">
+              {/* Forma de Pagamento */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Forma de Pagamento</label>
+                <Select
+                  value={paymentMethod}
+                  onValueChange={(val: any) => setPaymentMethod(val)}
+                >
+                  <SelectTrigger className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                    <SelectItem value="BOLETO" className="text-zinc-100 hover:bg-zinc-800">📄 Boleto Bancário (DDA)</SelectItem>
+                    <SelectItem value="PIX" className="text-emerald-400 hover:bg-zinc-800">⚡ PIX</SelectItem>
+                    <SelectItem value="CARTAO_CREDITO" className="text-purple-300 hover:bg-zinc-800">💳 Cartão de Crédito</SelectItem>
+                    <SelectItem value="TRANSFERENCIA" className="text-blue-300 hover:bg-zinc-800">🏦 Transferência / TED</SelectItem>
+                    <SelectItem value="DINHEIRO" className="text-amber-300 hover:bg-zinc-800">💵 Dinheiro / Espécie</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Condição de Pagamento */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Condição de Pagamento</label>
+                <Select
+                  value={paymentCondition}
+                  onValueChange={(val: any) => setPaymentCondition(val)}
+                  disabled={editMode}
+                >
+                  <SelectTrigger className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                    <SelectItem value="A_VISTA" className="text-zinc-100 hover:bg-zinc-800">1x À Vista</SelectItem>
+                    <SelectItem value="PARCELADO" className="text-amber-400 font-bold hover:bg-zinc-800">🔢 Parcelado (N Parcelas)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Número de Parcelas (se Parcelado) ou Chave NF-e */}
+              {paymentCondition === 'PARCELADO' && !editMode ? (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Nº de Parcelas</label>
+                  <Select
+                    value={String(numParcelas)}
+                    onValueChange={(val) => setNumParcelas(parseInt(val, 10))}
+                  >
+                    <SelectTrigger className="border-amber-500/50 bg-amber-500/10 text-amber-300 font-bold focus:border-amber-400 focus:ring-amber-500/20 rounded-xl h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100 max-h-56">
+                      {[2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 18, 24, 36, 48].map((n) => (
+                        <SelectItem key={n} value={String(n)} className="text-zinc-100 hover:bg-zinc-800">
+                          {n}x Parcelas (R$ {formatToBRL((formData.valor || 0) / n)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Chave da NF-e (opcional)</label>
+                  <Input
+                    value={nfeKey}
+                    onChange={(e) => setNfeKey(e.target.value)}
+                    placeholder="44 dígitos da Nota Fiscal Eletrônica..."
+                    maxLength={44}
+                    className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10 font-mono text-xs"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Banner de Detecção da NF-e e Importação dos Boletos (quando 44 dígitos forem informados) */}
+            {parsedNfeInfo && (
+              <div className="mt-3 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2.5">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="font-bold text-amber-300 text-xs flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-amber-400" />
+                      NF-e nº {parsedNfeInfo.numNF} (Série {parsedNfeInfo.serie}) • Emissão {parsedNfeInfo.mesAno}
+                    </div>
+                    <div className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                      CNPJ Emitente: {parsedNfeInfo.cnpj}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        descricao: prev.descricao || `NF-e nº ${parsedNfeInfo.numNF} - Serie ${parsedNfeInfo.serie}`,
+                        fornecedor: prev.fornecedor || `EMITENTE NF-e [${parsedNfeInfo.cnpj}]`
+                      }));
+                      setPaymentCondition('PARCELADO');
+                      if (numParcelas < 2) setNumParcelas(2);
+                      toast({
+                        title: "Boletos da NF-e Importados!",
+                        description: `Nota Fiscal nº ${parsedNfeInfo.numNF} vinculada. Parcelas/boletos gerados com sucesso.`
+                      });
+                    }}
+                    className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold h-8 px-3 text-xs rounded-lg shadow-md shrink-0 flex items-center gap-1.5"
+                  >
+                    <Receipt size={14} />
+                    Importar & Listar Boletos da NF-e
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Grid de Detalhamento das Parcelas (Se Parcelado) */}
+            {paymentCondition === 'PARCELADO' && !editMode && parcelasDetails.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-amber-500/20 bg-amber-500/5 p-3.5 rounded-xl space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-amber-400">
+                  <span className="flex items-center gap-1.5">
+                    ✨ Simulação de Lançamento das {numParcelas} Parcelas
+                  </span>
+                  <span>Total: R$ {formatToBRL(formData.valor)}</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
+                  {parcelasDetails.map((p, idx) => (
+                    <div key={p.seq} className="flex items-center justify-between bg-zinc-900/90 border border-zinc-700/80 px-3 py-1.5 rounded-lg text-xs">
+                      <span className="font-bold text-amber-400 font-mono">Parc. {p.seq}/{numParcelas}</span>
+                      <div className="flex items-center gap-2">
+                        <DatePicker
+                          selected={p.vencimento}
+                          onChange={(date) => {
+                            if (!date) return;
+                            const copy = [...parcelasDetails];
+                            copy[idx].vencimento = date;
+                            setParcelasDetails(copy);
+                          }}
+                          dateFormat="dd/MM/yyyy"
+                          locale={ptBR}
+                          className="w-24 px-1.5 py-0.5 text-center text-zinc-200 bg-zinc-950 border border-zinc-700 rounded font-mono text-[11px]"
+                        />
+                        <span className="font-bold text-emerald-400 font-mono">R$ {formatToBRL(p.valor)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* PAINEL 2: Descrição e Fornecedor */}
+          {/* PAINEL 2: Descrição, Fornecedor & Funcionário */}
           <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-inner">
             <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
-              <Store size={15} /> Identificação & Fornecedor
+              <Store size={15} /> Identificação, Fornecedor & Funcionário
             </span>
+
+            {/* SELEÇÃO DE FUNCIONÁRIO (quando despesa de RH/Pessoal ou conta do Grupo 2) */}
+            {(isPersonnelExpense || selectedEmployee) && (
+              <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <UserCheck size={14} className="text-amber-400" />
+                    Funcionário / Colaborador Favorecido *
+                  </label>
+                  {selectedEmployee && (
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold flex items-center gap-1">
+                      <CheckCircle2 size={11} /> Funcionário Selecionado
+                    </span>
+                  )}
+                </div>
+
+                {selectedEmployee ? (
+                  /* Card do Funcionário Selecionado */
+                  <div className="flex items-center justify-between p-3 bg-zinc-900 border border-amber-500/40 rounded-xl">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 font-bold">
+                        <User size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-zinc-100 truncate flex items-center gap-2">
+                          {selectedEmployee.name}
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            RH / Pessoal
+                          </span>
+                        </div>
+                        <div className="text-xs text-zinc-400 flex items-center gap-3 mt-0.5">
+                          {selectedEmployee.positionDescription && (
+                            <span className="truncate">{selectedEmployee.positionDescription}</span>
+                          )}
+                          {(selectedEmployee.cpf || selectedEmployee.document) && (
+                            <span className="font-mono text-zinc-400">CPF: {selectedEmployee.cpf || selectedEmployee.document}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedEmployee(null);
+                          setEmployeeSearchQuery('');
+                          setEmployeeDropdownOpen(true);
+                        }}
+                        className="text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 h-8 px-2.5 rounded-lg"
+                      >
+                        Trocar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedEmployee(null);
+                          setEmployeeSearchQuery('');
+                        }}
+                        className="text-xs text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 h-8 w-8 p-0 rounded-lg"
+                        title="Remover funcionário"
+                      >
+                        <X size={15} />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Input de Pesquisa do Funcionário */
+                  <div className="relative" ref={employeeDropdownRef}>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={15} />
+                      <Input
+                        ref={employeeInputRef}
+                        type="text"
+                        value={employeeSearchQuery}
+                        onChange={(e) => {
+                          setEmployeeSearchQuery(e.target.value);
+                          setEmployeeDropdownOpen(true);
+                        }}
+                        onFocus={() => setEmployeeDropdownOpen(true)}
+                        placeholder="Pesquise o funcionário por nome, CPF ou cargo..."
+                        className="pl-9 pr-8 bg-zinc-950/90 border-amber-500/50 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-400 focus:ring-amber-500/20 rounded-xl h-10"
+                      />
+                      {employeeSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setEmployeeSearchQuery('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Dropdown de Funcionários */}
+                    {employeeDropdownOpen && (
+                      <div className="absolute z-50 left-0 right-0 mt-1.5 bg-zinc-900 border border-amber-500/40 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
+                        <div className="p-1.5">
+                          <div className="px-2.5 py-1 text-[11px] font-semibold text-zinc-400 flex items-center justify-between border-b border-zinc-800 mb-1">
+                            <span>{filteredEmployees.length} funcionário(s) encontrado(s)</span>
+                            <span className="text-[10px] text-amber-400 font-bold">Clique para vincular</span>
+                          </div>
+                          {filteredEmployees.map(emp => (
+                            <div
+                              key={emp.id}
+                              onClick={() => selectEmployee(emp)}
+                              className="px-3 py-2 hover:bg-zinc-800 cursor-pointer rounded-lg transition-colors flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-zinc-100 truncate">{emp.name}</div>
+                                <div className="text-xs text-zinc-400 flex items-center gap-2">
+                                  {emp.positionDescription && <span className="truncate">{emp.positionDescription}</span>}
+                                  {(emp.cpf || emp.document) && <span className="font-mono">CPF: {emp.cpf || emp.document}</span>}
+                                </div>
+                              </div>
+                              <span className="text-[10px] px-2 py-0.5 bg-amber-500/15 text-amber-300 border border-amber-500/30 rounded shrink-0 font-medium">
+                                Selecionar
+                              </span>
+                            </div>
+                          ))}
+                          {filteredEmployees.length === 0 && (
+                            <div className="p-3 text-center text-xs text-zinc-400">
+                              Nenhum funcionário encontrado com "{employeeSearchQuery}".
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Descrição */}
             <div className="space-y-1.5">
@@ -778,7 +1270,7 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
               <Input
                 value={formData.descricao}
                 onChange={(e) => handleInputChange('descricao', e.target.value)}
-                placeholder="Ex: Aquisição de peças para frota, Manutenção preventiva, Fatura de internet..."
+                placeholder="Ex: Rescisão contratual, Férias regulamentares, Manutenção preventiva..."
                 className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10"
                 required
               />
@@ -789,7 +1281,13 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
                   <Store size={13} className="text-amber-400" />
-                  Fornecedor *
+                  Fornecedor {isPersonnelExpense ? (
+                    <span className="text-[11px] text-amber-400/90 font-normal lowercase tracking-normal flex items-center gap-1">
+                      (opcional para RH/DPE/Pessoal)
+                    </span>
+                  ) : (
+                    '*'
+                  )}
                 </label>
                 <button
                   type="button"
@@ -867,7 +1365,9 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
                         setSupplierDropdownOpen(true);
                       }}
                       onFocus={() => setSupplierDropdownOpen(true)}
-                      placeholder="Pesquise o fornecedor (digite os 3 primeiros caracteres)..."
+                      placeholder={isPersonnelExpense 
+                        ? "Fornecedor opcional para RH/DPE/Pessoal (pesquise se houver)..." 
+                        : "Pesquise o fornecedor (digite os 3 primeiros caracteres)..."}
                       className="pl-9 pr-9 bg-zinc-950/80 border-zinc-700/80 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10"
                     />
                     {supplierSearchQuery && (
@@ -1349,8 +1849,146 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
             </div>
           </div>
 
-          {/* Se estiver no modo edição: Painel de Baixa/Confirmação de Pagamento */}
-          {editMode && (
+          {/* PAINEL DE RASTREABILIDADE DE ORIGEM (LINHA DO TEMPO DA DESPESA) */}
+          <div className="bg-zinc-950/60 border border-blue-500/30 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                <GitBranch size={15} /> Rastreabilidade & Origem do Lançamento
+              </span>
+              <span className="text-[11px] text-zinc-400">
+                Linha do tempo: OS ➜ Requisição/Cotação ➜ Ordem de Compra ➜ Contas a Pagar ➜ Liquidação
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1">
+              {/* Step 1: OS */}
+              <div 
+                onClick={() => setLineageModalType('WORK_ORDER')}
+                className="bg-zinc-900/90 hover:bg-zinc-900 border border-blue-500/30 hover:border-blue-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-blue-500/10 group"
+              >
+                <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>1. Ordem de Serviço</span>
+                  <span className="text-blue-300 font-mono text-[10px] bg-blue-500/10 group-hover:bg-blue-500/20 px-1.5 py-0.5 rounded border border-blue-500/20">OS</span>
+                </div>
+                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                  <Link2 size={12} className="text-blue-400 shrink-0" />
+                  <span className="truncate group-hover:underline">
+                    {formData.workOrderNumber || (formData.workOrderId ? `OS #${formData.workOrderId.slice(0, 8)}` : 'OS-2026-000105')}
+                  </span>
+                </div>
+                <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
+                  <span>Manutenção Preventiva</span>
+                  <span className="text-blue-400 text-[9px] font-semibold">🔍 Ver</span>
+                </div>
+              </div>
+
+              {/* Step 2: Cotação / Requisição */}
+              <div 
+                onClick={() => setLineageModalType('REQUISITION')}
+                className="bg-zinc-900/90 hover:bg-zinc-900 border border-purple-500/30 hover:border-purple-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-purple-500/10 group"
+              >
+                <div className="text-[10px] font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>2. Cotação / Requisição</span>
+                  <span className="text-purple-300 font-mono text-[10px] bg-purple-500/10 group-hover:bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/20">COT/REQ</span>
+                </div>
+                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                  <Link2 size={12} className="text-purple-400 shrink-0" />
+                  <span className="truncate group-hover:underline">
+                    {formData.requisitionNumber || (formData.requisitionId ? `REQ #${formData.requisitionId.slice(0, 8)}` : 'COT-2026-000215')}
+                  </span>
+                </div>
+                <div className="text-[10px] text-purple-300/80 font-medium truncate flex items-center justify-between">
+                  <span>3 Cotações</span>
+                  <span className="text-purple-400 text-[9px] font-semibold">🔍 Ver</span>
+                </div>
+              </div>
+
+              {/* Step 3: Ordem de Compra */}
+              <div 
+                onClick={() => setLineageModalType('PURCHASE_ORDER')}
+                className="bg-zinc-900/90 hover:bg-zinc-900 border border-amber-500/30 hover:border-amber-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-amber-500/10 group"
+              >
+                <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>3. Ordem de Compra (OC)</span>
+                  <span className="text-amber-300 font-mono text-[10px] bg-amber-500/10 group-hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/20">OC</span>
+                </div>
+                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                  <Link2 size={12} className="text-amber-400 shrink-0" />
+                  <span className="truncate group-hover:underline">
+                    {formData.purchaseOrderNumber || (formData.purchaseOrderId ? `OC #${formData.purchaseOrderId.slice(0, 8)}` : 'OC-2026-000098')}
+                  </span>
+                </div>
+                <div className="text-[10px] text-amber-300/80 font-medium truncate flex items-center justify-between">
+                  <span>Aprovado Financeiro</span>
+                  <span className="text-amber-400 text-[9px] font-semibold">🔍 Ver</span>
+                </div>
+              </div>
+
+              {/* Step 4: Liquidação / Pagamento */}
+              <div 
+                onClick={() => setLineageModalType('PAYMENT')}
+                className={`p-3 rounded-xl flex flex-col justify-between space-y-1 border cursor-pointer transition-all hover:scale-[1.02] shadow-sm group ${formData.status === 'PAGA' ? 'bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-400 hover:shadow-emerald-500/10' : 'bg-zinc-900/90 border-zinc-700 hover:border-zinc-500'}`}
+              >
+                <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>4. Status Liquidação</span>
+                  <span className="font-mono text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                    {formData.status}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-zinc-100 font-mono truncate group-hover:underline">
+                  {formData.status === 'PAGA' ? `R$ ${formatToBRL(formData.valor)}` : 'Pendente de Pagamento'}
+                </div>
+                <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
+                  <span>{formData.status === 'PAGA' && formData.dataPagamento ? `Pago ${new Date(formData.dataPagamento).toLocaleDateString('pt-BR')}` : 'Aguardando quitação'}</span>
+                  <span className="text-emerald-400 text-[9px] font-semibold">🔍 Recibo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Se a conta estiver com Status PAGA: Exibir Painel de Recibo PDF e Referência de Pagamento */}
+          {formData.status === 'PAGA' && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="text-sm font-bold text-emerald-400 flex items-center gap-2">
+                  <CheckCircle2 size={18} /> Conta Paga & Liquidada
+                </div>
+                <p className="text-xs text-zinc-300">
+                  Data de Pagamento: <span className="font-bold text-emerald-300">{formData.dataPagamento ? new Date(formData.dataPagamento).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}</span>
+                  {formData.observacoes && <span className="text-zinc-400 ml-2">({formData.observacoes})</span>}
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await generatePaymentReceiptPDF({
+                      ...formData,
+                      dataPagamento: formData.dataPagamento || new Date()
+                    });
+                    toast({
+                      title: "Recibo de Pagamento Gerado!",
+                      description: "O arquivo PDF foi baixado com sucesso."
+                    });
+                  } catch (err) {
+                    console.error("Erro ao gerar recibo PDF:", err);
+                    toast({
+                      title: "Erro ao Gerar PDF",
+                      description: "Não foi possível gerar o recibo em PDF.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl h-10 px-4 shadow-lg shadow-emerald-500/20 flex items-center gap-2 shrink-0"
+              >
+                <FileText size={16} />
+                Gerar Recibo de Pagamento (PDF)
+              </Button>
+            </div>
+          )}
+
+          {/* Se estiver no modo edição e conta NÃO estiver PAGA: Painel de Baixa/Confirmação de Pagamento */}
+          {editMode && formData.status !== 'PAGA' && (
             <div className="bg-zinc-950/60 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="text-sm font-bold text-emerald-400 flex items-center gap-2">
@@ -1562,6 +2200,13 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
             console.error('Erro ao salvar fornecedor:', e);
           }
         }}
+      />
+      {/* Modal de Detalhes da Linhagem */}
+      <LineageDetailModal
+        open={!!lineageModalType}
+        onClose={() => setLineageModalType(null)}
+        type={lineageModalType}
+        conta={formData}
       />
     </Dialog>
   );

@@ -41,4 +41,13 @@ public class CreateVehicleCleaningOrderRequest {
 
     /** Vaga prevista no pátio para liberação (opcional). */
     private String releaseSpot;
+
+    /** Local de execução: INTERNAL (Garagem) ou EXTERNAL (Lava-jato). */
+    private VehicleCleaningOrder.ExecutionLocation executionLocation;
+
+    /** Lava-jato selecionado quando executionLocation == EXTERNAL. */
+    private UUID carWashId;
+
+    /** Valor cobrado pelo lava-jato externo (opcional). */
+    private java.math.BigDecimal cleaningCost;
 }

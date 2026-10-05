@@ -27,7 +27,8 @@ import {
   X,
   ChevronRight,
   TrendingDown,
-  DollarSign
+  DollarSign,
+  User
 } from 'lucide-react';
 import { ContaAPagar } from './ContasAPagarFormModal';
 import { format, isAfter, isBefore, addDays } from 'date-fns';
@@ -205,20 +206,20 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
     const isActive = sortField === field;
     return (
       <TableHead 
-        className={`text-zinc-200 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-zinc-700/60 transition-colors select-none py-3.5 ${className}`}
+        className={`text-zinc-200 font-bold text-[11px] uppercase tracking-wider cursor-pointer hover:bg-zinc-700/60 transition-colors select-none py-2.5 px-2 ${className}`}
         onClick={() => handleSort(field)}
         title={`Ordenar por ${label}`}
       >
-        <div className="flex items-center gap-1.5 whitespace-nowrap">
+        <div className="flex items-center gap-1 whitespace-nowrap">
           <span>{label}</span>
           {isActive ? (
             sortDirection === 'asc' ? (
-              <ArrowUp size={14} className="text-amber-400 font-bold" />
+              <ArrowUp size={13} className="text-amber-400 font-bold shrink-0" />
             ) : (
-              <ArrowDown size={14} className="text-amber-400 font-bold" />
+              <ArrowDown size={13} className="text-amber-400 font-bold shrink-0" />
             )
           ) : (
-            <span className="text-zinc-600 opacity-50 group-hover:opacity-100">↕</span>
+            <span className="text-zinc-600 text-[10px] opacity-50 group-hover:opacity-100">↕</span>
           )}
         </div>
       </TableHead>
@@ -345,10 +346,10 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                 className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border-emerald-500/40 transition-colors text-xs font-semibold"
                 onClick={() => {
                   const csvRows = [
-                    ['Vencimento', 'Fornecedor', 'Cód. Fornecedor', 'Despesa', 'Seq', 'Documento', 'Descrição', 'Empresa', 'Obra/Setor', 'Plano de Contas', 'Centro de Custo', 'Tipo', 'Valor', 'Juros', 'Multa', 'Desconto', 'Ajustes', 'Pagou', 'Saldo', 'Status', 'Data Pagamento', 'Conta Corrente'].join(';'),
+                    ['Vencimento', 'Fornecedor/Funcionário', 'Cód. Fornecedor', 'Despesa', 'Seq', 'Documento', 'Descrição', 'Empresa', 'Obra/Setor', 'Plano de Contas', 'Centro de Custo', 'Tipo', 'Valor', 'Juros', 'Multa', 'Desconto', 'Ajustes', 'Pagou', 'Saldo', 'Status', 'Data Pagamento', 'Conta Corrente'].join(';'),
                     ...sortedContas.map(c => [
                       c.vencimento ? format(new Date(c.vencimento), 'dd/MM/yyyy') : '',
-                      `"${c.fornecedor || ''}"`,
+                      `"${c.employeeName || c.fornecedor || ''}"`,
                       `"${c.supplierCode || ''}"`,
                       `"${c.expenseNumber || ''}"`,
                       c.installmentSeq || 1,
@@ -497,7 +498,7 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-white text-base truncate">
-                          {conta.fornecedor || 'Fornecedor Não Informado'}
+                          {conta.employeeName ? `👤 ${conta.employeeName}` : (conta.fornecedor || 'Fornecedor/Funcionário Não Informado')}
                         </span>
                         {getStatusBadge(conta.status, conta.vencimento)}
                         {getTipoBadge(conta.tipo)}
@@ -593,7 +594,7 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
               <TableHeader>
                 <TableRow className="border-zinc-800 bg-zinc-950/90 sticky top-0 z-10">
                   {renderSortHeader('Vencimento', 'vencimento')}
-                  {renderSortHeader('Fornecedor', 'fornecedor')}
+                  {renderSortHeader('Fornecedor / Funcionário', 'fornecedor')}
                   {renderSortHeader('Descrição', 'descricao')}
                   {renderSortHeader('Empresa', 'empresa')}
                   {renderSortHeader('Obra / Setor', 'obra')}
@@ -617,16 +618,17 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                   return (
                     <TableRow 
                       key={conta.id} 
+                      onClick={() => onView(conta)}
                       className={`
-                        border-zinc-800/80 hover:bg-zinc-800/70 transition-colors duration-150
+                        border-zinc-800/80 hover:bg-zinc-800/70 transition-colors duration-150 cursor-pointer select-none
                         ${vencida ? 'bg-rose-950/15' : ''}
                         ${emBreve && conta.status === 'ABERTA' ? 'bg-amber-950/15' : ''}
                       `}
                     >
-                      <TableCell className="whitespace-nowrap py-3">
-                        <div className="flex items-center gap-1.5">
-                          {vencida && <AlertTriangle size={15} className="text-rose-400 shrink-0" />}
-                          {emBreve && conta.status === 'ABERTA' && <AlertTriangle size={15} className="text-amber-400 shrink-0" />}
+                      <TableCell className="whitespace-nowrap px-2 py-2">
+                        <div className="flex items-center gap-1">
+                          {vencida && <AlertTriangle size={14} className="text-rose-400 shrink-0" />}
+                          {emBreve && conta.status === 'ABERTA' && <AlertTriangle size={14} className="text-amber-400 shrink-0" />}
                           <span className={`font-semibold text-xs ${
                             vencida ? 'text-rose-300 font-bold' :
                             emBreve && conta.status === 'ABERTA' ? 'text-amber-300 font-bold' :
@@ -637,12 +639,19 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                         </div>
                       </TableCell>
 
-                      <TableCell className="font-bold text-white whitespace-nowrap text-xs max-w-[200px] truncate">
-                        {conta.fornecedor || '-'}
+                      <TableCell className="font-bold text-white whitespace-nowrap text-xs max-w-[180px] truncate px-2 py-2" title={conta.employeeName || conta.fornecedor}>
+                        {conta.employeeName ? (
+                          <span className="text-emerald-300 font-medium flex items-center gap-1">
+                            <User size={12} className="text-emerald-400 shrink-0" />
+                            {conta.employeeName}
+                          </span>
+                        ) : (
+                          conta.fornecedor || '-'
+                        )}
                       </TableCell>
 
-                      <TableCell className="text-zinc-300 text-xs">
-                        <div className="flex items-center gap-1.5 flex-wrap">
+                      <TableCell className="text-zinc-300 text-xs px-2 py-2">
+                        <div className="flex items-center gap-1 flex-wrap">
                           {conta.expenseNumber && (
                             <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-800/60 bg-emerald-950/40 py-0 px-1 font-mono">
                               Desp: {conta.expenseNumber} {conta.installmentSeq && conta.installmentSeq > 1 ? `(${conta.installmentSeq})` : ''}
@@ -654,16 +663,16 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                             </span>
                           )}
                         </div>
-                        <div className="max-w-xs truncate font-medium mt-0.5" title={conta.descricao}>
+                        <div className="max-w-[180px] truncate font-medium text-[11px] mt-0.5" title={conta.descricao}>
                           {conta.descricao || '-'}
                         </div>
                       </TableCell>
 
-                      <TableCell className="font-semibold text-zinc-200 whitespace-nowrap text-xs">
+                      <TableCell className="font-semibold text-zinc-200 whitespace-nowrap text-xs px-2 py-2">
                         {conta.companySigla || conta.empresa || '-'}
                       </TableCell>
 
-                      <TableCell className="whitespace-nowrap text-xs">
+                      <TableCell className="whitespace-nowrap text-xs max-w-[130px] truncate px-2 py-2">
                         {conta.obra ? (
                           <span className="font-semibold text-sky-300">{conta.obra}</span>
                         ) : conta.cliente ? (
@@ -673,9 +682,9 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                         )}
                       </TableCell>
 
-                      <TableCell className="whitespace-nowrap text-xs">
+                      <TableCell className="whitespace-nowrap text-xs max-w-[140px] truncate px-2 py-2">
                         {conta.categoria ? (
-                          <Badge variant="outline" className={`font-medium text-[11px] border ${getClassificacaoStyle(conta.categoria).bg} ${getClassificacaoStyle(conta.categoria).text} ${getClassificacaoStyle(conta.categoria).border}`}>
+                          <Badge variant="outline" className={`font-medium text-[10px] border truncate max-w-[130px] ${getClassificacaoStyle(conta.categoria).bg} ${getClassificacaoStyle(conta.categoria).text} ${getClassificacaoStyle(conta.categoria).border}`}>
                             {conta.categoria}
                           </Badge>
                         ) : (
@@ -683,9 +692,9 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                         )}
                       </TableCell>
 
-                      <TableCell className="whitespace-nowrap text-xs">
+                      <TableCell className="whitespace-nowrap text-xs px-2 py-2">
                         {conta.centroCusto ? (
-                          <Badge variant="outline" className="border-purple-500/40 text-purple-300 bg-purple-950/40 font-medium text-[11px]">
+                          <Badge variant="outline" className="border-purple-500/40 text-purple-300 bg-purple-950/40 font-medium text-[10px]">
                             {conta.centroCusto}
                           </Badge>
                         ) : (
@@ -693,9 +702,9 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                         )}
                       </TableCell>
 
-                      <TableCell className="whitespace-nowrap">{getTipoBadge(conta.tipo)}</TableCell>
+                      <TableCell className="whitespace-nowrap px-2 py-2">{getTipoBadge(conta.tipo)}</TableCell>
 
-                      <TableCell className="whitespace-nowrap text-xs">
+                      <TableCell className="whitespace-nowrap text-xs px-2 py-2">
                         <span className="font-bold text-emerald-400 font-mono block tracking-tight">
                           {formatCurrency(conta.valor)}
                         </span>
@@ -704,55 +713,59 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
                             Pago: {formatCurrency(conta.paidAmount)}
                           </span>
                         )}
-                        {conta.balanceAmount !== undefined && conta.balanceAmount > 0 && (
-                          <span className="text-[10px] text-amber-400 block font-mono">
-                            Saldo: {formatCurrency(conta.balanceAmount)}
-                          </span>
-                        )}
                       </TableCell>
 
-                      <TableCell className="whitespace-nowrap">{getStatusBadge(conta.status, conta.vencimento)}</TableCell>
+                      <TableCell className="whitespace-nowrap px-2 py-2">{getStatusBadge(conta.status, conta.vencimento)}</TableCell>
 
-                      <TableCell className="text-center whitespace-nowrap">
+                      <TableCell className="text-center whitespace-nowrap px-2 py-2">
                         {conta.baixa ? (
-                          <CheckCircle size={17} className="text-emerald-400 inline-block" />
+                          <CheckCircle size={16} className="text-emerald-400 inline-block" />
                         ) : (
-                          <XCircle size={17} className="text-zinc-600 inline-block" />
+                          <XCircle size={16} className="text-zinc-600 inline-block" />
                         )}
                       </TableCell>
 
-                      <TableCell className="text-zinc-300 whitespace-nowrap text-xs font-medium">
+                      <TableCell className="text-zinc-300 whitespace-nowrap text-xs font-medium px-2 py-2">
                         {conta.dataPagamento ? format(new Date(conta.dataPagamento), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
                       </TableCell>
 
-                      <TableCell className="text-center whitespace-nowrap py-2">
-                        <div className="flex items-center justify-center gap-1">
+                      <TableCell className="text-center whitespace-nowrap py-1.5 px-2">
+                        <div className="flex items-center justify-center gap-0.5">
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => onView(conta)} 
-                            className="text-zinc-400 hover:text-sky-300 hover:bg-sky-500/15 p-1 h-8 w-8 rounded-lg transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onView(conta);
+                            }} 
+                            className="text-zinc-400 hover:text-sky-300 hover:bg-sky-500/15 p-1 h-7 w-7 rounded-lg transition-colors"
                             title="Visualizar Detalhes"
                           >
-                            <Eye size={15} />
+                            <Eye size={14} />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => onEdit(conta)} 
-                            className="text-zinc-400 hover:text-amber-300 hover:bg-amber-500/15 p-1 h-8 w-8 rounded-lg transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEdit(conta);
+                            }} 
+                            className="text-zinc-400 hover:text-amber-300 hover:bg-amber-500/15 p-1 h-8 w-7 rounded-lg transition-colors"
                             title="Editar Conta"
                           >
-                            <Edit size={15} />
+                            <Edit size={14} />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => onDelete(conta.id!)}
-                            className="text-zinc-400 hover:text-rose-300 hover:bg-rose-500/15 p-1 h-8 w-8 rounded-lg transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDelete(conta.id!);
+                            }}
+                            className="text-zinc-400 hover:text-rose-300 hover:bg-rose-500/15 p-1 h-7 w-7 rounded-lg transition-colors"
                             title="Excluir Conta"
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={14} />
                           </Button>
                         </div>
                       </TableCell>

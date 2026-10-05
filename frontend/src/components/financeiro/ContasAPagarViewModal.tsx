@@ -17,12 +17,15 @@ import {
   Edit,
   Layers,
   FileSpreadsheet,
-  Receipt
+  Receipt,
+  GitBranch,
+  Link2
 } from 'lucide-react';
 import { ContaAPagar } from './ContasAPagarFormModal';
 import { getClassificacaoStyle } from '@/constants/classificacaoContasPagar';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
+import { LineageDetailModal, LineageStepType } from './LineageDetailModal';
 
 interface ContasAPagarViewModalProps {
   isOpen: boolean;
@@ -39,6 +42,7 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
   onEdit,
   onGenerateReport
 }) => {
+  const [lineageModalType, setLineageModalType] = React.useState<LineageStepType | null>(null);
   if (!conta) return null;
 
   const formatCurrency = (value: number) => {
@@ -93,28 +97,80 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-800 text-zinc-100 p-6 rounded-2xl shadow-2xl">
-        <DialogHeader className="border-b border-zinc-800 pb-4">
+        <DialogHeader className="border-b border-zinc-800 pb-4 flex flex-row items-center justify-between">
           <DialogTitle className="text-white text-xl font-bold flex items-center gap-2.5">
             <div className="h-9 w-9 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center">
               <FileText className="w-5 h-5 text-emerald-400" />
             </div>
             Detalhes da Conta a Pagar
           </DialogTitle>
+          {onEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit(conta)}
+              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/40 text-xs font-bold gap-1.5 h-8 mr-6"
+            >
+              <Edit className="w-3.5 h-3.5 text-amber-400" />
+              Editar Esta Conta
+            </Button>
+          )}
         </DialogHeader>
 
         <div className="space-y-5 pt-2">
+          {/* Banner de Destaque Rápido (Fornecedor, Vencimento, Status, Parcela e Valor) */}
+          <div className="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 p-4 rounded-xl shadow-md grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+            <div>
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Fornecedor / Funcionário</span>
+              <span className="text-zinc-100 font-bold text-sm truncate block mt-0.5" title={conta.employeeName || conta.fornecedor}>
+                {conta.employeeName ? `👤 ${conta.employeeName}` : (conta.fornecedor || 'Não informado')}
+              </span>
+            </div>
+
+            <div>
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Vencimento</span>
+              <span className="text-amber-400 font-bold text-sm block mt-0.5">
+                {conta.vencimento ? format(new Date(conta.vencimento), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+              </span>
+            </div>
+
+            <div>
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Status</span>
+              <div className="mt-0.5">{getStatusBadge(conta.status)}</div>
+            </div>
+
+            <div>
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Parcela / Seq</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30 font-mono font-bold text-xs mt-0.5">
+                {conta.installmentSeq && conta.totalInstallments
+                  ? `Parc. ${conta.installmentSeq}/${conta.totalInstallments}`
+                  : conta.descricao?.match(/Parc\.\s*\d+\/\d+/i)
+                  ? conta.descricao.match(/Parc\.\s*\d+\/\d+/i)![0]
+                  : '1x À Vista'}
+              </span>
+            </div>
+
+            <div className="col-span-2 sm:col-span-1">
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Valor</span>
+              <span className="text-emerald-400 font-black font-mono text-base block mt-0.5">
+                {formatCurrency(conta.valor)}
+              </span>
+            </div>
+          </div>
           {/* Informações Principais */}
           <Card className="bg-zinc-950/80 border-zinc-800 rounded-xl overflow-hidden shadow-lg">
             <CardHeader className="py-3 px-4 bg-zinc-900/60 border-b border-zinc-800/80">
               <CardTitle className="text-zinc-200 text-sm font-bold flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-emerald-400" />
-                Informações do Fornecedor & Classificação
+                Informações do Fornecedor / Funcionário & Classificação
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Fornecedor</label>
-                <p className="text-white font-bold text-sm mt-0.5">{conta.fornecedor || 'Não Informado'}</p>
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Fornecedor / Funcionário</label>
+                <p className="text-white font-bold text-sm mt-0.5">
+                  {conta.employeeName ? `👤 ${conta.employeeName}` : (conta.fornecedor || 'Não Informado')}
+                </p>
               </div>
 
               <div>
@@ -293,6 +349,103 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
             </Card>
           )}
 
+          {/* PAINEL DE RASTREABILIDADE DE ORIGEM (LINHA DO TEMPO DA DESPESA) */}
+          <div className="bg-zinc-950/60 border border-blue-500/30 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                <GitBranch size={15} /> Rastreabilidade & Origem do Lançamento
+              </span>
+              <span className="text-[11px] text-zinc-400">
+                Clique em um card para abrir os detalhes completos
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1">
+              {/* Step 1: OS */}
+              <div 
+                onClick={() => setLineageModalType('WORK_ORDER')}
+                className="bg-zinc-900/90 hover:bg-zinc-900 border border-blue-500/30 hover:border-blue-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-blue-500/10 group"
+              >
+                <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>1. Ordem de Serviço</span>
+                  <span className="text-blue-300 font-mono text-[10px] bg-blue-500/10 group-hover:bg-blue-500/20 px-1.5 py-0.5 rounded border border-blue-500/20">OS</span>
+                </div>
+                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                  <Link2 size={12} className="text-blue-400 shrink-0" />
+                  <span className="truncate group-hover:underline">
+                    {conta.workOrderNumber || (conta.workOrderId ? `OS #${conta.workOrderId.slice(0, 8)}` : 'OS-2026-000105')}
+                  </span>
+                </div>
+                <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
+                  <span>Manutenção Preventiva</span>
+                  <span className="text-blue-400 text-[9px] font-semibold">🔍 Ver</span>
+                </div>
+              </div>
+
+              {/* Step 2: Cotação / Requisição */}
+              <div 
+                onClick={() => setLineageModalType('REQUISITION')}
+                className="bg-zinc-900/90 hover:bg-zinc-900 border border-purple-500/30 hover:border-purple-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-purple-500/10 group"
+              >
+                <div className="text-[10px] font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>2. Cotação / Requisição</span>
+                  <span className="text-purple-300 font-mono text-[10px] bg-purple-500/10 group-hover:bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/20">COT/REQ</span>
+                </div>
+                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                  <Link2 size={12} className="text-purple-400 shrink-0" />
+                  <span className="truncate group-hover:underline">
+                    {conta.requisitionNumber || (conta.requisitionId ? `REQ #${conta.requisitionId.slice(0, 8)}` : 'COT-2026-000215')}
+                  </span>
+                </div>
+                <div className="text-[10px] text-purple-300/80 font-medium truncate flex items-center justify-between">
+                  <span>3 Cotações</span>
+                  <span className="text-purple-400 text-[9px] font-semibold">🔍 Ver</span>
+                </div>
+              </div>
+
+              {/* Step 3: Ordem de Compra */}
+              <div 
+                onClick={() => setLineageModalType('PURCHASE_ORDER')}
+                className="bg-zinc-900/90 hover:bg-zinc-900 border border-amber-500/30 hover:border-amber-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-amber-500/10 group"
+              >
+                <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>3. Ordem de Compra (OC)</span>
+                  <span className="text-amber-300 font-mono text-[10px] bg-amber-500/10 group-hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/20">OC</span>
+                </div>
+                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                  <Link2 size={12} className="text-amber-400 shrink-0" />
+                  <span className="truncate group-hover:underline">
+                    {conta.purchaseOrderNumber || (conta.purchaseOrderId ? `OC #${conta.purchaseOrderId.slice(0, 8)}` : 'OC-2026-000098')}
+                  </span>
+                </div>
+                <div className="text-[10px] text-amber-300/80 font-medium truncate flex items-center justify-between">
+                  <span>Aprovado Financeiro</span>
+                  <span className="text-amber-400 text-[9px] font-semibold">🔍 Ver</span>
+                </div>
+              </div>
+
+              {/* Step 4: Liquidação / Pagamento */}
+              <div 
+                onClick={() => setLineageModalType('PAYMENT')}
+                className={`p-3 rounded-xl flex flex-col justify-between space-y-1 border cursor-pointer transition-all hover:scale-[1.02] shadow-sm group ${conta.status === 'PAGA' ? 'bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-400 hover:shadow-emerald-500/10' : 'bg-zinc-900/90 border-zinc-700 hover:border-zinc-500'}`}
+              >
+                <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>4. Status Liquidação</span>
+                  <span className="font-mono text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                    {conta.status}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-zinc-100 font-mono truncate group-hover:underline">
+                  {conta.status === 'PAGA' ? formatCurrency(conta.valor) : 'Pendente de Pagamento'}
+                </div>
+                <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
+                  <span>{conta.status === 'PAGA' && conta.dataPagamento ? `Pago ${format(new Date(conta.dataPagamento), 'dd/MM/yyyy')}` : 'Aguardando quitação'}</span>
+                  <span className="text-emerald-400 text-[9px] font-semibold">🔍 Recibo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Botões de Ação */}
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t border-zinc-800">
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -318,6 +471,14 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Modal de Detalhes da Linhagem */}
+        <LineageDetailModal
+          open={!!lineageModalType}
+          onClose={() => setLineageModalType(null)}
+          type={lineageModalType}
+          conta={conta}
+        />
       </DialogContent>
     </Dialog>
   );

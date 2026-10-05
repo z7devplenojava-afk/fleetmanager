@@ -32,7 +32,7 @@ const getFunctionalitiesForRole = (role: string): Functionality[] => {
       { id: 'employees', name: 'Funcionários', description: 'Cadastro e gestão de funcionários', icon: 'UserCheck', route: '/funcionarios', category: 'hr', order: 5 },
       { id: 'sst', name: 'SST', description: 'Saúde e Segurança do Trabalho', icon: 'HeartPulse', route: '/sst', category: 'hr', order: 6 },
       { id: 'payslips', name: 'Holerites', description: 'Gestão de holerites', icon: 'Receipt', route: '/holerites', category: 'hr', order: 7 },
-      { id: 'vacations', name: 'Férias', description: 'Controle de férias', icon: 'Palmtree', route: '/ferias', category: 'hr', order: 8 },
+      { id: 'vacations', name: 'Férias', description: 'Controle de férias', icon: 'Palmtree', route: '/rh/ferias', category: 'hr', order: 8 },
       { id: 'work-posts', name: 'Postos de Trabalho', description: 'Gestão de postos', icon: 'MapPin', route: '/postos', category: 'operational', order: 9 },
       { id: 'schedules', name: 'Escalas', description: 'Gestão de escalas', icon: 'Calendar', route: '/escalas', category: 'operational', order: 10 },
       { id: 'occurrences', name: 'Ocorrências', description: 'Registro de ocorrências', icon: 'AlertCircle', route: '/ocorrencias', category: 'operational', order: 11 },
@@ -74,7 +74,7 @@ const getFunctionalitiesForRole = (role: string): Functionality[] => {
       { id: 'employees', name: 'Funcionários', description: 'Gestão de funcionários', icon: 'UserCheck', route: '/funcionarios', category: 'hr', order: 2 },
       { id: 'sst', name: 'SST', description: 'Saúde e Segurança', icon: 'HeartPulse', route: '/sst', category: 'hr', order: 3 },
       { id: 'payslips', name: 'Holerites', description: 'Gestão de holerites', icon: 'Receipt', route: '/holerites', category: 'hr', order: 4 },
-      { id: 'vacations', name: 'Férias', description: 'Controle de férias', icon: 'Palmtree', route: '/ferias', category: 'hr', order: 5 },
+      { id: 'vacations', name: 'Férias', description: 'Controle de férias', icon: 'Palmtree', route: '/rh/ferias', category: 'hr', order: 5 },
       { id: 'documents', name: 'Documentos', description: 'Documentos RH', icon: 'FileText', route: '/documentos', category: 'hr', order: 6 },
       { id: 'reports', name: 'Relatórios RH', description: 'Relatórios', icon: 'BarChart', route: '/relatorios', category: 'reports', order: 7 }
     ],

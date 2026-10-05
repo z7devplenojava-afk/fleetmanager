@@ -81,7 +81,7 @@ echo ""
 
 echo -e "${YELLOW}8. Criando instância Evolution API...${NC}"
 INSTANCE_RESPONSE=$(curl -s -X POST https://evolution.z7botsolutions.com.br/instance/create \
-    -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+    -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
     -H "Content-Type: application/json" \
     -d '{"instanceName":"fluxbus","integration":"WHATSAPP-BAILEYS"}')
 
@@ -124,7 +124,7 @@ fi
 echo ""
 
 echo -e "${YELLOW}11. Obtendo QR Code...${NC}"
-QR_RESPONSE=$(curl -s -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+QR_RESPONSE=$(curl -s -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
     https://evolution.z7botsolutions.com.br/instance/connect/fluxbus)
 
 if echo "$QR_RESPONSE" | grep -q "code"; then
@@ -142,7 +142,7 @@ if echo "$QR_RESPONSE" | grep -q "code"; then
         echo ""
         echo -e "${YELLOW}https://evolution.z7botsolutions.com.br/instance/connect/fluxbus${NC}"
         echo ""
-        echo -e "${CYAN}API Key: B6D711FCDE4D4FD5936544120E713976${NC}"
+        echo -e "${CYAN}API Key: CHANGE_THIS_EVOLUTION_API_KEY${NC}"
         echo -e "${CYAN}Número: 31971731747${NC}"
         echo ""
     else

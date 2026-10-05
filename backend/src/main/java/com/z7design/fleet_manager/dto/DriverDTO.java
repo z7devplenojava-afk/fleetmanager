@@ -13,6 +13,11 @@ public class DriverDTO {
     private String licenseNumber;
     private String phone;
     private String status;
+    private String cpf;
+    private String cnhCategory;
+    private java.time.LocalDate cnhExpiration;
+    private String photoUrl;
+    private UUID userId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -29,6 +34,11 @@ public class DriverDTO {
             dto.setLicenseNumber(driver.getLicenseNumber());
             dto.setPhone(driver.getPhone());
             dto.setStatus(driver.getStatus());
+            dto.setCpf(driver.getCpf());
+            dto.setCnhCategory(driver.getCnhCategory());
+            dto.setCnhExpiration(driver.getCnhExpiration());
+            dto.setPhotoUrl(driver.getPhotoUrl());
+            dto.setUserId(driver.getUser() != null ? driver.getUser().getId() : null);
             dto.setCreatedAt(driver.getCreatedAt());
             dto.setUpdatedAt(driver.getUpdatedAt());
             return dto;

@@ -215,22 +215,39 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
   [clients]);
 
   const workPostOptions: SearchableOption[] = useMemo(() =>
-    filteredWorkPosts.map(wp => ({
-      value: wp.id,
-      label: wp.name,
-      subtitle: wp.postCode ? `Cód: ${wp.postCode}` : wp.address || '',
-      keywords: [wp.name, wp.postCode || '', wp.address || ''].filter(Boolean),
-    })),
-  [filteredWorkPosts]);
+    filteredWorkPosts.map(wp => {
+      const cName = wp.clientName || clients.find(c => c.id === wp.clientId)?.name;
+      const subtitleParts = [
+        cName ? `Cliente: ${cName}` : '',
+        wp.postCode ? `Cód: ${wp.postCode}` : '',
+        wp.address || '',
+      ].filter(Boolean);
+
+      return {
+        value: wp.id,
+        label: wp.name,
+        subtitle: subtitleParts.join(' | '),
+        keywords: [wp.name, cName || '', wp.postCode || '', wp.address || ''].filter(Boolean),
+      };
+    }),
+  [filteredWorkPosts, clients]);
 
   const contractOptions: SearchableOption[] = useMemo(() =>
-    filteredContracts.map(c => ({
-      value: c.id,
-      label: c.contractNumber,
-      subtitle: c.description || c.obraName || '',
-      keywords: [c.contractNumber, c.description || '', c.obraName || ''].filter(Boolean),
-    })),
-  [filteredContracts]);
+    filteredContracts.map(c => {
+      const cName = c.clientName || c.client?.name || clients.find(cl => cl.id === c.clientId)?.name;
+      const subtitleParts = [
+        cName ? `Cliente: ${cName}` : '',
+        c.description || c.obraName || '',
+      ].filter(Boolean);
+
+      return {
+        value: c.id,
+        label: c.contractNumber,
+        subtitle: subtitleParts.join(' | '),
+        keywords: [c.contractNumber, cName || '', c.description || '', c.obraName || ''].filter(Boolean),
+      };
+    }),
+  [filteredContracts, clients]);
 
   const garageOptions: SearchableOption[] = useMemo(() =>
     garages.map(g => ({
@@ -373,17 +390,87 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
     }
   });
 
+  const handleSelectClient = (clientId: string) => {
+    setFormData(prev => {
+      if (!clientId) {
+        return {
+          ...prev,
+          clientId: '',
+          clientName: '',
+        };
+      }
+      const client = clients.find(c => c.id === clientId);
+      const currentWp = allWorkPosts.find(wp => wp.id === prev.workPostId);
+      const keepWp = currentWp && currentWp.clientId === clientId;
+      const currentCt = allContracts.find(ct => ct.id === prev.contractId);
+      const keepCt = currentCt && (currentCt.clientId === clientId || currentCt.client?.id === clientId);
+
+      return {
+        ...prev,
+        clientId,
+        clientName: client?.name || '',
+        workPostId: keepWp ? prev.workPostId : '',
+        obraName: keepWp ? prev.obraName : '',
+        contractId: keepCt ? prev.contractId : '',
+        contractNumber: keepCt ? prev.contractNumber : '',
+      };
+    });
+  };
+
+  const handleSelectWorkPost = (workPostId: string, option?: SearchableOption | null) => {
+    if (!workPostId) {
+      setFormData(prev => ({
+        ...prev,
+        workPostId: '',
+        obraName: '',
+      }));
+      return;
+    }
+
+    const wp = allWorkPosts.find(p => p.id === workPostId);
+    const matchedClient = wp?.clientId ? clients.find(c => c.id === wp.clientId) : null;
+    const matchedContract = wp?.contractId ? allContracts.find(c => c.id === wp.contractId) : null;
+
+    setFormData(prev => ({
+      ...prev,
+      workPostId,
+      obraName: wp?.name || option?.label || '',
+      clientId: wp?.clientId || prev.clientId,
+      clientName: matchedClient?.name || wp?.clientName || prev.clientName,
+      contractId: prev.contractId || (wp?.contractId || ''),
+      contractNumber: prev.contractNumber || (matchedContract?.contractNumber || ''),
+    }));
+  };
+
+  const handleSelectContract = (contractId: string, option?: SearchableOption | null) => {
+    if (!contractId) {
+      setFormData(prev => ({
+        ...prev,
+        contractId: '',
+        contractNumber: '',
+      }));
+      return;
+    }
+
+    const ct = allContracts.find(c => c.id === contractId);
+    const ctClientId = ct?.clientId || ct?.client?.id;
+    const matchedClient = ctClientId ? clients.find(c => c.id === ctClientId) : null;
+
+    setFormData(prev => ({
+      ...prev,
+      contractId,
+      contractNumber: ct?.contractNumber || option?.label || '',
+      clientId: ctClientId || prev.clientId,
+      clientName: matchedClient?.name || ct?.clientName || ct?.client?.name || prev.clientName,
+    }));
+  };
+
   const handleField = (field: keyof ExternoFormData, value: any) => {
     setFormData(prev => {
       const next = { ...prev, [field]: value };
-      // When client changes, clear obra and contract
       if (field === 'clientId') {
         const client = clients.find(c => c.id === value);
         next.clientName = client?.name || '';
-        next.workPostId = '';
-        next.obraName = '';
-        next.contractId = '';
-        next.contractNumber = '';
       }
       return next;
     });
@@ -488,7 +575,7 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                   <Label className="text-gray-400 text-xs">Cliente</Label>
                   <SearchableSelect
                     value={formData.clientId}
-                    onChange={(val) => handleField('clientId', val)}
+                    onChange={(val) => handleSelectClient(val)}
                     options={clientOptions}
                     placeholder="Buscar cliente..."
                     searchPlaceholder="Digite o nome do cliente..."
@@ -499,30 +586,22 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                   <Label className="text-gray-400 text-xs">Obra / Setor</Label>
                   <SearchableSelect
                     value={formData.workPostId}
-                    onChange={(val, opt) => {
-                      handleField('workPostId', val);
-                      handleField('obraName', opt?.label || '');
-                    }}
+                    onChange={(val, opt) => handleSelectWorkPost(val, opt)}
                     options={workPostOptions}
-                    placeholder={formData.clientId ? "Buscar obra..." : "Selecione o cliente primeiro"}
-                    searchPlaceholder="Digite o nome da obra..."
+                    placeholder="Buscar obra / setor..."
+                    searchPlaceholder="Digite o nome da obra, código ou cliente..."
                     emptyText="Nenhuma obra encontrada"
-                    disabled={!formData.clientId}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-gray-400 text-xs">Contrato</Label>
                   <SearchableSelect
                     value={formData.contractId}
-                    onChange={(val, opt) => {
-                      handleField('contractId', val);
-                      handleField('contractNumber', opt?.label || '');
-                    }}
+                    onChange={(val, opt) => handleSelectContract(val, opt)}
                     options={contractOptions}
-                    placeholder={formData.clientId ? "Buscar contrato..." : "Selecione o cliente primeiro"}
-                    searchPlaceholder="Digite o nº do contrato..."
+                    placeholder="Buscar contrato..."
+                    searchPlaceholder="Digite o nº do contrato ou cliente..."
                     emptyText="Nenhum contrato encontrado"
-                    disabled={!formData.clientId}
                   />
                 </div>
               </div>

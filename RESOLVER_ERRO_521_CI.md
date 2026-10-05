@@ -119,7 +119,7 @@ docker container prune -f
 
 # Verificar e corrigir JWT_SECRET no .env
 # (garantir que tem pelo menos 64 caracteres)
-echo "JWT_SECRET=jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key" > .env.tmp
+echo "JWT_SECRET=CHANGE_THIS_JWT_SECRET" > .env.tmp
 cat .env | grep -v "^JWT_SECRET=" >> .env.tmp
 mv .env.tmp .env
 

@@ -248,7 +248,7 @@ public class FleetWorkOrder implements TenantAware {
     // ── Enums ─────────────────────────────────────────────────
 
     public enum MaintenanceType {
-        CORRETIVA, PREVENTIVA, PREDITIVA, INSPECAO, LUBRIFICACAO, OUTROS
+        CORRETIVA, PREVENTIVA, PREDITIVA, INSPECAO, LUBRIFICACAO, LIMPEZA, OUTROS
     }
 
     public enum WorkOrderStatus {

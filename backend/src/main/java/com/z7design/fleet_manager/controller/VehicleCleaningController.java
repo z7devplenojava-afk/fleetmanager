@@ -132,6 +132,15 @@ public class VehicleCleaningController {
         return ResponseEntity.ok(service.uploadItemPhoto(id, itemKey, file, user.getCompanyId()));
     }
 
+    @PostMapping("/{id}/evidence-photo")
+    public ResponseEntity<VehicleCleaningOrderDTO> uploadEvidencePhoto(
+            @PathVariable("id") UUID id,
+            @RequestParam("category") String category,
+            @RequestParam("photo") MultipartFile file,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(service.uploadEvidencePhoto(id, category, file, user.getCompanyId()));
+    }
+
     @PostMapping("/{id}/complete")
     public ResponseEntity<VehicleCleaningOrderDTO> complete(
             @PathVariable("id") UUID id,

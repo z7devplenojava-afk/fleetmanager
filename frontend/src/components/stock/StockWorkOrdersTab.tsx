@@ -18,7 +18,15 @@ import {
   Calendar,
   Layers,
   ChevronRight,
-  Eye
+  Eye,
+  MoreHorizontal,
+  ClipboardList,
+  Edit,
+  Printer,
+  Download,
+  Package,
+  Hammer,
+  XCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,9 +34,24 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import fleetWorkOrderService, { FleetWorkOrder } from '@/services/fleetWorkOrderService';
+import { useQueryClient } from '@tanstack/react-query';
+import fleetWorkOrderService, { FleetWorkOrder, WorkOrderStatus } from '@/services/fleetWorkOrderService';
 import { materialRequisitionService, MaterialRequisition } from '@/services/materialRequisitionService';
+import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
+import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewModal';
+import { FleetWorkOrderPurchaseModal } from '@/components/frota/FleetWorkOrderPurchaseModal';
+import { PartsProcurementHoverCard } from '@/components/frota/PartsProcurementHoverCard';
+import {
+  generateFleetWorkOrderPDFBlob,
+  generateFleetWorkOrderPDFDownload
+} from '@/utils/fleetWorkOrderPDFGenerator';
 
 interface StockWorkOrdersTabProps {
   onGoToRequisitions?: () => void;
@@ -36,6 +59,7 @@ interface StockWorkOrdersTabProps {
 
 export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRequisitions }) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(true);
   const [workOrders, setWorkOrders] = useState<FleetWorkOrder[]>([]);
@@ -47,6 +71,19 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
   // Modal de Detalhes da OS
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<FleetWorkOrder | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Ações da OS (mesmos botões da OS da Frota)
+  const [editingOrder, setEditingOrder] = useState<FleetWorkOrder | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [viewingPdfOrder, setViewingPdfOrder] = useState<FleetWorkOrder | null>(null);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [duplicateModalOrder, setDuplicateModalOrder] = useState<FleetWorkOrder | null>(null);
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [purchaseModalOrder, setPurchaseModalOrder] = useState<FleetWorkOrder | null>(null);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -131,6 +168,88 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
   const handleOpenDetail = (order: FleetWorkOrder) => {
     setSelectedWorkOrder(order);
     setShowDetailModal(true);
+  };
+
+  // ── Ações da OS (mesmas da página de OS da Frota) ─────────────────────
+  const refreshOrders = () => {
+    loadData();
+    queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+  };
+
+  const handleOpenEdit = (order: FleetWorkOrder) => {
+    setEditingOrder(order);
+    setIsFormOpen(true);
+  };
+
+  const handleViewPdf = (order: FleetWorkOrder) => {
+    setViewingPdfOrder(order);
+    setIsPdfModalOpen(true);
+  };
+
+  const handleDownloadPdf = async (order: FleetWorkOrder) => {
+    setGeneratingPdfId(order.id);
+    try {
+      await generateFleetWorkOrderPDFDownload(order);
+      toast({ title: 'Sucesso', description: 'PDF da O.S. baixado com sucesso.' });
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao baixar PDF da O.S.', variant: 'destructive' });
+    } finally {
+      setGeneratingPdfId(null);
+    }
+  };
+
+  const handleDuplicateRequest = (order: FleetWorkOrder) => {
+    setDuplicateModalOrder(order);
+    setIsDuplicateModalOpen(true);
+  };
+
+  const handleConfirmDuplicate = async () => {
+    if (!duplicateModalOrder?.id) return;
+    setDuplicatingId(duplicateModalOrder.id);
+    try {
+      await fleetWorkOrderService.duplicate(duplicateModalOrder.id);
+      toast({
+        title: 'OS Duplicada',
+        description: `Nova OS criada a partir de ${duplicateModalOrder.osNumber || duplicateModalOrder.id.slice(0, 8)}.`
+      });
+      refreshOrders();
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || 'Falha ao duplicar OS.';
+      toast({ title: 'Erro', description: msg, variant: 'destructive' });
+    } finally {
+      setDuplicatingId(null);
+      setIsDuplicateModalOpen(false);
+      setDuplicateModalOrder(null);
+    }
+  };
+
+  const handleOpenPurchase = (order: FleetWorkOrder) => {
+    setPurchaseModalOrder(order);
+    setIsPurchaseModalOpen(true);
+  };
+
+  const handleUpdateStatus = async (order: FleetWorkOrder, status: WorkOrderStatus) => {
+    setUpdatingStatusId(order.id);
+    try {
+      await fleetWorkOrderService.updateStatus(order.id, status);
+      const labels: Record<string, string> = {
+        OPEN: 'Aberta',
+        DRAFT: 'Rascunho',
+        PENDING_APPROVAL: 'Aguardando Aprovação',
+        APPROVED: 'Aprovada',
+        IN_PROGRESS: 'Em Andamento',
+        WAITING_PARTS: 'Aguardando Peça',
+        COMPLETED: 'Concluída',
+        CANCELLED: 'Cancelada'
+      };
+      toast({ title: 'Sucesso', description: `Status da OS atualizado para ${labels[status] || status}.` });
+      refreshOrders();
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Falha ao atualizar status.';
+      toast({ title: 'Erro', description: msg, variant: 'destructive' });
+    } finally {
+      setUpdatingStatusId(null);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -375,7 +494,13 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
 
                         {/* Status da OS */}
                         <td className="py-3 px-4">
-                          {getStatusBadge(order.status || 'OPEN')}
+                          {order.status === 'WAITING_PARTS' ? (
+                            <PartsProcurementHoverCard workOrderId={order.id} osNumber={order.osNumber}>
+                              {getStatusBadge(order.status)}
+                            </PartsProcurementHoverCard>
+                          ) : (
+                            getStatusBadge(order.status || 'OPEN')
+                          )}
                         </td>
 
                         {/* Requisições de Peças & Cotações */}
@@ -441,6 +566,96 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
                               <Eye size={14} className="mr-1" />
                               Ver OS
                             </Button>
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="hover:bg-gray-700 h-8 w-8 p-0">
+                                  <MoreHorizontal size={16} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-seguranca-graphite border-gray-600 z-[10080]">
+                                <DropdownMenuItem
+                                  onClick={() => handleOpenEdit(order)}
+                                  className="text-gray-200"
+                                >
+                                  <Edit className="mr-2 h-4 w-4" /> Visualizar / Editar
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={() => handleDuplicateRequest(order)}
+                                  disabled={duplicatingId === order.id}
+                                  className="text-blue-400"
+                                >
+                                  <ClipboardList className="mr-2 h-4 w-4" />
+                                  {duplicatingId === order.id ? 'Duplicando...' : 'Duplicar OS'}
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={() => handleViewPdf(order)}
+                                  className="text-gray-200"
+                                >
+                                  <Printer className="mr-2 h-4 w-4" /> Visualizar / Imprimir PDF
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={() => handleDownloadPdf(order)}
+                                  disabled={generatingPdfId === order.id}
+                                  className="text-gray-200"
+                                >
+                                  <Download className="mr-2 h-4 w-4" />
+                                  {generatingPdfId === order.id ? 'Baixando...' : 'Baixar PDF'}
+                                </DropdownMenuItem>
+
+                                {(order.items || []).length > 0 && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleOpenPurchase(order)}
+                                    className="text-yellow-400"
+                                  >
+                                    <ShoppingCart className="mr-2 h-4 w-4" /> Solicitar Compra ao Almoxarifado
+                                  </DropdownMenuItem>
+                                )}
+
+                                {order.status !== WorkOrderStatus.IN_PROGRESS && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleUpdateStatus(order, WorkOrderStatus.IN_PROGRESS)}
+                                    disabled={updatingStatusId === order.id}
+                                    className="text-orange-400"
+                                  >
+                                    <Hammer className="mr-2 h-4 w-4" /> Iniciar Execução
+                                  </DropdownMenuItem>
+                                )}
+
+                                {order.status !== WorkOrderStatus.WAITING_PARTS && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleUpdateStatus(order, WorkOrderStatus.WAITING_PARTS)}
+                                    disabled={updatingStatusId === order.id}
+                                    className="text-purple-400"
+                                  >
+                                    <Package className="mr-2 h-4 w-4" /> Aguardando Peça
+                                  </DropdownMenuItem>
+                                )}
+
+                                {order.status !== WorkOrderStatus.COMPLETED && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleUpdateStatus(order, WorkOrderStatus.COMPLETED)}
+                                    disabled={updatingStatusId === order.id}
+                                    className="text-green-500 font-bold"
+                                  >
+                                    <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OS
+                                  </DropdownMenuItem>
+                                )}
+
+                                {order.status !== WorkOrderStatus.CANCELLED && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleUpdateStatus(order, WorkOrderStatus.CANCELLED)}
+                                    disabled={updatingStatusId === order.id}
+                                    className="text-red-500"
+                                  >
+                                    <XCircle className="mr-2 h-4 w-4" /> Cancelar OS
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </td>
                       </tr>
@@ -595,6 +810,89 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
           </DialogContent>
         </Dialog>
       )}
+
+      {/* ── Modais de Ação da OS (mesmos da OS da Frota) ─────────────────── */}
+
+      {/* Formulário Visualizar / Editar OS */}
+      <FleetWorkOrderForm
+        isOpen={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false);
+          setEditingOrder(null);
+        }}
+        onSuccess={() => {
+          setIsFormOpen(false);
+          setEditingOrder(null);
+          refreshOrders();
+        }}
+        order={editingOrder || undefined}
+      />
+
+      {/* Modal Visualizar / Imprimir PDF */}
+      <FleetWorkOrderViewModal
+        isOpen={isPdfModalOpen}
+        onClose={() => {
+          setIsPdfModalOpen(false);
+          setViewingPdfOrder(null);
+        }}
+        order={viewingPdfOrder}
+      />
+
+      {/* Modal Solicitar Compra ao Almoxarifado */}
+      <FleetWorkOrderPurchaseModal
+        isOpen={isPurchaseModalOpen}
+        onClose={() => {
+          setIsPurchaseModalOpen(false);
+          setPurchaseModalOrder(null);
+        }}
+        order={purchaseModalOrder}
+        onSuccess={() => {
+          refreshOrders();
+        }}
+      />
+
+      {/* Modal de Confirmação de Duplicação */}
+      <Dialog open={isDuplicateModalOpen} onOpenChange={setIsDuplicateModalOpen}>
+        <DialogContent className="max-w-md w-[92vw] sm:w-full bg-[#0d0e12] border-gray-800 text-gray-100 shadow-2xl rounded-2xl p-5 z-[10150]">
+          <DialogHeader className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-blue-500/20 border border-blue-500/30 rounded-xl text-blue-400">
+                <ClipboardList className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-white">Duplicar Ordem de Serviço</DialogTitle>
+                <DialogDescription className="text-xs text-gray-400">
+                  Cópia de OS com status inicial Aberta
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="py-3 text-xs text-gray-300">
+            Deseja duplicar a OS <strong className="text-white font-mono">{duplicateModalOrder?.osNumber || (duplicateModalOrder?.id ? '#' + duplicateModalOrder.id.slice(0, 8) : '')}</strong>? Uma nova OS será gerada com os mesmos dados e itens cadastrados.
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-800">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDuplicateModalOpen(false)}
+              disabled={!!duplicatingId}
+              className="border-gray-700 text-gray-300 hover:bg-gray-800 text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleConfirmDuplicate}
+              disabled={!!duplicatingId}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs"
+            >
+              {duplicatingId ? 'Duplicando...' : 'Confirmar Duplicação'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

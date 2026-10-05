@@ -1073,6 +1073,7 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
           </div>
         </DialogHeader>
 
+        <form onSubmit={handleSubmit}>
           {/* SEÇÃO 1: VINCULAR SOLICITAÇÃO / ORDEM DE SERVIÇO */}
           <Card className="bg-gradient-to-r from-zinc-900 to-seguranca-graphite border-gray-700 shadow-md">
             <CardHeader className="pb-3 border-b border-gray-700/60 flex flex-row items-center justify-between">

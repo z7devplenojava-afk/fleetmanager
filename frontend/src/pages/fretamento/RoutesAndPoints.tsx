@@ -65,6 +65,7 @@ import {
     X,
     CloudUpload,
     Loader2,
+    Users,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { routeService, Route, RoutePoint } from '@/services/routeService';
@@ -125,6 +126,9 @@ const RoutesAndPoints: React.FC = () => {
         checkpointsRequired: false,
         geofenceEnabled: false,
         defaultRadiusMeters: 50,
+        color: '',
+        status: 'ATIVA',
+        capacity: 0,
     });
 
     // Points management
@@ -550,6 +554,9 @@ const RoutesAndPoints: React.FC = () => {
             checkpointsRequired: false,
             geofenceEnabled: false,
             defaultRadiusMeters: 50,
+            color: '',
+            status: 'ATIVA',
+            capacity: 0,
         });
         setRoutePoints([]);
         setActiveTab('form');
@@ -577,6 +584,9 @@ const RoutesAndPoints: React.FC = () => {
             checkpointsRequired: route.checkpointsRequired,
             geofenceEnabled: route.geofenceEnabled,
             defaultRadiusMeters: route.defaultRadiusMeters || 50,
+            color: r.color || '',
+            status: r.status || 'ATIVA',
+            capacity: r.capacity || 0,
         });
         setRoutePoints(route.points || []);
         setActiveTab('form');
@@ -604,6 +614,9 @@ const RoutesAndPoints: React.FC = () => {
             checkpointsRequired: route.checkpointsRequired,
             geofenceEnabled: route.geofenceEnabled,
             defaultRadiusMeters: route.defaultRadiusMeters || 50,
+            color: r.color || '',
+            status: r.status || 'ATIVA',
+            capacity: r.capacity || 0,
         });
         setRoutePoints(route.points || []);
         setActiveTab('form');
@@ -709,6 +722,9 @@ const RoutesAndPoints: React.FC = () => {
                 checkpointsRequired: formData.checkpointsRequired,
                 geofenceEnabled: formData.geofenceEnabled,
                 defaultRadiusMeters: formData.defaultRadiusMeters,
+                color: formData.color || null,
+                status: formData.status || 'ATIVA',
+                capacity: formData.capacity > 0 ? formData.capacity : null,
                 points: routePoints.map((p, idx) => ({
                     ...p,
                     order: idx,
@@ -1018,9 +1034,34 @@ const RoutesAndPoints: React.FC = () => {
                                                     </div>
                                                     <div className="flex items-center gap-4">
                                                         <div className="text-right hidden sm:block">
+                                                            {route.color && (
+                                                                <span
+                                                                    className="inline-block h-3 w-3 rounded-full mr-2 align-middle border border-gray-600"
+                                                                    style={{ backgroundColor: route.color }}
+                                                                    aria-label="Cor da linha"
+                                                                />
+                                                            )}
                                                             <Badge variant="outline" className="bg-seguranca-yellow/10 border-seguranca-yellow/30 text-seguranca-yellow">
                                                                 {route.points?.length || 0} pontos
                                                             </Badge>
+                                                            {route.status && (
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className={
+                                                                        route.status === 'ATIVA'
+                                                                            ? 'ml-2 bg-green-500/10 border-green-500/30 text-green-400'
+                                                                            : 'ml-2 bg-gray-500/10 border-gray-500/30 text-gray-400'
+                                                                    }
+                                                                >
+                                                                    {route.status === 'ATIVA' ? 'Ativa' : 'Inativa'}
+                                                                </Badge>
+                                                            )}
+                                                            {(route.capacity ?? 0) > 0 && (
+                                                                <p className="text-xs text-gray-500 mt-1 flex items-center justify-end gap-1">
+                                                                    <Users className="w-3 h-3" />
+                                                                    {route.capacity} passageiros
+                                                                </p>
+                                                            )}
                                                             {route.estimatedDuration && (
                                                                 <p className="text-xs text-gray-500 mt-1 flex items-center justify-end gap-1">
                                                                     <Clock className="w-3 h-3" />
@@ -1351,6 +1392,55 @@ const RoutesAndPoints: React.FC = () => {
                                                 type="number"
                                                 value={formData.estimatedDuration}
                                                 onChange={(e) => setFormData({ ...formData, estimatedDuration: parseInt(e.target.value) || 0 })}
+                                                className="bg-seguranca-black border-gray-600 text-gray-200 h-11"
+                                                disabled={modalMode === 'view'}
+                                            />
+                                        </div>
+
+                                        {/* Row 8: Cor, Status & Capacidade */}
+                                        <div className="space-y-2">
+                                            <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">Cor da Linha</Label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="color"
+                                                    value={formData.color || '#22C55E'}
+                                                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                                                    disabled={modalMode === 'view'}
+                                                    className="h-11 w-14 cursor-pointer rounded border border-gray-600 bg-seguranca-black p-1"
+                                                    aria-label="Cor da linha"
+                                                />
+                                                <Input
+                                                    value={formData.color}
+                                                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                                                    placeholder="#22C55E"
+                                                    className="bg-seguranca-black border-gray-600 text-gray-200 h-11"
+                                                    disabled={modalMode === 'view'}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">Status</Label>
+                                            <Select
+                                                value={formData.status}
+                                                onValueChange={(v) => setFormData({ ...formData, status: v })}
+                                                disabled={modalMode === 'view'}
+                                            >
+                                                <SelectTrigger className="bg-seguranca-black border-gray-600 text-gray-200 h-11">
+                                                    <SelectValue placeholder="Status da linha" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-seguranca-graphite border-gray-600">
+                                                    <SelectItem value="ATIVA">Ativa</SelectItem>
+                                                    <SelectItem value="INATIVA">Inativa</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">Capacidade (passageiros)</Label>
+                                            <Input
+                                                type="number"
+                                                value={formData.capacity}
+                                                onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                                                placeholder="Ex.: 44"
                                                 className="bg-seguranca-black border-gray-600 text-gray-200 h-11"
                                                 disabled={modalMode === 'view'}
                                             />

@@ -119,10 +119,11 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    if (!selectedFile.name.toLowerCase().endsWith('.xml')) {
+    const fileName = selectedFile.name.toLowerCase();
+    if (!fileName.endsWith('.xml') && !fileName.endsWith('.pdf')) {
       toast({
         title: 'Arquivo inválido',
-        description: 'Por favor, selecione um arquivo XML de Nota Fiscal Eletrônica válido.',
+        description: 'Por favor, selecione um arquivo XML ou PDF (DANFE) de Nota Fiscal Eletrônica válido.',
         variant: 'destructive'
       });
       return;
@@ -135,7 +136,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   const parseSelectedFile = async (fileToParse: File) => {
     try {
       setParsing(true);
-      const data = await stockNfeService.parseXml(fileToParse);
+      const data = await stockNfeService.parseNfe(fileToParse);
       setParsedData(data);
 
       // Preencher linhas de itens adaptáveis
@@ -170,14 +171,14 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
         });
       } else {
         toast({
-          title: 'XML carregado com sucesso!',
+          title: 'NF-e carregada com sucesso!',
           description: `NF-e nº ${data.invoiceNumber} do fornecedor ${data.supplierName} lida com ${data.items.length} item(ns).`
         });
       }
     } catch (err: any) {
-      console.error('Erro ao ler XML:', err);
+      console.error('Erro ao ler NF-e:', err);
       toast({
-        title: 'Erro no processamento do XML',
+        title: 'Erro no processamento da NF-e',
         description: err.response?.data?.message || err.message || 'Verifique se o arquivo é uma NF-e SEFAZ válida.',
         variant: 'destructive'
       });
@@ -267,6 +268,8 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       supplierCity: parsedData.supplierCity,
       supplierState: parsedData.supplierState,
       supplierZipCode: parsedData.supplierZipCode,
+      supplierPhone: parsedData.supplierPhone,
+      supplierEmail: parsedData.supplierEmail,
       supplierId: parsedData.existingSupplierId,
       createFinancialAccounts,
       items: itemsToProcess,
@@ -310,14 +313,14 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
         <DialogHeader>
           <DialogTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-white">
             <FileText className="h-6 w-6 text-seguranca-yellow" />
-            Importar XML de Nota Fiscal (Estoque & Financeiro)
+            Importar XML/PDF de Nota Fiscal (Estoque & Financeiro)
           </DialogTitle>
           <DialogDescription className="text-gray-300 text-xs sm:text-sm">
-            Importe o XML da NF-e para alimentar automaticamente o estoque geral, abas de Baterias/Pneus e criar as parcelas no Contas a Pagar.
+            Importe o XML ou o PDF (DANFE) da NF-e para alimentar automaticamente o estoque geral, abas de Baterias/Pneus e criar as parcelas no Contas a Pagar.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Passo 1: Upload do Arquivo XML */}
+        {/* Passo 1: Upload do Arquivo XML/PDF */}
         {!parsedData ? (
           <div className="py-8">
             <label
@@ -332,15 +335,15 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                 )}
               </div>
               <h3 className="text-base sm:text-lg font-semibold text-white mb-1">
-                {parsing ? 'Processando XML da NF-e...' : 'Clique para selecionar ou arraste o arquivo XML da NF-e'}
+                {parsing ? 'Processando arquivo da NF-e...' : 'Clique para selecionar ou arraste o arquivo da NF-e'}
               </h3>
               <p className="text-xs sm:text-sm text-gray-400 max-w-md">
-                Formatos aceitos: <strong>.xml</strong> (NF-e padrão SEFAZ modelo 55)
+                Formatos aceitos: <strong>.xml</strong> (NF-e padrão SEFAZ modelo 55) ou <strong>.pdf</strong> (DANFE)
               </p>
               <input
                 id="nfe-xml-upload"
                 type="file"
-                accept=".xml,text/xml"
+                accept=".xml,.pdf,text/xml,application/pdf"
                 className="hidden"
                 disabled={parsing}
                 onChange={handleFileChange}
@@ -394,7 +397,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                       setFile(null);
                     }}
                   >
-                    Trocar XML
+                    Trocar arquivo
                   </Button>
                 </div>
               </div>
@@ -406,7 +409,24 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                   <div>
                     <span className="font-semibold text-white">{parsedData.supplierName}</span>
                     <span className="block text-gray-400 text-xs">
-                      CNPJ: {parsedData.supplierCnpj} {parsedData.existingSupplierId ? '• (Fornecedor já cadastrado)' : '• (Novo fornecedor - será cadastrado)'}
+                      CNPJ: {parsedData.supplierCnpj}
+                    </span>
+                    {parsedData.supplierPhone && (
+                      <span className="block text-gray-400 text-xs">Tel: {parsedData.supplierPhone}</span>
+                    )}
+                    {parsedData.supplierEmail && (
+                      <span className="block text-gray-400 text-xs">Email: {parsedData.supplierEmail}</span>
+                    )}
+                    <span className="block mt-1">
+                      {parsedData.existingSupplierId ? (
+                        <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-semibold">
+                          Fornecedor já cadastrado no sistema
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-semibold">
+                          Novo fornecedor — será cadastrado automaticamente com os dados da nota
+                        </Badge>
+                      )}
                     </span>
                   </div>
                 </div>

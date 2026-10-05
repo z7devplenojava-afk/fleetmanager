@@ -16,9 +16,9 @@ export const GRUPOS_CLASSIFICACAO = [
 ] as const;
 
 /**
- * 22 Classificações Oficiais extraídas do relatório SIGLO00058
+ * Classificações Oficiais de Contas a Pagar
  */
-export const CLASSIFICACOES_SIGLO = [
+export const CLASSIFICACOES_OFICIAIS = [
   'ADMINISTRATIVAS',
   'ALIMENTACAO',
   'ALUGUEL',
@@ -43,6 +43,8 @@ export const CLASSIFICACOES_SIGLO = [
   'TRANSPORTE'
 ] as const;
 
+export const CLASSIFICACOES_SIGLO = CLASSIFICACOES_OFICIAIS;
+
 export const CLASSIFICACOES_PADRAO: ClassificacaoContaItem[] = [
   // 1. Custos Operacionais & Frota
   { codigo: '1.01', nome: 'COMBUSTIVEL', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
@@ -57,14 +59,18 @@ export const CLASSIFICACOES_PADRAO: ClassificacaoContaItem[] = [
   { codigo: '1.10', nome: 'Pedágios, Estacionamento e ConectCar', grupo: 'OPERACIONAL', grupoNome: 'Operacional & Frota' },
 
   // 2. Despesas com Pessoal & Folha
-  { codigo: '2.01', nome: 'FOLHA PAGAMENTO VSS', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
-  { codigo: '2.02', nome: 'PESSOAL', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
-  { codigo: '2.03', nome: 'ALIMENTACAO', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
-  { codigo: '2.04', nome: 'PLANO DE SAUDE', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
-  { codigo: '2.05', nome: 'GRATIFICACOES', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
-  { codigo: '2.06', nome: 'Salários, Adiantamentos e Pró-labore', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
-  { codigo: '2.07', nome: 'Vale Transporte e Vale Combustível', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
-  { codigo: '2.08', nome: 'EPIs, Uniformes e SST', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.01', nome: 'FOLHA DE PAGAMENTO / SALÁRIOS', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.02', nome: 'RESCISÃO DE FUNCIONÁRIO', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.03', nome: 'FÉRIAS DE FUNCIONÁRIOS', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.04', nome: '13º SALÁRIO', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.05', nome: 'ADIANTAMENTO SALARIAL / VALE', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.06', nome: 'VALE ALIMENTAÇÃO / REFEIÇÃO / TRANSPORTE', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.07', nome: 'PLANO DE SAÚDE E ODONTOLÓGICO', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.08', nome: 'ENCARGOS SOCIAIS (FGTS / INSS / PIS)', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.09', nome: 'PRO-LABORE DIRETORIA', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.10', nome: 'PREMIAÇÕES E GRATIFICAÇÕES', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.11', nome: 'EPIs, UNIFORMES E SST', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
+  { codigo: '2.12', nome: 'OUTRAS VERBAS TRABALHISTAS E RESCISÓRIAS', grupo: 'PESSOAL', grupoNome: 'Pessoal & Folha' },
 
   // 3. Despesas Administrativas & TI
   { codigo: '3.01', nome: 'ADMINISTRATIVAS', grupo: 'ADMINISTRATIVO', grupoNome: 'Administrativo & TI' },
@@ -132,9 +138,13 @@ export function getClassificacaoStyle(classificacaoNome?: string) {
   // Pessoal & Folha
   if (
     clean.includes('FOLHA') || clean.includes('PESSOAL') ||
+    clean.includes('RESCISAO') || clean.includes('RESCISÃO') ||
+    clean.includes('FERIAS') || clean.includes('FÉRIAS') ||
+    clean.includes('13º') || clean.includes('ADIANTAMENTO') ||
+    clean.includes('VALE') || clean.includes('SALARIO') || clean.includes('SALÁRIO') ||
     clean.includes('ALIMENTACAO') || clean.includes('SAUDE') || clean.includes('SAÚDE') ||
     clean.includes('GRATIFICACAO') || clean.includes('GRATIFICACOES') ||
-    clean.includes('SALÁRIO') || clean.includes('BENEFÍCIO') || clean.startsWith('2.')
+    clean.includes('BENEFÍCIO') || clean.startsWith('2.')
   ) {
     return {
       bg: 'bg-amber-500/15',

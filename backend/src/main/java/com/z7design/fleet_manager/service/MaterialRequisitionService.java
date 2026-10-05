@@ -36,6 +36,8 @@ public class MaterialRequisitionService {
     private final FleetWorkOrderRepository workOrderRepository;
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
+    private final ProcurementQuoteComparisonRepository comparisonRepository;
+    private final ProcurementPurchaseOrderRepository purchaseOrderRepository;
 
     private User resolveCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -339,13 +341,16 @@ public class MaterialRequisitionService {
     }
 
     @Transactional(readOnly = true)
-    public List<MaterialRequisitionDTO> listRequisitions(MaterialRequisition.RequisitionStatus status) {
+    public List<MaterialRequisitionDTO> listRequisitions(MaterialRequisition.RequisitionStatus status, UUID workOrderId) {
+        if (workOrderId != null) {
+            return getRequisitionsByWorkOrderId(workOrderId);
+        }
         UUID companyId = TenantContext.get();
         List<MaterialRequisition> list = (status != null && companyId != null)
                 ? requisitionRepository.findByCompanyIdAndStatusOrderByCreatedAtDesc(companyId, status)
                 : (companyId != null ? requisitionRepository.findByCompanyIdOrderByCreatedAtDesc(companyId) : requisitionRepository.findAll());
 
-        return list.stream().map(this::toDTO).collect(Collectors.toList());
+        return list.stream().map(this::toDTO).filter(dto -> dto != null).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -451,10 +456,57 @@ public class MaterialRequisitionService {
         return toDTO(req);
     }
 
+    @Transactional(readOnly = true)
+    public List<MaterialRequisitionDTO> getRequisitionsByWorkOrderId(UUID workOrderId) {
+        if (workOrderId == null) {
+            return List.of();
+        }
+        try {
+            List<MaterialRequisition> list = requisitionRepository.findByWorkOrderIdOrderByCreatedAtDesc(workOrderId);
+            if (list == null) return List.of();
+            return list.stream()
+                    .map(this::toDTO)
+                    .filter(dto -> dto != null)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("⚠️ Erro ao buscar requisições por OS {}: {}", workOrderId, e.getMessage(), e);
+            return List.of();
+        }
+    }
+
     public MaterialRequisitionDTO toDTO(MaterialRequisition r) {
-        String woNum = r.getWorkOrder() != null ? r.getWorkOrder().getOsNumber() : (r.getWorkOrderId() != null ? "OS-" + r.getWorkOrderId().toString().substring(0, 8) : null);
-        String plate = r.getVehicle() != null ? r.getVehicle().getPlate() : (r.getWorkOrder() != null && r.getWorkOrder().getVehicle() != null ? r.getWorkOrder().getVehicle().getPlate() : null);
-        String model = r.getVehicle() != null ? r.getVehicle().getModel() : (r.getWorkOrder() != null && r.getWorkOrder().getVehicle() != null ? r.getWorkOrder().getVehicle().getModel() : null);
+        if (r == null) return null;
+
+        String woNum = null;
+        try {
+            if (r.getWorkOrder() != null && r.getWorkOrder().getOsNumber() != null) {
+                woNum = r.getWorkOrder().getOsNumber();
+            } else if (r.getWorkOrderId() != null) {
+                woNum = "OS-" + r.getWorkOrderId().toString().substring(0, 8);
+            }
+        } catch (Exception e) {
+            if (r.getWorkOrderId() != null) {
+                woNum = "OS-" + r.getWorkOrderId().toString().substring(0, 8);
+            }
+        }
+
+        String plate = null;
+        try {
+            if (r.getVehicle() != null && r.getVehicle().getPlate() != null) {
+                plate = r.getVehicle().getPlate();
+            } else if (r.getWorkOrder() != null && r.getWorkOrder().getVehicle() != null) {
+                plate = r.getWorkOrder().getVehicle().getPlate();
+            }
+        } catch (Exception ignored) {}
+
+        String model = null;
+        try {
+            if (r.getVehicle() != null && r.getVehicle().getModel() != null) {
+                model = r.getVehicle().getModel();
+            } else if (r.getWorkOrder() != null && r.getWorkOrder().getVehicle() != null) {
+                model = r.getWorkOrder().getVehicle().getModel();
+            }
+        } catch (Exception ignored) {}
 
         Long currentSlaMinutes = null;
         if (r.getCreatedAt() != null) {
@@ -466,6 +518,34 @@ public class MaterialRequisitionService {
         if (currentSlaMinutes != null && r.getSlaTargetMinutes() != null && currentSlaMinutes > r.getSlaTargetMinutes()) {
             isBreached = true;
         }
+
+        // Buscar detalhes da Cotação e Ordem de Compra se disponíveis
+        UUID compId = null;
+        Integer quotesCount = null;
+        String supplierName = null;
+        BigDecimal totalAmount = null;
+        UUID poId = null;
+        String ocNumber = null;
+        java.time.LocalDate deliveryEstDate = null;
+
+        try {
+            List<ProcurementQuoteComparison> comps = comparisonRepository.findByRequisitionId(r.getId());
+            if (comps != null && !comps.isEmpty()) {
+                ProcurementQuoteComparison comp = comps.get(0);
+                compId = comp.getId();
+                quotesCount = comp.getOptions() != null ? comp.getOptions().size() : 0;
+            }
+
+            List<ProcurementPurchaseOrder> pos = purchaseOrderRepository.findByRequisitionId(r.getId());
+            if (pos != null && !pos.isEmpty()) {
+                ProcurementPurchaseOrder po = pos.get(0);
+                poId = po.getId();
+                ocNumber = po.getOcNumber();
+                supplierName = po.getSupplierName();
+                totalAmount = po.getTotalAmount();
+                deliveryEstDate = po.getDeliveryEstimatedDate();
+            }
+        } catch (Exception ignored) {}
 
         return MaterialRequisitionDTO.builder()
                 .id(r.getId())
@@ -498,6 +578,13 @@ public class MaterialRequisitionService {
                 .isSlaBreached(isBreached)
                 .createdAt(r.getCreatedAt())
                 .updatedAt(r.getUpdatedAt())
+                .purchaseOrderId(poId)
+                .ocNumber(ocNumber)
+                .quoteComparisonId(compId)
+                .quotesCount(quotesCount)
+                .supplierName(supplierName)
+                .totalAmount(totalAmount)
+                .deliveryEstimatedDate(deliveryEstDate)
                 .deliveryDate(r.getDeliveryDate())
                 .deliveredAt(r.getDeliveredAt())
                 .deliveredById(r.getDeliveredById())

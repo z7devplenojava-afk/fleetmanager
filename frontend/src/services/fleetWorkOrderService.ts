@@ -6,6 +6,7 @@ export enum MaintenanceType {
     PREDITIVA = 'PREDITIVA',
     INSPECAO = 'INSPECAO',
     LUBRIFICACAO = 'LUBRIFICACAO',
+    LIMPEZA = 'LIMPEZA',
     OUTROS = 'OUTROS'
 }
 

@@ -73,6 +73,10 @@ export interface MaterialRequisition {
   purchaseOrderId?: string;
   ocNumber?: string;
   quoteComparisonId?: string;
+  quotesCount?: number;
+  supplierName?: string;
+  totalAmount?: number;
+  deliveryEstimatedDate?: string;
   deliveryDate?: string;
   deliveredAt?: string;
   deliveredById?: string;
@@ -192,5 +196,23 @@ export const materialRequisitionService = {
   confirmDelivery: async (id: string, payload?: ConfirmDeliveryPayload): Promise<MaterialRequisition> => {
     const response = await api.post(`/api/material-requisitions/${id}/deliver`, payload || {});
     return response.data;
+  },
+
+  listByWorkOrder: async (workOrderId: string): Promise<MaterialRequisition[]> => {
+    return withSilentFallback(
+      async () => {
+        try {
+          const response = await api.get(`/api/material-requisitions/by-work-order/${workOrderId}`, silentErrorLog());
+          if (Array.isArray(response.data)) return response.data;
+        } catch (_) {}
+        const fallback = await api.get(`/api/material-requisitions?workOrderId=${workOrderId}`, silentErrorLog());
+        return Array.isArray(fallback.data) ? fallback.data : [];
+      },
+      [],
+      {
+        key: `material-requisitions:work-order:${workOrderId}`,
+        message: '[materialRequisitionService] Endpoint /by-work-order indisponível.',
+      }
+    );
   }
 };

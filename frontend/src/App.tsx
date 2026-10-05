@@ -1,3 +1,4 @@
+
 import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
@@ -76,7 +77,7 @@ const lazyWithRetry = (componentImport: () => Promise<any>, componentName: strin
     if (!sessionStorage.getItem(reloadKey)) {
       sessionStorage.setItem(reloadKey, '1');
       window.location.reload();
-      return new Promise(() => {});
+      return new Promise(() => { });
     }
     sessionStorage.removeItem(reloadKey);
 
@@ -152,9 +153,14 @@ const Lavajato = lazy(() => import('@/pages/manutencao/Lavajato'));
 const GestaoCertificacoesCFME = lazy(() => import('@/pages/manutencao/GestaoCertificacoesCFME'));
 const TrafficManagementDashboard = lazy(() => import('@/pages/fretamento/TrafficManagementDashboard'));
 const RoutesAndPoints = lazy(() => import('@/pages/fretamento/RoutesAndPoints'));
+const Horarios = lazy(() => import('@/pages/fretamento/Horarios'));
+const EscalasViagens = lazy(() => import('@/pages/fretamento/EscalasViagens'));
+const InicioVSS = lazy(() => import('@/pages/saosilvestre/Inicio'));
+const MotoristasPage = lazy(() => import('@/pages/Motoristas'));
 const DriverTripList = lazy(() => import('@/pages/fretamento/DriverTripList'));
 const DriverTripExecution = lazy(() => import('@/pages/fretamento/DriverTripExecution'));
 const PassengerQRCode = lazy(() => import('@/pages/fretamento/PassengerQRCode'));
+const PassengerPortal = lazy(() => import('@/pages/passenger/PassengerPortal'));
 const TransportAssignments = lazy(() => import('@/pages/fretamento/TransportAssignments'));
 const DriverShifts = lazy(() => import('@/pages/fretamento/DriverShifts'));
 const TravelTrips = lazy(() => import('@/pages/fretamento/TravelTrips'));
@@ -278,7 +284,6 @@ const OperacionalDashboard = lazy(() => import('@/pages/OperacionalDashboard'));
 const GestaoPostos = lazy(() => import('@/pages/GestaoPostos'));
 const WorkPostDetailPage = lazy(() => import('@/pages/operacional/WorkPostDetailPage'));
 const GestaoEscalas = lazy(() => import('@/pages/GestaoEscalas'));
-const GestaoFerias = lazy(() => import('@/pages/GestaoFerias'));
 const GestaoTarefas = lazy(() => import('@/pages/GestaoTarefas'));
 const RelatoriosOperacionais = lazy(() => import('@/pages/RelatoriosOperacionais'));
 
@@ -988,6 +993,34 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/saosilvestre" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <InicioVSS />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/saosilvestre/horarios" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <Horarios />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/saosilvestre/escalas" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <EscalasViagens />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/motoristas" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <MotoristasPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/fretamento/:page" element={
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -1123,6 +1156,11 @@ function App() {
                         </ProtectedRoute>
                       } />
                       <Route path="/compras/cotacoes" element={
+                        <ProtectedRoute requiredPermissions={['STOCK_MANAGE']}>
+                          <CotacoesCompras />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/cotacoes-compras" element={
                         <ProtectedRoute requiredPermissions={['STOCK_MANAGE']}>
                           <CotacoesCompras />
                         </ProtectedRoute>
@@ -1885,11 +1923,7 @@ function App() {
                         </ProtectedRoute>
                       } />
                       <Route path="/operacional/ferias" element={
-                        <ProtectedRoute>
-                          <Suspense fallback={<LoadingSpinner />}>
-                            <GestaoFerias />
-                          </Suspense>
-                        </ProtectedRoute>
+                        <Navigate to="/rh/ferias" replace />
                       } />
                       <Route path="/operacional/tarefas" element={
                         <ProtectedRoute>
@@ -1906,12 +1940,6 @@ function App() {
                         </ProtectedRoute>
                       } />
 
-                      {/* Rota 404 */}
-                      <Route path="*" element={
-                        <Suspense fallback={<LoadingSpinner />}>
-                          <NotFound />
-                        </Suspense>
-                      } />
                       {/* Gestão de Tráfego - PWA Motorista */}
                       <Route path="/driver/trips" element={
                         <ProtectedRoute>
@@ -1928,12 +1956,40 @@ function App() {
                         </ProtectedRoute>
                       } />
                       {/* Gestão de Tráfego - PWA Passageiro */}
+                      <Route path="/passenger" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <PassengerPortal />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/passageiro" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <PassengerPortal />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/passenger/portal" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <PassengerPortal />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/passenger/qrcode" element={
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
-                            <PassengerQRCode />
+                            <PassengerPortal />
                           </Suspense>
                         </ProtectedRoute>
+                      } />
+
+                      {/* Rota 404 - Deve ser SEMPRE a última rota */}
+                      <Route path="*" element={
+                        <Suspense fallback={<LoadingSpinner />}>
+                          <NotFound />
+                        </Suspense>
                       } />
                     </Routes>
                     <Toaster />

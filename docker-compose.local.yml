@@ -132,7 +132,7 @@ services:
       SPRING_REDIS_PORT: 6379
       BAILEYS_ENABLED: "true"
       BAILEYS_REST_URL: http://fluxbus-local-whatsapp:3333
-      JWT_SECRET: dev_secret_key_min_64_chars_for_hmac512_algorithm_local_only
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       MINIO_URL: http://fluxbus-local-minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin

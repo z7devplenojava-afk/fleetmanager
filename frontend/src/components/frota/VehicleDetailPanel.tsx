@@ -9,13 +9,36 @@ import {
   AlertTriangle, Loader2, MapPin, Users, Calendar, DollarSign,
   Gauge, ClipboardList, CircleDot, Hash, Plus, Bus, DoorOpen,
   Wifi, Camera, Accessibility, Thermometer, Route, Settings,
-  CreditCard, UserCheck, QrCode, Droplets
+  CreditCard, UserCheck, QrCode, Droplets, MoreHorizontal, Pencil,
+  Trash2, Copy, RefreshCw
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
 import MaintenanceAlertWidget from '@/components/frota/MaintenanceAlertWidget';
 import VehicleQRCodeModal from '@/components/frota/VehicleQRCodeModal';
+import ManutencaoFormModal from '@/components/frota/ManutencaoFormModal';
+import { ManutencaoViewModal } from '@/components/frota/ManutencaoViewModal';
+import { ManutencaoDeleteDialog } from '@/components/frota/ManutencaoDeleteDialog';
+import { generateFleetWorkOrderPDFBlob } from '@/utils/fleetWorkOrderPDFGenerator';
+import maintenanceService from '@/services/maintenanceService';
 import fleetService from '@/services/fleetService';
 import fleetWorkOrderService, { FleetWorkOrder, VehicleMaintenanceRanking } from '@/services/fleetWorkOrderService';
 import tireService, { Tire } from '@/services/tireService';
@@ -217,6 +240,12 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
   const [cleaningOrders, setCleaningOrders] = useState<VehicleCleaningOrder[]>([]);
   const [selectedCleaningOrder, setSelectedCleaningOrder] = useState<VehicleCleaningOrder | null>(null);
   const [isCleaningOsModalOpen, setIsCleaningOsModalOpen] = useState(false);
+  const [viewMaint, setViewMaint] = useState<any | null>(null);
+  const [editMaint, setEditMaint] = useState<any | null>(null);
+  const [deleteMaint, setDeleteMaint] = useState<any | null>(null);
+  const [osToDelete, setOsToDelete] = useState<FleetWorkOrder | null>(null);
+  const [isDeletingOs, setIsDeletingOs] = useState(false);
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     if (!isOpen || !veiculo?.id) return;
@@ -296,6 +325,132 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
       document.body.removeChild(a);
     } catch (error) {
       toast({ title: 'Erro', description: 'Falha ao baixar documento', variant: 'destructive' });
+    }
+  };
+
+  // ---- Ações das Ordens de Serviço (padrão lista de OS) ----
+  const handleOsDownloadPdf = async (wo: FleetWorkOrder) => {
+    try {
+      setPdfLoadingId(wo.id);
+      const blob = await generateFleetWorkOrderPDFBlob(wo);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `os_${wo.osNumber || wo.id.slice(0, 8)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast({ title: 'PDF gerado', description: 'Ordem de serviço baixada com sucesso.' });
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Falha ao gerar PDF da O.S.', variant: 'destructive' });
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
+
+  const handleOsViewPdf = async (wo: FleetWorkOrder) => {
+    try {
+      setPdfLoadingId(wo.id);
+      const blob = await generateFleetWorkOrderPDFBlob(wo);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Falha ao gerar PDF da O.S.', variant: 'destructive' });
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
+
+  const handleOsDuplicate = async (wo: FleetWorkOrder) => {
+    try {
+      await fleetWorkOrderService.duplicate(wo.id);
+      toast({ title: 'OS duplicada', description: 'Nova OS criada com sucesso.' });
+      queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+      loadAll();
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Falha ao duplicar a O.S.', variant: 'destructive' });
+    }
+  };
+
+  const handleConfirmDeleteOs = async () => {
+    if (!osToDelete) return;
+    setIsDeletingOs(true);
+    try {
+      await fleetWorkOrderService.delete(osToDelete.id);
+      toast({ title: 'Sucesso', description: `OS ${osToDelete.osNumber || ''} excluída com sucesso!` });
+      queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+      setOsToDelete(null);
+      loadAll();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error?.response?.data?.message || 'Falha ao excluir a O.S.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingOs(false);
+    }
+  };
+
+  // ---- Ações das Manutenções (padrão lista de OS) ----
+  const buildMaintenancePdf = (m: any) =>
+    fleetService.exportMaintenancesReportPDF({
+      startDate: (m.date || m.maintenanceDate || '').slice(0, 10),
+      endDate: (m.date || m.maintenanceDate || '').slice(0, 10),
+      vehicleId: m.vehicleId || veiculo.id,
+      status: m.status,
+      maintenanceType: m.maintenanceType || m.type,
+    });
+
+  const handleMaintDownloadPdf = async (m: any) => {
+    try {
+      setPdfLoadingId(m.id);
+      const blob = await buildMaintenancePdf(m);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `manutencao_${merged.placa}_${(m.date || '').slice(0, 10)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast({ title: 'PDF gerado', description: 'Relatório da manutenção baixado com sucesso.' });
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Falha ao gerar o PDF da manutenção.', variant: 'destructive' });
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
+
+  const handleMaintViewPdf = async (m: any) => {
+    try {
+      setPdfLoadingId(m.id);
+      const blob = await buildMaintenancePdf(m);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Falha ao gerar o PDF da manutenção.', variant: 'destructive' });
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
+
+  const handleConfirmDeleteMaint = async (m: any) => {
+    try {
+      await maintenanceService.deleteMaintenance(m.id);
+      toast({ title: 'Manutenção excluída', description: 'O registro foi excluído com sucesso.' });
+      setDeleteMaint(null);
+      setViewMaint(null);
+      loadAll();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error?.response?.data?.message || 'Erro ao excluir manutenção',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -839,9 +994,55 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
                                     </Badge>
                                   )}
                                 </div>
-                                <div className="text-xs text-gray-400">
-                                  {wo.plannedDate ? fmtDate(wo.plannedDate) : ''}
-                                  {wo.completionDate ? ` → ${fmtDate(wo.completionDate)}` : ''}
+                                <div className="flex items-center gap-2">
+                                  <div className="text-xs text-gray-400">
+                                    {wo.plannedDate ? fmtDate(wo.plannedDate) : ''}
+                                    {wo.completionDate ? ` → ${fmtDate(wo.completionDate)}` : ''}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleOsDownloadPdf(wo)}
+                                      disabled={pdfLoadingId === wo.id}
+                                      className="h-7 px-2 border-red-500/60 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-[11px]"
+                                      title="Gerar PDF da OS"
+                                    >
+                                      {pdfLoadingId === wo.id ? (
+                                        <RefreshCw className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <FileText className="h-3 w-3" />
+                                      )}
+                                      PDF
+                                    </Button>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+                                          title="Mais ações"
+                                        >
+                                          <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="bg-seguranca-graphite border-gray-600 text-gray-200">
+                                        <DropdownMenuItem onClick={() => handleOsViewPdf(wo)}>
+                                          <Eye className="mr-2 h-4 w-4" /> Visualizar PDF
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleOsDuplicate(wo)}>
+                                          <Copy className="mr-2 h-4 w-4" /> Duplicar OS
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                          onClick={() => setOsToDelete(wo)}
+                                          className="text-red-400 focus:text-red-300"
+                                        >
+                                          <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
                                 </div>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-xs">
@@ -883,8 +1084,57 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
                                     {m.type || m.maintenanceType || 'Manutenção'}
                                   </span>
                                 </div>
-                                <div className="text-xs text-gray-400 flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" /> {fmtDate(m.date || m.maintenanceDate)}
+                                <div className="flex items-center gap-2">
+                                  <div className="text-xs text-gray-400 flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" /> {fmtDate(m.date || m.maintenanceDate)}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleMaintDownloadPdf(m)}
+                                      disabled={pdfLoadingId === m.id}
+                                      className="h-7 px-2 border-red-500/60 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-[11px]"
+                                      title="Gerar PDF da manutenção"
+                                    >
+                                      {pdfLoadingId === m.id ? (
+                                        <RefreshCw className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <FileText className="h-3 w-3" />
+                                      )}
+                                      PDF
+                                    </Button>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+                                          title="Mais ações"
+                                        >
+                                          <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="bg-seguranca-graphite border-gray-600 text-gray-200">
+                                        <DropdownMenuItem onClick={() => setViewMaint(m)}>
+                                          <Eye className="mr-2 h-4 w-4" /> Visualizar
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleMaintViewPdf(m)}>
+                                          <FileText className="mr-2 h-4 w-4" /> Visualizar PDF
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setEditMaint(m)}>
+                                          <Pencil className="mr-2 h-4 w-4" /> Editar
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                          onClick={() => setDeleteMaint(m)}
+                                          className="text-red-400 focus:text-red-300"
+                                        >
+                                          <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
                                 </div>
                               </div>
                               {m.description && <p className="text-xs text-gray-300 mt-2">{m.description}</p>}
@@ -1419,6 +1669,81 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
         }}
         order={selectedCleaningOrder}
       />
+
+      {/* ===== MODAIS DE AÇÕES DA ABA MANUTENÇÃO ===== */}
+      <ManutencaoViewModal
+        isOpen={!!viewMaint}
+        onClose={() => setViewMaint(null)}
+        maintenance={viewMaint}
+        onEdit={(m) => {
+          setViewMaint(null);
+          setEditMaint(m);
+        }}
+        onDelete={(m) => {
+          setViewMaint(null);
+          setDeleteMaint(m);
+        }}
+      />
+
+      <ManutencaoFormModal
+        isOpen={!!editMaint}
+        onClose={() => setEditMaint(null)}
+        onSuccess={() => {
+          setEditMaint(null);
+          loadAll();
+        }}
+        veiculos={[
+          {
+            ...(detail || {}),
+            id: veiculo.id,
+            plate: (detail as any)?.plate || veiculo.placa,
+            brand: (detail as any)?.brand || veiculo.marca,
+            model: (detail as any)?.model || veiculo.modelo,
+            year: (detail as any)?.year || veiculo.ano,
+            currentMileage: (detail as any)?.currentMileage || veiculo.quilometragem,
+            status: (detail as any)?.status || veiculo.status,
+          } as any,
+        ]}
+        manutencao={editMaint || undefined}
+      />
+
+      <ManutencaoDeleteDialog
+        isOpen={!!deleteMaint}
+        onClose={() => setDeleteMaint(null)}
+        maintenance={deleteMaint}
+        onConfirm={handleConfirmDeleteMaint}
+      />
+
+      <AlertDialog open={!!osToDelete} onOpenChange={(open) => !open && setOsToDelete(null)}>
+        <AlertDialogContent className="bg-seguranca-graphite border-gray-600">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Ordem de Serviço</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a OS{' '}
+              <strong className="text-seguranca-lightgray">
+                {osToDelete?.osNumber || osToDelete?.id.slice(0, 8)}
+              </strong>{' '}
+              deste veículo? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmDeleteOs();
+              }}
+              disabled={isDeletingOs}
+              className="bg-seguranca-red hover:bg-seguranca-darkred text-white"
+            >
+              {isDeletingOs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {isDeletingOs ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>,
     document.body
   );

@@ -77,7 +77,7 @@ const FUEL_LABELS: Record<string, string> = {
 function loadImageAsBase64(url: string): Promise<string | null> {
   return new Promise((resolve) => {
     if (!url) { resolve(null); return; }
-    const img = new Image();
+    const img = document.createElement('img');
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
       try {

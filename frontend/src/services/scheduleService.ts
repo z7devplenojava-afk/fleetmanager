@@ -283,9 +283,14 @@ export const scheduleService = {
     startDate?: string;
     endDate?: string;
   }): Promise<Schedule[]> {
-    const response = await api.get('/api/schedules/me', { params: filters });
-    const data = response.data;
-    return Array.isArray(data) ? data : [];
+    try {
+      const response = await api.get('/api/schedules/me', { params: filters });
+      const data = response.data;
+      return Array.isArray(data) ? data : [];
+    } catch (e: any) {
+      if (e?.response?.status === 404) return [];
+      throw e;
+    }
   },
 
   /**

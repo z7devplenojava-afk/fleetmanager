@@ -8,7 +8,7 @@ echo "🔧 Corrigindo JWT_SECRET no arquivo .env..."
 cd /var/www/fluxbus/ci
 
 # Valor padrão seguro (80 caracteres)
-DEFAULT_JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
+DEFAULT_JWT_SECRET="CHANGE_THIS_JWT_SECRET"
 
 # Verificar se .env existe
 if [ -f ".env" ]; then

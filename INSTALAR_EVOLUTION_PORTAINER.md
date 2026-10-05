@@ -41,7 +41,7 @@ services:
       
       # Autenticação
       - AUTHENTICATION_TYPE=apikey
-      - AUTHENTICATION_API_KEY=B6D711FCDE4D4FD5936544120E713976
+      - AUTHENTICATION_API_KEY=CHANGE_THIS_EVOLUTION_API_KEY
       - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
       
       # Configurações de Sessão
@@ -57,7 +57,7 @@ services:
       # Database Configuration
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://secured_guard_ci:4KaCiJc6an@7sgbdcid2025@secured-guard-db-ci:5432/evolution_db?schema=public
+      - DATABASE_CONNECTION_URI=postgresql://secured_guard_ci:CHANGE_THIS_DB_PASSWORD@secured-guard-db-ci:5432/evolution_db?schema=public
       - DATABASE_CONNECTION_CLIENT_NAME=evolution_portainer
       - DATABASE_SAVE_DATA_INSTANCE=true
       - DATABASE_SAVE_DATA_NEW_MESSAGE=true
@@ -179,7 +179,7 @@ docker logs evolution-api-portainer --tail 50
 ```bash
 # 1. Criar instância
 curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "instanceName": "securedguard",
@@ -190,7 +190,7 @@ curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
 sleep 15
 
 # 3. Obter QR Code
-curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+curl -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   https://evolution.z7botsolutions.com.br/instance/connect/securedguard
 ```
 
@@ -199,7 +199,7 @@ curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
 1. Abra: `https://evolution.z7botsolutions.com.br/instance/connect/securedguard`
 2. Use extensão **ModHeader** para adicionar:
    - Header: `apikey`
-   - Value: `B6D711FCDE4D4FD5936544120E713976`
+   - Value: `CHANGE_THIS_EVOLUTION_API_KEY`
 3. Veja o QR Code
 4. Escaneie com WhatsApp: **31971731747**
 
@@ -217,7 +217,7 @@ Procure por:
 ### **Via curl (do seu PC):**
 
 ```powershell
-$headers = @{ apikey = "B6D711FCDE4D4FD5936544120E713976" }
+$headers = @{ apikey = "CHANGE_THIS_EVOLUTION_API_KEY" }
 $qr = Invoke-RestMethod -Uri "https://evolution.z7botsolutions.com.br/instance/connect/securedguard" -Method GET -Headers $headers
 Write-Host "QR Code: $($qr.code.length) caracteres"
 ```
@@ -244,7 +244,7 @@ services:
     environment:
       - SERVER_URL=https://evolution.z7botsolutions.com.br
       - AUTHENTICATION_TYPE=apikey
-      - AUTHENTICATION_API_KEY=B6D711FCDE4D4FD5936544120E713976
+      - AUTHENTICATION_API_KEY=CHANGE_THIS_EVOLUTION_API_KEY
       - CONFIG_SESSION_PHONE_CLIENT=SecuredGuard
       - CONFIG_SESSION_PHONE_NAME=chrome
       - QRCODE_LIMIT=30

@@ -54,7 +54,7 @@ export MAIL_CONNECTION_TIMEOUT=30000
 
 - **Servidor:** mail.z7design.com.br
 - **Email:** securedguard@z7design.com.br
-- **Senha:** D8rKeqSFZfaS$(y7
+- **Senha:** CHANGE_THIS_MAIL_PASSWORD
 - **Porta padrão:** 587 (STARTTLS)
 - **Timeout:** 30 segundos
 

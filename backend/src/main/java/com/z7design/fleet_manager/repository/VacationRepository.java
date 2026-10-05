@@ -24,4 +24,13 @@ public interface VacationRepository extends JpaRepository<Vacation, UUID> {
     
     @Query("SELECT v FROM Vacation v LEFT JOIN FETCH v.employee LEFT JOIN FETCH v.approvedBy WHERE v.status = :status")
     List<Vacation> findByStatusWithEmployee(VacationStatus status);
+
+    /**
+     * Fase 2: idempotencia do processamento de ferias coletivas - ja existe
+     * solicitacao gerada para este colaborador nesta coletiva?
+     */
+    boolean existsByFeriasColetivasIdAndEmployeeId(UUID feriasColetivasId, UUID employeeId);
+
+    /** Fase 2: todas as solicitacoes geradas por uma coletiva. */
+    List<Vacation> findByFeriasColetivasId(UUID feriasColetivasId);
 } 

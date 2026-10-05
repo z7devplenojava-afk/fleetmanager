@@ -76,7 +76,8 @@ public class SystemNotification {
     public enum NotificationType {
         NOVO_CLIENTE, CONTRATO_VENCENDO, FUNCIONARIO_ATRASADO, 
         OCORRENCIA, ESCALA, ADVERTENCIA, NOVO_CONTRATO, 
-        LEAD_NOVO, PROPOSTA_ENVIADA, ORCAMENTO_APROVADO
+        LEAD_NOVO, PROPOSTA_ENVIADA, ORCAMENTO_APROVADO,
+        COMPRA_APROVADA, COTACOES_COMPRAS
     }
     
     public enum NotificationPriority {

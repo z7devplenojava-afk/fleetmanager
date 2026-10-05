@@ -27,7 +27,7 @@ Write-Host "Mensagem: $($envioResponse.mensagem)"
 ```
 
 ## 📋 Credenciais Evolution API:
-- **API Key:** B6D711FCDE4D4FD5936544120E713976
+- **API Key:** CHANGE_THIS_EVOLUTION_API_KEY
 - **Instance:** securedguard
 - **URL:** http://localhost:9000
 

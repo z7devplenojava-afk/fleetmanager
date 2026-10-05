@@ -7,10 +7,66 @@ import {
   CreateAfastamentoRequest, 
   UpdateAfastamentoRequest,
   FeriasFilters,
-  AfastamentoFilters
+  AfastamentoFilters,
+  PeriodoAquisitivo,
+  SaldoFerias,
+  ValidacaoFerias,
+  ValidacaoFeriasRequest,
+  FeriasBloco,
+  FeriasColetiva,
+  CreateFeriasColetivaRequest,
+  ResultadoProcessamentoColetiva,
+  AlertaConcessivo
 } from '../types/ferias';
 
+/** Shape minimo do DTO de vacation retornado pela API (portal do colaborador). */
+interface VacationPortalDTO {
+  id?: string;
+  startDate?: string;
+  endDate?: string;
+  daysTaken?: number;
+  status?: string;
+  vacationType?: string;
+  observacoes?: string;
+  approvedByName?: string;
+  approvalDate?: string;
+  motivoRejeicao?: string;
+  diasAbono?: number;
+  periodoAquisitivoInicio?: string;
+  periodoAquisitivoFim?: string;
+  createdAt?: string;
+}
+
 export const feriasService = {
+  // ---------------------------------------------------------------------------
+  // Período Aquisitivo (CLT Art. 129-137)
+  // ---------------------------------------------------------------------------
+
+  async getPeriodosAquisitivos(employeeId: string): Promise<PeriodoAquisitivo[]> {
+    const response = await api.get(`/api/periodo-aquisitivo/employee/${employeeId}`);
+    return response.data;
+  },
+
+  async getPeriodoAquisitivoAtivo(employeeId: string): Promise<PeriodoAquisitivo> {
+    const response = await api.get(`/api/periodo-aquisitivo/ativo/${employeeId}`);
+    return response.data;
+  },
+
+  async getSaldoFerias(employeeId: string): Promise<SaldoFerias> {
+    const response = await api.get(`/api/periodo-aquisitivo/saldo/${employeeId}`);
+    return response.data;
+  },
+
+  /**
+   * Valida uma solicitação de férias sem persistir (RF-02 / RF-03 / RF-05).
+   * Retorna violações (bloqueiam) e alertas (informativos).
+   */
+  async validarSolicitacao(request: ValidacaoFeriasRequest): Promise<ValidacaoFerias> {
+    const response = await api.post('/api/vacations/validation', request);
+    return response.data;
+  },
+
+
   // Férias
   async getFerias(filters: FeriasFilters = {}): Promise<FeriasPeriodo[]> {
     const params = new URLSearchParams();
@@ -23,7 +79,10 @@ export const feriasService = {
       id: vacation.id,
       employeeId: vacation.employeeId,
       employeeName: vacation.employeeName || 'Funcionário não encontrado',
-      periodoAquisitivo: `${new Date(vacation.startDate).getFullYear()}/${new Date(vacation.startDate).getFullYear() + 1}`,
+      periodoAquisitivo: vacation.periodoAquisitivoInicio
+        ? `${new Date(vacation.periodoAquisitivoInicio).getFullYear()}/${new Date(vacation.periodoAquisitivoFim).getFullYear()}`
+        : `${new Date(vacation.startDate).getFullYear()}/${new Date(vacation.startDate).getFullYear() + 1}`,
+      periodoAquisitivoId: vacation.periodoAquisitivoId || null,
       dataInicio: vacation.startDate,
       dataFim: vacation.endDate,
       status: vacation.status === 'PENDING' ? 'PENDENTE' : 
@@ -33,7 +92,9 @@ export const feriasService = {
       tipo: vacation.vacationType === 'SOLD' ? 'FERIAS_VENDIDAS' :
             vacation.vacationType === 'PECUNIARY_BONUS' ? 'ABONO_PECUNIARIO' : 
             vacation.vacationType === 'NORMAL' ? 'FERIAS_NORMAIS' : 'FERIAS_NORMAIS', // Valor padrão
-      observacoes: '',
+      diasAbono: vacation.diasAbono || 0,
+      blocos: vacation.blocos || null,
+      observacoes: vacation.observacoes || '',
       createdAt: vacation.createdAt
     }));
   },
@@ -46,7 +107,10 @@ export const feriasService = {
       id: vacation.id,
       employeeId: vacation.employeeId || vacation.employee?.id,
       employeeName: vacation.employeeName || vacation.employee?.name || 'Funcionário não encontrado',
-      periodoAquisitivo: `${new Date(vacation.startDate).getFullYear()}/${new Date(vacation.startDate).getFullYear() + 1}`,
+      periodoAquisitivo: vacation.periodoAquisitivoInicio
+        ? `${new Date(vacation.periodoAquisitivoInicio).getFullYear()}/${new Date(vacation.periodoAquisitivoFim).getFullYear()}`
+        : `${new Date(vacation.startDate).getFullYear()}/${new Date(vacation.startDate).getFullYear() + 1}`,
+      periodoAquisitivoId: vacation.periodoAquisitivoId || null,
       dataInicio: vacation.startDate,
       dataFim: vacation.endDate,
       status: vacation.status === 'PENDING' ? 'PENDENTE' : 
@@ -55,6 +119,8 @@ export const feriasService = {
               vacation.status === 'CANCELLED' ? 'CANCELADO' : 'PENDENTE',
       tipo: vacation.vacationType === 'SOLD' ? 'FERIAS_VENDIDAS' :
             vacation.vacationType === 'PECUNIARY_BONUS' ? 'ABONO_PECUNIARIO' : 'FERIAS_NORMAIS', // Valor padrão
+      diasAbono: vacation.diasAbono || 0,
+      blocos: vacation.blocos || null,
       observacoes: vacation.observacoes || vacation.notes || '',
       createdAt: vacation.createdAt,
       updatedAt: vacation.updatedAt
@@ -85,7 +151,13 @@ export const feriasService = {
       daysTaken: Math.ceil((new Date(data.dataFim).getTime() - new Date(data.dataInicio).getTime()) / (1000 * 60 * 60 * 24)) + 1,
       remainingDays: 30, // Valor padrão - será recalculado pelo backend
       status: 'PENDING',
-      vacationType: tipoMap[data.tipo] || 'NORMAL'
+      vacationType: tipoMap[data.tipo] || 'NORMAL',
+      // Extensão CLT (Fase 1)
+      periodoAquisitivo: data.periodoAquisitivoId ? { id: data.periodoAquisitivoId } : undefined,
+      blocos: data.blocos && data.blocos.length > 0 ? data.blocos : undefined,
+      numeroBlocos: data.blocos && data.blocos.length > 0 ? data.blocos.length : 1,
+      diasAbono: data.diasAbono || 0,
+      observacoes: data.observacoes || null
     };
     const response = await api.post('/api/vacations', backendData);
     return response.data;
@@ -488,49 +560,229 @@ export const feriasService = {
     return response.data;
   },
 
-  // Aliases para Portal do Funcionário
-  async getMinhasSolicitacoes(): Promise<any[]> {
+  // ---------------------------------------------------------------------------
+  // Portal do Funcionario (RF-06) - Fase 2
+  // ---------------------------------------------------------------------------
+
+  /** Employee id autenticado no portal do colaborador. */
+  getEmployeeIdPortal(): string | null {
     try {
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
-      const employeeId = user?.employeeId || user?.employee_id;
-      if (employeeId) {
-        const response = await api.get(`/api/vacations/employee/${employeeId}`);
-        return response.data || [];
-      }
-      const response = await api.get('/api/vacations');
-      return response.data || [];
+      return user?.employeeId || user?.employee_id || null;
+    } catch {
+      return null;
+    }
+  },
+  /** Extrai a mensagem de erro devolvida pelo backend (validacoes CLT inclusive). */
+  extrairMensagemErro(err: unknown): string {
+    if (err && typeof err === 'object' && 'response' in err) {
+      const response = (err as { response?: { data?: { message?: string; error?: string } } }).response;
+      const data = response?.data;
+      if (data?.message) return data.message;
+      if (data?.error) return data.error;
+    }
+    if (err instanceof Error && err.message) return err.message;
+    return 'Nao foi possivel concluir a operacao. Tente novamente.';
+  },
+
+  async getMinhasSolicitacoes(): Promise<any[]> {
+    const employeeId = this.getEmployeeIdPortal();
+    if (!employeeId) return [];
+    try {
+      const response = await api.get(`/api/vacations/employee/${employeeId}`);
+      return (response.data || []).map((v: VacationPortalDTO) => ({
+        id: v.id,
+        dataInicio: v.startDate,
+        dataFim: v.endDate,
+        dias: v.daysTaken,
+        status: v.status,
+        tipo: 'VACATION',
+        observacao: v.observacoes || '',
+        aprovador: v.approvedByName || '',
+        dataAprovacao: v.approvalDate || '',
+        motivoRejeicao: v.motivoRejeicao || '',
+        diasAbono: v.diasAbono || 0,
+        periodoAquisitivo: v.periodoAquisitivoInicio
+          ? `${new Date(v.periodoAquisitivoInicio).getFullYear()}/${new Date(v.periodoAquisitivoFim).getFullYear()}`
+          : '',
+        createdAt: v.createdAt
+      }));
     } catch {
       return [];
     }
   },
 
   async getMeuSaldo(): Promise<any> {
+    const employeeId = this.getEmployeeIdPortal();
+    const periodoAtual = `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`;
+    const vazio = {
+      diasDisponiveis: 0,
+      diasUsados: 0,
+      diasUtilizados: 0,
+      diasTotais: 0,
+      diasEmAndamento: 0,
+      periodoAquisitivo: periodoAtual,
+      proximaAquisicao: '',
+      proximoPeriodo: '',
+      limiteConcessivo: '',
+      solicitacoes: []
+    };
+    if (!employeeId) return vazio;
     try {
-      const userStr = localStorage.getItem('user');
-      const user = userStr ? JSON.parse(userStr) : null;
-      const employeeId = user?.employeeId || user?.employee_id;
-      if (employeeId) {
-        const response = await api.get(`/api/vacations/employee/${employeeId}`);
-        return { diasDisponiveis: 30, diasUsados: 0, periodoAquisitivo: '2025/2026', solicitacoes: response.data || [] };
-      }
-      return { diasDisponiveis: 30, diasUsados: 0, periodoAquisitivo: '2025/2026', solicitacoes: [] };
+      const [balance, solicitacoes] = await Promise.all([
+        api.get(`/api/vacations/employee/${employeeId}/balance`).then(r => r.data).catch(() => null),
+        api.get(`/api/vacations/employee/${employeeId}`).then(r => r.data || []).catch(() => [])
+      ]);
+      if (!balance) return vazio;
+      return {
+        diasDisponiveis: balance.availableDays ?? 0,
+        diasUsados: balance.usedDays ?? 0,
+        // aliases lidos pelo componente do portal
+        diasUtilizados: balance.usedDays ?? 0,
+        diasTotais: balance.totalDays ?? 0,
+        diasEmAndamento: balance.daysInProgress ?? 0,
+        periodoAquisitivo: balance.period || periodoAtual,
+        proximaAquisicao: balance.nextAcquisitionDate || '',
+        proximoPeriodo: balance.nextAcquisitionDate || '',
+        limiteConcessivo: balance.nextVacationLimitDate || '',
+        solicitacoes: solicitacoes || []
+      };
     } catch {
-      return { diasDisponiveis: 30, diasUsados: 0, periodoAquisitivo: '2025/2026', solicitacoes: [] };
+      return vazio;
     }
   },
 
-  async solicitarFerias(data: any): Promise<any> {
-    const response = await api.post('/api/vacations', {
-      startDate: data.dataInicio,
-      endDate: data.dataFim,
-      notes: data.observacao,
-      vacationType: data.tipo || 'NORMAL'
-    });
-    return response.data;
+  /**
+   * Solicitacao do portal: vincula o PA vigente, envia o colaborador e
+   * devolve as violacoes CLT do backend como Error legivel (RF-06).
+   */
+  async solicitarFerias(data: {
+    dataInicio: string;
+    dataFim: string;
+    observacao?: string;
+    tipo?: string;
+    diasAbono?: number;
+  }): Promise<any> {
+    const employeeId = this.getEmployeeIdPortal();
+    if (!employeeId) {
+      throw new Error('Colaborador nao identificado. Faca login novamente.');
+    }
+
+    let periodoAquisitivoId: string | undefined;
+    try {
+      const pa = await api.get(`/api/periodo-aquisitivo/ativo/${employeeId}`);
+      periodoAquisitivoId = pa.data?.id;
+    } catch {
+      // Sem PA aberto o backend resolve o vigente na criacao
+    }
+
+    const tipoMap: Record<string, string> = {
+      FERIAS_NORMAIS: 'NORMAL',
+      FERIAS_VENDIDAS: 'SOLD',
+      ABONO_PECUNIARIO: 'PECUNIARY_BONUS'
+    };
+
+    const dias = Math.max(
+      1,
+      Math.ceil(
+        (new Date(data.dataFim).getTime() - new Date(data.dataInicio).getTime()) /
+          (1000 * 60 * 60 * 24)
+      ) + 1
+    );
+
+    try {
+      const response = await api.post('/api/vacations', {
+        employeeId,
+        startDate: data.dataInicio,
+        endDate: data.dataFim,
+        daysTaken: dias + (data.diasAbono || 0),
+        status: 'PENDING',
+        vacationType: tipoMap[data.tipo || ''] || 'NORMAL',
+        diasAbono: data.diasAbono || 0,
+        periodoAquisitivo: periodoAquisitivoId ? { id: periodoAquisitivoId } : undefined,
+        observacoes: data.observacao || ''
+      });
+      return response.data;
+    } catch (err) {
+      throw new Error(this.extrairMensagemErro(err));
+    }
   },
 
   async cancelarSolicitacao(id: string): Promise<void> {
     await api.delete(`/api/vacations/${id}`);
+  },
+
+  // ---------------------------------------------------------------------------
+  // Ferias Coletivas (RF-04) - Fase 2
+  // ---------------------------------------------------------------------------
+
+  async getColetivas(): Promise<FeriasColetiva[]> {
+    const response = await api.get('/api/ferias-coletivas');
+    return response.data || [];
+  },
+
+  async createColetiva(data: CreateFeriasColetivaRequest): Promise<FeriasColetiva> {
+    try {
+      const response = await api.post('/api/ferias-coletivas', data);
+      return response.data;
+    } catch (err) {
+      throw new Error(this.extrairMensagemErro(err));
+    }
+  },
+
+  async updateColetiva(id: string, data: CreateFeriasColetivaRequest): Promise<FeriasColetiva> {
+    try {
+      const response = await api.put(`/api/ferias-coletivas/${id}`, data);
+      return response.data;
+    } catch (err) {
+      throw new Error(this.extrairMensagemErro(err));
+    }
+  },
+
+  async cancelarColetiva(id: string): Promise<void> {
+    try {
+      await api.post(`/api/ferias-coletivas/${id}/cancelar`);
+    } catch (err) {
+      throw new Error(this.extrairMensagemErro(err));
+    }
+  },
+
+  async excluirColetiva(id: string): Promise<void> {
+    try {
+      await api.delete(`/api/ferias-coletivas/${id}`);
+    } catch (err) {
+      throw new Error(this.extrairMensagemErro(err));
+    }
+  },
+
+  /** Processa a coletiva em massa e devolve o resumo (RF-04). */
+  async processarColetiva(id: string): Promise<ResultadoProcessamentoColetiva> {
+    try {
+      const response = await api.post(`/api/ferias-coletivas/${id}/processar`);
+      return response.data;
+    } catch (err) {
+      throw new Error(this.extrairMensagemErro(err));
+    }
+  },
+
+  async concluirColetiva(id: string): Promise<FeriasColetiva> {
+    try {
+      const response = await api.post(`/api/ferias-coletivas/${id}/concluir`);
+      return response.data;
+    } catch (err) {
+      throw new Error(this.extrairMensagemErro(err));
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // Alertas de periodo concessivo (RF-07) - Fase 2
+  // ---------------------------------------------------------------------------
+
+  /** PAs com limite concessivo vencendo ate a data informada (padrao 90 dias). */
+  async getAlertasConcessivo(ate?: string): Promise<AlertaConcessivo[]> {
+    const params = ate ? `?ate=${ate}` : '';
+    const response = await api.get(`/api/periodo-aquisitivo/alertas${params}`);
+    return response.data || [];
   }
 }; 

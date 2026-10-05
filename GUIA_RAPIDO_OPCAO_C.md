@@ -39,7 +39,7 @@ http://localhost:9000/manager
 Ou use via API:
 ```bash
 curl -X POST http://localhost:9000/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"instanceName":"securedguard","integration":"WHATSAPP-BAILEYS"}'
 ```
@@ -48,12 +48,12 @@ curl -X POST http://localhost:9000/instance/create \
 
 ```bash
 curl http://localhost:9000/instance/connect/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 ```
 
 **Ou acesse diretamente:**
 ```
-http://localhost:9000/instance/qrcode/securedguard?apikey=B6D711FCDE4D4FD5936544120E713976
+http://localhost:9000/instance/qrcode/securedguard?apikey=CHANGE_THIS_EVOLUTION_API_KEY
 ```
 
 ### Passo 3: Escanear QR Code
@@ -221,7 +221,7 @@ POST /api/envio/massa
 
 ### Ver status Evolution API:
 ```powershell
-curl http://localhost:9000/instance/connectionState/securedguard -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+curl http://localhost:9000/instance/connectionState/securedguard -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 ```
 
 ### Ver QR Code no terminal:

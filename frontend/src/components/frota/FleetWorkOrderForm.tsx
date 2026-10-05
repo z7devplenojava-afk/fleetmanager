@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import {
     Wrench, Trash2, Plus, ClipboardList, Clock, History,
     Gauge, AlertTriangle, Send, ChevronDown, ChevronUp, CheckCircle, XCircle, MinusCircle, UserCheck,
-    Camera, UploadCloud, Image, Package, ShieldCheck, Tag, FileText, Check, AlertCircle
+    Camera, UploadCloud, Image as LucideImage, Package, ShieldCheck, Tag, FileText, Check, AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -94,37 +94,50 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     });
 
     // Veículos da frota via React Query
-    const { data: vehicles = [], isLoading: isLoadingVehicles } = useQuery<Vehicle[]>({
+    const { data: vehiclesRaw = [], isLoading: isLoadingVehicles } = useQuery<Vehicle[]>({
         queryKey: ['fleet-vehicles-all'],
         queryFn: () => fleetService.getVehicles(),
         staleTime: 60_000,
+        enabled: isOpen,
     });
+
+    const vehicles = React.useMemo<Vehicle[]>(() => {
+        if (!vehiclesRaw) return [];
+        if (Array.isArray(vehiclesRaw)) return vehiclesRaw;
+        if (Array.isArray((vehiclesRaw as any).content)) return (vehiclesRaw as any).content;
+        return [];
+    }, [vehiclesRaw]);
 
     // Clientes, Obras/Postos, Setores, Requerentes (PRD §6, §20, §21, §22)
     const { data: clients = [] } = useQuery({
         queryKey: ['clients-for-select'],
         queryFn: () => clientService.getClientsForSelect(),
         staleTime: 60_000,
+        enabled: isOpen,
     });
     const { data: allWorkPosts = [] } = useQuery<WorkPost[]>({
         queryKey: ['work-posts-all'],
         queryFn: () => workPostService.getAllWorkPosts(),
         staleTime: 60_000,
+        enabled: isOpen,
     });
     const { data: departments = [] } = useQuery({
         queryKey: ['departments-active'],
         queryFn: () => departmentService.getAll(),
         staleTime: 60_000,
+        enabled: isOpen,
     });
     const { data: employees = [] } = useQuery({
         queryKey: ['employees-all-select'],
         queryFn: () => employeeService.getAllEmployees(),
         staleTime: 60_000,
+        enabled: isOpen,
     });
     const { data: garagesForOS = [] } = useQuery<Garage[]>({
         queryKey: ['garages-for-os'],
         queryFn: () => garageService.list(),
         staleTime: 60_000,
+        enabled: isOpen,
     });
 
     // Itens do Almoxarifado / Estoque
@@ -132,6 +145,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         queryKey: ['stock-items-for-work-order'],
         queryFn: () => stockService.getAllItems(),
         staleTime: 30_000,
+        enabled: isOpen,
     });
 
     // Catálogo de Serviços de Manutenção
@@ -139,6 +153,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         queryKey: ['fleet-work-order-services-catalog'],
         queryFn: () => fleetWorkOrderService.getServicesCatalog(),
         staleTime: 30_000,
+        enabled: isOpen,
     });
 
     // Modal de Cadastro Rápido de Novo Serviço
@@ -151,62 +166,104 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
     // Obras filtradas pelo cliente selecionado
     const obrasForClient = React.useMemo(() => {
-        if (!allWorkPosts || allWorkPosts.length === 0) return [];
+        if (!isOpen || !allWorkPosts || allWorkPosts.length === 0) return [];
         if (!formData.clientId) return allWorkPosts;
         const matching = allWorkPosts.filter((wp: any) => wp.clientId === formData.clientId);
         return matching.length > 0 ? matching : allWorkPosts;
-    }, [allWorkPosts, formData.clientId]);
+    }, [isOpen, allWorkPosts, formData.clientId]);
 
-    // Lista de Mecânicos / Manutenção (filtrada por cargo ou fallback para todos)
+    // Lista de Mecânicos / Manutenção (filtrada por cargo/função ou fallback com ordenação)
     const mechanicsList = React.useMemo(() => {
-        if (!employees || employees.length === 0) return [];
-        const filtered = employees.filter((e: any) => {
-            const pos = (e.positionDescription || e.position?.name || e.cargo || '').toLowerCase();
-            return pos.includes('mecanic') || pos.includes('mecânico') || pos.includes('manuten') || pos.includes('tecnic') || pos.includes('eletric');
-        });
+        if (!isOpen || !employees || employees.length === 0) return [];
+        const isMechanicOrMaint = (e: any) => {
+            const pos = [
+                e.positionDescription,
+                e.position?.name,
+                e.position?.description,
+                e.cargo,
+                e.funcao,
+                e.jobTitle,
+                e.cbo,
+                e.department?.name,
+                e.departamento
+            ].filter(Boolean).join(' ').toLowerCase();
+
+            return (
+                pos.includes('mecanic') ||
+                pos.includes('mecânico') ||
+                pos.includes('manuten') ||
+                pos.includes('oficina') ||
+                pos.includes('eletric') ||
+                pos.includes('tecnic') ||
+                pos.includes('funileir') ||
+                pos.includes('pintor') ||
+                pos.includes('borracheir') ||
+                pos.includes('lavador') ||
+                pos.includes('lubrificador')
+            );
+        };
+
+        const filtered = employees.filter(isMechanicOrMaint);
+        // Se houver mecânicos identificados, lista-os; caso contrário, traz todos os colaboradores permitindo busca
         return filtered.length > 0 ? filtered : employees;
-    }, [employees]);
+    }, [isOpen, employees]);
 
     // Opções pesquisáveis com autocomplete
     const vehicleOptions = React.useMemo<SearchableOption[]>(() => {
+        if (!isOpen || !vehicles || !Array.isArray(vehicles)) return [];
         return vehicles.map((v: any) => {
+            const plate = v.plate || v.placa || 'SEM PLACA';
+            const model = v.model || v.modelo || '';
+            const brand = v.brand || v.marca || '';
             const code = v.fleetNumber || v.patrimonyNumber || v.code || v.codigo || '';
-            const plateClean = (v.plate || '').replace(/[^A-Za-z0-9]/g, '');
+            const plateClean = plate.replace(/[^A-Za-z0-9]/g, '');
+            const mileage = (v.currentMileage !== undefined && v.currentMileage !== null)
+                ? v.currentMileage
+                : (v.mileage || v.kmAtual);
+
             return {
                 value: v.id,
-                label: `${v.plate} — ${v.brand ? `${v.brand} ` : ''}${v.model}`,
+                label: `${plate} — ${brand ? `${brand} ` : ''}${model}`,
                 subtitle: [
                     code ? `Cód/Frota: ${code}` : null,
-                    v.currentMileage !== undefined && v.currentMileage !== null ? `${v.currentMileage} km` : null,
+                    mileage !== undefined && mileage !== null ? `${Number(mileage).toLocaleString('pt-BR')} km` : null,
                     v.garageName ? `Pátio: ${v.garageName}` : null,
                 ].filter(Boolean).join(' • '),
                 badge: code ? `#${code}` : undefined,
                 badgeColor: 'bg-amber-950/60 text-amber-300 border-amber-700/50',
                 keywords: [
-                    v.plate,
+                    plate,
                     plateClean,
                     code,
                     v.patrimonyNumber,
                     v.fleetNumber,
-                    v.model,
-                    v.brand,
+                    model,
+                    brand,
                 ].filter(Boolean) as string[],
             };
         });
-    }, [vehicles]);
+    }, [isOpen, vehicles]);
 
     const mechanicOptions = React.useMemo<SearchableOption[]>(() => {
-        return mechanicsList.map((emp: any) => ({
-            value: emp.id,
-            label: emp.name,
-            subtitle: emp.positionDescription || emp.position?.name || emp.cargo || undefined,
-            badge: (emp.positionDescription || emp.position?.name || emp.cargo || '').toLowerCase().includes('mecanic') ? 'Mecânico' : undefined,
-            badgeColor: 'bg-emerald-950/60 text-emerald-300 border-emerald-700/50',
-            keywords: [emp.registrationNumber, emp.cpf, emp.positionDescription].filter(Boolean),
-        }));
-    }, [mechanicsList]);
+        if (!isOpen) return [];
+        return mechanicsList.map((emp: any) => {
+            const empName = emp.name || emp.fullName || 'Colaborador';
+            const pos = emp.positionDescription || emp.position?.name || emp.cargo || emp.funcao || '';
+            const isMec = pos.toLowerCase().includes('mecanic') || pos.toLowerCase().includes('mecânico');
+
+            return {
+                value: emp.id,
+                label: empName,
+                subtitle: pos || undefined,
+                badge: isMec ? 'Mecânico' : undefined,
+                badgeColor: 'bg-emerald-950/60 text-emerald-300 border-emerald-700/50',
+                keywords: [emp.registrationNumber, emp.cpf, emp.matricula, empName, pos].filter(Boolean) as string[],
+            };
+        });
+    }, [isOpen, mechanicsList]);
 
     const clientOptions = React.useMemo<SearchableOption[]>(() => {
+        if (!isOpen) return [];
         return clients.map((c: any) => ({
             value: c.id,
             label: c.name,
@@ -215,30 +272,46 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             badgeColor: 'bg-blue-950/60 text-blue-300 border-blue-700/50',
             keywords: [c.cnpj, (c.cnpj || '').replace(/\D/g, '')].filter(Boolean),
         }));
-    }, [clients]);
+    }, [isOpen, clients]);
 
     const requesterOptions = React.useMemo<SearchableOption[]>(() => {
+        if (!isOpen) return [];
         return employees.map((e: any) => ({
             value: e.id,
             label: e.name || e.fullName,
             subtitle: e.positionDescription || e.position?.name || e.cargo || undefined,
             keywords: [e.registrationNumber, e.cpf, e.positionDescription].filter(Boolean),
         }));
-    }, [employees]);
+    }, [isOpen, employees]);
 
     const garageOptions = React.useMemo<SearchableOption[]>(() => {
+        if (!isOpen) return [];
         return garagesForOS.map((g: Garage) => ({
             value: g.id,
             label: g.name,
             subtitle: g.responsibleName ? `Resp.: ${g.responsibleName}${g.capacity ? ` (${g.capacity} vagas)` : ''}` : (g.capacity ? `${g.capacity} vagas` : undefined),
             badge: g.atCapacity ? 'Lotada' : undefined,
             badgeColor: g.atCapacity ? 'bg-red-950/60 text-red-300 border-red-700/50' : undefined,
-            keywords: [g.responsibleName, g.address].filter(Boolean) as string[],
+            keywords: [g.responsibleName, g.address, g.name].filter(Boolean) as string[],
         }));
-    }, [garagesForOS]);
+    }, [isOpen, garagesForOS]);
+
+    // Opções de Obras / Setores de Trabalho com busca
+    const workPostOptions = React.useMemo<SearchableOption[]>(() => {
+        if (!isOpen) return [];
+        return obrasForClient.map((wp: any) => ({
+            value: wp.id,
+            label: `${wp.name}${wp.postCode ? ` (${wp.postCode})` : ''}`,
+            subtitle: wp.clientName ? `Cliente: ${wp.clientName}` : (wp.address || undefined),
+            badge: wp.postCode ? wp.postCode : undefined,
+            badgeColor: 'bg-cyan-950/60 text-cyan-300 border-cyan-700/50',
+            keywords: [wp.name, wp.postCode, wp.clientName, wp.address].filter(Boolean) as string[],
+        }));
+    }, [isOpen, obrasForClient]);
 
     // Opções do Almoxarifado para Peças
     const stockPartOptions = React.useMemo<SearchableOption[]>(() => {
+        if (!isOpen) return [];
         const manualOpt: SearchableOption = {
             value: '__MANUAL__',
             label: '+ Informar Peça Manualmente (Avulsa / Nova Compra)',
@@ -251,21 +324,32 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         const dbOpts: SearchableOption[] = stockItems.map((item: StockItem) => {
             const qty = item.currentQuantity ?? 0;
             const isZero = qty <= 0;
+            const displayName = item.fullName || item.name || item.description || 'Item sem nome';
             return {
                 value: item.id,
-                label: `[${item.code}] ${item.name}`,
-                subtitle: `Saldo Almoxarifado: ${qty} un ${item.unitCost ? `| Custo: R$ ${item.unitCost.toFixed(2)}` : ''}`,
+                label: `[${item.code || 'S/CÓD'}] ${displayName}`,
+                subtitle: `Saldo Almoxarifado: ${qty} un ${item.unitCost ? `| Custo: R$ ${item.unitCost.toFixed(2)}` : ''}${item.category ? ` | ${item.category}` : ''}`,
                 badge: isZero ? 'Sem Estoque' : `${qty} un`,
                 badgeColor: isZero ? 'bg-red-950/70 text-red-300 border-red-700/60' : 'bg-emerald-950/70 text-emerald-300 border-emerald-700/60',
-                keywords: [item.code, item.barcode, item.category, item.supplier].filter(Boolean) as string[],
+                keywords: [
+                    item.code,
+                    item.barcode,
+                    item.name,
+                    item.fullName,
+                    item.description,
+                    item.category,
+                    item.supplier,
+                    item.sizeVariation
+                ].filter(Boolean) as string[],
             };
         });
 
         return [manualOpt, ...dbOpts];
-    }, [stockItems]);
+    }, [isOpen, stockItems]);
 
     // Opções de Serviços do Catálogo
     const serviceCatalogOptions = React.useMemo<SearchableOption[]>(() => {
+        if (!isOpen) return [];
         const newServiceOpt: SearchableOption = {
             value: '__NEW_SERVICE__',
             label: '+ Cadastrar Novo Serviço de Manutenção',
@@ -285,7 +369,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         }));
 
         return [newServiceOpt, ...dbOpts];
-    }, [servicesCatalog]);
+    }, [isOpen, servicesCatalog]);
 
     // Handlers para Upload de Fotos / Evidências com compressão automática (evita erro 413 Payload Too Large)
     const [newPhotoUrl, setNewPhotoUrl] = useState('');
@@ -294,7 +378,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (event) => {
-                const img = new Image();
+                const img = document.createElement('img');
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     let width = img.width;
@@ -424,6 +508,36 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             role.includes('ENCARREGADO')
         );
     }, [user]);
+
+    const [isRequestingPurchase, setIsRequestingPurchase] = useState(false);
+
+    const handleRequestPurchase = async () => {
+        if (!order?.id) {
+            toast({
+                title: "Salve a OS primeiro",
+                description: "Por favor, salve a Ordem de Serviço antes de enviar a solicitação de compra ao Almoxarifado.",
+                variant: "destructive",
+            });
+            return;
+        }
+        setIsRequestingPurchase(true);
+        try {
+            const res = await fleetWorkOrderService.requestPurchase(order.id);
+            toast({
+                title: "Solicitação de Compra Enviada!",
+                description: `Solicitação ${res?.requestNumber || ''} enviada com sucesso para o Almoxarifado / Setor de Compras.`,
+            });
+            queryClient.invalidateQueries({ queryKey: ['fleet-work-order-history', order.id] });
+        } catch (err: any) {
+            toast({
+                title: "Erro ao solicitar compra",
+                description: err?.response?.data?.message || err?.message || "Ocorreu um erro ao enviar a solicitação ao Almoxarifado.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsRequestingPurchase(false);
+        }
+    };
 
     // ── Items helpers ──────────────────────────────────────────────────────────
     const handleAddItem = (type: WorkOrderItemType = WorkOrderItemType.PART) => {
@@ -615,7 +729,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 setFormData(p => {
                     const items = [...(p.items || [])];
                     const currentQty = items[idx]?.quantity || 1;
-                    const unitPrice = Number(created.unitPrice) || 0;
+                    const unitPrice = Number(created.unitPrice) || (typeof newServicePrice === 'number' ? newServicePrice : 0);
                     const totalPrice = currentQty * unitPrice;
                     const requiresApproval = totalPrice >= HIGH_VALUE_SERVICE_THRESHOLD;
 
@@ -630,6 +744,29 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         approvalReason: '',
                         isManual: false,
                     };
+                    const partsCost = items.reduce((s, it) => s + it.totalPrice, 0);
+                    return { ...p, items, partsCost, totalCost: partsCost + (p.laborCost || 0) };
+                });
+            } else {
+                const unitPrice = Number(created.unitPrice) || (typeof newServicePrice === 'number' ? newServicePrice : 0);
+                const totalPrice = 1 * unitPrice;
+                const requiresApproval = totalPrice >= HIGH_VALUE_SERVICE_THRESHOLD;
+                setFormData(p => {
+                    const items = [
+                        ...(p.items || []),
+                        {
+                            code: created.code,
+                            description: created.name,
+                            type: WorkOrderItemType.LABOR,
+                            quantity: 1,
+                            unitPrice,
+                            totalPrice,
+                            requiresApproval,
+                            approvalReason: '',
+                            approved: false,
+                            isManual: false,
+                        }
+                    ];
                     const partsCost = items.reduce((s, it) => s + it.totalPrice, 0);
                     return { ...p, items, partsCost, totalCost: partsCost + (p.laborCost || 0) };
                 });
@@ -905,6 +1042,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
     const currentOsNumber = order?.osNumber || formData.osNumber || (order?.id ? order.id.slice(0, 8) : formData.id ? formData.id.slice(0, 8) : null);
 
+    if (!isOpen) return null;
+
     return (
         <ResponsiveDrawer isOpen={isOpen} onClose={onClose}
             title={currentOsNumber ? `OS #${currentOsNumber} — ${isEdit ? 'Editar' : 'Ordem de Serviço'}` : 'Nova Ordem de Serviço'}
@@ -956,6 +1095,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                     <SelectItem value={MaintenanceType.PREDITIVA}>📊 PREDITIVA</SelectItem>
                                     <SelectItem value={MaintenanceType.INSPECAO}>🔍 INSPEÇÃO</SelectItem>
                                     <SelectItem value={MaintenanceType.LUBRIFICACAO}>🛢️ LUBRIFICAÇÃO</SelectItem>
+                                    <SelectItem value={MaintenanceType.LIMPEZA}>🧼 HIGIENIZAÇÃO / LIMPEZA</SelectItem>
                                 </SelectContent>
                             </Select>
                         </Field>
@@ -982,9 +1122,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 }}
                                 options={vehicleOptions}
                                 placeholder="Selecione ou busque por placa ou código..."
-                                searchPlaceholder="Digite os 3 primeiros caracteres da placa ou código..."
-                                minSearchLength={3}
-                                minSearchHint="Digite os 3 primeiros caracteres da placa ou código para exibir os veículos..."
+                                searchPlaceholder="Buscar placa, código, modelo ou marca..."
                                 emptyText={isLoadingVehicles ? "Carregando veículos da frota..." : "Nenhum veículo encontrado."}
                             />
                         </Field>
@@ -1010,9 +1148,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 }}
                                 options={mechanicOptions}
                                 placeholder={formData.mechanicName || "Selecione o mecânico..."}
-                                searchPlaceholder="Digite o nome do mecânico (ex: 3 caracteres)..."
-                                minSearchLength={3}
-                                minSearchHint="Digite os 3 primeiros caracteres para buscar o mecânico..."
+                                searchPlaceholder="Buscar mecânico por nome..."
                                 emptyText="Nenhum mecânico encontrado."
                             />
                         </Field>
@@ -1053,9 +1189,9 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             />
                         </Field>
                         <Field label="Setor / Obra *">
-                            <Select
+                            <SearchableSelect
                                 value={formData.sectorId || formData.workPostId || ''}
-                                onValueChange={v => {
+                                onChange={(v) => {
                                     const selectedWp = allWorkPosts.find((w: any) => w.id === v);
                                     setFormData(p => ({
                                         ...p,
@@ -1065,24 +1201,11 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                         clientId: (selectedWp && selectedWp.clientId) ? selectedWp.clientId : p.clientId
                                     }));
                                 }}
-                            >
-                                <SelectTrigger className="bg-seguranca-black border-gray-600">
-                                    <SelectValue placeholder={formData.clientId ? "Selecione a obra do cliente…" : "Selecione o setor / obra…"} />
-                                </SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
-                                    {obrasForClient.length > 0 ? (
-                                        obrasForClient.map((wp: any) => (
-                                            <SelectItem key={wp.id} value={wp.id}>
-                                                {wp.name} {wp.postCode ? `(${wp.postCode})` : ''} {!formData.clientId && wp.clientName ? `— ${wp.clientName}` : ''}
-                                            </SelectItem>
-                                        ))
-                                    ) : (
-                                        <div className="p-2 text-sm text-gray-400 text-center">
-                                            Nenhuma obra cadastrada para este cliente
-                                        </div>
-                                    )}
-                                </SelectContent>
-                            </Select>
+                                options={workPostOptions}
+                                placeholder={formData.clientId ? "Selecione a obra do cliente…" : "Selecione o setor / obra…"}
+                                searchPlaceholder="Buscar setor ou obra por nome, código..."
+                                emptyText={formData.clientId ? "Nenhuma obra cadastrada para este cliente." : "Nenhum setor/obra encontrado."}
+                            />
                         </Field>
                         <Field label="Requerente *">
                             <SearchableSelect
@@ -1250,7 +1373,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                         <img src={photo} alt={`Evidência ${idx + 1}`} className="w-full h-full object-cover" />
                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                             <a href={photo} target="_blank" rel="noreferrer" title="Visualizar em tamanho real" className="p-1.5 bg-gray-900/80 rounded-full text-white hover:bg-gray-800">
-                                                <Image className="h-4 w-4" />
+                                                <LucideImage className="h-4 w-4" />
                                             </a>
                                             <button type="button" onClick={() => handleRemovePhoto(idx)} title="Remover foto" className="p-1.5 bg-red-600/80 rounded-full text-white hover:bg-red-700">
                                                 <Trash2 className="h-4 w-4" />
@@ -1271,7 +1394,21 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     title="Peças e Serviços Utilizados"
                     icon={<Wrench className="h-4 w-4 text-blue-400" />}
                     action={
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                            {order?.id && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={isRequestingPurchase}
+                                    onClick={handleRequestPurchase}
+                                    className="border-amber-600/60 text-amber-300 hover:bg-amber-500/10 text-xs h-8"
+                                    title="Notificar Almoxarifado / Compras para gerar solicitação de compra e cotações"
+                                >
+                                    <Send className="h-3.5 w-3.5 mr-1 text-amber-400" />
+                                    {isRequestingPurchase ? 'Enviando...' : '📦 Notificar Almoxarifado / Solicitar Compra'}
+                                </Button>
+                            )}
                             <Button
                                 type="button"
                                 variant="outline"
@@ -1285,10 +1422,17 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleAddItem(WorkOrderItemType.LABOR)}
+                                onClick={() => {
+                                    setTargetItemIndexForService(null);
+                                    setNewServiceName('');
+                                    setNewServicePrice('');
+                                    setNewServiceDescription('');
+                                    setIsNewServiceModalOpen(true);
+                                }}
                                 className="border-blue-600/60 text-blue-400 hover:bg-blue-500/10 text-xs h-8"
+                                title="Cadastrar novo serviço no catálogo da Oficina e adicionar à OS"
                             >
-                                <Wrench className="h-3.5 w-3.5 mr-1" />+ Serviço (Oficina)
+                                <Wrench className="h-3.5 w-3.5 mr-1" />+ Novo Serviço / Oficina
                             </Button>
                         </div>
                     }
@@ -1304,6 +1448,30 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 <span>Serviços com valor ≥ R$ 500,00 exigem justificativa e aprovação do Gestor</span>
                             </div>
                         </div>
+
+                        {formData.items?.some(i => (i.type || WorkOrderItemType.PART) === WorkOrderItemType.PART && (i.inStock === undefined || i.inStock <= 0 || i.quantity > i.inStock)) && (
+                            <div className="p-3 bg-amber-950/40 border border-amber-800/60 rounded-md flex items-center justify-between gap-3 text-xs text-amber-200">
+                                <div className="flex items-center gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                                    <span>Existem peças nesta OS sem saldo em estoque no Almoxarifado. Notifique o Almoxarifado para criar solicitações de compra e cotações com fornecedores.</span>
+                                </div>
+                                {order?.id ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={isRequestingPurchase}
+                                        onClick={handleRequestPurchase}
+                                        className="border-amber-600 bg-amber-900/50 text-amber-200 hover:bg-amber-800/70 shrink-0 text-xs h-7"
+                                    >
+                                        <Send className="h-3 w-3 mr-1 text-amber-400" />
+                                        {isRequestingPurchase ? 'Enviando...' : 'Notificar Compras Agora'}
+                                    </Button>
+                                ) : (
+                                    <span className="text-[11px] text-amber-400/80 italic shrink-0">(Salve a OS para notificar)</span>
+                                )}
+                            </div>
+                        )}
 
                         {(!formData.items?.length) ? (
                             <div className="p-8 text-center border border-dashed border-gray-800 rounded-lg bg-gray-950/40">

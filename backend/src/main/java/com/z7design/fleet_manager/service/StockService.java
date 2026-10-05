@@ -158,11 +158,7 @@ public class StockService {
             throw new IllegalArgumentException("Já existe um item com o código: " + dto.getCode());
         }
 
-        // Validação da NF de Entrada quando houver saldo inicial
-        if (dto.getCurrentQuantity() != null && dto.getCurrentQuantity() > 0 && (dto.getInvoiceNumber() == null || dto.getInvoiceNumber().trim().isEmpty())) {
-            throw new BusinessException("Para cadastrar item com saldo inicial em estoque, é obrigatório informar a Nota Fiscal de Entrada.");
-        }
-        
+        // Cadastro manual liberado: a NF de Entrada é opcional e apenas complementa o registro
         StockItem item = StockItemDTO.toEntity(dto);
         
         // Associar unidade se especificada

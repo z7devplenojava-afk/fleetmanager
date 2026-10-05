@@ -6,6 +6,8 @@ export type RequesterSector = 'DRIVER' | 'TRAFFIC' | 'OPERATIONAL' | 'MAINTENANC
 export type Priority = 'NORMAL' | 'MEDIA' | 'ALTA' | 'URGENTE';
 export type CleaningPhase = 'AGUARDANDO' | 'EXTERNA' | 'INTERNA' | 'INSPECAO' | 'LIBERADO';
 
+export type ExecutionLocation = 'INTERNAL' | 'EXTERNAL';
+
 export interface ChecklistItem {
   key: string;
   title: string;
@@ -50,8 +52,18 @@ export interface VehicleCleaningOrder {
   qualityInspectedAt?: string;
   qualityChecklist?: string;
   releaseSpot?: string;
+  executionLocation?: ExecutionLocation;
+  carWashId?: string;
+  carWashName?: string;
+  cleaningCost?: number;
+  photoBeforeInternal?: string;
+  photoBeforeExternal?: string;
+  photoAfterInternal?: string;
+  photoAfterExternal?: string;
   releasedAt?: string;
   completedAt?: string;
+  workOrderId?: string;
+  osNumber?: string;
   companyId?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -69,6 +81,9 @@ export interface CreateCleaningOrderRequest {
   priority?: Priority;
   releaseDeadline?: string;
   releaseSpot?: string;
+  executionLocation?: ExecutionLocation;
+  carWashId?: string;
+  cleaningCost?: number;
 }
 
 export const CLEANING_TYPE_LABELS: Record<CleaningType, string> = {
@@ -319,6 +334,16 @@ class VehicleCleaningService {
     formData.append('itemKey', itemKey);
     formData.append('photo', file);
     const response = await api.post(`/frota/vehicle-cleanings/${id}/photos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async uploadEvidencePhoto(id: string, category: string, file: File): Promise<VehicleCleaningOrder> {
+    const formData = new FormData();
+    formData.append('category', category);
+    formData.append('photo', file);
+    const response = await api.post(`/frota/vehicle-cleanings/${id}/evidence-photo`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;

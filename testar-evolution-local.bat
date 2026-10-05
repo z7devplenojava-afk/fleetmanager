@@ -46,7 +46,7 @@ echo.
 
 echo 7. Criando instancia...
 curl -X POST http://localhost:9000/instance/create ^
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" ^
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" ^
   -H "Content-Type: application/json" ^
   -d "{\"instanceName\":\"fluxbus\",\"integration\":\"WHATSAPP-BAILEYS\"}"
 echo    OK
@@ -71,7 +71,7 @@ if %ERRORLEVEL% EQU 0 (
 echo.
 
 echo 10. Obtendo QR Code...
-curl -s -H "apikey: B6D711FCDE4D4FD5936544120E713976" ^
+curl -s -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" ^
   http://localhost:9000/instance/connect/fluxbus > qr_response.json
 
 echo.
@@ -87,7 +87,7 @@ if %ERRORLEVEL% EQU 0 (
     echo ACESSE:
     echo   http://localhost:9000/instance/connect/fluxbus
     echo.
-    echo Header: apikey: B6D711FCDE4D4FD5936544120E713976
+    echo Header: apikey: CHANGE_THIS_EVOLUTION_API_KEY
     echo Numero: 31971731747
 ) else (
     echo ❌ QR CODE VAZIO

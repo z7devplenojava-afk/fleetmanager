@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_DB: fluxbus_dev
       POSTGRES_USER: postgressg
-      POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      POSTGRES_PASSWORD: CHANGE_THIS_DB_MAIL_PASSWORD
     ports:
       - "5432:5432"
     volumes:
@@ -35,7 +35,7 @@ services:
     environment:
       POSTGRES_DB: fluxbus_prod
       POSTGRES_USER: postgressg
-      POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      POSTGRES_PASSWORD: CHANGE_THIS_DB_MAIL_PASSWORD
     ports:
       - "5433:5432"
     volumes:
@@ -60,7 +60,7 @@ services:
     environment:
       POSTGRES_DB: fluxbus_ci
       POSTGRES_USER: postgressg
-      POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      POSTGRES_PASSWORD: CHANGE_THIS_DB_MAIL_PASSWORD
     ports:
       - "5434:5432"
     volumes:
@@ -148,7 +148,7 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-dev:5432/fluxbus_dev
       SPRING_DATASOURCE_USERNAME: postgressg
-      SPRING_DATASOURCE_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      SPRING_DATASOURCE_PASSWORD: CHANGE_THIS_DB_MAIL_PASSWORD
       SPRING_REDIS_HOST: redis-dev
       SPRING_REDIS_PORT: 6379
       SPRING_REDIS_PASSWORD: redis_fluxbus_dev_2024
@@ -184,7 +184,7 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-prod:5432/fluxbus_prod
       SPRING_DATASOURCE_USERNAME: postgressg
-      SPRING_DATASOURCE_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      SPRING_DATASOURCE_PASSWORD: CHANGE_THIS_DB_MAIL_PASSWORD
       SPRING_REDIS_HOST: redis-prod
       SPRING_REDIS_PORT: 6379
       SPRING_REDIS_PASSWORD: redis_fluxbus_prod_2024
@@ -220,7 +220,7 @@ services:
       SPRING_PROFILES_ACTIVE: ci
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-ci:5432/fluxbus_ci
       SPRING_DATASOURCE_USERNAME: postgressg
-      SPRING_DATASOURCE_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      SPRING_DATASOURCE_PASSWORD: CHANGE_THIS_DB_MAIL_PASSWORD
       SPRING_REDIS_HOST: redis-ci
       SPRING_REDIS_PORT: 6379
       SPRING_REDIS_PASSWORD: redis_fluxbus_ci_2024

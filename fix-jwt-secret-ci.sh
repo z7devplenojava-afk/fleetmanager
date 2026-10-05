@@ -47,15 +47,15 @@ log "Usando arquivo: $COMPOSE_FILE"
 # 1. Criar/atualizar arquivo .env na raiz
 log "1. Criando/atualizando arquivo .env..."
 cat > .env << 'EOF'
-JWT_SECRET=jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure
-POSTGRES_PASSWORD_CI=4KaCiJc6an@7sgbdcid2025
-REDIS_PASSWORD=redis_ci_2025
+JWT_SECRET=CHANGE_THIS_JWT_SECRET
+POSTGRES_PASSWORD_CI=CHANGE_THIS_DB_PASSWORD
+REDIS_PASSWORD=CHANGE_THIS_REDIS_PASSWORD
 EOF
 
 log "✅ Arquivo .env criado/atualizado"
 
 # 2. Verificar tamanho da chave
-JWT_SECRET_LEN=$(echo -n "jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure" | wc -c)
+JWT_SECRET_LEN=$(echo -n "CHANGE_THIS_JWT_SECRET" | wc -c)
 if [ "$JWT_SECRET_LEN" -lt 64 ]; then
     error "Chave JWT ainda está muito curta: $JWT_SECRET_LEN caracteres (mínimo 64)"
 else
@@ -63,7 +63,7 @@ else
 fi
 
 # 3. Exportar variável no shell atual
-export JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure"
+export JWT_SECRET="CHANGE_THIS_JWT_SECRET"
 log "✅ Variável JWT_SECRET exportada no shell"
 
 # 4. Parar o container atual

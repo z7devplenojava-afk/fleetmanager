@@ -30,6 +30,9 @@ export interface Route {
     shift?: string;
     executionTime?: string;
     distanceKm?: number;
+    color?: string;
+    status?: string;
+    capacity?: number;
     createdAt?: string;
     updatedAt?: string;
 }

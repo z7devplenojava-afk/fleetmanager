@@ -113,7 +113,7 @@ spring.cache.type=redis
 spring.cache.redis.time-to-live=1800
 spring.data.redis.host=${SPRING_REDIS_HOST:redis-ci}
 spring.data.redis.port=${SPRING_REDIS_PORT:6379}
-spring.data.redis.password=${SPRING_REDIS_PASSWORD:redis_ci_2025}
+spring.data.redis.password=${SPRING_REDIS_PASSWORD:CHANGE_THIS_REDIS_PASSWORD}
 ```
 
 ## 📊 Serviços com Cache Implementado

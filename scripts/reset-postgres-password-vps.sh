@@ -22,7 +22,7 @@ else
 fi
 
 # Definir senha
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD_CI:-4KaCiJc6an@7sgbdcid2025}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD_CI:-CHANGE_THIS_DB_PASSWORD}"
 echo "🔐 Senha a ser usada: ${POSTGRES_PASSWORD:0:10}..."
 echo ""
 

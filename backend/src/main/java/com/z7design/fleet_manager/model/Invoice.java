@@ -135,8 +135,47 @@ public class Invoice implements TenantAware {
     @Column(name = "bank_account_info", length = 100)
     private String bankAccountInfo;
 
+    @Size(max = 50)
+    @Column(name = "payment_method", length = 50)
+    private String paymentMethod;
+
+    @Column(name = "total_installments")
+    private Integer totalInstallments = 1;
+
+    @Column(name = "parent_invoice_id")
+    private UUID parentInvoiceId;
+
+    @Size(max = 100)
+    @Column(name = "nfe_key", length = 100)
+    private String nfeKey;
+
+    @Column(name = "dda_invoice_id")
+    private UUID ddaInvoiceId;
+
     @Column(name = "is_canceled")
     private Boolean isCanceled = false;
+
+    // ── Rastreabilidade de Origem (OS -> Cotação -> Ordem de Compra -> Contas a Pagar) ──
+    @Column(name = "work_order_id")
+    private UUID workOrderId;
+
+    @Size(max = 100)
+    @Column(name = "work_order_number", length = 100)
+    private String workOrderNumber;
+
+    @Column(name = "requisition_id")
+    private UUID requisitionId;
+
+    @Size(max = 100)
+    @Column(name = "requisition_number", length = 100)
+    private String requisitionNumber;
+
+    @Column(name = "purchase_order_id")
+    private UUID purchaseOrderId;
+
+    @Size(max = 100)
+    @Column(name = "purchase_order_number", length = 100)
+    private String purchaseOrderNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id")

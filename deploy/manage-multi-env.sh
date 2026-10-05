@@ -65,7 +65,7 @@ repair_flyway() {
         flyway/flyway:9.22.3 \
         -url=jdbc:postgresql://postgres-$env:5432/$db_name \
         -user=postgressg \
-        -password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' \
+        -password='CHANGE_THIS_DB_MAIL_PASSWORD' \
         -schemas=public \
         repair
     
@@ -87,7 +87,7 @@ migrate_flyway() {
         flyway/flyway:9.22.3 \
         -url=jdbc:postgresql://postgres-$env:5432/$db_name \
         -user=postgressg \
-        -password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' \
+        -password='CHANGE_THIS_DB_MAIL_PASSWORD' \
         -schemas=public \
         -outOfOrder=true \
         migrate
@@ -109,7 +109,7 @@ check_flyway() {
         flyway/flyway:9.22.3 \
         -url=jdbc:postgresql://postgres-$env:5432/$db_name \
         -user=postgressg \
-        -password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' \
+        -password='CHANGE_THIS_DB_MAIL_PASSWORD' \
         -schemas=public \
         info
 }

@@ -27,6 +27,9 @@ public class AbsenceService {
     @Autowired
     private EmployeeRepository employeeRepository;
 
+    @Autowired
+    private PeriodoAquisitivoService periodoAquisitivoService;
+
     @Transactional(readOnly = true)
     public List<Absence> getAllAbsences() {
         try {
@@ -230,6 +233,10 @@ public class AbsenceService {
 
         Absence savedAbsence = absenceRepository.save(absence);
 
+        // Art. 133, IV: afastamento superior a 6 meses extingue o PA e reinicia
+        // a contagem no retorno (Fase 2 do modulo de ferias)
+        avaliarExtinguimentoDePeriodoAquisitivo(absence);
+
         // Inicializar relacionamentos lazy dentro da transaÃ§Ã£o para evitar
         // LazyInitializationException
         try {
@@ -251,6 +258,39 @@ public class AbsenceService {
         }
 
         return savedAbsence;
+    }
+
+    /**
+     * Art. 133, IV: afastamento por doenca/acidente superior a 6 meses extingue
+     * o periodo aquisitivo e reinicia a contagem a partir do retorno.
+     * A regra de janela (6 meses dentro do mesmo PA) e aplicada pelo
+     * PeriodoAquisitivoService.extinguirPorAfastamento.
+     *
+     * Nunca propaga erro: um problema na regra de ferias nao pode impedir a
+     * aprovacao do afastamento em si.
+     */
+    private void avaliarExtinguimentoDePeriodoAquisitivo(Absence absence) {
+        try {
+            if (absence.getEmployee() == null || absence.getEmployee().getId() == null) return;
+            if (absence.getAbsenceDate() == null) return;
+
+            int dias = absence.getMedicalCertificateDays() != null && absence.getMedicalCertificateDays() > 0
+                ? absence.getMedicalCertificateDays() : 1;
+            // Menos que 180 dias nunca atinge o marco de 6 meses
+            if (dias < 180) return;
+
+            LocalDate dataRetorno = absence.getAbsenceDate().plusDays(dias);
+            boolean extinto = periodoAquisitivoService
+                .extinguirPorAfastamento(absence.getEmployee().getId(), dataRetorno);
+
+            if (extinto) {
+                log.info("Afastamento {} ({} dias) extinguiu o periodo aquisitivo do colaborador {} (Art. 133, IV)",
+                    absence.getId(), dias, absence.getEmployee().getId());
+            }
+        } catch (Exception e) {
+            log.warn("Nao foi possivel avaliar extincao do PA do afastamento {}: {}",
+                absence.getId(), e.getMessage());
+        }
     }
 
     @Transactional

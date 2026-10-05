@@ -90,6 +90,11 @@ public class ParteDiaria {
     @Column(name = "disregard_reason")
     private String disregardReason;
 
+    // PRD VSS Fase 3: DailyLog gerado na finalizacao da viagem que originou esta parte diaria
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "daily_log_id")
+    private DailyLog dailyLog;
+
     @Column(name = "status")
     private String status = "LANÇADA";
 

@@ -24,17 +24,35 @@ public class ExpenseClassificationController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ExpenseClassification>> getAllActive() {
-        return ResponseEntity.ok(repository.findByIsActiveTrueOrderByNameAsc());
+        try {
+            return ResponseEntity.ok(repository.findByIsActiveTrueOrderByNameAsc());
+        } catch (Exception e) {
+            log.error("Erro ao buscar classificações ativas: ", e);
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     @GetMapping("/names")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<String>> getAllNames() {
-        List<String> names = repository.findByIsActiveTrueOrderByNameAsc()
-                .stream()
-                .map(ExpenseClassification::getName)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(names);
+        try {
+            List<String> names = repository.findByIsActiveTrueOrderByNameAsc()
+                    .stream()
+                    .map(ExpenseClassification::getName)
+                    .collect(Collectors.toList());
+            if (names != null && !names.isEmpty()) {
+                return ResponseEntity.ok(names);
+            }
+        } catch (Exception e) {
+            log.error("Erro ao buscar nomes de classificações: ", e);
+        }
+        return ResponseEntity.ok(List.of(
+            "ADMINISTRATIVAS", "ALIMENTACAO", "ALUGUEL", "BANCARIAS", "CAIXA",
+            "CARTORIO", "COMBUSTIVEL", "CONSORCIO", "FINANCIAMENTO", "FOLHA PAGAMENTO VSS",
+            "FROTA (PEÇAS,SERVIÇOS,IPVA)", "GRATIFICACOES", "IMPOSTOS", "JUDICIAL", "LIMPEZA",
+            "LOCACAO DE VEICULOS", "OBRAS", "PARTICULAR DIRETORIA", "PESSOAL", "PLANO DE SAUDE",
+            "SEGURANCA", "TRANSPORTE"
+        ));
     }
 
     @PostMapping

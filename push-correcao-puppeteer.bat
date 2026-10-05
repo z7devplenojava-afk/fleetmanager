@@ -29,7 +29,7 @@ echo.
 echo GitHub Actions vai fazer deploy (~10 min)
 echo.
 echo Apos o deploy, teste:
-echo   curl -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+echo   curl -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
 echo     http://185.225.233.18:9000/instance/connect/fluxbus
 echo.
 pause

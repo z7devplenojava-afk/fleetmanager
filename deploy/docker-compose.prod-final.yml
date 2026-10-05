@@ -15,7 +15,7 @@ services:
     environment:
       POSTGRES_DB: fluxbus_prod
       POSTGRES_USER: postgressg
-      POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      POSTGRES_PASSWORD: CHANGE_THIS_DB_MAIL_PASSWORD
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
       - "5435:5432"
@@ -84,10 +84,10 @@ services:
       # Database Configuration
       POSTGRES_DB: fluxbus_prod
       POSTGRES_USER: postgressg
-      POSTGRES_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      POSTGRES_PASSWORD: CHANGE_THIS_DB_MAIL_PASSWORD
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fluxbus_prod
       SPRING_DATASOURCE_USERNAME: postgressg
-      SPRING_DATASOURCE_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      SPRING_DATASOURCE_PASSWORD: CHANGE_THIS_DB_MAIL_PASSWORD
       
       # Redis Configuration
       REDIS_HOST: redis-prod
@@ -105,7 +105,7 @@ services:
       MAIL_HOST: smtp.gmail.com
       MAIL_PORT: 587
       MAIL_USERNAME: noreply@fluxbus.prod
-      MAIL_PASSWORD: S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+      MAIL_PASSWORD: CHANGE_THIS_DB_MAIL_PASSWORD
       MAIL_FROM: noreply@fluxbus.prod
       
       # PRODUCTION Specific

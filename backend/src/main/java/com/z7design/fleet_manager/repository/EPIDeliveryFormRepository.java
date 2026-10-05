@@ -106,7 +106,9 @@ public interface EPIDeliveryFormRepository extends JpaRepository<EPIDeliveryForm
 
     @Query("""
         SELECT f FROM EPIDeliveryForm f
-        LEFT JOIN FETCH f.employee
+        LEFT JOIN FETCH f.employee emp
+        LEFT JOIN FETCH emp.position
+        LEFT JOIN FETCH emp.unit
         LEFT JOIN FETCH f.company
         LEFT JOIN FETCH f.responsibleEmployee
         LEFT JOIN FETCH f.items

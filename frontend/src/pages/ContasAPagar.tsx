@@ -456,7 +456,7 @@ const ContasAPagar: React.FC = () => {
 
           reportData = {
             ...reportData,
-            title: 'Relatório por Classificação - SIGLO00058',
+            title: 'Relatório por Classificação Contábil',
             subtitle: 'Demonstrativo de despesas agrupadas por classificação contábil/financeira',
             type: 'classificacao',
             summary: {
@@ -689,10 +689,10 @@ const ContasAPagar: React.FC = () => {
           <html>
           <head>
             <meta charset="utf-8">
-            <title>SIGLO00058 - Relatório por Classificação</title>
+            <title>Relatório por Classificação Contábil</title>
           </head>
           <body style="font-family: Arial, sans-serif; font-size: 12px;">
-            <div style="text-align: right; font-size: 11px; font-weight: bold;">SIGLO00058</div>
+            <div style="text-align: right; font-size: 11px; font-weight: bold; color: #666;">DEMONSTRATIVO CONTÁBIL</div>
             <h2>Relatório de Despesas por Classificação</h2>
             <p><strong>Período:</strong> ${reportData.period}</p>
             <table border="1" cellpadding="6" cellspacing="0" style="width: 100%; border-collapse: collapse;">
@@ -835,11 +835,11 @@ const ContasAPagar: React.FC = () => {
           <html>
           <head>
             <meta charset="utf-8">
-            <title>SIGLO00058 - Relatório por Classificação</title>
+            <title>Relatório por Classificação Contábil</title>
             <style>
               body { font-family: "Segoe UI", Arial, sans-serif; margin: 25px; color: #111; }
               .top-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
-              .doc-code { font-size: 11px; font-weight: bold; color: #333; text-align: right; }
+              .doc-code { font-size: 11px; font-weight: bold; color: #555; text-align: right; }
               table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11.5px; }
               th { border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 6px 4px; font-weight: bold; }
               td { padding: 4px; border-bottom: 1px dotted #ccc; }
@@ -860,7 +860,7 @@ const ContasAPagar: React.FC = () => {
                 <h2 style="margin: 0; font-size: 18px;">Demonstrativo por Classificação</h2>
                 <div class="meta-info">Período: ${reportData.period} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</div>
               </div>
-              <div class="doc-code">SIGLO00058</div>
+              <div class="doc-code">DEMONSTRATIVO CONTÁBIL</div>
             </div>
 
             <table>
@@ -1168,7 +1168,7 @@ const ContasAPagar: React.FC = () => {
 
   return (
     <StandardLayout>
-      <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-6 space-y-6">
+      <div className="w-full max-w-[99%] mx-auto px-1 sm:px-2.5 py-3 space-y-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-900/90 p-5 rounded-2xl border border-zinc-800 shadow-xl backdrop-blur-sm">
           <div>
@@ -1540,7 +1540,7 @@ const ContasAPagar: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="inline-block px-2 py-0.5 mb-1 bg-amber-500/20 text-amber-300 text-[10px] font-bold rounded-md uppercase">
-                        SIGLO00058
+                        PLANO DE CONTAS
                       </div>
                       <h3 className="font-semibold text-white text-base group-hover:text-amber-300 transition-colors">Classificação</h3>
                       <p className="text-xs text-gray-400 mt-0.5">Plano de contas</p>
@@ -1755,7 +1755,7 @@ const ContasAPagar: React.FC = () => {
                       <div className="flex justify-between items-center bg-zinc-900/90 p-4 rounded-xl border border-amber-500/30">
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/30">
-                            SIGLO00058
+                            CLASSIFICAÇÃO
                           </span>
                           <div>
                             <span className="text-sm font-semibold text-white block">Demonstrativo por Classificação Contábil</span>
@@ -1852,7 +1852,7 @@ const ContasAPagar: React.FC = () => {
                             onClick={() => setShowClassificacaoDetalhes(false)}
                             className="text-xs border-amber-500/50 text-amber-300 hover:bg-amber-500/10"
                           >
-                            Voltar ao Demonstrativo SIGLO00058
+                            Voltar ao Demonstrativo Geral
                           </Button>
                         </div>
                       )}

@@ -22,7 +22,7 @@ echo $JWT_SECRET
 unset JWT_SECRET
 
 # OU definir com valor correto (pelo menos 64 caracteres)
-export JWT_SECRET='jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key'
+export JWT_SECRET='CHANGE_THIS_JWT_SECRET'
 
 # 3. Reiniciar o container backend
 docker-compose -f docker-compose.ci.yml restart backend-ci

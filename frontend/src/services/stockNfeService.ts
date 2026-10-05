@@ -42,6 +42,8 @@ export interface StockNfeParsedDTO {
   supplierCity?: string;
   supplierState?: string;
   supplierZipCode?: string;
+  supplierPhone?: string;
+  supplierEmail?: string;
   existingSupplierId?: string;
   alreadyImported: boolean;
   duplicateWarning?: string;
@@ -86,6 +88,8 @@ export interface StockNfeProcessRequestDTO {
   supplierCity?: string;
   supplierState?: string;
   supplierZipCode?: string;
+  supplierPhone?: string;
+  supplierEmail?: string;
   supplierId?: string;
   createFinancialAccounts: boolean;
   items: ProcessItemPayload[];
@@ -115,6 +119,24 @@ export const stockNfeService = {
       },
     });
     return response.data;
+  },
+
+  async parsePdf(file: File): Promise<StockNfeParsedDTO> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<StockNfeParsedDTO>('/api/stock/nfe/parse-pdf', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  /** Detecta o tipo do arquivo e usa o endpoint de parse adequado (XML ou PDF/DANFE). */
+  async parseNfe(file: File): Promise<StockNfeParsedDTO> {
+    const isPdf = (file.name || '').toLowerCase().endsWith('.pdf')
+      || file.type === 'application/pdf';
+    return isPdf ? this.parsePdf(file) : this.parseXml(file);
   },
 
   async processNfe(payload: StockNfeProcessRequestDTO): Promise<StockNfeProcessResponseDTO> {

@@ -172,6 +172,7 @@ interface StockItemModalProps {
   item?: StockItem | null;
   onSave: () => void;
   existingItems?: StockItem[];
+  onEditExisting?: (item: StockItem) => void;
 }
 
 const StockItemModal: React.FC<StockItemModalProps> = ({
@@ -179,7 +180,8 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
   onOpenChange,
   item,
   onSave,
-  existingItems
+  existingItems,
+  onEditExisting
 }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -228,16 +230,18 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
   });
 
   const xmlInputRef = React.useRef<HTMLInputElement>(null);
+  const handledExistingMatchRef = React.useRef<string | null>(null);
   const [loadingXml, setLoadingXml] = useState(false);
 
   const handleXmlUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith('.xml')) {
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.xml') && !fileName.endsWith('.pdf')) {
       toast({
         title: 'Arquivo inválido',
-        description: 'Por favor, selecione um arquivo XML de NF-e válido.',
+        description: 'Por favor, selecione um arquivo XML ou PDF (DANFE) de NF-e válido.',
         variant: 'destructive'
       });
       return;
@@ -245,7 +249,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
 
     try {
       setLoadingXml(true);
-      const data = await stockNfeService.parseXml(file);
+      const data = await stockNfeService.parseNfe(file);
 
       // Atualizar dados do formulário principal
       setFormData(prev => ({
@@ -280,30 +284,42 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         items: invoiceItems
       }));
 
-      // Se for novo cadastro e ainda não preencheu o nome
-      if (data.items.length > 0 && !formData.name) {
+      // Se for novo cadastro e ainda não preencheu o nome/código, ou para somar o saldo na edição
+      if (data.items.length > 0) {
         const first = data.items[0];
-        setFormData(prev => ({
-          ...prev,
-          name: first.description || prev.name,
-          unitCost: first.unitPrice || prev.unitCost,
-          currentQuantity: first.quantity || prev.currentQuantity,
-          barcode: first.barcode || prev.barcode,
-          category: (first.suggestedCategory as StockCategory) || prev.category
-        }));
-        if (first.unitPrice) {
-          setUnitCostDisplay(formatCurrencyFromNumber(first.unitPrice));
+        if (item) {
+          const nfQty = first.quantity || 0;
+          if (nfQty > 0) {
+            setFormData(prev => ({
+              ...prev,
+              currentQuantity: (item.currentQuantity || 0) + nfQty,
+              invoiceNumber: data.invoiceNumber || prev.invoiceNumber
+            }));
+          }
+        } else if (!formData.name || !formData.code) {
+          setFormData(prev => ({
+            ...prev,
+            name: prev.name || first.description || prev.name,
+            code: prev.code || first.productCode || prev.code,
+            unitCost: first.unitPrice || prev.unitCost,
+            currentQuantity: first.quantity || prev.currentQuantity,
+            barcode: first.barcode || prev.barcode,
+            category: (first.suggestedCategory as StockCategory) || prev.category
+          }));
+          if (first.unitPrice) {
+            setUnitCostDisplay(formatCurrencyFromNumber(first.unitPrice));
+          }
         }
       }
 
       toast({
-        title: 'XML importado com sucesso!',
+        title: 'NF-e importada com sucesso!',
         description: `NF-e nº ${data.invoiceNumber} (${data.supplierName}) carregada com ${data.items.length} item(ns) e ${data.installments.length} parcela(s).`
       });
     } catch (err: any) {
       toast({
-        title: 'Erro ao ler XML',
-        description: err.response?.data?.message || err.message || 'Falha ao processar arquivo XML.',
+        title: 'Erro ao ler a NF-e',
+        description: err.response?.data?.message || err.message || 'Falha ao processar o arquivo da NF-e.',
         variant: 'destructive'
       });
     } finally {
@@ -438,6 +454,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
   
   useEffect(() => {
     if (open) {
+      handledExistingMatchRef.current = null;
       if (!existingItems || existingItems.length === 0) {
         stockService.getAllItems()
           .then(data => setAllItems(Array.isArray(data) ? data : []))
@@ -704,15 +721,6 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-        if (formData.currentQuantity > 0 && (!formData.invoiceNumber || !formData.invoiceNumber.trim())) {
-      toast({
-        title: 'Nota Fiscal de Entrada Obrigatória',
-        description: 'Para itens com saldo inicial em estoque, é obrigatório informar a Nota Fiscal de Entrada.',
-        variant: 'destructive'
-      });
-      return;
-    }
 
     if (!formData.code || !formData.name) {
       toast({
@@ -871,6 +879,16 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                         if (match.caNumber && !formData.caNumber) handleInputChange('caNumber', match.caNumber);
                         if (match.caValidity && !formData.caValidity) handleInputChange('caValidity', match.caValidity);
                         if (match.manufacturer && !formData.manufacturer) handleInputChange('manufacturer', match.manufacturer);
+                        if (onEditExisting && handledExistingMatchRef.current !== match.id) {
+                          handledExistingMatchRef.current = match.id;
+                          toast({
+                            title: 'Item já cadastrado',
+                            description: `Abrindo "${match.name}" para edição.`
+                          });
+                          onEditExisting(match);
+                        }
+                      } else if (!match) {
+                        handledExistingMatchRef.current = null;
                       }
                     }}
                     placeholder="Selecione da lista ou digite um novo nome..."
@@ -1266,7 +1284,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                   <div className="flex items-center justify-between">
                     <Label htmlFor="invoiceNumber" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
                       <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
-                      NF de Entrada {formData.currentQuantity > 0 ? '*' : ''}
+                      NF de Entrada
                     </Label>
                     <div className="flex items-center gap-1.5">
                       <Button
@@ -1276,38 +1294,30 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                         onClick={() => xmlInputRef.current?.click()}
                         disabled={loadingXml}
                         className="h-6 text-[11px] border-seguranca-yellow/40 text-seguranca-yellow hover:text-white hover:bg-seguranca-yellow/20 px-2 flex items-center gap-1 font-semibold"
-                        title="Carregar dados de itens e faturamento a partir do XML da NF-e"
+                        title="Carregar dados de itens e faturamento a partir do XML ou PDF da NF-e"
                       >
                         {loadingXml ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
                           <Upload className="h-3 w-3" />
                         )}
-                        Importar XML
+                        Importar XML/PDF
                       </Button>
                       <input
                         ref={xmlInputRef}
                         type="file"
-                        accept=".xml,text/xml"
+                        accept=".xml,.pdf,text/xml,application/pdf"
                         className="hidden"
                         onChange={handleXmlUpload}
                       />
-                      {formData.currentQuantity > 0 && (
-                        <Badge variant="destructive" className="text-[10px] py-0 px-1.5 animate-pulse">
-                          Obrigatório p/ Saldo &gt; 0
-                        </Badge>
-                      )}
                     </div>
                   </div>
                   <Input
                     id="invoiceNumber"
                     value={formData.invoiceNumber || ''}
                     onChange={(e) => handleInputChange('invoiceNumber', e.target.value)}
-                    placeholder={formData.currentQuantity > 0 ? "Obrigatório: Ex: NF 12345 / DANFE" : "Ex: NF 12345 / DANFE (Opcional)"}
-                    required={formData.currentQuantity > 0}
-                    className={`bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base ${
-                      formData.currentQuantity > 0 && !formData.invoiceNumber ? 'border-amber-500 ring-1 ring-amber-500/20' : ''
-                    }`}
+                    placeholder="Ex: NF 12345 / DANFE (opcional)"
+                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
                   />
                 </div>
               </div>
@@ -1357,7 +1367,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                     className="border-blue-400/40 text-blue-300 hover:text-white hover:bg-blue-500/20 text-xs font-semibold self-start sm:self-auto"
                   >
                     <Upload className="h-3.5 w-3.5 mr-1.5" />
-                    Atualizar pelo XML
+                    Atualizar pelo XML/PDF
                   </Button>
                 </div>
 

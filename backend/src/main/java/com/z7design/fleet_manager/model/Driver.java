@@ -30,7 +30,24 @@ public class Driver implements TenantAware {
     private String licenseNumber;
 
     @Column(name = "phone", length = 20)
-    private String phone; // WhatsApp do motorista para notificações
+    private String phone; // WhatsApp do motorista para notifica��es
+
+    @Column(name = "cpf", length = 14)
+    private String cpf;
+
+    @Column(name = "cnh_category", length = 10)
+    private String cnhCategory; // A, B, C, D, E, ACC
+
+    @Column(name = "cnh_expiration")
+    private java.time.LocalDate cnhExpiration;
+
+    @Column(name = "photo_url")
+    private String photoUrl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private User user; // vinculo com usuario ja cadastrado
 
     @Column(nullable = false)
     private String status; // ATIVO, INATIVO

@@ -2,7 +2,7 @@ import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { UserPlus, Edit, Trash2, Eye, Download, FileText, Users, UserCheck, UserX } from 'lucide-react';
+import { UserPlus, Edit, Trash2, Eye, Download, FileText, Users, UserCheck, UserX, BriefcaseBusiness } from 'lucide-react';
 import { Driver } from '@/types/driver';
 
 interface MotoristasTableProps {
@@ -158,6 +158,16 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
                         </span>
                       </div>
                       <span className="font-medium">{driver.name || 'Nome não informado'}</span>
+                      {driver.source === 'EMPLOYEE' && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] border-blue-500/50 text-blue-400 bg-blue-500/10 font-medium"
+                          title="Funcionário com CNH cadastrada"
+                        >
+                          <BriefcaseBusiness className="mr-1 h-3 w-3" />
+                          Funcionário
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-gray-400">
@@ -199,6 +209,15 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
                           <Eye size={14} />
                         </Button>
                       )}
+                      {driver.source === 'EMPLOYEE' ? (
+                        <span
+                          className="text-[10px] text-gray-500 border border-gray-700 rounded px-1.5 py-1"
+                          title="Registro originado do cadastro de funcionários"
+                        >
+                          Somente leitura
+                        </span>
+                      ) : (
+                        <>
                       <Button
                         type="button"
                         variant="outline"
@@ -241,6 +260,8 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
                       >
                         <Trash2 size={14} />
                       </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

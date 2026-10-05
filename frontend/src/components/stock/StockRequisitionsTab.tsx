@@ -799,7 +799,7 @@ export const StockRequisitionsTab: React.FC<StockRequisitionsTabProps> = ({ onRe
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => navigate('/cotacoes-compras')}
+                              onClick={() => navigate('/compras/cotacoes')}
                               className="border-amber-600/70 text-amber-400 hover:bg-amber-950/40 text-xs h-7 px-2"
                               title="Ir para Cotações e Compras"
                             >

@@ -8,7 +8,7 @@ echo "🔐 Corrigindo JWT_SECRET na VPS..."
 cd /var/www/fluxbus/ci
 
 # Valor correto do JWT_SECRET (80 caracteres)
-CORRECT_JWT_SECRET="jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algorithm_secure_extra_long_key"
+CORRECT_JWT_SECRET="CHANGE_THIS_JWT_SECRET"
 
 echo ""
 echo "1️⃣ Verificando arquivo .env..."
@@ -32,7 +32,7 @@ fi
 
 echo ""
 echo "2️⃣ Verificando docker-compose.ci.yml..."
-if grep -q "JWT_SECRET.*jwt_secret_ci_2025[^_]" docker-compose.ci.yml; then
+if grep -q "JWT_SECRET.*CHANGE_THIS_JWT_SECRET" docker-compose.ci.yml; then
     echo "   ⚠️ JWT_SECRET curto encontrado no docker-compose.ci.yml"
     echo "   ℹ️ O docker-compose.ci.yml já deve ter o valor correto do GitHub"
 else

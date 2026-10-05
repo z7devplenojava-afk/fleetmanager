@@ -50,13 +50,13 @@ if [ ! -f ".env" ]; then
     cat > .env << EOF
 POSTGRES_DB=fluxbus_prod
 POSTGRES_USER=postgressg
-POSTGRES_PASSWORD=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+POSTGRES_PASSWORD=CHANGE_THIS_DB_MAIL_PASSWORD
 POSTGRES_DB_DEV=fluxbus_dev
 POSTGRES_USER_DEV=postgressg
-POSTGRES_PASSWORD_DEV=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+POSTGRES_PASSWORD_DEV=CHANGE_THIS_DB_MAIL_PASSWORD
 POSTGRES_DB_CI=fluxbus_ci
 POSTGRES_USER_CI=postgressg
-POSTGRES_PASSWORD_CI=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+POSTGRES_PASSWORD_CI=CHANGE_THIS_DB_MAIL_PASSWORD
 REDIS_PASSWORD=redis_fluxbus_2024
 JWT_SECRET=795927eaf0f77f4687edf8c7faaf30e2bd60d1c2215c0015ce9ddc83c8119615a3dec0755b6109a88d5077e6e4344a5b00be395e4c02a57ed923f95f1afebfed
 EOF
@@ -83,7 +83,7 @@ docker run --rm \
     flyway/flyway:9.22.3 \
     -url=jdbc:postgresql://postgres:5432/fluxbus_prod \
     -user=postgressg \
-    -password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' \
+    -password='CHANGE_THIS_DB_MAIL_PASSWORD' \
     -schemas=public \
     repair
 
@@ -94,7 +94,7 @@ docker run --rm \
     flyway/flyway:9.22.3 \
     -url=jdbc:postgresql://postgres:5432/fluxbus_prod \
     -user=postgressg \
-    -password='S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx' \
+    -password='CHANGE_THIS_DB_MAIL_PASSWORD' \
     -schemas=public \
     -outOfOrder=true \
     migrate

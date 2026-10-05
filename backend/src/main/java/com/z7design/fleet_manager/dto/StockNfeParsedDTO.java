@@ -35,6 +35,8 @@ public class StockNfeParsedDTO {
     private String supplierCity;
     private String supplierState;
     private String supplierZipCode;
+    private String supplierPhone;
+    private String supplierEmail;
     private UUID existingSupplierId;
 
     // Validação de Duplicidade

@@ -18,7 +18,7 @@ Verificar e configurar as variáveis de ambiente no `docker-compose.ci.yml`:
 environment:
   - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-ci:5432/secured_guard_ci
   - SPRING_DATASOURCE_USERNAME=secured_guard_ci
-  - SPRING_DATASOURCE_PASSWORD=4KaCiJc6an@7sgbdcid2025
+  - SPRING_DATASOURCE_PASSWORD=CHANGE_THIS_DB_PASSWORD
   - SPRING_PROFILES_ACTIVE=ci
 ```
 

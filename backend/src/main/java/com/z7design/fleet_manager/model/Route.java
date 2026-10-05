@@ -49,6 +49,18 @@ public class Route implements TenantAware {
     @Column(length = 500)
     private String description;
 
+    /** Cor da linha no mapa/painel (hex, ex.: #22C55E) */
+    @Column(name = "color", length = 20)
+    private String color;
+
+    /** Status operacional da linha */
+    @Column(name = "status", length = 20)
+    private String status = "ATIVA";
+
+    /** Capacidade prevista de passageiros da linha */
+    @Column(name = "capacity")
+    private Integer capacity;
+
     @ManyToOne
     @JoinColumn(name = "unit_id")
     @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })

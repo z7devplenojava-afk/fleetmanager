@@ -32,6 +32,8 @@ public class StockNfeProcessRequestDTO {
     private String supplierCity;
     private String supplierState;
     private String supplierZipCode;
+    private String supplierPhone;
+    private String supplierEmail;
     private UUID supplierId;
 
     // Configurações de processamento

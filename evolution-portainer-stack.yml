@@ -42,7 +42,7 @@ services:
       # ==================== BÁSICO ====================
       - SERVER_URL=https://evolution.z7botsolutions.com.br
       - AUTHENTICATION_TYPE=apikey
-      - AUTHENTICATION_API_KEY=B6D711FCDE4D4FD5936544120E713976
+      - AUTHENTICATION_API_KEY=CHANGE_THIS_EVOLUTION_API_KEY
       - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
       
       # ==================== SESSÃO ====================
@@ -59,7 +59,7 @@ services:
       # OPÇÃO 1: COM PostgreSQL (comentar para desabilitar)
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://fluxbus_user_ci:4KaCiJc6an@7sgbdcid2026@7sgbdcid2025@fluxbus-db-ci:5432/evolution_db?schema=public
+      - DATABASE_CONNECTION_URI=postgresql://fluxbus_user_ci:CHANGE_THIS_DB_PASSWORD@7sgbdcid2025@fluxbus-db-ci:5432/evolution_db?schema=public
       - DATABASE_CONNECTION_CLIENT_NAME=evolution_portainer
       - DATABASE_SAVE_DATA_INSTANCE=true
       - DATABASE_SAVE_DATA_NEW_MESSAGE=true

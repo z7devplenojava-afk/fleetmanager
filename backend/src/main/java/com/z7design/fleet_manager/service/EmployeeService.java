@@ -939,6 +939,18 @@ public class EmployeeService {
             if (dto.getRneValidade() != null) {
                 e.setRneValidade(dto.getRneValidade());
             }
+            if (dto.getNumeroPortaria() != null) {
+                e.setNumeroPortaria(dto.getNumeroPortaria());
+            }
+            if (dto.getDataPortaria() != null) {
+                e.setDataPortaria(dto.getDataPortaria());
+            }
+            if (dto.getFgtsConta() != null) {
+                e.setFgtsConta(dto.getFgtsConta());
+            }
+            if (dto.getContaCorrenteDigito() != null) {
+                e.setContaCorrenteDigito(dto.getContaCorrenteDigito());
+            }
             if (dto.getRicNumero() != null) {
                 e.setRicNumero(dto.getRicNumero());
             }

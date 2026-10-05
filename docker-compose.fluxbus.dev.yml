@@ -73,12 +73,12 @@ services:
       REDIS_HOST: redis-dev
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD_DEV:-devredispass}
-      JWT_SECRET: ${JWT_SECRET_DEV:-devjwtsecret1234567890123456789012}
+      JWT_SECRET: ${JWT_SECRET_DEV:?JWT_SECRET_DEV is required}
       # Email Configuration
       MAIL_HOST: ${MAIL_HOST:-186.209.113.105}
       MAIL_PORT: ${MAIL_PORT:-465}
       MAIL_USERNAME: ${MAIL_USERNAME:-securedguard@z7design.com.br}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-D8rKeqSFZfaS$(y7}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-CHANGE_THIS_MAIL_PASSWORD}
       MAIL_SSL_ENABLE: true
     ports:
       - "8084:8083"

@@ -37,7 +37,7 @@ for env in dev prod ci; do
 # Database
 POSTGRES_DB=fluxbus_$env
 POSTGRES_USER=postgressg
-POSTGRES_PASSWORD=S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx
+POSTGRES_PASSWORD=CHANGE_THIS_DB_MAIL_PASSWORD
 
 # Redis
 REDIS_PASSWORD=redis123

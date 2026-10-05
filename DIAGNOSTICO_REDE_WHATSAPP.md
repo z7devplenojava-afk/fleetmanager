@@ -77,7 +77,7 @@ curl https://evolution.z7botsolutions.com.br/health
 
 # Criar instância
 curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976" \
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "instanceName": "securedguard",
@@ -86,7 +86,7 @@ curl -X POST https://evolution.z7botsolutions.com.br/instance/create \
 
 # Obter QR Code
 curl https://evolution.z7botsolutions.com.br/instance/qrcode/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 ```
 
 #### 2. WhatsApp Business API (Meta Cloud) ⭐⭐⭐⭐
@@ -169,7 +169,7 @@ O ambiente CI já tem Evolution API configurado. Basta:
 # backend/src/main/resources/application-test.properties
 baileys.rest.url=https://evolution.z7botsolutions.com.br
 baileys.rest.instance.key=securedguard
-baileys.rest.token=B6D711FCDE4D4FD5936544120E713976
+baileys.rest.token=CHANGE_THIS_EVOLUTION_API_KEY
 ```
 
 2. **Adaptar BaileysRestService para Evolution API:**
@@ -190,7 +190,7 @@ headers.set("apikey", baileysToken);
 
 ```bash
 curl https://evolution.z7botsolutions.com.br/instance/connectionState/securedguard \
-  -H "apikey: B6D711FCDE4D4FD5936544120E713976"
+  -H "apikey: CHANGE_THIS_EVOLUTION_API_KEY"
 ```
 
 ## 📝 Resumo

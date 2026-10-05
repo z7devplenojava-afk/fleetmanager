@@ -65,7 +65,7 @@ psql -h localhost -p 5432 -U postgres -d secured_guard -f backend/src/main/resou
 
    **Para ambiente CI:**
    ```bash
-   mvn flyway:migrate -Dflyway.url=jdbc:postgresql://localhost:5432/secured_guard -Dflyway.user=postgres -Dflyway.password=4KaCiJc6an@7sgbdcid2025
+   mvn flyway:migrate -Dflyway.url=jdbc:postgresql://localhost:5432/secured_guard -Dflyway.user=postgres -Dflyway.password=CHANGE_THIS_DB_PASSWORD
    ```
 
 ### **Opção 4: Executar SQL Diretamente no Banco**

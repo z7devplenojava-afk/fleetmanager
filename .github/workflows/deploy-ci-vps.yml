@@ -160,9 +160,9 @@ jobs:
             # ========================================
             POSTGRES_DB_CI=fluxbus_db_ci
             POSTGRES_USER_CI=fluxbus_user_ci
-            POSTGRES_PASSWORD_CI=${{ secrets.POSTGRES_PASSWORD_CI || '4KaCiJc6an@7sgbdcid2026' }}
-            REDIS_PASSWORD_CI=${{ secrets.REDIS_PASSWORD_CI || 'redis_ci_2026' }}
-            JWT_SECRET_CI=${{ secrets.JWT_SECRET_CI || 'jwt_secret_ci_2025_secure_key_64bytes_minimum_required_for_hmac_sha512_algo' }}
+            POSTGRES_PASSWORD_CI=${{ secrets.POSTGRES_PASSWORD_CI  }}
+            REDIS_PASSWORD_CI=${{ secrets.REDIS_PASSWORD_CI  }}
+            JWT_SECRET_CI=${{ secrets.JWT_SECRET_CI  }}
             MAIL_HOST=${{ secrets.MAIL_HOST || 'mail.z7design.com.br' }}
             MAIL_PORT=${{ secrets.MAIL_PORT || '465' }}
             MAIL_USERNAME=${{ secrets.MAIL_USERNAME || 'securedguard@z7design.com.br' }}

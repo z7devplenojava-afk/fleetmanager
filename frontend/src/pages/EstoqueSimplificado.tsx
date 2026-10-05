@@ -568,7 +568,7 @@ const EstoqueSimplificado: React.FC = () => {
               className="border-seguranca-yellow/40 text-seguranca-yellow hover:bg-seguranca-yellow/10 font-medium shadow-sm"
             >
               <FileText size={16} className="mr-2 text-seguranca-yellow" />
-              Importar XML NF-e
+              Importar XML/PDF NF-e
             </Button>
 
             <Button
@@ -781,6 +781,7 @@ const EstoqueSimplificado: React.FC = () => {
           item={selectedItem}
           existingItems={stockItems}
           onSave={handleRefresh}
+          onEditExisting={handleEditItem}
         />
 
         <StockNfeImportModal

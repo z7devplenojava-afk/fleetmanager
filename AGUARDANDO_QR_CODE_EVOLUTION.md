@@ -26,7 +26,7 @@ Abra o arquivo: `qrcode.html`
 
 ```powershell
 # Verificar status
-$headers = @{ apikey = "B6D711FCDE4D4FD5936544120E713976" }
+$headers = @{ apikey = "CHANGE_THIS_EVOLUTION_API_KEY" }
 Invoke-RestMethod -Uri "http://localhost:9000/instance/connectionState/securedguard" -Headers $headers
 
 # Testar envio

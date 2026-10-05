@@ -8,7 +8,7 @@ Write-Host ""
 $PostgresHost = $env:POSTGRES_HOST ?? "localhost"
 $PostgresPort = $env:POSTGRES_PORT ?? 5432
 $PostgresUser = $env:POSTGRES_USER ?? "postgressg"
-$PostgresPassword = $env:POSTGRES_PASSWORD ?? "S7UGKd%bnKW0!lhBA#BRJLCd!IpXvsnx"
+$PostgresPassword = $env:POSTGRES_PASSWORD ?? "CHANGE_THIS_DB_MAIL_PASSWORD"
 
 # Lista de bancos faltantes
 $MissingDatabases = @(
