@@ -165,6 +165,25 @@ export interface FinancialApprovalPayload {
   installmentDetails?: string;
 }
 
+export interface InvoiceEntryItemPayload {
+  code?: string;
+  name: string;
+  ncm?: string;
+  cfop?: string;
+  unit?: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  valorIcms?: number;
+  valorIpi?: number;
+}
+
+export interface InvoiceEntryInstallmentPayload {
+  number?: string;
+  dueDate: string;
+  amount: number;
+}
+
 export interface InvoiceEntryPayload {
   purchaseOrderId?: string;
   requisitionId?: string;
@@ -174,13 +193,28 @@ export interface InvoiceEntryPayload {
   invoiceKey?: string;
   supplierName: string;
   supplierCnpj?: string;
+  supplierIe?: string;
+  naturezaOperacao?: string;
+  protocoloAutorizacao?: string;
+  destName?: string;
+  destCnpj?: string;
   issueDate?: string;
   quantityReceived: number;
   unitCost: number;
   totalInvoiceCost: number;
-  entryType?: 'PURCHASE_ORDER' | 'MANUAL_ENTRY' | 'XML_IMPORT';
+  baseCalculoIcms?: number;
+  valorIcms?: number;
+  baseIcmsSt?: number;
+  valorIcmsSt?: number;
+  valorFrete?: number;
+  valorSeguro?: number;
+  valorDesconto?: number;
+  valorIpi?: number;
+  entryType?: 'PURCHASE_ORDER' | 'MANUAL_ENTRY' | 'XML_IMPORT' | 'DANFE_PDF_IMPORT';
   releaseToWorkOrder?: boolean;
   notes?: string;
+  items?: InvoiceEntryItemPayload[];
+  installments?: InvoiceEntryInstallmentPayload[];
 }
 
 export const procurementService = {
