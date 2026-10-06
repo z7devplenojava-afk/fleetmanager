@@ -78,7 +78,7 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
         return () => {
             isMounted = false;
         };
-    }, [isOpen, initialBlob, order, toast]);
+    }, [isOpen, initialBlob, order?.id, toast]);
 
     // Cria e gerencia a URL do Blob
     useEffect(() => {

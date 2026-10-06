@@ -2093,13 +2093,11 @@ const Frota: React.FC = () => {
           onSuccess={handleManutencaoSuccess}
           veiculos={vehicles || []}
           manutencao={selectedManutencao}
-        />
-        {console.log("🔍 Frota.tsx - Estado ManutencaoFormModal:", { isOpen: isManutencaoModalOpen, selectedManutencao: selectedManutencao })}
-
         <ManutencaoViewModal
           isOpen={isManutencaoViewModalOpen}
           onClose={() => {
             setIsManutencaoViewModalOpen(false);
+            setSelectedManutencao(null);
           }}
           maintenance={selectedManutencao}
           onEdit={handleEditManutencao}

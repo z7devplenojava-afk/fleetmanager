@@ -31,8 +31,9 @@ export const PartsProcurementHoverCard: React.FC<PartsProcurementHoverCardProps>
   const { data: requisitions = [], isLoading, isError } = useQuery({
     queryKey: ['material-requisitions-wo', workOrderId],
     queryFn: () => materialRequisitionService.listByWorkOrder(workOrderId),
-    enabled: isOpen || isHovered,
-    staleTime: 15_000,
+    enabled: Boolean(workOrderId) && (isOpen || isHovered),
+    staleTime: 60_000,
+    retry: false,
   });
 
   const getStepIndex = (req: MaterialRequisition) => {

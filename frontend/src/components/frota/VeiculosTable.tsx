@@ -174,11 +174,6 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
 
   const { toast } = useToast();
 
-  // Debug dos estados do modal
-  useEffect(() => {
-    console.log('🔍 Estados do modal - isViewModalOpen:', isViewModalOpen, 'viewingVeiculo:', viewingVeiculo);
-  }, [isViewModalOpen, viewingVeiculo]);
-
   const filteredVeiculos = veiculos.filter(veiculo => {
     const matchesSearch = veiculo.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
       veiculo.marca.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -385,17 +380,13 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
   };
 
   const handleView = (veiculo: Veiculo) => {
-    console.log('🔍 handleView chamado com veículo:', veiculo);
     setViewingVeiculo(veiculo);
     setIsViewModalOpen(true);
-    console.log('🔍 Estados definidos - viewingVeiculo:', veiculo, 'isViewModalOpen: true');
   };
 
   const handleViewClose = () => {
-    console.log('🔍 handleViewClose chamado');
     setIsViewModalOpen(false);
     setViewingVeiculo(null);
-    console.log('🔍 Estados limpos - isViewModalOpen: false, viewingVeiculo: null');
   };
 
   const handleDeleteSuccess = () => {
