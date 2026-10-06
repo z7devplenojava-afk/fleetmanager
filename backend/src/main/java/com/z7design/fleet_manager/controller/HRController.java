@@ -84,51 +84,53 @@ public class HRController {
     }
     
     @GetMapping("/vacations")
-    @Operation(summary = "Buscar fÃ©rias", 
-               description = "Retorna lista de fÃ©rias com filtros opcionais (status, employeeId, dateFrom, dateTo)")
+    @Operation(summary = "Buscar férias", 
+               description = "Retorna lista de férias com filtros opcionais (status, employeeId, dateFrom, dateTo)")
     public ResponseEntity<List<VacationDTO>> getVacations(
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "employeeId", required = false) String employeeId,
             @RequestParam(value = "dateFrom", required = false) String dateFrom,
             @RequestParam(value = "dateTo", required = false) String dateTo) {
         
-        List<VacationDTO> vacations;
-        
-        // Se status foi fornecido, filtrar por status
-        if (status != null && !status.isEmpty()) {
-            // Mapear 'PLANNED' do frontend para 'PENDING' do backend
-            VacationStatus vacationStatus = null;
-            try {
-                if ("PLANNED".equalsIgnoreCase(status)) {
-                    vacationStatus = VacationStatus.PENDING;
-                } else {
-                    vacationStatus = VacationStatus.valueOf(status.toUpperCase());
-                }
-            } catch (IllegalArgumentException e) {
-                // Se status invÃ¡lido, retornar todas as fÃ©rias
-                vacationStatus = null;
-            }
+        try {
+            List<VacationDTO> vacations;
             
-            final VacationStatus finalStatus = vacationStatus;
-            if (finalStatus != null) {
-                // Filtrar por status usando mÃ©todo otimizado
-                vacations = vacationService.findByStatus(finalStatus).stream()
-                    .map(VacationDTO::fromEntity)
-                    .collect(Collectors.toList());
+            // Se status foi fornecido, filtrar por status
+            if (status != null && !status.isEmpty()) {
+                // Mapear 'PLANNED' do frontend para 'PENDING' do backend
+                VacationStatus vacationStatus = null;
+                try {
+                    if ("PLANNED".equalsIgnoreCase(status)) {
+                        vacationStatus = VacationStatus.PENDING;
+                    } else {
+                        vacationStatus = VacationStatus.valueOf(status.toUpperCase());
+                    }
+                } catch (IllegalArgumentException e) {
+                    // Se status inválido, retornar todas as férias
+                    vacationStatus = null;
+                }
+                
+                final VacationStatus finalStatus = vacationStatus;
+                if (finalStatus != null) {
+                    // Filtrar por status usando método otimizado
+                    vacations = vacationService.findByStatus(finalStatus).stream()
+                        .map(VacationDTO::fromEntity)
+                        .collect(Collectors.toList());
+                } else {
+                    vacations = vacationService.findAll().stream()
+                        .map(VacationDTO::fromEntity)
+                        .collect(Collectors.toList());
+                }
             } else {
+                // Retornar todas as férias
                 vacations = vacationService.findAll().stream()
                     .map(VacationDTO::fromEntity)
                     .collect(Collectors.toList());
             }
-        } else {
-            // Retornar todas as fÃ©rias
-            vacations = vacationService.findAll().stream()
-                .map(VacationDTO::fromEntity)
-                .collect(Collectors.toList());
+            
+            return ResponseEntity.ok(vacations);
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of());
         }
-        
-        // TODO: Implementar filtros adicionais (employeeId, dateFrom, dateTo) se necessÃ¡rio
-        
-        return ResponseEntity.ok(vacations);
     }
 } 

@@ -34,6 +34,7 @@ import { SupplierFormModal } from '@/components/estoque/SupplierFormModal';
 import { userService, User } from '@/services/userService';
 import { PurchaseRequestViewModal } from '@/components/compras/PurchaseRequestViewModal';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 
 async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {
@@ -115,6 +116,7 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
   initialParsedBudget,
   onCreated 
 }) => {
+  const { user: currentUser } = useAuth();
   const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
@@ -127,7 +129,7 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
     paymentMethod: '',
     deliveryMethod: '',
     notes: '',
-    assignedToId: '',
+    assignedToId: currentUser?.id ? String(currentUser.id) : '',
     status: 'DRAFT'
   });
 
@@ -435,7 +437,7 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
         paymentMethod: 'Boleto',
         deliveryMethod: 'Entrega no local',
         notes: '',
-        assignedToId: '',
+        assignedToId: currentUser?.id ? String(currentUser.id) : '',
         status: 'DRAFT'
       });
       setSelectedPurchaseRequestIds(initialPurchaseRequestId ? [initialPurchaseRequestId] : []);
@@ -460,7 +462,16 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
         partQuality: 'PRIMEIRA_LINHA'
       });
     }
-  }, [quotation, purchaseRequests.length, users.length]);
+  }, [quotation, purchaseRequests.length, users.length, currentUser]);
+
+  useEffect(() => {
+    if (!quotation && currentUser?.id && !formData.assignedToId) {
+      setFormData(prev => ({
+        ...prev,
+        assignedToId: String(currentUser.id)
+      }));
+    }
+  }, [currentUser, quotation, formData.assignedToId]);
 
 
   const loadSuppliers = async () => {
@@ -492,10 +503,28 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
   const loadUsers = async () => {
     try {
       const data = await userService.getAllUsers();
-      setUsers(data || []);
+      let userList = data || [];
+      if (currentUser && currentUser.id && !userList.some(u => String(u.id) === String(currentUser.id))) {
+        userList = [{ 
+          id: currentUser.id, 
+          name: currentUser.name || currentUser.username, 
+          username: currentUser.username, 
+          email: currentUser.email 
+        }, ...userList];
+      }
+      setUsers(userList);
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
-      setUsers([]);
+      if (currentUser && currentUser.id) {
+        setUsers([{ 
+          id: currentUser.id, 
+          name: currentUser.name || currentUser.username, 
+          username: currentUser.username, 
+          email: currentUser.email 
+        }]);
+      } else {
+        setUsers([]);
+      }
     }
   };
 
@@ -616,15 +645,36 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
   };
 
   const handleAddCustomItem = () => {
-    const newItem: QuotationItemEntry = {
-      id: `custom-item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      itemName: '',
-      itemCode: '',
-      brand: '',
-      quantity: 1,
-      unit: 'UN',
-    };
-    setQuotationItems(prev => [...prev, newItem]);
+    setQuotationItems(prev => {
+      const newItem: QuotationItemEntry = {
+        id: `custom-item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        itemName: '',
+        itemCode: '',
+        brand: '',
+        quantity: 1,
+        unit: 'UN',
+      };
+
+      if (prev.length === 0 && (partDetails.itemName || partDetails.itemCode)) {
+        const firstItem: QuotationItemEntry = {
+          id: `item-1-${Date.now()}`,
+          itemName: partDetails.itemName,
+          itemCode: partDetails.itemCode,
+          brand: partDetails.brand,
+          quantity: partDetails.quantity || 1,
+          unit: partDetails.unit || 'UN',
+          justification: partDetails.justification
+        };
+        return [firstItem, newItem];
+      }
+
+      return [...prev, newItem];
+    });
+
+    toast({
+      title: "Item Avulso Adicionado!",
+      description: "Um novo item foi incluído na lista de cotação.",
+    });
   };
 
   const handleUpdateItem = (id: string, field: keyof QuotationItemEntry, value: any) => {
@@ -659,7 +709,21 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
       quantity: 1,
       unit: item.unitName || 'UN',
     };
-    setQuotationItems(prev => [...prev, newItem]);
+    setQuotationItems(prev => {
+      if (prev.length === 0 && (partDetails.itemName || partDetails.itemCode)) {
+        const firstItem: QuotationItemEntry = {
+          id: `item-1-${Date.now()}`,
+          itemName: partDetails.itemName,
+          itemCode: partDetails.itemCode,
+          brand: partDetails.brand,
+          quantity: partDetails.quantity || 1,
+          unit: partDetails.unit || 'UN',
+          justification: partDetails.justification
+        };
+        return [firstItem, newItem];
+      }
+      return [...prev, newItem];
+    });
 
     setPartDetails(prev => ({
       ...prev,
@@ -1024,7 +1088,15 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto bg-seguranca-graphite border-gray-600 text-seguranca-lightgray shadow-2xl p-0">
+      <DialogContent 
+        className="max-w-5xl max-h-[92vh] overflow-y-auto bg-seguranca-graphite border-gray-600 text-seguranca-lightgray shadow-2xl p-0"
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('[data-radix-popper-content-wrapper], [role="listbox"], [role="option"], [data-sonner-toast], .toast, [role="alert"], [role="status"]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader className="bg-gradient-to-r from-seguranca-red via-red-600 to-zinc-900 p-6 rounded-t-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <DialogTitle className="text-white text-2xl font-bold flex items-center gap-3">
@@ -1317,7 +1389,7 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={handleAddCustomItem}
-                  className="bg-zinc-800 hover:bg-zinc-700 text-white border-gray-600 text-xs font-semibold h-7 flex items-center gap-1.5"
+                  className="bg-zinc-800 hover:bg-zinc-700 text-white border-gray-600 text-xs font-semibold h-7 flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus className="h-3.5 w-3.5 text-seguranca-yellow" />
                   + Item Avulso
@@ -1328,9 +1400,10 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
                   size="sm"
                   onClick={() => {
                     setStockSearchQuery('');
+                    loadStockItems();
                     setIsStockSearchOpen(true);
                   }}
-                  className="bg-seguranca-yellow/10 hover:bg-seguranca-yellow hover:text-zinc-950 border-seguranca-yellow/50 text-seguranca-yellow text-xs font-semibold h-7 flex items-center gap-1.5 transition-all"
+                  className="bg-seguranca-yellow/10 hover:bg-seguranca-yellow hover:text-zinc-950 border-seguranca-yellow/50 text-seguranca-yellow text-xs font-semibold h-7 flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   <Search className="h-3.5 w-3.5" />
                   Buscar Peça no Estoque
@@ -2426,7 +2499,15 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
       {/* Modal / Dialog de Zoom de Foto */}
       {previewPhoto && (
         <Dialog open={true} onOpenChange={() => setPreviewPhoto(null)}>
-          <DialogContent className="max-w-4xl bg-zinc-950 border-gray-700 p-2 text-white">
+          <DialogContent 
+            className="max-w-4xl bg-zinc-950 border-gray-700 p-2 text-white"
+            onPointerDownOutside={(e) => {
+              const target = e.target as HTMLElement | null;
+              if (target?.closest('[data-radix-popper-content-wrapper], [role="listbox"], [role="option"], [data-sonner-toast], .toast, [role="alert"], [role="status"]')) {
+                e.preventDefault();
+              }
+            }}
+          >
             <DialogHeader className="p-3 border-b border-gray-800 flex flex-row items-center justify-between">
               <DialogTitle className="text-base font-semibold text-seguranca-lightgray flex items-center gap-2">
                 <ImageIcon className="h-4 w-4 text-seguranca-yellow" />
@@ -2458,7 +2539,15 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({
       {/* Modal / Dialog de Busca no Catálogo do Estoque */}
       {isStockSearchOpen && (
         <Dialog open={true} onOpenChange={() => setIsStockSearchOpen(false)}>
-          <DialogContent className="max-w-4xl bg-zinc-950 border-gray-700 text-white p-0 shadow-2xl overflow-hidden max-h-[88vh] flex flex-col">
+          <DialogContent 
+            className="max-w-4xl bg-zinc-950 border-gray-700 text-white p-0 shadow-2xl overflow-hidden max-h-[88vh] flex flex-col"
+            onPointerDownOutside={(e) => {
+              const target = e.target as HTMLElement | null;
+              if (target?.closest('[data-radix-popper-content-wrapper], [role="listbox"], [role="option"], [data-sonner-toast], .toast, [role="alert"], [role="status"]')) {
+                e.preventDefault();
+              }
+            }}
+          >
             <DialogHeader className="p-4 bg-gradient-to-r from-zinc-900 to-zinc-950 border-b border-gray-800 flex flex-row items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-seguranca-yellow/20 text-seguranca-yellow rounded-lg">

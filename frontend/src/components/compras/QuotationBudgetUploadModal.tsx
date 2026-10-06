@@ -160,7 +160,15 @@ export const QuotationBudgetUploadModal: React.FC<QuotationBudgetUploadModalProp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col p-0 overflow-hidden bg-background">
+      <DialogContent 
+        className="max-w-5xl max-h-[92vh] flex flex-col p-0 overflow-hidden bg-background"
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('[data-radix-popper-content-wrapper], [role="listbox"], [role="option"], [data-sonner-toast], .toast, [role="alert"], [role="status"]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         {/* Header */}
         <DialogHeader className="p-5 border-b bg-muted/30">
           <div className="flex items-center justify-between">

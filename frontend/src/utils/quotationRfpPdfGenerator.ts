@@ -66,6 +66,20 @@ export interface QuotationRfpData {
 }
 
 class QuotationRfpPdfGenerator {
+  /**
+   * Trunca o texto se ultrapassar a largura máxima em milímetros
+   */
+  private truncateText(doc: jsPDF, text: string, maxWidth: number): string {
+    if (!text) return '';
+    if (doc.getTextWidth(text) <= maxWidth) return text;
+
+    let truncated = text;
+    while (truncated.length > 0 && doc.getTextWidth(truncated + '...') > maxWidth) {
+      truncated = truncated.slice(0, -1);
+    }
+    return truncated ? truncated + '...' : '';
+  }
+
   public async generatePDF(data: QuotationRfpData): Promise<Blob> {
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -76,100 +90,120 @@ class QuotationRfpPdfGenerator {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 14;
+    const printableWidth = pageWidth - 2 * margin; // 182 mm
     let y = 14;
 
     // 1. CABEÇALHO CORPORATIVO
     doc.setFillColor(24, 24, 27); // Zinc 900
-    doc.rect(margin, y, pageWidth - 2 * margin, 24, 'F');
+    doc.rect(margin, y, printableWidth, 24, 'F');
 
     doc.setFillColor(217, 119, 6); // Amber 600
-    doc.rect(margin, y + 23, pageWidth - 2 * margin, 1.5, 'F');
+    doc.rect(margin, y + 23, printableWidth, 1.5, 'F');
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
+    doc.setFontSize(13.5);
     doc.setTextColor(255, 255, 255);
     doc.text('SOLICITAÇÃO DE COTAÇÃO DE PEÇAS & SERVIÇOS', margin + 6, y + 9);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(212, 212, 216);
-    const quoteRef = data.quoteNumber ? `Nº Cotação: ${data.quoteNumber}` : `Ref: ${data.title.substring(0, 35)}`;
-    doc.text(`${quoteRef}  |  Emissão: ${data.createdAt ? new Date(data.createdAt).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}`, margin + 6, y + 15);
+    const quoteRef = data.quoteNumber ? `Nº Cotação: ${data.quoteNumber}` : `Ref: ${this.truncateText(doc, data.title, 35)}`;
+    const issueDateStr = data.createdAt ? new Date(data.createdAt).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+    doc.text(`${quoteRef}  |  Emissão: ${issueDateStr}`, margin + 6, y + 16);
 
     if (data.validUntil) {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(252, 211, 77); // Amber 300
-      doc.text(`Data Limite p/ Resposta: ${new Date(data.validUntil).toLocaleDateString('pt-BR')}`, pageWidth - margin - 6, y + 15, { align: 'right' });
+      const limitStr = `Data Limite p/ Resposta: ${new Date(data.validUntil).toLocaleDateString('pt-BR')}`;
+      doc.text(limitStr, pageWidth - margin - 6, y + 16, { align: 'right' });
     }
 
     y += 29;
 
-    // 2. QUADRO DE IDENTIFICAÇÃO DO VEÍCULO & SOLICITAÇÃO
+    // 2. QUADRO DE IDENTIFICAÇÃO DO VEÍCULO & SOLICITAÇÃO (DADOS DA APLICAÇÃO & ORDEM DE SERVIÇO)
+    const infoBoxHeight = 26;
     doc.setFillColor(244, 244, 245); // Zinc 100
-    doc.rect(margin, y, pageWidth - 2 * margin, 24, 'F');
+    doc.rect(margin, y, printableWidth, infoBoxHeight, 'F');
     doc.setDrawColor(228, 228, 231);
-    doc.rect(margin, y, pageWidth - 2 * margin, 24, 'D');
+    doc.rect(margin, y, printableWidth, infoBoxHeight, 'D');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(39, 39, 42);
-
-    doc.text('DADOS DA APLICAÇÃO & ORDEM DE SERVIÇO', margin + 4, y + 5.5);
+    doc.text('DADOS DA APLICAÇÃO & ORDEM DE SERVIÇO', margin + 5, y + 6);
 
     doc.setFontSize(8);
+
+    // Definição das Colunas com proteções de largura máxima
+    const col1LabelX = margin + 5;
+    const col1ValueX = margin + 22;
+    const col1MaxValW = 66; // 88 - 22 = 66 mm
+
+    const col2LabelX = margin + 94;
+    const col2ValueX = margin + 128;
+    const col2MaxValW = 50; // 182 - 128 - 4 = 50 mm
+
+    // Linha 1 (Veículo & OS)
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(71, 85, 105);
-
-    // Linha 1
-    doc.text('Veículo:', margin + 4, y + 11.5);
+    doc.text('Veículo:', col1LabelX, y + 13);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    doc.text(`${data.vehiclePlate || 'N/A'} ${data.vehicleModel ? ` - ${data.vehicleModel}` : ''} ${data.vehicleYear ? `(${data.vehicleYear})` : ''}`, margin + 22, y + 11.5);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(71, 85, 105);
-    doc.text('Ordem de Serviço (OS):', margin + 110, y + 11.5);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text(data.workOrderNumber ? `OS #${data.workOrderNumber}` : 'Sem OS Vinculada', margin + 148, y + 11.5);
-
-    // Linha 2
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(71, 85, 105);
-    doc.text('Solicitante:', margin + 4, y + 18);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text(data.requesterName || 'Departamento de Manutenção / Frota', margin + 22, y + 18);
+    const vehicleFullStr = `${data.vehiclePlate || 'N/A'}${data.vehicleModel ? ` - ${data.vehicleModel}` : ''}${data.vehicleYear ? ` (${data.vehicleYear})` : ''}`;
+    doc.text(this.truncateText(doc, vehicleFullStr, col1MaxValW), col1ValueX, y + 13);
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(71, 85, 105);
-    doc.text('Fornecedor Destino:', margin + 110, y + 18);
+    doc.text('Ordem de Serviço (OS):', col2LabelX, y + 13);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    doc.text(data.supplierName || 'Aos Cuidados do Departamento Comercial / Vendas', margin + 148, y + 18);
+    const osStr = data.workOrderNumber ? `OS #${data.workOrderNumber}` : 'Sem OS Vinculada';
+    doc.text(this.truncateText(doc, osStr, col2MaxValW), col2ValueX, y + 13);
 
-    y += 28;
+    // Linha 2 (Solicitante & Fornecedor Destino)
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Solicitante:', col1LabelX, y + 20);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    const reqStr = data.requesterName || 'Departamento de Manutenção / Frota';
+    doc.text(this.truncateText(doc, reqStr, col1MaxValW), col1ValueX, y + 20);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Fornecedor Destino:', col2LabelX, y + 20);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    const supplierStr = data.supplierName || 'Aos Cuidados do Depto Comercial / Vendas';
+    doc.text(this.truncateText(doc, supplierStr, col2MaxValW), col2ValueX, y + 20);
+
+    y += infoBoxHeight + 5;
 
     // 3. JUSTIFICATIVA / MOTIVO
     if (data.justification || data.description) {
+      const justText = data.justification || data.description || '';
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      const splitJust = doc.splitTextToSize(justText, printableWidth - 10);
+      const justBoxHeight = Math.max(13, 8 + splitJust.length * 3.8);
+
       doc.setFillColor(254, 243, 199); // Amber 100
-      doc.rect(margin, y, pageWidth - 2 * margin, 12, 'F');
+      doc.rect(margin, y, printableWidth, justBoxHeight, 'F');
       doc.setDrawColor(251, 191, 36);
-      doc.rect(margin, y, pageWidth - 2 * margin, 12, 'D');
+      doc.rect(margin, y, printableWidth, justBoxHeight, 'D');
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(146, 64, 14);
-      doc.text('Motivo / Justificativa Técnica da Troca:', margin + 4, y + 4.5);
+      doc.text('Motivo / Justificativa Técnica da Troca:', margin + 5, y + 5);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(120, 53, 15);
-      const justText = data.justification || data.description || '';
-      const splitJust = doc.splitTextToSize(justText, pageWidth - 2 * margin - 8);
-      doc.text(splitJust.slice(0, 2), margin + 4, y + 8.5);
+      doc.text(splitJust, margin + 5, y + 9.5);
 
-      y += 15;
+      y += justBoxHeight + 5;
     }
 
     // 4. TABELA DE ITENS / PEÇAS SOLICITADAS
@@ -177,7 +211,7 @@ class QuotationRfpPdfGenerator {
     doc.setFontSize(9.5);
     doc.setTextColor(24, 24, 27);
     doc.text('ITENS / PEÇAS SOLICITADAS PARA COTAÇÃO', margin, y);
-    y += 3;
+    y += 3.5;
 
     const tableRows = (data.items && data.items.length > 0 ? data.items : [
       {
@@ -209,30 +243,31 @@ class QuotationRfpPdfGenerator {
         textColor: [255, 255, 255],
         fontSize: 7.5,
         fontStyle: 'bold',
-        halign: 'left'
+        halign: 'left',
+        cellPadding: 2.5
       },
       columnStyles: {
         0: { cellWidth: 8, halign: 'center' },
-        1: { cellWidth: 55 },
-        2: { cellWidth: 32, font: 'courier' },
+        1: { cellWidth: 58 },
+        2: { cellWidth: 32 },
         3: { cellWidth: 28 },
         4: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
-        5: { cellWidth: 22, halign: 'right' },
-        6: { cellWidth: 22, halign: 'right' }
+        5: { cellWidth: 20, halign: 'right' },
+        6: { cellWidth: 20, halign: 'right' }
       },
       styles: {
         fontSize: 7.5,
-        cellPadding: 2,
-        textColor: [24, 24, 27]
+        cellPadding: 2.5,
+        textColor: [24, 24, 27],
+        overflow: 'linebreak'
       }
     });
 
-    y = (doc as any).lastAutoTable.finalY + 8;
+    y = (doc as any).lastAutoTable.finalY + 7;
 
-    // 5. SEÇÃO DE FOTOS DA PEÇA QUE SERÁ TROCADA (ALTA PRECISÃO)
+    // 5. SEÇÃO DE FOTOS DA PEÇA QUE SERÁ TROCADA
     if (data.photos && data.photos.length > 0) {
-      // Se não houver espaço suficiente para as fotos na página atual, adiciona nova página
-      if (y > pageHeight - 65) {
+      if (y > pageHeight - 60) {
         doc.addPage();
         y = 15;
       }
@@ -240,17 +275,18 @@ class QuotationRfpPdfGenerator {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9.5);
       doc.setTextColor(24, 24, 27);
-      doc.text(`📸 FOTOS DA PEÇA A SER SUBSTITUÍDA / DETALHES TÉCNICOS (${data.photos.length})`, margin, y);
+      doc.text(`FOTOS DA PEÇA A SER SUBSTITUÍDA / DETALHES TÉCNICOS (${data.photos.length})`, margin, y);
+      
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(113, 113, 122);
-      doc.text('Verifique conexões, furações, modelo e estado físico da peça conforme registros fotográficos anexados.', margin, y + 4);
+      doc.text('Verifique conexões, furações, modelo e estado físico da peça conforme registros fotográficos anexados.', margin, y + 4.5);
 
-      y += 7;
+      y += 8;
 
       const photoWidth = 54;
-      const photoHeight = 40;
-      const spacing = 5;
+      const photoHeight = 38;
+      const spacing = 6;
       let col = 0;
       let photoY = y;
 
@@ -265,25 +301,29 @@ class QuotationRfpPdfGenerator {
         }
 
         try {
-          // Moldura
+          // Moldura Externa
           doc.setFillColor(244, 244, 245);
           doc.rect(photoX, photoY, photoWidth, photoHeight, 'F');
           doc.setDrawColor(212, 212, 216);
           doc.rect(photoX, photoY, photoWidth, photoHeight, 'D');
 
-          // Imagem
+          // Imagem Base64
           if (photo.url && photo.url.startsWith('data:image')) {
             const format = photo.url.includes('png') ? 'PNG' : 'JPEG';
-            doc.addImage(photo.url, format, photoX + 1, photoY + 1, photoWidth - 2, photoHeight - 2);
+            doc.addImage(photo.url, format, photoX + 1, photoY + 1, photoWidth - 2, photoHeight - 7);
           }
 
-          // Legenda da Foto
+          // Barra de Legenda Inferior
+          const captionH = 5.5;
+          const captionY = photoY + photoHeight - captionH;
           doc.setFillColor(24, 24, 27);
-          doc.rect(photoX, photoY + photoHeight - 5, photoWidth, 5, 'F');
+          doc.rect(photoX, captionY, photoWidth, captionH, 'F');
+          
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(6.5);
           doc.setTextColor(255, 255, 255);
-          doc.text(`Foto ${i + 1}: ${photo.name.substring(0, 24)}`, photoX + 2, photoY + photoHeight - 1.5);
+          const photoLabel = `Foto ${i + 1}: ${photo.name || 'Registro'}`;
+          doc.text(this.truncateText(doc, photoLabel, photoWidth - 4), photoX + 2, captionY + 3.8);
         } catch (imgError) {
           console.error('Erro ao adicionar foto ao PDF:', imgError);
         }
@@ -298,44 +338,55 @@ class QuotationRfpPdfGenerator {
       if (col !== 0) {
         photoY += photoHeight + spacing;
       }
-      y = photoY + 4;
+      y = photoY + 2;
     }
 
-    // 6. QUADRO DE PROPOSTA COMERCIAL & CONDIÇÕES (RESPOSTA DO FORNECEDOR)
-    if (y > pageHeight - 50) {
+    // 6. QUADRO DE RESPOSTA DO FORNECEDOR (RETORNO DE COTAÇÃO)
+    const supplierBoxH = 32;
+    if (y > pageHeight - supplierBoxH - 12) {
       doc.addPage();
       y = 15;
     }
 
     doc.setFillColor(250, 250, 250);
-    doc.rect(margin, y, pageWidth - 2 * margin, 32, 'F');
+    doc.rect(margin, y, printableWidth, supplierBoxH, 'F');
     doc.setDrawColor(212, 212, 216);
-    doc.rect(margin, y, pageWidth - 2 * margin, 32, 'D');
+    doc.rect(margin, y, printableWidth, supplierBoxH, 'D');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(24, 24, 27);
-    doc.text('CAMPOS PARA PREENCHIMENTO PELO FORNECEDOR (RETORNO DE COTAÇÃO)', margin + 4, y + 5);
+    doc.text('CAMPOS PARA PREENCHIMENTO PELO FORNECEDOR (RETORNO DE COTAÇÃO)', margin + 5, y + 5.5);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(71, 85, 105);
 
-    doc.text('Razão Social / CNPJ: ____________________________________________________', margin + 4, y + 12);
-    doc.text('Vendedor / Contato: ____________________________________________________', margin + 4, y + 18);
-    doc.text('Condições de Pagamento: [  ] À Vista   [  ] 30 Dias   [  ] 30/60 Dias   [  ] 30/60/90 Dias', margin + 4, y + 24);
+    const supCol1X = margin + 5;
+    const supCol2X = margin + 114;
 
-    doc.text('Prazo de Entrega: ____ Dias', margin + 125, y + 12);
-    doc.text('Garantia: ____ Meses', margin + 125, y + 18);
-    doc.text('Frete: [  ] CIF (Incluso)  [  ] FOB', margin + 125, y + 24);
+    doc.text('Razão Social / CNPJ: ____________________________________', supCol1X, y + 13);
+    doc.text('Vendedor / Contato: ____________________________________', supCol1X, y + 19);
+    doc.text('Condições de Pagamento: [  ] À Vista   [  ] 30 Dias   [  ] 30/60 Dias   [  ] 30/60/90 Dias', supCol1X, y + 25);
 
-    y += 36;
+    doc.text('Prazo de Entrega: _________ Dias', supCol2X, y + 13);
+    doc.text('Garantia Exigida: _________ Meses', supCol2X, y + 19);
+    doc.text('Tipo de Frete: [  ] CIF (Incluso)   [  ] FOB', supCol2X, y + 25);
 
-    // 7. RODAPÉ DE VALIDAÇÃO
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(161, 161, 170);
-    doc.text('Este documento é uma Solicitação Formal de Cotação de Preços. Propostas enviadas serão submetidas à análise comparativa de preços e prazos.', margin, pageHeight - 6);
+    // 7. RODAPÉ E NUMERAÇÃO DE PÁGINAS
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(161, 161, 170);
+
+      const footerText = 'Este documento é uma Solicitação Formal de Cotação de Preços. Propostas enviadas serão submetidas à análise comparativa de preços e prazos.';
+      doc.text(footerText, margin, pageHeight - 6);
+
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
+    }
 
     return doc.output('blob');
   }

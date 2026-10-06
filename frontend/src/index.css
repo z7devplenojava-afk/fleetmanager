@@ -581,27 +581,30 @@
   .responsive-transition {
     @apply transition-all duration-300 ease-in-out;
   }
+}
 
-  /* Melhor contraste para botões em mobile */
-  @media (max-width: 768px) {
-    .mobile-button {
-      @apply border-2 font-semibold;
-    }
+/* Melhor contraste para botões em mobile */
+@media (max-width: 768px) {
+  .mobile-button {
+    border-width: 2px;
+    font-weight: 600;
   }
+}
 
-  /* Estilos específicos para o chatbot */
+/* Estilos específicos para o chatbot */
+.chatbot-button {
+  position: fixed;
+  z-index: 50;
+  right: max(12px, min(24px, calc(100vw - 60px)));
+  bottom: 12px;
+}
+
+@media (min-width: 640px) {
   .chatbot-button {
-    @apply fixed z-50;
-    right: max(12px, min(24px, calc(100vw - 60px)));
-    bottom: 12px;
+    right: 24px;
+    bottom: 24px;
   }
-
-  @media (min-width: 640px) {
-    .chatbot-button {
-      right: 24px;
-      bottom: 24px;
-    }
-  }
+}
 
   /* Prevenir scroll horizontal em modais */
   .chatbot-modal {
@@ -695,4 +698,3 @@
       transform: none !important;
     }
   }
-}

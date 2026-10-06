@@ -114,19 +114,19 @@ export const PartsProcurementHoverCard: React.FC<PartsProcurementHoverCardProps>
             </div>
           )}
 
-          {/* Error / Empty */}
+          {/* Empty State */}
           {!isLoading && (requisitions.length === 0 || isError) && (
             <div className="bg-seguranca-black/40 p-3 rounded-lg border border-gray-700/60 text-center space-y-2">
-              <AlertCircle size={20} className="mx-auto text-amber-400" />
+              <Package size={22} className="mx-auto text-purple-400 opacity-80" />
               <p className="text-xs text-gray-300">
-                Ainda não foi criada solicitação de compra para os itens desta OS.
+                Nenhuma solicitação de peças ou cotação registrada para esta Ordem de Serviço.
               </p>
               <Button
                 size="sm"
                 onClick={() => navigate('/compras/cotacoes')}
                 className="text-xs h-7 bg-purple-600 hover:bg-purple-500 text-white w-full font-semibold"
               >
-                <ShoppingCart size={13} className="mr-1.5" /> Solicitar Compra ao Almoxarifado
+                <ShoppingCart size={13} className="mr-1.5" /> Solicitar Peças ao Almoxarifado
               </Button>
             </div>
           )}

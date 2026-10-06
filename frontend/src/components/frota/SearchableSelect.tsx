@@ -17,6 +17,7 @@ export interface SearchableOption {
 
 interface SearchableSelectProps {
   value: string;
+  fallbackLabel?: string;
   onChange: (value: string, option?: SearchableOption | null) => void;
   options: SearchableOption[];
   placeholder?: string;
@@ -40,6 +41,7 @@ function normalizeText(text?: string): string {
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   value,
+  fallbackLabel,
   onChange,
   options,
   placeholder = 'Selecione uma opção...',
@@ -157,13 +159,20 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   <span className="text-gray-400 text-xs truncate">({selectedOption.subtitle})</span>
                 )}
               </div>
+            ) : fallbackLabel ? (
+              <div className="flex items-center gap-2 truncate">
+                <span className="font-semibold text-white truncate">{fallbackLabel}</span>
+                <Badge className="text-[10px] px-1.5 py-0 h-4 shrink-0 font-mono bg-emerald-950/70 text-emerald-300 border border-emerald-700/60">
+                  Salvo na OS
+                </Badge>
+              </div>
             ) : (
               <span className="text-gray-400 text-xs sm:text-sm truncate">{placeholder}</span>
             )}
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
-            {value && !disabled && (
+            {(Boolean(value) || Boolean(fallbackLabel)) && !disabled && (
               <span
                 role="button"
                 onPointerDown={handleClear}

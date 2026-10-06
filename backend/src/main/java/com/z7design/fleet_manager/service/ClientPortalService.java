@@ -43,17 +43,17 @@ public class ClientPortalService {
      * Obter o ID do cliente associado ao usuário atual
      */
     private UUID resolveClientId(User user) {
+        if (user == null) return null;
         if (user.getClientId() != null) {
             return user.getClientId();
         }
-        // Fallback: tentar buscar por email do cliente
         if (user.getEmail() != null) {
             Optional<Client> clientOpt = clientRepository.findByEmail(user.getEmail());
             if (clientOpt.isPresent()) {
                 return clientOpt.get().getId();
             }
         }
-        throw new BusinessException("Usuário não possui uma empresa cliente vinculada.");
+        return null;
     }
 
     /**
@@ -62,10 +62,31 @@ public class ClientPortalService {
     @Transactional(readOnly = true)
     public ClientPortalDashboardDTO getDashboard(User currentUser) {
         UUID clientId = resolveClientId(currentUser);
-        Client client = clientRepository.findById(clientId)
-                .orElseThrow(() -> new BusinessException("Cliente não encontrado: " + clientId));
+        if (clientId == null) {
+            return ClientPortalDashboardDTO.builder()
+                    .clientName("Administração Interna")
+                    .activeContractsCount(0)
+                    .totalVehiclesAllocated(0)
+                    .vehicles(List.of())
+                    .pendingRequestsCount(0)
+                    .openTicketsCount(0)
+                    .recentRequests(List.of())
+                    .recentTickets(List.of())
+                    .build();
+        }
+        Client client = clientRepository.findById(clientId).orElse(null);
+        if (client == null) {
+            return ClientPortalDashboardDTO.builder()
+                    .clientName("Cliente não encontrado")
+                    .activeContractsCount(0)
+                    .totalVehiclesAllocated(0)
+                    .vehicles(List.of())
+                    .recentRequests(List.of())
+                    .recentTickets(List.of())
+                    .build();
+        }
 
-        UUID companyId = currentUser.getCompanyId() != null ? currentUser.getCompanyId() : client.getCompanyId();
+        UUID companyId = currentUser != null && currentUser.getCompanyId() != null ? currentUser.getCompanyId() : client.getCompanyId();
 
         // 1. Contratos do Cliente
         List<Contract> contracts = contractRepository.findByClientId(clientId);

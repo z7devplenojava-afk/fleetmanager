@@ -920,14 +920,4 @@ Emitido em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeS
 };
 
 export default MobilizationDossierModal;
-          ))}
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
-  );
-};
 
-export default MobilizationDossierModal;

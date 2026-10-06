@@ -32,18 +32,22 @@ public class LineTimeSlotService {
     private final ScheduleDateOverrideRepository scheduleDateOverrideRepository;
     private final RouteRepository routeRepository;
 
+    @Transactional(readOnly = true)
     public List<LineTimeSlot> findAll() {
         return lineTimeSlotRepository.findAllByOrderByDepartureTimeAsc();
     }
 
+    @Transactional(readOnly = true)
     public List<LineTimeSlot> findByRoute(UUID routeId) {
         return lineTimeSlotRepository.findByRouteIdOrderByDepartureTimeAsc(routeId);
     }
 
+    @Transactional(readOnly = true)
     public List<LineTimeSlot> findByRouteAndDayType(UUID routeId, String dayType) {
         return lineTimeSlotRepository.findByRouteIdAndDayTypeOrderByDepartureTimeAsc(routeId, dayType);
     }
 
+    @Transactional(readOnly = true)
     public LineTimeSlot findById(UUID id) {
         return lineTimeSlotRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Horario nao encontrado com ID: " + id));

@@ -336,10 +336,14 @@ public class ClientChecklistService {
     private ClientChecklistRecordDTO recordToDTO(ClientChecklistRecord entity) {
         ClientChecklistRecordDTO dto = new ClientChecklistRecordDTO();
         dto.setId(entity.getId());
-        dto.setTemplateId(entity.getTemplate().getId());
-        dto.setTemplateName(entity.getTemplate().getName());
-        dto.setClientId(entity.getClient().getId());
-        dto.setClientName(entity.getClient().getName());
+        if (entity.getTemplate() != null) {
+            dto.setTemplateId(entity.getTemplate().getId());
+            dto.setTemplateName(entity.getTemplate().getName());
+        }
+        if (entity.getClient() != null) {
+            dto.setClientId(entity.getClient().getId());
+            dto.setClientName(entity.getClient().getName());
+        }
         if (entity.getVehicle() != null) {
             dto.setVehicleId(entity.getVehicle().getId());
             dto.setVehiclePlate(entity.getVehicle().getPlate());

@@ -284,7 +284,15 @@ export function QuotationViewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto bg-seguranca-graphite border-gray-600 text-seguranca-lightgray shadow-2xl p-0">
+      <DialogContent 
+        className="max-w-5xl max-h-[92vh] overflow-y-auto bg-seguranca-graphite border-gray-600 text-seguranca-lightgray shadow-2xl p-0"
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('[data-radix-popper-content-wrapper], [role="listbox"], [role="option"], [data-sonner-toast], .toast, [role="alert"], [role="status"]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader className="bg-gradient-to-r from-seguranca-red via-red-600 to-zinc-900 p-6 rounded-t-lg flex flex-row items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-lg">
@@ -734,7 +742,11 @@ export function QuotationViewModal({
       {/* Modal / Dialog de Zoom de Foto */}
       {previewPhoto && (
         <Dialog open={true} onOpenChange={() => setPreviewPhoto(null)}>
-          <DialogContent className="max-w-4xl bg-zinc-950 border-gray-700 p-2 text-white">
+          <DialogContent 
+            className="max-w-4xl bg-zinc-950 border-gray-700 p-2 text-white"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onInteractOutside={(e) => e.preventDefault()}
+          >
             <DialogHeader className="p-3 border-b border-gray-800 flex flex-row items-center justify-between">
               <DialogTitle className="text-base font-semibold text-seguranca-lightgray flex items-center gap-2">
                 <ImageIcon className="h-4 w-4 text-seguranca-yellow" />
