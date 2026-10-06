@@ -59,6 +59,7 @@ export default defineConfig(({ mode }) => {
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+        globIgnores: ['**/node_modules/**/*', '**/xlsx-*.js', '**/pdf-*.js'],
         skipWaiting: true,
         clientsClaim: true,
         // Limpar caches antigos automaticamente

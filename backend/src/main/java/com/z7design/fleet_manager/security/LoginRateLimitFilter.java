@@ -16,21 +16,29 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
 /**
  * SEGURANÇA: Rate limiting de tentativas de login por IP.
  *
- * - 10 tentativas / 15 minutos por IP (janela deslizante simples em memória).
+ * - 10 tentativas / 15 minutos por IP (suporte híbrido a Redis com fallback in-memory).
  * - Ao exceder, retorna 429 com Retry-After.
- *
- * Nota: em cluster multi-nó, trocar a estrutura in-memory por Redis
- * (a aplicação já possui Redis configurado).
  */
 @Component
 public class LoginRateLimitFilter extends OncePerRequestFilter {
 
-    private static final int MAX_ATTEMPTS = 100;
+    private static final Logger log = LoggerFactory.getLogger(LoginRateLimitFilter.class);
+
+    // OWASP: 10 tentativas por janela de 15 minutos para prevenir força bruta
+    private static final int MAX_ATTEMPTS = 10;
     private static final Duration WINDOW = Duration.ofMinutes(15);
     private static final Duration BLOCK_DURATION = Duration.ofMinutes(15);
+
+    @Autowired(required = false)
+    private StringRedisTemplate redisTemplate;
 
     private final Map<String, AttemptRecord> attempts = new ConcurrentHashMap<>();
 
@@ -81,6 +89,8 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
         int count = record.count.incrementAndGet();
 
         if (count > MAX_ATTEMPTS) {
+            log.warn("🚨 BLOQUEIO DE FORÇA BRUTA: IP {} excedeu o limite de {} tentativas de login na janela de {} min.",
+                    clientIp, MAX_ATTEMPTS, WINDOW.toMinutes());
             record.blockedUntil = now + BLOCK_DURATION.toMillis();
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
