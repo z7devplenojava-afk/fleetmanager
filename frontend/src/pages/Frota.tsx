@@ -2093,6 +2093,8 @@ const Frota: React.FC = () => {
           onSuccess={handleManutencaoSuccess}
           veiculos={vehicles || []}
           manutencao={selectedManutencao}
+        />
+
         <ManutencaoViewModal
           isOpen={isManutencaoViewModalOpen}
           onClose={() => {
