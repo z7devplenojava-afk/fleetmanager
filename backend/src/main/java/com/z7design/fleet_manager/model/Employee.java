@@ -526,6 +526,38 @@ public class Employee implements TenantAware {
     @Column(name = "next_laudo_psicologico")
     private LocalDate nextLaudoPsicologico;
 
+    @Column(name = "laudo_psicologico_status", length = 50)
+    private String laudoPsicologicoStatus;
+
+    @Column(name = "laudo_psicologico_profissional", length = 150)
+    private String laudoPsicologicoProfissional;
+
+    @Column(name = "laudo_psicologico_observacoes", columnDefinition = "TEXT")
+    private String laudoPsicologicoObservacoes;
+
+    // RF07 - Histórico de Processo Judicial
+    @Column(name = "processo_judicial_possui")
+    private Boolean processoJudicialPossui;
+
+    @Column(name = "processo_judicial_numero", length = 100)
+    private String processoJudicialNumero;
+
+    @Column(name = "processo_judicial_vara", length = 150)
+    private String processoJudicialVara;
+
+    @Column(name = "processo_judicial_tipo_acao", length = 100)
+    private String processoJudicialTipoAcao;
+
+    @Column(name = "processo_judicial_status", length = 50)
+    private String processoJudicialStatus;
+
+    @Column(name = "processo_judicial_data_distribuicao")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate processoJudicialDataDistribuicao;
+
+    @Column(name = "processo_judicial_observacoes", columnDefinition = "TEXT")
+    private String processoJudicialObservacoes;
+
     @Column(name = "next_exame_medico")
     private LocalDate nextExameMedico;
 

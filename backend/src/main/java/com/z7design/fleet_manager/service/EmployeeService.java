@@ -23,6 +23,7 @@ import com.z7design.fleet_manager.repository.PositionRepository;
 import com.z7design.fleet_manager.repository.UnitRepository;
 import com.z7design.fleet_manager.dto.EmployeeDTO;
 import com.z7design.fleet_manager.dto.SimpleEmployeeDTO;
+import com.z7design.fleet_manager.tenant.TenantContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -253,6 +254,7 @@ public class EmployeeService {
                 existingEmployee.setUnit(unitRepository.findById(dto.getUnit().getId()).orElse(null));
             }
             if (dto.getCompany() != null && dto.getCompany().getId() != null) {
+                existingEmployee.setCompanyId(dto.getCompany().getId());
                 existingEmployee.setCompany(companyRepository.findById(dto.getCompany().getId()).orElse(null));
             }
             
@@ -262,7 +264,7 @@ public class EmployeeService {
                     UUID workPostId = UUID.fromString(dto.getWorkPostId());
                     existingEmployee.setWorkPost(workPostRepository.findById(workPostId).orElse(null));
                 } catch (IllegalArgumentException e) {
-                    System.err.println("[WARNING] WorkPostId invÃ¡lido: " + dto.getWorkPostId());
+                    System.err.println("[WARNING] WorkPostId inválido: " + dto.getWorkPostId());
                 }
             } else {
                 existingEmployee.setWorkPost(null);
@@ -274,13 +276,13 @@ public class EmployeeService {
                     UUID departmentId = UUID.fromString(dto.getDepartmentId());
                     existingEmployee.setDepartment(departmentRepository.findById(departmentId).orElse(null));
                 } catch (IllegalArgumentException e) {
-                    System.err.println("[WARNING] DepartmentId invÃ¡lido: " + dto.getDepartmentId());
+                    System.err.println("[WARNING] DepartmentId inválido: " + dto.getDepartmentId());
                 }
             } else {
                 existingEmployee.setDepartment(null);
             }
             
-            // Atualizar dados do exame mÃ©dico (ASO)
+            // Atualizar dados do exame médico (ASO)
             if (dto.getExameMedicoData() != null) {
                 existingEmployee.setExameMedicoData(dto.getExameMedicoData());
             }
@@ -295,6 +297,38 @@ public class EmployeeService {
                 existingEmployee.setNextLaudoPsicologico(dto.getNextLaudoPsicologico() != null
                         ? dto.getNextLaudoPsicologico()
                         : dto.getLaudoPsicologicoData().plusYears(1));
+            }
+            if (dto.getLaudoPsicologicoStatus() != null) {
+                existingEmployee.setLaudoPsicologicoStatus(dto.getLaudoPsicologicoStatus());
+            }
+            if (dto.getLaudoPsicologicoProfissional() != null) {
+                existingEmployee.setLaudoPsicologicoProfissional(dto.getLaudoPsicologicoProfissional());
+            }
+            if (dto.getLaudoPsicologicoObservacoes() != null) {
+                existingEmployee.setLaudoPsicologicoObservacoes(dto.getLaudoPsicologicoObservacoes());
+            }
+            
+            // Atualizar Processo Judicial
+            if (dto.getProcessoJudicialPossui() != null) {
+                existingEmployee.setProcessoJudicialPossui(dto.getProcessoJudicialPossui());
+            }
+            if (dto.getProcessoJudicialNumero() != null) {
+                existingEmployee.setProcessoJudicialNumero(dto.getProcessoJudicialNumero());
+            }
+            if (dto.getProcessoJudicialVara() != null) {
+                existingEmployee.setProcessoJudicialVara(dto.getProcessoJudicialVara());
+            }
+            if (dto.getProcessoJudicialTipoAcao() != null) {
+                existingEmployee.setProcessoJudicialTipoAcao(dto.getProcessoJudicialTipoAcao());
+            }
+            if (dto.getProcessoJudicialStatus() != null) {
+                existingEmployee.setProcessoJudicialStatus(dto.getProcessoJudicialStatus());
+            }
+            if (dto.getProcessoJudicialDataDistribuicao() != null) {
+                existingEmployee.setProcessoJudicialDataDistribuicao(dto.getProcessoJudicialDataDistribuicao());
+            }
+            if (dto.getProcessoJudicialObservacoes() != null) {
+                existingEmployee.setProcessoJudicialObservacoes(dto.getProcessoJudicialObservacoes());
             }
             if (dto.getExameMedicoTipo() != null) {
                 existingEmployee.setExameMedicoTipo(dto.getExameMedicoTipo());
@@ -981,8 +1015,15 @@ public class EmployeeService {
                 e.setUnit(unitRepository.findById(dto.getUnit().getId()).orElse(null));
             }
             
+            UUID effectiveCompanyId = null;
             if (dto.getCompany() != null && dto.getCompany().getId() != null) {
-                e.setCompany(companyRepository.findById(dto.getCompany().getId()).orElse(null));
+                effectiveCompanyId = dto.getCompany().getId();
+            } else if (TenantContext.get() != null) {
+                effectiveCompanyId = TenantContext.get();
+            }
+            if (effectiveCompanyId != null) {
+                e.setCompanyId(effectiveCompanyId);
+                e.setCompany(companyRepository.findById(effectiveCompanyId).orElse(null));
             }
             
             // Mapear WorkPost se fornecido
@@ -991,7 +1032,7 @@ public class EmployeeService {
                     UUID workPostId = UUID.fromString(dto.getWorkPostId());
                     e.setWorkPost(workPostRepository.findById(workPostId).orElse(null));
                 } catch (IllegalArgumentException ex) {
-                    System.err.println("[WARNING] WorkPostId invÃ¡lido: " + dto.getWorkPostId());
+                    System.err.println("[WARNING] WorkPostId inválido: " + dto.getWorkPostId());
                 }
             }
             
@@ -1001,11 +1042,11 @@ public class EmployeeService {
                     UUID departmentId = UUID.fromString(dto.getDepartmentId());
                     e.setDepartment(departmentRepository.findById(departmentId).orElse(null));
                 } catch (IllegalArgumentException ex) {
-                    System.err.println("[WARNING] DepartmentId invÃ¡lido: " + dto.getDepartmentId());
+                    System.err.println("[WARNING] DepartmentId inválido: " + dto.getDepartmentId());
                 }
             }
             
-            // Mapear dados do exame mÃ©dico (ASO)
+            // Mapear dados do exame médico (ASO)
             if (dto.getExameMedicoData() != null) {
                 e.setExameMedicoData(dto.getExameMedicoData());
             }
@@ -1020,6 +1061,38 @@ public class EmployeeService {
                 e.setNextLaudoPsicologico(dto.getNextLaudoPsicologico() != null
                         ? dto.getNextLaudoPsicologico()
                         : dto.getLaudoPsicologicoData().plusYears(1));
+            }
+            if (dto.getLaudoPsicologicoStatus() != null) {
+                e.setLaudoPsicologicoStatus(dto.getLaudoPsicologicoStatus());
+            }
+            if (dto.getLaudoPsicologicoProfissional() != null) {
+                e.setLaudoPsicologicoProfissional(dto.getLaudoPsicologicoProfissional());
+            }
+            if (dto.getLaudoPsicologicoObservacoes() != null) {
+                e.setLaudoPsicologicoObservacoes(dto.getLaudoPsicologicoObservacoes());
+            }
+            
+            // Mapear Processo Judicial
+            if (dto.getProcessoJudicialPossui() != null) {
+                e.setProcessoJudicialPossui(dto.getProcessoJudicialPossui());
+            }
+            if (dto.getProcessoJudicialNumero() != null) {
+                e.setProcessoJudicialNumero(dto.getProcessoJudicialNumero());
+            }
+            if (dto.getProcessoJudicialVara() != null) {
+                e.setProcessoJudicialVara(dto.getProcessoJudicialVara());
+            }
+            if (dto.getProcessoJudicialTipoAcao() != null) {
+                e.setProcessoJudicialTipoAcao(dto.getProcessoJudicialTipoAcao());
+            }
+            if (dto.getProcessoJudicialStatus() != null) {
+                e.setProcessoJudicialStatus(dto.getProcessoJudicialStatus());
+            }
+            if (dto.getProcessoJudicialDataDistribuicao() != null) {
+                e.setProcessoJudicialDataDistribuicao(dto.getProcessoJudicialDataDistribuicao());
+            }
+            if (dto.getProcessoJudicialObservacoes() != null) {
+                e.setProcessoJudicialObservacoes(dto.getProcessoJudicialObservacoes());
             }
             if (dto.getExameMedicoTipo() != null) {
                 e.setExameMedicoTipo(dto.getExameMedicoTipo());
@@ -1316,18 +1389,49 @@ public class EmployeeService {
                 try {
                     EmployeeDTO.IdOnlyDTO companyDTO = new EmployeeDTO.IdOnlyDTO();
                     companyDTO.setId(e.getCompany().getId());
+                    companyDTO.setName(e.getCompany().getName());
                     dto.setCompany(companyDTO);
                 } catch (Exception companyEx) {
                     System.err.println("[WARNING] Erro ao mapear company: " + companyEx.getMessage());
                     dto.setCompany(null);
                 }
+            } else if (e.getCompanyId() != null) {
+                EmployeeDTO.IdOnlyDTO companyDTO = new EmployeeDTO.IdOnlyDTO();
+                companyDTO.setId(e.getCompanyId());
+                companyRepository.findById(e.getCompanyId()).ifPresent(c -> companyDTO.setName(c.getName()));
+                dto.setCompany(companyDTO);
             }
             
             // Dados de exames (ASO, Laudo Psicológico e próximos vencimentos)
             dto.setExameMedicoData(e.getExameMedicoData());
             dto.setNextExameMedico(e.getNextExameMedico());
+            dto.setExameMedicoTipo(e.getExameMedicoTipo());
+            if (e.getExameMedicoDoctor() != null) {
+                EmployeeDTO.IdOnlyDTO doctorDTO = new EmployeeDTO.IdOnlyDTO();
+                doctorDTO.setId(e.getExameMedicoDoctor().getId());
+                doctorDTO.setName(e.getExameMedicoDoctor().getName());
+                dto.setExameMedicoDoctor(doctorDTO);
+            }
+            dto.setExameMedicoHorario(e.getExameMedicoHorario());
+            dto.setExameMedicoIntervalosRefeicao(e.getExameMedicoIntervalosRefeicao());
+            dto.setExameMedicoObservacoes(e.getExameMedicoObservacoes());
+            dto.setExameMedicoPrimeiroEmprego(e.getExameMedicoPrimeiroEmprego());
+            dto.setExameMedicoContribuicaoSindicalPaga(e.getExameMedicoContribuicaoSindicalPaga());
+
             dto.setLaudoPsicologicoData(e.getLaudoPsicologicoData());
             dto.setNextLaudoPsicologico(e.getNextLaudoPsicologico());
+            dto.setLaudoPsicologicoStatus(e.getLaudoPsicologicoStatus());
+            dto.setLaudoPsicologicoProfissional(e.getLaudoPsicologicoProfissional());
+            dto.setLaudoPsicologicoObservacoes(e.getLaudoPsicologicoObservacoes());
+
+            // Processo Judicial
+            dto.setProcessoJudicialPossui(e.getProcessoJudicialPossui());
+            dto.setProcessoJudicialNumero(e.getProcessoJudicialNumero());
+            dto.setProcessoJudicialVara(e.getProcessoJudicialVara());
+            dto.setProcessoJudicialTipoAcao(e.getProcessoJudicialTipoAcao());
+            dto.setProcessoJudicialStatus(e.getProcessoJudicialStatus());
+            dto.setProcessoJudicialDataDistribuicao(e.getProcessoJudicialDataDistribuicao());
+            dto.setProcessoJudicialObservacoes(e.getProcessoJudicialObservacoes());
             
             System.out.println("[DEBUG] DTO criado com sucesso para: " + dto.getName());
             return dto;

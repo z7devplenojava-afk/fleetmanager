@@ -292,8 +292,20 @@ export interface Employee {
   // Dados de exames (ASO e Laudo Psicológico)
   exameMedicoData?: string;
   laudoPsicologicoData?: string;
+  laudoPsicologicoStatus?: string;
+  laudoPsicologicoProfissional?: string;
+  laudoPsicologicoObservacoes?: string;
   nextExameMedico?: string;
   nextLaudoPsicologico?: string;
+  
+  // Histórico de Processo Judicial (RF07)
+  processoJudicialPossui?: boolean;
+  processoJudicialNumero?: string;
+  processoJudicialTribunalVara?: string;
+  processoJudicialTipoAcao?: string;
+  processoJudicialStatus?: string;
+  processoJudicialDataDistribuicao?: string;
+  processoJudicialObservacoes?: string;
   
   createdAt?: string;
   updatedAt?: string;
@@ -441,9 +453,21 @@ export interface CreateEmployeeDTO {
   
   // Laudo Psicológico (exame psicotecnico)
   laudoPsicologicoData?: string;
+  laudoPsicologicoStatus?: string;
+  laudoPsicologicoProfissional?: string;
+  laudoPsicologicoObservacoes?: string;
   // Próximos vencimentos (calculados pelo backend: data + 1 ano)
   nextExameMedico?: string;
   nextLaudoPsicologico?: string;
+
+  // Histórico de Processo Judicial (RF07)
+  processoJudicialPossui?: boolean;
+  processoJudicialNumero?: string;
+  processoJudicialTribunalVara?: string;
+  processoJudicialTipoAcao?: string;
+  processoJudicialStatus?: string;
+  processoJudicialDataDistribuicao?: string;
+  processoJudicialObservacoes?: string;
   
   // Dados do cônjuge
   spouseName?: string;
