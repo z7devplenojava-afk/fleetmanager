@@ -6,12 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Truck, ClipboardCheck, AlertTriangle, Save, Camera, CheckCircle2, X } from 'lucide-react';
+import { Truck, ClipboardCheck, AlertTriangle, Save, Camera, CheckCircle2, X, Download, FileText } from 'lucide-react';
 import fleetService from '@/services/fleetService';
 import driverService from '@/services/driverService';
 import clientService from '@/services/clientService';
 import workPostService from '@/services/workPostService';
 import transportMobilizationService from '@/services/transportMobilizationService';
+import { generatePreUseChecklistPDF } from '@/utils/preUseChecklistPdfGenerator';
 import type { MobilizationType, CreateTransportMobilizationDTO, ChecklistItemDetail } from '@/types/mobilization';
 
 interface MobilizationInspectionModalProps {
@@ -128,6 +129,31 @@ export const MobilizationInspectionModal: React.FC<MobilizationInspectionModalPr
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGeneratePdfDirect = async () => {
+    const selectedVehicle = vehicles.find(v => v.id === vehicleId);
+    const selectedDriver = drivers.find(d => d.id === driverId);
+    const selectedClient = clients.find(c => c.id === clientId);
+
+    await generatePreUseChecklistPDF({
+      vehiclePlate: selectedVehicle?.plate || 'Não Informada',
+      vehicleBrand: selectedVehicle?.brand,
+      vehicleModel: selectedVehicle?.model,
+      kmReading: kmReading || 0,
+      driverName: selectedDriver?.name || 'Não Informado',
+      driverCpf: selectedDriver?.cpf,
+      clientName: selectedClient?.name || 'Cliente Geral',
+      occurredAt: new Date().toISOString(),
+      type,
+      observations,
+      items
+    });
+
+    toast({
+      title: 'PDF do Checklist Gerado!',
+      description: 'O relatório em PDF foi baixado com sucesso.'
+    });
   };
 
   return (
@@ -284,6 +310,14 @@ export const MobilizationInspectionModal: React.FC<MobilizationInspectionModalPr
           </div>
 
           <div className="flex justify-end gap-3 pt-3 border-t border-zinc-800">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGeneratePdfDirect}
+              className="border-purple-500/50 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 font-bold rounded-xl flex items-center gap-1.5"
+            >
+              <Download size={15} /> Baixar PDF Checklist
+            </Button>
             <Button
               type="button"
               variant="outline"

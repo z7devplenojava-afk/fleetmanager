@@ -2,7 +2,7 @@ import api from '@/lib/axios';
 
 export interface Tire {
     id: string;
-    serialNumber: string;
+    serialNumber: string; // Código / DOT / Fogo do pneu
     brand: string;
     model: string;
     size: string;
@@ -13,6 +13,14 @@ export interface Tire {
     vehiclePlate?: string;
     axleNumber?: number;
     positionIndex?: number;
+    dot?: string;
+    initialTreadDepth?: number;
+    currentTreadDepth?: number;
+    acquisitionCost?: number;
+    cpk?: number;
+    locationNotes?: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface TireMovement {
@@ -28,9 +36,33 @@ export interface TireMovement {
     movementDate: string;
 }
 
+export interface TireMountPayload {
+    tireId: string;
+    vehicleId: string;
+    axleNumber: number;
+    positionIndex: number;
+    positionCode?: string;
+    currentVehicleKm?: number;
+    treadDepthMm?: number;
+    notes?: string;
+}
+
+export interface TireDismountPayload {
+    tireId: string;
+    currentVehicleKm?: number;
+    treadDepthMm?: number;
+    removalReason: 'ESTOQUE' | 'ENVIAR_REFORMA' | 'DESCARTE_SUCATA' | 'FURO_AVARIA';
+    notes?: string;
+}
+
 class TireService {
     async findAll(): Promise<Tire[]> {
         const response = await api.get('/api/tires');
+        return response.data;
+    }
+
+    async findAvailable(): Promise<Tire[]> {
+        const response = await api.get('/api/tires/available');
         return response.data;
     }
 
@@ -51,6 +83,21 @@ class TireService {
 
     async delete(id: string): Promise<void> {
         await api.delete(`/api/tires/${id}`);
+    }
+
+    async mountTire(payload: TireMountPayload): Promise<Tire> {
+        const response = await api.post('/api/tires/mount', payload);
+        return response.data;
+    }
+
+    async dismountTire(payload: TireDismountPayload): Promise<Tire> {
+        const response = await api.post('/api/tires/dismount', payload);
+        return response.data;
+    }
+
+    async getVehicleChassis(vehicleId: string): Promise<any> {
+        const response = await api.get(`/api/tires/chassis/${vehicleId}`);
+        return response.data;
     }
 
     async registerMovement(movement: Partial<TireMovement>): Promise<TireMovement> {

@@ -240,16 +240,16 @@
     animation-duration: 0.2s !important;
     transition-duration: 0.2s !important;
   }
+}
+
+/* Remover hover effects em touch devices */
+@media (hover: none) {
+  .hover\:scale-105:hover {
+    transform: none !important;
+  }
   
-  /* Remover hover effects em touch devices */
-  @media (hover: none) {
-    .hover\:scale-105:hover {
-      transform: none !important;
-    }
-    
-    .hover\:shadow-lg:hover {
-      box-shadow: inherit !important;
-    }
+  .hover\:shadow-lg:hover {
+    box-shadow: inherit !important;
   }
 }
 

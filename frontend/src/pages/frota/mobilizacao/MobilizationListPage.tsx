@@ -21,7 +21,8 @@ import {
     AlertTriangle,
     FolderCheck,
     FileText,
-    CheckCircle2
+    CheckCircle2,
+    Download
 } from 'lucide-react';
 import {
     Select,
@@ -36,6 +37,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { MobilizationType, TransportMobilization } from '@/types/mobilization';
 import { MobilizationInspectionModal } from '@/components/frota/MobilizationInspectionModal';
 import { MobilizationDossierModal } from '@/components/frota/MobilizationDossierModal';
+import { generatePreUseChecklistPDF } from '@/utils/preUseChecklistPdfGenerator';
 
 const MobilizationListPage: React.FC = () => {
     const navigate = useNavigate();
@@ -87,9 +89,42 @@ const MobilizationListPage: React.FC = () => {
         setInspectionModalOpen(true);
     };
 
-    const openDossier = (mob?: TransportMobilization) => {
-        setSelectedMobilization(mob || null);
-        setDossierModalOpen(true);
+    const handleGenerateChecklistPDF = async (m: TransportMobilization) => {
+        try {
+            let items: any[] = [];
+            if (m.checklistData) {
+                try {
+                    items = typeof m.checklistData === 'string' ? JSON.parse(m.checklistData) : m.checklistData;
+                } catch (e) {
+                    console.warn('Erro ao converter checklistData:', e);
+                }
+            }
+
+            await generatePreUseChecklistPDF({
+                id: m.id,
+                vehiclePlate: m.vehiclePlate || 'Veículo',
+                driverName: m.driverName,
+                clientName: m.clientName,
+                workPostName: m.workPostName,
+                occurredAt: m.occurredAt,
+                kmReading: m.kmReading,
+                type: m.type,
+                observations: m.observations,
+                items: items
+            });
+
+            toast({
+                title: 'PDF Gerado com Sucesso!',
+                description: 'Relatório do Checklist de Pré-Uso baixado.'
+            });
+        } catch (err: any) {
+            console.error('Erro ao gerar PDF:', err);
+            toast({
+                title: 'Erro ao gerar PDF',
+                description: err?.message || 'Falha ao processar o relatório em PDF.',
+                variant: 'destructive'
+            });
+        }
     };
 
     return (
@@ -277,6 +312,15 @@ const MobilizationListPage: React.FC = () => {
                                                 </td>
                                                 <td className="p-4 text-center">
                                                     <div className="flex justify-center items-center gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleGenerateChecklistPDF(m)}
+                                                            className="border-purple-500/40 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 text-xs font-semibold h-8 px-2.5 rounded-lg flex items-center gap-1"
+                                                            title="Baixar Relatório em PDF do Checklist de Pré-Uso"
+                                                        >
+                                                            <FileText className="h-3.5 w-3.5" /> Checklist PDF
+                                                        </Button>
                                                         <Button
                                                             variant="outline"
                                                             size="sm"

@@ -45,13 +45,18 @@ public class ProcurementController {
     @Operation(summary = "Lista ordens de compra para o Financeiro/Almoxarifado")
     public ResponseEntity<List<ProcurementPurchaseOrderDTO>> listPurchaseOrders(
             @RequestParam(value = "status", required = false) String status) {
-        ProcurementPurchaseOrder.PurchaseOrderStatus statusEnum = null;
-        if (status != null && !status.trim().isEmpty() && !status.equalsIgnoreCase("ALL")) {
-            try {
-                statusEnum = ProcurementPurchaseOrder.PurchaseOrderStatus.valueOf(status.trim().toUpperCase());
-            } catch (Exception ignored) {}
+        try {
+            ProcurementPurchaseOrder.PurchaseOrderStatus statusEnum = null;
+            if (status != null && !status.trim().isEmpty() && !status.equalsIgnoreCase("ALL")) {
+                try {
+                    statusEnum = ProcurementPurchaseOrder.PurchaseOrderStatus.valueOf(status.trim().toUpperCase());
+                } catch (Exception ignored) {}
+            }
+            return ResponseEntity.ok(procurementService.listPurchaseOrders(statusEnum));
+        } catch (Exception e) {
+            log.error("Erro ao listar ordens de compra: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
         }
-        return ResponseEntity.ok(procurementService.listPurchaseOrders(statusEnum));
     }
 
     @PostMapping("/purchase-orders/financial-approval")

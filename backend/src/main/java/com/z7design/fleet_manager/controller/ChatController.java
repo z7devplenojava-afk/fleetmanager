@@ -260,19 +260,22 @@ public class ChatController {
     @GetMapping("/unread/count")
     public ResponseEntity<Long> countUnreadMessages(Authentication authentication) {
         try {
+            if (authentication == null || authentication.getName() == null) {
+                return ResponseEntity.ok(0L);
+            }
             String username = authentication.getName();
             UUID userId = getUserIdFromUsername(username);
             
             if (userId == null) {
-                log.error("UsuÃ¡rio nÃ£o encontrado para username: {}", username);
-                return ResponseEntity.badRequest().build();
+                log.warn("Usuário não encontrado para username: {}", username);
+                return ResponseEntity.ok(0L);
             }
             
             Long count = chatService.countUnreadMessages(userId);
-            return ResponseEntity.ok(count);
+            return ResponseEntity.ok(count != null ? count : 0L);
         } catch (Exception e) {
-            log.error("Erro ao contar mensagens nÃ£o lidas: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
+            log.error("Erro ao contar mensagens não lidas: {}", e.getMessage(), e);
+            return ResponseEntity.ok(0L);
         }
     }
     

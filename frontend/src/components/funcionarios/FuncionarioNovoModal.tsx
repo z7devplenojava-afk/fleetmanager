@@ -34,6 +34,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EmployeeHistoryTimeline from '@/components/funcionarios/EmployeeHistoryTimeline';
 import EmployeeDocumentsTab from '@/components/funcionarios/EmployeeDocumentsTab';
+import { generateSingleAdmissionDocumentPdf, generatePacoteAdmissionalCompleto, EmployeeAdmissionData } from '@/utils/admissionDocumentsPdfGenerator';
 
 interface FuncionarioNovoModalProps {
   open: boolean;
@@ -1598,6 +1599,108 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
     }
   };
 
+  const getAdmissionDataFromForm = (): EmployeeAdmissionData => {
+    return {
+      id: employeeIdValue,
+      name: form.name || 'Funcionário',
+      cpf: form.cpf,
+      rg: form.rg,
+      carteiraIdentidadeOrgaoEmissor: form.carteiraIdentidadeOrgaoEmissor,
+      carteiraIdentidadeDataEmissao: form.carteiraIdentidadeDataEmissao,
+      birthDate: form.birthDate,
+      maritalStatus: form.maritalStatus,
+      nationality: form.nationality || 'Brasileiro',
+      sexo: form.sexo || form.gender,
+      racaCor: (form as any).racaCor,
+      nomePai: form.nomePai,
+      nomeMae: form.nomeMae,
+      registrationNumber: form.registrationNumber || form.matriculaEsocial,
+      matriculaEsocial: form.matriculaEsocial,
+      hireDate: form.hireDate,
+      salario: form.salario,
+      salarioPorExtenso: form.salarioPorExtenso,
+      horarioTrabalho: form.horarioTrabalho,
+      cargo: selectedPosition?.name || (employeeToEdit?.position?.name) || '',
+      cbo: form.cbo || selectedPosition?.cbo || '',
+      
+      enderecoRua: form.enderecoRua || form.address,
+      enderecoNumero: form.enderecoNumero,
+      enderecoComplemento: form.enderecoComplemento,
+      enderecoBairro: form.enderecoBairro,
+      enderecoCidade: form.enderecoCidade,
+      enderecoEstado: form.enderecoEstado,
+      enderecoCep: form.enderecoCep,
+      address: form.address,
+
+      ctps: form.ctps,
+      ctpsSeries: form.ctpsSeries,
+      ctpsState: (form as any).ctpsState || 'MG',
+      ctpsIssueDate: form.ctpsIssueDate,
+      pis: form.pis,
+      cnhNumber: form.cnhNumber,
+      cnhCategory: form.cnhCategory,
+      cnhExpirationDate: form.cnhExpirationDate,
+
+      empresaNome: form.empresaNome || selectedCompany?.name || 'VIACAO SAO SILVESTRE LTDA',
+      empresaCnpj: form.empresaCnpj || selectedCompany?.cnpj || '71.055.644/0001-25',
+      empresaEndereco: form.empresaEndereco || selectedCompany?.address || 'Rua DOS ESPORTES, 45',
+      empresaCidade: selectedCompany?.city || 'Moeda',
+      empresaEstado: selectedCompany?.state || 'MG',
+
+      spouseName: form.spouseName,
+      spouseCpf: form.spouseCpf,
+
+      dependents: employeeDependents.map(d => ({
+        name: d.name,
+        relationship: d.relationship,
+        birthDate: d.birthDate,
+        cpf: d.cpf,
+        rg: d.rg
+      }))
+    };
+  };
+
+  const handleGenerateAdmissionDoc = (docType: string, mode: 'download' | 'preview') => {
+    const data = getAdmissionDataFromForm();
+    if (!data.name || data.name.trim() === '') {
+      toast({
+        title: "Atenção",
+        description: "Preencha o nome do funcionário para gerar o documento.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const pdfDoc = generateSingleAdmissionDocumentPdf(docType, data);
+      const blob = pdfDoc.output('blob');
+      const safeName = data.name.replace(/\s+/g, '_').toLowerCase();
+
+      if (mode === 'preview') {
+        openBlobInNewTab(blob);
+      } else {
+        const filename = docType === 'pacote-completo' 
+          ? `pacote_admissional_${safeName}.pdf` 
+          : `documento_${docType}_${safeName}.pdf`;
+        downloadBlob(blob, filename);
+      }
+
+      toast({
+        title: "Documento Gerado",
+        description: docType === 'pacote-completo' 
+          ? "Pacote admissional completo em PDF gerado com sucesso!" 
+          : "Documento admissional gerado com sucesso.",
+      });
+    } catch (err: any) {
+      console.error('Erro ao gerar documento admissional:', err);
+      toast({
+        title: "Erro ao gerar PDF",
+        description: err.message || "Ocorreu um erro ao gerar o documento.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <TooltipProvider>
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -1877,11 +1980,15 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                   <Tabs defaultValue="cadastro" className="space-y-4 sm:space-y-6">
-                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-seguranca-graphite border border-gray-600 h-auto">
+                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6 bg-seguranca-graphite border border-gray-600 h-auto">
                       <TabsTrigger value="cadastro" className="py-2">Cadastro</TabsTrigger>
                       <TabsTrigger value="historico" className="py-2">Histórico</TabsTrigger>
                       <TabsTrigger value="documentos" className="py-2">Documentos</TabsTrigger>
                       <TabsTrigger value="dependentes" className="py-2">Dependentes</TabsTrigger>
+                      <TabsTrigger value="documentos-admissionais" className="py-2 text-seguranca-yellow font-semibold flex items-center justify-center gap-1">
+                        <FileCheck className="h-3.5 w-3.5" />
+                        Doc. Admissionais
+                      </TabsTrigger>
                       <TabsTrigger value="relatorios" className="py-2">Relatórios</TabsTrigger>
                     </TabsList>
                     <TabsContent value="cadastro" className="space-y-4 sm:space-y-6">
@@ -3881,6 +3988,267 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
               </div>
               </div>
             </Card>
+          </TabsContent>
+          <TabsContent value="documentos-admissionais" className="space-y-4 sm:space-y-6">
+            {/* Card Principal: Baixar Todos os Documentos (Pacote Completo) */}
+            <Card className="bg-gradient-to-r from-seguranca-graphite via-gray-800 to-gray-700 border-2 border-seguranca-yellow shadow-lg">
+              <div className="p-4 sm:p-5 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-seguranca-yellow/20 rounded-xl border border-seguranca-yellow/30">
+                      <FileCheck className="h-6 w-6 text-seguranca-yellow" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        PACOTE ADMISSIONAL COMPLETO (PDF ÚNICO)
+                      </h3>
+                      <p className="text-xs text-seguranca-lightgray/80 mt-0.5">
+                        Gera um único PDF compilando todos os 5 documentos de admissão preenchidos com os dados do funcionário.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      type="button"
+                      onClick={() => handleGenerateAdmissionDoc('pacote-completo', 'download')}
+                      className="bg-seguranca-yellow hover:bg-seguranca-yellow/90 text-seguranca-black font-semibold h-10 px-4 text-xs sm:text-sm"
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Baixar Todos (PDF Único)
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('pacote-completo', 'preview')}
+                      className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 h-10 px-3 text-xs sm:text-sm"
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      Visualizar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Grid dos 6 Documentos Admissionais Oficiais */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* 1. SOLICITAÇÃO DE VALE - TRANSPORTE */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileText className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">1. SOLICITAÇÃO DE VALE - TRANSPORTE</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Termo oficial de opção/declaração de Vale-Transporte (Decreto nº 95.247/87).
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('vt', 'download')}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('vt', 'preview')}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 2. Declaração De Encargos De Família Para Fins De Imposto De Renda */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileText className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">2. Declaração De Encargos De Família (IRPF)</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Declaração para fins de dedução do Imposto de Renda Retido na Fonte (IN RFB 1.500/14).
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('ir', 'download')}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('ir', 'preview')}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 3. Ficha de Salário-Família */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileText className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">3. Ficha de Salário-Família</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Ficha oficial de acompanhamento e concessão do benefício de Salário-Família.
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('salario-familia', 'download')}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('salario-familia', 'preview')}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 4. Termo de Responsabilidade */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileText className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">4. Termo de Responsabilidade (Salário-Família)</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Termo de responsabilidade conforme Portaria MPAS nº 3.040/1982.
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('termo-responsabilidade', 'download')}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('termo-responsabilidade', 'preview')}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 5. CONTRATO DE TRABALHO A TÍTULO DE EXPERIÊNCIA */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileText className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">5. CONTRATO DE TRABALHO DE EXPERIÊNCIA</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Contrato individual a título de experiência (Art. 443 §2º "c" CLT) com Termo de Prorrogação e LGPD.
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('contrato-experiencia', 'download')}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('contrato-experiencia', 'preview')}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 6. Ficha de Registro de Empregado */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileCheck className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">6. Ficha de Registro de Empregado</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Ficha de registro de empregado completa para arquivo do RH e contabilidade.
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleEmployeeRecordPdf('download')}
+                      disabled={!canGenerateReports || loading}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleEmployeeRecordPdf('preview')}
+                      disabled={!canGenerateReports || loading}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleEmployeeRecordExcel}
+                      disabled={!canGenerateReports || loading}
+                      className="border-emerald-500 text-emerald-400 hover:bg-emerald-500/10 h-9 text-xs px-3"
+                    >
+                      <FileSpreadsheet className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+            </div>
           </TabsContent>
           </Tabs>
 

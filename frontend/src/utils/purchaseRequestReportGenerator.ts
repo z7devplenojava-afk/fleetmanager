@@ -37,8 +37,12 @@ class PurchaseRequestReportGenerator {
   }
 
   private formatDate(dateString: string): string {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('pt-BR');
+    if (!dateString) return '-';
+    try {
+      return new Date(dateString).toLocaleDateString('pt-BR');
+    } catch {
+      return dateString;
+    }
   }
 
   private getStatusLabel(status: string): string {
@@ -49,7 +53,7 @@ class PurchaseRequestReportGenerator {
       IN_PROCESS: 'Em Processo',
       APPROVED: 'Aprovada',
       REJECTED: 'Rejeitada',
-      COMPLETED: 'Completada',
+      COMPLETED: 'Concluída',
       CANCELLED: 'Cancelada',
     };
     return labels[status] || status;
@@ -71,12 +75,10 @@ class PurchaseRequestReportGenerator {
   ): PurchaseRequest[] {
     let filtered = [...requests];
 
-    // Filtro por data - usar requestDate ou createdAt como fallback
     if (filters.startDate) {
       const startDate = new Date(filters.startDate);
       startDate.setHours(0, 0, 0, 0);
       filtered = filtered.filter((req) => {
-        // Usar requestDate se disponível, senão usar createdAt
         const dateToCompare = req.requestDate || req.createdAt;
         if (!dateToCompare) return false;
         const reqDate = new Date(dateToCompare);
@@ -89,7 +91,6 @@ class PurchaseRequestReportGenerator {
       const endDate = new Date(filters.endDate);
       endDate.setHours(23, 59, 59, 999);
       filtered = filtered.filter((req) => {
-        // Usar requestDate se disponível, senão usar createdAt
         const dateToCompare = req.requestDate || req.createdAt;
         if (!dateToCompare) return false;
         const reqDate = new Date(dateToCompare);
@@ -98,12 +99,10 @@ class PurchaseRequestReportGenerator {
       });
     }
 
-    // Filtro por status
     if (filters.status && filters.status !== 'all') {
       filtered = filtered.filter((req) => req.status === filters.status);
     }
 
-    // Filtro por valor - só aplicar se o valor for maior que 0
     if (filters.minValue !== undefined && filters.minValue !== null && filters.minValue > 0) {
       filtered = filtered.filter((req) => {
         const value = req.totalValue || req.estimatedTotal || 0;
@@ -126,98 +125,176 @@ class PurchaseRequestReportGenerator {
     filters: PurchaseRequestReportFilters
   ): Promise<Blob> {
     try {
-      // Importação dinâmica para garantir que os módulos sejam carregados
       const jsPDF = (await import('jspdf')).default;
-      const autoTable = await import('jspdf-autotable');
-      
-      console.log('Total de solicitações recebidas:', requests.length);
-      console.log('Filtros aplicados:', filters);
-      console.log('Primeira solicitação (exemplo):', requests[0]);
-      
-      // Filtrar solicitações
-      const filteredRequests = this.filterRequests(requests, filters);
-      
-      console.log('Solicitações após filtro:', filteredRequests.length);
-      if (filteredRequests.length > 0) {
-        console.log('Primeira solicitação filtrada (exemplo):', filteredRequests[0]);
-      }
+      const autoTableModule = await import('jspdf-autotable');
+      const autoTable = autoTableModule.default;
 
-      // Criar documento PDF
-      const doc = new jsPDF('l', 'mm', 'a4'); // Landscape para mais espaço
-      
+      const filteredRequests = this.filterRequests(requests, filters);
+
+      // Criar documento PDF em Landscape A4 (largura 297mm, altura 210mm)
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+      });
+
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 15;
+      const marginLeft = 10;
+      const marginRight = 10;
+      const contentWidth = pageWidth - marginLeft - marginRight; // 277mm
 
-      // Cabeçalho
-      doc.setFontSize(18);
+      let y = 10;
+
+      // 1. CABEÇALHO INSTITUCIONAL (PADRÃO OS EXECUTIVO)
       doc.setFont('helvetica', 'bold');
-      doc.text('Relatório de Solicitações de Compra', margin, 20);
+      doc.setFontSize(13);
+      doc.setTextColor(30, 41, 59); // Slate-800
+      doc.text('FLUXBUS - GESTÃO INTEGRADA DE FROTAS & SUPRIMENTOS', marginLeft, y + 5);
 
-      // Informações do relatório
-      let yPos = 30;
-      doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139); // Slate-500
+      doc.text('CNPJ: 00.000.000/0001-00 • MÓDULO DE SOLICITAÇÕES DE COMPRA', marginLeft, y + 9.5);
 
-      // Período
-      if (filters.startDate || filters.endDate) {
-        const periodText = filters.startDate && filters.endDate
-          ? `Período: ${this.formatDate(filters.startDate)} a ${this.formatDate(filters.endDate)}`
-          : filters.startDate
-            ? `A partir de: ${this.formatDate(filters.startDate)}`
-            : `Até: ${this.formatDate(filters.endDate!)}`;
-        doc.text(periodText, margin, yPos);
-        yPos += 6;
-      }
-
-      // Status
-      if (filters.status && filters.status !== 'all') {
-        doc.text(`Status: ${this.getStatusLabel(filters.status)}`, margin, yPos);
-        yPos += 6;
-      }
-
-      // Valor
-      if (filters.minValue || filters.maxValue) {
-        let valueText = 'Valor: ';
-        if (filters.minValue && filters.maxValue) {
-          valueText += `${this.formatCurrency(filters.minValue)} a ${this.formatCurrency(filters.maxValue)}`;
-        } else if (filters.minValue) {
-          valueText += `a partir de ${this.formatCurrency(filters.minValue)}`;
-        } else if (filters.maxValue) {
-          valueText += `até ${this.formatCurrency(filters.maxValue)}`;
-        }
-        doc.text(valueText, margin, yPos);
-        yPos += 6;
-      }
-
-      // Data de geração
-      doc.setFontSize(9);
-      doc.text(
-        `Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`,
-        pageWidth - margin - 60,
-        20
-      );
-
-      // Total de registros
-      doc.setFontSize(10);
+      // Título do Documento à Direita
       doc.setFont('helvetica', 'bold');
-      doc.text(`Total de solicitações: ${filteredRequests.length}`, margin, yPos + 2);
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42); // Dark Slate
+      doc.text('RELATÓRIO DE SOLICITAÇÕES DE COMPRA', pageWidth - marginRight, y + 4, { align: 'right' });
 
-      // Preparar dados da tabela com todos os campos
+      // Badge de Status / Filtro
+      const statusBadgeText = filters.status && filters.status !== 'all' 
+        ? `STATUS: ${this.getStatusLabel(filters.status).toUpperCase()}`
+        : 'TODOS OS STATUS';
+
+      const badgeWidth = Math.max(36, doc.getTextWidth(statusBadgeText) + 6);
+      const badgeHeight = 5.5;
+      const badgeX = pageWidth - marginRight - badgeWidth;
+      const badgeY = y + 6;
+
+      doc.setFillColor(241, 245, 249); // Slate-100
+      doc.setDrawColor(203, 213, 225); // Slate-300
+      doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 1.5, 1.5, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.5);
+      doc.setTextColor(51, 65, 85);
+      doc.text(statusBadgeText, badgeX + badgeWidth / 2, badgeY + 3.8, { align: 'center' });
+
+      // Protocolo e Data de Emissão
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const protocol = `SOL-${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Protocolo: ${protocol} • Emissão: ${dateStr}`, pageWidth - marginRight, y + 15.5, { align: 'right' });
+
+      y += 18;
+
+      // Linha divisória estilo OS
+      doc.setDrawColor(30, 41, 59); // Dark Slate
+      doc.setLineWidth(0.8);
+      doc.line(marginLeft, y, pageWidth - marginRight, y);
+      y += 4;
+
+      // 2. QUADRO DE FILTROS APLICADOS
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(marginLeft, y, contentWidth, 8.5, 1.5, 1.5, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(30, 41, 59);
+      doc.text('PARÂMETROS:', marginLeft + 3, y + 5.5);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(71, 85, 105);
+
+      const filterParts: string[] = [];
+      if (filters.startDate || filters.endDate) {
+        if (filters.startDate && filters.endDate) {
+          filterParts.push(`Período: ${this.formatDate(filters.startDate)} a ${this.formatDate(filters.endDate)}`);
+        } else if (filters.startDate) {
+          filterParts.push(`A partir de: ${this.formatDate(filters.startDate)}`);
+        } else {
+          filterParts.push(`Até: ${this.formatDate(filters.endDate!)}`);
+        }
+      } else {
+        filterParts.push('Período: Completo');
+      }
+
+      if (filters.minValue || filters.maxValue) {
+        if (filters.minValue && filters.maxValue) {
+          filterParts.push(`Faixa de Valor: ${this.formatCurrency(filters.minValue)} a ${this.formatCurrency(filters.maxValue)}`);
+        } else if (filters.minValue) {
+          filterParts.push(`Valor Mínimo: ${this.formatCurrency(filters.minValue)}`);
+        } else {
+          filterParts.push(`Valor Máximo: ${this.formatCurrency(filters.maxValue!)}`);
+        }
+      }
+
+      doc.text(filterParts.join(' • '), marginLeft + 26, y + 5.5);
+
+      y += 12.5;
+
+      // 3. CARDS DE RESUMO (KPIS)
+      const totalValue = filteredRequests.reduce(
+        (sum, req) => sum + (req.totalValue || req.estimatedTotal || 0),
+        0
+      );
+      const pendingCount = filteredRequests.filter((r) => r.status === 'PENDING' || r.status === 'SUBMITTED').length;
+      const approvedCount = filteredRequests.filter((r) => r.status === 'APPROVED' || r.status === 'COMPLETED').length;
+
+      const kpis = [
+        { label: 'TOTAL DE SOLICITAÇÕES', val: filteredRequests.length.toString() },
+        { label: 'VALOR TOTAL ESTIMADO', val: this.formatCurrency(totalValue) },
+        { label: 'PENDENTES / EM ANÁLISE', val: pendingCount.toString() },
+        { label: 'APROVADAS / CONCLUÍDAS', val: approvedCount.toString() },
+      ];
+
+      const cardGap = 3;
+      const cardWidth = (contentWidth - (cardGap * (kpis.length - 1))) / kpis.length;
+      const cardHeight = 11;
+
+      kpis.forEach((kpi, idx) => {
+        const cardX = marginLeft + idx * (cardWidth + cardGap);
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(cardX, y, cardWidth, cardHeight, 1.5, 1.5, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(kpi.label, cardX + 3, y + 4.5);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text(kpi.val, cardX + 3, y + 9.5);
+      });
+
+      y += cardHeight + 4;
+
+      // 4. CONFIGURAÇÃO DA TABELA (EQUILIBRADA PARA EXACT 277MM DE LARGURA)
       const headers = [
         'Número',
-        'Título',
+        'Título / Aplicação',
         'Solicitante',
-        'Departamento',
+        'Depto',
         'Status',
         'Prioridade',
         'Urgência',
-        'Data Solicitação',
-        'Data Necessária',
-        'Aprovador por',
-        'Data Aprovação',
+        'Data Sol.',
+        'Data Nec.',
+        'Aprovador',
+        'Data Apr.',
         'Fornecedor',
-        'Valor',
+        'Valor (R$)',
       ];
 
       const rows = filteredRequests.map((req) => [
@@ -236,67 +313,67 @@ class PurchaseRequestReportGenerator {
         this.formatCurrency(req.totalValue || req.estimatedTotal || 0),
       ]);
 
-      // Calcular totais
-      const totalValue = filteredRequests.reduce(
-        (sum, req) => sum + (req.totalValue || req.estimatedTotal || 0),
-        0
-      );
-
-      // Adicionar tabela usando autoTable
-      autoTable.default(doc, {
-        startY: yPos + 8,
+      // Total width: 26+38+26+18+18+16+16+18+18+24+18+22+20 = 278mm (se encaixa perfeitamente em 277mm com margem 10mm!)
+      autoTable(doc, {
+        startY: y,
         head: [headers],
         body: rows,
         theme: 'grid',
         headStyles: {
-          fillColor: [220, 53, 69], // seguranca-red
-          textColor: 255,
+          fillColor: [30, 41, 59], // Dark Slate (#1e293b)
+          textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 9,
+          fontSize: 7.5,
+          cellPadding: 2,
+          halign: 'center'
         },
         bodyStyles: {
-          fontSize: 8,
-          textColor: [50, 50, 50],
+          fontSize: 7,
+          textColor: [51, 65, 85],
+          cellPadding: 1.8
         },
         alternateRowStyles: {
-          fillColor: [245, 245, 245],
+          fillColor: [248, 250, 252]
         },
-        margin: { left: margin, right: margin },
+        margin: { top: 15, left: marginLeft, right: marginRight, bottom: 15 },
         styles: {
-          cellPadding: 2,
           overflow: 'linebreak',
-          cellWidth: 'wrap',
+          valign: 'middle'
         },
         columnStyles: {
-          0: { cellWidth: 25 }, // Número
-          1: { cellWidth: 40 }, // Título
-          2: { cellWidth: 30 }, // Solicitante
-          3: { cellWidth: 25 }, // Departamento
-          4: { cellWidth: 20 }, // Status
-          5: { cellWidth: 20 }, // Prioridade
-          6: { cellWidth: 20 }, // Urgência
-          7: { cellWidth: 25 }, // Data Solicitação
-          8: { cellWidth: 25 }, // Data Necessária
-          9: { cellWidth: 30 }, // Aprovador por
-          10: { cellWidth: 25 }, // Data Aprovação
-          11: { cellWidth: 30 }, // Fornecedor
-          12: { cellWidth: 25, halign: 'right' }, // Valor
+          0: { cellWidth: 26, halign: 'center' }, // Número
+          1: { cellWidth: 38, halign: 'left' },   // Título / Aplicação
+          2: { cellWidth: 26, halign: 'left' },   // Solicitante
+          3: { cellWidth: 18, halign: 'left' },   // Depto
+          4: { cellWidth: 18, halign: 'center' }, // Status
+          5: { cellWidth: 16, halign: 'center' }, // Prioridade
+          6: { cellWidth: 16, halign: 'center' }, // Urgência
+          7: { cellWidth: 18, halign: 'center' }, // Data Sol.
+          8: { cellWidth: 18, halign: 'center' }, // Data Nec.
+          9: { cellWidth: 24, halign: 'left' },   // Aprovador
+          10: { cellWidth: 18, halign: 'center' },// Data Apr.
+          11: { cellWidth: 22, halign: 'left' },  // Fornecedor
+          12: { cellWidth: 20, halign: 'right' }, // Valor
         },
       });
 
-      // Adicionar resumo no final
-      const finalY = (doc as any).lastAutoTable?.finalY || yPos + 50;
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text(
-        `Valor Total: ${this.formatCurrency(totalValue)}`,
-        pageWidth - margin - 50,
-        finalY + 10
-      );
+      // 5. RODAPÉ PAGINADO
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        const footerY = pageHeight - 7;
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.3);
+        doc.line(marginLeft, footerY - 2.5, pageWidth - marginRight, footerY - 2.5);
 
-      // Retornar PDF como blob ao invés de fazer download direto
-      const pdfBlob = doc.output('blob');
-      return pdfBlob;
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184);
+        doc.text('FluxBus FleetManager • Sistema de Gestão Integrada de Frotas & Suprimentos', marginLeft, footerY);
+        doc.text(`Página ${i} de ${pageCount}`, pageWidth - marginRight, footerY, { align: 'right' });
+      }
+
+      return doc.output('blob');
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
       throw new Error('Erro ao gerar relatório PDF');

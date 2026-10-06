@@ -1102,6 +1102,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         <Field label="Equipamento / Veículo *">
                             <SearchableSelect
                                 value={formData.vehicleId || ''}
+                                fallbackLabel={formData.vehiclePlate ? `${formData.vehiclePlate}${formData.vehicleModel ? ` - ${formData.vehicleModel}` : ''}` : undefined}
                                 onChange={(v) => {
                                     const selectedVeh = vehicles.find(veh => veh.id === v);
                                     const vehGarage = selectedVeh?.garageId
@@ -1139,6 +1140,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         <Field label="Mecânico / Responsável *">
                             <SearchableSelect
                                 value={formData.mechanicId || ''}
+                                fallbackLabel={formData.mechanicName || undefined}
                                 onChange={(v, opt) => {
                                     setFormData(p => ({
                                         ...p,
@@ -1191,6 +1193,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         <Field label="Setor / Obra *">
                             <SearchableSelect
                                 value={formData.sectorId || formData.workPostId || ''}
+                                fallbackLabel={formData.workPostName || undefined}
                                 onChange={(v) => {
                                     const selectedWp = allWorkPosts.find((w: any) => w.id === v);
                                     setFormData(p => ({
@@ -1220,6 +1223,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         <Field label="Garagem (onde o serviço será executado) *">
                             <SearchableSelect
                                 value={formData.garageId || ''}
+                                fallbackLabel={formData.garageName || undefined}
                                 onChange={(v, opt) => {
                                     setFormData(p => ({ ...p, garageId: v, garageName: opt ? opt.label : p.garageName }));
                                 }}
@@ -1687,7 +1691,20 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                                 </div>
                                                             ) : (
                                                                 <SearchableSelect
-                                                                    value={item.productId || ''}
+                                                                    value={
+                                                                        (item.productId && stockItems.some(s => s.id === item.productId))
+                                                                            ? item.productId
+                                                                            : stockItems.find(s => 
+                                                                                (item.code && s.code && s.code.trim().toLowerCase() === item.code.trim().toLowerCase()) ||
+                                                                                (item.description && s.name && s.name.trim().toLowerCase() === item.description.trim().toLowerCase()) ||
+                                                                                (item.description && s.fullName && s.fullName.trim().toLowerCase() === item.description.trim().toLowerCase())
+                                                                              )?.id || (item.productId || '')
+                                                                    }
+                                                                    fallbackLabel={
+                                                                        item.description 
+                                                                            ? (item.code ? `[${item.code}] ${item.description}` : item.description) 
+                                                                            : (item.code ? `Cód: ${item.code}` : undefined)
+                                                                    }
                                                                     onChange={(v) => handleSelectStockPart(idx, v)}
                                                                     options={stockPartOptions}
                                                                     placeholder="Buscar peça por código ou nome no Almoxarifado..."
@@ -1717,7 +1734,17 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                                 </button>
                                                             </div>
                                                             <SearchableSelect
-                                                                value={servicesCatalog.find(s => s.name === item.description || s.code === item.code)?.id || ''}
+                                                                value={
+                                                                    servicesCatalog.find(s => 
+                                                                        (item.code && s.code && s.code.trim().toLowerCase() === item.code.trim().toLowerCase()) ||
+                                                                        (item.description && s.name && s.name.trim().toLowerCase() === item.description.trim().toLowerCase())
+                                                                    )?.id || ''
+                                                                }
+                                                                fallbackLabel={
+                                                                    item.description 
+                                                                        ? (item.code ? `[${item.code}] ${item.description}` : item.description) 
+                                                                        : (item.code ? `[${item.code}] Serviço` : undefined)
+                                                                }
                                                                 onChange={(v) => handleSelectServiceFromCatalog(idx, v)}
                                                                 options={serviceCatalogOptions}
                                                                 placeholder="Buscar serviço por código (SRV-xxxx) ou nome..."

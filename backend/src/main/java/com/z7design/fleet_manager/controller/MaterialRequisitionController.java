@@ -49,32 +49,43 @@ public class MaterialRequisitionController {
     public ResponseEntity<List<MaterialRequisitionDTO>> listRequisitions(
             @RequestParam(name = "status", required = false) String status,
             @RequestParam(name = "workOrderId", required = false) String workOrderId) {
-        MaterialRequisition.RequisitionStatus statusEnum = null;
-        if (status != null && !status.trim().isEmpty() && !status.equalsIgnoreCase("ALL")) {
-            try {
-                statusEnum = MaterialRequisition.RequisitionStatus.valueOf(status.trim().toUpperCase());
-            } catch (Exception ignored) {}
+        try {
+            MaterialRequisition.RequisitionStatus statusEnum = null;
+            if (status != null && !status.trim().isEmpty() && !status.equalsIgnoreCase("ALL")) {
+                try {
+                    statusEnum = MaterialRequisition.RequisitionStatus.valueOf(status.trim().toUpperCase());
+                } catch (Exception ignored) {}
+            }
+            UUID woId = null;
+            if (workOrderId != null && !workOrderId.trim().isEmpty()) {
+                try {
+                    woId = UUID.fromString(workOrderId.trim());
+                } catch (Exception ignored) {}
+            }
+            return ResponseEntity.ok(requisitionService.listRequisitions(statusEnum, woId));
+        } catch (Exception e) {
+            log.error("Erro ao listar requisições de material: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
         }
-        UUID woId = null;
-        if (workOrderId != null && !workOrderId.trim().isEmpty()) {
-            try {
-                woId = UUID.fromString(workOrderId.trim());
-            } catch (Exception ignored) {}
-        }
-        return ResponseEntity.ok(requisitionService.listRequisitions(statusEnum, woId));
     }
 
     @GetMapping("/by-work-order/{workOrderId}")
     @Operation(summary = "Lista requisições registradas para uma Ordem de Serviço específica")
     public ResponseEntity<List<MaterialRequisitionDTO>> getByWorkOrderId(@PathVariable("workOrderId") String workOrderId) {
+        if (workOrderId == null || workOrderId.trim().isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+        UUID woId;
         try {
-            if (workOrderId == null || workOrderId.trim().isEmpty()) {
-                return ResponseEntity.ok(List.of());
-            }
-            UUID woId = UUID.fromString(workOrderId.trim());
+            woId = UUID.fromString(workOrderId.trim());
+        } catch (IllegalArgumentException e) {
+            log.debug("workOrderId fornecido não é um UUID válido: {}", workOrderId);
+            return ResponseEntity.ok(List.of());
+        }
+        try {
             return ResponseEntity.ok(requisitionService.getRequisitionsByWorkOrderId(woId));
         } catch (Exception e) {
-            log.error("⚠️ Erro no endpoint por OS: {}", e.getMessage(), e);
+            log.warn("Erro ao buscar requisições por OS {}: {}", workOrderId, e.getMessage());
             return ResponseEntity.ok(List.of());
         }
     }

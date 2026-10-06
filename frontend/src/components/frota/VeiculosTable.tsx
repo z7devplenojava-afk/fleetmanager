@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Trash2, Eye, Download, Trash2Icon, Edit3, AlertTriangle, Clock, CheckCircle2, CalendarClock, Loader2, QrCode } from 'lucide-react';
+import { Edit, Trash2, Eye, Download, Trash2Icon, Edit3, AlertTriangle, Clock, CheckCircle2, CalendarClock, Loader2, QrCode, Wrench, FileText } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,9 +17,12 @@ import {
 import VeiculoDeleteDialog from './VeiculoDeleteDialog';
 import VehicleDetailPanel from './VehicleDetailPanel';
 import VehicleQRCodeModal from './VehicleQRCodeModal';
+import { FleetWorkOrderViewModal } from './FleetWorkOrderViewModal';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
 import fleetService from '@/services/fleetService';
+import fleetWorkOrderService, { FleetWorkOrder, WorkOrderStatus } from '@/services/fleetWorkOrderService';
 import api from '@/lib/axios';
 import * as XLSX from 'xlsx';
 import vehicleMaintenanceStatusService, { VehicleMaintenanceAlert, MaintenanceAlertLevel } from '@/services/vehicleMaintenanceStatusService';
@@ -109,15 +112,58 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
   // Estados para seleção em lote
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
-  // Função para verificar se um veículo está em manutenção
-  const getVehicleMaintenance = (vehicleId: string): VehicleMaintenance | null => {
-    if (!maintenances) return null;
-    return maintenances.find(m => m.vehicleId === vehicleId && m.status === 'IN_PROGRESS') || null;
+  // Estado para visualização de OS
+  const [selectedWorkOrderForView, setSelectedWorkOrderForView] = useState<FleetWorkOrder | null>(null);
+
+  // Buscar Ordens de Serviço (OS) ativas da frota
+  const { data: workOrders = [] } = useQuery({
+    queryKey: ['fleet-work-orders'],
+    queryFn: () => fleetWorkOrderService.findAll(),
+    retry: 2,
+    refetchOnWindowFocus: true,
+  });
+
+  // Função para obter a OS ativa do veículo
+  const getVehicleWorkOrder = (vehicleId: string, vehiclePlate?: string): FleetWorkOrder | null => {
+    if (!workOrders || workOrders.length === 0) return null;
+    const cleanPlate = vehiclePlate ? vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
+
+    return workOrders.find(wo => {
+      const isActive = wo.status !== WorkOrderStatus.COMPLETED && wo.status !== WorkOrderStatus.CANCELLED;
+      if (!isActive) return false;
+
+      const matchId = Boolean(wo.vehicleId && String(wo.vehicleId) === String(vehicleId));
+      const woPlate = wo.vehiclePlate ? wo.vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
+      const matchPlate = Boolean(cleanPlate && woPlate && cleanPlate === woPlate);
+
+      return matchId || matchPlate;
+    }) || null;
   };
 
-  // Função para verificar se um veículo está em manutenção
-  const isVehicleInMaintenance = (vehicleId: string): boolean => {
-    return getVehicleMaintenance(vehicleId) !== null;
+  // Função para obter manutenção legada
+  const getVehicleLegacyMaintenance = (vehicleId: string, vehiclePlate?: string): VehicleMaintenance | null => {
+    if (!maintenances || maintenances.length === 0) return null;
+    const cleanPlate = vehiclePlate ? vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
+
+    return maintenances.find(m => {
+      if (m.status !== 'IN_PROGRESS') return false;
+      const matchId = Boolean(m.vehicleId && String(m.vehicleId) === String(vehicleId));
+      const mPlate = m.vehiclePlate ? m.vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
+      const matchPlate = Boolean(cleanPlate && mPlate && cleanPlate === mPlate);
+
+      return matchId || matchPlate;
+    }) || null;
+  };
+
+  // Função para verificar se um veículo está em manutenção (OS ativa, manutenção legada ou status manutencao)
+  const isVehicleInMaintenance = (vehicleId: string, vehiclePlate?: string, vehicleStatus?: string): boolean => {
+    if (vehicleStatus) {
+      const statusLower = vehicleStatus.toLowerCase();
+      if (statusLower === 'manutencao' || statusLower === 'maintenance') return true;
+    }
+    if (getVehicleWorkOrder(vehicleId, vehiclePlate)) return true;
+    if (getVehicleLegacyMaintenance(vehicleId, vehiclePlate)) return true;
+    return false;
   };
   const [selectAll, setSelectAll] = useState(false);
 
@@ -358,21 +404,58 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
     setSelectedVeiculo(null);
   };
 
-  const getStatusBadge = (status: string, vehicleId?: string) => {
-    const statusLower = status.toLowerCase();
+  const getStatusBadge = (veiculo: Veiculo) => {
+    const statusLower = (veiculo.status || '').toLowerCase();
+    const workOrder = getVehicleWorkOrder(veiculo.id, veiculo.placa);
+    const legacyMaintenance = getVehicleLegacyMaintenance(veiculo.id, veiculo.placa);
+    const inMaintenance = isVehicleInMaintenance(veiculo.id, veiculo.placa, veiculo.status);
 
-    // Verificar se o veículo está em manutenção
-    if (vehicleId && isVehicleInMaintenance(vehicleId)) {
-      const maintenance = getVehicleMaintenance(vehicleId);
+    if (inMaintenance) {
+      const osNumber = workOrder?.osNumber || (workOrder?.id ? `OS-${workOrder.id.slice(0, 8)}` : null);
+      const osType = workOrder?.maintenanceType || legacyMaintenance?.maintenanceType || '';
+      const osDesc = workOrder?.anomaliesDescription || workOrder?.stopReason || workOrder?.otherDescription || workOrder?.notes || legacyMaintenance?.description || '';
+
+      const typeLabel = osType ? (
+        osType === 'CORRETIVA' ? 'Corretiva' :
+        osType === 'PREVENTIVA' ? 'Preventiva' :
+        osType === 'PREDITIVA' ? 'Preditiva' :
+        osType === 'INSPECAO' ? 'Inspeção' :
+        osType === 'LUBRIFICACAO' ? 'Lubrificação' :
+        osType === 'LIMPEZA' ? 'Limpeza' : osType
+      ) : '';
+
       return (
-        <div className="flex flex-col items-center gap-1">
-          <Badge variant="destructive" className="bg-red-600 hover:bg-red-700">
+        <div className="flex flex-col items-center gap-1 py-1">
+          <Badge variant="destructive" className="bg-amber-600 hover:bg-amber-700 text-white font-medium px-2.5 py-0.5 shadow-sm flex items-center gap-1">
+            <Wrench className="w-3 h-3" />
             Em Manutenção
           </Badge>
-          {maintenance && onViewMaintenance && (
+
+          {workOrder && (
+            <div className="flex flex-col items-center text-xs">
+              <button
+                type="button"
+                onClick={() => setSelectedWorkOrderForView(workOrder)}
+                className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200 font-mono font-semibold bg-amber-950/80 border border-amber-600/60 rounded px-2 py-0.5 hover:bg-amber-900 transition-colors shadow-sm"
+                title="Clique para abrir e visualizar a Ordem de Serviço"
+              >
+                <FileText className="w-3 h-3 text-amber-400" />
+                <span>{osNumber}</span>
+                {typeLabel && <span className="opacity-80">• {typeLabel}</span>}
+              </button>
+              {osDesc && (
+                <span className="text-[11px] text-gray-300 max-w-[190px] truncate mt-0.5 text-center" title={osDesc}>
+                  {osDesc}
+                </span>
+              )}
+            </div>
+          )}
+
+          {!workOrder && legacyMaintenance && (
             <button
-              onClick={() => onViewMaintenance(maintenance)}
-              className="text-xs text-red-400 hover:text-red-300 underline"
+              type="button"
+              onClick={() => onViewMaintenance?.(legacyMaintenance)}
+              className="text-xs text-amber-400 hover:text-amber-300 underline mt-0.5"
             >
               Ver Manutenção
             </button>
@@ -402,7 +485,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
     } else {
       return (
         <Badge variant="secondary">
-          {status.charAt(0).toUpperCase() + status.slice(1)}
+          {veiculo.status.charAt(0).toUpperCase() + veiculo.status.slice(1)}
         </Badge>
       );
     }
@@ -427,13 +510,13 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                   <div className="flex items-center gap-2">
                     <span className="text-gray-400">Ativos:</span>
                     <span className="text-green-400 font-semibold">
-                      {filteredVeiculos.filter(v => v.status.toLowerCase() === 'ativo' || v.status.toLowerCase() === 'active').length}
+                      {filteredVeiculos.filter(v => !isVehicleInMaintenance(v.id, v.placa, v.status) && (v.status.toLowerCase() === 'ativo' || v.status.toLowerCase() === 'active')).length}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-400">Em manutenção:</span>
-                    <span className="text-yellow-400 font-semibold">
-                      {filteredVeiculos.filter(v => v.status.toLowerCase() === 'manutencao' || v.status.toLowerCase() === 'maintenance').length}
+                    <span className="text-amber-400 font-semibold">
+                      {filteredVeiculos.filter(v => isVehicleInMaintenance(v.id, v.placa, v.status)).length}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -613,7 +696,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                   </span>
                 </TableCell>
                 <TableCell className="text-center">
-                  {getStatusBadge(veiculo.status, veiculo.id)}
+                  {getStatusBadge(veiculo)}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
@@ -750,6 +833,14 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
           plateFallback={qrModalVehicle.placa}
           isOpen={!!qrModalVehicle}
           onClose={() => setQrModalVehicle(null)}
+        />
+      )}
+      {/* Modal de Visualização de Ordem de Serviço (OS) */}
+      {selectedWorkOrderForView && (
+        <FleetWorkOrderViewModal
+          isOpen={!!selectedWorkOrderForView}
+          onClose={() => setSelectedWorkOrderForView(null)}
+          order={selectedWorkOrderForView}
         />
       )}
     </>
