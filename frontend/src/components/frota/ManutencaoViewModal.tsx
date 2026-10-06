@@ -142,28 +142,14 @@ export function ManutencaoViewModal({
   isOpen,
   onClose,
   maintenance,
-  onEdit, // Adicionar onEdit aqui
+  onEdit,
   onDelete
 }: ManutencaoViewModalProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
-  // Debug: Log dos dados recebidos
-  console.log('🔍 ManutencaoViewModal - Dados recebidos:', {
-    isOpen,
-    maintenanceId: maintenance?.id,
-    maintenanceDate: maintenance?.date,
-    maintenanceCreatedAt: maintenance?.createdAt,
-    maintenanceType: maintenance?.maintenanceType,
-    maintenanceStatus: maintenance?.status,
-    maintenancePriority: maintenance?.priority,
-    photos: maintenance?.photos,
-    documents: maintenance?.documents,
-    fullMaintenanceObject: maintenance // Adicionado para ver o objeto completo
-  });
-
-  if (!maintenance) return null;
+  if (!isOpen || !maintenance) return null;
 
   const handleEdit = () => {
     onEdit(maintenance); // Chamar onEdit diretamente
