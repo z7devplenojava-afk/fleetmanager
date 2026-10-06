@@ -56,7 +56,7 @@ public class SecurityConfig {
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .headers(headers -> headers
-                                                .frameOptions(frame -> frame.disable())
+                                                .frameOptions(frame -> frame.sameOrigin())
                                                 .contentTypeOptions(contentType -> {
                                                 }))
                                 .authorizeHttpRequests(auth -> auth
@@ -108,8 +108,9 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/email/config").authenticated()
                                                 // Endpoints pÃƒÂºblicos do portal (vagas, etc)
                                                 .requestMatchers("/api/public/**").permitAll()
-                                                // WhatsApp controller - pÃƒÂºblico para pareamento/health em dev
-                                                .requestMatchers("/api/whatsapp/**").permitAll()
+                                                // WhatsApp controller - apenas health público; ações de conexão/desconexão/QR exigem autenticação
+                                                .requestMatchers("/api/whatsapp/health").permitAll()
+                                                .requestMatchers("/api/whatsapp/**").authenticated()
                                                 .requestMatchers("/api/payslips/test-download/**").authenticated()
                                                 .requestMatchers("/api/invoices/public/test-cost-centers").authenticated()
                                                 .requestMatchers("/api/invoices/public/debug-cost-centers").authenticated()
@@ -559,9 +560,15 @@ public class SecurityConfig {
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration configuration = new CorsConfiguration();
-                // Permitir todas as origens para desenvolvimento (incluindo diferentes portas
-                // do frontend)
-                configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+                // Restringir origens permitidas estritamente aos domínios oficiais e dev local (OWASP CORS hardening)
+                configuration.setAllowedOriginPatterns(Arrays.asList(
+                                "https://*.fluxbus.com.br",
+                                "https://fluxbus.com.br",
+                                "https://*.z7botsolutions.com.br",
+                                "https://z7botsolutions.com.br",
+                                "http://localhost:[*]",
+                                "http://127.0.0.1:[*]"
+                ));
                 configuration.setAllowedMethods(
                                 Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));
                 configuration.setAllowedHeaders(Arrays.asList("*"));

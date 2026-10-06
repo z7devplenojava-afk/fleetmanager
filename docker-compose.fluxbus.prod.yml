@@ -16,7 +16,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER_PROD:-fluxbus_user_prod}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_PROD:-prodpass123}
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
     networks:
@@ -35,7 +35,7 @@ services:
     image: redis:7-alpine
     container_name: fluxbus-redis-prod
     ports:
-      - "6381:6379"
+      - "127.0.0.1:6381:6379"
     volumes:
       - redis_data_prod:/data
     networks:

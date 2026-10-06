@@ -39,27 +39,72 @@ public class FileStorageService {
         log.info("DiretÃ³rio de upload de arquivos inicializado em: {}", this.fileStorageLocation);
     }
 
+    // Whitelist rigorosa de extensões permitidas
+    private static final java.util.Set<String> ALLOWED_EXTENSIONS = java.util.Set.of(
+            "jpg", "jpeg", "png", "webp", "pdf", "xlsx", "xls", "csv", "docx", "doc", "txt", "zip"
+    );
+
+    // Blacklist explícita de extensões executáveis / scripts (Defesa em profundidade)
+    private static final java.util.Set<String> DANGEROUS_EXTENSIONS = java.util.Set.of(
+            "exe", "bat", "cmd", "sh", "jsp", "jspx", "php", "py", "pl", "cgi", "asp", "aspx", 
+            "html", "htm", "xhtml", "js", "vbs", "jar", "war", "ear", "scr", "pif", "com", "msi"
+    );
+
     public String storeFile(MultipartFile file) {
-        // Normaliza o nome do arquivo
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Arquivo inválido ou vazio.");
+        }
+
+        // 1. Normaliza e sanitiza o nome original
         String originalFileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-        String fileName = UUID.randomUUID().toString() + "_" + originalFileName;
+
+        // 2. Proteção contra Path Traversal
+        if (originalFileName.contains("..") || originalFileName.contains("/") || originalFileName.contains("\\")) {
+            log.warn("⛔ Tentativa de Path Traversal bloqueada no upload: {}", originalFileName);
+            throw new SecurityException("Nome do arquivo contém caracteres de caminho inválidos.");
+        }
+
+        // 3. Extrair e validar extensão
+        int lastDotIndex = originalFileName.lastIndexOf('.');
+        if (lastDotIndex == -1 || lastDotIndex == originalFileName.length() - 1) {
+            log.warn("⛔ Arquivo sem extensão rejeitado: {}", originalFileName);
+            throw new IllegalArgumentException("Arquivos sem extensão não são permitidos.");
+        }
+
+        String extension = originalFileName.substring(lastDotIndex + 1).toLowerCase().trim();
+
+        // 4. Bloqueio imediato de extensões perigosas / scripts
+        if (DANGEROUS_EXTENSIONS.contains(extension)) {
+            log.error("🚨 BLOQUEIO DE SEGURANÇA: Tentativa de upload de script/executável bloqueada: extension={}", extension);
+            throw new SecurityException("Tipo de arquivo estritamente proibido por motivos de segurança.");
+        }
+
+        // 5. Whitelist de extensões permitidas
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+            log.warn("⛔ Extensão não autorizada: {}. Permitidas: {}", extension, ALLOWED_EXTENSIONS);
+            throw new IllegalArgumentException("Extensão de arquivo não permitida. Extensões aceitas: " + ALLOWED_EXTENSIONS);
+        }
+
+        // 6. Sanitizar nome para evitar caracteres especiais no sistema de arquivos
+        String baseName = originalFileName.substring(0, lastDotIndex).replaceAll("[^a-zA-Z0-9._-]", "_");
+        String safeFileName = UUID.randomUUID().toString() + "_" + baseName + "." + extension;
 
         try {
-            // Verifica se o nome do arquivo contÃ©m caracteres invÃ¡lidos
-            if (fileName.contains("..")) {
-                throw new IOException("Nome do arquivo contÃ©m sequÃªncia de caminho invÃ¡lida " + fileName);
+            Path targetLocation = this.fileStorageLocation.resolve(safeFileName).normalize();
+            
+            // Garantir que o destino está estritamente contido no diretório autorizado
+            if (!targetLocation.startsWith(this.fileStorageLocation)) {
+                log.error("🚨 Tentativa de gravar arquivo fora do diretório de upload: {}", targetLocation);
+                throw new SecurityException("Caminho de gravação inválido.");
             }
 
-            Path targetLocation = this.fileStorageLocation.resolve(fileName);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-            log.info("Arquivo {} armazenado com sucesso em {}", originalFileName, targetLocation);
-            // Retorna a URL relativa para o frontend
-            return baseUrl + "/" + fileName;
+            log.info("✅ Arquivo {} armazenado com sucesso como {}", originalFileName, safeFileName);
+            return baseUrl + "/" + safeFileName;
         } catch (IOException ex) {
             log.error("Erro ao armazenar arquivo {}: {}", originalFileName, ex.getMessage());
-            throw new RuntimeException(
-                    "NÃ£o foi possÃ­vel armazenar o arquivo " + originalFileName + ". Por favor, tente novamente!", ex);
+            throw new RuntimeException("Não foi possível armazenar o arquivo. Por favor, tente novamente!", ex);
         }
     }
 

@@ -13,7 +13,7 @@ public class JwtConfig {
     // Se ausente, a aplicação falha na inicialização (fail-fast) em vez de rodar
     // com uma chave conhecida publicamente (permite forjar tokens de qualquer usuário).
     private String secret;
-    private Long expiration = 3600000L; // 1 hora (access token)
+    private Long expiration = 1800000L; // 30 minutos (access token de curta duração para mitigar roubo de JWT)
     private Long refreshTokenExpiration = 604800000L; // 7 dias
     private String header = "Authorization";
     private String prefix = "Bearer";
