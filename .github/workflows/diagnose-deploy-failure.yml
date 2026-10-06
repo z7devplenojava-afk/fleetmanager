@@ -52,6 +52,7 @@ jobs:
         continue-on-error: true
         working-directory: ./frontend
         env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
           VITE_API_URL: https://ci.z7botsolutions.com.br/api
           VITE_ENVIRONMENT: ci
         run: |

@@ -80,6 +80,7 @@ jobs:
       - name: "🎨 Build Frontend (Vite)"
         working-directory: ./frontend
         env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
           VITE_API_URL: ${{ env.CI_URL }}/api
           VITE_WS_URL: wss://ci.fluxbus.com.br/ws
           VITE_ENVIRONMENT: ci
