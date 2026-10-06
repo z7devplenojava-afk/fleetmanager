@@ -240,13 +240,28 @@ public class EmployeeDTO {
     private LocalDate nextExameMedico;
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate nextLaudoPsicologico;
+    private String laudoPsicologicoStatus;
+    private String laudoPsicologicoProfissional;
+    private String laudoPsicologicoObservacoes;
+
+    // RF07 - Histórico de Processo Judicial
+    private Boolean processoJudicialPossui;
+    private String processoJudicialNumero;
+    private String processoJudicialVara;
+    private String processoJudicialTipoAcao;
+    private String processoJudicialStatus;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    @JsonDeserialize(using = BlankStringToNullLocalDateDeserializer.class)
+    private LocalDate processoJudicialDataDistribuicao;
+    private String processoJudicialObservacoes;
+
     private String exameMedicoTipo; // ADMISSIONAL, DEMISSIONAL, PERIODICO, MUDANCA_FUNCAO, RETORNO_TRABALHO
-    private IdOnlyDTO exameMedicoDoctor; // ReferÃªncia ao mÃ©dico
-    private String exameMedicoHorario; // Ex: "18:00 Ã€S 06:00 H"
-    private Boolean exameMedicoIntervalosRefeicao; // true = Sim, false = NÃ£o
+    private IdOnlyDTO exameMedicoDoctor; // Referência ao médico
+    private String exameMedicoHorario; // Ex: "18:00 ÀS 06:00 H"
+    private Boolean exameMedicoIntervalosRefeicao; // true = Sim, false = Não
     private String exameMedicoObservacoes;
-    private Boolean exameMedicoPrimeiroEmprego; // true = Sim, false = NÃ£o
-    private Boolean exameMedicoContribuicaoSindicalPaga; // true = Sim, false = NÃ£o
+    private Boolean exameMedicoPrimeiroEmprego; // true = Sim, false = Não
+    private Boolean exameMedicoContribuicaoSindicalPaga; // true = Sim, false = Não
 
     // =========================================================================
     // Campos de Benefícios e Descontos (importação de planilha de folha)

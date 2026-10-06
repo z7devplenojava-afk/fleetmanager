@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { employeeService } from '@/services/employeeService';
-import { CreateEmployeeDTO } from '@/types/employee';
+import { CreateEmployeeDTO, Employee } from '@/types/employee';
 import { positionService, Position } from '@/services/positionService';
 import workPostService, { WorkPost } from '@/services/workPostService';
 import departmentService, { Department } from '@/services/departmentService';
@@ -15,7 +15,7 @@ import { userService } from '@/services/userService';
 import { User } from '@/types/user';
 import { companyService } from '@/services/companyService';
 import { Company } from '@/types/company';
-import { Search, User as UserIcon, Building, Briefcase, Plus, UserPlus, Link, X, FileText, Upload, FileCheck, AlertCircle, Users as UsersIcon, Trash2, Edit2, Shield, Eye, FileSpreadsheet } from 'lucide-react';
+import { Search, User as UserIcon, Building, Briefcase, Plus, UserPlus, Link, X, FileText, Upload, FileCheck, AlertCircle, Users as UsersIcon, Trash2, Edit2, Shield, Eye, FileSpreadsheet, Brain } from 'lucide-react';
 import NovoCargoModal from '@/components/funcionarios/NovoCargoModal';
 import NovoMedicoModal from '@/components/funcionarios/NovoMedicoModal';
 import CriarUsuarioPadraoModal from '@/components/funcionarios/CriarUsuarioPadraoModal';
@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EmployeeHistoryTimeline from '@/components/funcionarios/EmployeeHistoryTimeline';
 import EmployeeDocumentsTab from '@/components/funcionarios/EmployeeDocumentsTab';
 import { generateSingleAdmissionDocumentPdf, generatePacoteAdmissionalCompleto, EmployeeAdmissionData } from '@/utils/admissionDocumentsPdfGenerator';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FuncionarioNovoModalProps {
   open: boolean;
@@ -89,11 +90,23 @@ const initialState: CreateEmployeeDTO = {
     agency: '',
     account: '',
     type: 'CORRENTE'
-  }
+  },
+  laudoPsicologicoData: '',
+  laudoPsicologicoStatus: '',
+  laudoPsicologicoProfissional: '',
+  laudoPsicologicoObservacoes: '',
+  processoJudicialPossui: false,
+  processoJudicialNumero: '',
+  processoJudicialVara: '',
+  processoJudicialTipoAcao: '',
+  processoJudicialStatus: '',
+  processoJudicialDataDistribuicao: '',
+  processoJudicialObservacoes: '',
 };
 
 const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClose, onCreated, employeeToEdit }) => {
   const { toast } = useToast();
+  const { user: authUser, empresa: authEmpresa } = useAuth();
   const [form, setForm] = useState<CreateEmployeeDTO>(initialState);
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -392,6 +405,9 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         exameMedicoTipo: employeeToEdit.exameMedicoTipo || '',
         // Laudo Psicológico + próximos vencimentos
         laudoPsicologicoData: (employeeToEdit as any).laudoPsicologicoData || '',
+        laudoPsicologicoStatus: (employeeToEdit as any).laudoPsicologicoStatus || '',
+        laudoPsicologicoProfissional: (employeeToEdit as any).laudoPsicologicoProfissional || '',
+        laudoPsicologicoObservacoes: (employeeToEdit as any).laudoPsicologicoObservacoes || '',
         nextExameMedico: (employeeToEdit as any).nextExameMedico || '',
         nextLaudoPsicologico: (employeeToEdit as any).nextLaudoPsicologico || '',
         exameMedicoDoctor: employeeToEdit.exameMedicoDoctor || undefined,
@@ -400,6 +416,18 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         exameMedicoObservacoes: employeeToEdit.exameMedicoObservacoes || '',
         exameMedicoPrimeiroEmprego: employeeToEdit.exameMedicoPrimeiroEmprego,
         exameMedicoContribuicaoSindicalPaga: employeeToEdit.exameMedicoContribuicaoSindicalPaga,
+
+        // Histórico de Processo Judicial (RF07)
+        processoJudicialPossui: (employeeToEdit as any).processoJudicialPossui || false,
+        processoJudicialNumero: (employeeToEdit as any).processoJudicialNumero || '',
+        processoJudicialVara: (employeeToEdit as any).processoJudicialVara || '',
+        processoJudicialTipoAcao: (employeeToEdit as any).processoJudicialTipoAcao || '',
+        processoJudicialStatus: (employeeToEdit as any).processoJudicialStatus || '',
+        processoJudicialDataDistribuicao: (employeeToEdit as any).processoJudicialDataDistribuicao || '',
+        processoJudicialObservacoes: (employeeToEdit as any).processoJudicialObservacoes || '',
+        
+        // Posto de trabalho
+        workPostId: (employeeToEdit as any).workPostId || '',
         
         // Dados bancários - converter de bankInfo (backend) para bankData (frontend)
         bankData: employeeToEdit.bankData ? {
@@ -518,6 +546,27 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
       }
     }
   }, [companies, employeeToEdit?.company?.id]);
+
+  // Auto-selecionar empresa do usuário logado para novo funcionário
+  useEffect(() => {
+    if (open && !employeeToEdit && companies.length > 0) {
+      const loggedCompanyId = authEmpresa?.id || (authUser as any)?.companyId;
+      if (loggedCompanyId && (!form.company?.id || form.company.id === '')) {
+        const found = companies.find(c => c.id === loggedCompanyId);
+        if (found) {
+          console.log('🏢 Auto-selecionando empresa do usuário logado:', found.name);
+          setSelectedCompany(found);
+          setForm(prev => ({
+            ...prev,
+            company: { id: found.id },
+            empresaNome: found.name,
+            empresaCnpj: found.cnpj || '',
+            empresaEndereco: found.address || ''
+          }));
+        }
+      }
+    }
+  }, [open, employeeToEdit, companies, authEmpresa, authUser]);
 
   // Função para carregar dependentes do funcionário
   const loadEmployeeDependents = async (employeeId: string) => {
@@ -2003,104 +2052,242 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                  Relacionamentos Obrigatórios
                </h3>
              </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-               {/* Seleção de Usuário */}
-               <div className="space-y-2">
-                 <Label className="text-xs sm:text-sm font-medium text-gray-200">
-                   Usuário do Sistema
-                 </Label>
-                 <div className="relative">
-                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
-                   <Input
-                     placeholder="Digite nome, email, username ou CPF para buscar usuário..."
-                     value={userSearchTerm}
-                     onChange={handleUserSearch}
-                     onFocus={handleUserInputFocus}
-                     onBlur={handleUserInputBlur}
-                     className="pl-9 sm:pl-10 text-xs sm:text-sm h-9 sm:h-10"
-                   />
-                   
-                   {/* Dropdown de usuários */}
-                   {showUserDropdown && filteredUsers.length > 0 && (
-                     <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                       {filteredUsers.map((user) => (
-                         <div
-                           key={user.id}
-                           className="px-3 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-600 last:border-b-0"
-                           onClick={() => handleUserSelect(user)}
-                         >
-                           <div className="flex flex-col">
-                             <span className="font-medium text-seguranca-lightgray">{user.name}</span>
-                             <span className="text-xs text-gray-400">
-                               {user.email} • {user.username} • {user.role}
-                             </span>
-                           </div>
-                         </div>
-                       ))}
-                     </div>
-                   )}
-                   
-                   {/* Mensagem quando não há resultados */}
-                   {showUserDropdown && userSearchTerm.trim() !== '' && filteredUsers.length === 0 && (
-                     <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg p-3">
-                       <p className="text-sm text-gray-400">Nenhum usuário encontrado</p>
-                     </div>
-                   )}
-                 </div>
-                 
-                 {/* Exibir usuário selecionado */}
-                 {selectedUser && (
-                   <div className="bg-green-900/20 border border-green-600 rounded-lg p-3">
-                     <div className="flex items-center justify-between">
-                       <div>
-                         <p className="text-sm font-medium text-green-400">Usuário selecionado:</p>
-                         <p className="text-sm text-seguranca-lightgray">{selectedUser.name}</p>
-                         <p className="text-xs text-gray-400">{selectedUser.email}</p>
-                       </div>
-                       <Button
-                         type="button"
-                         variant="ghost"
-                         size="sm"
-                         onClick={() => {
-                           setSelectedUser(null);
-                           setUserSearchTerm('');
-                           setForm(prev => ({ ...prev, user: { id: '' } }));
-                         }}
-                         className="text-red-400 hover:text-red-300"
-                       >
-                         <X className="h-4 w-4" />
-                       </Button>
-                     </div>
-                   </div>
-                 )}
-                 <div className="flex items-center justify-between">
-                 <p className="text-xs text-gray-300">
-                   O usuário selecionado será associado ao funcionário para acesso ao sistema. (Opcional)
-                   {canCreateDefaultUser && (
-                     <span className="block mt-1 text-seguranca-yellow">
-                       Para este cargo, é recomendado criar um usuário padrão.
-                     </span>
-                   )}
-                 </p>
-                   {canCreateDefaultUser && (
-                     <Button
-                       type="button"
-                       variant="ghost"
-                       size="sm"
-                       onClick={() => setCriarUsuarioModalOpen(true)}
-                       className="text-seguranca-yellow hover:text-yellow-400 text-xs px-2 py-1 h-auto"
-                     >
-                       <UserPlus className="h-3 w-3 mr-1" />
-                       Criar Usuário Padrão
-                       <Link className="h-3 w-3 ml-1" />
-                     </Button>
-                   )}
-                 </div>
-               </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* 1. Cargo */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs sm:text-sm font-medium text-gray-200">
+                      Cargo *
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setNovoCargoModalOpen(true)}
+                      className="text-seguranca-yellow hover:text-yellow-400 text-xs p-0 h-auto flex items-center gap-1"
+                      title="Criar novo cargo"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Novo Cargo
+                    </Button>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      value={positionSearchTerm}
+                      onChange={handlePositionSearch}
+                      onFocus={handlePositionInputFocus}
+                      onBlur={handlePositionInputBlur}
+                      placeholder="Buscar cargo..."
+                      className="pr-10 text-xs sm:text-sm h-9 sm:h-10 bg-seguranca-graphite border-gray-600 text-seguranca-lightgray"
+                    />
+                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    
+                    {showPositionDropdown && (
+                      <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {filteredPositions.length > 0 ? (
+                          filteredPositions.map((pos) => (
+                            <div
+                              key={pos.id}
+                              className="px-3 py-2 hover:bg-gray-700 cursor-pointer flex items-center border-b border-gray-600 last:border-b-0"
+                              onClick={() => handlePositionSelect(pos)}
+                            >
+                              <Briefcase className="mr-2 h-4 w-4 text-seguranca-yellow" />
+                              <div className="flex-1">
+                                <div className="font-medium text-seguranca-lightgray text-xs sm:text-sm">{pos.name}</div>
+                                {pos.description && (
+                                  <div className="text-xs text-gray-400">{pos.description}</div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-gray-400 text-xs">
+                            Nenhum cargo encontrado
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {selectedPosition && (
+                    <div className="bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-2.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4 text-seguranca-yellow" />
+                        <span className="text-xs sm:text-sm font-medium text-yellow-300">{selectedPosition.name}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedPosition(null);
+                          setPositionSearchTerm('');
+                          setForm(prev => ({ ...prev, position: { id: '' } }));
+                        }}
+                        className="text-red-400 hover:text-red-300 p-1 h-auto"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
 
-             </div>
-             </div>
-           </Card>
+                {/* 2. Empresa */}
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-gray-200">
+                    Empresa *
+                  </Label>
+                  <Select 
+                    value={selectedCompany?.id || 'none'} 
+                    onValueChange={handleCompanySelect}
+                  >
+                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray text-xs sm:text-sm h-9 sm:h-10">
+                      <SelectValue placeholder="Selecione a empresa" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-graphite border-gray-600">
+                      <SelectItem value="none" className="text-seguranca-lightgray hover:bg-gray-700">
+                        <span className="text-gray-400">Nenhuma empresa</span>
+                      </SelectItem>
+                      {companies.map((company) => (
+                        <SelectItem 
+                          key={company.id} 
+                          value={company.id}
+                          className="text-seguranca-lightgray hover:bg-gray-700"
+                        >
+                          {company.sigla ? `${company.sigla.toUpperCase()} - ${company.name}` : company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedCompany && (
+                    <p className="text-xs text-green-400 flex items-center gap-1">
+                      <Building className="h-3 w-3" />
+                      Empresa vinculada: <span className="font-semibold">{selectedCompany.name}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* 3. Unidade */}
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-gray-200">
+                    Unidade
+                  </Label>
+                  <Select 
+                    value={form.unit?.id || ''} 
+                    onValueChange={(value) => handleSelectChange('unit', value)}
+                  >
+                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray text-xs sm:text-sm h-9 sm:h-10">
+                      <SelectValue placeholder="Selecione uma unidade" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-graphite border-gray-600">
+                      {units.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id} className="text-seguranca-lightgray hover:bg-gray-700">
+                          <div className="flex items-center gap-2">
+                            <Building className="h-3.5 w-3.5 text-seguranca-yellow" />
+                            {unit.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 4. Setor de Trabalho */}
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-gray-200">
+                    Setor de Trabalho
+                  </Label>
+                  <Select 
+                    value={(form as any).workPostId || ''}
+                    onValueChange={(value) => setForm(prev => ({ ...(prev as any), workPostId: value }))}
+                  >
+                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray text-xs sm:text-sm h-9 sm:h-10">
+                      <SelectValue placeholder="Selecione o setor/posto" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-graphite border-gray-600">
+                      {workPosts.map((wp) => (
+                        <SelectItem key={wp.id} value={wp.id} className="text-seguranca-lightgray hover:bg-gray-700">
+                          {wp.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 5. Usuário do Sistema */}
+                <div className="space-y-2 md:col-span-2 lg:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs sm:text-sm font-medium text-gray-200">
+                      Usuário do Sistema
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCriarUsuarioModalOpen(true)}
+                      className="bg-seguranca-yellow/20 hover:bg-seguranca-yellow/30 text-seguranca-yellow border-seguranca-yellow/40 text-xs px-2.5 py-1 h-7 flex items-center gap-1.5"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      Gerar Usuário de Sistema
+                    </Button>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Buscar usuário por nome, email, username ou CPF..."
+                      value={userSearchTerm}
+                      onChange={handleUserSearch}
+                      onFocus={handleUserInputFocus}
+                      onBlur={handleUserInputBlur}
+                      className="pl-9 text-xs sm:text-sm h-9 sm:h-10 bg-seguranca-graphite border-gray-600 text-seguranca-lightgray"
+                    />
+                    
+                    {showUserDropdown && filteredUsers.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {filteredUsers.map((user) => (
+                          <div
+                            key={user.id}
+                            className="px-3 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-600 last:border-b-0"
+                            onClick={() => handleUserSelect(user)}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium text-seguranca-lightgray text-xs sm:text-sm">{user.name}</span>
+                              <span className="text-xs text-gray-400">
+                                {user.email} • {user.username} • {user.role}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {selectedUser && (
+                    <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-2.5 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-green-400">Usuário vinculado:</p>
+                        <p className="text-xs sm:text-sm text-seguranca-lightgray">{selectedUser.name}</p>
+                        <p className="text-xs text-gray-400">{selectedUser.email}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedUser(null);
+                          setUserSearchTerm('');
+                          setForm(prev => ({ ...prev, user: { id: '' } }));
+                        }}
+                        className="text-red-400 hover:text-red-300 p-1 h-auto"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              </div>
+            </Card>
 
            {/* Seção: Informações Pessoais */}
            <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
@@ -4299,18 +4486,17 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
 
        {/* Modal de Criar Usuário Padrão */}
        <CriarUsuarioPadraoModal
-         open={criarUsuarioModalOpen}
-         onClose={() => {
-           setCriarUsuarioModalOpen(false);
-           // Se fechar sem criar usuário, fechar o modal principal também
-           onClose();
-         }}
-         onUsuarioCreated={handleUsuarioPadraoCriado}
-         positionName={selectedPosition?.name || ''}
-         employeeName={form.name}
-         employeeCpf={form.cpf}
-         employeePhone={form.phone}
-       />
+          open={criarUsuarioModalOpen}
+          onClose={() => {
+            setCriarUsuarioModalOpen(false);
+          }}
+          onUsuarioCreated={handleUsuarioPadraoCriado}
+          positionName={selectedPosition?.name || ''}
+          employeeName={form.name}
+          employeeCpf={form.cpf}
+          employeePhone={form.phone}
+          companyId={selectedCompany?.id || form.company?.id || authEmpresa?.id || authUser?.companyId}
+        />
 
        {/* Modal de Novo Médico */}
        <NovoMedicoModal

@@ -24,6 +24,7 @@ interface CriarUsuarioPadraoModalProps {
   employeeName: string;
   employeeCpf: string;
   employeePhone: string;
+  companyId?: string;
 }
 
 const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
@@ -33,7 +34,8 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
   positionName,
   employeeName,
   employeeCpf,
-  employeePhone
+  employeePhone,
+  companyId
 }) => {
   const [form, setForm] = useState({
     username: '',
@@ -172,7 +174,8 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
         roles: [selectedRole.name], // Backend espera array de strings com os nomes dos roles
         active: form.isActive,
         name: employeeName,
-        whatsapp: employeePhone ? employeePhone.replace(/\D/g, '') : undefined // Backend espera whatsapp, não phone
+        whatsapp: employeePhone ? employeePhone.replace(/\D/g, '') : undefined, // Backend espera whatsapp, não phone
+        companyId: companyId || undefined
       };
       
       const newUser = await userService.createUser(userData);
