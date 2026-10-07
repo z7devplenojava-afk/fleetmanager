@@ -302,9 +302,31 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
         }}
         className="max-w-4xl w-[95vw] sm:w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[92vh] overflow-y-auto print:max-h-none print:overflow-visible print:border-none print:p-0 print:m-0 print:shadow-none print:bg-white print:text-black"
       >
-        {/* Estilo Dedicado para Impressão / PDF A4 com Paginação Completa */}
+        {/* Estilo Dedicado para Impressão / PDF A4 com Paginação Completa e Sem Espaço no Topo */}
         <style>{`
           @media print {
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              height: auto !important;
+              overflow: visible !important;
+            }
+            [data-radix-portal], [role="dialog"], [data-state], body > div {
+              position: static !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              transform: none !important;
+              top: 0 !important;
+              left: 0 !important;
+              width: 100% !important;
+              height: auto !important;
+              max-height: none !important;
+              background: transparent !important;
+              box-shadow: none !important;
+              border: none !important;
+            }
             body * {
               visibility: hidden !important;
             }
@@ -312,7 +334,7 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
               visibility: visible !important;
             }
             #printable-proposal-doc {
-              position: absolute !important;
+              position: fixed !important;
               left: 0 !important;
               top: 0 !important;
               width: 100% !important;
@@ -328,7 +350,7 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
             }
             @page {
               size: A4 portrait;
-              margin: 12mm 15mm 15mm 15mm;
+              margin: 8mm 10mm 10mm 10mm;
             }
           }
         `}</style>
