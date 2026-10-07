@@ -26,6 +26,7 @@ import com.z7design.fleet_manager.model.enums.UserStatus;
 import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.repository.RoleRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
+import com.z7design.fleet_manager.repository.CompanyRepository;
 import com.z7design.fleet_manager.security.JwtService;
 
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final EmployeeRepository employeeRepository;
+    private final CompanyRepository companyRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -236,7 +238,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         } catch (org.springframework.security.core.AuthenticationException e) {
             log.warn("❌ Falha na autenticação para usuário {}: {}", request.getUsername(), e.getMessage());
             throw e;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("💥 ERRO CRÍTICO NO LOGIN para usuário {}: {}", request.getUsername(), e.getMessage(), e);
             throw new RuntimeException("Erro ao processar autenticação: " + e.getMessage(), e);
         }
@@ -330,13 +332,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             if (!hasAccess) {
                 // Fallback de tolerância se só existir uma empresa cadastrada no sistema
                 try {
-                    java.util.List<Company> allCompanies = com.z7design.fleet_manager.repository.CompanyRepository.class.cast(
-                        org.springframework.web.context.ContextLoader.getCurrentWebApplicationContext().getBean("companyRepository")
-                    ).findAll();
-                    if (allCompanies.size() == 1) {
+                    if (companyRepository != null && companyRepository.count() <= 1) {
                         hasAccess = true;
                     }
-                } catch (Exception ignored) {
+                } catch (Throwable ignored) {
                     hasAccess = true; // Tolerância para não bloquear login legítimo
                 }
             }
