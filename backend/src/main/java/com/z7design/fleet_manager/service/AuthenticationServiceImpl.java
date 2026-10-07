@@ -129,7 +129,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         try {
             log.info("ðŸ” Tentando autenticar usuÃ¡rio: {}", request.getUsername());
@@ -296,22 +295,24 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    private void validateUserCompanyAccess(User user, UUID requestedCompanyId) {
-        // 1. Se for Flex Admin, Super Admin, Admin ou TI Suporte, permitir acesso direto (Bypass)
-        boolean isPrivileged = user.getRoles() != null && user.getRoles().stream()
-                .anyMatch(role -> role != null && role.getName() != null && (
-                        "FLEX_ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "SUPER_ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "TI_SUPORTE".equalsIgnoreCase(role.getName()) ||
-                        "ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "ROLE_SUPER_ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "ROLE_ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "ROLE_FLEX_ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "ROLE_TI_SUPORTE".equalsIgnoreCase(role.getName())
-                ));
+    private boolean isSuperAdmin(User user) {
+        if (user == null || user.getRoles() == null) return false;
+        return user.getRoles().stream().anyMatch(role -> role != null && role.getName() != null && (
+                "SUPER_ADMIN".equalsIgnoreCase(role.getName()) ||
+                "ROLE_SUPER_ADMIN".equalsIgnoreCase(role.getName()) ||
+                "ADMIN".equalsIgnoreCase(role.getName()) ||
+                "ROLE_ADMIN".equalsIgnoreCase(role.getName()) ||
+                "FLEX_ADMIN".equalsIgnoreCase(role.getName()) ||
+                "ROLE_FLEX_ADMIN".equalsIgnoreCase(role.getName()) ||
+                "TI_SUPORTE".equalsIgnoreCase(role.getName()) ||
+                "ROLE_TI_SUPORTE".equalsIgnoreCase(role.getName())
+        ));
+    }
 
-        if (isPrivileged) {
-            log.info("ℹ️ Login permitido por regra de privilégio para usuário: {}", user.getUsername());
+    private void validateUserCompanyAccess(User user, UUID requestedCompanyId) {
+        // 1. Se for Super Admin, Admin ou TI Suporte, NÃO é obrigado a pertencer a nenhuma empresa
+        if (isSuperAdmin(user)) {
+            log.info("ℹ️ Login liberado: usuário {} é SUPER_ADMIN/privilegiado (não exige vínculo com empresa)", user.getUsername());
             return;
         }
 
@@ -324,19 +325,19 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 try {
                     hasAccess = employeeRepository.findByUser(user).stream()
                             .anyMatch(emp -> emp != null && requestedCompanyId.equals(emp.getCompanyId()));
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     log.warn("⚠️ Erro ao verificar employee por usuário: {}", e.getMessage());
                 }
             }
 
             if (!hasAccess) {
-                // Fallback de tolerância se só existir uma empresa cadastrada no sistema
+                // Fallback se só existir uma empresa cadastrada no sistema
                 try {
                     if (companyRepository != null && companyRepository.count() <= 1) {
                         hasAccess = true;
                     }
                 } catch (Throwable ignored) {
-                    hasAccess = true; // Tolerância para não bloquear login legítimo
+                    hasAccess = true;
                 }
             }
 
@@ -350,38 +351,61 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             return;
         }
 
-        // 3. Se nenhuma empresa foi solicitada, tentar resolver via resolver
+        // 3. Se nenhuma empresa foi solicitada, tentar resolver empresa padrão
         UUID resolvedCompanyId = userCompanyResolver.resolveCompanyId(user);
         if (resolvedCompanyId == null) {
-            log.warn("⚠️ Usuário {} logando sem empresa vinculada. Resolvendo empresa padrão...", user.getUsername());
-            // Não bloqueia login se o usuário tiver credencial válida
+            log.warn("⚠️ Usuário {} logando sem empresa vinculada.", user.getUsername());
             return;
         }
     }
 
     private EmpresaResponse buildEmpresaResponse(User user, UUID requestedCompanyId) {
         try {
+            boolean privileged = isSuperAdmin(user);
+
             Optional<Company> companyOpt = requestedCompanyId != null
                     ? userCompanyResolver.resolveSpecificCompany(user, requestedCompanyId)
                     : userCompanyResolver.resolveCompany(user);
 
-            return companyOpt.map(c -> {
-                // Definir funcionalidades habilitadas (por enquanto, todas habilitadas)
-                java.util.List<String> enabledFeatures = java.util.List.of(
-                        "dashboard",
-                        "operacional",
-                        "manutencao",
-                        "financeiro",
-                        "rotas",
-                        "relatorios");
+            // Fallback para SUPER_ADMIN se nenhuma empresa estiver vinculada
+            if (companyOpt.isEmpty() && privileged) {
+                try {
+                    companyOpt = companyRepository.findAll().stream().findFirst();
+                } catch (Throwable ignored) {}
+            }
 
-                EmpresaResponse.EmpresaResponseBuilder builder = EmpresaResponse.builder()
-                        .id(c.getId() != null ? c.getId().toString() : null)
-                        .nome(c.getName())
-                        .logoUrl(c.getLogoUrl())
-                        .temaCor(c.getTemaCor() != null ? c.getTemaCor() : "dark")
-                        .enabledFeatures(enabledFeatures);
+            if (companyOpt.isEmpty()) {
+                if (privileged) {
+                    return EmpresaResponse.builder()
+                            .id(null)
+                            .nome("FluxBus Global")
+                            .temaCor("dark")
+                            .enabledFeatures(java.util.List.of(
+                                    "dashboard", "operacional", "manutencao", "financeiro", "rotas", "relatorios"
+                            ))
+                            .build();
+                }
+                return null;
+            }
 
+            Company c = companyOpt.get();
+            java.util.List<String> enabledFeatures = java.util.List.of(
+                    "dashboard",
+                    "operacional",
+                    "manutencao",
+                    "financeiro",
+                    "rotas",
+                    "relatorios");
+
+            EmpresaResponse.EmpresaResponseBuilder builder = EmpresaResponse.builder()
+                    .id(c.getId() != null ? c.getId().toString() : null)
+                    .nome(c.getName())
+                    .logoUrl(c.getLogoUrl())
+                    .temaCor(c.getTemaCor() != null ? c.getTemaCor() : "dark")
+                    .enabledFeatures(enabledFeatures);
+
+            // Apenas para usuários NÃO privilegiados tenta consultar employee
+            if (!privileged) {
                 try {
                     employeeRepository.findByUser(user).stream()
                             .filter(emp -> emp != null && emp.getUnit() != null)
@@ -394,13 +418,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                                     }
                                 } catch (Exception ignored) {}
                             });
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     log.warn("⚠️ Não foi possível obter detalhes hierárquicos do funcionário: {}", e.getMessage());
                 }
+            }
 
-                return builder.build();
-            }).orElse(null);
-        } catch (Exception e) {
+            return builder.build();
+        } catch (Throwable e) {
             log.warn("⚠️ Erro ao montar dados da empresa no login (prosseguindo sem empresa): {}", e.getMessage());
             return null;
         }

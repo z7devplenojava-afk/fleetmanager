@@ -66,10 +66,19 @@ public class UserCompanyResolver {
     /**
      * Retorna a Company do usuário. Primeiro tenta user.getCompanyId(),
      * depois user.getCompany(), depois Employee -> Company.
+     * SUPER_ADMIN não é obrigado a ter empresa vinculada e não deve acionar Employee.
      */
     public Optional<Company> resolveCompany(User user) {
         if (user == null)
             return Optional.empty();
+
+        boolean isSuperAdmin = user.getRoles() != null && user.getRoles().stream()
+                .anyMatch(r -> r != null && r.getName() != null && (
+                        "SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "ROLE_SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "ROLE_ADMIN".equalsIgnoreCase(r.getName())
+                ));
 
         // 1. Tentar por companyId direto
         if (user.getCompanyId() != null) {
@@ -90,7 +99,16 @@ public class UserCompanyResolver {
             }
         } catch (Exception ignored) {}
 
-        // 3. Tentar por Employee
+        // 3. Se for SUPER_ADMIN, retorna a primeira empresa ativa do sistema se existir
+        if (isSuperAdmin) {
+            try {
+                return companyRepository.findAll().stream().findFirst();
+            } catch (Exception ignored) {
+                return Optional.empty();
+            }
+        }
+
+        // 4. Tentar por Employee apenas para usuários normais
         try {
             if (user.getId() != null) {
                 return employeeRepository.findByUserId(user.getId())
@@ -129,8 +147,20 @@ public class UserCompanyResolver {
             }
         } catch (Exception ignored) {}
 
+        boolean isSuperAdmin = user.getRoles() != null && user.getRoles().stream()
+                .anyMatch(r -> r != null && r.getName() != null && (
+                        "SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "ROLE_SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "ROLE_ADMIN".equalsIgnoreCase(r.getName())
+                ));
+
+        if (isSuperAdmin) {
+            return Optional.empty();
+        }
+
         try {
-            // Busca nos registros de Employee
+            // Busca nos registros de Employee apenas para usuários normais
             return employeeRepository.findByUser(user).stream()
                     .filter(emp -> emp != null && companyId.equals(emp.getCompanyId()))
                     .map(Employee::getCompany)
