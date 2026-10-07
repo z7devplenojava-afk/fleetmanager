@@ -268,7 +268,22 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
   };
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    const sanitizedCompanyName = companyName
+      ? companyName.replace(/[/\\?%*:|"<>]/g, '').trim()
+      : 'Proposta Comercial';
+    const propNum = proposal?.proposalNumber ? ` - ${proposal.proposalNumber}` : '';
+
+    document.title = `${sanitizedCompanyName}${propNum}`;
+
+    const restoreTitle = () => {
+      document.title = originalTitle;
+      window.removeEventListener('afterprint', restoreTitle);
+    };
+
+    window.addEventListener('afterprint', restoreTitle);
     window.print();
+    setTimeout(restoreTitle, 2000);
   };
 
   return (
