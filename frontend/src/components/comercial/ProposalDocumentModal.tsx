@@ -273,7 +273,35 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[95vw] sm:w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[92vh] overflow-y-auto print:max-h-none print:overflow-visible print:border-none print:p-0 print:m-0 print:shadow-none print:bg-white print:text-black">
+      <DialogContent
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (
+            !target ||
+            target.closest('[toast-close]') ||
+            target.closest('[role="status"]') ||
+            target.closest('[data-radix-toast-announce-exclude]') ||
+            target.closest('ol') ||
+            target.closest('.toast')
+          ) {
+            e.preventDefault();
+          }
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (
+            !target ||
+            target.closest('[toast-close]') ||
+            target.closest('[role="status"]') ||
+            target.closest('[data-radix-toast-announce-exclude]') ||
+            target.closest('ol') ||
+            target.closest('.toast')
+          ) {
+            e.preventDefault();
+          }
+        }}
+        className="max-w-4xl w-[95vw] sm:w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[92vh] overflow-y-auto print:max-h-none print:overflow-visible print:border-none print:p-0 print:m-0 print:shadow-none print:bg-white print:text-black"
+      >
         {/* Estilo Dedicado para Impressão / PDF A4 com Paginação Completa */}
         <style>{`
           @media print {
