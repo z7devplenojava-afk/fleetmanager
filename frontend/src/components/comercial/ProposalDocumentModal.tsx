@@ -313,7 +313,7 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
               height: auto !important;
               overflow: visible !important;
             }
-            [data-radix-portal], [role="dialog"], [data-state], body > div {
+            [data-radix-portal], [role="dialog"], [data-state], body > div, .fixed, .inset-0 {
               position: static !important;
               margin: 0 !important;
               padding: 0 !important;
@@ -334,7 +334,7 @@ export const ProposalDocumentModal: React.FC<ProposalDocumentModalProps> = ({
               visibility: visible !important;
             }
             #printable-proposal-doc {
-              position: fixed !important;
+              position: absolute !important;
               left: 0 !important;
               top: 0 !important;
               width: 100% !important;
