@@ -136,7 +136,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
 
             String target = request.getUsername() != null ? request.getUsername().trim() : "";
-            User user = userRepository.findByUsername(target)
+            User user = userRepository.findByUsernameOrEmailIgnoreCase(target)
+                    .or(() -> userRepository.findByUsername(target))
                     .or(() -> userRepository.findByEmail(target))
                     .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuário não encontrado: " + target));
 

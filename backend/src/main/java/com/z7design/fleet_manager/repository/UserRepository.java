@@ -15,6 +15,9 @@ import com.z7design.fleet_manager.model.User;
 public interface UserRepository extends JpaRepository<User, UUID> {
        Optional<User> findByUsername(String username);
 
+       @Query("SELECT u FROM User u WHERE LOWER(u.username) = LOWER(:input) OR LOWER(u.email) = LOWER(:input)")
+       Optional<User> findByUsernameOrEmailIgnoreCase(@Param("input") String input);
+
        boolean existsByUsername(String username);
 
        Optional<User> findByEmail(String email);
