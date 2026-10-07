@@ -54,6 +54,10 @@ const OrdemServicoPage: React.FC = () => {
   const handleCloseModal = () => {
     setModalOpen(false);
     if (shouldOpenModal) navigate('/rh/ordens-servico', { replace: true });
+    setTimeout(() => {
+      document.body.style.pointerEvents = '';
+      document.body.style.overflow = '';
+    }, 50);
   };
 
   const handleViewOrder = (order: OrderOfService) => {
@@ -64,6 +68,10 @@ const OrdemServicoPage: React.FC = () => {
   const handleCloseViewModal = () => {
     setViewModalOpen(false);
     setSelectedOrder(null);
+    setTimeout(() => {
+      document.body.style.pointerEvents = '';
+      document.body.style.overflow = '';
+    }, 50);
   };
 
   const handleEditOrder = (order: OrderOfService) => {
