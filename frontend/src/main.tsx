@@ -4,12 +4,23 @@ if (typeof global === 'undefined') {
   window.global = window;
 }
 
-// Dev: desregistra Service Workers antigos (PWA) que podem interceptar /api e gerar ERR_SSL / login quebrado
-if (import.meta.env.DEV && typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-  void navigator.serviceWorker.getRegistrations().then((regs) => {
-    regs.forEach((r) => {
-      void r.unregister();
+// Gerenciamento e desregistro automático de Service Workers com cache antigo/quebrado (bad-precaching-response)
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  if (import.meta.env.DEV) {
+    void navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((r) => void r.unregister());
     });
+  }
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = typeof event.reason === 'string' ? event.reason : event.reason?.message;
+    const str = typeof reason === 'string' ? reason : '';
+    if (str.includes('bad-precaching-response') || str.includes('workbox')) {
+      event.preventDefault();
+      void navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((r) => void r.unregister());
+      });
+    }
   });
 }
 

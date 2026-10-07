@@ -58,38 +58,13 @@ export default defineConfig(({ mode }) => {
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-        globIgnores: ['**/node_modules/**/*', '**/xlsx-*.js', '**/pdf-*.js'],
+        globPatterns: ['**/*.{css,html,png,svg,ico}'],
         skipWaiting: true,
         clientsClaim: true,
-        // Limpar caches antigos automaticamente
         cleanupOutdatedCaches: true,
-        // Ignorar erros de precache (arquivos 404 não quebram o service worker)
-        // O Workbox irá apenas logar o erro mas continuar funcionando
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.js$/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'js-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 horas
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ],
-        // Não cachear arquivos JS dinamicamente importados
         navigateFallback: null,
         navigateFallbackDenylist: [/^\/api/, /^\/ws/]
       },
-      // Tratar erros de precache graciosamente
-      injectManifest: {
-        globPatterns: ['**/*.{js,css,html,png,svg,ico}']
-      }
     }),
   ];
 
