@@ -69,6 +69,12 @@ public class UpdateUserRequest {
 
     private UUID companyId;
 
+    /**
+     * Se true (apenas SUPER_ADMIN), remove o vínculo da empresa do usuário.
+     * Permite que SUPER_ADMIN tenha acesso global a todas as empresas.
+     */
+    private Boolean removeCompany;
+
     // Getters and Setters explicitos para resolver problemas de compilaÃ§Ã£o com
     // Lombok
     public UUID getCompanyId() {
@@ -190,4 +196,13 @@ public class UpdateUserRequest {
     public void setAddress(String address) {
         this.address = address;
     }
+
+    public Boolean getRemoveCompany() {
+        return removeCompany;
+    }
+
+    public void setRemoveCompany(Boolean removeCompany) {
+        this.removeCompany = removeCompany;
+    }
 }
+

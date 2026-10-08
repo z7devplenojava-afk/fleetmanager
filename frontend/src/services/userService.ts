@@ -30,6 +30,7 @@ export interface UpdateUserRequest {
   active?: boolean;
   roles?: string[]; // Backend DTO espera List<String>
   companyId?: string;
+  removeCompany?: boolean;
   avatar?: string;
   department?: string;
   position?: string;

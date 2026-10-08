@@ -99,8 +99,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile.prod
     image: fluxbus-backend:prod
-    container_name: fluxbus-prod-backend
-    hostname: fluxbus-prod-backend
+    container_name: fluxbus-backend-prod
+    hostname: fluxbus-backend-prod
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://fluxbus-prod-db:5432/fluxbus
@@ -144,8 +144,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
     image: fluxbus-frontend:prod
-    container_name: fluxbus-prod-frontend
-    hostname: fluxbus-prod-frontend
+    container_name: fluxbus-frontend-prod
+    hostname: fluxbus-frontend-prod
     environment:
       VITE_API_URL: https://fluxbus.com.br
       VITE_ENV: production

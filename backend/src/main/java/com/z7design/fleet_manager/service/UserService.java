@@ -317,9 +317,10 @@ public class UserService {
             }
         }
 
-        // Atualizar empresa se fornecida (permitido apenas para Flex Admins - validado
-        // no controller)
-        if (request.getCompanyId() != null) {
+        // Atualizar empresa se fornecida (ou desvincular empresa se removeCompany for true)
+        if (Boolean.TRUE.equals(request.getRemoveCompany())) {
+            existingUser.setCompanyId(null);
+        } else if (request.getCompanyId() != null) {
             existingUser.setCompanyId(request.getCompanyId());
         }
 

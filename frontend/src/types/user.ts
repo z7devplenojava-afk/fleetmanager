@@ -207,6 +207,7 @@ export interface User {
   status?: string;
   active?: boolean;
   firstAccessCompleted?: boolean;
+  requiresLgpdConsent?: boolean;
   companyId?: string;
   companyName?: string;
   clientId?: string;
