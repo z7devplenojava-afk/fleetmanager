@@ -60,13 +60,15 @@ api.interceptors.request.use(
     if (token && token.trim() !== '' && token !== 'fake-token') {
       config.headers.Authorization = `Bearer ${token}`;
 
-      // Multi-tenant: enviar empresa como header redundante (defesa em profundidade)
+      // Multi-tenant: enviar empresa selecionada como cabeçalho HTTP (defesa em profundidade)
       try {
         const empresaRaw = localStorage.getItem('empresa');
         if (empresaRaw) {
           const empresa = JSON.parse(empresaRaw);
-          if (empresa?.id) {
+          if (empresa?.id && empresa.id !== 'none') {
             config.headers['X-Company-Id'] = empresa.id;
+            config.headers['X-Company-ID'] = empresa.id;
+            config.headers['X-Target-Company-ID'] = empresa.id;
           }
         }
       } catch (_e) { /* empresa não disponível */ }
@@ -74,8 +76,10 @@ api.interceptors.request.use(
       // Admin Impersonation Logic
       try {
         const targetCompanyId = sessionStorage.getItem('admin_target_company_id');
-        if (targetCompanyId) {
+        if (targetCompanyId && targetCompanyId !== 'none') {
           config.headers['X-Target-Company-ID'] = targetCompanyId;
+          config.headers['X-Company-ID'] = targetCompanyId;
+          config.headers['X-Company-Id'] = targetCompanyId;
           if (isHttpDebugMode()) {
             console.log('👑 Admin Impersonating Company:', targetCompanyId);
           }
