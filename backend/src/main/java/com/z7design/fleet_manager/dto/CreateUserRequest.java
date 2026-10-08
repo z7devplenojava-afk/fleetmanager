@@ -29,7 +29,7 @@ public class CreateUserRequest {
     @Pattern(regexp = "^(?:(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^a-zA-Z0-9\\s]).*|\\d{11}@2025)$", message = "Senha deve ser forte (maiÃºscula, minÃºscula, nÃºmero, especial) ou CPF@2025")
     private String password;
 
-    @Pattern(regexp = "^\\d{9,20}$", message = "WhatsApp deve conter apenas dÃ­gitos e ter entre 9 e 20 caracteres")
+    @Pattern(regexp = "^(?:\\d{9,20})?$", message = "WhatsApp deve conter apenas dígitos e ter entre 9 e 20 caracteres")
     private String whatsapp;
 
     private List<String> roles; // Array de Strings com nomes dos roles

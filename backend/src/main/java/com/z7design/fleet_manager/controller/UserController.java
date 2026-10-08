@@ -305,7 +305,7 @@ public class UserController {
             @ApiResponse(responseCode = "400", description = "Dados invÃ¡lidos"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<UserListResponseDTO> create(@Valid @RequestBody CreateUserRequest request) {
+    public ResponseEntity<?> create(@Valid @RequestBody CreateUserRequest request) {
         try {
             System.out.println("âœ… UserController.create - Iniciando criaÃ§Ã£o de usuÃ¡rio");
             System.out.println(
@@ -320,7 +320,9 @@ public class UserController {
         } catch (Exception e) {
             System.err.println("âŒ Erro ao criar usuÃ¡rio: " + e.getMessage());
             e.printStackTrace();
-            throw new RuntimeException("Erro ao criar usuÃ¡rio: " + e.getMessage(), e);
+            log.error("Erro ao criar usuário: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Erro ao criar usuário"));
         }
     }
 

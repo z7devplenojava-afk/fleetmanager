@@ -103,7 +103,7 @@ public class UserService {
 
         // Buscar roles do banco de dados pelos nomes (Array de Strings)
         System.out.println("ðŸ” Buscando roles: " + request.getRoles());
-        List<Role> rolesFromDb = roleRepository.findByNames(request.getRoles());
+        List<Role> rolesFromDb = findRolesByCandidateNames(request.getRoles());
         System.out.println("âœ… Roles encontrados: " + rolesFromDb.size());
 
         if (rolesFromDb.isEmpty()) {
@@ -121,7 +121,7 @@ public class UserService {
             }
         }
 
-        // Criar usuÃ¡rio
+        // Criar usuário
         User user = User.builder()
                 .name(request.getName())
                 .username(request.getUsername())
@@ -130,6 +130,7 @@ public class UserService {
                 .whatsapp(
                         request.getWhatsapp() != null && !request.getWhatsapp().trim().isEmpty() ? request.getWhatsapp()
                                 : null)
+                .whatsappConsent(false)
                 .roles(new java.util.HashSet<>(rolesFromDb))
                 .active(request.getActive() != null ? request.getActive() : true)
                 .status(status)
@@ -170,11 +171,11 @@ public class UserService {
             throw new IllegalArgumentException("FunÃ§Ã£o nÃ£o pode ser nula");
         }
 
-        // Buscar roles existentes pelo name
+        // Buscar roles existentes pelo name (flexível)
         var roleNames = user.getRoles().stream().map(Role::getName).toList();
-        var rolesFromDb = roleRepository.findByNames(roleNames);
+        var rolesFromDb = findRolesByCandidateNames(roleNames);
         if (rolesFromDb.isEmpty()) {
-            throw new IllegalArgumentException("Nenhum role vÃ¡lido encontrado no banco");
+            throw new IllegalArgumentException("Nenhum role válido encontrado no banco");
         }
         user.setRoles(new java.util.HashSet<>(rolesFromDb));
 
@@ -339,8 +340,8 @@ public class UserService {
 
         // Atualizar roles se fornecidas
         if (request.getRoles() != null && !request.getRoles().isEmpty()) {
-            var roleNames = request.getRoles(); // JÃ¡ Ã© uma lista de strings
-            var rolesFromDb = roleRepository.findByNames(roleNames);
+            var roleNames = request.getRoles(); // Já é uma lista de strings
+            var rolesFromDb = findRolesByCandidateNames(roleNames);
 
             // Validar se pelo menos um role foi encontrado
             if (rolesFromDb.isEmpty()) {
@@ -558,5 +559,23 @@ public class UserService {
                 }
             }
         });
+    }
+
+    private List<Role> findRolesByCandidateNames(List<String> requestedRoles) {
+        if (requestedRoles == null || requestedRoles.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        java.util.Set<String> candidates = new java.util.HashSet<>();
+        for (String r : requestedRoles) {
+            if (!StringUtils.hasText(r)) continue;
+            String trimmed = r.trim();
+            candidates.add(trimmed);
+            if (trimmed.startsWith("ROLE_")) {
+                candidates.add(trimmed.substring(5));
+            } else {
+                candidates.add("ROLE_" + trimmed);
+            }
+        }
+        return roleRepository.findByNames(new java.util.ArrayList<>(candidates));
     }
 }
