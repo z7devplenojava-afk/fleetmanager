@@ -17,6 +17,11 @@ public class ExpensePdfImportResultDTO {
     private int created;
     private int updated;
     private int skipped;
+    private String referencePeriodType;
+    private String referenceStartDate;
+    private String referenceEndDate;
+    private String referencePeriodText;
+    private String referenceMonthYear;
     private List<String> errors;
     private List<InvoiceDTO> items;
 

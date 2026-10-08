@@ -154,6 +154,31 @@ const ContasAPagar: React.FC = () => {
     }
   };
 
+  // Lista de anos disponível dinamicamente baseada nas contas + intervalo recente
+  const anosDisponiveis = useMemo(() => {
+    const anoAtual = new Date().getFullYear();
+    const setAnos = new Set<number>([anoAtual - 5, anoAtual - 4, anoAtual - 3, anoAtual - 2, anoAtual - 1, anoAtual, anoAtual + 1]);
+    
+    if (Array.isArray(contas)) {
+      contas.forEach(c => {
+        if (c.vencimento) {
+          const d = new Date(c.vencimento);
+          if (!isNaN(d.getTime())) setAnos.add(d.getFullYear());
+        }
+        if (c.dataEmissao) {
+          const d = new Date(c.dataEmissao);
+          if (!isNaN(d.getTime())) setAnos.add(d.getFullYear());
+        }
+        if (c.pagamento) {
+          const d = new Date(c.pagamento);
+          if (!isNaN(d.getTime())) setAnos.add(d.getFullYear());
+        }
+      });
+    }
+    
+    return Array.from(setAnos).filter(a => a >= 2000 && a <= 2100).sort((a, b) => a - b);
+  }, [contas]);
+
   // Função para filtrar contas por período
   const filtrarContas = (contasData: ContaAPagar[]) => {
     if (!Array.isArray(contasData)) {
@@ -164,12 +189,21 @@ const ContasAPagar: React.FC = () => {
       if (anoSelecionado === 'TODOS' && mesSelecionado === 'TODOS') {
         return true;
       }
-      if (!conta.vencimento) return true;
-      const dataVencimento = new Date(conta.vencimento);
-      const anoConta = dataVencimento.getFullYear();
-      const mesConta = dataVencimento.getMonth() + 1;
-      const matchAno = anoSelecionado === 'TODOS' || anoConta === anoSelecionado;
-      const matchMes = mesSelecionado === 'TODOS' || mesConta === mesSelecionado;
+      
+      const dVenc = conta.vencimento ? new Date(conta.vencimento) : null;
+      const dEmiss = conta.dataEmissao ? new Date(conta.dataEmissao) : null;
+      const dPag = conta.pagamento ? new Date(conta.pagamento) : null;
+      
+      const anoConta = (dVenc && !isNaN(dVenc.getTime())) ? dVenc.getFullYear() 
+                     : (dPag && !isNaN(dPag.getTime())) ? dPag.getFullYear()
+                     : (dEmiss && !isNaN(dEmiss.getTime())) ? dEmiss.getFullYear() : null;
+                     
+      const mesConta = (dVenc && !isNaN(dVenc.getTime())) ? dVenc.getMonth() + 1
+                     : (dPag && !isNaN(dPag.getTime())) ? dPag.getMonth() + 1
+                     : (dEmiss && !isNaN(dEmiss.getTime())) ? dEmiss.getMonth() + 1 : null;
+
+      const matchAno = anoSelecionado === 'TODOS' || (anoConta !== null && anoConta === anoSelecionado);
+      const matchMes = mesSelecionado === 'TODOS' || (mesConta !== null && mesConta === mesSelecionado);
       return matchAno && matchMes;
     });
 
@@ -1387,7 +1421,7 @@ const ContasAPagar: React.FC = () => {
                   >
                     Todos os Anos
                   </Button>
-                  {[2024, 2025, 2026, 2027].map(ano => (
+                  {anosDisponiveis.map(ano => (
                     <Button
                       key={ano}
                       variant={ano === anoSelecionado ? "default" : "outline"}

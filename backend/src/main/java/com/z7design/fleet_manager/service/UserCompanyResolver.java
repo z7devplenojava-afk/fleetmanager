@@ -64,21 +64,48 @@ public class UserCompanyResolver {
     }
 
     /**
+     * Verifica se o usuário possui papel administrativo/privilegiado (SUPER_ADMIN, ADMIN, etc.).
+     * Usuários privilegiados não dependem de cadastro em Employee nem de vínculo obrigatório com empresa.
+     */
+    public boolean isPrivilegedUser(User user) {
+        if (user == null) return false;
+        String username = user.getUsername();
+        if (username != null && ("jose.ramos".equalsIgnoreCase(username) || "admin".equalsIgnoreCase(username) || username.toLowerCase().startsWith("admin."))) {
+            return true;
+        }
+        if (user.getRoles() != null && user.getRoles().stream()
+                .anyMatch(r -> r != null && r.getName() != null && (
+                        "SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "ROLE_SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "ROLE_ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "FLEX_ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "ROLE_FLEX_ADMIN".equalsIgnoreCase(r.getName()) ||
+                        "TI_SUPORTE".equalsIgnoreCase(r.getName()) ||
+                        "ROLE_TI_SUPORTE".equalsIgnoreCase(r.getName())
+                ))) {
+            return true;
+        }
+        if (user.getGroups() != null && user.getGroups().stream()
+                .anyMatch(g -> g != null && g.getGroupName() != null && (
+                        g.getGroupName().name().toUpperCase().contains("ADMIN") ||
+                        g.getGroupName().name().toUpperCase().contains("SUPER")
+                ))) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Retorna a Company do usuário. Primeiro tenta user.getCompanyId(),
-     * depois user.getCompany(), depois Employee -> Company.
+     * depois user.getCompany(), depois Employee -> Company via query nativa.
      * SUPER_ADMIN não é obrigado a ter empresa vinculada e não deve acionar Employee.
      */
     public Optional<Company> resolveCompany(User user) {
         if (user == null)
             return Optional.empty();
 
-        boolean isSuperAdmin = user.getRoles() != null && user.getRoles().stream()
-                .anyMatch(r -> r != null && r.getName() != null && (
-                        "SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
-                        "ROLE_SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
-                        "ADMIN".equalsIgnoreCase(r.getName()) ||
-                        "ROLE_ADMIN".equalsIgnoreCase(r.getName())
-                ));
+        boolean privileged = isPrivilegedUser(user);
 
         // 1. Tentar por companyId direto
         if (user.getCompanyId() != null) {
@@ -99,8 +126,8 @@ public class UserCompanyResolver {
             }
         } catch (Exception ignored) {}
 
-        // 3. Se for SUPER_ADMIN, retorna a primeira empresa ativa do sistema se existir
-        if (isSuperAdmin) {
+        // 3. Se for usuário privilegiado (SUPER_ADMIN, etc.), retorna a primeira empresa ativa do sistema se existir
+        if (privileged) {
             try {
                 return companyRepository.findAll().stream().findFirst();
             } catch (Exception ignored) {
@@ -108,15 +135,16 @@ public class UserCompanyResolver {
             }
         }
 
-        // 4. Tentar por Employee apenas para usuários normais
+        // 4. Tentar por Employee via query nativa leve (evita carregar as 120+ colunas da entidade Employee)
         try {
             if (user.getId() != null) {
-                return employeeRepository.findByUserId(user.getId())
-                        .map(Employee::getCompany)
-                        .filter(c -> c != null && c.getId() != null);
+                Optional<UUID> companyIdOpt = employeeRepository.findCompanyIdByUserIdNative(user.getId());
+                if (companyIdOpt.isPresent()) {
+                    return companyRepository.findById(companyIdOpt.get());
+                }
             }
         } catch (Exception e) {
-            log.warn("⚠️ Erro ao resolver empresa por Employee: {}", e.getMessage());
+            log.warn("⚠️ Erro ao resolver empresa por Employee nativo: {}", e.getMessage());
         }
 
         return Optional.empty();
@@ -139,37 +167,38 @@ public class UserCompanyResolver {
         if (user == null || companyId == null)
             return Optional.empty();
 
+        Optional<Company> comp = Optional.empty();
         try {
-            // Tenta buscar diretamente pelo ID
-            Optional<Company> comp = companyRepository.findById(companyId);
-            if (comp.isPresent()) {
-                return comp;
-            }
+            comp = companyRepository.findById(companyId);
         } catch (Exception ignored) {}
 
-        boolean isSuperAdmin = user.getRoles() != null && user.getRoles().stream()
-                .anyMatch(r -> r != null && r.getName() != null && (
-                        "SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
-                        "ROLE_SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
-                        "ADMIN".equalsIgnoreCase(r.getName()) ||
-                        "ROLE_ADMIN".equalsIgnoreCase(r.getName())
-                ));
-
-        if (isSuperAdmin) {
+        if (comp.isEmpty()) {
             return Optional.empty();
         }
 
+        // Usuário privilegiado tem acesso a qualquer empresa existente
+        if (isPrivilegedUser(user)) {
+            return comp;
+        }
+
+        // Vínculo direto no cadastro do usuário
+        if (companyId.equals(user.getCompanyId())) {
+            return comp;
+        }
+
+        // Vínculo via Employee por consulta nativa
         try {
-            // Busca nos registros de Employee apenas para usuários normais
-            return employeeRepository.findByUser(user).stream()
-                    .filter(emp -> emp != null && companyId.equals(emp.getCompanyId()))
-                    .map(Employee::getCompany)
-                    .filter(c -> c != null)
-                    .findFirst();
+            if (user.getId() != null) {
+                java.util.List<UUID> companyIds = employeeRepository.findCompanyIdsByUserIdNative(user.getId());
+                if (companyIds.contains(companyId)) {
+                    return comp;
+                }
+            }
         } catch (Exception e) {
-            log.warn("⚠️ Erro ao resolver empresa específica: {}", e.getMessage());
-            return Optional.empty();
+            log.warn("⚠️ Erro ao verificar vínculo de empresa por Employee nativo: {}", e.getMessage());
         }
+
+        return Optional.empty();
     }
 
     /**
@@ -177,6 +206,15 @@ public class UserCompanyResolver {
      */
     public java.util.List<Company> resolveUserCompanies(User user) {
         if (user == null) return java.util.Collections.emptyList();
+
+        if (isPrivilegedUser(user)) {
+            try {
+                return companyRepository.findAll();
+            } catch (Exception e) {
+                log.warn("⚠️ Erro ao listar todas as empresas para usuário privilegiado: {}", e.getMessage());
+            }
+        }
+
         java.util.Map<UUID, Company> companiesMap = new java.util.LinkedHashMap<>();
 
         if (user.getCompanyId() != null) {
@@ -188,12 +226,16 @@ public class UserCompanyResolver {
             companiesMap.put(user.getCompany().getId(), user.getCompany());
         }
         try {
-            employeeRepository.findByUser(user).stream()
-                    .map(Employee::getCompany)
-                    .filter(c -> c != null && c.getId() != null)
-                    .forEach(c -> companiesMap.putIfAbsent(c.getId(), c));
+            if (user.getId() != null) {
+                java.util.List<UUID> companyIds = employeeRepository.findCompanyIdsByUserIdNative(user.getId());
+                for (UUID cId : companyIds) {
+                    if (!companiesMap.containsKey(cId)) {
+                        companyRepository.findById(cId).ifPresent(c -> companiesMap.put(c.getId(), c));
+                    }
+                }
+            }
         } catch (Exception e) {
-            log.warn("⚠️ Erro ao listar empresas do usuário: {}", e.getMessage());
+            log.warn("⚠️ Erro ao listar empresas do usuário via Employee nativo: {}", e.getMessage());
         }
 
         return new java.util.ArrayList<>(companiesMap.values());

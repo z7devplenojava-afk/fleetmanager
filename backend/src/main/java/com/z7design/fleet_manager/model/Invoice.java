@@ -89,7 +89,6 @@ public class Invoice implements TenantAware {
     @Column(name = "comprovante_url")
     private String comprovanteUrl;
 
-    @Size(max = 1000, message = "ObservaÃ§Ãµes deve ter no mÃ¡ximo 1000 caracteres")
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 

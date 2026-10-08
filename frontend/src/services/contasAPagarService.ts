@@ -135,6 +135,11 @@ export interface ExpensePdfImportResultDTO {
   created: number;
   updated: number;
   skipped: number;
+  referencePeriodType?: string;
+  referenceStartDate?: string;
+  referenceEndDate?: string;
+  referencePeriodText?: string;
+  referenceMonthYear?: string;
   errors: string[];
   items: any[];
 }
@@ -273,8 +278,9 @@ export const contasAPagarService = {
     if (filters.startDate) params.append('startDate', filters.startDate);
     if (filters.endDate) params.append('endDate', filters.endDate);
     if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
+    const size = filters.size !== undefined ? filters.size : 10000;
+    params.append('size', size.toString());
     if (filters.page !== undefined) params.append('page', filters.page.toString());
-    if (filters.size !== undefined) params.append('size', filters.size.toString());
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
     if (filters.sortDir) params.append('sortDir', filters.sortDir);
 

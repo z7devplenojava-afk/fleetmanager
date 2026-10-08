@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, AlertTriangle, User, Shield, Building2 } from 'lucide-react';
 import SEO from '@/components/SEO';
@@ -20,6 +20,7 @@ const Login = () => {
   const navigate = useNavigate();
   const { user, login } = useAuth();
   const { toast } = useToast();
+  const isSubmitting = useRef(false);
 
   // Tenta recuperar empresa da última sessão para exibir logo na tela de login
   const lastEmpresa = useMemo<EmpresaInfo | null>(() => {
@@ -62,6 +63,8 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
     setError('');
 
     if (!username || !password) {
@@ -101,6 +104,7 @@ const Login = () => {
       setError(errorMessage);
     } finally {
       setLoading(false);
+      isSubmitting.current = false;
     }
   };
 

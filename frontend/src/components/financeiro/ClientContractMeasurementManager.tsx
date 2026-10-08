@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import {
   FileText,
   Plus,
   Trash,
+  Trash2,
   Download,
   Upload,
   CheckCircle,
@@ -29,9 +30,27 @@ import {
   Sparkles,
   Layers,
   ArrowRight,
-  ShieldAlert
+  ShieldAlert,
+  Eye,
+  Edit2,
+  Search,
+  RefreshCw,
+  Truck
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { parteDiariaService, ParteDiaria } from '@/services/parteDiariaService';
+import { clientService } from '@/services/clientService';
+import { ParteDiariaModal } from './ParteDiariaModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export interface LeasedVehicleItem {
   id: string;
@@ -127,8 +146,101 @@ const CLIENT_CONTRACTS_MOCK = [
     periodEnd: '2024-09-30',
     dueDate: '2024-10-15',
     contractNumber: 'CTC-VALE-2024/88'
+  },
+  {
+    id: 'cli-04',
+    clientName: 'FMQC - TRANSPORTES & OPERAÇÕES',
+    clientCnpj: '08.123.456/0001-99',
+    measurementNumber: '025',
+    periodStart: '2025-12-01',
+    periodEnd: '2025-12-31',
+    dueDate: '2026-01-10',
+    contractNumber: 'CT-2025/FMQC'
   }
 ];
+
+const INITIAL_PARTES_DIARIAS: Record<string, ParteDiaria[]> = {
+  'cli-01': [
+    {
+      id: 'pd-geraes-1',
+      number: '13098',
+      date: '2024-04-02',
+      clientId: 'cli-01',
+      clientName: 'GERAES ARQUITETURA E ENGENHARIA LTDA',
+      contractNumber: 'CTC-GERAES-2024/01',
+      obraName: 'MINA VALE MIGUELÃO - N. LIMA-MG',
+      vehiclePlate: 'RUR-7A78',
+      vehicleModel: 'Ônibus Rodoviário',
+      driverName: 'Carlos Eduardo Mendes',
+      startTime: '05:30',
+      endTime: '17:40',
+      startKm: 120100,
+      endKm: 120280,
+      drivenKm: 180,
+      disregardedKm: 0,
+      consideredKm: 180,
+      status: 'VALIDADA',
+      notes: 'Transporte de colaboradores turno manhã e tarde',
+      atividades: [
+        { startTime: '05:30', endTime: '11:00', description: 'Praça da Estação BH x Mina Miguelão', startKm: 120100, endKm: 120190, activityType: 'REGULAR' },
+        { startTime: '12:30', endTime: '17:40', description: 'Mina Miguelão x Praça da Estação BH', startKm: 120190, endKm: 120280, activityType: 'REGULAR' }
+      ]
+    },
+    {
+      id: 'pd-geraes-2',
+      number: '13099',
+      date: '2024-04-03',
+      clientId: 'cli-01',
+      clientName: 'GERAES ARQUITETURA E ENGENHARIA LTDA',
+      contractNumber: 'CTC-GERAES-2024/01',
+      obraName: 'MINA VALE MIGUELÃO - N. LIMA-MG',
+      vehiclePlate: 'SHZ-3A40',
+      vehicleModel: 'Micro Ônibus',
+      driverName: 'Marcos Vinicius Rocha',
+      startTime: '06:00',
+      endTime: '18:15',
+      startKm: 85400,
+      endKm: 85565,
+      drivenKm: 165,
+      disregardedKm: 0,
+      consideredKm: 165,
+      status: 'VALIDADA',
+      notes: 'Operação regular sem intercorrências',
+      atividades: [
+        { startTime: '06:00', endTime: '12:00', description: 'Raposos x Mina Miguelão', startKm: 85400, endKm: 85480, activityType: 'REGULAR' },
+        { startTime: '13:00', endTime: '18:15', description: 'Mina Miguelão x Raposos', startKm: 85480, endKm: 85565, activityType: 'REGULAR' }
+      ]
+    }
+  ],
+  'cli-04': [
+    {
+      id: 'pd-fmqc-1',
+      number: '13103',
+      date: '2025-12-13',
+      clientId: 'cli-04',
+      clientName: 'FMQC - TRANSPORTES & OPERAÇÕES',
+      contractNumber: 'CT-2025/FMQC',
+      obraName: 'FMQC IBIRITÉ',
+      vehiclePlate: 'QMR-2F82',
+      vehicleModel: 'MICRO',
+      driverName: 'João da Silva (Motorista)',
+      startTime: '05:20',
+      endTime: '08:05',
+      startKm: 404014,
+      endKm: 404085,
+      drivenKm: 71,
+      disregardedKm: 0,
+      consideredKm: 71,
+      status: 'VALIDADA',
+      notes: 'Operação realizada com sucesso conforme parte diária física Nº 13103.',
+      createdBy: 'José Mário Ramos (DP)',
+      atividades: [
+        { startTime: '05:20', endTime: '06:59', description: 'Ibirite FMQC', startKm: 404014, endKm: 404058, activityType: 'REGULAR' },
+        { startTime: '07:00', endTime: '08:05', description: 'FMQC Ibirite', startKm: 404058, endKm: 404085, activityType: 'REGULAR' }
+      ]
+    }
+  ]
+};
 
 export const ClientContractMeasurementManager: React.FC = () => {
   const [selectedClientId, setSelectedClientId] = useState('cli-01');
@@ -237,6 +349,119 @@ export const ClientContractMeasurementManager: React.FC = () => {
     accessKey: '31240471055644000125550010000016421004829103',
     status: 'ISSUED'
   });
+
+  // State: Partes Diárias por Cliente
+  const [partesDiariasMap, setPartesDiariasMap] = useState<Record<string, ParteDiaria[]>>(INITIAL_PARTES_DIARIAS);
+  const [partesLoading, setPartesLoading] = useState<boolean>(false);
+  const [partesSearch, setPartesSearch] = useState<string>('');
+  
+  // Controle de Modais para Parte Diária
+  const [isParteModalOpen, setIsParteModalOpen] = useState<boolean>(false);
+  const [selectedParteDiaria, setSelectedParteDiaria] = useState<ParteDiaria | null>(null);
+  const [isModalReadOnly, setIsModalReadOnly] = useState<boolean>(false);
+
+  // Exclusão
+  const [parteToDelete, setParteToDelete] = useState<ParteDiaria | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+
+  const loadPartesDiarias = async () => {
+    try {
+      setPartesLoading(true);
+      const apiPartes = await parteDiariaService.getPartesDiarias(undefined, undefined, selectedClientId).catch(() => []);
+      if (Array.isArray(apiPartes) && apiPartes.length > 0) {
+        setPartesDiariasMap(prev => ({
+          ...prev,
+          [selectedClientId]: apiPartes
+        }));
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar partes diárias da API:', err);
+    } finally {
+      setPartesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPartesDiarias();
+  }, [selectedClientId]);
+
+  const currentPartesDiarias = partesDiariasMap[selectedClientId] || [];
+
+  const filteredPartesDiarias = currentPartesDiarias.filter(pd => {
+    if (!partesSearch) return true;
+    const term = partesSearch.toLowerCase();
+    return (
+      (pd.number || '').toLowerCase().includes(term) ||
+      (pd.vehiclePlate || '').toLowerCase().includes(term) ||
+      (pd.driverName || '').toLowerCase().includes(term) ||
+      (pd.vehicleModel || '').toLowerCase().includes(term) ||
+      (pd.status || '').toLowerCase().includes(term)
+    );
+  });
+
+  const totalKmPartesConsiderado = currentPartesDiarias.reduce(
+    (sum, p) => sum + (Number(p.consideredKm ?? p.drivenKm) || 0),
+    0
+  );
+  const totalKmPartesRodado = currentPartesDiarias.reduce(
+    (sum, p) => sum + (Number(p.drivenKm) || 0),
+    0
+  );
+
+  const handleOpenCreateParteDiaria = () => {
+    setSelectedParteDiaria(null);
+    setIsModalReadOnly(false);
+    setIsParteModalOpen(true);
+  };
+
+  const handleOpenViewParteDiaria = (pd: ParteDiaria) => {
+    setSelectedParteDiaria(pd);
+    setIsModalReadOnly(true);
+    setIsParteModalOpen(true);
+  };
+
+  const handleOpenEditParteDiaria = (pd: ParteDiaria) => {
+    setSelectedParteDiaria(pd);
+    setIsModalReadOnly(false);
+    setIsParteModalOpen(true);
+  };
+
+  const handleOpenDeleteParteDiaria = (pd: ParteDiaria) => {
+    setParteToDelete(pd);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDeleteParteDiaria = async () => {
+    if (!parteToDelete) return;
+    try {
+      if (parteToDelete.id) {
+        await parteDiariaService.deleteParteDiaria(parteToDelete.id).catch(() => {});
+      }
+      setPartesDiariasMap(prev => ({
+        ...prev,
+        [selectedClientId]: (prev[selectedClientId] || []).filter(
+          p => (p.id ? p.id !== parteToDelete.id : p.number !== parteToDelete.number)
+        )
+      }));
+      toast({
+        title: 'Parte Diária Excluída',
+        description: `Boletim Nº ${parteToDelete.number} removido com sucesso.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao excluir',
+        description: err.message || 'Falha ao remover parte diária.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setParteToDelete(null);
+    }
+  };
+
+  const handleParteDiariaSuccess = () => {
+    loadPartesDiarias();
+  };
 
   // Cálculos Totais
   const totalLeasedVehicles = leasedVehicles.reduce((sum, i) => sum + i.totalPeriod, 0);
@@ -422,7 +647,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
             🚍 1. Veículos Locados ({leasedVehicles.length})
           </TabsTrigger>
           <TabsTrigger value="partes-diarias" className="data-[state='active']:bg-amber-600 data-[state='active']:text-white font-bold text-xs">
-            📋 2. Partes Diárias (Boletins)
+            📋 2. Partes Diárias (Boletins) ({currentPartesDiarias.length})
           </TabsTrigger>
           <TabsTrigger value="extra-trips" className="data-[state='active']:bg-amber-600 data-[state='active']:text-white font-bold text-xs">
             ⚡ 3. Viagens Extras & KM Excedente
@@ -506,30 +731,179 @@ export const ClientContractMeasurementManager: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* TAB 2: Partes Diárias Operacionais */}
+        {/* TAB 2: Partes Diárias do Cliente (Boletins Diários) */}
         <TabsContent value="partes-diarias" className="space-y-4">
           <Card className="bg-zinc-950 border-zinc-800 text-zinc-100">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
               <div>
-                <CardTitle className="text-lg font-bold text-amber-400">Partes Diárias (Boletins Diários de Viagens)</CardTitle>
-                <CardDescription className="text-zinc-400 text-xs">
-                  Lançamento individual dos serviços prestados por dia, hodômetros de partida/chegada e motoristas escalados.
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg font-bold text-amber-400">
+                    Partes Diárias de Veículos — {currentClient.clientName}
+                  </CardTitle>
+                  <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-xs font-mono">
+                    {currentPartesDiarias.length} Boletins
+                  </Badge>
+                </div>
+                <CardDescription className="text-zinc-400 text-xs mt-1">
+                  Apuração operacional com vínculo do veículo atendente, horários, motorista e KM rodado/considerado.
                 </CardDescription>
               </div>
-              <Button size="sm" className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
-                <Plus className="w-4 h-4 mr-1" /> Lançar Parte Diária
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="border border-zinc-800 rounded-lg p-6 text-center bg-zinc-900/30">
-                <FileText className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-                <h4 className="text-base font-bold text-zinc-200">12 Partes Diárias Registradas no Período</h4>
-                <p className="text-xs text-zinc-400 max-w-md mx-auto mt-1">
-                  Todas as partes diárias deste contrato foram apuradas e consolidadas automaticamente no quadro de veículos locados e quilometragem excedente.
-                </p>
-                <Button variant="outline" className="mt-4 border-zinc-700 text-zinc-200">
-                  👁️ Visualizar Registro Detalhado por Dia
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  onClick={loadPartesDiarias}
+                  variant="outline"
+                  size="sm"
+                  disabled={partesLoading}
+                  className="border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${partesLoading ? 'animate-spin' : ''}`} />
+                  Atualizar
                 </Button>
+                <Button
+                  onClick={handleOpenCreateParteDiaria}
+                  size="sm"
+                  className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold shadow-lg shadow-amber-500/20"
+                >
+                  <Plus className="w-4 h-4 mr-1.5" /> Lançar Parte Diária
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-4 sm:p-6 space-y-4">
+              {/* Barra de Filtros e Resumo de KMs */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-zinc-900/60 p-3 rounded-xl border border-zinc-800">
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <Input
+                    placeholder="Buscar por Nº, placa ou motorista..."
+                    value={partesSearch}
+                    onChange={(e) => setPartesSearch(e.target.value)}
+                    className="pl-9 h-9 bg-zinc-950 border-zinc-800 text-xs text-zinc-200"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+                  <div className="bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800 text-zinc-300">
+                    <span className="text-zinc-500">KM Total:</span>{' '}
+                    <span className="font-bold text-white">{totalKmPartesRodado.toLocaleString('pt-BR')} km</span>
+                  </div>
+                  <div className="bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-400">
+                    <span>Considerado:</span>{' '}
+                    <span className="font-bold text-emerald-300">{totalKmPartesConsiderado.toLocaleString('pt-BR')} km</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabela de Partes Diárias */}
+              <div className="border border-zinc-800 rounded-xl overflow-x-auto bg-zinc-950/50">
+                <Table>
+                  <TableHeader className="bg-zinc-900/90">
+                    <TableRow className="border-zinc-800">
+                      <TableHead className="text-zinc-300 font-bold text-xs">Nº Boletim</TableHead>
+                      <TableHead className="text-zinc-300 font-bold text-xs">Data</TableHead>
+                      <TableHead className="text-zinc-300 font-bold text-xs">Veículo / Placa</TableHead>
+                      <TableHead className="text-zinc-300 font-bold text-xs">Motorista</TableHead>
+                      <TableHead className="text-zinc-300 font-bold text-xs">Horários</TableHead>
+                      <TableHead className="text-zinc-300 font-bold text-xs text-right">KM Início / Fim</TableHead>
+                      <TableHead className="text-zinc-300 font-bold text-xs text-right">KM Considerado</TableHead>
+                      <TableHead className="text-zinc-300 font-bold text-xs text-center">Status</TableHead>
+                      <TableHead className="text-zinc-300 font-bold text-xs text-center">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPartesDiarias.length === 0 ? (
+                      <TableRow className="border-zinc-800">
+                        <TableCell colSpan={9} className="text-center py-10 text-zinc-500 text-sm">
+                          <FileText className="w-10 h-10 text-zinc-600 mx-auto mb-2 opacity-50" />
+                          Nenhuma parte diária encontrada para {currentClient.clientName}.
+                          <div className="mt-3">
+                            <Button
+                              onClick={handleOpenCreateParteDiaria}
+                              size="sm"
+                              variant="outline"
+                              className="border-zinc-700 text-zinc-300 hover:text-white"
+                            >
+                              <Plus className="w-3.5 h-3.5 mr-1" /> Lançar Primeira Parte Diária
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredPartesDiarias.map((pd) => (
+                        <TableRow key={pd.id || pd.number} className="border-zinc-800/80 hover:bg-zinc-900/50 transition-colors">
+                          <TableCell className="font-mono text-xs font-bold">
+                            <Badge variant="outline" className="bg-zinc-900 border-zinc-700 text-amber-400 font-mono">
+                              Nº {pd.number}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-zinc-300 font-mono">
+                            {pd.date ? pd.date.split('-').reverse().join('/') : '--/--/----'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-mono text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                              <Truck className="w-3.5 h-3.5 text-blue-400" />
+                              {pd.vehiclePlate}
+                            </div>
+                            <div className="text-[11px] text-zinc-500 font-medium">
+                              {pd.vehicleModel || 'MICRO'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-zinc-200">
+                            {pd.driverName || 'Motorista Operacional'}
+                          </TableCell>
+                          <TableCell className="text-xs font-mono text-zinc-400">
+                            <span className="text-zinc-300">{pd.startTime || '05:20'}</span> às <span className="text-zinc-300">{pd.endTime || '08:05'}</span>
+                          </TableCell>
+                          <TableCell className="text-xs font-mono text-right text-zinc-400">
+                            <span>{pd.startKm?.toLocaleString('pt-BR')}</span> → <span className="text-zinc-200 font-bold">{pd.endKm?.toLocaleString('pt-BR')}</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge className="bg-emerald-950/70 border border-emerald-500/30 text-emerald-400 font-mono font-bold text-xs">
+                              {(pd.consideredKm ?? pd.drivenKm ?? 0).toLocaleString('pt-BR')} km
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge className="bg-zinc-900 text-zinc-300 border-zinc-700 text-[10px]">
+                              {pd.status || 'VALIDADA'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenViewParteDiaria(pd)}
+                                title="Visualizar Parte Diária"
+                                className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-blue-950/40 rounded-lg"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenEditParteDiaria(pd)}
+                                title="Editar Parte Diária"
+                                className="h-8 w-8 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-950/40 rounded-lg"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenDeleteParteDiaria(pd)}
+                                title="Excluir Parte Diária"
+                                className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
@@ -814,6 +1188,47 @@ export const ClientContractMeasurementManager: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Modal de Lançamento / Edição / Visualização de Parte Diária */}
+      <ParteDiariaModal
+        isOpen={isParteModalOpen}
+        onClose={() => {
+          setIsParteModalOpen(false);
+          setSelectedParteDiaria(null);
+        }}
+        onSuccess={handleParteDiariaSuccess}
+        initialClientId={currentClient.id}
+        initialClientName={currentClient.clientName}
+        parteDiariaToEdit={selectedParteDiaria}
+        isReadOnly={isModalReadOnly}
+      />
+
+      {/* Diálogo de Confirmação de Exclusão */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-lg font-bold text-red-400 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-400" />
+              Excluir Parte Diária Nº {parteToDelete?.number}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400 text-sm">
+              Tem certeza que deseja excluir o boletim da placa <span className="font-mono font-bold text-white">{parteToDelete?.vehiclePlate}</span> do cliente <span className="font-bold text-white">{currentClient.clientName}</span>?
+              Esta ação removerá o apontamento e recalculará os totais da medição.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteParteDiaria}
+              className="bg-red-600 hover:bg-red-500 text-white font-bold"
+            >
+              Sim, Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
