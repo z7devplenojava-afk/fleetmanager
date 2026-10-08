@@ -46,10 +46,19 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
 
     List<Vehicle> findByStatus(Vehicle.VehicleStatus status);
 
+    @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL AND v.status = :status AND v.companyId = :companyId")
+    List<Vehicle> findByStatusAndCompanyId(@Param("status") Vehicle.VehicleStatus status, @Param("companyId") UUID companyId);
+
     List<Vehicle> findByFuelType(Vehicle.FuelType fuelType);
+
+    @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL AND v.fuelType = :fuelType AND v.companyId = :companyId")
+    List<Vehicle> findByFuelTypeAndCompanyId(@Param("fuelType") Vehicle.FuelType fuelType, @Param("companyId") UUID companyId);
 
     @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL AND (v.plate LIKE %:searchTerm% OR v.fleetNumber LIKE %:searchTerm% OR v.model LIKE %:searchTerm% OR v.brand LIKE %:searchTerm%)")
     List<Vehicle> findBySearchTerm(@Param("searchTerm") String searchTerm);
+
+    @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL AND v.companyId = :companyId AND (v.plate LIKE %:searchTerm% OR v.fleetNumber LIKE %:searchTerm% OR v.model LIKE %:searchTerm% OR v.brand LIKE %:searchTerm%)")
+    List<Vehicle> findBySearchTermAndCompanyId(@Param("searchTerm") String searchTerm, @Param("companyId") UUID companyId);
 
     boolean existsByPlate(String plate);
 
@@ -58,6 +67,9 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
     /** Conta apenas veículos ativos (não excluídos) — para dashboards */
     @Query("SELECT COUNT(v) FROM Vehicle v WHERE v.deletedAt IS NULL")
     long countActive();
+
+    @Query("SELECT COUNT(v) FROM Vehicle v WHERE v.deletedAt IS NULL AND v.companyId = :companyId")
+    long countActiveByCompanyId(@Param("companyId") UUID companyId);
 
     /** Soft delete — marca a data de exclusão sem remover a linha */
     @Query("UPDATE Vehicle v SET v.deletedAt = CURRENT_TIMESTAMP WHERE v.id = :id AND v.deletedAt IS NULL")
