@@ -61,7 +61,7 @@ export const useWebSocket = (config: WebSocketConfig) => {
       const wsUrl = getWsUrl();
       const httpWsUrl = wsUrl ? wsUrl.replace(/^wss:\/\//i, 'https://').replace(/^ws:\/\//i, 'http://') : '/ws';
       const client = new Client({
-        webSocketFactory: () => new SockJS(httpWsUrl),
+        webSocketFactory: () => new SockJS(httpWsUrl, null, { transports: ['websocket', 'xhr-streaming', 'xhr-polling'] }),
         connectHeaders: {
           Authorization: `Bearer ${token}`,
           'X-Username': username

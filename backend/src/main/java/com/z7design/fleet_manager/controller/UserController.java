@@ -7,6 +7,7 @@ import com.z7design.fleet_manager.dto.ProfileResponse;
 import com.z7design.fleet_manager.dto.UpdateUserRequest;
 import com.z7design.fleet_manager.dto.CreateUserRequest;
 import com.z7design.fleet_manager.model.User;
+import com.z7design.fleet_manager.service.LgpdConsentService;
 import com.z7design.fleet_manager.service.UserService;
 import com.z7design.fleet_manager.service.UserOnlineStatusService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +39,7 @@ public class UserController {
 
     private final UserService userService;
     private final UserOnlineStatusService userOnlineStatusService;
+    private final LgpdConsentService lgpdConsentService;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
@@ -89,6 +91,18 @@ public class UserController {
                 .collect(java.util.stream.Collectors.toList()) : java.util.Collections.emptyList();
 
         // Construir resposta
+        boolean isSuperAdmin = roleNames.stream().anyMatch(r ->
+            r.equalsIgnoreCase("SUPER_ADMIN") || r.equalsIgnoreCase("ROLE_SUPER_ADMIN")
+        );
+        boolean requiresLgpdConsent = false;
+        if (!isSuperAdmin) {
+            try {
+                requiresLgpdConsent = !lgpdConsentService.hasAcceptedAllRequiredConsents(currentUser.getId());
+            } catch (Exception e) {
+                log.warn("Erro ao verificar consentimento LGPD para perfil (assumindo false): {}", e.getMessage());
+            }
+        }
+
         ProfileResponse response = ProfileResponse.builder()
                 .id(currentUser.getId())
                 .username(currentUser.getUsername())
@@ -97,6 +111,8 @@ public class UserController {
                 .whatsapp(currentUser.getWhatsapp())
                 .active(currentUser.isActive())
                 .roles(roleNames)
+                .firstAccessCompleted(currentUser.getFirstAccessCompleted() != null && currentUser.getFirstAccessCompleted())
+                .requiresLgpdConsent(requiresLgpdConsent)
                 .build();
 
         return ResponseEntity.ok(response);

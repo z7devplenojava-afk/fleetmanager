@@ -136,7 +136,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
         whatsapp: formData.whatsapp || undefined,
         status: "ACTIVE",
         active: true,
-        companyId: selectedCompanyId || undefined
+        companyId: (selectedCompanyId && selectedCompanyId !== 'none') ? selectedCompanyId : undefined
       };
 
       await userService.createUser(userData);
@@ -279,6 +279,9 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
                         <SelectValue placeholder="Selecione a empresa" />
                       </SelectTrigger>
                       <SelectContent className="bg-seguranca-black border-gray-600">
+                        <SelectItem value="none" className="text-emerald-400 font-medium">
+                          Sem Empresa (Acesso Global / Matriz FluxBus)
+                        </SelectItem>
                         {companies.map((company) => (
                           <SelectItem key={company.id} value={company.id}>
                             {company.name}

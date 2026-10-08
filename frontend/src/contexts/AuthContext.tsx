@@ -151,11 +151,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             void loadUserGroups(userWithPermissions.id);
           }
 
-          // Verificar se precisa redirecionar para primeiro acesso
-          if (!userWithPermissions.firstAccessCompleted) {
-            const currentPath = window.location.pathname;
-            const firstAccessPaths = ['/first-access/change-password', '/first-access/activate-2fa'];
-            if (!firstAccessPaths.includes(currentPath)) {
+          // Verificar se precisa redirecionar para primeiro acesso / LGPD
+          const currentPath = window.location.pathname;
+          const protectedPaths = ['/first-access/change-password', '/first-access/activate-2fa', '/lgpd-consent'];
+          if (!protectedPaths.includes(currentPath)) {
+            const isSuperAdminRole = (userWithPermissions.role ?? '').toUpperCase().includes('SUPER_ADMIN');
+            if (!isSuperAdminRole && userWithPermissions.requiresLgpdConsent) {
+              console.log('🔒 Usuário precisa aceitar termos LGPD, redirecionando...');
+              setTimeout(() => {
+                navigate('/lgpd-consent', { replace: true });
+              }, 100);
+            } else if (!isSuperAdminRole && !userWithPermissions.firstAccessCompleted) {
               console.log('🔒 Usuário precisa completar primeiro acesso, redirecionando...');
               setTimeout(() => {
                 navigate('/first-access/change-password', { replace: true });
@@ -351,6 +357,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         position: response.data.user?.position,
         employeeCode: response.data.user?.employeeCode,
         firstAccessCompleted: response.data.user?.firstAccessCompleted ?? response.data.firstAccessCompleted ?? false,
+        requiresLgpdConsent: response.data?.requiresLgpdConsent === true,
       };
 
       // Validar que o ID foi fornecido
@@ -407,14 +414,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       // Definir para onde navegar
+      // ORDEM OBRIGATÓRIA: 1) LGPD → 2) Troca de senha → 3) 2FA → 4) Dashboard
       let destination = getDashboardRouteForRole(userRole);
       const isSuperAdmin = (userRole ?? '').toUpperCase().includes('SUPER_ADMIN');
-      if (!isSuperAdmin && (requiresPasswordChange || !firstAccessCompleted)) {
+      if (!isSuperAdmin && requiresLgpdConsent) {
+        // 1º: Aceitar LGPD/Termos
+        destination = '/lgpd-consent';
+      } else if (!isSuperAdmin && (requiresPasswordChange || !firstAccessCompleted)) {
+        // 2º: Trocar senha no primeiro acesso
         destination = '/first-access/change-password';
       } else if (!isSuperAdmin && requires2FA) {
+        // 3º: Configurar 2FA
         destination = '/first-access/activate-2fa';
-      } else if (!isSuperAdmin && requiresLgpdConsent) {
-        destination = '/lgpd-consent';
       }
 
       // ORDEM CRÍTICA: setar user e isLoading=false juntos, navegar depois
@@ -523,6 +534,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           active: response.data.active !== undefined ? response.data.active : userData.active,
           roles: response.data.roles || userData.roles,
           role: primaryRole || userData.role,
+          // Atualizar flags de primeiro acesso e LGPD vindos do servidor
+          firstAccessCompleted: response.data.firstAccessCompleted !== undefined
+            ? response.data.firstAccessCompleted
+            : userData.firstAccessCompleted,
+          requiresLgpdConsent: response.data.requiresLgpdConsent !== undefined
+            ? response.data.requiresLgpdConsent
+            : userData.requiresLgpdConsent,
         };
         const rolePermissions = generatePermissions(updatedUser.role);
         const userWithPermissions = {

@@ -219,6 +219,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         phone?: string;
         address?: string;
         companyId?: string;
+        removeCompany?: boolean;
       } = {
         name: formData.name.trim(),
         email: formData.email.trim(),
@@ -232,7 +233,8 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         employeeCode: formData.employeeCode || '',
         phone: cleanPhone || undefined,
         address: formData.address || '',
-        companyId: formData.companyId && formData.companyId.trim() !== '' ? formData.companyId.trim() : undefined,
+        companyId: (!formData.companyId || formData.companyId === 'none' || formData.companyId.trim() === '') ? undefined : formData.companyId.trim(),
+        removeCompany: (!formData.companyId || formData.companyId === 'none' || formData.companyId.trim() === '') && (hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN')) ? true : undefined,
       };
 
       // Apenas ADMINS podem alterar senha via UI de edição
@@ -433,18 +435,34 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
                 {/* Seleção de Empresa */}
                 <div className="space-y-2">
-                  <Label htmlFor="company" className="text-seguranca-lightgray">
-                    Empresa
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="company" className="text-seguranca-lightgray">
+                      Empresa
+                    </Label>
+                    {(hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN')) && formData.companyId && formData.companyId !== 'none' && (
+                      <button
+                        type="button"
+                        onClick={() => handleInputChange('companyId', 'none')}
+                        className="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer"
+                      >
+                        Desvincular Empresa (Acesso Global)
+                      </button>
+                    )}
+                  </div>
                   {hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN') || hasRole('COMPANY_ADMIN') || hasRole('ADMIN') ? (
                     <Select
-                      value={formData.companyId}
-                      onValueChange={(value) => handleInputChange('companyId', value)}
+                      value={formData.companyId || 'none'}
+                      onValueChange={(value) => handleInputChange('companyId', value === 'none' ? '' : value)}
                     >
                       <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
                         <SelectValue placeholder="Selecione a empresa" />
                       </SelectTrigger>
                       <SelectContent className="bg-seguranca-black border-gray-600">
+                        {(hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN')) && (
+                          <SelectItem value="none" className="text-emerald-400 font-medium">
+                            Sem Empresa (Acesso Global / Matriz FluxBus)
+                          </SelectItem>
+                        )}
                         {companies.map((company) => (
                           <SelectItem key={company.id} value={company.id}>
                             {company.name}
@@ -455,7 +473,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                   ) : (
                     <Input
                       id="company-name"
-                      value={user.companyId ? (companies.find(c => c.id === user.companyId)?.name || 'Empresa Vinculada') : 'Sem Empresa'}
+                      value={user.companyId ? (companies.find(c => c.id === user.companyId)?.name || 'Empresa Vinculada') : 'Sem Empresa (FluxBus Matriz)'}
                       readOnly
                       className="bg-seguranca-black border-gray-600 text-seguranca-lightgray opacity-70 cursor-not-allowed"
                     />

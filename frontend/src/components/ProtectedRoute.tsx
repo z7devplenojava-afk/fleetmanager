@@ -34,13 +34,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Verificar se o usuário precisa completar o primeiro acesso
-  // Exceto se estiver na própria página de primeiro acesso ou se allowWithoutFirstAccess for true
-  if (!allowWithoutFirstAccess && !user.firstAccessCompleted) {
-    // Permitir acesso apenas às páginas de primeiro acesso
-    const firstAccessPaths = ['/first-access/change-password', '/first-access/activate-2fa'];
-    if (!firstAccessPaths.includes(location.pathname)) {
-      return <Navigate to="/first-access/change-password" replace />;
+  // Verificar se o usuário precisa completar o primeiro acesso / aceitar LGPD
+  // Exceto se estiver nas próprias páginas de primeiro acesso ou se allowWithoutFirstAccess for true
+  if (!allowWithoutFirstAccess) {
+    // Páginas que não precisam de first access completo
+    const bypassPaths = ['/first-access/change-password', '/first-access/activate-2fa', '/lgpd-consent'];
+    if (!bypassPaths.includes(location.pathname)) {
+      const isSuperAdmin = (user.role ?? '').toUpperCase().includes('SUPER_ADMIN');
+      if (!isSuperAdmin && user.requiresLgpdConsent) {
+        // 1º: Precisa aceitar os termos LGPD
+        return <Navigate to="/lgpd-consent" replace />;
+      } else if (!isSuperAdmin && !user.firstAccessCompleted) {
+        // 2º: Precisa trocar a senha no primeiro acesso
+        return <Navigate to="/first-access/change-password" replace />;
+      }
     }
   }
 
