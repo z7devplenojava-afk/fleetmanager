@@ -84,7 +84,7 @@ public class User implements UserDetails, TenantAware {
     @Column(nullable = false)
     private String name;
 
-    @Pattern(regexp = "^\\d{9,20}$", message = "O nÃºmero do WhatsApp deve conter apenas dÃ­gitos e ter entre 9 e 20 caracteres")
+    @Pattern(regexp = "^(?:\\d{9,20})?$", message = "O número do WhatsApp deve conter apenas dígitos e ter entre 9 e 20 caracteres")
     @Column(nullable = true, length = 20)
     private String whatsapp;
 
@@ -194,6 +194,9 @@ public class User implements UserDetails, TenantAware {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        if (whatsappConsent == null) {
+            whatsappConsent = false;
+        }
         if (twoFactorEnabled == null) {
             twoFactorEnabled = false;
         }
