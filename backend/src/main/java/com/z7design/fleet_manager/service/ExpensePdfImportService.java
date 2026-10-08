@@ -39,23 +39,39 @@ public class ExpensePdfImportService {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
+    // Padrão do período de referência no cabeçalho do relatório SIGLO:
+    // Exemplo: (VIAÇÃO SÃO SILVESTRE) (Pagamento : 01/01/2022 até 31/01/2022)
+    // ou: (Emissão : 01/01/2022 até 31/01/2022), (Vencimento : 01/01/2022 até 31/01/2022)
+    private static final Pattern REFERENCE_PERIOD_PATTERN = Pattern.compile(
+            "(?:\\(|\\b)(Pagamento|Emiss[aã]o|Vencimento)\\s*:\\s*(\\d{2}/\\d{2}/\\d{4})\\s*(?:at[eé]|-)\\s*(\\d{2}/\\d{2}/\\d{4})(?:\\)|\\b)",
+            Pattern.CASE_INSENSITIVE
+    );
+
     // Padrão que identifica o miolo de uma linha de despesa SIGLO:
-    // [Despesa: 4 a 8 dígitos] [Seq: 1 a 3 dígitos] [Data Emissão: dd/MM/yyyy] [Data Vencimento: dd/MM/yyyy]
+    // Colunas: Fornecedor(es) | Documento | Despesa | Seq. | Emissão | Vencimento | [Pagamento] | [Cancelada em] | Valor | Juros | Multa | Desconto | Ajustes | Total
+    // Captura: grupo1=Despesa, grupo2=Seq, grupo3=Emissão(dd/MM/yyyy), grupo4=Vencimento(dd/MM/yyyy), grupo5=resto da linha
     private static final Pattern EXPENSE_CORE_PATTERN = Pattern.compile(
-            "\\b(\\d{4,8})\\s+(\\d{1,3})\\s+(\\d{2}/\\d{2}/\\d{4})\\s+(\\d{2}/\\d{2}/\\d{4})(.*)$"
+            "\\b(\\d{1,10})\\s+(\\d{1,4})\\s+(\\d{2}/\\d{2}/\\d{4})\\s+(\\d{2}/\\d{2}/\\d{4})(.*)$"
     );
 
     // Padrão de datas brasileiras
     private static final Pattern DATE_PATTERN = Pattern.compile("\\b(\\d{2}/\\d{2}/\\d{4})\\b");
 
     // Padrão de valores monetários (ex: 7.218,38 ou 225,00 ou 0,00 ou -10,00)
+    // Também captura traço "-" isolado como zero (coluna vazia no PDF)
     private static final Pattern MONEY_PATTERN = Pattern.compile("-?\\d{1,3}(?:\\.\\d{3})*,\\d{2}");
+
+    // Padrão de traço isolado representando coluna vazia no SIGLO
+    private static final Pattern DASH_COLUMN_PATTERN = Pattern.compile("(?<![\\d,])\\s+-\\s+(?![\\d])");
 
     // Padrão do código do fornecedor no final da razão social/fantasia, ex: (812) ou (1709)
     private static final Pattern SUPPLIER_CODE_PATTERN = Pattern.compile("^(.*?)\\s*\\((\\d+)\\)\\s*$");
 
     // Padrão de Conta Corrente
     private static final Pattern CONTA_CORRENTE_PATTERN = Pattern.compile("Conta\\s+Corrente\\s*:\\s*([^\\n\\r]+)", Pattern.CASE_INSENSITIVE);
+
+    // Padrão de Ordem de Compra OC(s): 001045
+    private static final Pattern OC_PATTERN = Pattern.compile("OC\\(s\\)\\s*:\\s*([^\\n\\r;]+)", Pattern.CASE_INSENSITIVE);
 
     @Transactional
     public ExpensePdfImportResultDTO importPdf(MultipartFile file) {
@@ -86,6 +102,9 @@ public class ExpensePdfImportService {
                 return result;
             }
 
+            // 1. Extrair período de referência do cabeçalho (Pagamento / Emissão / Vencimento)
+            extractReferencePeriod(fullText, result);
+
             List<RawExpenseBlock> rawBlocks = parseTextIntoBlocks(fullText);
             log.info("Total de blocos de despesas extraídos do PDF: {}", rawBlocks.size());
             result.setTotalRead(rawBlocks.size());
@@ -109,16 +128,47 @@ public class ExpensePdfImportService {
         return result;
     }
 
+    private void extractReferencePeriod(String fullText, ExpensePdfImportResultDTO result) {
+        if (fullText == null) return;
+        Matcher m = REFERENCE_PERIOD_PATTERN.matcher(fullText);
+        if (m.find()) {
+            String type = m.group(1).trim();
+            String normalizedType = type.substring(0, 1).toUpperCase() + type.substring(1).toLowerCase();
+            String startDate = m.group(2).trim();
+            String endDate = m.group(3).trim();
+            result.setReferencePeriodType(normalizedType);
+            result.setReferenceStartDate(startDate);
+            result.setReferenceEndDate(endDate);
+            result.setReferencePeriodText(normalizedType + " : " + startDate + " até " + endDate);
+            result.setReferenceMonthYear(formatMonthYear(startDate));
+            log.info("Período de referência detectado no cabeçalho do PDF: {} ({})",
+                    result.getReferencePeriodText(), result.getReferenceMonthYear());
+        }
+    }
+
+    private String formatMonthYear(String dateStr) {
+        try {
+            LocalDate date = LocalDate.parse(dateStr, DATE_FORMATTER);
+            String[] meses = {"Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                              "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"};
+            return meses[date.getMonthValue() - 1] + "/" + date.getYear();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static class RawExpenseBlock {
         String supplierRaw;
         String supplierName;
         String supplierCode;
         String documentNumber;
         String expenseNumber;
+        String purchaseOrderNumber;
         Integer installmentSeq = 1;
         LocalDate issueDate;
         LocalDate dueDate;
         LocalDate paymentDate;
+        LocalDate canceledDate;   // "Cancelada em" — data de cancelamento
         Boolean isCanceled = false;
         BigDecimal amount = BigDecimal.ZERO;
         BigDecimal interestAmount = BigDecimal.ZERO;
@@ -237,52 +287,101 @@ public class ExpensePdfImportService {
             String doc = leftPart.substring(lastCodeEnd).trim();
             block.documentNumber = doc.isEmpty() ? "FATURA " + block.supplierCode : doc;
         } else {
-            // Caso sem código numérico entre parênteses
-            block.supplierRaw = leftPart;
-            block.supplierName = leftPart;
-            block.documentNumber = "S/N";
+            // Caso sem código entre parênteses: ex "RIOSUL DISTRIBUIDORA DE PNEUMATICOS LTDA 17052"
+            int lastSpace = leftPart.lastIndexOf(' ');
+            if (lastSpace > 0) {
+                String candidateDoc = leftPart.substring(lastSpace + 1).trim();
+                String candidateSupplier = leftPart.substring(0, lastSpace).trim();
+                if (!candidateSupplier.isEmpty() && candidateDoc.matches("[A-Za-z0-9/\\.-]+")) {
+                    block.supplierRaw = leftPart;
+                    block.supplierName = candidateSupplier;
+                    block.documentNumber = candidateDoc;
+                } else {
+                    block.supplierRaw = leftPart;
+                    block.supplierName = leftPart;
+                    block.documentNumber = "S/N";
+                }
+            } else {
+                block.supplierRaw = leftPart;
+                block.supplierName = leftPart;
+                block.documentNumber = "S/N";
+            }
         }
     }
 
     private void parseRemainingLineData(String remaining, RawExpenseBlock block) {
         if (remaining == null || remaining.trim().isEmpty()) return;
 
-        // Extrai todas as datas adicionais
+        // ─────────────────────────────────────────────────────────────────
+        // Estrutura SIGLO após [Vencimento]:
+        //   [Pagamento(dd/MM/yyyy)?] [Cancelada em(dd/MM/yyyy)?] Valor Juros Multa Desconto Ajustes Total
+        //
+        // A coluna "Cancelada em" só aparece quando a despesa foi cancelada.
+        // Quando não paga, a data de Pagamento está ausente (linha tem só 5-6 valores numéricos).
+        // ─────────────────────────────────────────────────────────────────
+
+        // 1. Detectar se está cancelada (texto antes dos valores)
+        String remainingLower = remaining.toLowerCase();
+        if (remainingLower.contains("cancelad")) {
+            block.isCanceled = true;
+        }
+
+        // 2. Extrair datas adicionais (Pagamento e opcionalmente Cancelada em)
         List<LocalDate> additionalDates = new ArrayList<>();
+        List<int[]> datePositions = new ArrayList<>();
         Matcher dateMatcher = DATE_PATTERN.matcher(remaining);
         while (dateMatcher.find()) {
             LocalDate d = parseDate(dateMatcher.group(1));
             if (d != null) {
                 additionalDates.add(d);
+                datePositions.add(new int[]{dateMatcher.start(), dateMatcher.end()});
             }
         }
 
+        // A 1ª data extra = Pagamento; a 2ª data extra = Cancelada em (somente se cancelada)
         if (!additionalDates.isEmpty()) {
-            // A primeira data adicional no fluxo SIGLO é a data de Pagamento
             block.paymentDate = additionalDates.get(0);
         }
+        if (additionalDates.size() >= 2 && block.isCanceled) {
+            // Segunda data é "Cancelada em" — sobrescreve paymentDate pois não houve pagamento real
+            block.paymentDate = null;
+            block.canceledDate = additionalDates.get(1);
+        }
 
-        // Extrai todos os valores monetários
+        // 3. Extrair valores monetários após a(s) data(s)
+        // Determinamos o offset de início de busca após a última data encontrada
+        int searchOffset = 0;
+        if (!datePositions.isEmpty()) {
+            searchOffset = datePositions.get(datePositions.size() - 1)[1];
+        }
+
+        String valuesPart = remaining.substring(searchOffset);
         List<BigDecimal> amounts = new ArrayList<>();
-        Matcher moneyMatcher = MONEY_PATTERN.matcher(remaining);
+        Matcher moneyMatcher = MONEY_PATTERN.matcher(valuesPart);
         while (moneyMatcher.find()) {
             amounts.add(parseCurrency(moneyMatcher.group()));
         }
 
-        // Colunas no SIGLO: Valor, Juros, Multa, Desconto, Ajustes, Pagou, Saldo (7 colunas)
+        // Colunas SIGLO após datas: Valor | Juros | Multa | Desconto | Ajustes | Total (6 colunas)
+        // Observação: o relatório SIGLO mostra 6 colunas numéricas (sem coluna "Pagou" separada):
+        //   [0] Valor  [1] Juros  [2] Multa  [3] Desconto  [4] Ajustes  [5] Total
         int size = amounts.size();
-        if (size >= 1) block.amount = amounts.get(0);
+        if (size >= 1) block.amount       = amounts.get(0);
         if (size >= 2) block.interestAmount = amounts.get(1);
-        if (size >= 3) block.fineAmount = amounts.get(2);
+        if (size >= 3) block.fineAmount   = amounts.get(2);
         if (size >= 4) block.discountAmount = amounts.get(3);
         if (size >= 5) block.adjustmentAmount = amounts.get(4);
-        if (size >= 6) block.paidAmount = amounts.get(5);
-        if (size >= 7) block.balanceAmount = amounts.get(6);
+        if (size >= 6) block.balanceAmount = amounts.get(5);  // Total/Saldo
 
-        // Se tiver flag ou palavra "cancelada"
-        if (remaining.toLowerCase().contains("cancel")) {
-            block.isCanceled = true;
+        // Se tiver 7 valores (layout alternativo com coluna "Pagou"):
+        //   [0] Valor  [1] Juros  [2] Multa  [3] Desconto  [4] Ajustes  [5] Pagou  [6] Total
+        if (size >= 7) {
+            block.paidAmount   = amounts.get(5);
+            block.balanceAmount = amounts.get(6);
         }
+
+        log.debug("parseRemaining: datas={}, valores={}, cancelada={}, pagamento={}, canceladaEm={}",
+                additionalDates.size(), amounts.size(), block.isCanceled, block.paymentDate, block.canceledDate);
     }
 
     private InvoiceDTO saveOrUpdateInvoice(RawExpenseBlock block, Unit fallbackUnit, UUID tenantCompanyId, ExpensePdfImportResultDTO result) {

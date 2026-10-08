@@ -61,8 +61,9 @@ public class LgpdConsentService {
     }
 
     /**
-     * Verifica se usuÃ¡rio aceitou todos os termos obrigatÃ³rios
+     * Verifica se usuário aceitou todos os termos obrigatórios
      */
+    @Transactional(readOnly = true)
     public boolean hasAcceptedAllRequiredConsents(UUID userId) {
         return consentRepository.hasAcceptedAllRequiredConsents(userId);
     }

@@ -127,4 +127,21 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
         Optional<Employee> findByNameExactAndCompanyId(@Param("name") String name, @Param("companyId") UUID companyId);
 
         long countByCompanyId(UUID companyId);
+
+        // Native query ultra-leve para obter apenas company_id de um funcionário por user_id (evita carregar 120+ colunas da entidade Employee)
+        @Query(value = "SELECT company_id FROM employees WHERE user_id = :userId AND company_id IS NOT NULL LIMIT 1", nativeQuery = true)
+        Optional<UUID> findCompanyIdByUserIdNative(@Param("userId") UUID userId);
+
+        // Native query ultra-leve para obter lista de company_ids associados ao user_id
+        @Query(value = "SELECT DISTINCT company_id FROM employees WHERE user_id = :userId AND company_id IS NOT NULL", nativeQuery = true)
+        List<UUID> findCompanyIdsByUserIdNative(@Param("userId") UUID userId);
+
+        // Native query para obter unitName e branchName sem carregar a entidade Employee inteira
+        @Query(value = "SELECT u.name as unit_name, b.name as branch_name " +
+                        "FROM employees e " +
+                        "JOIN units u ON e.unit_id = u.id " +
+                        "LEFT JOIN branches b ON u.branch_id = b.id " +
+                        "WHERE e.user_id = :userId LIMIT 1", nativeQuery = true)
+        List<Object[]> findUnitAndBranchNamesByUserIdNative(@Param("userId") UUID userId);
 }
+

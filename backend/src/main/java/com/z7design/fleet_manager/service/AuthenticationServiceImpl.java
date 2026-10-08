@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import com.z7design.fleet_manager.dto.AuthenticationRequest;
 import com.z7design.fleet_manager.dto.AuthenticationResponse;
@@ -129,6 +130,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         try {
             log.info("ðŸ” Tentando autenticar usuÃ¡rio: {}", request.getUsername());
@@ -296,23 +298,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     private boolean isSuperAdmin(User user) {
-        if (user == null || user.getRoles() == null) return false;
-        return user.getRoles().stream().anyMatch(role -> role != null && role.getName() != null && (
-                "SUPER_ADMIN".equalsIgnoreCase(role.getName()) ||
-                "ROLE_SUPER_ADMIN".equalsIgnoreCase(role.getName()) ||
-                "ADMIN".equalsIgnoreCase(role.getName()) ||
-                "ROLE_ADMIN".equalsIgnoreCase(role.getName()) ||
-                "FLEX_ADMIN".equalsIgnoreCase(role.getName()) ||
-                "ROLE_FLEX_ADMIN".equalsIgnoreCase(role.getName()) ||
-                "TI_SUPORTE".equalsIgnoreCase(role.getName()) ||
-                "ROLE_TI_SUPORTE".equalsIgnoreCase(role.getName())
-        ));
+        return userCompanyResolver.isPrivilegedUser(user);
     }
 
     private void validateUserCompanyAccess(User user, UUID requestedCompanyId) {
         // 1. Se for Super Admin, Admin ou TI Suporte, NÃO é obrigado a pertencer a nenhuma empresa
         if (isSuperAdmin(user)) {
-            log.info("ℹ️ Login liberado: usuário {} é SUPER_ADMIN/privilegiado (não exige vínculo com empresa)", user.getUsername());
+            log.info("ℹ️ Login liberado: usuário {} é privilegiado/SUPER_ADMIN (não exige vínculo com empresa)", user.getUsername());
             return;
         }
 
@@ -321,12 +313,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             boolean hasAccess = requestedCompanyId.equals(user.getCompanyId()) ||
                     (user.getCompany() != null && requestedCompanyId.equals(user.getCompany().getId()));
 
-            if (!hasAccess) {
+            if (!hasAccess && user.getId() != null) {
                 try {
-                    hasAccess = employeeRepository.findByUser(user).stream()
-                            .anyMatch(emp -> emp != null && requestedCompanyId.equals(emp.getCompanyId()));
+                    hasAccess = employeeRepository.findCompanyIdsByUserIdNative(user.getId()).contains(requestedCompanyId);
                 } catch (Throwable e) {
-                    log.warn("⚠️ Erro ao verificar employee por usuário: {}", e.getMessage());
+                    log.warn("⚠️ Erro ao verificar employee por usuário (nativo): {}", e.getMessage());
                 }
             }
 
@@ -367,7 +358,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     ? userCompanyResolver.resolveSpecificCompany(user, requestedCompanyId)
                     : userCompanyResolver.resolveCompany(user);
 
-            // Fallback para SUPER_ADMIN se nenhuma empresa estiver vinculada
+            // Fallback para usuário privilegiado se nenhuma empresa estiver vinculada
             if (companyOpt.isEmpty() && privileged) {
                 try {
                     companyOpt = companyRepository.findAll().stream().findFirst();
@@ -404,22 +395,21 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     .temaCor(c.getTemaCor() != null ? c.getTemaCor() : "dark")
                     .enabledFeatures(enabledFeatures);
 
-            // Apenas para usuários NÃO privilegiados tenta consultar employee
-            if (!privileged) {
+            // Apenas para usuários NÃO privilegiados tenta consultar unidade/filial (query nativa leve)
+            if (!privileged && user.getId() != null) {
                 try {
-                    employeeRepository.findByUser(user).stream()
-                            .filter(emp -> emp != null && emp.getUnit() != null)
-                            .findFirst()
-                            .ifPresent(emp -> {
-                                try {
-                                    builder.unitName(emp.getUnit().getName());
-                                    if (emp.getUnit().getBranch() != null) {
-                                        builder.branchName(emp.getUnit().getBranch().getName());
-                                    }
-                                } catch (Exception ignored) {}
-                            });
+                    java.util.List<Object[]> rows = employeeRepository.findUnitAndBranchNamesByUserIdNative(user.getId());
+                    if (rows != null && !rows.isEmpty()) {
+                        Object[] row = rows.get(0);
+                        if (row.length > 0 && row[0] != null) {
+                            builder.unitName(row[0].toString());
+                        }
+                        if (row.length > 1 && row[1] != null) {
+                            builder.branchName(row[1].toString());
+                        }
+                    }
                 } catch (Throwable e) {
-                    log.warn("⚠️ Não foi possível obter detalhes hierárquicos do funcionário: {}", e.getMessage());
+                    log.warn("⚠️ Não foi possível obter detalhes hierárquicos do funcionário (nativo): {}", e.getMessage());
                 }
             }
 

@@ -7,6 +7,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
         private final CustomUserDetailsService customUserDetailsService;
@@ -567,7 +569,9 @@ public class SecurityConfig {
                                 "https://*.z7botsolutions.com.br",
                                 "https://z7botsolutions.com.br",
                                 "http://localhost:[*]",
-                                "http://127.0.0.1:[*]"
+                                "http://127.0.0.1:[*]",
+                                "https://localhost:[*]",
+                                "https://127.0.0.1:[*]"
                 ));
                 configuration.setAllowedMethods(
                                 Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));

@@ -18,12 +18,20 @@ interface ParteDiariaModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  initialClientId?: string;
+  initialClientName?: string;
+  parteDiariaToEdit?: ParteDiaria | null;
+  isReadOnly?: boolean;
 }
 
 export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  initialClientId,
+  initialClientName,
+  parteDiariaToEdit,
+  isReadOnly = false
 }) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -36,9 +44,9 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const [docNumber, setDocNumber] = useState<string>('13103');
   const [docDate, setDocDate] = useState<string>('2025-12-13');
   const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const [clientName, setClientName] = useState<string>('FM2C');
-  const [contractNumber, setContractNumber] = useState<string>('CT-2025/FM2C');
-  const [obraName, setObraName] = useState<string>('FM2C IBIRITÉ');
+  const [clientName, setClientName] = useState<string>('FMQC');
+  const [contractNumber, setContractNumber] = useState<string>('CT-2025/FMQC');
+  const [obraName, setObraName] = useState<string>('FMQC IBIRITÉ');
   const [vehicleType, setVehicleType] = useState<string>('MICRO'); // CARRO, ONIBUS, MICRO, VAN
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
   const [vehiclePlate, setVehiclePlate] = useState<string>('QMR-2F82');
@@ -48,8 +56,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
   // Atividades do dia com KM de início/fim por trajeto conforme ficha física
   const [activities, setActivities] = useState<ParteDiariaAtividade[]>([
-    { startTime: '05:20', endTime: '06:59', description: 'Ibirite FM2C', startKm: 404014, endKm: 404058, activityType: 'REGULAR' },
-    { startTime: '07:00', endTime: '08:05', description: 'FM2C Ibirite', startKm: 404058, endKm: 404085, activityType: 'REGULAR' }
+    { startTime: '05:20', endTime: '06:59', description: 'Ibirite FMQC', startKm: 404014, endKm: 404058, activityType: 'REGULAR' },
+    { startTime: '07:00', endTime: '08:05', description: 'FMQC Ibirite', startKm: 404058, endKm: 404085, activityType: 'REGULAR' }
   ]);
 
   // Hodômetro e KM
@@ -115,18 +123,51 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
       setMotoristasFuncionarios(motoristasEmp);
 
-      // Se houver veículo cadastrado com placa QMR-2F82, selecionar
-      const qmrVehicle = vehicleList.find((v: any) => (v.placa || v.plate || '').toUpperCase().includes('QMR'));
-      if (qmrVehicle) {
-        setSelectedVehicleId(qmrVehicle.id);
-        setVehiclePlate(qmrVehicle.placa || qmrVehicle.plate);
-      }
-
-      // Se houver cliente FM2C cadastrado, selecionar
-      const fm2cClient = clientList.find((c: any) => (c.name || '').toUpperCase().includes('FM2C'));
-      if (fm2cClient) {
-        setSelectedClientId(fm2cClient.id);
-        setClientName(fm2cClient.name);
+      // Se for edição, carregar dados da parte diária existente
+      if (parteDiariaToEdit) {
+        setDocNumber(parteDiariaToEdit.number || '13103');
+        setDocDate(parteDiariaToEdit.date || new Date().toISOString().split('T')[0]);
+        setSelectedClientId(parteDiariaToEdit.clientId || '');
+        setClientName(parteDiariaToEdit.clientName || 'FMQC');
+        setContractNumber(parteDiariaToEdit.contractNumber || 'CT-2025/FMQC');
+        setObraName(parteDiariaToEdit.obraName || 'FMQC IBIRITÉ');
+        setVehicleType(parteDiariaToEdit.vehicleModel || 'MICRO');
+        setSelectedVehicleId(parteDiariaToEdit.vehicleId || '');
+        setVehiclePlate(parteDiariaToEdit.vehiclePlate || 'QMR-2F82');
+        setDriverName(parteDiariaToEdit.driverName || 'João da Silva (Motorista)');
+        setSelectedDriverId(parteDiariaToEdit.driverId || '');
+        setStartKm(parteDiariaToEdit.startKm ?? 404014);
+        setEndKm(parteDiariaToEdit.endKm ?? 404085);
+        setDisregardedKm(parteDiariaToEdit.disregardedKm ?? 0);
+        setDisregardReason(parteDiariaToEdit.disregardReason || '');
+        setNotes(parteDiariaToEdit.notes || 'Operação realizada com sucesso conforme parte diária física.');
+        if (parteDiariaToEdit.atividades && parteDiariaToEdit.atividades.length > 0) {
+          setActivities(parteDiariaToEdit.atividades);
+        }
+      } else if (initialClientId) {
+        setSelectedClientId(initialClientId);
+        const cli = clientList.find((c: any) => c.id === initialClientId);
+        if (cli) {
+          setClientName(cli.name);
+        } else if (initialClientName) {
+          setClientName(initialClientName);
+        }
+        const qmrVehicle = vehicleList.find((v: any) => (v.placa || v.plate || '').toUpperCase().includes('QMR'));
+        if (qmrVehicle) {
+          setSelectedVehicleId(qmrVehicle.id);
+          setVehiclePlate(qmrVehicle.placa || qmrVehicle.plate);
+        }
+      } else {
+        const qmrVehicle = vehicleList.find((v: any) => (v.placa || v.plate || '').toUpperCase().includes('QMR'));
+        if (qmrVehicle) {
+          setSelectedVehicleId(qmrVehicle.id);
+          setVehiclePlate(qmrVehicle.placa || qmrVehicle.plate);
+        }
+        const fmqcClient = clientList.find((c: any) => (c.name || '').toUpperCase().includes('FMQC') || (c.name || '').toUpperCase().includes('FM2C'));
+        if (fmqcClient) {
+          setSelectedClientId(fmqcClient.id);
+          setClientName(fmqcClient.name);
+        }
       }
     } catch (err) {
       console.error('Erro ao carregar dados do formulário:', err);
@@ -146,8 +187,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
       const contractsList = Array.isArray(rawContracts) ? rawContracts : (rawContracts as any)?.content || [];
       if (contractsList.length > 0) {
         const firstContract = contractsList[0];
-        setContractNumber(firstContract.contractNumber || `CT-2025/${selected?.name?.substring(0, 6).toUpperCase() || 'FM2C'}`);
-        setObraName(firstContract.description || firstContract.obraName || 'FM2C IBIRITÉ');
+        setContractNumber(firstContract.contractNumber || `CT-2025/${selected?.name?.substring(0, 6).toUpperCase() || 'FMQC'}`);
+        setObraName(firstContract.description || firstContract.obraName || 'FMQC IBIRITÉ');
       }
     } catch (err) {
       console.warn('Erro ao carregar contratos do cliente:', err);
@@ -193,9 +234,9 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const handleFillSampleData = () => {
     setDocNumber('13103');
     setDocDate('2025-12-13');
-    setClientName('FM2C');
-    setContractNumber('CT-2025/FM2C');
-    setObraName('FM2C IBIRITÉ');
+    setClientName('FMQC');
+    setContractNumber('CT-2025/FMQC');
+    setObraName('FMQC IBIRITÉ');
     setVehicleType('MICRO');
     setVehiclePlate('QMR-2F82');
     setDriverName('João da Silva (Motorista)');
@@ -205,8 +246,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     setDpSignature('José Mário Ramos (DP)');
     setNotes('Operação de transporte regular executada conforme apontamentos de campo na Parte Diária Nº 13103.');
     setActivities([
-      { startTime: '05:20', endTime: '06:59', description: 'Ibirite FM2C', startKm: 404014, endKm: 404058, activityType: 'REGULAR' },
-      { startTime: '07:00', endTime: '08:05', description: 'FM2C Ibirite', startKm: 404058, endKm: 404085, activityType: 'REGULAR' }
+      { startTime: '05:20', endTime: '06:59', description: 'Ibirite FMQC', startKm: 404014, endKm: 404058, activityType: 'REGULAR' },
+      { startTime: '07:00', endTime: '08:05', description: 'FMQC Ibirite', startKm: 404058, endKm: 404085, activityType: 'REGULAR' }
     ]);
     toast({
       title: 'Dados da Ficha Carregados!',
@@ -230,6 +271,11 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) {
+      onClose();
+      return;
+    }
+
     if (endKm < startKm) {
       toast({
         title: 'KM Inválido',
@@ -246,9 +292,9 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
         number: docNumber,
         date: docDate,
         clientId: selectedClientId || undefined,
-        clientName: clientName || 'FM2C',
-        contractNumber: contractNumber || 'CT-2025/FM2C',
-        obraName: obraName || 'FM2C IBIRITÉ',
+        clientName: clientName || 'FMQC',
+        contractNumber: contractNumber || 'CT-2025/FMQC',
+        obraName: obraName || 'FMQC IBIRITÉ',
         vehicleId: selectedVehicleId || undefined,
         vehiclePlate: vehiclePlate || 'QMR-2F82',
         vehicleModel: vehicleType,
@@ -267,12 +313,19 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
         atividades: activities
       };
 
-      await parteDiariaService.createParteDiaria(payload);
-
-      toast({
-        title: 'Parte Diária Registrada!',
-        description: `Parte Diária Nº ${docNumber} (${vehiclePlate}) salva com sucesso. KM Considerado: ${consideredKm} km.`,
-      });
+      if (parteDiariaToEdit?.id) {
+        await parteDiariaService.updateParteDiaria(parteDiariaToEdit.id, payload);
+        toast({
+          title: 'Parte Diária Atualizada!',
+          description: `Parte Diária Nº ${docNumber} atualizada com sucesso.`,
+        });
+      } else {
+        await parteDiariaService.createParteDiaria(payload);
+        toast({
+          title: 'Parte Diária Registrada!',
+          description: `Parte Diária Nº ${docNumber} (${vehiclePlate}) salva com sucesso. KM Considerado: ${consideredKm} km.`,
+        });
+      }
 
       onSuccess();
       onClose();
@@ -307,7 +360,9 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-amber-400 tracking-wider uppercase">VIAÇÃO SÃO SILVESTRE</span>
-                    <Badge className="bg-emerald-950/80 text-emerald-400 border-emerald-500/40 text-[10px]">Formulário Oficial de Campo</Badge>
+                    <Badge className="bg-emerald-950/80 text-emerald-400 border-emerald-500/40 text-[10px]">
+                      {isReadOnly ? 'Visualização de Parte Diária' : parteDiariaToEdit ? 'Editar Parte Diária' : 'Formulário Oficial de Campo'}
+                    </Badge>
                   </div>
                   <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2 mt-0.5">
                     PARTE DIÁRIA DE VEÍCULOS
@@ -316,15 +371,17 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
               </div>
 
               <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleFillSampleData}
-                  className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-xs h-8 rounded-xl"
-                >
-                  <Sparkles className="h-3.5 w-3.5 mr-1" />
-                  Exemplo (Ficha 13103)
-                </Button>
+                {!isReadOnly && !parteDiariaToEdit && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleFillSampleData}
+                    className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-xs h-8 rounded-xl"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />
+                    Exemplo (Ficha 13103)
+                  </Button>
+                )}
 
                 <div className="text-right">
                   <span className="text-[11px] text-slate-400 font-semibold block">Nº PARTE DIÁRIA</span>
@@ -695,23 +752,25 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
               onClick={onClose}
               className="border-slate-700 text-slate-300 hover:bg-slate-800"
             >
-              Cancelar
+              {isReadOnly ? 'Fechar' : 'Cancelar'}
             </Button>
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-6"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" /> Salvar Parte Diária
-                </>
-              )}
-            </Button>
+            {!isReadOnly && (
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-6"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" /> {parteDiariaToEdit ? 'Atualizar Parte Diária' : 'Salvar Parte Diária'}
+                  </>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

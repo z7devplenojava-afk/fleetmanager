@@ -212,6 +212,20 @@ export const ImportarDespesasPdfModal: React.FC<ImportarDespesasPdfModalProps> =
           {/* Resultado da Importação */}
           {importResult && (
             <div className="space-y-4">
+              {importResult.referencePeriodText && (
+                <div className="bg-emerald-950/50 border border-emerald-800/80 rounded-xl p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-emerald-400 font-semibold text-xs">
+                    <Calendar size={16} />
+                    <span>Período de Referência:</span>
+                    <span className="text-white font-bold">{importResult.referencePeriodText}</span>
+                  </div>
+                  {importResult.referenceMonthYear && (
+                    <Badge className="bg-emerald-500 text-zinc-950 font-bold">
+                      {importResult.referenceMonthYear}
+                    </Badge>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-3 text-center">
                   <span className="text-[11px] font-semibold text-zinc-400 uppercase">Total Lido</span>
