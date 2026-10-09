@@ -36,24 +36,52 @@ public class EPIDeliveryFormDTO {
     private List<EPIDeliveryFormItemDTO> items;
 
     public static EPIDeliveryFormDTO fromEntity(EPIDeliveryForm form) {
-        return EPIDeliveryFormDTO.builder()
-                .id(form.getId())
-                .employeeId(form.getEmployee().getId())
-                .employeeName(form.getEmployee().getName())
-                .employeeCpf(form.getEmployee().getDocument() != null ? form.getEmployee().getDocument() : null)
-                .companyId(form.getCompany().getId())
-                .companyName(form.getCompany().getName())
-                .companyCnpj(form.getCompany().getCnpj())
-                .deliveryDate(form.getDeliveryDate())
-                .responsibleEmployeeId(form.getResponsibleEmployee() != null ? form.getResponsibleEmployee().getId() : null)
-                .responsibleEmployeeName(form.getResponsibleEmployee() != null ? form.getResponsibleEmployee().getName() : null)
-                .observations(form.getObservations())
-                .pdfUrl(form.getPdfUrl())
-                .createdById(form.getCreatedBy() != null ? form.getCreatedBy().getId() : null)
-                .createdByName(form.getCreatedBy() != null ? form.getCreatedBy().getName() : null)
-                .createdAt(form.getCreatedAt())
-                .updatedAt(form.getUpdatedAt())
-                .items(form.getItems() != null ? form.getItems().stream()
+        if (form == null) return null;
+
+        UUID employeeId = null;
+        String employeeName = null;
+        String employeeCpf = null;
+        if (form.getEmployee() != null) {
+            try {
+                employeeId = form.getEmployee().getId();
+                employeeName = form.getEmployee().getName();
+                employeeCpf = form.getEmployee().getDocument();
+            } catch (Exception ignored) {}
+        }
+
+        UUID companyId = null;
+        String companyName = null;
+        String companyCnpj = null;
+        if (form.getCompany() != null) {
+            try {
+                companyId = form.getCompany().getId();
+                companyName = form.getCompany().getName();
+                companyCnpj = form.getCompany().getCnpj();
+            } catch (Exception ignored) {}
+        }
+
+        UUID respId = null;
+        String respName = null;
+        if (form.getResponsibleEmployee() != null) {
+            try {
+                respId = form.getResponsibleEmployee().getId();
+                respName = form.getResponsibleEmployee().getName();
+            } catch (Exception ignored) {}
+        }
+
+        UUID createdById = null;
+        String createdByName = null;
+        if (form.getCreatedBy() != null) {
+            try {
+                createdById = form.getCreatedBy().getId();
+                createdByName = form.getCreatedBy().getName();
+            } catch (Exception ignored) {}
+        }
+
+        List<EPIDeliveryFormItemDTO> itemDtos = null;
+        try {
+            if (form.getItems() != null && org.hibernate.Hibernate.isInitialized(form.getItems())) {
+                itemDtos = form.getItems().stream()
                         .map(item -> EPIDeliveryFormItemDTO.builder()
                                 .id(item.getId())
                                 .stockItemId(item.getStockItemId())
@@ -66,7 +94,28 @@ public class EPIDeliveryFormDTO {
                                 .uniformPiece(item.getUniformPiece())
                                 .observations(item.getObservations())
                                 .build())
-                        .collect(Collectors.toList()) : null)
+                        .collect(Collectors.toList());
+            }
+        } catch (Exception ignored) {}
+
+        return EPIDeliveryFormDTO.builder()
+                .id(form.getId())
+                .employeeId(employeeId)
+                .employeeName(employeeName)
+                .employeeCpf(employeeCpf)
+                .companyId(companyId)
+                .companyName(companyName)
+                .companyCnpj(companyCnpj)
+                .deliveryDate(form.getDeliveryDate())
+                .responsibleEmployeeId(respId)
+                .responsibleEmployeeName(respName)
+                .observations(form.getObservations())
+                .pdfUrl(form.getPdfUrl())
+                .createdById(createdById)
+                .createdByName(createdByName)
+                .createdAt(form.getCreatedAt())
+                .updatedAt(form.getUpdatedAt())
+                .items(itemDtos)
                 .build();
     }
 }

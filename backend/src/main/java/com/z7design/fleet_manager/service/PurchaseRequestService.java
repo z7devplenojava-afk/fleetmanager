@@ -363,15 +363,40 @@ public class PurchaseRequestService {
     }
 
     private PurchaseRequest convertToEntity(PurchaseRequestDTO dto) {
+        String safeTitle = dto.getTitle();
+        if (safeTitle != null && safeTitle.length() > 100) {
+            safeTitle = safeTitle.substring(0, 100);
+        }
+
+        String safeDescription = dto.getDescription();
+        if (safeDescription != null && safeDescription.length() > 500) {
+            safeDescription = safeDescription.substring(0, 500);
+        }
+
+        String safeRequesterName = dto.getRequesterName();
+        if (safeRequesterName != null && safeRequesterName.length() > 100) {
+            safeRequesterName = safeRequesterName.substring(0, 100);
+        }
+
+        String safeDepartment = dto.getDepartment();
+        if (safeDepartment != null && safeDepartment.length() > 100) {
+            safeDepartment = safeDepartment.substring(0, 100);
+        }
+
+        String safeJustification = dto.getJustification();
+        if (safeJustification != null && safeJustification.length() > 100) {
+            safeJustification = safeJustification.substring(0, 100);
+        }
+
         PurchaseRequest request = PurchaseRequest.builder()
                 .requestNumber(dto.getRequestNumber())
-                .title(dto.getTitle())
-                .description(dto.getDescription())
+                .title(safeTitle)
+                .description(safeDescription)
                 .priority(dto.getPriority())
                 .status(dto.getStatus())
-                .requesterName(dto.getRequesterName())
-                .department(dto.getDepartment())
-                .justification(dto.getJustification())
+                .requesterName(safeRequesterName)
+                .department(safeDepartment)
+                .justification(safeJustification)
                 .estimatedTotal(dto.getEstimatedTotal())
                 .urgency(dto.getUrgency())
                 .requiredDate(dto.getRequiredDate())
@@ -465,13 +490,28 @@ public class PurchaseRequestService {
     }
 
     private void updateRequestFromDTO(PurchaseRequest request, PurchaseRequestDTO dto) {
-        request.setTitle(dto.getTitle());
-        request.setDescription(dto.getDescription());
+        String safeTitle = dto.getTitle();
+        if (safeTitle != null && safeTitle.length() > 100) safeTitle = safeTitle.substring(0, 100);
+        request.setTitle(safeTitle);
+
+        String safeDescription = dto.getDescription();
+        if (safeDescription != null && safeDescription.length() > 500) safeDescription = safeDescription.substring(0, 500);
+        request.setDescription(safeDescription);
+
         request.setPriority(dto.getPriority());
         request.setStatus(dto.getStatus());
-        request.setRequesterName(dto.getRequesterName());
-        request.setDepartment(dto.getDepartment());
-        request.setJustification(dto.getJustification());
+
+        String safeRequesterName = dto.getRequesterName();
+        if (safeRequesterName != null && safeRequesterName.length() > 100) safeRequesterName = safeRequesterName.substring(0, 100);
+        request.setRequesterName(safeRequesterName);
+
+        String safeDepartment = dto.getDepartment();
+        if (safeDepartment != null && safeDepartment.length() > 100) safeDepartment = safeDepartment.substring(0, 100);
+        request.setDepartment(safeDepartment);
+
+        String safeJustification = dto.getJustification();
+        if (safeJustification != null && safeJustification.length() > 100) safeJustification = safeJustification.substring(0, 100);
+        request.setJustification(safeJustification);
         request.setEstimatedTotal(dto.getEstimatedTotal());
         request.setUrgency(dto.getUrgency());
         request.setRequiredDate(dto.getRequiredDate());

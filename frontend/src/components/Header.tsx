@@ -9,11 +9,14 @@ import NotificationBell from './NotificationBell';
 import ThemeToggle from './ui/theme-toggle';
 
 const Header: React.FC = () => {
-  const { profile, empresa } = useAuth();
+  const { profile, empresa, user } = useAuth();
   const username = profile?.full_name || profile?.username || 'Usuário';
 
+  // Se o usuário não tiver empresa associada (ou for SUPER_ADMIN sem empresa selecionada), usa o padrão FluxBus
+  const hasSelectedCompany = Boolean(empresa?.id || (user as any)?.companyId || (user as any)?.company?.id);
+
   // Monta URL completa da logo da empresa (se relativa)
-  const logoSrc = empresa?.logoUrl
+  const logoSrc = (hasSelectedCompany && empresa?.logoUrl)
     ? empresa.logoUrl.startsWith('http')
       ? empresa.logoUrl
       : `${getApiUrl().replace(/\/api\/?$/, '')}${empresa.logoUrl.startsWith('/') ? '' : '/'}${empresa.logoUrl}`
@@ -50,7 +53,7 @@ const Header: React.FC = () => {
               )}
             </div>
           </div>
-        ) : empresa?.nome ? (
+        ) : (hasSelectedCompany && empresa?.nome) ? (
           <div className="flex items-center gap-3 group cursor-pointer active:scale-95 transition-all" data-animate="fadeRight">
             <div
               className="p-2.5 rounded-xl border transition-all group-hover:scale-110 shadow-md shadow-primary/20"

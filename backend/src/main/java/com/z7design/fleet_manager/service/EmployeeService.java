@@ -539,6 +539,9 @@ public class EmployeeService {
             if (employee.getDepartment() != null) {
                 org.hibernate.Hibernate.initialize(employee.getDepartment());
             }
+            if (employee.getExameMedicoDoctor() != null) {
+                org.hibernate.Hibernate.initialize(employee.getExameMedicoDoctor());
+            }
         } catch (Exception e) {
             System.err.println("[WARNING] Erro ao inicializar relacionamentos LAZY: " + e.getMessage());
             // Continuar mesmo se houver erro na inicializaÃ§Ã£o
@@ -1407,10 +1410,15 @@ public class EmployeeService {
             dto.setNextExameMedico(e.getNextExameMedico());
             dto.setExameMedicoTipo(e.getExameMedicoTipo());
             if (e.getExameMedicoDoctor() != null) {
-                EmployeeDTO.IdOnlyDTO doctorDTO = new EmployeeDTO.IdOnlyDTO();
-                doctorDTO.setId(e.getExameMedicoDoctor().getId());
-                doctorDTO.setName(e.getExameMedicoDoctor().getName());
-                dto.setExameMedicoDoctor(doctorDTO);
+                try {
+                    EmployeeDTO.IdOnlyDTO doctorDTO = new EmployeeDTO.IdOnlyDTO();
+                    doctorDTO.setId(e.getExameMedicoDoctor().getId());
+                    doctorDTO.setName(e.getExameMedicoDoctor().getName());
+                    dto.setExameMedicoDoctor(doctorDTO);
+                } catch (Exception doctorEx) {
+                    System.err.println("[WARNING] Erro ao mapear exameMedicoDoctor: " + doctorEx.getMessage());
+                    dto.setExameMedicoDoctor(null);
+                }
             }
             dto.setExameMedicoHorario(e.getExameMedicoHorario());
             dto.setExameMedicoIntervalosRefeicao(e.getExameMedicoIntervalosRefeicao());
@@ -1437,9 +1445,9 @@ public class EmployeeService {
             return dto;
             
         } catch (Exception ex) {
-            System.err.println("[ERROR] Erro na conversÃ£o Entity -> DTO: " + ex.getMessage());
+            System.err.println("[ERROR] Erro na conversão Entity -> DTO: " + ex.getMessage());
             ex.printStackTrace();
-            throw new RuntimeException("Erro na conversÃ£o Entity -> DTO: " + ex.getMessage(), ex);
+            throw new RuntimeException("Erro na conversão Entity -> DTO: " + ex.getMessage(), ex);
         }
     }
     

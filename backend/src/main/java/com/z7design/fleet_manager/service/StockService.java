@@ -1486,6 +1486,7 @@ public class StockService {
                     colCode, colName, colQty, colUnitCost, colAvgCost, colCategory, colCnpj, headerRowIndex);
 
             Map<String, Optional<Company>> companyCache = new HashMap<>();
+            Map<String, StockItem> sessionItemsByCode = new HashMap<>();
             int total = 0;
 
             for (int r = headerRowIndex + 1; r <= sheet.getLastRowNum(); r++) {
@@ -1593,8 +1594,19 @@ public class StockService {
                     }
 
                     Integer quantity = colQty >= 0 ? readIntCell(row.getCell(colQty)) : 0;
+                    if (quantity == null || quantity < 0) {
+                        quantity = 0;
+                    }
+
                     BigDecimal unitCost = colUnitCost >= 0 ? readDecimalCell(row.getCell(colUnitCost)) : null;
+                    if (unitCost != null && unitCost.compareTo(BigDecimal.ZERO) < 0) {
+                        unitCost = BigDecimal.ZERO;
+                    }
+
                     BigDecimal avgCost = colAvgCost >= 0 ? readDecimalCell(row.getCell(colAvgCost)) : null;
+                    if (avgCost != null && avgCost.compareTo(BigDecimal.ZERO) < 0) {
+                        avgCost = BigDecimal.ZERO;
+                    }
 
                     StockCategory category = null;
                     if (colCategory >= 0) {
@@ -1604,50 +1616,74 @@ public class StockService {
                         category = parseCategory(name);
                     }
 
+                    // Trunca nome para caber na coluna name varchar(255)
+                    if (name != null && name.length() > 255) {
+                        name = name.substring(0, 255);
+                    }
+
                     log.trace("📥 [IMPORT-STOCK] Linha {}: code={}, name={}, qty={}, unitCost={}, avgCost={}, companyId={}",
                             (r + 1), code, name, quantity, unitCost, avgCost, rowCompanyId);
 
-                    // Busca item existente considerando o isolamento da empresa
-                    Optional<StockItem> existing;
-                    if (rowCompanyId != null) {
-                        existing = stockItemRepository.findByCompanyIdAndCode(rowCompanyId, code);
-                    } else {
-                        existing = stockItemRepository.findByCodeAndCompanyIdIsNull(code);
-                        if (existing.isEmpty()) {
-                            existing = stockItemRepository.findByCode(code);
-                        }
-                    }
+                    StockItem item = sessionItemsByCode.get(code);
 
-                    if (existing.isPresent()) {
-                        StockItem item = existing.get();
-                        log.debug("📥 [IMPORT-STOCK] Atualizando item existente (id={}, code={})", item.getId(), code);
+                    if (item != null) {
+                        log.debug("📥 [IMPORT-STOCK] Atualizando item já visto nesta importação (id={}, code={})", item.getId(), code);
                         if (name != null && !name.isEmpty()) item.setName(name);
                         if (quantity != null) item.setCurrentQuantity(quantity);
                         if (unitCost != null) item.setUnitCost(unitCost);
                         if (avgCost != null) item.setAverageCost(avgCost);
                         if (category != null) item.setCategory(category);
-                        stockItemRepository.save(item);
+                        item = stockItemRepository.saveAndFlush(item);
+                        sessionItemsByCode.put(code, item);
                         result.setUpdated(result.getUpdated() + 1);
                     } else {
-                        StockItem item = new StockItem();
-                        item.setCode(code);
-                        item.setName((name != null && !name.isEmpty()) ? name : code);
-                        item.setCategory(category != null ? category : StockCategory.ACESSORIOS);
-                        item.setCurrentQuantity(quantity != null ? quantity : 0);
-                        item.setMinimumQuantity(0);
-                        item.setUnitCost(unitCost);
-                        item.setAverageCost(avgCost);
-                        item.setActive(true);
-
+                        // Busca item existente considerando o isolamento da empresa
+                        Optional<StockItem> existing;
                         if (rowCompanyId != null) {
-                            item.setCompanyId(rowCompanyId);
-                            log.debug("📥 [IMPORT-STOCK] Criando novo item (code={}) com companyId={}", code, rowCompanyId);
+                            existing = stockItemRepository.findByCompanyIdAndCode(rowCompanyId, code);
                         } else {
-                            log.debug("📥 [IMPORT-STOCK] Criando novo item (code={}) SEM companyId (SUPER_ADMIN)", code);
+                            existing = stockItemRepository.findByCodeAndCompanyIdIsNull(code);
+                            if (existing.isEmpty()) {
+                                existing = stockItemRepository.findByCode(code);
+                            }
                         }
 
-                        stockItemRepository.save(item);
-                        result.setInserted(result.getInserted() + 1);
+                        if (existing.isPresent()) {
+                            item = existing.get();
+                            log.debug("📥 [IMPORT-STOCK] Atualizando item existente (id={}, code={})", item.getId(), code);
+                            if (name != null && !name.isEmpty()) item.setName(name);
+                            if (quantity != null) item.setCurrentQuantity(quantity);
+                            if (unitCost != null) item.setUnitCost(unitCost);
+                            if (avgCost != null) item.setAverageCost(avgCost);
+                            if (category != null) item.setCategory(category);
+                            item = stockItemRepository.saveAndFlush(item);
+                            sessionItemsByCode.put(code, item);
+                            result.setUpdated(result.getUpdated() + 1);
+                        } else {
+                            item = new StockItem();
+                            item.setCode(code);
+                            item.setName((name != null && !name.isEmpty()) ? name : code);
+                            item.setCategory(category != null ? category : StockCategory.ACESSORIOS);
+                            item.setCurrentQuantity(quantity != null ? quantity : 0);
+                            item.setMinimumQuantity(0);
+                            item.setUnitCost(unitCost);
+                            item.setAverageCost(avgCost);
+                            item.setActive(true);
+
+                            // Gera QR code com UUID longo para evitar qualquer colisão de chave única
+                            item.setQrCode("STOCK-" + UUID.randomUUID().toString().replace("-", "").toUpperCase());
+
+                            if (rowCompanyId != null) {
+                                item.setCompanyId(rowCompanyId);
+                                log.debug("📥 [IMPORT-STOCK] Criando novo item (code={}) com companyId={}", code, rowCompanyId);
+                            } else {
+                                log.debug("📥 [IMPORT-STOCK] Criando novo item (code={}) SEM companyId (SUPER_ADMIN)", code);
+                            }
+
+                            item = stockItemRepository.saveAndFlush(item);
+                            sessionItemsByCode.put(code, item);
+                            result.setInserted(result.getInserted() + 1);
+                        }
                     }
                 } catch (Exception e) {
                     String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
@@ -1658,16 +1694,18 @@ public class StockService {
                         if (cause.getMessage() != null) rootMsg = cause.getMessage();
                     }
                     String lower = rootMsg.toLowerCase();
-                    if (lower.contains("duplicate") || lower.contains("unique") || lower.contains("constraint")) {
+                    if (lower.contains("uk_stock_items_company_code")) {
                         if (tenantCompanyId != null) {
                             rootMsg = "Código '" + code + "' já existe na sua empresa (conflito de código).";
                         } else {
                             rootMsg = "Código '" + code + "' já existe no sistema.";
                         }
+                    } else if (lower.contains("stock_items_qr_code_key")) {
+                        rootMsg = "Conflito ao gerar QR Code único para o item.";
                     }
                     result.setSkipped(result.getSkipped() + 1);
                     result.getErrors().add("Linha " + (r + 1) + " (código " + code + "): " + rootMsg);
-                    log.warn("📥 [IMPORT-STOCK] SKIP linha {} (code={}): {}", (r + 1), code, rootMsg);
+                    log.warn("📥 [IMPORT-STOCK] SKIP linha {} (code={}): {}", (r + 1), code, rootMsg, e);
                 }
             }
 

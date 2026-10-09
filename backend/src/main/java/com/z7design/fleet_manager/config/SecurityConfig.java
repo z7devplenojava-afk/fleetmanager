@@ -231,6 +231,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/mechanic/dashboard/**")
                                                 .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
                                                                 "ROLE_FLEX_ADMIN", "ROLE_MECANICO")
+                                                // Endpoints de Ordem de Serviço (Frota) - Motoristas e Mecânicos podem criar e consultar OS
+                                                .requestMatchers("/api/fleet-work-orders/**", "/api/v1/fleet-work-orders/**").authenticated()
                                                 .requestMatchers("/api/frota/**").authenticated()
                                                 .requestMatchers("/api/client-checklists/**").authenticated()
                                                 // Endpoints da Client Area (Mobile PWA)
@@ -383,6 +385,8 @@ public class SecurityConfig {
                                                                 "ROLE_GESTOR", "ROLE_SUPERVISOR")
                                                 // Endpoints de chat e leads (CRM)
                                                 .requestMatchers("/api/v1/chat/**").authenticated()
+                                                // Assistente virtual BiliFlux (qualquer usuário autenticado)
+                                                .requestMatchers("/api/v1/biliflux/**").authenticated()
                                                 .requestMatchers("/api/leads/**").authenticated()
                                                 // Endpoints de mensagens - permitir para todos os roles principais,
                                                 // incluindo

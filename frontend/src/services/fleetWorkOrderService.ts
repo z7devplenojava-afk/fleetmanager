@@ -214,6 +214,16 @@ class FleetWorkOrderService {
         return data;
     }
 
+    async uploadPhotos(files: File[]): Promise<string[]> {
+        if (!files || files.length === 0) return [];
+        const formData = new FormData();
+        files.forEach(f => formData.append('photos', f));
+        const { data } = await api.post('/fleet-work-orders/upload-photos', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return data?.urls || [];
+    }
+
     async create(order: Partial<FleetWorkOrder>): Promise<FleetWorkOrder> {
         const { data } = await api.post('/fleet-work-orders', order);
         return data;
