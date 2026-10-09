@@ -7,7 +7,15 @@ import java.util.Optional;
 
 import java.util.UUID;
 
+import org.hibernate.Filter;
+import org.hibernate.Session;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import com.z7design.fleet_manager.tenant.TenantContext;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -33,6 +41,9 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final CompanyRepository companyRepository;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleRepository roleRepository,
             CompanyRepository companyRepository) {
         this.userRepository = userRepository;
@@ -46,7 +57,26 @@ public class UserService {
     }
 
     public List<User> findAll() {
-        return userRepository.findAll();
+        if (!isSuperAdmin() || TenantContext.isImpersonating()) {
+            return userRepository.findAll();
+        }
+        Session session = entityManager.unwrap(Session.class);
+        Filter active = session.getEnabledFilter("tenantFilter");
+        Object companyId = active != null ? TenantContext.get() : null;
+        session.disableFilter("tenantFilter");
+        try {
+            return userRepository.findAll();
+        } finally {
+            if (companyId != null) {
+                session.enableFilter("tenantFilter").setParameter("companyId", companyId);
+            }
+        }
+    }
+
+    private boolean isSuperAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()) || "SUPER_ADMIN".equals(a.getAuthority()));
     }
 
     public User createFromRequest(CreateUserRequest request) {

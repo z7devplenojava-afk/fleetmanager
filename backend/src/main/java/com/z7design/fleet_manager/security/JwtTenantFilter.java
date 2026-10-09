@@ -54,25 +54,24 @@ public class JwtTenantFilter extends OncePerRequestFilter {
                 String jwt = authHeader.substring(jwtConfig.getPrefix().length() + 1);
                 if (jwt != null && !jwt.trim().isEmpty() && jwt.contains(".")) {
                     try {
-                        // 1. Tentar extrair do token primeiro (padrão)
+                        // 1. Tenant padrão sempre vem do JWT
                         UUID empresaId = jwtService.extractEmpresaId(jwt);
 
-                        // 2. Verificar se há cabeçalho explícito de empresa no request (X-Target-Company-ID ou X-Company-ID / X-Company-Id)
-                        String companyHeader = request.getHeader("X-Target-Company-ID");
-                        if (companyHeader == null || companyHeader.trim().isEmpty()) {
-                            companyHeader = request.getHeader("X-Company-ID");
-                        }
-                        if (companyHeader == null || companyHeader.trim().isEmpty()) {
-                            companyHeader = request.getHeader("X-Company-Id");
-                        }
-
-                        if (companyHeader != null && !companyHeader.trim().isEmpty() && !"none".equalsIgnoreCase(companyHeader.trim())) {
-                            try {
-                                UUID headerCompanyId = UUID.fromString(companyHeader.trim());
-                                empresaId = headerCompanyId;
-                                log.debug("TenantContext ajustado via cabeçalho HTTP para empresa: {}", headerCompanyId);
-                            } catch (IllegalArgumentException e) {
-                                log.warn("Cabeçalho de empresa inválido ignorado: {}", companyHeader);
+                        // 2. Somente SUPER_ADMIN pode alternar empresa via X-Target-Company-ID
+                        String targetHeader = request.getHeader("X-Target-Company-ID");
+                        if (targetHeader != null && !targetHeader.isBlank()
+                                && !"none".equalsIgnoreCase(targetHeader.trim())) {
+                            if (isSuperAdmin()) {
+                                try {
+                                    empresaId = UUID.fromString(targetHeader.trim());
+                                    TenantContext.setImpersonating(true);
+                                    log.debug("SUPER_ADMIN alternando contexto para empresa: {}", empresaId);
+                                } catch (IllegalArgumentException e) {
+                                    log.warn("X-Target-Company-ID inválido ignorado: {}", targetHeader);
+                                }
+                            } else {
+                                log.warn("X-Target-Company-ID ignorado para usuário sem SUPER_ADMIN: {}",
+                                        request.getRequestURI());
                             }
                         }
 
@@ -94,5 +93,12 @@ public class JwtTenantFilter extends OncePerRequestFilter {
                 TenantContext.clear();
             }
         }
+    }
+
+    private boolean isSuperAdmin() {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()) || "SUPER_ADMIN".equals(a.getAuthority()));
     }
 }

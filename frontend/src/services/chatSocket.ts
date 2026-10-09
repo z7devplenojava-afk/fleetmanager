@@ -1,13 +1,12 @@
 import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
 import { getWsUrl } from '../config/environment';
 
 export function connectChatSocket(token: string, userId: string, onMessage: (msg: any) => void, onTyping?: (typing: any) => void) {
-  const wsUrl = getWsUrl();
-  const httpWsUrl = wsUrl ? wsUrl.replace(/^wss:\/\//i, 'https://').replace(/^ws:\/\//i, 'http://') : '/ws';
+  // WebSocket nativo (sem SockJS): backend registra /ws nativo e /ws SockJS
+  const wsUrl = getWsUrl() || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
   const client = new Client({
-    webSocketFactory: () => new SockJS(httpWsUrl, null, { transports: ['websocket', 'xhr-streaming', 'xhr-polling'] }),
+    brokerURL: wsUrl,
     connectHeaders: { Authorization: `Bearer ${token}` },
     onConnect: () => {
       client.subscribe(`/user/${userId}/chat`, (message) => {

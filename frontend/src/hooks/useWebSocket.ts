@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
 import { useMessageStore } from '../stores/messageStore';
 import { ChatMessage } from '../stores/messageStore';
 import { getWsUrl } from '../config/environment';
@@ -58,10 +57,10 @@ export const useWebSocket = (config: WebSocketConfig) => {
     }
 
     try {
-      const wsUrl = getWsUrl();
-      const httpWsUrl = wsUrl ? wsUrl.replace(/^wss:\/\//i, 'https://').replace(/^ws:\/\//i, 'http://') : '/ws';
+      // WebSocket nativo (sem SockJS): backend registra /ws nativo e /ws SockJS
+      const wsUrl = getWsUrl() || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
       const client = new Client({
-        webSocketFactory: () => new SockJS(httpWsUrl, null, { transports: ['websocket', 'xhr-streaming', 'xhr-polling'] }),
+        brokerURL: wsUrl,
         connectHeaders: {
           Authorization: `Bearer ${token}`,
           'X-Username': username
