@@ -444,7 +444,7 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
                       <tr 
                         key={order.id} 
                         className="hover:bg-seguranca-black/40 transition-colors cursor-pointer"
-                        onClick={() => handleOpenDetail(order)}
+                        onClick={() => handleOpenEdit(order)}
                       >
                         {/* Nº OS e Prioridade */}
                         <td className="py-3 px-4">
@@ -557,13 +557,28 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
                               </Button>
                             )}
 
+                            {/* Botão Visualizar PDF Oficial */}
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleOpenDetail(order)}
-                              className="border-gray-600 text-gray-300 hover:bg-seguranca-black hover:text-white h-8"
+                              onClick={() => handleViewPdf(order)}
+                              disabled={generatingPdfId === order.id}
+                              title="Visualizar e Imprimir PDF da OS"
+                              className="border-red-500/60 text-red-400 hover:bg-red-500/10 hover:text-red-300 h-8 px-2.5 text-xs font-semibold"
                             >
-                              <Eye size={14} className="mr-1" />
+                              <FileText className="mr-1 h-3.5 w-3.5" />
+                              PDF
+                            </Button>
+
+                            {/* Botão Ver / Editar OS Completo */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenEdit(order)}
+                              title="Visualizar e Editar Ordem de Serviço"
+                              className="border-gray-600 text-gray-200 hover:bg-seguranca-black hover:text-white h-8 text-xs font-medium"
+                            >
+                              <Eye size={14} className="mr-1 text-blue-400" />
                               Ver OS
                             </Button>
 
@@ -578,7 +593,22 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
                                   onClick={() => handleOpenEdit(order)}
                                   className="text-gray-200"
                                 >
-                                  <Edit className="mr-2 h-4 w-4" /> Visualizar / Editar
+                                  <Edit className="mr-2 h-4 w-4 text-blue-400" /> Visualizar / Editar OS
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={() => handleViewPdf(order)}
+                                  className="text-gray-200"
+                                >
+                                  <FileText className="mr-2 h-4 w-4 text-red-400" /> Visualizar PDF da OS
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={() => handleDownloadPdf(order)}
+                                  disabled={generatingPdfId === order.id}
+                                  className="text-gray-200"
+                                >
+                                  <Download className="mr-2 h-4 w-4" /> Baixar Arquivo PDF
                                 </DropdownMenuItem>
 
                                 <DropdownMenuItem
@@ -588,22 +618,6 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
                                 >
                                   <ClipboardList className="mr-2 h-4 w-4" />
                                   {duplicatingId === order.id ? 'Duplicando...' : 'Duplicar OS'}
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem
-                                  onClick={() => handleViewPdf(order)}
-                                  className="text-gray-200"
-                                >
-                                  <Printer className="mr-2 h-4 w-4" /> Visualizar / Imprimir PDF
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem
-                                  onClick={() => handleDownloadPdf(order)}
-                                  disabled={generatingPdfId === order.id}
-                                  className="text-gray-200"
-                                >
-                                  <Download className="mr-2 h-4 w-4" />
-                                  {generatingPdfId === order.id ? 'Baixando...' : 'Baixar PDF'}
                                 </DropdownMenuItem>
 
                                 {(order.items || []).length > 0 && (
@@ -786,7 +800,7 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
               </div>
             </div>
 
-            <DialogFooter className="border-t border-gray-700 pt-3">
+            <DialogFooter className="border-t border-gray-700 pt-3 flex flex-wrap gap-2 items-center justify-between">
               <Button
                 variant="outline"
                 onClick={() => setShowDetailModal(false)}
@@ -794,18 +808,46 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
               >
                 Fechar
               </Button>
-              {onGoToRequisitions && (
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
+                  variant="outline"
                   onClick={() => {
-                    setShowDetailModal(false);
-                    onGoToRequisitions();
+                    if (selectedWorkOrder) {
+                      setShowDetailModal(false);
+                      handleViewPdf(selectedWorkOrder);
+                    }
                   }}
-                  className="bg-seguranca-yellow hover:bg-yellow-500 text-seguranca-black font-bold"
+                  className="border-red-500/60 text-red-400 hover:bg-red-500/10 font-semibold"
                 >
-                  <ShoppingCart size={16} className="mr-1.5" />
-                  Ir para Painel de Cotações
+                  <FileText size={16} className="mr-1.5" />
+                  Visualizar PDF
                 </Button>
-              )}
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (selectedWorkOrder) {
+                      setShowDetailModal(false);
+                      handleOpenEdit(selectedWorkOrder);
+                    }
+                  }}
+                  className="border-blue-500/60 text-blue-400 hover:bg-blue-500/10 font-semibold"
+                >
+                  <Edit size={16} className="mr-1.5" />
+                  Editar OS / Adicionar Peças
+                </Button>
+                {onGoToRequisitions && (
+                  <Button
+                    onClick={() => {
+                      setShowDetailModal(false);
+                      onGoToRequisitions();
+                    }}
+                    className="bg-seguranca-yellow hover:bg-yellow-500 text-seguranca-black font-bold"
+                  >
+                    <ShoppingCart size={16} className="mr-1.5" />
+                    Ir para Painel de Cotações
+                  </Button>
+                )}
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>

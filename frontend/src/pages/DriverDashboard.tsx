@@ -14,7 +14,8 @@ import {
     Loader2,
     Gavel,
     Download,
-    Eye
+    Eye,
+    Wrench
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -184,6 +185,13 @@ const DriverDashboard: React.FC = () => {
             icon: ClipboardCheck,
             color: 'bg-red-500',
             to: '/driver/checklist'
+        },
+        {
+            title: 'Ordem de Serviço (OS)',
+            description: 'Abrir chamado de manutenção e fotos com câmera',
+            icon: Wrench,
+            color: 'bg-amber-600',
+            to: '/driver/work-orders'
         },
         {
             title: 'Minhas Escalas',

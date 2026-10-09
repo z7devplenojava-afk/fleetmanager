@@ -126,13 +126,10 @@ public class UserCompanyResolver {
             }
         } catch (Exception ignored) {}
 
-        // 3. Se for usuário privilegiado (SUPER_ADMIN, etc.), retorna a primeira empresa ativa do sistema se existir
+        // 3. Se for usuário privilegiado (SUPER_ADMIN, etc.), NÃO força vínculo de empresa aleatória.
+        // O Super Admin sem empresa atua no escopo global (FluxBus).
         if (privileged) {
-            try {
-                return companyRepository.findAll().stream().findFirst();
-            } catch (Exception ignored) {
-                return Optional.empty();
-            }
+            return Optional.empty();
         }
 
         // 4. Tentar por Employee via query nativa leve (evita carregar as 120+ colunas da entidade Employee)

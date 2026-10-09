@@ -414,25 +414,49 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         });
     };
 
+    const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
-        const compressedList: string[] = [];
-        for (const file of Array.from(files)) {
-            const compressed = await compressImage(file);
-            if (compressed) {
-                compressedList.push(compressed);
+        setIsUploadingPhotos(true);
+        try {
+            const fileList = Array.from(files);
+            // Tenta upload direto para o servidor (retorna /uploads/maintenance/uuid_foto.jpg)
+            try {
+                const uploadedUrls = await fleetWorkOrderService.uploadPhotos(fileList);
+                if (uploadedUrls && uploadedUrls.length > 0) {
+                    setFormData(p => ({
+                        ...p,
+                        photoAttachments: [...(p.photoAttachments || []), ...uploadedUrls]
+                    }));
+                    toast({ title: 'Fotos anexadas', description: `${uploadedUrls.length} foto(s) enviada(s) com sucesso.` });
+                    return;
+                }
+            } catch (upErr) {
+                console.warn('Upload multipart direto falhou, usando compressão otimizada:', upErr);
             }
-        }
 
-        if (compressedList.length > 0) {
-            setFormData(p => ({
-                ...p,
-                photoAttachments: [...(p.photoAttachments || []), ...compressedList]
-            }));
+            // Fallback: compressão com tamanho máximo reduzido (evita 413)
+            const compressedList: string[] = [];
+            for (const file of fileList) {
+                const compressed = await compressImage(file, 1024, 1024, 0.65);
+                if (compressed) {
+                    compressedList.push(compressed);
+                }
+            }
+
+            if (compressedList.length > 0) {
+                setFormData(p => ({
+                    ...p,
+                    photoAttachments: [...(p.photoAttachments || []), ...compressedList]
+                }));
+            }
+        } finally {
+            setIsUploadingPhotos(false);
+            e.target.value = '';
         }
-        e.target.value = '';
     };
 
     const handleRemovePhoto = (idx: number) => {
@@ -1349,10 +1373,16 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 <p className="text-sm font-medium text-gray-200">Upload de fotos / imagens de evidências</p>
                                 <p className="text-xs text-gray-400">Selecione fotos do defeito, peças danificadas ou comprovantes (PNG, JPG, WebP)</p>
                             </div>
-                            <label className="cursor-pointer inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-4 py-2 rounded-md transition-colors shrink-0">
-                                <Camera className="h-4 w-4" /> Selecionar Fotos
-                                <input type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
-                            </label>
+                            <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                <label className={`cursor-pointer inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-md transition-colors ${isUploadingPhotos ? 'opacity-50 pointer-events-none' : ''}`}>
+                                    <Camera className="h-4 w-4" /> Tirar Foto (Câmera)
+                                    <input type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
+                                </label>
+                                <label className={`cursor-pointer inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-md transition-colors ${isUploadingPhotos ? 'opacity-50 pointer-events-none' : ''}`}>
+                                    <UploadCloud className="h-4 w-4" /> {isUploadingPhotos ? 'Enviando...' : 'Galeria'}
+                                    <input type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
+                                </label>
+                            </div>
                         </div>
 
                         {/* URL manual opcional */}

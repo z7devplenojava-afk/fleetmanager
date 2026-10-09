@@ -24,6 +24,7 @@ import ThemeToggle from './ThemeToggle';
 import Logo from './Logo';
 import WelcomeModal from './WelcomeModal';
 import HelpModal from './HelpModal';
+import { BiliFluxAssistant } from './BiliFluxAssistant';
 import chatIntegrationService from '@/services/chatIntegrationService';
 
 interface MainLayoutProps {
@@ -122,7 +123,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     return raw.includes('VSS') || raw.includes('SILVESTRE') || raw.includes('SAO SILVESTRE') || raw.includes('SÃO SILVESTRE');
   }, [empresa, user]);
 
-  const companyName = empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '';
+  const hasSelectedCompany = Boolean(empresa?.id || (user as any)?.companyId || (user as any)?.company?.id);
+  const companyName = hasSelectedCompany ? (empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '') : '';
 
   return (
     <div className="flex min-h-screen bg-background text-foreground transition-colors duration-300 relative">
@@ -156,6 +158,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 <Logo
                   showText={false}
                   size="sm"
+                  forceDefault={!hasSelectedCompany}
                   className="transition-transform hover:scale-105"
                   iconClassName="h-7 w-7 text-primary"
                 />
@@ -185,6 +188,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
             {/* Lado direito: Ações, Perfil e Notificações */}
             <div className="flex items-center space-x-1 sm:space-x-2">
+              {/* Assistente Virtual BiliFlux */}
+              <BiliFluxAssistant
+                userName={user.name}
+                onOpenHelp={() => setIsHelpModalOpen(true)}
+              />
+
               {actions && (
                 <div className="hidden lg:block">
                   {actions}

@@ -117,6 +117,7 @@ const Dashboard = lazy(() => import('@/pages/Dashboard').catch(() => ({ default:
 const DashboardColaborador = lazy(() => import('@/pages/DashboardColaborador'));
 const DriverDashboard = lazy(() => import('@/pages/DriverDashboard'));
 const DriverChecklist = lazy(() => import('@/pages/driver/DriverChecklist'));
+const DriverWorkOrdersPage = lazy(() => import('@/pages/driver/DriverWorkOrdersPage'));
 const DashboardVigilante = lazy(() => import('@/pages/DashboardVigilante'));
 const EmployeePortal = lazy(() => import('@/pages/employee/EmployeePortal'));
 const ClientPortal = lazy(() => import('@/pages/client/ClientPortal'));
@@ -546,6 +547,13 @@ function App() {
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <DriverChecklist />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/driver/work-orders" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <DriverWorkOrdersPage />
                           </Suspense>
                         </ProtectedRoute>
                       } />

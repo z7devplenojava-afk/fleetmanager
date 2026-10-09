@@ -22,6 +22,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.z7design.fleet_manager.service.FileStorageService;
+import org.springframework.web.multipart.MultipartFile;
+import java.util.ArrayList;
+
 @RestController
 @RequestMapping({"/api/fleet-work-orders", "/api/v1/fleet-work-orders"})
 @RequiredArgsConstructor
@@ -30,6 +34,22 @@ public class FleetWorkOrderController {
     private final FleetWorkOrderService service;
     private final FleetWorkOrderPdfService pdfService;
     private final AuthenticationService authenticationService;
+    private final FileStorageService fileStorageService;
+
+    /** Upload de fotos de evidência para Ordem de Serviço (armazenamento físico) */
+    @PostMapping(value = "/upload-photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> uploadPhotos(@RequestParam("photos") MultipartFile[] files) {
+        List<String> urls = new ArrayList<>();
+        if (files != null) {
+            for (MultipartFile file : files) {
+                if (file != null && !file.isEmpty()) {
+                    String url = fileStorageService.storeFile(file);
+                    urls.add(url);
+                }
+            }
+        }
+        return ResponseEntity.ok(Map.of("urls", urls, "count", urls.size()));
+    }
 
     /** Lista todas as OSs (filtro opcional por garagem executora) */
     @GetMapping

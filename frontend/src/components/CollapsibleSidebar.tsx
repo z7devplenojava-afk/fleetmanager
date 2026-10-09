@@ -1268,7 +1268,8 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   onToggle
 }) => {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, empresa } = useAuth();
+  const hasSelectedCompany = Boolean(empresa?.id || (user as any)?.companyId || (user as any)?.company?.id);
   const { forceScrollToTop } = useScrollPreservation();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
@@ -1518,7 +1519,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                 className="h-8 w-8 object-contain drop-shadow-md transition-transform hover:scale-105"
               />
             ) : (
-              <Logo size="md" className="max-w-[170px]" />
+              <Logo size="md" forceDefault={!hasSelectedCompany} className="max-w-[170px]" />
             )}
           </ScrollPreservingLink>
         </div>

@@ -358,13 +358,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     ? userCompanyResolver.resolveSpecificCompany(user, requestedCompanyId)
                     : userCompanyResolver.resolveCompany(user);
 
-            // Fallback para usuário privilegiado se nenhuma empresa estiver vinculada
-            if (companyOpt.isEmpty() && privileged) {
-                try {
-                    companyOpt = companyRepository.findAll().stream().findFirst();
-                } catch (Throwable ignored) {}
-            }
-
             if (companyOpt.isEmpty()) {
                 if (privileged) {
                     return EmpresaResponse.builder()
