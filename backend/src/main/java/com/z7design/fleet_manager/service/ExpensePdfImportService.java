@@ -465,12 +465,29 @@ public class ExpensePdfImportService {
         }
 
         // Definir status apropriado
-        if (Boolean.TRUE.equals(invoice.getIsCanceled())) {
-            invoice.setStatus(ExpenseStatus.CANCELADA);
-        } else if (invoice.getBalanceAmount() != null
+        // - Com data de Pagamento no relatório => conta paga (não pode ficar vencida)
+        // - Sem data de Pagamento => ainda não paga (PENDENTE; vence pelo vencimento)
+        boolean hasPaymentDate = invoice.getPaymentDate() != null;
+        boolean fullyPaid = invoice.getBalanceAmount() != null
                 && invoice.getBalanceAmount().compareTo(BigDecimal.ZERO) == 0
                 && invoice.getPaidAmount() != null
-                && invoice.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
+                && invoice.getPaidAmount().compareTo(BigDecimal.ZERO) > 0;
+
+        if (hasPaymentDate) {
+            // Layout SIGLO sem coluna "Pagou": quitação total = valor total da despesa
+            if (invoice.getPaidAmount() == null || invoice.getPaidAmount().compareTo(BigDecimal.ZERO) == 0) {
+                BigDecimal total = (invoice.getBalanceAmount() != null
+                        && invoice.getBalanceAmount().compareTo(BigDecimal.ZERO) != 0)
+                        ? invoice.getBalanceAmount()
+                        : invoice.getAmount();
+                invoice.setPaidAmount(total != null ? total : BigDecimal.ZERO);
+            }
+            invoice.setBalanceAmount(BigDecimal.ZERO);
+        }
+
+        if (Boolean.TRUE.equals(invoice.getIsCanceled())) {
+            invoice.setStatus(ExpenseStatus.CANCELADA);
+        } else if (hasPaymentDate || fullyPaid) {
             invoice.setStatus(ExpenseStatus.PAGA);
         } else {
             invoice.setStatus(ExpenseStatus.PENDENTE);
