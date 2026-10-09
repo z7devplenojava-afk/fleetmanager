@@ -169,7 +169,7 @@ export default defineConfig(({ mode }) => {
             'pdf': ['html2pdf.js', 'pdf-lib'],
 
             // WebSocket
-            'websocket': ['@stomp/stompjs', 'sockjs-client'],
+            'websocket': ['@stomp/stompjs'],
 
             // Other UI
             'ui-other': [
