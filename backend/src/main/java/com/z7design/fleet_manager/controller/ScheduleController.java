@@ -110,8 +110,16 @@ public class ScheduleController {
                         Authentication authentication,
                         @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-                User user = authenticationService.getCurrentUser(authentication);
-                return ResponseEntity.ok(scheduleService.findMySchedules(user, startDate, endDate));
+                try {
+                        User user = authenticationService.getCurrentUser(authentication);
+                        return ResponseEntity.ok(scheduleService.findMySchedules(user, startDate, endDate));
+                } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
+                        log.debug("Usuário autenticado não possui vínculo com funcionário em /schedules/me: {}", e.getMessage());
+                        return ResponseEntity.ok(java.util.Collections.emptyList());
+                } catch (Exception e) {
+                        log.warn("Erro ao buscar escalas do usuário autenticado: {}", e.getMessage());
+                        return ResponseEntity.ok(java.util.Collections.emptyList());
+                }
         }
 
         @Operation(summary = "PDF das minhas escalas", description = "Gera PDF das escalas do funcionário autenticado para visualização ou download.")

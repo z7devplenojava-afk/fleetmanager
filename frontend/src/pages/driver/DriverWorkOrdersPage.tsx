@@ -24,7 +24,11 @@ import {
     Car,
     ShieldAlert,
     Gauge,
-    Loader2
+    Loader2,
+    Eye,
+    Download,
+    Printer,
+    Edit
 } from 'lucide-react';
 import {
     Select,
@@ -45,6 +49,12 @@ import fleetWorkOrderService, {
     WorkOrderPriority,
     LaborType
 } from '@/services/fleetWorkOrderService';
+import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewModal';
+import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
+import {
+    generateFleetWorkOrderPDFBlob,
+    generateFleetWorkOrderPDFDownload
+} from '@/utils/fleetWorkOrderPDFGenerator';
 
 export const DriverWorkOrdersPage: React.FC = () => {
     const { user } = useAuth();
@@ -61,6 +71,64 @@ export const DriverWorkOrdersPage: React.FC = () => {
     const [otherDetails, setOtherDetails] = useState('');
     const [photoUrls, setPhotoUrls] = useState<string[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+
+    // Estados para Visualizar, Baixar, Imprimir e Editar
+    const [viewingPdfOrder, setViewingPdfOrder] = useState<FleetWorkOrder | null>(null);
+    const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+    const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+    const [editingOrder, setEditingOrder] = useState<FleetWorkOrder | undefined>(undefined);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+
+    // Handlers de Ações
+    const handleViewPdf = (order: FleetWorkOrder) => {
+        setViewingPdfOrder(order);
+        setIsPdfModalOpen(true);
+    };
+
+    const handleDownloadPdf = async (order: FleetWorkOrder) => {
+        setGeneratingPdfId(order.id);
+        try {
+            await generateFleetWorkOrderPDFDownload(order);
+            toast({ title: 'Download Concluído', description: 'PDF da O.S. baixado com sucesso.' });
+        } catch (error) {
+            toast({ title: 'Erro', description: 'Falha ao baixar o PDF da O.S.', variant: 'destructive' });
+        } finally {
+            setGeneratingPdfId(null);
+        }
+    };
+
+    const handlePrintPdf = async (order: FleetWorkOrder) => {
+        setGeneratingPdfId(order.id);
+        try {
+            const blob = await generateFleetWorkOrderPDFBlob(order);
+            const url = URL.createObjectURL(blob);
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            iframe.src = url;
+            document.body.appendChild(iframe);
+            iframe.onload = () => {
+                iframe.contentWindow?.print();
+                setTimeout(() => {
+                    document.body.removeChild(iframe);
+                    URL.revokeObjectURL(url);
+                }, 60_000);
+            };
+        } catch (error) {
+            toast({ title: 'Erro', description: 'Falha ao preparar impressão do PDF.', variant: 'destructive' });
+        } finally {
+            setGeneratingPdfId(null);
+        }
+    };
+
+    const handleEditOrder = (order: FleetWorkOrder) => {
+        setEditingOrder(order);
+        setIsFormOpen(true);
+    };
 
     // Carregar veículos da frota
     const { data: vehicles = [], isLoading: isLoadingVehicles } = useQuery({
@@ -261,7 +329,7 @@ export const DriverWorkOrdersPage: React.FC = () => {
 
     return (
         <StandardLayout title="Manutenção & Ordens de Serviço" subtitle="Área do Condutor / Motorista">
-            <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+            <div className="w-full max-w-7xl mx-auto p-3 sm:p-6 lg:p-8 space-y-6">
                 {/* Cabeçalho de Navegação Mobile */}
                 <div className="flex items-center justify-between gap-3">
                     <Button
@@ -546,19 +614,20 @@ export const DriverWorkOrdersPage: React.FC = () => {
                                 <p className="text-xs">Carregando ordens de serviço...</p>
                             </div>
                         ) : myWorkOrders.length === 0 ? (
-                            <Card className="bg-[#121214] border-gray-800 text-center p-8">
-                                <div className="p-3 bg-zinc-900 rounded-full w-12 h-12 mx-auto flex items-center justify-center text-zinc-500 mb-3">
-                                    <FileText className="h-6 w-6" />
+                            <Card className="bg-[#121214] border-gray-800 text-center py-12 px-4 sm:px-8">
+                                <div className="p-4 bg-zinc-900/80 rounded-2xl w-16 h-16 mx-auto flex items-center justify-center text-zinc-500 mb-4 border border-zinc-800">
+                                    <FileText className="h-8 w-8 text-zinc-400" />
                                 </div>
-                                <h3 className="text-sm font-bold text-zinc-300">Nenhuma Ordem de Serviço aberta</h3>
-                                <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-1 mb-4">
+                                <h3 className="text-base sm:text-lg font-bold text-zinc-200">Nenhuma Ordem de Serviço aberta</h3>
+                                <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto mt-2 mb-6">
                                     Quando você identificar algum defeito mecânico, elétrico ou avaria, abra um chamado diretamente por aqui.
                                 </p>
                                 <Button
                                     onClick={() => setIsCreating(true)}
-                                    className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs"
+                                    size="lg"
+                                    className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs sm:text-sm px-6 shadow-lg shadow-red-950/30"
                                 >
-                                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Abrir Minha Primeira OS
+                                    <Plus className="h-4 w-4 mr-2" /> Abrir Minha Primeira OS
                                 </Button>
                             </Card>
                         ) : (
@@ -591,6 +660,57 @@ export const DriverWorkOrdersPage: React.FC = () => {
                                                     </div>
                                                 )}
                                             </div>
+                                            <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap sm:self-center border-t sm:border-t-0 border-zinc-800/80 pt-2.5 sm:pt-0">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleViewPdf(order)}
+                                                    className="h-8 px-2.5 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs gap-1.5"
+                                                    title="Visualizar OS em PDF"
+                                                >
+                                                    <Eye className="h-3.5 w-3.5 text-blue-400" />
+                                                    <span>Visualizar</span>
+                                                </Button>
+
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={generatingPdfId === order.id}
+                                                    onClick={() => handleDownloadPdf(order)}
+                                                    className="h-8 px-2.5 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs gap-1.5"
+                                                    title="Baixar PDF"
+                                                >
+                                                    {generatingPdfId === order.id ? (
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
+                                                    ) : (
+                                                        <Download className="h-3.5 w-3.5 text-emerald-400" />
+                                                    )}
+                                                    <span>Baixar</span>
+                                                </Button>
+
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={generatingPdfId === order.id}
+                                                    onClick={() => handlePrintPdf(order)}
+                                                    className="h-8 px-2.5 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs gap-1.5"
+                                                    title="Imprimir OS"
+                                                >
+                                                    <Printer className="h-3.5 w-3.5 text-purple-400" />
+                                                    <span>Imprimir</span>
+                                                </Button>
+
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleEditOrder(order)}
+                                                    className="h-8 px-2.5 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs gap-1.5"
+                                                    title="Editar Ordem de Serviço"
+                                                >
+                                                    <Edit className="h-3.5 w-3.5 text-amber-400" />
+                                                    <span>Editar</span>
+                                                </Button>
+                                            </div>
                                         </CardContent>
                                     </Card>
                                 ))}
@@ -599,6 +719,32 @@ export const DriverWorkOrdersPage: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Visualização de PDF */}
+            <FleetWorkOrderViewModal
+                isOpen={isPdfModalOpen}
+                onClose={() => {
+                    setIsPdfModalOpen(false);
+                    setViewingPdfOrder(null);
+                }}
+                order={viewingPdfOrder}
+            />
+
+            {/* Gaveta/Modal de Edição Completa da OS */}
+            <FleetWorkOrderForm
+                isOpen={isFormOpen}
+                onClose={() => {
+                    setIsFormOpen(false);
+                    setEditingOrder(undefined);
+                }}
+                onSuccess={() => {
+                    setIsFormOpen(false);
+                    setEditingOrder(undefined);
+                    queryClient.invalidateQueries({ queryKey: ['driver-work-orders-list'] });
+                    toast({ title: 'Sucesso', description: 'Ordem de Serviço atualizada com sucesso.' });
+                }}
+                order={editingOrder}
+            />
         </StandardLayout>
     );
 };

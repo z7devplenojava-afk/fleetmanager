@@ -39,14 +39,29 @@ public class CompanyController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<CompanyDTO>> getAllCompanies() {
+    public ResponseEntity<List<CompanyDTO>> getAllCompanies(Authentication authentication) {
         try {
-            log.info("Buscando todas as empresas");
+            log.info("Buscando empresas");
+            // Se o usuário estiver autenticado, verificar permissão
+            if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
+                String username = ((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal()).getUsername();
+                com.z7design.fleet_manager.model.User user = userCompanyResolver.resolveUser(username);
+                if (user != null && !userCompanyResolver.isPrivilegedUser(user)) {
+                    // Usuário comum de empresa: listar somente a(s) empresa(s) às quais pertence
+                    List<Company> userCompanies = userCompanyResolver.resolveUserCompanies(user);
+                    List<CompanyDTO> dtos = userCompanies.stream()
+                            .map(CompanyDTO::fromEntity)
+                            .collect(java.util.stream.Collectors.toList());
+                    log.info("Retornando {} empresa(s) associada(s) ao usuário {}", dtos.size(), username);
+                    return ResponseEntity.ok(dtos);
+                }
+            }
+
             List<CompanyDTO> companies = companyService.getAllCompanies();
-            log.info("Retornando {} empresas", companies.size());
+            log.info("Retornando todas as {} empresas (visão administrativa)", companies.size());
             return ResponseEntity.ok(companies);
         } catch (Exception e) {
-            log.error("Erro ao buscar todas as empresas", e);
+            log.error("Erro ao buscar empresas", e);
             // Retorna lista vazia em vez de 500 para evitar quebrar o frontend
             return ResponseEntity.ok(java.util.Collections.emptyList());
         }

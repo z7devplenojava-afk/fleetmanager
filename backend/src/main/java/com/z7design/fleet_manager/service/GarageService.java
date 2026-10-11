@@ -48,7 +48,10 @@ public class GarageService {
     // ==================== LEITURA ====================
 
     public List<GarageDTO> list(UUID companyId) {
-        return garageRepository.findByCompanyIdOrderByCreatedAtDesc(companyId).stream()
+        List<Garage> list = companyId != null
+                ? garageRepository.findByCompanyIdOrderByCreatedAtDesc(companyId)
+                : garageRepository.findAll();
+        return list.stream()
                 .map(g -> GarageDTO.fromEntity(g, vehicleRepository.findByGarageId(g.getId())))
                 .toList();
     }

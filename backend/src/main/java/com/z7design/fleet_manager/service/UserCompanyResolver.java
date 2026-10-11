@@ -237,4 +237,16 @@ public class UserCompanyResolver {
 
         return new java.util.ArrayList<>(companiesMap.values());
     }
+
+    /**
+     * Resolve a entidade User por username ou email.
+     */
+    public User resolveUser(String username) {
+        if (username == null || username.isBlank() || userRepository == null) {
+            return null;
+        }
+        return userRepository.findByUsername(username)
+                .or(() -> userRepository.findByEmail(username))
+                .orElse(null);
+    }
 }
