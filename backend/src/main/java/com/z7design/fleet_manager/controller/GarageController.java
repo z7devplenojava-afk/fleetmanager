@@ -35,13 +35,15 @@ public class GarageController {
 
     @GetMapping
     public ResponseEntity<List<GarageDTO>> list(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(service.list(user.getCompanyId()));
+        UUID companyId = user != null ? user.getCompanyId() : null;
+        return ResponseEntity.ok(service.list(companyId));
     }
 
     /** Dashboard de ocupação com alertas de lotação (>= 90% atenção, 100% lotada). */
     @GetMapping("/dashboard")
     public ResponseEntity<GarageOccupancyDashboardDTO> occupancyDashboard(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(service.getOccupancyDashboard(user.getCompanyId()));
+        UUID companyId = user != null ? user.getCompanyId() : null;
+        return ResponseEntity.ok(service.getOccupancyDashboard(companyId));
     }
 
     @GetMapping("/{id}")

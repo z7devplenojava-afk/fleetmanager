@@ -395,6 +395,7 @@ public class PayslipController {
 
     @GetMapping
     public ResponseEntity<List<Payslip>> getAllPayslips() {
+        try {
         log.info("ðŸ” Iniciando busca de todos os payslips...");
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isColaborador = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_COLABORADOR"));
@@ -418,7 +419,11 @@ public class PayslipController {
                 payslips.get(0).getId(), payslips.get(0).getEmployeeName(), 
                 payslips.get(0).getCpf(), payslips.get(0).getMonth(), payslips.get(0).getYear());
         }
-        return ResponseEntity.ok(payslips);
+        return ResponseEntity.ok(payslips != null ? payslips : Collections.emptyList());
+        } catch (Exception e) {
+            log.error("❌ Erro ao buscar payslips: {}", e.getMessage(), e);
+            return ResponseEntity.ok(Collections.emptyList());
+        }
     }
 
     @GetMapping("/organization")

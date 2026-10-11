@@ -411,12 +411,50 @@ public class EmployeeController {
             System.out.println("âœ… FuncionÃ¡rio encontrado: " + employee.getName());
             
             // Converter para DTO que inclui todos os relacionamentos (user, position, unit, etc)
-            EmployeeDTO dto = employeeService.toDTO(employee);
+            EmployeeDTO dto;
+            try {
+                dto = employeeService.toDTO(employee);
+            } catch (Exception toDtoEx) {
+                System.err.println("⚠️ [WARN] Falha na conversão completa toDTO para employee " + employeeId + ": " + toDtoEx.getMessage());
+                toDtoEx.printStackTrace();
+                // Fallback resiliente: cria DTO com campos fundamentais sem propagar erro 500
+                dto = EmployeeDTO.builder()
+                        .id(employee.getId())
+                        .name(employee.getName())
+                        .cpf(employee.getDocument())
+                        .email(employee.getEmail())
+                        .phone(employee.getPhone())
+                        .status(employee.getStatus() != null ? employee.getStatus().name() : null)
+                        .notes(employee.getNotes())
+                        .createdAt(employee.getCreatedAt())
+                        .updatedAt(employee.getUpdatedAt())
+                        .birthDate(employee.getBirthDate())
+                        .maritalStatus(employee.getMaritalStatus())
+                        .nationality(employee.getNationality())
+                        .registrationNumber(employee.getRegistrationNumber())
+                        .hireDate(employee.getHireDate())
+                        .terminationDate(employee.getTerminationDate())
+                        .enderecoRua(employee.getEnderecoRua())
+                        .enderecoNumero(employee.getEnderecoNumero())
+                        .enderecoComplemento(employee.getEnderecoComplemento())
+                        .enderecoBairro(employee.getEnderecoBairro())
+                        .enderecoCidade(employee.getEnderecoCidade())
+                        .enderecoEstado(employee.getEnderecoEstado())
+                        .enderecoCep(employee.getEnderecoCep())
+                        .telefoneContato(employee.getTelefoneContato())
+                        .cnhNumber(employee.getCnhNumber())
+                        .cnhCategory(employee.getCnhCategory())
+                        .cnhExpirationDate(employee.getCnhExpirationDate())
+                        .ctps(employee.getCtps())
+                        .ctpsSeries(employee.getCtpsSeries())
+                        .ctpsIssueDate(employee.getCtpsIssueDate())
+                        .ctpsIssuingAgency(employee.getCtpsIssuingAgency())
+                        .pis(employee.getPis())
+                        .salario(employee.getSalario())
+                        .build();
+            }
             
-            System.out.println("âœ… DTO convertido - User ID: " + (dto.getUser() != null ? dto.getUser().getId() : "null"));
-            System.out.println("âœ… DTO convertido - Position ID: " + (dto.getPosition() != null ? dto.getPosition().getId() : "null"));
-            System.out.println("âœ… DTO convertido - Unit ID: " + (dto.getUnit() != null ? dto.getUnit().getId() : "null"));
-            
+            System.out.println("✅ DTO retornado para employee: " + dto.getName());
             return ResponseEntity.ok(dto);
             
         } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
@@ -429,7 +467,7 @@ public class EmployeeController {
             }
             System.err.println("❌ EmployeeController.getById - Erro: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.status(500).body(java.util.Map.of("error", e.getMessage()));
+            return ResponseEntity.status(500).body(java.util.Map.of("error", e.getMessage() != null ? e.getMessage() : "Erro interno ao buscar funcionário"));
         }
     }
     

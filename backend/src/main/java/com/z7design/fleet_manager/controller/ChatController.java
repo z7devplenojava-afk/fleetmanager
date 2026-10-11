@@ -57,7 +57,36 @@ public class ChatController {
     
     @Autowired
     private com.z7design.fleet_manager.service.ChatMessageActionService actionService;
-    
+    /**
+     * Estatísticas de mensagens para widgets e notificações
+     */
+    @GetMapping("/stats")
+    public ResponseEntity<java.util.Map<String, Object>> getStats(Authentication authentication) {
+        long unreadCount = 0;
+        long totalCount = 0;
+        long openCount = 0;
+        try {
+            if (authentication != null && authentication.getName() != null) {
+                User user = userService.findByUsername(authentication.getName()).orElse(null);
+                if (user != null) {
+                    java.util.Map<String, Long> stats = chatService.getChatStats(user.getId());
+                    if (stats != null) {
+                        totalCount = stats.getOrDefault("total", 0L);
+                        unreadCount = stats.getOrDefault("unread", 0L);
+                        openCount = stats.getOrDefault("open", 0L);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Erro ao calcular stats de chat: {}", e.getMessage());
+        }
+        return ResponseEntity.ok(java.util.Map.of(
+            "total", totalCount,
+            "unread", unreadCount,
+            "open", openCount
+        ));
+    }
+
     /**
      * Envia mensagem de chat (texto)
      */
@@ -279,29 +308,6 @@ public class ChatController {
         }
     }
     
-    /**
-     * EstatÃ­sticas rÃ¡pidas do chat para badges do painel
-     */
-    @GetMapping("/stats")
-    public ResponseEntity<java.util.Map<String, Long>> getChatStats(Authentication authentication) {
-        try {
-            if (authentication == null || authentication.getName() == null) {
-                return ResponseEntity.ok(java.util.Map.of("total", 0L, "unread", 0L, "open", 0L));
-            }
-            String username = authentication.getName();
-            UUID userId = getUserIdFromUsername(username);
-
-            if (userId == null) {
-                log.warn("Usuário não encontrado para username: {}", username);
-                return ResponseEntity.ok(java.util.Map.of("total", 0L, "unread", 0L, "open", 0L));
-            }
-
-            return ResponseEntity.ok(chatService.getChatStats(userId));
-        } catch (Exception e) {
-            log.error("Erro ao buscar estatísticas do chat: {}", e.getMessage(), e);
-            return ResponseEntity.ok(java.util.Map.of("total", 0L, "unread", 0L, "open", 0L));
-        }
-    }
 
     /**
      * Busca mensagens nÃ£o lidas
