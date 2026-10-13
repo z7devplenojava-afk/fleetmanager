@@ -268,11 +268,11 @@
         <div class="brand-name" th:if="${companyName != null and companyName != ''}" th:text="${companyName}">NOME DA EMPRESA</div>
         <div class="brand-details">
           <span th:if="${companyCnpj != null and companyCnpj != ''}" th:text="${companyCnpj}">CNPJ: --</span>
-          <span th:if="${companyAddress != null and companyAddress != ''}" th:text="' • ' + ${companyAddress}">Endereço</span>
+          <span th:if="${companyAddress != null and companyAddress != ''}" th:text="' &bull; ' + ${companyAddress}">Endereço</span>
         </div>
       </td>
       <td class="header-right">
-        <div class="doc-title">ORDEM DE FORNECIMENTO — EPI</div>
+        <div class="doc-title">ORDEM DE FORNECIMENTO &mdash; EPI</div>
         <div style="margin: 2px 0;">
           <span class="type-badge">NR-06 / SST</span>
         </div>
@@ -328,7 +328,7 @@
           Comprometo-me a: a) Usar o EPI apenas para a finalidade destinada; b) Responsabilizar-me pela sua guarda e conservação; 
           c) Comunicar imediatamente qualquer alteração ou dano; d) Cumprir as normas de segurança estabelecidas. 
           Declaro ciência de que a recusa injustificada constitui ato faltoso (NR-1, 1.8.1) e que, em caso de extravio ou dano doloso, 
-          o desconto será lícito conforme o <b>Art. 462, §1º da CLT</b>.
+          o desconto será lícito conforme o <b>Art. 462, &sect;1º da CLT</b>.
         </td>
       </tr>
     </table>
@@ -363,15 +363,17 @@
           <td style="text-align: center; color: #888;"> </td>
         </tr>
         <!-- Linhas vazias se a lista for pequena para preenchimento manual -->
-        <tr th:each="i : ${#numbers.sequence(1, emptyRowsCount)}" th:if="${emptyRowsCount > 0}">
-          <td style="text-align: center; color: #aaa;" th:text="${itensCount + i}">-</td>
-          <td> </td>
-          <td> </td>
-          <td> </td>
-          <td> </td>
-          <td> </td>
-          <td> </td>
-        </tr>
+        <th:block th:if="${emptyRowsCount != null and emptyRowsCount &gt; 0}">
+          <tr th:each="i : ${#numbers.sequence(1, emptyRowsCount)}">
+            <td style="text-align: center; color: #aaa;" th:text="${itensCount + i}">-</td>
+            <td> </td>
+            <td> </td>
+            <td> </td>
+            <td> </td>
+            <td> </td>
+            <td> </td>
+          </tr>
+        </th:block>
       </tbody>
     </table>
   </div>
@@ -410,7 +412,7 @@
 
   <!-- Rodapé -->
   <div class="footer">
-    Ficha de Controle Individual de EPI conforme Norma Regulamentadora NR-06 (Portaria GM nº 3.214/78 do MTE) • Gerado eletronicamente em <span th:text="${dataEmissao}">--</span>
+    Ficha de Controle Individual de EPI conforme Norma Regulamentadora NR-06 (Portaria GM nº 3.214/78 do MTE) &bull; Gerado eletronicamente em <span th:text="${dataEmissao}">--</span>
   </div>
 
 </body>

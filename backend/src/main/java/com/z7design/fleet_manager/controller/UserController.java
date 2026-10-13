@@ -34,8 +34,10 @@ import java.util.Objects;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "UsuÃ¡rios", description = "Endpoints para gestÃ£o de usuÃ¡rios")
+@Tag(name = "Usuários", description = "Endpoints para gestão de usuários")
 public class UserController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserController.class);
 
     private final UserService userService;
     private final UserOnlineStatusService userOnlineStatusService;
@@ -525,8 +527,27 @@ public class UserController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Não é permitido excluir sua própria conta de usuário."));
             }
         }
-        userService.delete(UUID.fromString(id));
-        return ResponseEntity.noContent().build();
+        try {
+            userService.delete(UUID.fromString(id));
+            return ResponseEntity.noContent().build();
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            log.warn("Usuário {} possui registros vinculados e não pode ser excluído fisicamente. Desativando usuário...", id);
+            try {
+                User user = userService.findById(UUID.fromString(id)).orElse(null);
+                if (user != null) {
+                    user.setActive(false);
+                    userService.updateProfile(user.getId(), null); // ou desativar
+                }
+            } catch (Exception ignored) {}
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "error", "Este usuário possui registros vinculados no sistema (movimentações, logs ou mensagens) e não pode ser excluído permanentemente. Recomendamos inativá-lo."
+            ));
+        } catch (Exception e) {
+            log.error("Erro ao excluir usuário {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "error", e.getMessage() != null ? e.getMessage() : "Erro ao excluir usuário"
+            ));
+        }
     }
 
     @PostMapping("/bulk-delete")

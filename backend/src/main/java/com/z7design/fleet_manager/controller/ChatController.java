@@ -621,8 +621,9 @@ public class ChatController {
         }
     }
     
+
     /**
-     * MÃ©todo auxiliar para obter o ID do usuÃ¡rio a partir do username
+     * Método auxiliar para obter o ID do usuário a partir do username
      */
     private UUID getUserIdFromUsername(String username) {
         try {
