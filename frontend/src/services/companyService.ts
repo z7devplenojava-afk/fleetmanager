@@ -58,8 +58,15 @@ export const companyService = {
   },
 
   async getCompanyById(id: string) {
-    const response = await api.get(`/api/companies/${id}`);
-    return response.data;
+    try {
+      const response = await api.get(`/api/companies/${id}`);
+      return response.data;
+    } catch (err: any) {
+      if (err?.response?.status === 404 || err?.response?.status === 409) {
+        return null;
+      }
+      throw err;
+    }
   },
 
   async updateCompany(id: string, data: Partial<CreateCompanyRequest>) {
