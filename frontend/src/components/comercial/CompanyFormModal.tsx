@@ -360,7 +360,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
                       alt="Ícone da empresa"
                       className="w-full h-full object-contain rounded-xl"
                       onError={() => {
-                        console.warn('⚠️ Erro ao carregar preview do ícone');
+                        setLogoPreview(null);
                       }}
                     />
                   ) : (
