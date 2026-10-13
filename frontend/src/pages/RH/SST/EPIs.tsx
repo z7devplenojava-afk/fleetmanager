@@ -33,11 +33,32 @@ import {
   Info,
   CheckCheck,
   RotateCcw,
-  PackageCheck
+  PackageCheck,
+  Eye,
+  Pencil,
+  AlertCircle
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { sstService, PersonalProtectiveEquipment, EPIDelivery, CreateEPIDeliveryDTO } from '@/services/sstService';
 import { employeeService, Employee } from '@/services/employeeService';
+import { epiDeliveryFormService, EPIDeliveryForm } from '@/services/epiDeliveryFormService';
+import { EpiDeliveryModal } from '@/components/sst/EpiDeliveryModal';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -50,6 +71,7 @@ const EPIs: React.FC = () => {
   // Estados
   const [epis, setEpis] = useState<PersonalProtectiveEquipment[]>([]);
   const [deliveries, setDeliveries] = useState<EPIDelivery[]>([]);
+  const [fichas, setFichas] = useState<EPIDeliveryForm[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'epis' | 'deliveries'>('epis');
@@ -59,6 +81,16 @@ const EPIs: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [verifyingDeliveryId, setVerifyingDeliveryId] = useState<string | null>(null);
+
+  // Estados para gerenciamento de Fichas de Entrega de EPI
+  const [selectedFichaForView, setSelectedFichaForView] = useState<EPIDeliveryForm | null>(null);
+  const [showFichaViewModal, setShowFichaViewModal] = useState<boolean>(false);
+  const [selectedFichaForEdit, setSelectedFichaForEdit] = useState<EPIDeliveryForm | null>(null);
+  const [selectedEmployeeForModal, setSelectedEmployeeForModal] = useState<Employee | null>(null);
+  const [showUnifiedDeliveryModal, setShowUnifiedDeliveryModal] = useState<boolean>(false);
+  const [fichaToDelete, setFichaToDelete] = useState<EPIDeliveryForm | null>(null);
+  const [isDeletingFicha, setIsDeletingFicha] = useState<boolean>(false);
+  const [downloadingFichaId, setDownloadingFichaId] = useState<string | null>(null);
 
   // Estados para modal de entrega
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
@@ -90,12 +122,14 @@ const EPIs: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [episData, deliveriesData] = await Promise.all([
-        sstService.getPersonalProtectiveEquipments(),
-        sstService.getEPIDeliveries()
+      const [episData, deliveriesData, fichasData] = await Promise.all([
+        sstService.getPersonalProtectiveEquipments().catch(() => []),
+        sstService.getEPIDeliveries().catch(() => []),
+        epiDeliveryFormService.getAll(0, 100).catch(() => ({ content: [], totalElements: 0 }))
       ]);
       setEpis(episData);
       setDeliveries(deliveriesData);
+      setFichas(fichasData?.content || []);
     } catch (err) {
       console.error('Erro ao carregar dados de EPIs:', err);
       setError('Erro ao carregar dados de EPIs');
@@ -241,6 +275,82 @@ const EPIs: React.FC = () => {
       });
     }
     return false;
+  };
+
+  // Filtrar fichas de entrega de EPI
+  const filteredFichas = fichas.filter(ficha => {
+    if (!searchTerm) return true;
+    const q = searchTerm.toLowerCase();
+    const matchEmp = ficha.employeeName?.toLowerCase().includes(q) || ficha.employeeCpf?.toLowerCase().includes(q);
+    const matchComp = ficha.companyName?.toLowerCase().includes(q);
+    const matchObs = ficha.observations?.toLowerCase().includes(q);
+    const matchItem = ficha.items?.some(i => i.epiName?.toLowerCase().includes(q) || i.ca?.toLowerCase().includes(q));
+    return matchEmp || matchComp || matchObs || matchItem;
+  });
+
+  // Ações de Fichas de Entrega de EPI
+  const handleOpenCreateFicha = () => {
+    setSelectedEmployeeForModal(null);
+    setSelectedFichaForEdit(null);
+    setShowUnifiedDeliveryModal(true);
+  };
+
+  const handleOpenEditFicha = (ficha: EPIDeliveryForm) => {
+    const emp = employees.find(e => e.id === ficha.employeeId) || ({
+      id: ficha.employeeId,
+      name: ficha.employeeName,
+      document: ficha.employeeCpf,
+      cpf: ficha.employeeCpf,
+      companyId: ficha.companyId
+    } as any);
+    setSelectedEmployeeForModal(emp);
+    setSelectedFichaForEdit(ficha);
+    setShowUnifiedDeliveryModal(true);
+  };
+
+  const handleDownloadFichaPdf = async (ficha: EPIDeliveryForm) => {
+    try {
+      setDownloadingFichaId(ficha.id);
+      toast({ title: 'Baixando PDF...', description: 'Aguarde a geração do documento oficial da ficha de EPI.' });
+      const blob = await epiDeliveryFormService.downloadPdf(ficha.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Ficha_EPI_${ficha.employeeName || 'Funcionario'}_${ficha.deliveryDate}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast({ title: 'Sucesso', description: 'PDF da Ficha de EPI baixado com sucesso.' });
+    } catch (error) {
+      console.error('Erro ao baixar PDF:', error);
+      toast({ title: 'Erro', description: 'Falha ao baixar PDF da ficha de EPI.', variant: 'destructive' });
+    } finally {
+      setDownloadingFichaId(null);
+    }
+  };
+
+  const handleDeleteFicha = async () => {
+    if (!fichaToDelete) return;
+    try {
+      setIsDeletingFicha(true);
+      await epiDeliveryFormService.delete(fichaToDelete.id);
+      toast({
+        title: 'Ficha Excluída com Sucesso',
+        description: 'A ficha foi excluída e todos os itens foram estornados ao estoque do Almoxarifado e SST.'
+      });
+      setFichaToDelete(null);
+      await loadData();
+    } catch (error: any) {
+      console.error('Erro ao excluir ficha de EPI:', error);
+      toast({
+        title: 'Erro ao excluir',
+        description: error?.response?.data?.message || 'Não foi possível excluir a ficha de EPI.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsDeletingFicha(false);
+    }
   };
 
   // Filtrar entregas com suporte a filtro de status e busca
@@ -578,7 +688,7 @@ const EPIs: React.FC = () => {
                   });
                   return;
                 }
-                setShowDeliveryModal(true);
+                handleOpenCreateFicha();
               }}
               className="bg-seguranca-red hover:bg-seguranca-darkred"
               disabled={!isAllowedToRegisterEPI()}
@@ -755,157 +865,191 @@ const EPIs: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          /* Entregas de EPIs */
+          /* Entregas de EPIs - Fichas de Entrega aos Funcionários */
           <Card className="bg-seguranca-graphite border-gray-600">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <CardTitle className="text-seguranca-lightgray">
-                  Entregas de EPIs ({sortedDeliveries.length})
+                <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-seguranca-yellow" />
+                  Fichas de Entrega de EPIs ({filteredFichas.length})
                 </CardTitle>
                 <p className="text-xs text-gray-400 mt-1">
-                  Exibição por ordem de cadastro (o último item adicionado fica na linha de baixo)
+                  Fichas de EPI registradas e entregues aos funcionários (com controle de estoque e assinatura)
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="border-yellow-500/40 text-yellow-400 bg-yellow-500/10">
-                  Pendentes: {deliveries.filter(d => d.status === 'PENDENTE_CONFERENCIA_ALMOXARIFADO' || d.verifiedByAlmoxarifado === false).length}
-                </Badge>
-                <Badge variant="outline" className="border-green-500/40 text-green-400 bg-green-500/10">
-                  Concluídas: {deliveries.filter(d => d.status === 'CONCLUIDO' || d.verifiedByAlmoxarifado === true).length}
-                </Badge>
+                <Button
+                  onClick={handleOpenCreateFicha}
+                  size="sm"
+                  className="bg-seguranca-red hover:bg-seguranca-darkred text-white text-xs font-semibold"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Nova Ficha de EPI
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadData}
+                  className="border-gray-600 text-gray-300 hover:bg-gray-800 text-xs"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                  Atualizar
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
-              {sortedDeliveries.length > 0 ? (
-                <div className="space-y-4">
-                  {sortedDeliveries.map((delivery, index) => {
-                    const isPendingAlmoxarifado = delivery.status === 'PENDENTE_CONFERENCIA_ALMOXARIFADO' || delivery.verifiedByAlmoxarifado === false;
-                    return (
-                      <div key={delivery.id} className="p-4 bg-seguranca-black rounded-lg border border-gray-600 hover:border-gray-500 transition-colors">
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <span className="text-xs font-mono text-gray-400 bg-gray-800 px-2 py-0.5 rounded">
-                                #{index + 1}
-                              </span>
-                              <h3 className="font-semibold text-seguranca-lightgray">
-                                {delivery.employeeName}
-                              </h3>
-                              <Badge className={getReasonColor(delivery.reason)}>
-                                {delivery.reason}
-                              </Badge>
-
-                              {/* Status de Conferência e Estoque */}
-                              {isPendingAlmoxarifado ? (
-                                <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 flex items-center gap-1">
-                                  <Clock className="w-3 h-3 animate-pulse" />
-                                  Pendente Almoxarifado (Estoque não baixado)
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-green-500/20 text-green-400 border border-green-500/40 flex items-center gap-1">
-                                  <CheckCheck className="w-3 h-3" />
-                                  Estoque Baixado / Conferido
-                                </Badge>
-                              )}
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-400">
-                              <div className="flex items-center gap-2">
-                                <Package className="h-4 w-4 text-seguranca-yellow" />
-                                <span>{delivery.epiName}</span>
+              {filteredFichas.length > 0 ? (
+                <div className="border border-gray-700 rounded-xl overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-gray-900/80">
+                      <TableRow className="border-b border-gray-700 hover:bg-transparent">
+                        <TableHead className="text-gray-300 text-xs">Funcionário</TableHead>
+                        <TableHead className="text-gray-300 text-xs">Empresa</TableHead>
+                        <TableHead className="text-gray-300 text-xs">Data de Entrega</TableHead>
+                        <TableHead className="text-gray-300 text-xs">Itens / EPIs</TableHead>
+                        <TableHead className="text-gray-300 text-xs text-center">Status</TableHead>
+                        <TableHead className="text-gray-300 text-xs text-right pr-6">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredFichas.map((ficha) => (
+                        <TableRow key={ficha.id} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
+                          <TableCell className="py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-seguranca-red/20 border border-seguranca-red/40 flex items-center justify-center text-seguranca-red font-bold text-xs">
+                                {ficha.employeeName ? ficha.employeeName.charAt(0).toUpperCase() : 'F'}
                               </div>
-
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4" />
-                                <span>
-                                  {new Date(delivery.deliveryDate).toLocaleDateString('pt-BR')}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4" />
-                                <span>Qtd Entregue: {delivery.quantity}</span>
+                              <div>
+                                <p className="font-semibold text-gray-100 text-xs">{ficha.employeeName}</p>
+                                <p className="text-[11px] text-gray-400 font-mono">CPF: {ficha.employeeCpf || '—'}</p>
                               </div>
                             </div>
+                          </TableCell>
 
-                            {/* Informações de Devolução / Estorno */}
-                            {delivery.returnedQuantity && delivery.returnedQuantity > 0 && (
-                              <div className="mt-2 p-2 bg-blue-950/30 border border-blue-800/40 rounded text-xs text-blue-300 flex items-center gap-2">
-                                <RotateCcw className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-                                <span>
-                                  <strong>Troca com Devolução:</strong> Recolhido {delivery.returnedQuantity} un de{' '}
-                                  {delivery.returnedEpiName || 'EPI Antigo'} | Condição: {delivery.returnedCondition === 'REAPROVEITAVEL' ? '✅ Reaproveitável (Estornado ao estoque)' : '⚠️ Descarte'}
-                                </span>
+                          <TableCell className="text-xs text-gray-300">
+                            {ficha.companyName || '—'}
+                          </TableCell>
+
+                          <TableCell className="text-xs text-gray-300 font-mono">
+                            {ficha.deliveryDate ? new Date(ficha.deliveryDate).toLocaleDateString('pt-BR') : '—'}
+                          </TableCell>
+
+                          <TableCell className="text-xs text-gray-300">
+                            {ficha.items && ficha.items.length > 0 ? (
+                              <div className="space-y-1">
+                                {ficha.items.slice(0, 2).map((item, idx) => (
+                                  <div key={idx} className="flex items-center gap-1.5 text-xs">
+                                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-seguranca-yellow/40 text-seguranca-yellow bg-seguranca-yellow/10">
+                                      {item.quantity}x
+                                    </Badge>
+                                    <span className="truncate max-w-[200px]" title={item.epiName}>
+                                      {item.epiName}
+                                    </span>
+                                    {item.ca && (
+                                      <span className="text-[10px] text-gray-500 font-mono">
+                                        (CA: {item.ca})
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                                {ficha.items.length > 2 && (
+                                  <span className="text-[10px] text-gray-400 italic">
+                                    +{ficha.items.length - 2} outro(s) item(ns)...
+                                  </span>
+                                )}
                               </div>
+                            ) : (
+                              <span className="text-gray-500 italic">Sem itens</span>
                             )}
+                          </TableCell>
 
-                            {/* Justificativa de substituição extraordinária */}
-                            {delivery.exchangeJustification && (
-                              <p className="text-xs text-amber-300 mt-2 bg-amber-950/20 p-2 rounded border border-amber-800/30">
-                                <strong>Justificativa da Troca:</strong> {delivery.exchangeJustification}
-                              </p>
-                            )}
+                          <TableCell className="text-center">
+                            <Badge className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[11px]">
+                              Entregue
+                            </Badge>
+                          </TableCell>
 
-                            {delivery.notes && (
-                              <p className="text-sm text-gray-400 mt-2">{delivery.notes}</p>
-                            )}
-
-                            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 mt-2">
-                              <span>Entregue por: {delivery.deliveredBy || 'Sistema'}</span>
-                              {delivery.verifiedByAlmoxarifadoAt && (
-                                <span>Conferido pelo Almoxarifado em: {new Date(delivery.verifiedByAlmoxarifadoAt).toLocaleString('pt-BR')}</span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            {/* Botão de Conferência para Almoxarifado / Admin */}
-                            {isPendingAlmoxarifado && isAlmoxarifadoUser() && (
+                          <TableCell className="text-right pr-4">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Botão Visualizar */}
                               <Button
                                 size="sm"
-                                onClick={() => handleVerifyDelivery(delivery.id)}
-                                disabled={verifyingDeliveryId === delivery.id}
-                                className="bg-yellow-600 hover:bg-yellow-500 text-white shadow"
+                                variant="ghost"
+                                onClick={() => {
+                                  setSelectedFichaForView(ficha);
+                                  setShowFichaViewModal(true);
+                                }}
+                                className="h-8 px-2.5 text-xs text-blue-400 hover:text-white hover:bg-blue-600/20"
+                                title="Visualizar Ficha"
                               >
-                                {verifyingDeliveryId === delivery.id ? (
-                                  <>
-                                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                                    Baixando...
-                                  </>
-                                ) : (
-                                  <>
-                                    <PackageCheck className="w-4 h-4 mr-1" />
-                                    Conferir e Baixar Estoque
-                                  </>
-                                )}
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                Visualizar
                               </Button>
-                            )}
 
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => navigate(`/rh/sst/entregas/${delivery.id}`)}
-                              className="border-gray-600 text-seguranca-lightgray hover:bg-gray-700"
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Editar
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                              {/* Botão Editar */}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenEditFicha(ficha)}
+                                className="h-8 px-2.5 text-xs text-amber-400 hover:text-white hover:bg-amber-600/20"
+                                title="Editar Ficha de EPI"
+                              >
+                                <Pencil className="h-3.5 w-3.5 mr-1" />
+                                Editar
+                              </Button>
+
+                              {/* Botão Baixar */}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDownloadFichaPdf(ficha)}
+                                disabled={downloadingFichaId === ficha.id}
+                                className="h-8 px-2.5 text-xs border-emerald-500/50 text-emerald-400 hover:bg-emerald-950/40 hover:text-white"
+                                title="Baixar PDF Oficial"
+                              >
+                                {downloadingFichaId === ficha.id ? (
+                                  <RefreshCw className="h-3.5 w-3.5 mr-1 animate-spin text-emerald-400" />
+                                ) : (
+                                  <Download className="h-3.5 w-3.5 mr-1 text-emerald-400" />
+                                )}
+                                Baixar
+                              </Button>
+
+                              {/* Botão Excluir */}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setFichaToDelete(ficha)}
+                                className="h-8 px-2.5 text-xs text-rose-400 hover:text-white hover:bg-rose-600/20"
+                                title="Excluir Ficha (Estorna Estoque)"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                Excluir
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-seguranca-lightgray">Nenhuma entrega encontrada</p>
+                <div className="text-center py-12">
+                  <Shield className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                  <p className="text-seguranca-lightgray font-medium">Nenhuma ficha de EPI encontrada</p>
                   <p className="text-gray-400 text-sm mt-1">
                     {searchTerm
                       ? 'Tente ajustar os filtros de busca'
-                      : 'Clique em "Nova Entrega" para registrar a primeira entrega'
+                      : 'Clique em "Nova Entrega" para registrar e gerar a primeira ficha de EPI'
                     }
                   </p>
+                  <Button
+                    onClick={handleOpenCreateFicha}
+                    className="mt-4 bg-seguranca-red hover:bg-seguranca-darkred text-white text-xs"
+                  >
+                    <Plus className="h-4 w-4 mr-1.5" />
+                    Nova Entrega de EPI
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -1726,6 +1870,167 @@ const EPIs: React.FC = () => {
             </div>
           </div>
         )}
+        {/* ================= MODAL: FICHA DE ENTREGA DE EPI UNIFICADA (NR-6 / SST / ALMOXARIFADO) ================= */}
+        <EpiDeliveryModal
+          isOpen={showUnifiedDeliveryModal}
+          onClose={() => {
+            setShowUnifiedDeliveryModal(false);
+            setSelectedFichaForEdit(null);
+            setSelectedEmployeeForModal(null);
+          }}
+          employee={selectedEmployeeForModal}
+          initialData={selectedFichaForEdit}
+          onSuccess={loadData}
+        />
+
+        {/* ================= MODAL: VISUALIZAR DETALHES DA FICHA DE EPI ================= */}
+        <Dialog open={showFichaViewModal} onOpenChange={setShowFichaViewModal}>
+          <DialogContent className="max-w-2xl bg-seguranca-black border-gray-700 text-gray-100">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold text-seguranca-lightgray flex items-center justify-between">
+                <span>Detalhes da Ficha de EPI</span>
+                <Badge className="bg-emerald-600 text-white text-xs">Entregue</Badge>
+              </DialogTitle>
+            </DialogHeader>
+
+            {selectedFichaForView && (
+              <div className="space-y-4 py-2 text-xs">
+                <div className="grid grid-cols-2 gap-3 bg-gray-900/60 p-3 rounded-xl border border-gray-800">
+                  <div>
+                    <span className="text-gray-400">Colaborador:</span>
+                    <p className="font-bold text-gray-100 text-sm">{selectedFichaForView.employeeName}</p>
+                    <p className="text-gray-400 font-mono">CPF: {selectedFichaForView.employeeCpf || '—'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Empresa:</span>
+                    <p className="font-bold text-gray-100 text-sm">{selectedFichaForView.companyName}</p>
+                    <p className="text-gray-400">Data: {selectedFichaForView.deliveryDate ? new Date(selectedFichaForView.deliveryDate).toLocaleDateString('pt-BR') : '—'}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-seguranca-yellow uppercase mb-2">Itens Entregues</h4>
+                  <div className="border border-gray-800 rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-gray-900">
+                        <TableRow className="border-b border-gray-800">
+                          <TableHead className="text-gray-300 text-xs">Item / EPI</TableHead>
+                          <TableHead className="text-gray-300 text-xs text-center">Qtd</TableHead>
+                          <TableHead className="text-gray-300 text-xs">Nº CA</TableHead>
+                          <TableHead className="text-gray-300 text-xs">Observações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedFichaForView.items?.map((it, idx) => (
+                          <TableRow key={idx} className="border-b border-gray-800">
+                            <TableCell className="font-semibold text-gray-200">{it.epiName}</TableCell>
+                            <TableCell className="text-center font-mono">{it.quantity}</TableCell>
+                            <TableCell className="font-mono text-gray-400">{it.ca || '—'}</TableCell>
+                            <TableCell className="text-gray-400">{it.observations || '—'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                {selectedFichaForView.observations && (
+                  <div className="bg-gray-900/40 p-2.5 rounded border border-gray-800 text-gray-300">
+                    <span className="font-semibold text-gray-400">Observações: </span>
+                    {selectedFichaForView.observations}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter className="border-t border-gray-800 pt-3 flex flex-row items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFichaViewModal(false)}
+                className="border-gray-700 text-gray-300 hover:bg-gray-800 text-xs"
+              >
+                Fechar
+              </Button>
+              <div className="flex items-center gap-2">
+                {selectedFichaForView && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const ficha = selectedFichaForView;
+                      setShowFichaViewModal(false);
+                      handleOpenEditFicha(ficha);
+                    }}
+                    className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 text-xs h-8"
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                    Editar Ficha
+                  </Button>
+                )}
+                {selectedFichaForView && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleDownloadFichaPdf(selectedFichaForView)}
+                    disabled={downloadingFichaId === selectedFichaForView.id}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-8"
+                  >
+                    {downloadingFichaId === selectedFichaForView.id ? (
+                      <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-1.5" />
+                    )}
+                    Baixar PDF da Ficha
+                  </Button>
+                )}
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ================= MODAL: CONFIRMAÇÃO DE EXCLUSÃO (ESTORNO AO ESTOQUE) ================= */}
+        <Dialog open={!!fichaToDelete} onOpenChange={() => setFichaToDelete(null)}>
+          <DialogContent className="max-w-md bg-seguranca-black border-gray-700 text-gray-100">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-rose-400 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                Excluir Ficha de EPI
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-300 mt-2">
+                Tem certeza que deseja excluir a ficha de entrega de EPI para <strong>{fichaToDelete?.employeeName}</strong>?
+                <br /><br />
+                <span className="text-amber-400 font-semibold">
+                  ⚠️ Ao confirmar a exclusão, todos os itens da ficha serão estornados automaticamente de volta ao estoque do Almoxarifado e SST.
+                </span>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-4 flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFichaToDelete(null)}
+                className="border-gray-700 text-gray-300 text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleDeleteFicha}
+                disabled={isDeletingFicha}
+                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold"
+              >
+                {isDeletingFicha ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                    Estornando e Excluindo...
+                  </>
+                ) : (
+                  'Confirmar Exclusão'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </StandardLayout>
   );
