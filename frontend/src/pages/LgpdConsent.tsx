@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { getDashboardRouteForRole } from '@/utils/roleRouting';
 import api from '@/lib/axios';
 
 const LgpdConsent = () => {
@@ -82,7 +83,8 @@ const LgpdConsent = () => {
         // Ainda precisa trocar a senha no primeiro acesso
         navigate('/first-access/change-password', { replace: true });
       } else {
-        navigate('/dashboard', { replace: true });
+        const targetRoute = getDashboardRouteForRole(user?.role);
+        navigate(targetRoute, { replace: true });
       }
     } catch (error: any) {
       console.error('Erro ao registrar consentimentos:', error);
