@@ -14,14 +14,24 @@ import java.util.UUID;
 public interface FleetWorkOrderRepository extends JpaRepository<FleetWorkOrder, UUID> {
 
     /**
-     * Retorna somente OSs nao excluidas (soft-delete — RN10)
+     * Retorna somente OSs nao excluidas (soft-delete — RN10) com entidades associadas carregadas
      */
-    @Query("SELECT o FROM FleetWorkOrder o WHERE o.deletedAt IS NULL ORDER BY o.createdAt DESC")
+    @Query("SELECT DISTINCT o FROM FleetWorkOrder o " +
+           "LEFT JOIN FETCH o.vehicle v " +
+           "LEFT JOIN FETCH o.workPost wp " +
+           "LEFT JOIN FETCH o.garage g " +
+           "LEFT JOIN FETCH o.plan p " +
+           "WHERE o.deletedAt IS NULL ORDER BY o.createdAt DESC")
     @Override
     List<FleetWorkOrder> findAll();
 
-    /** Busca por ID excluindo soft-deleted */
-    @Query("SELECT o FROM FleetWorkOrder o WHERE o.id = :id AND o.deletedAt IS NULL")
+    /** Busca por ID excluindo soft-deleted com relacionamentos */
+    @Query("SELECT DISTINCT o FROM FleetWorkOrder o " +
+           "LEFT JOIN FETCH o.vehicle v " +
+           "LEFT JOIN FETCH o.workPost wp " +
+           "LEFT JOIN FETCH o.garage g " +
+           "LEFT JOIN FETCH o.plan p " +
+           "WHERE o.id = :id AND o.deletedAt IS NULL")
     Optional<FleetWorkOrder> findActiveById(@Param("id") UUID id);
 
     List<FleetWorkOrder> findByVehicleIdAndDeletedAtIsNull(UUID vehicleId);

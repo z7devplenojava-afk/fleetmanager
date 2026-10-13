@@ -101,12 +101,16 @@ const FleetWorkOrdersPage: React.FC = () => {
     const { data: garages = [] } = useQuery({
         queryKey: ['garages-for-os-filter'],
         queryFn: () => garageService.list(),
-        staleTime: 60_000,
+        staleTime: 5 * 60_000,
+        gcTime: 30 * 60_000,
     });
 
     const { data: orders = [], isLoading } = useQuery({
         queryKey: ['fleet-work-orders'],
-        queryFn: () => fleetWorkOrderService.findAll()
+        queryFn: () => fleetWorkOrderService.findAll(),
+        staleTime: 60_000, // 1 minuto de dados quentes instantâneos
+        gcTime: 10 * 60_000, // Mantém em cache por 10 minutos na memória
+        refetchOnWindowFocus: false, // Evita engasgos e refetches desnecessários ao alternar abas
     });
 
     const handleUpdateStatus = async (id: string, status: WorkOrderStatus) => {
@@ -469,7 +473,22 @@ const FleetWorkOrdersPage: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-700">
-                                        {sortedOrders.map(order => (
+                                        {isLoading && orders.length === 0 ? (
+                                            Array.from({ length: 5 }).map((_, idx) => (
+                                                <tr key={`skeleton-${idx}`} className="animate-pulse">
+                                                    <td className="p-4"><div className="h-4 w-24 bg-gray-700 rounded" /></td>
+                                                    <td className="p-4"><div className="h-5 w-20 bg-gray-700 rounded-full" /></td>
+                                                    <td className="p-4"><div className="h-5 w-16 bg-gray-700 rounded-full" /></td>
+                                                    <td className="p-4"><div className="h-4 w-28 bg-gray-700 rounded mb-1" /><div className="h-3 w-36 bg-gray-800 rounded" /></td>
+                                                    <td className="p-4"><div className="h-4 w-28 bg-gray-700 rounded mb-1" /><div className="h-3 w-20 bg-gray-800 rounded" /></td>
+                                                    <td className="p-4"><div className="h-4 w-24 bg-gray-700 rounded" /></td>
+                                                    <td className="p-4"><div className="h-4 w-16 bg-gray-700 rounded" /></td>
+                                                    <td className="p-4"><div className="h-4 w-28 bg-gray-700 rounded" /></td>
+                                                    <td className="p-4 text-right"><div className="h-4 w-20 bg-gray-700 rounded ml-auto" /></td>
+                                                    <td className="p-4"><div className="h-8 w-24 bg-gray-700 rounded mx-auto" /></td>
+                                                </tr>
+                                            ))
+                                        ) : sortedOrders.map(order => (
                                             <tr key={order.id} className="hover:bg-seguranca-black/30 transition-colors">
                                                 <td className="p-4 font-bold text-seguranca-lightgray">
                                                     {order.osNumber || `OS-${order.id.slice(0, 8)}`}

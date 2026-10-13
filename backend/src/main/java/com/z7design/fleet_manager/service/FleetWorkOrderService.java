@@ -68,58 +68,21 @@ public class FleetWorkOrderService {
         if (dto == null) return null;
 
         // Completa clientName se ainda estiver nulo
-        if (dto.getClientName() == null || dto.getClientName().isBlank()) {
-            if (dto.getClientId() != null) {
-                clientRepository.findById(dto.getClientId())
-                        .ifPresent(c -> dto.setClientName(c.getName()));
-            } else if (entity.getVehicle() != null && entity.getVehicle().getClientId() != null) {
-                clientRepository.findById(entity.getVehicle().getClientId())
-                        .ifPresent(c -> {
-                            dto.setClientId(c.getId());
-                            dto.setClientName(c.getName());
-                        });
-            }
+        if ((dto.getClientName() == null || dto.getClientName().isBlank()) && dto.getClientId() != null) {
+            clientRepository.findById(dto.getClientId())
+                    .ifPresent(c -> dto.setClientName(c.getName()));
         }
 
-        // Completa garageName se ainda estiver nulo (fallback: garagem atual do veículo)
+        // Completa garageName se ainda estiver nulo
         if (dto.getGarageId() != null && (dto.getGarageName() == null || dto.getGarageName().isBlank())) {
             garageRepository.findById(dto.getGarageId())
                     .ifPresent(g -> dto.setGarageName(g.getName()));
-        } else if (dto.getGarageId() == null && entity.getVehicle() != null
-                && entity.getVehicle().getGarageId() != null) {
-            garageRepository.findById(entity.getVehicle().getGarageId())
-                    .ifPresent(g -> {
-                        dto.setGarageId(g.getId());
-                        dto.setGarageName(g.getName());
-                    });
         }
 
         // Completa workPostName se ainda estiver nulo
-        if (dto.getWorkPostName() == null || dto.getWorkPostName().isBlank()) {
-            if (dto.getWorkPostId() != null) {
-                workPostRepository.findById(dto.getWorkPostId())
-                        .ifPresent(wp -> dto.setWorkPostName(wp.getName()));
-            } else if (dto.getSectorId() != null) {
-                workPostRepository.findById(dto.getSectorId())
-                        .ifPresent(wp -> {
-                            dto.setWorkPostId(wp.getId());
-                            dto.setWorkPostName(wp.getName());
-                            if (dto.getClientName() == null && wp.getClient() != null) {
-                                dto.setClientId(wp.getClient().getId());
-                                dto.setClientName(wp.getClient().getName());
-                            }
-                        });
-            } else if (entity.getVehicle() != null && entity.getVehicle().getWorkPostId() != null) {
-                workPostRepository.findById(entity.getVehicle().getWorkPostId())
-                        .ifPresent(wp -> {
-                            dto.setWorkPostId(wp.getId());
-                            dto.setWorkPostName(wp.getName());
-                            if (dto.getClientName() == null && wp.getClient() != null) {
-                                dto.setClientId(wp.getClient().getId());
-                                dto.setClientName(wp.getClient().getName());
-                            }
-                        });
-            }
+        if ((dto.getWorkPostName() == null || dto.getWorkPostName().isBlank()) && dto.getWorkPostId() != null) {
+            workPostRepository.findById(dto.getWorkPostId())
+                    .ifPresent(wp -> dto.setWorkPostName(wp.getName()));
         }
 
         // Completa mechanicName se ainda estiver nulo
@@ -129,9 +92,6 @@ public class FleetWorkOrderService {
                         .ifPresent(emp -> dto.setMechanicName(emp.getName()));
             } else if (dto.getResponsibleId() != null) {
                 employeeRepository.findById(dto.getResponsibleId())
-                        .ifPresent(emp -> dto.setMechanicName(emp.getName()));
-            } else if (entity.getVehicle() != null && entity.getVehicle().getResponsibleEmployeeId() != null) {
-                employeeRepository.findById(entity.getVehicle().getResponsibleEmployeeId())
                         .ifPresent(emp -> dto.setMechanicName(emp.getName()));
             }
         }
