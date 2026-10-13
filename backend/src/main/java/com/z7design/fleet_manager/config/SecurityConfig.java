@@ -488,6 +488,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/contract-retentions/**").authenticated()
                                                 // Endpoints de estoque - requerem permissÃƒÂµes especÃƒÂ­ficas ou
                                                 // autenticaÃƒÂ§ÃƒÂ£o
+                                                // Endpoints de estoque - leitura permitida para autenticados (SST, RH, Manutenção, etc.)
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/stock/**").authenticated()
                                                 .requestMatchers("/api/stock/**")
                                                 .hasAnyAuthority("EQUIPMENTS_READ", "EQUIPMENTS_WRITE",
                                                                 "EQUIPMENTS_CREATE",
@@ -495,7 +497,10 @@ public class SecurityConfig {
                                                                 "STOCK_WRITE", "STOCK_CREATE",
                                                                 "STOCK_DELETE", "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
                                                                 "ROLE_COMPANY_ADMIN", "ROLE_FLEX_ADMIN",
-                                                                "ROLE_GESTOR", "ROLE_SUPERVISOR")
+                                                                "ROLE_GESTOR", "ROLE_SUPERVISOR",
+                                                                "ROLE_RH", "ROLE_AUXILIAR_DE_RH", "ROLE_DEPARTAMENTO_PESSOAL",
+                                                                "ROLE_ALMOXARIFADO", "ROLE_ESTOQUE", "ROLE_GESTOR_DE_MANUTENCAO",
+                                                                "ROLE_MANUTENCAO", "ROLE_MECANICO", "ROLE_OPERACIONAL")
                                                 // SEGURANÃ‡A: mÃ³dulos de documentos que estavam pÃºblicos para teste agora exigem autenticaÃ§Ã£o
                                                 .requestMatchers("/api/modelos-documentos/**").authenticated()
                                                 .requestMatchers("/api/documentos-gerados/**").authenticated()
