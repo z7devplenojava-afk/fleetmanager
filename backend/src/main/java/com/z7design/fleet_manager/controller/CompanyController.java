@@ -157,8 +157,16 @@ public class CompanyController {
     public ResponseEntity<CompanyDTO> getCompanyById(
             @Parameter(description = "ID da empresa") @PathVariable("id") UUID id) {
         log.debug("Buscando empresa por ID: {}", id);
-        CompanyDTO company = companyService.getCompanyById(id);
-        return ResponseEntity.ok(company);
+        try {
+            CompanyDTO company = companyService.getCompanyById(id);
+            return ResponseEntity.ok(company);
+        } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
+            log.warn("Empresa não encontrada para ID: {}", id);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("Erro inesperado ao buscar empresa ID {}: {}", id, e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping("/sigla/{sigla}")
