@@ -18,6 +18,11 @@ export const ROLE_CATEGORIES: RoleCategory[] = [
     roles: ['RH', 'ASSISTENCIA_RH', 'AUXILIAR_DE_RH', 'DEPARTAMENTO_PESSOAL', 'AUXILIAR_DE_DEPARTAMENTO_PESSOAL', 'AUX_DEP', 'COLABORADOR', 'EMPLOYEE'],
   },
   {
+    id: 'sst',
+    name: 'Segurança do Trabalho (SST)',
+    roles: ['SST', 'SEGURANCA_DO_TRABALHO'],
+  },
+  {
     id: 'comercial',
     name: 'Comercial & CRM (Vendas)',
     roles: ['GESTOR_COMERCIAL', 'COMERCIAL', 'VENDAS'],
@@ -82,6 +87,8 @@ export const USER_ROLE_LIST: UserRole[] = [
   'DEPARTAMENTO_PESSOAL',
   'AUXILIAR_DE_DEPARTAMENTO_PESSOAL',
   'AUX_DEP',
+  'SST',
+  'SEGURANCA_DO_TRABALHO',
   'COLABORADOR',
   'EMPLOYEE',
 
@@ -751,10 +758,42 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         VISITS_READ: true,
       };
 
-    case 'AUXI_ADMINISTRATIVO':
+    case 'SST':
+    case 'SEGURANCA_DO_TRABALHO':
       return {
         ...basePermissions,
-        // Auxiliar Administrativo - Suporte administrativo geral
+        // Segurança do Trabalho (SST) + RH + Departamento Pessoal
+        EMPLOYEES_READ: true,
+        EMPLOYEES_WRITE: true,
+        EMPLOYEES_CREATE: true,
+        PAYSLIPS_READ: true,
+        PAYSLIPS_WRITE: true,
+        CONTRACTS_READ: true,
+        REPORTS_READ: true,
+        REPORTS_GENERATE: true,
+        REPORTS_EXPORT: true,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        SUPPORT_READ: true,
+        ATTENDANCE_READ: true,
+        ATTENDANCE_WRITE: true,
+        TIME_RECORD_READ: true,
+        TIME_RECORD_UPDATE: true,
+        EQUIPMENTS_READ: true,
+        EQUIPMENTS_WRITE: true,
+        STOCK_READ: true,
+        STOCK_WRITE: true,
+      };
+
+    case 'AUXI_ADMINISTRATIVO':
+    case 'AUXILIAR_ADMINISTRATIVO':
+      return {
+        ...basePermissions,
+        // Auxiliar Administrativo - Acessos ampliados
         EMPLOYEES_READ: true,
         CLIENTS_READ: true,
         CONTRACTS_READ: true,
@@ -770,6 +809,22 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         SUPPORT_CREATE: true,
         LEADS_READ: true,
         PROPOSALS_READ: true,
+        // Cadastro de Despesas
+        FINANCIAL_READ: true,
+        FINANCIAL_WRITE: true,
+        FINANCIAL_CREATE: true,
+        // Criação de OS, Manutenção e Abastecimento
+        EQUIPMENTS_READ: true,
+        EQUIPMENTS_WRITE: true,
+        EQUIPMENTS_CREATE: true,
+        EQUIPMENTS_ASSIGN: true,
+        STOCK_READ: true,
+        STOCK_WRITE: true,
+        // Lança Parte Diária e Operação
+        TRIPS_READ: true,
+        TRIPS_EXECUTE: true,
+        BOARDING_READ: true,
+        BOARDING_EXECUTE: true,
       };
 
     case 'AUX_DEP':
@@ -804,20 +859,7 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         ATTENDANCE_READ: true,
       };
 
-    case 'AUXILIAR_ADMINISTRATIVO':
-      return {
-        ...basePermissions,
-        EMPLOYEES_READ: true,
-        CLIENTS_READ: true,
-        CONTRACTS_READ: true,
-        REPORTS_READ: true,
-        DASHBOARD_READ: true,
-        PROFILE_READ: true,
-        PROFILE_WRITE: true,
-        MESSAGES_READ: true,
-        MESSAGES_WRITE: true,
-        MESSAGES_CREATE: true,
-      };
+
 
     case 'COMERCIAL':
     case 'GESTOR_COMERCIAL':
@@ -1421,6 +1463,9 @@ export const getRoleDisplayName = (role: UserRole): string => {
     GESTOR_FINANCEIRO: 'Gestor Financeiro',
     GESTOR_OPERACIONAL: 'Gestor Operacional',
     AUXILIAR_ADMINISTRATIVO: 'Auxiliar Administrativo',
+    AUXI_ADMINISTRATIVO: 'Auxiliar Administrativo',
+    SST: 'Segurança do Trabalho (SST)',
+    SEGURANCA_DO_TRABALHO: 'Segurança do Trabalho (SST)',
     AUXILIAR_DE_RH: 'Auxiliar de RH',
     AUXILIAR_DE_DEPARTAMENTO_PESSOAL: 'Auxiliar de Departamento Pessoal',
     ASSISTENTE_OPERACIONAL: 'Assistente Operacional',
@@ -1473,6 +1518,9 @@ export const getRoleColor = (role: UserRole): string => {
     GESTOR_FINANCEIRO: 'bg-green-700 text-white',
     GESTOR_OPERACIONAL: 'bg-cyan-700 text-white',
     AUXILIAR_ADMINISTRATIVO: 'bg-purple-600 text-white',
+    AUXI_ADMINISTRATIVO: 'bg-purple-600 text-white',
+    SST: 'bg-emerald-700 text-white',
+    SEGURANCA_DO_TRABALHO: 'bg-emerald-700 text-white',
     AUXILIAR_DE_RH: 'bg-yellow-600 text-white',
     AUXILIAR_DE_DEPARTAMENTO_PESSOAL: 'bg-amber-700 text-white',
     ASSISTENTE_OPERACIONAL: 'bg-cyan-600 text-white',

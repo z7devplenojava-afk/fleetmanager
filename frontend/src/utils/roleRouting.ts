@@ -41,6 +41,14 @@ export const getDashboardRouteForRole = (role?: string): string => {
     case 'AUXILIAR_DE_RH':
       return '/rh';
 
+    case 'SST':
+    case 'SEGURANCA_DO_TRABALHO':
+      return '/rh/sst';
+
+    case 'AUXILIAR_ADMINISTRATIVO':
+    case 'AUXI_ADMINISTRATIVO':
+      return '/operacional';
+
     case 'DEPARTAMENTO_PESSOAL':
     case 'AUX_DEP':
     case 'AUXILIAR_DE_DEPARTAMENTO_PESSOAL':
