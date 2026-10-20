@@ -2,6 +2,12 @@
 -- Data: 2026-02-06
 -- Motivo: Corrigir erro na importação de funcionários (CNPJ não encontrado)
 
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS sigla VARCHAR(20);
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS endereco_rua VARCHAR(255);
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS endereco_numero VARCHAR(20);
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS endereco_complemento VARCHAR(100);
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS endereco_bairro VARCHAR(100);
+
 INSERT INTO companies (
     id,
     name,

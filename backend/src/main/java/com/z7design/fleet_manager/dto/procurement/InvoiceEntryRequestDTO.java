@@ -1,5 +1,6 @@
 package com.z7design.fleet_manager.dto.procurement;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.z7design.fleet_manager.model.StockInvoiceEntry;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,6 +18,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class InvoiceEntryRequestDTO {
 
     private UUID purchaseOrderId;

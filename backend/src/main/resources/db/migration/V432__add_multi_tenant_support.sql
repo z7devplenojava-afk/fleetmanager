@@ -3,6 +3,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(
 CREATE INDEX IF NOT EXISTS idx_users_company_id ON users(company_id);
 
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS tema_cor VARCHAR(50);
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS company_id UUID;
 
 -- Preencher company_id de users a partir do employee (primeiro employee vinculado)
 UPDATE users u

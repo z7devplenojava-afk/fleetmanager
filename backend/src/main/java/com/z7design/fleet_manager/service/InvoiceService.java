@@ -495,6 +495,8 @@ public class InvoiceService {
             if (dto.getBalanceAmount() != null) invoice.setBalanceAmount(dto.getBalanceAmount());
             if (dto.getBankAccountInfo() != null) invoice.setBankAccountInfo(dto.getBankAccountInfo());
             if (dto.getIsCanceled() != null) invoice.setIsCanceled(dto.getIsCanceled());
+            if (dto.getWorkOrderId() != null) invoice.setWorkOrderId(dto.getWorkOrderId());
+            if (dto.getWorkOrderNumber() != null) invoice.setWorkOrderNumber(dto.getWorkOrderNumber());
             
             log.debug("Campos bÃ¡sicos definidos");
             

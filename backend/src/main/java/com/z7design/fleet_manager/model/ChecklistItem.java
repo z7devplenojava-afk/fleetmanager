@@ -20,7 +20,7 @@ import org.hibernate.annotations.Filter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class ChecklistItem implements TenantAware {
 
     @Id
@@ -36,6 +36,10 @@ public class ChecklistItem implements TenantAware {
     @Column(name = "tipo_manutencao", length = 30)
     @Builder.Default
     private String tipoManutencao = "PREVENTIVA";
+
+    @Column(name = "vehicle_type_applicable", length = 30)
+    @Builder.Default
+    private String vehicleTypeApplicable = "ALL";
 
     @Column(name = "ordem")
     @Builder.Default

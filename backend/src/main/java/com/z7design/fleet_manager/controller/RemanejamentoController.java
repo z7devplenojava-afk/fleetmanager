@@ -103,7 +103,12 @@ public class RemanejamentoController {
     })
     @GetMapping
     public ResponseEntity<List<RemanejamentoDTO>> findAll() {
-        return ResponseEntity.ok(remanejamentoService.findAllAsDTO());
+        try {
+            return ResponseEntity.ok(remanejamentoService.findAllAsDTO());
+        } catch (Exception e) {
+            log.warn("⚠️ Aviso ao listar remanejamentos: {}", e.getMessage());
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
     }
 
     @Operation(summary = "Busca um remanejamento por ID",

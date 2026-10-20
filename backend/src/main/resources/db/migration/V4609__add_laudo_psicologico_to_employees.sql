@@ -11,6 +11,9 @@ ALTER TABLE employees
 
 -- 3. Próximo vencimento do ASO (data do exame + 1 ano, calculado pelo backend)
 ALTER TABLE employees
+    ADD COLUMN IF NOT EXISTS exame_medico_data DATE;
+
+ALTER TABLE employees
     ADD COLUMN IF NOT EXISTS next_exame_medico DATE;
 
 -- 4. Popular registros existentes com base na data do exame atual

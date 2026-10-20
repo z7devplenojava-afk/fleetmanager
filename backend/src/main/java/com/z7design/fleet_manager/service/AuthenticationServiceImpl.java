@@ -149,6 +149,25 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             log.info("🔐 Login - Active: {}, Status: {}, CompanyID: {}", user.isActive(), user.getStatus(),
                     user.getCompanyId());
 
+            // BLOQUEIO ADMINISTRATIVO: usuário bloqueado (permanente ou temporário vigente)
+            // recebe mensagem clara para procurar o Administrador do sistema.
+            if (Boolean.TRUE.equals(user.getBlocked())) {
+                java.time.LocalDateTime blockedUntil = user.getBlockedUntil();
+                boolean bloqueioVigente = (blockedUntil == null || blockedUntil.isAfter(java.time.LocalDateTime.now()));
+                if (bloqueioVigente) {
+                    String ate = (blockedUntil != null)
+                            ? " até " + blockedUntil.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                            : " de forma permanente";
+                    log.warn("🚫 Tentativa de login de usuário bloqueado: {} (bloqueado {})", user.getUsername(), ate);
+                    throw new org.springframework.security.authentication.LockedException(
+                            "Seu acesso está bloqueado" + ate + ". Procure o Administrador do sistema para mais informações.");
+                }
+                // Prazo expirou — desbloqueia automaticamente
+                user.setBlocked(false);
+                userRepository.save(user);
+                log.info("🔓 Bloqueio temporário expirado, usuário desbloqueado automaticamente: {}", user.getUsername());
+            }
+
             // Valida se o usuário tem permissão de login (exige empresa ou ser Admin)
             validateUserCompanyAccess(user, request.getCompanyId());
 

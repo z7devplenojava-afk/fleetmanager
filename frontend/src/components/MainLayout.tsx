@@ -205,7 +205,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsHelpModalOpen(true)}
-                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-2.5 rounded-lg text-xs gap-1.5 transition-all"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-2.5 rounded-lg text-xs gap-1.5 transition-all hidden sm:flex"
                 title="Central de Ajuda e Suporte"
               >
                 <HelpCircle className="h-4 w-4 text-primary" />
@@ -217,7 +217,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/chat-interno')}
-                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-2.5 rounded-lg text-xs gap-1.5 transition-all relative"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-2.5 rounded-lg text-xs gap-1.5 transition-all relative hidden sm:flex"
                 title="Chat e Mensagens Internas"
               >
                 <Headphones className="h-4 w-4 text-primary" />
@@ -231,7 +231,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
               {/* Perfil do Usuário */}
               <div
-                className="flex items-center space-x-2 cursor-pointer p-1 rounded-lg hover:bg-accent/60 transition-all"
+                className="flex items-center space-x-2 cursor-pointer p-1 rounded-lg hover:bg-accent/60 transition-all shrink-0"
                 onClick={handleProfileClick}
                 title="Ver meu perfil"
               >
@@ -250,7 +250,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                     </Badge>
                   </div>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-yellow-400 flex items-center justify-center shadow-md">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-yellow-400 flex items-center justify-center shadow-md shrink-0">
                   <User className="h-4 w-4 text-black font-bold" />
                 </div>
               </div>
@@ -263,7 +263,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={logout}
-                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-3 rounded-lg text-xs border border-border transition-all"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-3 rounded-lg text-xs border border-border transition-all hidden sm:flex"
                 title="Encerrar Sessão"
               >
                 <LogOut className="h-3.5 w-3.5 sm:mr-1.5" />
@@ -274,7 +274,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         </header>
 
         {/* Conteúdo da página */}
-        <main className="flex-1 p-2 sm:p-3 md:p-4 overflow-visible bg-background relative z-10">
+        <main className="flex-1 p-2 sm:p-3 md:p-4 pb-24 md:pb-6 overflow-visible bg-background relative z-10">
           {/* Fundo Personalizado VSS (Viação São Silvestre) */}
           {isVss && (
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none">

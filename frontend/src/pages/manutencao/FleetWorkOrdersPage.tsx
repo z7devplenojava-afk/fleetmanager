@@ -520,8 +520,25 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                     {order.workPostName && <div className="text-xs text-gray-400">{order.workPostName}</div>}
                                                 </td>
                                                 <td className="p-4 text-gray-300">
-                                                    {formatDisplayDate(order.stopDate)}
-                                                    {order.stopTime && <span className="text-xs text-gray-500 ml-1">({order.stopTime})</span>}
+                                                    <div>
+                                                        {formatDisplayDate(order.stopDate)}
+                                                        {order.stopTime && <span className="text-xs text-gray-500 ml-1">({order.stopTime})</span>}
+                                                    </div>
+                                                    {order.executionDurationMinutes != null ? (
+                                                        <div className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 mt-0.5" title="Tempo total de execução do serviço">
+                                                            <Clock className="h-3 w-3 shrink-0" />
+                                                            {order.executionDurationMinutes >= 1440
+                                                                ? `${Math.floor(order.executionDurationMinutes / 1440)}d ${Math.floor((order.executionDurationMinutes % 1440) / 60)}h ${order.executionDurationMinutes % 60}m`
+                                                                : (order.executionDurationMinutes >= 60
+                                                                    ? `${Math.floor(order.executionDurationMinutes / 60)}h ${order.executionDurationMinutes % 60}m`
+                                                                    : `${order.executionDurationMinutes}m`)}
+                                                        </div>
+                                                    ) : (order.executionStartDate ? (
+                                                        <div className="text-[10px] text-amber-400 font-medium flex items-center gap-1 mt-0.5" title="Serviço iniciado, em execução contínua">
+                                                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                                            Em execução
+                                                        </div>
+                                                    ) : null)}
                                                 </td>
                                                 <td className="p-4 text-gray-300 font-mono">
                                                     {order.odometerIn != null ? `${order.odometerIn.toLocaleString('pt-BR')} km` : '—'}
@@ -648,8 +665,27 @@ const FleetWorkOrdersPage: React.FC = () => {
 
             <FleetWorkOrderForm
                 isOpen={isFormOpen}
-                onClose={() => setIsFormOpen(false)}
-                onSuccess={() => { setIsFormOpen(false); queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] }); }}
+                onClose={() => {
+                    setIsFormOpen(false);
+                    setSelectedOrder(undefined);
+                    setTimeout(() => {
+                        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                            document.body.style.pointerEvents = '';
+                            document.body.style.overflow = '';
+                        }
+                    }, 50);
+                }}
+                onSuccess={() => {
+                    setIsFormOpen(false);
+                    setSelectedOrder(undefined);
+                    queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+                    setTimeout(() => {
+                        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                            document.body.style.pointerEvents = '';
+                            document.body.style.overflow = '';
+                        }
+                    }, 50);
+                }}
                 order={selectedOrder}
             />
 
@@ -658,6 +694,12 @@ const FleetWorkOrdersPage: React.FC = () => {
                 onClose={() => {
                     setIsPdfModalOpen(false);
                     setViewingPdfOrder(null);
+                    setTimeout(() => {
+                        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                            document.body.style.pointerEvents = '';
+                            document.body.style.overflow = '';
+                        }
+                    }, 50);
                 }}
                 order={viewingPdfOrder}
             />
@@ -668,6 +710,12 @@ const FleetWorkOrdersPage: React.FC = () => {
                 onClose={() => {
                     setIsPurchaseModalOpen(false);
                     setPurchaseModalOrder(null);
+                    setTimeout(() => {
+                        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                            document.body.style.pointerEvents = '';
+                            document.body.style.overflow = '';
+                        }
+                    }, 50);
                 }}
                 order={purchaseModalOrder}
                 onSuccess={() => {

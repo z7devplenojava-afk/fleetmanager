@@ -78,6 +78,16 @@ public class AuthenticationController {
         } catch (org.springframework.security.core.AuthenticationException e) {
             String errorMessage = e.getMessage();
 
+            // Tratamento específico para conta bloqueada pelo Administrador:
+            // devolve 403 com código USER_BLOCKED e mensagem orientando procurar o Administrador
+            if (errorMessage != null && (errorMessage.contains("bloqueado") || errorMessage.contains("bloqueada"))) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                                "error", "Forbidden",
+                                "message", errorMessage,
+                                "code", "USER_BLOCKED"));
+            }
+
             // Tratamento específico para usuário sem empresa
             if (errorMessage != null && errorMessage.contains("não possui empresa vinculada")) {
                 log.warn("⛔ Usuário {} sem empresa vinculada. Retornando 403 específico.", username);

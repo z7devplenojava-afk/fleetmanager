@@ -54,6 +54,7 @@ import {
   CreditCard,
   Banknote,
   Heart,
+  FileHeart,
   Home,
   Car,
   BookOpen,
@@ -200,6 +201,7 @@ const rhMenuItems = [
   { icon: Briefcase, text: 'Vagas', to: '/rh/vagas', id: 'rh-vagas' },
   { icon: Award, text: 'Benefícios', to: '/rh/beneficios', id: 'rh-beneficios' },
   { icon: GraduationCap, text: 'Treinamentos', to: '/rh/treinamentos', id: 'rh-treinamentos' },
+  { icon: FileHeart, text: 'Gestão de Atestados', to: '/rh/atestados', id: 'rh-atestados' },
   { icon: BarChart3Icon, text: 'Relatórios RH', to: '/rh/relatorios', id: 'rh-relatorios' },
 ];
 
@@ -232,6 +234,7 @@ const departamentoPessoalMenuItems = [
 
   // Gestão de Ocorrências e Eventos
   { icon: FileText, text: 'Ocorrências', to: '/rh/ocorrencias', id: 'dp-ocorrencias' },
+  { icon: FileHeart, text: 'Gestão de Atestados', to: '/rh/atestados', id: 'dp-atestados' },
 
   // Benefícios (agrupados)
   { icon: Award, text: 'Benefícios', to: '/rh/beneficios', id: 'dp-beneficios' },

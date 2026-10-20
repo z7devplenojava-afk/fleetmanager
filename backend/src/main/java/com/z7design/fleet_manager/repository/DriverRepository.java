@@ -4,9 +4,13 @@ import com.z7design.fleet_manager.model.Driver;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface DriverRepository extends JpaRepository<Driver, UUID> {
     boolean existsByLicenseNumber(String licenseNumber);
-} 
+    Optional<Driver> findByLicenseNumber(String licenseNumber);
+    Optional<Driver> findByCpf(String cpf);
+    boolean existsByCpf(String cpf);
+}

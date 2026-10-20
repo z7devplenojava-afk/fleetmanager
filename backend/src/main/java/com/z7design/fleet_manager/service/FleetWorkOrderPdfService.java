@@ -32,6 +32,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -154,6 +155,12 @@ public class FleetWorkOrderPdfService {
         data.put("odometerOut", order.getOdometerOut() != null ? formatKm(order.getOdometerOut()) : null);
         data.put("tempoParado", formatDowntime(order.getDowntimeHours(), order.getDowntimeDays()));
 
+        // Tempo de Execução do Serviço
+        data.put("executionStartDate", order.getExecutionStartDate() != null ? order.getExecutionStartDate().format(DATETIME_FMT) : null);
+        data.put("executionEndDate", order.getExecutionEndDate() != null ? order.getExecutionEndDate().format(DATETIME_FMT) : null);
+        data.put("tempoExecucao", formatExecutionDuration(order.getExecutionDurationMinutes()));
+        data.put("executionStartJustification", order.getExecutionStartJustification());
+
         // Descrições PRD
         data.put("anomaliesDescription", order.getAnomaliesDescription());
         data.put("otherDescription", order.getOtherDescription());
@@ -187,7 +194,16 @@ public class FleetWorkOrderPdfService {
                     checklistData.add(cMap);
                 }
             } else if (order.getMaintenanceType() == com.z7design.fleet_manager.model.FleetWorkOrder.MaintenanceType.PREVENTIVA && checklistItemRepository != null) {
-                var masterItems = checklistItemRepository.findByAtivoTrueOrderByOrdemAsc();
+                String vType = "";
+                if (order.getVehicle() != null) {
+                    if (order.getVehicle().getVehicleType() != null) vType += order.getVehicle().getVehicleType().name();
+                    if (order.getVehicle().getModel() != null) vType += " " + order.getVehicle().getModel();
+                }
+                String categoryKey = "BUS";
+                if (vType.toUpperCase().contains("VAN") || vType.toUpperCase().contains("SPRINTER") || vType.toUpperCase().contains("DUCATO")) {
+                    categoryKey = "VAN";
+                }
+                var masterItems = checklistItemRepository.findByVehicleTypeApplicableInAndAtivoTrueOrderByOrdemAsc(List.of(categoryKey, "ALL"));
                 for (var m : masterItems) {
                     Map<String, Object> cMap = new HashMap<>();
                     cMap.put("itemDescricao", m.getDescricao() != null ? m.getDescricao() : "");
@@ -203,7 +219,15 @@ public class FleetWorkOrderPdfService {
         }
         data.put("checklistItems", checklistData);
 
-        // Divide o checklist em 2 colunas equilibradas para caber exatamente em 1 página
+        // Agrupamento ordenado do checklist por Grupo/Categoria oficial (1 a 18)
+        Map<String, List<Map<String, Object>>> checklistByGroup = new LinkedHashMap<>();
+        for (Map<String, Object> cMap : checklistData) {
+            String cat = (String) cMap.getOrDefault("categoria", "GERAL");
+            checklistByGroup.computeIfAbsent(cat, k -> new ArrayList<>()).add(cMap);
+        }
+        data.put("checklistByGroup", checklistByGroup);
+
+        // Divide o checklist em 2 colunas equilibradas para templates compactos
         List<Map<String, Object>> checklistCol1 = new ArrayList<>();
         List<Map<String, Object>> checklistCol2 = new ArrayList<>();
         if (!checklistData.isEmpty()) {
@@ -523,5 +547,19 @@ public class FleetWorkOrderPdfService {
     private String formatLaborType(FleetWorkOrder.LaborType laborType) {
         if (laborType == null) return null;
         return laborType == FleetWorkOrder.LaborType.INTERNAL ? "Oficina Interna" : "Externa (Terceiros)";
+    }
+
+    private String formatExecutionDuration(Long totalMinutes) {
+        if (totalMinutes == null || totalMinutes < 0) return null;
+        if (totalMinutes == 0) return "Menos de 1 min";
+        long days = totalMinutes / 1440;
+        long hours = (totalMinutes % 1440) / 60;
+        long minutes = totalMinutes % 60;
+
+        List<String> parts = new ArrayList<>();
+        if (days > 0) parts.add(days + (days == 1 ? " dia" : " dias"));
+        if (hours > 0) parts.add(hours + (hours == 1 ? " hora" : " horas"));
+        if (minutes > 0 || parts.isEmpty()) parts.add(minutes + (minutes == 1 ? " minuto" : " minutos"));
+        return String.join(", ", parts);
     }
 }

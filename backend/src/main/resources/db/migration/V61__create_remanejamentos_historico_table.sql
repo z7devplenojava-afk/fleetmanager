@@ -35,17 +35,17 @@ CREATE TABLE IF NOT EXISTS remanejamentos_historico (
 );
 
 -- Índices para melhor performance
-CREATE INDEX idx_remanejamentos_historico_remanejamento_id ON remanejamentos_historico(remanejamento_id);
-CREATE INDEX idx_remanejamentos_historico_employee_id ON remanejamentos_historico(employee_id);
-CREATE INDEX idx_remanejamentos_historico_usuario_id ON remanejamentos_historico(usuario_que_executou);
-CREATE INDEX idx_remanejamentos_historico_data_execucao ON remanejamentos_historico(data_execucao DESC);
-CREATE INDEX idx_remanejamentos_historico_acao ON remanejamentos_historico(acao_realizada);
-CREATE INDEX idx_remanejamentos_historico_tipo ON remanejamentos_historico(tipo);
-CREATE INDEX idx_remanejamentos_historico_data_remanejamento ON remanejamentos_historico(data_remanejamento);
+CREATE INDEX IF NOT EXISTS idx_remanejamentos_historico_remanejamento_id ON remanejamentos_historico(remanejamento_id);
+CREATE INDEX IF NOT EXISTS idx_remanejamentos_historico_employee_id ON remanejamentos_historico(employee_id);
+CREATE INDEX IF NOT EXISTS idx_remanejamentos_historico_usuario_id ON remanejamentos_historico(usuario_que_executou);
+CREATE INDEX IF NOT EXISTS idx_remanejamentos_historico_data_execucao ON remanejamentos_historico(data_execucao DESC);
+CREATE INDEX IF NOT EXISTS idx_remanejamentos_historico_acao ON remanejamentos_historico(acao_realizada);
+CREATE INDEX IF NOT EXISTS idx_remanejamentos_historico_tipo ON remanejamentos_historico(tipo);
+CREATE INDEX IF NOT EXISTS idx_remanejamentos_historico_data_remanejamento ON remanejamentos_historico(data_remanejamento);
 
 -- Índice composto para consultas frequentes
-CREATE INDEX idx_remanejamentos_historico_employee_data ON remanejamentos_historico(employee_id, data_execucao DESC);
-CREATE INDEX idx_remanejamentos_historico_remanejamento_data ON remanejamentos_historico(remanejamento_id, data_execucao DESC);
+CREATE INDEX IF NOT EXISTS idx_remanejamentos_historico_employee_data ON remanejamentos_historico(employee_id, data_execucao DESC);
+CREATE INDEX IF NOT EXISTS idx_remanejamentos_historico_remanejamento_data ON remanejamentos_historico(remanejamento_id, data_execucao DESC);
 
 -- Comentários para documentação
 COMMENT ON TABLE remanejamentos_historico IS 'Tabela para armazenar histórico completo de auditoria de remanejamentos';

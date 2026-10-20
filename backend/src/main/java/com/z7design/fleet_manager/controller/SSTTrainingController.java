@@ -2,6 +2,7 @@ package com.z7design.fleet_manager.controller;
 
 import com.z7design.fleet_manager.dto.SSTTrainingDTO;
 import com.z7design.fleet_manager.dto.CreateSSTTrainingDTO;
+import com.z7design.fleet_manager.dto.TrainingParticipationDTO;
 import com.z7design.fleet_manager.model.SSTTraining;
 import com.z7design.fleet_manager.model.TrainingParticipation;
 import com.z7design.fleet_manager.service.SSTTrainingService;
@@ -138,55 +139,61 @@ public class SSTTrainingController {
     @GetMapping("/participations")
     @Operation(summary = "Listar participaÃ§Ãµes", description = "Retorna todas as participaÃ§Ãµes em treinamentos")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<TrainingParticipation>> getAllParticipations() {
-        List<TrainingParticipation> participations = trainingService.getAllParticipations();
+    public ResponseEntity<List<TrainingParticipationDTO>> getAllParticipations() {
+        List<TrainingParticipationDTO> participations = trainingService.getAllParticipations().stream()
+                .map(TrainingParticipationDTO::fromEntity)
+                .toList();
         return ResponseEntity.ok(participations);
     }
 
     @GetMapping("/participations/{id}")
     @Operation(summary = "Buscar participaÃ§Ã£o por ID", description = "Retorna uma participaÃ§Ã£o especÃ­fica")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<TrainingParticipation> getParticipationById(@PathVariable("id") UUID id) {
+    public ResponseEntity<TrainingParticipationDTO> getParticipationById(@PathVariable("id") UUID id) {
         TrainingParticipation participation = trainingService.getParticipationById(id);
         if (participation == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(participation);
+        return ResponseEntity.ok(TrainingParticipationDTO.fromEntity(participation));
     }
 
     @GetMapping("/participations/employee/{employeeId}")
     @Operation(summary = "Listar participaÃ§Ãµes por funcionÃ¡rio", description = "Retorna participaÃ§Ãµes de um funcionÃ¡rio especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<TrainingParticipation>> getParticipationsByEmployee(@PathVariable("employeeId") UUID employeeId) {
-        List<TrainingParticipation> participations = trainingService.getParticipationsByEmployee(employeeId);
+    public ResponseEntity<List<TrainingParticipationDTO>> getParticipationsByEmployee(@PathVariable("employeeId") UUID employeeId) {
+        List<TrainingParticipationDTO> participations = trainingService.getParticipationsByEmployee(employeeId).stream()
+                .map(TrainingParticipationDTO::fromEntity)
+                .toList();
         return ResponseEntity.ok(participations);
     }
 
     @GetMapping("/participations/training/{trainingId}")
     @Operation(summary = "Listar participaÃ§Ãµes por treinamento", description = "Retorna participaÃ§Ãµes de um treinamento especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<TrainingParticipation>> getParticipationsByTraining(@PathVariable("trainingId") UUID trainingId) {
-        List<TrainingParticipation> participations = trainingService.getParticipationsByTraining(trainingId);
+    public ResponseEntity<List<TrainingParticipationDTO>> getParticipationsByTraining(@PathVariable("trainingId") UUID trainingId) {
+        List<TrainingParticipationDTO> participations = trainingService.getParticipationsByTraining(trainingId).stream()
+                .map(TrainingParticipationDTO::fromEntity)
+                .toList();
         return ResponseEntity.ok(participations);
     }
 
     @PostMapping("/participations")
     @Operation(summary = "Criar participaÃ§Ã£o", description = "Cria uma nova participaÃ§Ã£o em treinamento")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<TrainingParticipation> createParticipation(@RequestBody TrainingParticipation participation) {
+    public ResponseEntity<TrainingParticipationDTO> createParticipation(@RequestBody TrainingParticipation participation) {
         TrainingParticipation created = trainingService.createParticipation(participation);
-        return ResponseEntity.ok(created);
+        return ResponseEntity.ok(TrainingParticipationDTO.fromEntity(created));
     }
 
     @PutMapping("/participations/{id}")
     @Operation(summary = "Atualizar participaÃ§Ã£o", description = "Atualiza uma participaÃ§Ã£o existente")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<TrainingParticipation> updateParticipation(@PathVariable("id") UUID id, @RequestBody TrainingParticipation participation) {
+    public ResponseEntity<TrainingParticipationDTO> updateParticipation(@PathVariable("id") UUID id, @RequestBody TrainingParticipation participation) {
         TrainingParticipation updated = trainingService.updateParticipation(id, participation);
         if (updated == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(TrainingParticipationDTO.fromEntity(updated));
     }
 
     @DeleteMapping("/participations/{id}")
@@ -202,16 +209,20 @@ public class SSTTrainingController {
     @GetMapping("/expired")
     @Operation(summary = "Listar treinamentos vencidos", description = "Retorna treinamentos que estÃ£o vencidos")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<TrainingParticipation>> getExpiredTrainings() {
-        List<TrainingParticipation> participations = trainingService.getExpiredTrainings();
+    public ResponseEntity<List<TrainingParticipationDTO>> getExpiredTrainings() {
+        List<TrainingParticipationDTO> participations = trainingService.getExpiredTrainings().stream()
+                .map(TrainingParticipationDTO::fromEntity)
+                .toList();
         return ResponseEntity.ok(participations);
     }
 
     @GetMapping("/expiring")
     @Operation(summary = "Listar treinamentos prÃ³ximos do vencimento", description = "Retorna treinamentos que estÃ£o prÃ³ximos do vencimento")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<TrainingParticipation>> getExpiringTrainings(@RequestParam(value = "daysAhead", defaultValue = "30") int daysAhead) {
-        List<TrainingParticipation> participations = trainingService.getExpiringTrainings(daysAhead);
+    public ResponseEntity<List<TrainingParticipationDTO>> getExpiringTrainings(@RequestParam(value = "daysAhead", defaultValue = "30") int daysAhead) {
+        List<TrainingParticipationDTO> participations = trainingService.getExpiringTrainings(daysAhead).stream()
+                .map(TrainingParticipationDTO::fromEntity)
+                .toList();
         return ResponseEntity.ok(participations);
     }
 
@@ -220,23 +231,23 @@ public class SSTTrainingController {
     @PostMapping("/schedule/{trainingId}/employee/{employeeId}")
     @Operation(summary = "Agendar treinamento", description = "Agenda automaticamente um treinamento para um funcionÃ¡rio")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<TrainingParticipation> scheduleTraining(
+    public ResponseEntity<TrainingParticipationDTO> scheduleTraining(
             @PathVariable("trainingId") UUID trainingId, 
             @PathVariable("employeeId") UUID employeeId,
             @RequestParam(value = "scheduledDate") LocalDate scheduledDate) {
         TrainingParticipation participation = trainingService.scheduleTraining(trainingId, employeeId, scheduledDate);
-        return ResponseEntity.ok(participation);
+        return ResponseEntity.ok(TrainingParticipationDTO.fromEntity(participation));
     }
 
     @PostMapping("/complete/{participationId}")
     @Operation(summary = "Completar treinamento", description = "Marca um treinamento como completo")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<TrainingParticipation> completeTraining(
+    public ResponseEntity<TrainingParticipationDTO> completeTraining(
             @PathVariable("participationId") UUID participationId,
             @RequestParam(value = "completionDate") LocalDate completionDate,
             @RequestParam(value = "certificateUrl", required = false) String certificateUrl) {
         TrainingParticipation participation = trainingService.completeTraining(participationId, completionDate, certificateUrl);
-        return ResponseEntity.ok(participation);
+        return ResponseEntity.ok(TrainingParticipationDTO.fromEntity(participation));
     }
 }
 

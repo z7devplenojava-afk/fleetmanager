@@ -11,4 +11,5 @@ import java.util.UUID;
 public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, UUID> {
     List<ChecklistItem> findByAtivoTrueOrderByOrdemAsc();
     List<ChecklistItem> findByTipoManutencaoAndAtivoTrueOrderByOrdemAsc(String tipoManutencao);
+    List<ChecklistItem> findByVehicleTypeApplicableInAndAtivoTrueOrderByOrdemAsc(List<String> vehicleTypes);
 }

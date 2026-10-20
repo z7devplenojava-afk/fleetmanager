@@ -100,6 +100,19 @@ const Login = () => {
         return;
       }
 
+      // Usuário bloqueado pelo Administrador: mensagem específica orientando procurar o Admin do sistema
+      const blockMessage = err?.response?.data?.message;
+      const isBlocked = err?.response?.data?.code === 'USER_BLOCKED' || (blockMessage && blockMessage.toLowerCase().includes('bloqueado'));
+      if (isBlocked) {
+        toast({
+          title: 'Acesso Bloqueado',
+          description: blockMessage,
+          variant: 'destructive',
+        });
+        setError(blockMessage);
+        return;
+      }
+
       const errorMessage = err?.message || 'Falha na autenticação. Verifique seu usuário e senha.';
       setError(errorMessage);
     } finally {

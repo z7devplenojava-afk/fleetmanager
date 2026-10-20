@@ -45,6 +45,7 @@ import java.util.regex.Pattern;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "fluxbus.redis.workers.enabled", havingValue = "true")
 public class UnmatchedPayslipWorker {
 
     private final StringRedisTemplate redisTemplate;

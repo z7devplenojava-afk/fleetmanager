@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,8 @@ import {
 } from '@/services/garageService';
 import { employeeService, Employee } from '@/services/employeeService';
 import fleetService from '@/services/fleetService';
+import { ResponsavelCombobox } from '@/components/garages/ResponsavelCombobox';
+import MapWithPin from '@/components/ui/MapWithPin';
 import { QRCodeScanner, QRScanResult } from '@/components/frota/QRCodeScanner';
 import { VehicleQRCodeModal } from '@/components/frota/VehicleQRCodeModal';
 import { DriverCombobox } from '@/components/frota/DriverCombobox';
@@ -53,6 +55,86 @@ interface FleetVehicle {
   currentMileage?: number;
   operationEntryDate?: string;
 }
+
+/**
+ * Endereço estruturado da garagem (campos do formulário de cadastro).
+ * É composto em um único texto em `form.address` antes de salvar no backend.
+ */
+interface GarageAddress {
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+}
+
+const EMPTY_GARAGE_ADDRESS: GarageAddress = {
+  cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '',
+};
+
+const VALID_UFS = [
+  'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT',
+  'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO',
+];
+
+/** Formata o CEP enquanto digita (00000-000). */
+const formatCep = (value: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+};
+
+/** Monta o endereço completo (string salva em `address`) a partir dos campos estruturados. */
+const composeGarageAddress = (addr: GarageAddress): string => {
+  const firstLine = [addr.logradouro, addr.numero].filter(Boolean).join(', ');
+  const parts = [
+    firstLine,
+    addr.complemento,
+    addr.bairro,
+    [addr.cidade, addr.uf].filter(Boolean).join(' - '),
+  ].filter(Boolean);
+  const text = parts.join(', ');
+  if (!addr.cep) return text.trim();
+  return (text ? `${text} - CEP ${addr.cep}` : `CEP ${addr.cep}`).trim();
+};
+
+/**
+ * Converte um endereço já salvo em texto nos campos estruturados (melhor esforço),
+ * para que a edição de uma garagem existente não perca o endereço cadastrado.
+ */
+const parseGarageAddress = (raw?: string): GarageAddress => {
+  const addr: GarageAddress = { ...EMPTY_GARAGE_ADDRESS };
+  if (!raw || !raw.trim()) return addr;
+
+  let text = raw.trim();
+  const cepMatch = text.match(/\b\d{5}-?\d{3}\b/);
+  if (cepMatch) {
+    addr.cep = formatCep(cepMatch[0]);
+    text = text.replace(cepMatch[0], '');
+  }
+  text = text.replace(/\s*CEP\s*$/i, '').replace(/[\s,;-–]+$/, '').trim();
+
+  const ufMatch = text.match(/\s[-–/(]\s*([A-Za-z]{2})\s*\)?\s*$/);
+  if (ufMatch && VALID_UFS.includes((ufMatch[1] || '').toUpperCase())) {
+    addr.uf = ufMatch[1].toUpperCase();
+    text = text.slice(0, ufMatch.index).replace(/[\s,;]+$/, '').trim();
+  }
+
+  const segments = text.split(',').map(s => s.trim()).filter(Boolean);
+  if (addr.uf && segments.length > 0) {
+    addr.cidade = segments.pop() || '';
+  }
+  if (segments.length >= 2) {
+    addr.bairro = segments[segments.length - 1];
+    const head = segments.slice(0, -1);
+    addr.logradouro = head[0];
+    if (head.length > 1) addr.numero = head.slice(1).join(', ');
+  } else if (segments.length === 1) {
+    addr.logradouro = segments[0];
+  }
+  return addr;
+};
 
 export const Garagens: React.FC = () => {
   const { toast } = useToast();
@@ -83,6 +165,13 @@ export const Garagens: React.FC = () => {
     responsiblePhone: '', capacity: undefined, notes: '',
   });
   const [saving, setSaving] = useState(false);
+
+  // Endereço estruturado (CEP + campos) e localização no mapa
+  const [addr, setAddr] = useState<GarageAddress>({ ...EMPTY_GARAGE_ADDRESS });
+  const addrRef = useRef<GarageAddress>({ ...EMPTY_GARAGE_ADDRESS });
+  const [cepLoading, setCepLoading] = useState(false);
+  const [garageGeo, setGarageGeo] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
 
   // Confirmação de exclusão/desativação
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -520,14 +609,138 @@ export const Garagens: React.FC = () => {
   };
 
   // Cadastro/Edição de Garagem
+  /** Atualiza campos do endereço e mantém `form.address` (texto salvo no backend) em sincronia. */
+  const updateAddress = (patch: Partial<GarageAddress>): GarageAddress => {
+    const next: GarageAddress = { ...addrRef.current, ...patch };
+    addrRef.current = next;
+    setAddr(next);
+    setForm(prev => ({ ...prev, address: composeGarageAddress(next) }));
+    return next;
+  };
+
+  const nominatimSearch = async (
+    params: URLSearchParams
+  ): Promise<{ lat: number; lng: number } | null> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?${params.toString()}&format=json&limit=1&countrycodes=br`,
+        { headers: { 'Accept-Language': 'pt-BR' } }
+      );
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      }
+    } catch (err) {
+      console.error('Erro na geocodificação:', err);
+    }
+    return null;
+  };
+
+  /** Localiza o endereço (a partir do CEP) e atualiza o mapa com o pino da garagem. */
+  const geocodeAddress = async (address: GarageAddress) => {
+    const cepDigits = (address.cep || '').replace(/\D/g, '');
+    if (cepDigits.length !== 8) {
+      setGarageGeo(null);
+      return;
+    }
+    setGeoLoading(true);
+    try {
+      let coords: { lat: number; lng: number } | null = null;
+
+      // 1) Busca estruturada: rua + cidade + estado (mais precisa)
+      if (address.logradouro && address.cidade) {
+        const params = new URLSearchParams();
+        params.set('street', address.logradouro);
+        params.set('city', address.cidade);
+        if (address.uf) params.set('state', address.uf);
+        coords = await nominatimSearch(params);
+      }
+
+      // 2) Fallback: localizar pelo CEP
+      if (!coords) {
+        const params = new URLSearchParams();
+        params.set('postalcode', cepDigits);
+        coords = await nominatimSearch(params);
+      }
+
+      // 3) Fallback: endereço completo em texto livre
+      if (!coords) {
+        const params = new URLSearchParams();
+        params.set('q', composeGarageAddress(address));
+        coords = await nominatimSearch(params);
+      }
+
+      setGarageGeo(coords);
+      if (!coords) {
+        toast({
+          title: 'Localização não encontrada',
+          description: 'Não foi possível identificar o CEP no mapa.',
+        });
+      }
+    } finally {
+      setGeoLoading(false);
+    }
+  };
+
+  /** Consulta o ViaCEP, preenche os campos do endereço e atualiza o mapa. */
+  const lookupCep = async (digits: string) => {
+    setCepLoading(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await response.json();
+      if (data.erro) {
+        toast({ title: 'CEP não encontrado', description: 'Verifique o CEP digitado.', variant: 'destructive' });
+        return;
+      }
+      // Usa o estado mais recente (preserva edições feitas durante a consulta)
+      const base = addrRef.current;
+      const next: GarageAddress = {
+        ...base,
+        cep: formatCep(digits),
+        logradouro: data.logradouro || base.logradouro,
+        bairro: data.bairro || base.bairro,
+        cidade: data.localidade || base.cidade,
+        uf: data.uf || base.uf,
+      };
+      addrRef.current = next;
+      setAddr(next);
+      setForm(prev => ({ ...prev, address: composeGarageAddress(next) }));
+      toast({ title: 'CEP encontrado', description: 'Endereço preenchido automaticamente.' });
+      await geocodeAddress(next);
+    } catch (err) {
+      console.error('Erro ao buscar CEP:', err);
+      toast({ title: 'Erro ao buscar CEP', description: 'Não foi possível consultar o CEP.', variant: 'destructive' });
+    } finally {
+      setCepLoading(false);
+    }
+  };
+
+  /** Digitação do CEP: aplica a máscara e, ao completar 8 dígitos, preenche o endereço + mapa. */
+  const handleCepChange = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 8);
+    updateAddress({ cep: formatCep(raw) });
+    if (digits.length !== 8) {
+      setGarageGeo(null);
+      return;
+    }
+    void lookupCep(digits);
+  };
+
   const openCreateGarage = () => {
     setEditingId(null);
+    addrRef.current = { ...EMPTY_GARAGE_ADDRESS };
+    setAddr({ ...EMPTY_GARAGE_ADDRESS });
+    setGarageGeo(null);
     setForm({ name: '', address: '', responsibleEmployeeId: '', responsibleName: '', responsiblePhone: '', capacity: undefined, notes: '' });
     setDialogOpen(true);
   };
 
   const openEditGarage = (garage: Garage) => {
     setEditingId(garage.id);
+    const parsedAddress = parseGarageAddress(garage.address);
+    addrRef.current = parsedAddress;
+    setAddr(parsedAddress);
+    setGarageGeo(null);
     setForm({
       name: garage.name || '',
       address: garage.address || '',
@@ -538,6 +751,14 @@ export const Garagens: React.FC = () => {
       notes: garage.notes || '',
     });
     setDialogOpen(true);
+    // Exibe o mapa da garagem já na edição (quando houver CEP no endereço salvo)
+    if (parsedAddress.cep) {
+      if (!parsedAddress.logradouro) {
+        void lookupCep(parsedAddress.cep.replace(/\D/g, ''));
+      } else {
+        void geocodeAddress(parsedAddress);
+      }
+    }
   };
 
   const handleSaveGarage = async () => {
@@ -1620,38 +1841,108 @@ export const Garagens: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs text-gray-400 mb-1 block font-semibold">Endereço Completo</label>
-                <Input
-                  value={form.address}
-                  onChange={e => setForm({ ...form, address: e.target.value })}
-                  className="bg-seguranca-black border-gray-700 text-white"
-                  placeholder="Rua, número, bairro, cidade..."
-                />
+                <div className="flex items-center justify-between mb-1 gap-2">
+                  <label className="text-xs text-gray-400 font-semibold">Endereço Completo</label>
+                  <span className="text-[10px] text-gray-500">Digite o CEP para preencher automático</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <Input
+                      value={addr.cep}
+                      onChange={e => handleCepChange(e.target.value)}
+                      inputMode="numeric"
+                      maxLength={9}
+                      placeholder="CEP (00000-000)"
+                      className="bg-seguranca-black border-gray-700 text-white font-mono pr-8"
+                    />
+                    {cepLoading && (
+                      <Loader2 size={14} className="absolute right-2.5 top-3 animate-spin text-seguranca-yellow" />
+                    )}
+                  </div>
+                  <Input
+                    value={addr.numero}
+                    onChange={e => updateAddress({ numero: e.target.value })}
+                    className="bg-seguranca-black border-gray-700 text-white"
+                    placeholder="Número"
+                  />
+                  <Input
+                    value={addr.logradouro}
+                    onChange={e => updateAddress({ logradouro: e.target.value })}
+                    className="col-span-2 bg-seguranca-black border-gray-700 text-white"
+                    placeholder="Rua / Avenida"
+                  />
+                  <Input
+                    value={addr.complemento}
+                    onChange={e => updateAddress({ complemento: e.target.value })}
+                    className="bg-seguranca-black border-gray-700 text-white"
+                    placeholder="Complemento"
+                  />
+                  <Input
+                    value={addr.bairro}
+                    onChange={e => updateAddress({ bairro: e.target.value })}
+                    className="bg-seguranca-black border-gray-700 text-white"
+                    placeholder="Bairro"
+                  />
+                  <Input
+                    value={addr.cidade}
+                    onChange={e => updateAddress({ cidade: e.target.value })}
+                    className="bg-seguranca-black border-gray-700 text-white"
+                    placeholder="Cidade"
+                  />
+                  <Input
+                    value={addr.uf}
+                    onChange={e => updateAddress({ uf: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2) })}
+                    className="bg-seguranca-black border-gray-700 text-white uppercase"
+                    placeholder="UF"
+                    maxLength={2}
+                  />
+                </div>
               </div>
+
+              {geoLoading && (
+                <div className="flex items-center gap-2 text-[11px] text-gray-400 bg-seguranca-black border border-gray-700 rounded-md px-3 py-2">
+                  <Loader2 size={13} className="animate-spin text-seguranca-yellow shrink-0" />
+                  Localizando o CEP no mapa...
+                </div>
+              )}
+
+              {garageGeo && (
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block font-semibold flex items-center gap-1.5">
+                    <MapPin size={13} className="text-seguranca-yellow" /> Localização da Garagem
+                  </label>
+                  <MapWithPin
+                    latitude={garageGeo.lat}
+                    longitude={garageGeo.lng}
+                    height="240px"
+                    showControls={false}
+                    className="rounded-lg overflow-hidden border border-gray-700"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    O pino identifica a localização aproximada da garagem a partir do CEP informado.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs text-gray-400 mb-1 block font-semibold">Responsável Operacional</label>
-                <Select
-                  value={form.responsibleEmployeeId || ''}
-                  onValueChange={(v) => {
-                    const emp = employees.find(e => e.id === v);
+                <ResponsavelCombobox
+                  employees={employees}
+                  value={form.responsibleEmployeeId}
+                  name={form.responsibleName}
+                  placeholder="Digite 3 letras do nome do responsável..."
+                  onSelect={emp =>
                     setForm(prev => ({
                       ...prev,
-                      responsibleEmployeeId: v,
-                      responsibleName: emp?.name || prev.responsibleName,
-                      responsiblePhone: emp?.phone || prev.responsiblePhone,
-                    }));
-                  }}
-                >
-                  <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
-                    <SelectValue placeholder="Selecione o encarregado do pátio" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-56">
-                    {employees.map(e => (
-                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      responsibleEmployeeId: emp?.id || '',
+                      responsibleName: emp?.name || '',
+                      responsiblePhone: emp ? (emp.phone || prev.responsiblePhone || '') : prev.responsiblePhone || '',
+                    }))
+                  }
+                />
+                <p className="text-[10px] text-gray-500 mt-1">
+                  Busca na base de funcionários ao digitar os 3 primeiros caracteres.
+                </p>
               </div>
 
               <div>

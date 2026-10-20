@@ -22,8 +22,24 @@ public class UserOnlineStatusService {
     // sessÃµes)
     private final Map<UUID, Set<String>> onlineUsers = new ConcurrentHashMap<>();
 
+    /** Janela de inatividade (ms) para considerar usuário online via atividade REST */
+    private static final long REST_ACTIVITY_WINDOW_MS = 5 * 60 * 1000L;
+
+    // Mapa de userId -> timestamp da última requisição REST autenticada (heartbeat)
+    private final Map<UUID, Long> restActivity = new ConcurrentHashMap<>();
+
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+
+    /**
+     * Registra atividade REST (heartbeat) de um usuário autenticado via JWT.
+     * Fallback para quando a conexão WebSocket não estabelece, mantendo o
+     * usuário Online na Gestão de Usuários enquanto houver requisições.
+     */
+    public void recordActivity(UUID userId) {
+        if (userId == null) return;
+        restActivity.put(userId, System.currentTimeMillis());
+    }
 
     /**
      * Registra que um usuÃ¡rio estÃ¡ online
@@ -60,10 +76,13 @@ public class UserOnlineStatusService {
         onlineUsers.computeIfPresent(userId, (key, sessions) -> {
             sessions.remove(sessionId);
 
-            // Se nÃ£o hÃ¡ mais sessÃµes, o usuÃ¡rio ficou offline
+            // Se nÃ£o hÃ¡ mais sessÃµes, o usuário depende só do heartbeat REST
             if (sessions.isEmpty()) {
                 log.info("UsuÃ¡rio {} ficou offline (Ãºltima sessÃ£o removida: {})", userId, sessionId);
-                notifyUserStatusChange(userId, false);
+                // Não notifica offline imediatamente: o heartbeat REST pode manter online
+                if (!isUserOnline(userId)) {
+                    notifyUserStatusChange(userId, false);
+                }
                 return null; // Remove o usuÃ¡rio do mapa
             } else {
                 log.debug("UsuÃ¡rio {} removeu sessÃ£o: {} (restantes: {})", userId, sessionId, sessions.size());
@@ -79,7 +98,22 @@ public class UserOnlineStatusService {
      * @return true se o usuÃ¡rio estÃ¡ online, false caso contrÃ¡rio
      */
     public boolean isUserOnline(UUID userId) {
-        return onlineUsers.containsKey(userId) && !onlineUsers.get(userId).isEmpty();
+        Set<String> sessions = onlineUsers.get(userId);
+        if (sessions != null && !sessions.isEmpty()) {
+            return true;
+        }
+        // Fallback: atividade REST nos últimos REST_ACTIVITY_WINDOW_MS minutos
+        Long lastSeen = restActivity.get(userId);
+        if (lastSeen != null) {
+            if (System.currentTimeMillis() - lastSeen <= REST_ACTIVITY_WINDOW_MS) {
+                return true;
+            }
+            // Expirou a janela — limpa e valida as sessões WS restantes
+            restActivity.remove(userId);
+            sessions = onlineUsers.get(userId);
+            return sessions != null && !sessions.isEmpty();
+        }
+        return false;
     }
 
     /**

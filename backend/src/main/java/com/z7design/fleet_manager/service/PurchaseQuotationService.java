@@ -36,17 +36,9 @@ public class PurchaseQuotationService {
     
     @Transactional(readOnly = true)
     public List<PurchaseQuotationDTO> getAllQuotations() {
-        try {
-            return purchaseQuotationRepository.findAllWithRelations().stream()
-                    .map(this::convertToDTO)
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            log.error("Erro ao buscar todas as cotaÃ§Ãµes: {}", e.getMessage(), e);
-            // Fallback para findAll() se houver problema com fetch join
-            return purchaseQuotationRepository.findAll().stream()
-                    .map(this::convertToDTO)
-                    .collect(Collectors.toList());
-        }
+        return purchaseQuotationRepository.findAllWithRelations().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
     
     @Transactional(readOnly = true)

@@ -34,6 +34,7 @@ import {
   PackageCheck,
   Calculator,
   Sparkles,
+  DollarSign,
 } from 'lucide-react';
 import { StandardLayout } from '@/components/StandardLayout';
 import Equipamentos from './Equipamentos';
@@ -54,6 +55,7 @@ import DailyLogFormModal from '@/components/operacional/DailyLogFormModal';
 import dailyLogService, { DailyLog } from '@/services/dailyLogService';
 import DailyLogAuditModal from '@/components/operacional/DailyLogAuditModal';
 import SstCompliancePanel from '@/components/operacional/SstCompliancePanel';
+import ModuloDespesasPanel from '@/components/financeiro/ModuloDespesasPanel';
 import { ShieldCheck } from 'lucide-react';
 import { scheduleService, Schedule, CreateScheduleDTO, UpdateScheduleDTO, ScheduleStatus } from '@/services/scheduleService';
 
@@ -1091,6 +1093,22 @@ const Operacional: React.FC = () => {
                     </TooltipContent>
                   </Tooltip>
 
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger
+                        value="despesas"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-amber-500 data-[state='active']:to-amber-600 data-[state='active']:text-black data-[state='active']:font-semibold data-[state='active']:shadow-lg data-[state='active']:shadow-amber-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                      >
+                        <DollarSign className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0 text-amber-400" />
+                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Despesas</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="bg-seguranca-graphite text-white border-seguranca-red">
+                      <p className="font-semibold">Despesas Operacionais</p>
+                      <p className="text-xs text-gray-400">Combustível, pedágios e despesas de rotas</p>
+                    </TooltipContent>
+                  </Tooltip>
+
                 </TabsList>
               </div>
             </TooltipProvider>
@@ -1334,6 +1352,10 @@ const Operacional: React.FC = () => {
 
             <TabsContent value="os-higienizacao" className="mt-6">
               <OsHigienizacaoTab />
+            </TabsContent>
+
+            <TabsContent value="despesas" className="mt-6">
+              <ModuloDespesasPanel modulo="OPERACIONAL" hideHeaderTitle={false} />
             </TabsContent>
           </Tabs>
         </div> {/* Fecha container mx-auto */}

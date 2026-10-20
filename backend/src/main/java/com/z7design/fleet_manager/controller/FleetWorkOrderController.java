@@ -64,10 +64,11 @@ public class FleetWorkOrderController {
         return ResponseEntity.ok(service.getById(id));
     }
 
-    /** Lista os itens mestre de checklist ativo */
+    /** Lista os itens mestre de checklist ativo por tipo de veículo (BUS, VAN ou todos) */
     @GetMapping("/checklist-items")
-    public ResponseEntity<List<com.z7design.fleet_manager.dto.ChecklistItemDTO>> getChecklistMasterItems() {
-        return ResponseEntity.ok(service.getChecklistMasterItems());
+    public ResponseEntity<List<com.z7design.fleet_manager.dto.ChecklistItemDTO>> getChecklistMasterItems(
+            @RequestParam(value = "vehicleType", required = false) String vehicleType) {
+        return ResponseEntity.ok(service.getChecklistMasterItems(vehicleType));
     }
 
     /** Lista os serviços cadastrados na oficina */
@@ -195,6 +196,83 @@ public class FleetWorkOrderController {
         String note        = body.getOrDefault("note", "");
         String performedBy = body.getOrDefault("performedBy", "Usuário");
         return ResponseEntity.ok(service.addNote(id, note, performedBy));
+    }
+
+    // ── Execução do Serviço ──────────────────────────────────────────────────
+
+    /**
+     * Corrige a data/hora de início da execução com justificativa obrigatória.
+     * O registro anterior é salvo no histórico de correções para auditoria.
+     */
+    @PatchMapping("/{id}/execution-start")
+    public ResponseEntity<?> updateExecutionStart(
+            @PathVariable("id") UUID id,
+            @RequestBody Map<String, String> body) {
+        try {
+            String rawDate    = body.get("executionStartDate");
+            String justif     = body.getOrDefault("justification", "");
+            String performedBy = body.getOrDefault("performedBy", "Usuário");
+            if (rawDate == null || rawDate.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "executionStartDate é obrigatório."));
+            }
+            java.time.LocalDateTime newStart = java.time.LocalDateTime.parse(rawDate);
+            return ResponseEntity.ok(service.updateExecutionStart(id, newStart, justif, performedBy));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Erro ao corrigir início de execução: " + e.getMessage()));
+        }
+    }
+
+    /** Retorna o histórico de correções do início da execução de uma OS */
+    @GetMapping("/{id}/execution-history")
+    public ResponseEntity<?> getExecutionHistory(@PathVariable("id") UUID id) {
+        try {
+            return ResponseEntity.ok(service.getExecutionHistory(id));
+        } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // ── Lançamento de Despesa no Financeiro (Contas a Pagar) ─────────────────
+
+    /** Lista as despesas (contas a pagar) já lançadas no financeiro para esta O.S. de manutenção */
+    @GetMapping("/{id}/expense")
+    public ResponseEntity<?> getExpenses(@PathVariable("id") UUID id) {
+        try {
+            return ResponseEntity.ok(service.getFinancialExpenses(id));
+        } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(FleetWorkOrderController.class)
+                    .error("Erro ao buscar despesas da O.S. {}", id, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Erro ao buscar despesas da O.S."));
+        }
+    }
+
+    /** Lança a despesa de manutenção da O.S. no módulo financeiro (Contas a Pagar) */
+    @PostMapping("/{id}/expense")
+    public ResponseEntity<?> launchExpense(
+            @PathVariable("id") UUID id,
+            @RequestBody(required = false) Map<String, String> body) {
+        try {
+            String performedBy = (body != null && body.get("performedBy") != null && !body.get("performedBy").isBlank())
+                    ? body.get("performedBy")
+                    : "Usuário";
+            Map<String, Object> expense = service.launchFinancialExpense(id, performedBy);
+            return ResponseEntity.ok(expense);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(FleetWorkOrderController.class)
+                    .error("Erro ao lançar despesa da O.S. {} no financeiro", id, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Erro ao lançar despesa no financeiro."));
+        }
     }
 
     // ── Ranking ───────────────────────────────────────────────────────────────

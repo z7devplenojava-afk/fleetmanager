@@ -2,8 +2,11 @@ package com.z7design.fleet_manager.controller;
 
 import com.z7design.fleet_manager.dto.CompanyDTO;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
+import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.Company.CompanyStatus;
+import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.service.CompanyService;
+import com.z7design.fleet_manager.service.UserCompanyResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +30,9 @@ class CompanyControllerTest {
 
     @Mock
     private CompanyService companyService;
+
+    @Mock
+    private UserCompanyResolver userCompanyResolver;
 
     @InjectMocks
     private CompanyController controller;
@@ -52,7 +60,7 @@ class CompanyControllerTest {
     void testGetAllCompanies_ShouldReturnList() {
         when(companyService.getAllCompanies()).thenReturn(List.of(sampleDTO));
 
-        ResponseEntity<List<CompanyDTO>> response = controller.getAllCompanies();
+        ResponseEntity<List<CompanyDTO>> response = controller.getAllCompanies(null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         List<CompanyDTO> body = response.getBody();
@@ -65,7 +73,7 @@ class CompanyControllerTest {
     void testGetAllCompanies_ShouldReturnEmptyList() {
         when(companyService.getAllCompanies()).thenReturn(List.of());
 
-        ResponseEntity<List<CompanyDTO>> response = controller.getAllCompanies();
+        ResponseEntity<List<CompanyDTO>> response = controller.getAllCompanies(null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         List<CompanyDTO> body = response.getBody();
@@ -77,13 +85,64 @@ class CompanyControllerTest {
     void testGetAllCompanies_ShouldHandleError() {
         when(companyService.getAllCompanies()).thenThrow(new RuntimeException("DB error"));
 
-        ResponseEntity<List<CompanyDTO>> response = controller.getAllCompanies();
+        ResponseEntity<List<CompanyDTO>> response = controller.getAllCompanies(null);
 
         // Controller catches Exception internally and returns empty list
         assertEquals(HttpStatus.OK, response.getStatusCode());
         List<CompanyDTO> body = response.getBody();
         assertNotNull(body);
         assertTrue(body.isEmpty());
+    }
+
+    @Test
+    void testGetAllCompanies_WithUnprivilegedUser_ShouldReturnOnlyUserCompanies() {
+        Authentication auth = mock(Authentication.class);
+        UserDetails userDetails = mock(UserDetails.class);
+        when(auth.getPrincipal()).thenReturn(userDetails);
+        when(userDetails.getUsername()).thenReturn("normal_user");
+
+        User user = new User();
+        user.setUsername("normal_user");
+        when(userCompanyResolver.resolveUser("normal_user")).thenReturn(user);
+        when(userCompanyResolver.isPrivilegedUser(user)).thenReturn(false);
+
+        Company company = new Company();
+        company.setId(companyId);
+        company.setName("Empresa Do Usuário");
+        company.setSigla("EDU");
+        when(userCompanyResolver.resolveUserCompanies(user)).thenReturn(List.of(company));
+
+        ResponseEntity<List<CompanyDTO>> response = controller.getAllCompanies(auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        List<CompanyDTO> body = response.getBody();
+        assertNotNull(body);
+        assertEquals(1, body.size());
+        assertEquals("Empresa Do Usuário", body.get(0).getName());
+        verify(companyService, never()).getAllCompanies();
+    }
+
+    @Test
+    void testGetAllCompanies_WithPrivilegedUser_ShouldReturnAllCompanies() {
+        Authentication auth = mock(Authentication.class);
+        UserDetails userDetails = mock(UserDetails.class);
+        when(auth.getPrincipal()).thenReturn(userDetails);
+        when(userDetails.getUsername()).thenReturn("admin_user");
+
+        User user = new User();
+        user.setUsername("admin_user");
+        when(userCompanyResolver.resolveUser("admin_user")).thenReturn(user);
+        when(userCompanyResolver.isPrivilegedUser(user)).thenReturn(true);
+        when(companyService.getAllCompanies()).thenReturn(List.of(sampleDTO));
+
+        ResponseEntity<List<CompanyDTO>> response = controller.getAllCompanies(auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        List<CompanyDTO> body = response.getBody();
+        assertNotNull(body);
+        assertEquals(1, body.size());
+        assertEquals("Empresa Teste", body.get(0).getName());
+        verify(companyService).getAllCompanies();
     }
 
     // ════════════════════════════════════════════
@@ -214,11 +273,25 @@ class CompanyControllerTest {
     }
 
     @Test
-    void testGetCompanyById_ShouldPropagateNotFound() {
+    void testGetCompanyById_ShouldReturnNotFound_WhenResourceNotFoundException() {
         when(companyService.getCompanyById(companyId))
                 .thenThrow(new ResourceNotFoundException("Empresa não encontrada"));
 
-        assertThrows(ResourceNotFoundException.class, () -> controller.getCompanyById(companyId));
+        ResponseEntity<CompanyDTO> response = controller.getCompanyById(companyId);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNull(response.getBody());
+    }
+
+    @Test
+    void testGetCompanyById_ShouldReturnNotFound_WhenUnexpectedException() {
+        when(companyService.getCompanyById(companyId))
+                .thenThrow(new RuntimeException("DB error"));
+
+        ResponseEntity<CompanyDTO> response = controller.getCompanyById(companyId);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNull(response.getBody());
     }
 
     // ════════════════════════════════════════════

@@ -41,6 +41,7 @@ import java.util.regex.Pattern;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "fluxbus.redis.workers.enabled", havingValue = "true")
 public class OcrWorker {
 
     private OcrWorker self; // Self-injection para permitir @Transactional em mÃ©todos internos
@@ -127,6 +128,8 @@ public class OcrWorker {
                 // Processar assincronamente para nÃ£o bloquear
                 processPageAsync(record);
             }
+        } catch (org.springframework.data.redis.RedisConnectionFailureException e) {
+            log.warn("⚠️ OcrWorker: Redis offline ({}) - aguardando conexão...", e.getMessage());
         } catch (Exception e) {
             log.error("Erro no OcrWorker", e);
         }

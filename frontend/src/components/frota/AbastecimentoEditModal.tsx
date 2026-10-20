@@ -545,8 +545,8 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
           </div>
 
           {/* Bomba / Tanque */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div className="space-y-1.5 min-w-0">
               <FieldLabel icon={Droplets} iconColor="text-cyan-400">Bomba / Dispensador</FieldLabel>
               <SearchableSelect
                 value={formData.pumpId}
@@ -567,7 +567,7 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
                 emptyText="Nenhuma bomba encontrada."
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <FieldLabel icon={Fuel} iconColor="text-amber-400">Tanque</FieldLabel>
               <SearchableSelect
                 value={formData.tankId}
@@ -615,17 +615,17 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
         <div className="p-4 space-y-4">
 
           {/* Código + Data */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div className="space-y-1.5 min-w-0">
               <FieldLabel icon={Hash} iconColor="text-purple-400">Código de Abastecimento</FieldLabel>
               <Input
-                placeholder="Código do abastecimento"
+                placeholder="Ex: ABA-001 (opcional)"
                 value={formData.fuelCode}
                 onChange={e => setField('fuelCode', e.target.value)}
-                className="bg-gray-900/80 border-gray-700/60 text-white h-10 placeholder:text-gray-600 hover:border-gray-500 transition-colors"
+                className="bg-gray-900/80 border-gray-700/60 text-white h-10 placeholder:text-gray-500 hover:border-gray-500 transition-colors"
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <FieldLabel icon={Calendar} iconColor="text-green-400" required>Data do Abastecimento</FieldLabel>
               <Input
                 type="date"
@@ -727,8 +727,8 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
 
           {/* Cliente / Obra editáveis */}
           {selectedVehicle && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5 min-w-0">
                 <Label className="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Briefcase className="h-3 w-3 text-gray-400" />
@@ -749,7 +749,7 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
                   ))}
                 </datalist>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 min-w-0">
                 <Label className="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <MapPin className="h-3 w-3 text-gray-400" />
@@ -809,9 +809,9 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
           </div>
 
           {/* KMs */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {/* KM Anterior (readonly) */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <FieldLabel icon={Gauge} iconColor="text-gray-500">KM Anterior</FieldLabel>
               <div className="relative">
                 <Input
@@ -826,7 +826,7 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
             </div>
 
             {/* KM Abastecimento */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <FieldLabel icon={Gauge} iconColor="text-blue-400" required>KM do Abastecimento</FieldLabel>
               <div className="relative">
                 <Input
@@ -919,7 +919,7 @@ const AbastecimentoEditModal: React.FC<AbastecimentoEditModalProps> = ({
         title="Editar Abastecimento Interno"
         description="Atualize os campos abaixo para modificar o registro de abastecimento."
         footer={footer}
-        className="max-w-5xl max-w-[calc(100vw-2rem)] w-full"
+        className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl w-full p-4 sm:p-6"
       >
         {renderForm()}
       </ResponsiveDrawer>

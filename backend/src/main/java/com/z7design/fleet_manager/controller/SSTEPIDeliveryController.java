@@ -1,5 +1,6 @@
 package com.z7design.fleet_manager.controller;
 
+import com.z7design.fleet_manager.dto.EPIDeliveryDTO;
 import com.z7design.fleet_manager.model.EPIDelivery;
 import com.z7design.fleet_manager.service.SSTEPIService;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -30,19 +31,23 @@ public class SSTEPIDeliveryController {
     @GetMapping
     @Operation(summary = "Listar todas as entregas de EPIs", description = "Retorna todas as entregas de EPIs")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<List<EPIDelivery>> getAllEPIDeliveries() {
+    public ResponseEntity<List<EPIDeliveryDTO>> getAllEPIDeliveries() {
         log.info("GET /api/sst/epi-deliveries - Buscando todas as entregas de EPIs");
-        return ResponseEntity.ok(epiService.getAllEPIDeliveries());
+        List<EPIDeliveryDTO> deliveries = epiService.getAllEPIDeliveries().stream()
+                .map(EPIDeliveryDTO::fromEntity)
+                .toList();
+        return ResponseEntity.ok(deliveries);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar entrega de EPI por ID", description = "Retorna uma entrega específica pelo ID")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<EPIDelivery> getEPIDeliveryById(@PathVariable("id") UUID id) {
+    public ResponseEntity<EPIDeliveryDTO> getEPIDeliveryById(@PathVariable("id") UUID id) {
         log.info("GET /api/sst/epi-deliveries/{} - Buscando entrega de EPI", id);
         return epiService.getAllEPIDeliveries().stream()
                 .filter(d -> d.getId().equals(id))
                 .findFirst()
+                .map(EPIDeliveryDTO::fromEntity)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -71,7 +76,7 @@ public class SSTEPIDeliveryController {
                 request.getExchangeJustification(),
                 request.getNextExchangeDate()
             );
-            return ResponseEntity.ok(delivery);
+            return ResponseEntity.ok(EPIDeliveryDTO.fromEntity(delivery));
         } catch (IllegalArgumentException e) {
             log.error("Erro de validação ao criar entrega de EPI: {}", e.getMessage());
             return ResponseEntity.badRequest()
@@ -90,7 +95,7 @@ public class SSTEPIDeliveryController {
         log.info("POST /api/sst/epi-deliveries/{}/verify-almoxarifado - Conferindo itens e efetuando baixa", id);
         try {
             EPIDelivery verified = epiService.verifyDeliveryByAlmoxarifado(id, userId);
-            return ResponseEntity.ok(verified);
+            return ResponseEntity.ok(EPIDeliveryDTO.fromEntity(verified));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
         } catch (Exception e) {
@@ -120,10 +125,12 @@ public class SSTEPIDeliveryController {
     @GetMapping("/employee/{employeeId}")
     @Operation(summary = "Listar entregas por funcionÃ¡rio", description = "Retorna todas as entregas de um funcionÃ¡rio especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<EPIDelivery>> getEPIDeliveriesByEmployee(@PathVariable("employeeId") UUID employeeId) {
+    public ResponseEntity<List<EPIDeliveryDTO>> getEPIDeliveriesByEmployee(@PathVariable("employeeId") UUID employeeId) {
         log.info("GET /api/sst/epi-deliveries/employee/{} - Buscando entregas por funcionÃ¡rio", employeeId);
         try {
-            List<EPIDelivery> deliveries = epiService.getDeliveriesByEmployee(employeeId);
+            List<EPIDeliveryDTO> deliveries = epiService.getDeliveriesByEmployee(employeeId).stream()
+                    .map(EPIDeliveryDTO::fromEntity)
+                    .toList();
             return ResponseEntity.ok(deliveries);
         } catch (Exception e) {
             log.error("Erro ao buscar entregas por funcionÃ¡rio: {}", e.getMessage(), e);
@@ -134,10 +141,12 @@ public class SSTEPIDeliveryController {
     @GetMapping("/epi/{epiId}")
     @Operation(summary = "Listar entregas por EPI", description = "Retorna todas as entregas de um EPI especÃ­fico")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<EPIDelivery>> getEPIDeliveriesByEPI(@PathVariable("epiId") UUID epiId) {
+    public ResponseEntity<List<EPIDeliveryDTO>> getEPIDeliveriesByEPI(@PathVariable("epiId") UUID epiId) {
         log.info("GET /api/sst/epi-deliveries/epi/{} - Buscando entregas por EPI", epiId);
         try {
-            List<EPIDelivery> deliveries = epiService.getDeliveriesByEPI(epiId);
+            List<EPIDeliveryDTO> deliveries = epiService.getDeliveriesByEPI(epiId).stream()
+                    .map(EPIDeliveryDTO::fromEntity)
+                    .toList();
             return ResponseEntity.ok(deliveries);
         } catch (Exception e) {
             log.error("Erro ao buscar entregas por EPI: {}", e.getMessage(), e);
@@ -148,7 +157,7 @@ public class SSTEPIDeliveryController {
     @GetMapping("/expiring/{days}")
     @Operation(summary = "Listar entregas expirando", description = "Retorna entregas que estÃ£o expirando nos prÃ³ximos X dias")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<List<EPIDelivery>> getExpiringEPIDeliveries(@PathVariable("days") int days) {
+    public ResponseEntity<List<EPIDeliveryDTO>> getExpiringEPIDeliveries(@PathVariable("days") int days) {
         log.info("GET /api/sst/epi-deliveries/expiring/{} - Buscando entregas expirando em {} dias", days, days);
         // TODO: Implementar mÃ©todo getExpiringEPIDeliveries no service
         return ResponseEntity.ok(List.of());

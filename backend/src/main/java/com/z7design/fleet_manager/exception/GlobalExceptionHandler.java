@@ -177,6 +177,25 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
 
+    @ExceptionHandler(org.springframework.transaction.TransactionSystemException.class)
+    public ResponseEntity<ErrorResponse> handleTransactionSystemException(
+            org.springframework.transaction.TransactionSystemException ex, WebRequest request) {
+        log.warn("Erro de transação/integridade: {}", ex.getMessage());
+        Throwable root = org.springframework.core.NestedExceptionUtils.getMostSpecificCause(ex);
+        String message = root != null && root.getMessage() != null ? root.getMessage() : ex.getMessage();
+        if (message.contains("violates foreign key constraint") || message.contains("chave estrangeira")) {
+            message = "Não é possível realizar esta operação pois o registro possui dados vinculados em outros módulos do sistema.";
+        }
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("DATA_INTEGRITY_VIOLATION")
+                .message(message)
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
     @ExceptionHandler(ClientAbortException.class)
     public ResponseEntity<Void> handleClientAbortException(ClientAbortException ex, WebRequest request) {
         // ClientAbortException Ã© uma exceÃ§Ã£o normal quando o cliente cancela a

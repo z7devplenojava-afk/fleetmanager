@@ -8,48 +8,53 @@ interface UseSidebarReturn {
 }
 
 export const useSidebar = (): UseSidebarReturn => {
-  const [collapsed, setCollapsed] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Detectar se é mobile e ajustar estado inicial
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      const wasMobile = isMobile;
-      setIsMobile(mobile);
-      
-      // Apenas colapsar sidebar quando MUDAR de desktop para mobile
-      // Não forçar collapsed = true toda vez que o componente re-renderizar
-      if (mobile && !wasMobile && !collapsed) {
-        setCollapsed(true);
+  const isInitialMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  const [isMobile, setIsMobile] = useState(isInitialMobile);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 768) {
+        return true; // Always start collapsed on mobile screens
       }
+      const saved = localStorage.getItem('sidebar-collapsed');
+      if (saved !== null) {
+        return saved === 'true';
+      }
+    }
+    return false;
+  });
+
+  // Detectar resize e ajustar mobile/collapsed
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile((prevMobile) => {
+        if (mobile !== prevMobile) {
+          if (mobile) {
+            // Entrando no modo mobile: colapsar (fechar gaveta)
+            setCollapsed(true);
+          } else {
+            // Voltando para desktop: restaurar preferência do localStorage
+            const saved = localStorage.getItem('sidebar-collapsed');
+            setCollapsed(saved !== null ? saved === 'true' : false);
+          }
+        }
+        return mobile;
+      });
     };
 
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, [isMobile, collapsed]);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  // Salvar estado no localStorage
+  // Salvar estado no localStorage apenas em desktop
   useEffect(() => {
     if (!isMobile) {
       localStorage.setItem('sidebar-collapsed', collapsed.toString());
     }
   }, [collapsed, isMobile]);
 
-  // Carregar estado do localStorage
-  useEffect(() => {
-    if (!isMobile) {
-      const saved = localStorage.getItem('sidebar-collapsed');
-      if (saved !== null) {
-        setCollapsed(saved === 'true');
-      }
-    }
-  }, [isMobile]);
-
   const toggleSidebar = () => {
-    setCollapsed(!collapsed);
+    setCollapsed((prev) => !prev);
   };
 
   return {

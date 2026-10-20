@@ -85,7 +85,9 @@ import {
   Truck,
   UserCircle,
   Warehouse,
-  Droplets
+  Droplets,
+  ChevronDown,
+  FileHeart
 } from 'lucide-react';
 
 interface CollapsibleSidebarProps {
@@ -109,6 +111,7 @@ const mainMenuItems = [
 // Módulo de Manutenção e Frota (Novo)
 const manutencaoMenuItems = [
   { icon: Wrench, text: 'Dashboard Manutenção', to: '/manutencao', id: 'manutencao' },
+  { icon: DollarSign, text: 'Despesas com Manutenção', to: '/manutencao?tab=despesas', id: 'manutencao-despesas' },
   { icon: Bus, text: 'Gerenciar Frota', to: '/frota', id: 'frota' },
   { icon: Warehouse, text: 'Gestão de Garagens', to: '/frota/garagens', id: 'garagens' },
   { icon: Activity, text: 'Manutenção V2 (HUD)', to: '/manutencao/v2', id: 'manutencao-v2' },
@@ -166,6 +169,7 @@ const fiscalMenuItems = [
 // Módulo Operacional - Correspondente às abas da página
 const operacionalMenuItems = [
   { icon: BarChart3, text: 'Dashboard', to: '/operacional?tab=dashboard', id: 'operacional-dashboard' },
+  { icon: DollarSign, text: 'Despesas Operacionais', to: '/operacional/despesas', id: 'operacional-despesas' },
   { icon: ClipboardList, text: 'Serviços', to: '/operacional?tab=servicos', id: 'operacional-servicos' },
   { icon: Shield, text: 'Equipamentos', to: '/operacional?tab=equipamentos', id: 'operacional-equipamentos' },
   { icon: MapPin, text: 'Controle de Visitas', to: '/operacional?tab=controle-visitas', id: 'operacional-controle-visitas' },
@@ -185,18 +189,21 @@ const operacionalMenuItems = [
 // Módulo RH - Menu principal
 const rhMenuItems = [
   { icon: Users, text: 'RH Principal', to: '/rh', id: 'rh' },
+  { icon: DollarSign, text: 'Despesas RH', to: '/rh/despesas', id: 'rh-despesas' },
   { icon: Clock, text: 'Controle de Horas', to: '/rh/controle-horas', id: 'rh-controle-horas' },
   { icon: User2, text: 'Funcionários', to: '/rh/funcionarios', id: 'rh-funcionarios' },
   { icon: MapPin, text: 'Postos de Trabalho', to: '/rh/postos', id: 'rh-postos' },
   { icon: Briefcase, text: 'Vagas', to: '/rh/vagas', id: 'rh-vagas' },
   { icon: Award, text: 'Benefícios', to: '/rh/beneficios', id: 'rh-beneficios' },
   { icon: GraduationCap, text: 'Treinamentos', to: '/rh/treinamentos', id: 'rh-treinamentos' },
+  { icon: FileHeart, text: 'Gestão de Atestados', to: '/rh/atestados', id: 'rh-atestados' },
   { icon: BarChart3, text: 'Relatórios RH', to: '/rh/relatorios', id: 'rh-relatorios' },
 ];
 
 // Módulo SST - Saúde e Segurança do Trabalho
 const sstMenuItems = [
   { icon: Shield, text: 'Controle SST', to: '/rh/sst', id: 'rh-sst' },
+  { icon: DollarSign, text: 'Despesas SST', to: '/rh/sst/despesas', id: 'sst-despesas' },
   { icon: Stethoscope, text: 'Exames Médicos', to: '/rh/sst/exames', id: 'rh-sst-exames' },
   { icon: HardHat, text: 'EPIs', to: '/rh/sst/epis', id: 'rh-sst-epis' },
   { icon: AlertTriangle, text: 'Acidentes', to: '/rh/sst/acidentes', id: 'rh-sst-acidentes' },
@@ -208,6 +215,7 @@ const sstMenuItems = [
 
 // Módulo Departamento Pessoal
 const departamentoPessoalMenuItems = [
+  { icon: Receipt, text: 'Despesas DP', to: '/dp/despesas', id: 'dp-despesas' },
   // Gestão de Funcionários
   { icon: Users, text: 'Funcionários', to: '/rh/funcionarios', id: 'dp-funcionarios' },
   { icon: FileSpreadsheet, text: 'Importar Funcionários Excel', to: '/rh/funcionarios?importar=excel', id: 'dp-funcionarios-importar-excel' },
@@ -223,6 +231,7 @@ const departamentoPessoalMenuItems = [
 
   // Gestão de Ocorrências e Eventos
   { icon: FileText, text: 'Ocorrências', to: '/rh/ocorrencias', id: 'dp-ocorrencias' },
+  { icon: FileHeart, text: 'Gestão de Atestados', to: '/rh/atestados', id: 'dp-atestados' },
 
   // Benefícios (agrupados)
   { icon: Award, text: 'Benefícios', to: '/rh/beneficios', id: 'dp-beneficios' },
@@ -262,6 +271,7 @@ const comercialMenuItems = [
 const estoqueMenuItems = [
   { icon: Package, text: 'Estoque Simplificado', to: '/estoque-simplificado', id: 'estoque-simplificado' },
   { icon: ShoppingCart, text: 'Requisições & 3 Cotações', to: '/almoxarifado/requisicoes', id: 'almoxarifado-requisicoes' },
+  { icon: DollarSign, text: 'Despesas Almoxarifado', to: '/almoxarifado/despesas', id: 'almoxarifado-despesas' },
   { icon: BarChart3, text: 'Relatórios de Estoque', to: '/estoque/relatorios', id: 'estoque-relatorios' },
   { icon: AlertTriangle, text: 'Alertas de Estoque', to: '/estoque-simplificado?tab=alertas', id: 'estoque-alertas' },
   { icon: Handshake, text: 'Fornecedores', to: '/estoque/fornecedores', id: 'estoque-fornecedores' },
@@ -1455,19 +1465,24 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const isActive = useCallback((id: string) => activeId === id, [activeId]);
 
   const renderNavItems = (items: any[]) => (
-    <nav className={`space-y-1.5 ${collapsed ? 'px-0 flex flex-col items-center' : 'px-4'}`}>
+    <nav className={`space-y-1.5 ${collapsed && !isMobile ? 'px-0 flex flex-col items-center' : 'px-4'}`}>
       {items.map((item) => {
         const active = isActive(item.id);
         return (
           <ScrollPreservingLink
             key={item.id}
             to={item.to}
-            title={collapsed ? item.text : undefined}
+            title={collapsed && !isMobile ? item.text : undefined}
             preserveScroll={true}
             ref={active ? activeItemRef : undefined}
+            onClick={() => {
+              if (isMobile && !collapsed) {
+                onToggle();
+              }
+            }}
             className={`
               flex items-center rounded-lg transition-all
-              ${collapsed
+              ${collapsed && !isMobile
                 ? 'w-10 h-10 justify-center p-0 mx-auto'
                 : 'px-4 py-2.5 text-sm font-medium w-full'
               }
@@ -1479,9 +1494,9 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           >
             <item.icon
               size={20}
-              className={`flex-shrink-0 ${collapsed ? '' : 'mr-3'}`}
+              className={`flex-shrink-0 ${collapsed && !isMobile ? '' : 'mr-3'}`}
             />
-            {!collapsed && (
+            {(!collapsed || isMobile) && (
               <span className="truncate tracking-wide">{item.text}</span>
             )}
           </ScrollPreservingLink>
@@ -1490,264 +1505,232 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     </nav>
   );
 
+  // Module accordion state management (persisted in localStorage)
+  const ACCORDION_STORAGE_KEY = 'fluxbus_sidebar_accordion_collapsed';
+  const [collapsedModules, setCollapsedModules] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(ACCORDION_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    return {};
+  });
+
+  const toggleModule = useCallback((moduleId: string) => {
+    setCollapsedModules(prev => {
+      const next = { ...prev, [moduleId]: !prev[moduleId] };
+      try {
+        localStorage.setItem(ACCORDION_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // fallback
+      }
+      return next;
+    });
+  }, []);
+
+  // Auto-expand module containing active item when route changes
+  useEffect(() => {
+    if (!activeId) return;
+    const moduleMap: Record<string, any[]> = {
+      main: mainMenuItems,
+      email: emailMenuItems,
+      manutencao: manutencaoMenuItems,
+      mobilizacao: mobilizacaoMenuItems,
+      ticketing: ticketingMenuItems,
+      financeiro: financeiroMenuItems,
+      operacional: operacionalMenuItems,
+      rh: rhMenuItems,
+      sst: sstMenuItems,
+      dp: departamentoPessoalMenuItems,
+      comercial: comercialMenuItems,
+      estoque: estoqueMenuItems,
+      compras: comprasMenuItems,
+      comunicacao: comunicacaoInternaMenuItems,
+      atendimento: atendimentoMenuItems,
+      trafego: trafegoMenuItems,
+      fiscal: fiscalMenuItems,
+      sistema: sistemaMenuItems,
+    };
+
+    const targetModuleId = Object.keys(moduleMap).find(id =>
+      moduleMap[id].some(item => item.id === activeId)
+    );
+
+    if (targetModuleId && collapsedModules[targetModuleId]) {
+      setCollapsedModules(prev => {
+        if (!prev[targetModuleId]) return prev;
+        const next = { ...prev, [targetModuleId]: false };
+        try {
+          localStorage.setItem(ACCORDION_STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // fallback
+        }
+        return next;
+      });
+    }
+  }, [activeId]);
+
+  const renderModuleSection = (moduleId: string, title: string, items: any[]) => {
+    if (!items || items.length === 0) return null;
+    const isExpanded = (collapsed && !isMobile) || !collapsedModules[moduleId];
+
+    return (
+      <div key={moduleId} className={collapsed && !isMobile ? "mb-3" : (isExpanded ? "mb-5" : "mb-1.5")}>
+        {(!collapsed || isMobile) && (
+          <div className="px-2 mb-1">
+            <button
+              type="button"
+              onClick={() => toggleModule(moduleId)}
+              aria-expanded={isExpanded}
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-semibold text-muted-foreground/60 hover:text-white hover:bg-white/5 uppercase tracking-wider transition-all select-none group cursor-pointer text-left focus:outline-none"
+            >
+              <span className="flex items-center gap-2 truncate">
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 text-muted-foreground/40 group-hover:text-white shrink-0 ${
+                    isExpanded ? 'rotate-0' : '-rotate-90'
+                  }`}
+                />
+                <span className="truncate">{title}</span>
+              </span>
+            </button>
+          </div>
+        )}
+
+        {(!collapsed || isMobile) ? (
+          <div
+            className={`transition-all duration-200 ease-in-out overflow-hidden ${
+              isExpanded ? 'max-h-[1500px] opacity-100 visible' : 'max-h-0 opacity-0 invisible pointer-events-none'
+            }`}
+          >
+            {renderNavItems(items)}
+          </div>
+        ) : (
+          renderNavItems(items)
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
-      {/* Overlay para mobile */}
-      {isMobile && !collapsed && (
+      {/* Overlay para mobile com alta opacidade e backdrop blur */}
+      {isMobile && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-50 transition-opacity duration-300 ${
+            collapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          }`}
           onClick={onToggle}
+          aria-hidden="true"
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - 100% opaca com fundo sólido para evitar vazamento do conteúdo */}
       <aside
         className={`
-          fixed left-0 top-0 h-screen bg-sidebar-background text-sidebar-foreground border-r border-sidebar-border
-          flex flex-col transition-all duration-300 ease-in-out z-50
-          ${isMobile ? 'w-64' : (collapsed ? 'w-16' : 'w-64')}
-          ${isMobile && collapsed ? '-translate-x-full' : 'translate-x-0'}
+          fixed left-0 top-0 h-screen bg-[#111319] dark:bg-[#0c0e14] text-sidebar-foreground border-r border-[#262833]
+          flex flex-col transition-transform duration-300 ease-in-out z-50 shadow-2xl
+          ${isMobile ? 'w-[82vw] max-w-[320px]' : (collapsed ? 'w-16' : 'w-64')}
+          ${isMobile && collapsed ? '-translate-x-full pointer-events-none invisible' : 'translate-x-0 visible'}
         `}
       >
-        {/* Header com Logo - Exact Reference Style */}
-        <div className={`${collapsed ? 'px-2' : 'p-4'} border-b border-sidebar-border flex items-center justify-center h-[64px] bg-sidebar-background`}>
-          <ScrollPreservingLink to="/" className="flex items-center justify-center overflow-hidden">
-            {collapsed ? (
+        {/* Header com Logo e Botão de Fechar no Mobile */}
+        <div className={`${collapsed && !isMobile ? 'px-2' : 'px-4'} border-b border-[#262833] flex items-center justify-between h-[64px] bg-[#111319] dark:bg-[#0c0e14] shrink-0`}>
+          <ScrollPreservingLink
+            to="/"
+            onClick={() => { if (isMobile && !collapsed) onToggle(); }}
+            className="flex items-center overflow-hidden flex-1"
+          >
+            {collapsed && !isMobile ? (
               <img
                 src="/favicon.png"
                 alt="FluxBus Icon"
-                className="h-8 w-8 object-contain drop-shadow-md transition-transform hover:scale-105"
+                className="h-8 w-8 object-contain drop-shadow-md transition-transform hover:scale-105 mx-auto"
               />
             ) : (
               <Logo size="md" forceDefault={!hasSelectedCompany} className="max-w-[170px]" />
             )}
           </ScrollPreservingLink>
+
+          {isMobile && !collapsed && (
+            <button
+              onClick={onToggle}
+              className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors ml-2 shrink-0"
+              title="Fechar menu"
+              aria-label="Fechar menu"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
         {/* Conteúdo da navegação */}
         <div
           ref={scrollContainerRef}
-          className={`flex-1 overflow-y-auto py-4 ${collapsed ? 'scrollbar-hide' : ''}`}
+          className={`flex-1 overflow-y-auto py-4 bg-[#111319] dark:bg-[#0c0e14] ${collapsed && !isMobile ? 'scrollbar-hide' : ''}`}
         >
           {/* Menu Principal */}
-          <div className={collapsed ? "mb-3" : "mb-6"}>
-            {!collapsed && (
-              <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                Menu Principal
-              </div>
-            )}
-            {renderNavItems(filteredMainMenuItems)}
-          </div>
+          {renderModuleSection('main', 'Menu Principal', filteredMainMenuItems)}
 
           {/* Módulo de Gestão de E-mails */}
-          {filteredEmailItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  E-mails
-                </div>
-              )}
-              {renderNavItems(filteredEmailItems)}
-            </div>
-          )}
+          {renderModuleSection('email', 'E-mails', filteredEmailItems)}
 
           {/* Módulo de Manutenção e Frota */}
-          {filteredManutencaoItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Manutenção & Frota
-                </div>
-              )}
-              {renderNavItems(filteredManutencaoItems)}
-            </div>
-          )}
+          {renderModuleSection('manutencao', 'Manutenção & Frota', filteredManutencaoItems)}
 
           {/* Módulo de Mobilização */}
-          {filteredMobilizacaoItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Mobilização
-                </div>
-              )}
-              {renderNavItems(filteredMobilizacaoItems)}
-            </div>
-          )}
+          {renderModuleSection('mobilizacao', 'Mobilização', filteredMobilizacaoItems)}
 
           {/* Módulo de Passagens (Ticketing) */}
-          {filteredTicketingItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Gestão de Passagens
-                </div>
-              )}
-              {renderNavItems(filteredTicketingItems)}
-            </div>
-          )}
+          {renderModuleSection('ticketing', 'Gestão de Passagens', filteredTicketingItems)}
 
           {/* Módulo Financeiro */}
-          {shouldShowModule('FINANCIAL_READ') && filteredFinanceiroItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Módulo Financeiro
-                </div>
-              )}
-              {renderNavItems(filteredFinanceiroItems)}
-            </div>
-          )}
+          {shouldShowModule('FINANCIAL_READ') && renderModuleSection('financeiro', 'Módulo Financeiro', filteredFinanceiroItems)}
 
           {/* Grupo Operacional */}
-          {shouldShowModule() && filteredOperacionalItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Operacional
-                </div>
-              )}
-              {renderNavItems(filteredOperacionalItems)}
-            </div>
-          )}
+          {shouldShowModule() && renderModuleSection('operacional', 'Operacional', filteredOperacionalItems)}
 
           {/* Grupo RH */}
-          {shouldShowModule('EMPLOYEES_READ') && filteredRhItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Recursos Humanos
-                </div>
-              )}
-              {renderNavItems(filteredRhItems)}
-            </div>
-          )}
+          {shouldShowModule('EMPLOYEES_READ') && renderModuleSection('rh', 'Recursos Humanos', filteredRhItems)}
 
           {/* Grupo SST */}
-          {shouldShowModule('EMPLOYEES_READ') && filteredSstItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Segurança do Trabalho (SST)
-                </div>
-              )}
-              {renderNavItems(filteredSstItems)}
-            </div>
-          )}
+          {shouldShowModule('EMPLOYEES_READ') && renderModuleSection('sst', 'Segurança do Trabalho (SST)', filteredSstItems)}
 
           {/* Departamento Pessoal */}
-          {shouldShowModule('EMPLOYEES_READ') && filteredDepartamentoPessoalItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Departamento Pessoal
-                </div>
-              )}
-              {renderNavItems(filteredDepartamentoPessoalItems)}
-            </div>
-          )}
+          {shouldShowModule('EMPLOYEES_READ') && renderModuleSection('dp', 'Departamento Pessoal', filteredDepartamentoPessoalItems)}
 
           {/* Grupo Comercial */}
-          {shouldShowModule('COMMERCIAL_READ') && filteredComercialItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Comercial & Vendas
-                </div>
-              )}
-              {renderNavItems(filteredComercialItems)}
-            </div>
-          )}
+          {shouldShowModule('COMMERCIAL_READ') && renderModuleSection('comercial', 'Comercial & Vendas', filteredComercialItems)}
 
           {/* Grupo Estoque Simplificado */}
-          {shouldShowModule('STOCK_READ') && filteredEstoqueItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Estoque & Almoxarifado
-                </div>
-              )}
-              {renderNavItems(filteredEstoqueItems)}
-            </div>
-          )}
+          {shouldShowModule('STOCK_READ') && renderModuleSection('estoque', 'Estoque & Almoxarifado', filteredEstoqueItems)}
 
           {/* Grupo Compras */}
-          {shouldShowModule('PURCHASE_READ') && filteredComprasItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Compras & Suprimentos
-                </div>
-              )}
-              {renderNavItems(filteredComprasItems)}
-            </div>
-          )}
+          {shouldShowModule('PURCHASE_READ') && renderModuleSection('compras', 'Compras & Suprimentos', filteredComprasItems)}
 
           {/* Grupo Comunicação Interna (Unificado) */}
-          {filteredComunicacaoInternaItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Comunicação Interna
-                </div>
-              )}
-              {renderNavItems(filteredComunicacaoInternaItems)}
-            </div>
-          )}
+          {renderModuleSection('comunicacao', 'Comunicação Interna', filteredComunicacaoInternaItems)}
 
           {/* Grupo Atendimento */}
-          {shouldShowModule('ATTENDANCE_READ') && filteredAtendimentoItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Atendimento
-                </div>
-              )}
-              {renderNavItems(filteredAtendimentoItems)}
-            </div>
-          )}
+          {shouldShowModule('ATTENDANCE_READ') && renderModuleSection('atendimento', 'Atendimento', filteredAtendimentoItems)}
 
           {/* Módulo de Gestão de Tráfego */}
-          {filteredTrafegoItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Gestão de Tráfego
-                </div>
-              )}
-              {renderNavItems(filteredTrafegoItems)}
-            </div>
-          )}
+          {renderModuleSection('trafego', 'Gestão de Tráfego', filteredTrafegoItems)}
 
           {/* Módulo Fiscal */}
-          {shouldShowModule('FINANCIAL_READ') && filteredFiscalItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Módulo Fiscal
-                </div>
-              )}
-              {renderNavItems(filteredFiscalItems)}
-            </div>
-          )}
+          {shouldShowModule('FINANCIAL_READ') && renderModuleSection('fiscal', 'Módulo Fiscal', filteredFiscalItems)}
 
           {/* Módulo Sistema - SUPER_ADMIN */}
-          {user?.role === 'SUPER_ADMIN' && filteredSistemaItems.length > 0 && (
-            <div className={collapsed ? "mb-3" : "mb-6"}>
-              {!collapsed && (
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  Sistema
-                </div>
-              )}
-              {renderNavItems(filteredSistemaItems)}
-            </div>
-          )}
+          {user?.role === 'SUPER_ADMIN' && renderModuleSection('sistema', 'Sistema', filteredSistemaItems)}
         </div>
 
         {/* Footer */}
-        <div className={`border-t border-[#262626] ${collapsed ? 'p-2 flex justify-center' : 'p-4'}`}>
+        <div className={`border-t border-[#262833] bg-[#111319] dark:bg-[#0c0e14] shrink-0 ${
+          collapsed && !isMobile ? 'p-2 flex justify-center' : 'p-4'
+        } ${isMobile ? 'pb-[calc(1rem+env(safe-area-inset-bottom))]' : ''}`}>
           {user && (
-            collapsed ? (
+            collapsed && !isMobile ? (
               <div
                 className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
                 onClick={handleProfileClick}
@@ -1760,7 +1743,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                 className="flex items-center space-x-3 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors"
                 onClick={handleProfileClick}
               >
-                <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center shrink-0">
                   <User2 size={16} className="text-black" />
                 </div>
                 <div className="flex-1 min-w-0">

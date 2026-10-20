@@ -50,6 +50,20 @@ export interface Employee {
   cnhCategory?: string;
   cnhExpirationDate?: string;
   positionDescription?: string;
+  role?: string;
+  position?: { id: string; name?: string; description?: string };
+  unit?: { id: string; name?: string };
+  department?: { id: string; name?: string };
+  dependents?: Array<{
+    id?: string;
+    name: string;
+    relationship?: string;
+    birthDate?: string;
+    cpf?: string;
+    rg?: string;
+    phone?: string;
+    email?: string;
+  }>;
   ctps?: string;
   cbo?: string;
   pis?: string;
@@ -399,9 +413,6 @@ export const employeeService = {
       formData.append('file', file);
 
       const response = await api.post('/api/employees/import-pdf', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
         timeout: 180000,
       });
 

@@ -22,27 +22,32 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onToggleSidebar }) => {
     };
 
     return (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-seguranca-graphite border-t border-gray-700 z-40 pb-[env(safe-area-inset-bottom)]">
-            <div className="flex justify-around items-center h-16">
-                {items.map((item) => (
-                    <button
-                        key={item.path}
-                        onClick={() => navigate(item.path)}
-                        className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${isActive(item.path)
-                                ? 'text-seguranca-yellow'
-                                : 'text-gray-400 hover:text-seguranca-lightgray'
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#111319]/95 dark:bg-[#0c0e14]/95 backdrop-blur-md border-t border-[#262833] z-40 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+            <div className="flex justify-around items-center h-16 px-2">
+                {items.map((item) => {
+                    const active = isActive(item.path);
+                    return (
+                        <button
+                            key={item.path}
+                            onClick={() => navigate(item.path)}
+                            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all active:scale-95 ${
+                                active
+                                    ? 'text-yellow-400 font-bold'
+                                    : 'text-zinc-400 hover:text-zinc-200'
                             }`}
-                    >
-                        <item.icon size={24} strokeWidth={isActive(item.path) ? 2.5 : 2} />
-                        <span className="text-[10px] font-medium">{item.label}</span>
-                    </button>
-                ))}
+                        >
+                            <item.icon size={22} strokeWidth={active ? 2.5 : 2} />
+                            <span className="text-[11px] tracking-tight">{item.label}</span>
+                        </button>
+                    );
+                })}
                 <button
                     onClick={onToggleSidebar}
-                    className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-400 hover:text-seguranca-lightgray transition-colors"
+                    className="flex flex-col items-center justify-center w-full h-full space-y-1 text-zinc-400 hover:text-zinc-200 active:scale-95 transition-all"
+                    aria-label="Abrir Menu"
                 >
-                    <Menu size={24} />
-                    <span className="text-[10px] font-medium">Menu</span>
+                    <Menu size={22} />
+                    <span className="text-[11px] tracking-tight">Menu</span>
                 </button>
             </div>
         </nav>

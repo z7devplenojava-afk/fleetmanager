@@ -61,7 +61,14 @@ import {
   Upload
 } from 'lucide-react';
 import { caepiService } from '@/services/caepiService';
-import { stockNfeService } from '@/services/stockNfeService';
+import { 
+  stockNfeService, 
+  StockNfeParsedDTO,
+  ProcessItemPayload,
+  ProcessInstallmentPayload,
+  StockNfeProcessRequestDTO
+} from '@/services/stockNfeService';
+import { StockNfeImportModal } from './StockNfeImportModal';
 
 const CATEGORIES_WITH_SIZE = new Set<StockCategory>([
   StockCategory.UNIFORME_MOTORISTA,
@@ -231,7 +238,12 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
 
   const xmlInputRef = React.useRef<HTMLInputElement>(null);
   const handledExistingMatchRef = React.useRef<string | null>(null);
+  const formNfeItemIndexRef = React.useRef<number | null>(null);
+  const nfeFinancialProcessedRef = React.useRef<boolean>(false);
   const [loadingXml, setLoadingXml] = useState(false);
+  const [parsedNfe, setParsedNfe] = useState<StockNfeParsedDTO | null>(null);
+  const [nfeImportOpen, setNfeImportOpen] = useState(false);
+  const [linkedStockItem, setLinkedStockItem] = useState<StockItem | null>(null);
 
   const handleXmlUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -250,6 +262,8 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
     try {
       setLoadingXml(true);
       const data = await stockNfeService.parseNfe(file);
+      setParsedNfe(data);
+      nfeFinancialProcessedRef.current = false;
 
       // Atualizar dados do formulário principal
       setFormData(prev => ({
@@ -258,9 +272,11 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         supplier: data.supplierName || prev.supplier
       }));
 
-      const invoiceItems = data.items.map(it => ({
-        productCode: it.productCode || '',
+      const invoiceItems: InvoiceItem[] = data.items.map((it, idx) => ({
+        id: `nfe-${idx}-${Date.now()}`,
+        code: it.productCode || '',
         description: it.description || '',
+        unit: it.unitOfMeasure || 'UN',
         quantity: it.quantity || 1,
         unitPrice: it.unitPrice || 0,
         totalPrice: it.totalPrice || 0
@@ -284,38 +300,172 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         items: invoiceItems
       }));
 
-      // Se for novo cadastro e ainda não preencheu o nome/código, ou para somar o saldo na edição
+      // Se houver itens na nota fiscal
       if (data.items.length > 0) {
         const first = data.items[0];
+
+        // 1. Preenchimento completo do primeiro item no modal
         if (item) {
+          // Edição de item existente: soma quantidade e atualiza NF
           const nfQty = first.quantity || 0;
           if (nfQty > 0) {
+            formNfeItemIndexRef.current = 0;
             setFormData(prev => ({
               ...prev,
               currentQuantity: (item.currentQuantity || 0) + nfQty,
-              invoiceNumber: data.invoiceNumber || prev.invoiceNumber
+              invoiceNumber: data.invoiceNumber || prev.invoiceNumber,
+              supplier: data.supplierName || prev.supplier,
+              barcode: first.barcode || prev.barcode
             }));
           }
-        } else if (!formData.name || !formData.code) {
-          setFormData(prev => ({
-            ...prev,
-            name: prev.name || first.description || prev.name,
-            code: prev.code || first.productCode || prev.code,
-            unitCost: first.unitPrice || prev.unitCost,
-            currentQuantity: first.quantity || prev.currentQuantity,
-            barcode: first.barcode || prev.barcode,
-            category: (first.suggestedCategory as StockCategory) || prev.category
-          }));
-          if (first.unitPrice) {
-            setUnitCostDisplay(formatCurrencyFromNumber(first.unitPrice));
+        } else {
+          // Novo cadastro de item: verifica se já tem correspondência no estoque
+          let targetItem: StockItem | null = null;
+          if (first.matchedStockItemId) {
+            targetItem = (existingItems && existingItems.length > 0 ? existingItems : allItems)
+              .find(it => it.id === first.matchedStockItemId) || null;
+            if (!targetItem) {
+              try {
+                targetItem = await stockService.getItemById(first.matchedStockItemId);
+              } catch (e) {
+                console.warn('Não foi possível carregar o item de estoque correspondente à NF:', e);
+              }
+            }
+          }
+
+          if (targetItem) {
+            setLinkedStockItem(targetItem);
+            formNfeItemIndexRef.current = 0;
+            const nfQty = first.quantity || 0;
+            setFormData(prev => ({
+              ...prev,
+              code: targetItem!.code || first.productCode || prev.code,
+              name: targetItem!.name || first.description || prev.name,
+              category: targetItem!.category || (first.suggestedCategory as StockCategory) || prev.category,
+              sizeVariation: targetItem!.sizeVariation || prev.sizeVariation,
+              description: targetItem!.description || first.description || prev.description,
+              currentQuantity: (targetItem!.currentQuantity || 0) + nfQty,
+              minimumQuantity: targetItem!.minimumQuantity ?? prev.minimumQuantity,
+              unitCost: first.unitPrice || targetItem!.unitCost || prev.unitCost,
+              averageCost: targetItem!.averageCost || first.unitPrice || prev.averageCost,
+              supplier: data.supplierName || targetItem!.supplier || prev.supplier,
+              invoiceNumber: data.invoiceNumber || prev.invoiceNumber,
+              barcode: first.barcode || targetItem!.barcode || prev.barcode,
+              caNumber: targetItem!.caNumber || prev.caNumber,
+              caValidity: targetItem!.caValidity || prev.caValidity,
+              manufacturer: targetItem!.manufacturer || prev.manufacturer
+            }));
+            if (first.unitPrice) {
+              setUnitCostDisplay(formatCurrencyFromNumber(first.unitPrice));
+              setAverageCostDisplay(formatCurrencyFromNumber(targetItem.averageCost || first.unitPrice));
+            }
+            toast({
+              title: 'Item já cadastrado no estoque',
+              description: `"${targetItem.name}" será atualizado com a quantidade da NF (saldo: ${targetItem.currentQuantity} + ${nfQty}).`
+            });
+          } else {
+            // Item novo sem correspondência: preenche TODOS os campos do modal
+            setLinkedStockItem(null);
+            formNfeItemIndexRef.current = 0;
+            const cat = (first.suggestedCategory as StockCategory) || StockCategory.PECAS_MECANICA;
+            const autoCode = first.productCode || generateStockCode(first.description, cat) || (data.invoiceNumber ? `NF${data.invoiceNumber}-1` : '');
+
+            setFormData(prev => ({
+              ...prev,
+              name: first.description || prev.name,
+              code: autoCode || prev.code,
+              category: cat,
+              description: first.description || prev.description,
+              currentQuantity: first.quantity || 1,
+              minimumQuantity: prev.minimumQuantity ?? 0,
+              unitCost: first.unitPrice || prev.unitCost,
+              averageCost: first.unitPrice || prev.averageCost,
+              supplier: data.supplierName || prev.supplier,
+              invoiceNumber: data.invoiceNumber || prev.invoiceNumber,
+              barcode: first.barcode || prev.barcode
+            }));
+
+            if (first.unitPrice) {
+              setUnitCostDisplay(formatCurrencyFromNumber(first.unitPrice));
+              setAverageCostDisplay(formatCurrencyFromNumber(first.unitPrice));
+            }
           }
         }
-      }
 
-      toast({
-        title: 'NF-e importada com sucesso!',
-        description: `NF-e nº ${data.invoiceNumber} (${data.supplierName}) carregada com ${data.items.length} item(ns) e ${data.installments.length} parcela(s).`
-      });
+        // 2. Se houver mais de 1 item na nota, cadastrar os demais itens conforme regra de negócio
+        if (data.items.length > 1) {
+          const otherItems = data.items.slice(1);
+          const itemsToProcess: ProcessItemPayload[] = otherItems.map((it, idx) => {
+            const hasMatch = !!it.matchedStockItemId;
+            const itemCat = (it.suggestedCategory as StockCategory) || StockCategory.PECAS_MECANICA;
+            const fallbackCode = it.productCode || generateStockCode(it.description, itemCat) || `NF${data.invoiceNumber || '0'}-${idx + 2}`;
+            return {
+              action: hasMatch ? 'LINK_EXISTING' : 'CREATE_NEW',
+              stockItemId: it.matchedStockItemId || undefined,
+              code: fallbackCode,
+              name: it.description || `Item ${idx + 2}`,
+              category: itemCat,
+              quantity: it.quantity || 1,
+              unitCost: it.unitPrice || 0,
+              unitName: it.unitOfMeasure || 'UN',
+              barcode: it.barcode || '',
+              description: `Importado via NF-e ${data.invoiceNumber || ''}`
+            };
+          });
+
+          const installmentsPayload: ProcessInstallmentPayload[] = (data.installments || []).map(inst => ({
+            installmentNumber: inst.installmentNumber,
+            dueDate: inst.dueDate,
+            amount: inst.amount,
+            barcode: inst.barcode,
+            notes: `NF ${data.invoiceNumber} - Parcela ${inst.installmentNumber}`
+          }));
+
+          const processPayload: StockNfeProcessRequestDTO = {
+            accessKey: data.accessKey,
+            invoiceNumber: data.invoiceNumber,
+            series: data.series,
+            issueDate: data.issueDate,
+            totalAmount: data.totalInvoiceAmount,
+            supplierCnpj: data.supplierCnpj,
+            supplierName: data.supplierName,
+            supplierTradeName: data.supplierTradeName,
+            supplierAddress: data.supplierAddress,
+            supplierCity: data.supplierCity,
+            supplierState: data.supplierState,
+            supplierZipCode: data.supplierZipCode,
+            supplierPhone: data.supplierPhone,
+            supplierEmail: data.supplierEmail,
+            supplierId: data.existingSupplierId,
+            createFinancialAccounts: true,
+            items: itemsToProcess,
+            installments: installmentsPayload
+          };
+
+          try {
+            await stockNfeService.processNfe(processPayload);
+            nfeFinancialProcessedRef.current = true;
+            window.dispatchEvent(new CustomEvent('stock-data-changed'));
+            toast({
+              title: 'NF-e importada com sucesso!',
+              description: `1º item ("${first.description}") preenchido na tela. Os demais ${otherItems.length} item(ns) da nota e as parcelas no financeiro foram cadastrados automaticamente!`
+            });
+          } catch (batchErr: any) {
+            console.error('Erro ao processar itens em lote da NF:', batchErr);
+            toast({
+              title: 'Aviso na importação',
+              description: 'O 1º item foi preenchido na tela, mas houve erro ao cadastrar os demais itens: ' + (batchErr.response?.data?.message || batchErr.message),
+              variant: 'destructive'
+            });
+          }
+        } else {
+          // NF com apenas 1 item
+          toast({
+            title: 'NF-e importada com sucesso!',
+            description: `Dados do item "${first.description}" preenchidos. Revise os campos e clique em Salvar.`
+          });
+        }
+      }
     } catch (err: any) {
       toast({
         title: 'Erro ao ler a NF-e',
@@ -455,6 +605,11 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
   useEffect(() => {
     if (open) {
       handledExistingMatchRef.current = null;
+      formNfeItemIndexRef.current = null;
+      nfeFinancialProcessedRef.current = false;
+      setParsedNfe(null);
+      setNfeImportOpen(false);
+      setLinkedStockItem(null);
       if (!existingItems || existingItems.length === 0) {
         stockService.getAllItems()
           .then(data => setAllItems(Array.isArray(data) ? data : []))
@@ -641,6 +796,30 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
     }
   };
 
+  const excludedNfeItemIndexes = useMemo(() => {
+    if (!parsedNfe) return [] as number[];
+    const index = formNfeItemIndexRef.current;
+    if (index != null) return [index];
+    const code = (formData.code || '').trim().toLowerCase();
+    const name = (formData.name || '').trim().toLowerCase();
+    const indexes = new Set<number>();
+    parsedNfe.items
+      .map((it, idx) => ({ it, idx }))
+      .forEach(({ it, idx }) => {
+        if (
+          (code && (it.productCode || '').trim().toLowerCase() === code) ||
+          (name && (it.description || '').trim().toLowerCase() === name)
+        ) {
+          indexes.add(idx);
+        }
+      });
+    return Array.from(indexes);
+  }, [parsedNfe, formData.code, formData.name]);
+
+  const remainingNfeItemsCount = parsedNfe
+    ? parsedNfe.items.length - excludedNfeItemIndexes.length
+    : 0;
+
   const allAvailableSuppliers = useMemo(() => {
     const list = [...suppliers];
     const knownNames = new Set(list.map(s => s.name.toLowerCase().trim()));
@@ -656,8 +835,18 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         } as Supplier);
       }
     });
+    const nfeSupplier = parsedNfe?.supplierName?.trim();
+    if (nfeSupplier && !knownNames.has(nfeSupplier.toLowerCase())) {
+      knownNames.add(nfeSupplier.toLowerCase());
+      list.push({
+        id: parsedNfe?.existingSupplierId || 'nfe-sup-' + nfeSupplier,
+        name: nfeSupplier,
+        cnpj: parsedNfe?.supplierCnpj || '',
+        isActive: true
+      } as Supplier);
+    }
     return list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-  }, [suppliers, existingItems, allItems]);
+  }, [suppliers, existingItems, allItems, parsedNfe]);
 
   const filteredSuppliers = useMemo(() => {
     if (!supplierSearchTerm) {
@@ -780,12 +969,57 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
           title: 'Sucesso!',
           description: 'Item atualizado com sucesso.',
         });
+      } else if (linkedStockItem) {
+        await stockService.updateItem(linkedStockItem.id, dataToSend);
+        toast({
+          title: 'Sucesso!',
+          description: `Estoque de "${linkedStockItem.name}" atualizado (quantidade somada).`,
+        });
       } else {
         await stockService.createItem(dataToSend);
         toast({
           title: 'Sucesso!',
           description: 'Item criado com sucesso.',
         });
+      }
+
+      // Se a nota fiscal possuir parcelas e ainda não tiver criado no financeiro (ex.: NF de 1 item)
+      if (parsedNfe && !nfeFinancialProcessedRef.current && (parsedNfe.installments?.length || 0) > 0) {
+        try {
+          const installmentsPayload: ProcessInstallmentPayload[] = (parsedNfe.installments || []).map(inst => ({
+            installmentNumber: inst.installmentNumber,
+            dueDate: inst.dueDate,
+            amount: inst.amount,
+            barcode: inst.barcode,
+            notes: `NF ${parsedNfe.invoiceNumber} - Parcela ${inst.installmentNumber}`
+          }));
+
+          const finPayload: StockNfeProcessRequestDTO = {
+            accessKey: parsedNfe.accessKey,
+            invoiceNumber: parsedNfe.invoiceNumber,
+            series: parsedNfe.series,
+            issueDate: parsedNfe.issueDate,
+            totalAmount: parsedNfe.totalInvoiceAmount,
+            supplierCnpj: parsedNfe.supplierCnpj,
+            supplierName: parsedNfe.supplierName,
+            supplierTradeName: parsedNfe.supplierTradeName,
+            supplierAddress: parsedNfe.supplierAddress,
+            supplierCity: parsedNfe.supplierCity,
+            supplierState: parsedNfe.supplierState,
+            supplierZipCode: parsedNfe.supplierZipCode,
+            supplierPhone: parsedNfe.supplierPhone,
+            supplierEmail: parsedNfe.supplierEmail,
+            supplierId: parsedNfe.existingSupplierId,
+            createFinancialAccounts: true,
+            items: [], // Item já foi salvo no estoque pelo fluxo acima
+            installments: installmentsPayload
+          };
+
+          await stockNfeService.processNfe(finPayload);
+          nfeFinancialProcessedRef.current = true;
+        } catch (finErr) {
+          console.warn('Aviso: Não foi possível gerar automaticamente as parcelas no financeiro:', finErr);
+        }
       }
       
       window.dispatchEvent(new CustomEvent('stock-data-changed'));
@@ -1545,6 +1779,18 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                       <Plus className="h-3 w-3 mr-1" />
                       Puxar dados do item atual
                     </Button>
+                    {remainingNfeItemsCount > 0 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setNfeImportOpen(true)}
+                        className="h-7 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white px-2"
+                        title="Cadastrar no estoque os demais itens encontrados na nota fiscal"
+                      >
+                        <Package className="h-3 w-3 mr-1" />
+                        Cadastrar {remainingNfeItemsCount} {remainingNfeItemsCount === 1 ? 'item restante' : 'itens restantes'} no estoque
+                      </Button>
+                    )}
                   </div>
 
                   {/* Form de Adição de Item na NF */}
@@ -1627,11 +1873,15 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                             <th className="py-1.5 px-2 w-14 text-center">Qtd</th>
                             <th className="py-1.5 px-2 w-20 text-right">Unitário</th>
                             <th className="py-1.5 px-2 w-24 text-right">Total</th>
+                            <th className="py-1.5 px-2 w-24 text-center">Estoque</th>
                             <th className="py-1.5 px-2 w-10 text-center"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-700/60">
-                          {invoiceData.items.map((it) => (
+                          {invoiceData.items.map((it, idx) => {
+                            const nfeItem = parsedNfe?.items?.[idx];
+                            const matchedId = nfeItem?.matchedStockItemId;
+                            return (
                             <tr key={it.id} className="hover:bg-seguranca-black/40">
                               <td className="py-1.5 px-2 font-mono text-gray-400">{it.code || '—'}</td>
                               <td className="py-1.5 px-2 font-medium text-white">{it.description}</td>
@@ -1644,6 +1894,25 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                                 R$ {it.totalPrice.toFixed(2)}
                               </td>
                               <td className="py-1.5 px-2 text-center">
+                                {matchedId ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-amber-500/40 text-amber-300 bg-amber-500/10 text-[10px] px-1.5 py-0"
+                                    title="Este produto já existe no estoque: a quantidade será somada ao saldo atual."
+                                  >
+                                    Existe +{it.quantity}
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-emerald-500/40 text-emerald-300 bg-emerald-500/10 text-[10px] px-1.5 py-0"
+                                    title="Produto não encontrado no estoque: será cadastrado."
+                                  >
+                                    Novo
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="py-1.5 px-2 text-center">
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveInvoiceItem(it.id)}
@@ -1654,7 +1923,8 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                                 </button>
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                         <tfoot className="bg-seguranca-black/90 border-t border-gray-700">
                           <tr>
@@ -1664,6 +1934,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                             <td className="py-2 px-2 text-right font-bold text-emerald-400 text-xs">
                               R$ {invoiceData.items.reduce((acc, curr) => acc + curr.totalPrice, 0).toFixed(2)}
                             </td>
+                            <td></td>
                             <td></td>
                           </tr>
                         </tfoot>
@@ -1777,7 +2048,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                 disabled={loading}
                 className="bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red shadow-lg shadow-seguranca-red/20 px-4 sm:px-6 h-10 sm:h-11 text-sm sm:text-base order-1 sm:order-2"
               >
-                {loading ? 'Salvando...' : (item ? 'Atualizar' : 'Criar Item')}
+                {loading ? 'Salvando...' : (item || linkedStockItem ? 'Atualizar' : 'Criar Item')}
               </Button>
             </div>
           </form>
@@ -1790,6 +2061,19 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         onClose={() => setIsSupplierModalOpen(false)}
         supplier={null}
         onSave={handleSupplierSave}
+      />
+
+      {/* Modal de Importação dos demais itens da NF-e para o estoque */}
+      <StockNfeImportModal
+        open={nfeImportOpen}
+        onOpenChange={setNfeImportOpen}
+        initialData={parsedNfe}
+        excludeItemIndexes={excludedNfeItemIndexes}
+        itemsOnly
+        onSuccess={() => {
+          window.dispatchEvent(new CustomEvent('stock-data-changed'));
+          onSave();
+        }}
       />
 
       {/* Modal de Impressão de Etiquetas Pimaco */}

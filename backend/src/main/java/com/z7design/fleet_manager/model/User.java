@@ -163,6 +163,29 @@ public class User implements UserDetails, TenantAware {
     @Builder.Default
     private Boolean requirePasswordChange = false;
 
+    // ===== CAMPOS DE BLOQUEIO DE CONTA (por tempo) =====
+
+    /** Usuário bloqueado por decisão do Administrador (permanente se blockedUntil for nulo) */
+    @Column(name = "blocked")
+    @Builder.Default
+    private Boolean blocked = false;
+
+    /** Data/hora até quando permanece bloqueado (nulo = bloqueado indefinidamente) */
+    @Column(name = "blocked_until")
+    private LocalDateTime blockedUntil;
+
+    /** Quando o bloqueio foi aplicado */
+    @Column(name = "blocked_at")
+    private LocalDateTime blockedAt;
+
+    /** Quem aplicou o bloqueio */
+    @Column(name = "blocked_by", length = 100)
+    private String blockedBy;
+
+    /** Motivo/descrição do bloqueio */
+    @Column(name = "blocked_reason", length = 500)
+    private String blockedReason;
+
     @Column(name = "last_password_change")
     private LocalDateTime lastPasswordChange;
 
@@ -327,7 +350,14 @@ public class User implements UserDetails, TenantAware {
 
     @Override
     public boolean isAccountNonLocked() {
-        return status != UserStatus.BLOCKED;
+        if (!isEnabled() || status == UserStatus.BLOCKED) {
+            return false;
+        }
+        // O bloqueio administrativo (por tempo/permanente) é validado nas camadas
+        // de login e JWT com mensagem amigável em português para o usuário buscar
+        // o Administrador do sistema. Aqui retorna true para que a senha ainda
+        // seja verificada e a mensagem de bloqueio adequada seja devolvida.
+        return true;
     }
 
     @Override

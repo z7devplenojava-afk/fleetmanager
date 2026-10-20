@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Trash2, Trash2Icon, Edit3, Download, FileText, Eye, Building2, Car, X, Check, Filter, Fuel, Search, ChevronsUpDown } from 'lucide-react';
+import { Edit, Trash2, Trash2Icon, Edit3, Download, FileText, Eye, Building2, Car, X, Check, Filter, Fuel, Search, ChevronsUpDown, Calendar, User, Gauge, MapPin, DollarSign, Info } from 'lucide-react';
 import { FuelRecord } from '@/types/fleet';
 import { format } from 'date-fns';
 import AbastecimentoEditModal from './AbastecimentoEditModal';
@@ -917,225 +917,304 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
       {/* Modal de Visualização */}
       {viewingAbastecimento && isViewModalOpen && createPortal(
         <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[99999] transition-opacity duration-200"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[99999] p-3 sm:p-4 overflow-y-auto transition-opacity duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               handleViewClose();
             }
           }}
         >
-          <div 
-            className="bg-seguranca-graphite border border-gray-600 rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl relative animate-in fade-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-600">
-              <h3 className="text-xl font-semibold text-seguranca-lightgray flex items-center gap-2">
-                <Eye className="h-5 w-5 text-blue-500" />
-                Detalhes do Abastecimento
-              </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleViewClose}
-                className="border-gray-600 text-gray-400 hover:bg-gray-700"
-              >
-                ✕
-              </Button>
-            </div>
+          {(() => {
+            const matchedVehicle = veiculos.find(v => 
+              (v.id && viewingAbastecimento.vehicleId && v.id === viewingAbastecimento.vehicleId) ||
+              (getVehiclePlate(v) && viewingAbastecimento.vehiclePlate && getVehiclePlate(v).toUpperCase() === viewingAbastecimento.vehiclePlate.toUpperCase())
+            );
 
-            <div className="space-y-6">
-              {/* Cabeçalho com Informações Principais */}
-              <div className="bg-seguranca-black/30 rounded-lg p-4 border border-gray-600">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            const lastFuelRecord = abastecimentos
+              .filter(record => record.vehicleId === viewingAbastecimento.vehicleId && record.id !== viewingAbastecimento.id)
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+            const initialKm = viewingAbastecimento.initialMileage || (lastFuelRecord?.mileage ?? null);
+            const currentKm = viewingAbastecimento.mileage;
+            const diffKm = (currentKm && initialKm && currentKm > initialKm) ? currentKm - initialKm : null;
+
+            const fuelType = (viewingAbastecimento.fuelType || '').toUpperCase();
+            const fuelLabel = 
+              fuelType === 'GASOLINE' || fuelType === 'GASOLINA' ? 'Gasolina' :
+              fuelType === 'ETHANOL' || fuelType === 'ETANOL' ? 'Etanol' :
+              fuelType === 'DIESEL' ? 'Diesel' :
+              fuelType === 'FLEX' ? 'Flex' :
+              viewingAbastecimento.fuelType || 'Não informado';
+
+            const fuelBadgeClass = 
+              fuelType === 'DIESEL' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
+              fuelType === 'GASOLINE' || fuelType === 'GASOLINA' ? 'bg-blue-500/15 text-blue-400 border-blue-500/30' :
+              fuelType === 'ETHANOL' || fuelType === 'ETANOL' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' :
+              fuelType === 'FLEX' ? 'bg-purple-500/15 text-purple-400 border-purple-500/30' :
+              'bg-gray-800 text-gray-300 border-gray-700';
+
+            return (
+              <div 
+                className="bg-[#111319] border border-[#272b38] rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl relative my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-[#272b38] bg-[#161922] shrink-0">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-seguranca-yellow/20 rounded-lg flex items-center justify-center">
-                      <span className="text-2xl">🚗</span>
+                    <div className="h-10 w-10 rounded-xl bg-blue-500/15 border border-blue-500/25 flex items-center justify-center text-blue-400 flex-none">
+                      <Eye className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-400">Veículo</p>
-                      <p className="text-lg font-semibold text-seguranca-yellow">{viewingAbastecimento.vehiclePlate}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                      <span className="text-2xl">⛽</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-400">Combustível</p>
-                      <p className="text-lg font-semibold text-blue-400 capitalize">
-                        {viewingAbastecimento.fuelType?.toLowerCase() === 'gasoline' ? 'Gasolina' :
-                          viewingAbastecimento.fuelType?.toLowerCase() === 'ethanol' ? 'Etanol' :
-                            viewingAbastecimento.fuelType?.toLowerCase() === 'diesel' ? 'Diesel' :
-                              viewingAbastecimento.fuelType?.toLowerCase() === 'flex' ? 'Flex' :
-                                viewingAbastecimento.fuelType || 'Não informado'}
+                      <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                        Detalhes do Abastecimento
+                      </h3>
+                      <p className="text-xs text-gray-400">
+                        {viewingAbastecimento.date ? format(new Date(viewingAbastecimento.date), 'dd/MM/yyyy') : ''}
+                        {viewingAbastecimento.station ? ` • ${viewingAbastecimento.station}` : ''}
                       </p>
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleViewClose}
+                    className="h-8 w-8 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
+                    title="Fechar"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
-              </div>
 
-              {/* Informações Detalhadas */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Coluna Esquerda */}
-                <div className="space-y-4">
-                  <div className="bg-seguranca-black/20 rounded-lg p-4 border border-gray-600">
-                    <h4 className="text-sm font-semibold text-seguranca-yellow mb-3 uppercase tracking-wide">Informações Básicas</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Data:</span>
-                        <span className="text-seguranca-lightgray font-medium">{format(new Date(viewingAbastecimento.date), 'dd/MM/yyyy')}</span>
+                {/* Body (scrollable) */}
+                <div className="overflow-y-auto p-4 sm:p-6 space-y-4">
+                  {/* Veículo & Combustível Banner */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 sm:p-4 rounded-xl bg-[#161922] border border-[#272b38]">
+                    {/* Veículo */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-11 w-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-none text-blue-400">
+                        <Car className="h-5 w-5" />
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Motorista:</span>
-                        <span className="text-seguranca-lightgray font-medium">
-                          {(() => {
-                            console.log('🔍 Motorista:', viewingAbastecimento.driver);
-                            if (viewingAbastecimento.driver && viewingAbastecimento.driver.name) {
-                              const driverName = viewingAbastecimento.driver.name.trim();
-                              const driverDoc = viewingAbastecimento.driver.document ? viewingAbastecimento.driver.document.trim() : '';
-                              if (driverDoc) {
-                                return `${driverName} (${driverDoc})`;
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Veículo</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="font-mono font-bold text-sm tracking-wider px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-yellow-400 shadow-sm">
+                            {viewingAbastecimento.vehiclePlate || 'Sem placa'}
+                          </span>
+                          {matchedVehicle && (
+                            <span className="text-xs text-gray-300 truncate font-medium">
+                              {matchedVehicle.marca} {matchedVehicle.modelo}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Combustível */}
+                    <div className="flex items-center gap-3 min-w-0 border-t sm:border-t-0 sm:border-l border-[#272b38] pt-2.5 sm:pt-0 sm:pl-3">
+                      <div className="h-11 w-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-none text-amber-400">
+                        <Fuel className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Combustível</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-sm font-semibold text-white">
+                            {fuelLabel}
+                          </span>
+                          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${fuelBadgeClass}`}>
+                            {fuelType || 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4 Cards de Informação */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {/* Informações Básicas */}
+                    <div className="bg-[#161922] rounded-xl p-4 border border-[#272b38] flex flex-col justify-between">
+                      <div className="flex items-center gap-2 pb-2.5 mb-3 border-b border-[#272b38]">
+                        <Calendar className="h-4 w-4 text-blue-400 flex-none" />
+                        <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">Informações Básicas</h4>
+                      </div>
+                      <div className="space-y-2.5 text-xs">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-gray-400">Data:</span>
+                          <span className="text-gray-200 font-medium">{viewingAbastecimento.date ? format(new Date(viewingAbastecimento.date), 'dd/MM/yyyy') : '—'}</span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-gray-400">Motorista:</span>
+                          <span className="text-gray-200 font-medium text-right truncate">
+                            {viewingAbastecimento.driver?.name?.trim() ? (
+                              viewingAbastecimento.driver.document ? (
+                                `${viewingAbastecimento.driver.name.trim()} (${viewingAbastecimento.driver.document.trim()})`
+                              ) : (
+                                viewingAbastecimento.driver.name.trim()
+                              )
+                            ) : (
+                              <span className="text-gray-500 italic">Não informado</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-gray-400">Posto:</span>
+                          <span className="text-gray-200 font-medium text-right truncate">
+                            {viewingAbastecimento.station || viewingAbastecimento.supplierName || 'Não informado'}
+                          </span>
+                        </div>
+                        {(viewingAbastecimento.clientName || viewingAbastecimento.obraName) && (
+                          <>
+                            {viewingAbastecimento.clientName && (
+                              <div className="flex justify-between items-center gap-2">
+                                <span className="text-gray-400">Cliente:</span>
+                                <span className="text-gray-200 font-medium text-right truncate">{viewingAbastecimento.clientName}</span>
+                              </div>
+                            )}
+                            {viewingAbastecimento.obraName && (
+                              <div className="flex justify-between items-center gap-2">
+                                <span className="text-gray-400">Obra/Setor:</span>
+                                <span className="text-gray-200 font-medium text-right truncate">{viewingAbastecimento.obraName}</span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Dados Financeiros */}
+                    <div className="bg-[#161922] rounded-xl p-4 border border-[#272b38] flex flex-col justify-between">
+                      <div className="flex items-center gap-2 pb-2.5 mb-3 border-b border-[#272b38]">
+                        <DollarSign className="h-4 w-4 text-emerald-400 flex-none" />
+                        <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">Dados Financeiros</h4>
+                      </div>
+                      <div className="space-y-2.5 text-xs">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-gray-400">Litros:</span>
+                          <span className="text-blue-400 font-mono font-semibold">
+                            {viewingAbastecimento.quantity ? `${viewingAbastecimento.quantity.toFixed(2)} L` : 'Não informado'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-gray-400">Valor por Litro:</span>
+                          <span className="text-gray-200 font-mono font-medium">
+                            {viewingAbastecimento.quantity && viewingAbastecimento.cost
+                              ? `R$ ${(viewingAbastecimento.cost / viewingAbastecimento.quantity).toFixed(2).replace('.', ',')}`
+                              : (viewingAbastecimento.pricePerLiter ? `R$ ${viewingAbastecimento.pricePerLiter.toFixed(2).replace('.', ',')}` : 'Não informado')}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2 pt-1 border-t border-[#272b38]">
+                          <span className="text-gray-400 font-medium">Valor Total:</span>
+                          <span className="text-emerald-400 font-mono font-bold text-base">
+                            {viewingAbastecimento.cost ? `R$ ${viewingAbastecimento.cost.toFixed(2).replace('.', ',')}` : 'Não informado'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quilometragem */}
+                    <div className="bg-[#161922] rounded-xl p-4 border border-[#272b38] flex flex-col justify-between">
+                      <div className="flex items-center gap-2 pb-2.5 mb-3 border-b border-[#272b38]">
+                        <Gauge className="h-4 w-4 text-amber-400 flex-none" />
+                        <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">Quilometragem</h4>
+                      </div>
+                      <div className="space-y-2.5 text-xs">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-gray-400">KM Anterior:</span>
+                          <span className="text-gray-200 font-mono">
+                            {initialKm !== null && initialKm !== undefined && initialKm > 0
+                              ? `${initialKm.toLocaleString('pt-BR')} km`
+                              : 'Primeiro abastecimento'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-gray-400">KM no Abastecimento:</span>
+                          <span className="text-yellow-400 font-mono font-bold">
+                            {currentKm !== null && currentKm !== undefined && currentKm > 0
+                              ? `${currentKm.toLocaleString('pt-BR')} km`
+                              : 'Não informado'}
+                          </span>
+                        </div>
+                        {diffKm !== null && (
+                          <div className="flex justify-between items-center gap-2 pt-1 border-t border-[#272b38]">
+                            <span className="text-gray-400">Distância percorrida:</span>
+                            <span className="text-blue-400 font-mono font-semibold">
+                              +{diffKm.toLocaleString('pt-BR')} km
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Informações Adicionais */}
+                    <div className="bg-[#161922] rounded-xl p-4 border border-[#272b38] flex flex-col justify-between">
+                      <div className="flex items-center gap-2 pb-2.5 mb-3 border-b border-[#272b38]">
+                        <Info className="h-4 w-4 text-purple-400 flex-none" />
+                        <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">Informações Adicionais</h4>
+                      </div>
+                      <div className="space-y-2.5 text-xs">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-gray-400 shrink-0">Data de Registro:</span>
+                          <span className="text-gray-200 font-medium">
+                            {(() => {
+                              if (!viewingAbastecimento.createdAt) return 'Não informado';
+                              try {
+                                const d = new Date(viewingAbastecimento.createdAt);
+                                return isNaN(d.getTime()) ? 'Não informado' : format(d, 'dd/MM/yyyy HH:mm');
+                              } catch {
+                                return 'Não informado';
                               }
-                              return driverName;
-                            }
-                            return <span className="text-gray-400 italic">Não informado</span>;
-                          })()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Posto:</span>
-                        <span className="text-seguranca-lightgray font-medium">{viewingAbastecimento.station || 'Não informado'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-seguranca-black/20 rounded-lg p-4 border border-gray-600">
-                    <h4 className="text-sm font-semibold text-blue-400 mb-3 uppercase tracking-wide">Quilometragem</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Km Anterior:</span>
-                        <span className="text-seguranca-lightgray font-mono">
-                          {(() => {
-                            // Buscar o último abastecimento do mesmo veículo
-                            const lastFuelRecord = abastecimentos
-                              .filter(record => record.vehicleId === viewingAbastecimento.vehicleId && record.id !== viewingAbastecimento.id)
-                              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-
-                            if (lastFuelRecord && lastFuelRecord.mileage !== null && lastFuelRecord.mileage !== undefined && lastFuelRecord.mileage > 0) {
-                              return lastFuelRecord.mileage.toLocaleString() + ' km';
-                            }
-                            return 'Primeiro abastecimento';
-                          })()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Quilometragem:</span>
-                        <span className="text-seguranca-lightgray font-mono">
-                          {(() => {
-                            console.log('🔍 Quilometragem:', viewingAbastecimento.mileage, 'tipo:', typeof viewingAbastecimento.mileage);
-                            if (viewingAbastecimento.mileage !== null && viewingAbastecimento.mileage !== undefined && viewingAbastecimento.mileage > 0) {
-                              return viewingAbastecimento.mileage.toLocaleString() + ' km';
-                            }
-                            return 'Não informado';
-                          })()}
-                        </span>
+                            })()}
+                          </span>
+                        </div>
+                        <div className="pt-1">
+                          <span className="text-gray-400 block mb-1">Observações:</span>
+                          <p className="text-gray-300 font-normal bg-zinc-900/60 rounded-md p-2 border border-zinc-800 text-[11px] leading-relaxed break-words">
+                            {viewingAbastecimento.notes || 'Nenhuma observação registrada.'}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Coluna Direita */}
-                <div className="space-y-4">
-                  <div className="bg-seguranca-black/20 rounded-lg p-4 border border-gray-600">
-                    <h4 className="text-sm font-semibold text-green-400 mb-3 uppercase tracking-wide">Dados Financeiros</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Litros:</span>
-                        <span className="text-seguranca-lightgray font-mono font-semibold text-blue-400">
-                          {viewingAbastecimento.quantity ? viewingAbastecimento.quantity.toFixed(2) + ' L' : 'Não informado'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Valor por Litro:</span>
-                        <span className="text-seguranca-lightgray font-mono font-semibold text-green-400">
-                          {viewingAbastecimento.quantity && viewingAbastecimento.cost ?
-                            'R$ ' + (viewingAbastecimento.cost / viewingAbastecimento.quantity).toFixed(2).replace('.', ',') : 'Não informado'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Valor Total:</span>
-                        <span className="text-seguranca-lightgray font-mono font-semibold text-seguranca-yellow text-lg">
-                          {viewingAbastecimento.cost ? 'R$ ' + viewingAbastecimento.cost.toFixed(2).replace('.', ',') : 'Não informado'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-seguranca-black/20 rounded-lg p-4 border border-gray-600">
-                    <h4 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wide">Informações Adicionais</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Observações:</span>
-                        <span className="text-seguranca-lightgray font-medium max-w-[200px] text-right">
-                          {viewingAbastecimento.notes || 'Nenhuma observação'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Data de Criação:</span>
-                        <span className="text-seguranca-lightgray font-medium">
-                          {(() => {
-                            if (!viewingAbastecimento.createdAt) return 'Não informado';
-                            try {
-                              const date = new Date(viewingAbastecimento.createdAt);
-                              if (isNaN(date.getTime())) return 'Data inválida';
-                              return format(date, 'dd/MM/yyyy HH:mm');
-                            } catch (error) {
-                              console.warn('Erro ao formatar data:', viewingAbastecimento.createdAt, error);
-                              return 'Data inválida';
-                            }
-                          })()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                {/* Footer */}
+                <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-2.5 px-4 sm:px-6 py-3.5 border-t border-[#272b38] bg-[#161922] shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleViewClose}
+                    className="w-full sm:w-auto h-10 sm:h-9 border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+                  >
+                    Fechar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      handleViewClose();
+                      handleDelete(viewingAbastecimento);
+                    }}
+                    className="w-full sm:w-auto h-10 sm:h-9 border-red-500/40 text-red-400 hover:bg-red-500/10 hover:border-red-500"
+                    title="Excluir abastecimento"
+                  >
+                    <Trash2 size={15} className="mr-1.5" />
+                    Excluir
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      handleViewClose();
+                      handleEdit(viewingAbastecimento);
+                    }}
+                    className="w-full sm:w-auto h-10 sm:h-9 bg-seguranca-red hover:bg-seguranca-darkred text-white"
+                    title="Editar abastecimento"
+                  >
+                    <Edit size={15} className="mr-1.5" />
+                    Editar
+                  </Button>
                 </div>
               </div>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-600">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  handleViewClose();
-                  handleEdit(viewingAbastecimento);
-                }}
-                className="border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-white"
-                title="Editar abastecimento"
-              >
-                <Edit size={16} className="mr-2" />
-                Editar
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  handleViewClose();
-                  handleDelete(viewingAbastecimento);
-                }}
-                className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-                title="Excluir abastecimento"
-              >
-                <Trash2 size={16} className="mr-2" />
-                Excluir
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleViewClose}
-                className="border-gray-600 text-gray-400 hover:bg-gray-700"
-              >
-                Fechar
-              </Button>
-            </div>
-          </div>
+            );
+          })()}
         </div>,
         document.body
       )}

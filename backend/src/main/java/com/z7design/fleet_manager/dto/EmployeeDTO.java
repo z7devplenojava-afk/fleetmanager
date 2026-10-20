@@ -288,6 +288,7 @@ public class EmployeeDTO {
      */
     private IdOnlyDTO user;
     private PositionDTO position;
+    private String positionDescription;
     private UnitDTO unit;
     private IdOnlyDTO company;
 

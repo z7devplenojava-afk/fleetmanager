@@ -11,6 +11,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -217,6 +218,25 @@ public class FleetWorkOrder implements TenantAware {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    // ── Execução do Serviço ──────────────────────────────────────────
+    /** Data/hora em que o serviço foi efetivamente iniciado (preenchido automaticamente ao entregar itens do almoxarifado) */
+    @Column(name = "execution_start_date")
+    private LocalDateTime executionStartDate;
+
+    /** Data/hora em que o serviço foi concluído */
+    @Column(name = "execution_end_date")
+    private LocalDateTime executionEndDate;
+
+    /** Duração calculada automaticamente em minutos (start → end) */
+    @Column(name = "execution_duration_minutes")
+    private Long executionDurationMinutes;
+
+    /** Justificativa informada quando o início da execução é corrigido manualmente */
+    @Column(name = "execution_start_justification", columnDefinition = "TEXT")
+    private String executionStartJustification;
+
+    /** Histórico de correções do início da execução — consultado via FleetWorkOrderExecutionHistoryRepository */
+
     /** Soft-delete — RN10: OS concluída não pode ser deletada fisicamente */
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
@@ -227,13 +247,46 @@ public class FleetWorkOrder implements TenantAware {
     // ── Helpers ───────────────────────────────────────────────
 
     /**
-     * Calcula o tempo total de parada em HORAS entre startDate e completionDate.
+     * Calcula o tempo total de parada em HORAS entre a data/hora de parada e liberação/conclusão.
      * Se ainda estiver em andamento, usa o momento atual.
      */
     public Long getDowntimeHours() {
-        if (startDate == null) return null;
-        LocalDateTime end = (completionDate != null) ? completionDate : LocalDateTime.now();
-        return ChronoUnit.HOURS.between(startDate, end);
+        LocalDateTime start = null;
+        if (stopDate != null) {
+            LocalTime time = LocalTime.MIDNIGHT;
+            if (stopTime != null && !stopTime.isBlank()) {
+                try {
+                    String clean = stopTime.trim();
+                    time = LocalTime.parse(clean.length() == 5 ? clean + ":00" : clean);
+                } catch (Exception ignored) {}
+            }
+            start = stopDate.atTime(time);
+        } else if (startDate != null) {
+            start = startDate;
+        } else if (createdAt != null) {
+            start = createdAt;
+        }
+
+        if (start == null) return null;
+
+        LocalDateTime end = null;
+        if (exitDate != null) {
+            LocalTime time = LocalTime.of(23, 59, 59);
+            if (exitTime != null && !exitTime.isBlank()) {
+                try {
+                    String clean = exitTime.trim();
+                    time = LocalTime.parse(clean.length() == 5 ? clean + ":00" : clean);
+                } catch (Exception ignored) {}
+            }
+            end = exitDate.atTime(time);
+        } else if (completionDate != null) {
+            end = completionDate;
+        } else {
+            end = LocalDateTime.now();
+        }
+
+        long hours = ChronoUnit.HOURS.between(start, end);
+        return Math.max(0L, hours);
     }
 
     /**
@@ -243,6 +296,20 @@ public class FleetWorkOrder implements TenantAware {
         Long hours = getDowntimeHours();
         if (hours == null) return null;
         return (long) Math.ceil(hours / 24.0);
+    }
+
+    /**
+     * Recalcula e atualiza executionDurationMinutes com base em executionStartDate e executionEndDate.
+     * Retorna os minutos calculados, ou null se alguma das datas estiver ausente.
+     */
+    public Long recalculateExecutionDuration() {
+        if (executionStartDate == null || executionEndDate == null) {
+            this.executionDurationMinutes = null;
+            return null;
+        }
+        long minutes = ChronoUnit.MINUTES.between(executionStartDate, executionEndDate);
+        this.executionDurationMinutes = minutes;
+        return minutes;
     }
 
     // ── Enums ─────────────────────────────────────────────────

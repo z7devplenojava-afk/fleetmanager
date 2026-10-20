@@ -14,8 +14,13 @@ import com.z7design.fleet_manager.model.WorkPost;
 import com.z7design.fleet_manager.model.Vehicle;
 import com.z7design.fleet_manager.model.WorkOrderItem;
 import com.z7design.fleet_manager.model.FleetWorkOrderChecklist;
+import com.z7design.fleet_manager.model.Invoice;
+import com.z7design.fleet_manager.model.enums.ExpenseStatus;
+import com.z7design.fleet_manager.model.enums.ExpenseType;
 import com.z7design.fleet_manager.repository.FleetWorkOrderHistoryRepository;
 import com.z7design.fleet_manager.repository.FleetWorkOrderRepository;
+import com.z7design.fleet_manager.repository.FleetWorkOrderExecutionHistoryRepository;
+import com.z7design.fleet_manager.model.FleetWorkOrderExecutionHistory;
 import com.z7design.fleet_manager.repository.MaintenancePlanRepository;
 import com.z7design.fleet_manager.repository.VehicleRepository;
 import com.z7design.fleet_manager.repository.ChecklistItemRepository;
@@ -23,6 +28,7 @@ import com.z7design.fleet_manager.repository.ClientRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.WorkPostRepository;
 import com.z7design.fleet_manager.repository.FleetWorkOrderChecklistRepository;
+import com.z7design.fleet_manager.repository.InvoiceRepository;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -62,6 +70,9 @@ public class FleetWorkOrderService {
     private final MaterialRequisitionService materialRequisitionService;
     private final com.z7design.fleet_manager.repository.ServiceRepository serviceRepository;
     private final com.z7design.fleet_manager.repository.StockItemRepository stockItemRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final InvoiceService invoiceService;
+    private final FleetWorkOrderExecutionHistoryRepository executionHistoryRepository;
 
     private FleetWorkOrderDTO toDTO(FleetWorkOrder entity) {
         FleetWorkOrderDTO dto = FleetWorkOrderDTO.fromEntity(entity);
@@ -153,6 +164,26 @@ public class FleetWorkOrderService {
 
     @Transactional(readOnly = true)
     public List<com.z7design.fleet_manager.dto.ChecklistItemDTO> getChecklistMasterItems() {
+        return getChecklistMasterItems(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.z7design.fleet_manager.dto.ChecklistItemDTO> getChecklistMasterItems(String vehicleType) {
+        if (vehicleType != null && !vehicleType.isBlank()) {
+            String vUpper = vehicleType.toUpperCase().trim();
+            // Normalizar: BUS_ROAD, BUS_URBAN, MINIBUS -> BUS | VAN -> VAN
+            String categoryKey = "BUS";
+            if (vUpper.contains("VAN")) {
+                categoryKey = "VAN";
+            }
+            List<String> targetTypes = List.of(categoryKey, "ALL");
+            List<com.z7design.fleet_manager.model.ChecklistItem> list = checklistItemRepository.findByVehicleTypeApplicableInAndAtivoTrueOrderByOrdemAsc(targetTypes);
+            if (!list.isEmpty()) {
+                return list.stream()
+                        .map(com.z7design.fleet_manager.dto.ChecklistItemDTO::fromEntity)
+                        .collect(Collectors.toList());
+            }
+        }
         return checklistItemRepository.findByAtivoTrueOrderByOrdemAsc().stream()
                 .map(com.z7design.fleet_manager.dto.ChecklistItemDTO::fromEntity)
                 .collect(Collectors.toList());
@@ -307,10 +338,17 @@ public class FleetWorkOrderService {
                 .laborCost(nullSafe(dto.getLaborCost()))
                 .partsCost(BigDecimal.ZERO)
                 .totalCost(BigDecimal.ZERO)
+                .executionStartDate(dto.getExecutionStartDate())
+                .executionEndDate(dto.getExecutionEndDate())
+                .executionStartJustification(dto.getExecutionStartJustification())
                 .notes(dto.getNotes())
                 .photoAttachments(dto.getPhotoAttachments() != null ? dto.getPhotoAttachments() : new ArrayList<>())
                 .companyId(companyId)
                 .build();
+
+        if (entity.getExecutionStartDate() != null || entity.getExecutionEndDate() != null) {
+            entity.recalculateExecutionDuration();
+        }
 
         if (dto.getItems() != null) {
             for (WorkOrderItemDTO itemDto : dto.getItems()) {
@@ -425,6 +463,21 @@ public class FleetWorkOrderService {
         if (dto.getNotes() != null) entity.setNotes(dto.getNotes());
         if (dto.getLaborCost() != null) entity.setLaborCost(dto.getLaborCost());
         if (dto.getPhotoAttachments() != null) entity.setPhotoAttachments(dto.getPhotoAttachments());
+
+        // ── Execução: Atualiza Datas de Início/Fim e recalcula duração ──────────────────────
+        if (dto.getExecutionStartDate() != null) {
+            entity.setExecutionStartDate(dto.getExecutionStartDate());
+        }
+        if (dto.getExecutionEndDate() != null) {
+            entity.setExecutionEndDate(dto.getExecutionEndDate());
+        }
+        if (dto.getExecutionStartJustification() != null) {
+            entity.setExecutionStartJustification(dto.getExecutionStartJustification());
+        }
+        // Auto-calcula a duração toda vez que qualquer data de execução é fornecida
+        if (dto.getExecutionStartDate() != null || dto.getExecutionEndDate() != null) {
+            entity.recalculateExecutionDuration();
+        }
 
         // Atualiza itens de peças/serviços com reconciliação in-place (evita conflito de flush/constraint e duplo consumo de estoque)
         if (dto.getItems() != null) {
@@ -560,6 +613,169 @@ public class FleetWorkOrderService {
         }
         FleetWorkOrderHistory h = addHistory(workOrderId, "NOTE", note, performedBy, null, null);
         return FleetWorkOrderHistoryDTO.fromEntity(h);
+    }
+    // ── Correção do início da execução com justificativa (auditoria) ──────────
+
+    /**
+     * Corrige a data/hora de início da execução da OS, salvando a justificativa
+     * no histórico de execução para rastreabilidade.
+     */
+    @Transactional
+    public FleetWorkOrderDTO updateExecutionStart(
+            UUID workOrderId,
+            LocalDateTime newStartDate,
+            String justification,
+            String performedBy
+    ) {
+        FleetWorkOrder entity = repository.findById(workOrderId)
+                .orElseThrow(() -> new ResourceNotFoundException("FleetWorkOrder not found: " + workOrderId));
+
+        if (newStartDate == null) {
+            throw new IllegalArgumentException("A data de início da execução não pode ser nula.");
+        }
+        if (justification == null || justification.isBlank()) {
+            throw new IllegalArgumentException("A justificativa é obrigatória ao corrigir a data de início da execução.");
+        }
+
+        // Salva o registro de auditoria
+        FleetWorkOrderExecutionHistory histEntry = FleetWorkOrderExecutionHistory.builder()
+                .workOrderId(workOrderId)
+                .previousStartDate(entity.getExecutionStartDate())
+                .newStartDate(newStartDate)
+                .justification(justification.trim())
+                .performedBy(performedBy)
+                .build();
+        executionHistoryRepository.save(histEntry);
+
+        // Atualiza a entidade
+        entity.setExecutionStartDate(newStartDate);
+        entity.setExecutionStartJustification(justification.trim());
+        entity.recalculateExecutionDuration();
+
+        FleetWorkOrder saved = repository.save(entity);
+
+        addHistory(saved.getId(), "EXECUTION_START_CORRECTED",
+                "Início de execução corrigido para " + newStartDate
+                        + ". Justificativa: " + justification.trim(),
+                performedBy, null, null);
+
+        return toDTO(saved);
+    }
+
+    /**
+     * Retorna o histórico de correções do início da execução de uma OS.
+     */
+    @Transactional(readOnly = true)
+    public List<FleetWorkOrderExecutionHistory> getExecutionHistory(UUID workOrderId) {
+        return executionHistoryRepository.findByWorkOrderIdOrderByCreatedAtDesc(workOrderId);
+    }
+
+    // ── Lançamento de Despesa no Financeiro (Contas a Pagar) ──────────────────
+
+    /**
+     * Lista as despesas (contas a pagar) já lançadas no financeiro para esta O.S.
+     * de manutenção.
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getFinancialExpenses(UUID workOrderId) {
+        if (!repository.existsById(workOrderId)) {
+            throw new ResourceNotFoundException("FleetWorkOrder not found: " + workOrderId);
+        }
+        return invoiceRepository.findByWorkOrderId(workOrderId).stream()
+                .map(this::toExpenseMap)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Lança a despesa da O.S. de manutenção no módulo financeiro, criando uma
+     * conta a pagar (Invoice) com rastreabilidade da O.S. (Categoria MANUTENCAO).
+     */
+    @Transactional
+    public Map<String, Object> launchFinancialExpense(UUID workOrderId, String performedBy) {
+        FleetWorkOrder order = repository.findById(workOrderId)
+                .orElseThrow(() -> new ResourceNotFoundException("FleetWorkOrder not found: " + workOrderId));
+
+        BigDecimal totalCost = order.getTotalCost() != null ? order.getTotalCost() : BigDecimal.ZERO;
+        if (totalCost.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(
+                    "A O.S. não possui custo total informado. Preencha os custos de mão de obra / peças antes de lançar a despesa no financeiro.");
+        }
+
+        // Evita duplicar a conta a pagar para a mesma O.S.
+        if (!invoiceRepository.findByWorkOrderId(workOrderId).isEmpty()) {
+            throw new IllegalStateException(
+                    "Esta O.S. já possui uma despesa lançada no financeiro (Contas a Pagar).");
+        }
+
+        String osLabel = order.getOsNumber() != null
+                ? order.getOsNumber()
+                : workOrderId.toString().substring(0, 8).toUpperCase();
+
+        String vehicleLabel = "";
+        if (order.getVehicle() != null) {
+            vehicleLabel = order.getVehicle().getPlate() != null ? order.getVehicle().getPlate() : "";
+            if (order.getVehicle().getModel() != null) {
+                vehicleLabel += " - " + order.getVehicle().getModel();
+            }
+        }
+
+        // Número único da conta a pagar: MNT-<OS>[-n]
+        String baseNumber = "MNT-" + osLabel;
+        String invoiceNumber = baseNumber;
+        int suffix = 1;
+        while (invoiceRepository.existsByInvoiceNumberNative(invoiceNumber)) {
+            suffix++;
+            invoiceNumber = baseNumber + "-" + suffix;
+        }
+
+        LocalDate refDate = order.getActualDate() != null
+                ? order.getActualDate()
+                : (order.getPlannedDate() != null ? order.getPlannedDate() : LocalDate.now());
+
+        Invoice invoice = new Invoice();
+        invoice.setCompanyId(order.getCompanyId());
+        invoice.setInvoiceNumber(invoiceNumber);
+        invoice.setDescription("Despesa de Manutenção O.S. " + osLabel
+                + (vehicleLabel.isBlank() ? "" : " - Veículo: " + vehicleLabel));
+        invoice.setAmount(totalCost);
+        invoice.setType(ExpenseType.VARIAVEL);
+        invoice.setStatus(ExpenseStatus.PENDENTE);
+        invoice.setDueDate(refDate);
+        invoice.setIssueDate(refDate);
+        invoice.setCategory("MANUTENCAO");
+        invoice.setSupplierName(order.getLaborType() == FleetWorkOrder.LaborType.EXTERNAL
+                ? (order.getMechanicName() != null ? order.getMechanicName() : "Oficina Externa")
+                : (order.getMechanicName() != null ? order.getMechanicName() : "Oficina Interna"));
+        invoice.setWorkOrderId(order.getId());
+        invoice.setWorkOrderNumber(osLabel);
+        invoice.setCentroCusto("MANUTENCAO");
+        invoice.setNotes("Gerada automaticamente pela Manutenção a partir da O.S. " + osLabel + ".");
+
+        Invoice saved = invoiceService.save(invoice);
+
+        addHistory(workOrderId, "COST_UPDATE",
+                "Despesa de manutenção lançada no Financeiro (Contas a Pagar): " + invoiceNumber
+                        + " — " + String.format("R$ %s", totalCost.setScale(2, RoundingMode.HALF_UP))
+                        + " (vencimento " + refDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ")",
+                performedBy != null && !performedBy.isBlank() ? performedBy : "Sistema",
+                null, null);
+
+        return toExpenseMap(saved);
+    }
+
+    private Map<String, Object> toExpenseMap(Invoice invoice) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", invoice.getId());
+        map.put("invoiceNumber", invoice.getInvoiceNumber());
+        map.put("description", invoice.getDescription());
+        map.put("amount", invoice.getAmount());
+        map.put("status", invoice.getStatus() != null ? invoice.getStatus().name() : "PENDENTE");
+        map.put("dueDate", invoice.getDueDate());
+        map.put("paymentDate", invoice.getPaymentDate());
+        map.put("category", invoice.getCategory());
+        map.put("workOrderNumber", invoice.getWorkOrderNumber());
+        map.put("createdAt", invoice.getCreatedAt());
+        return map;
     }
 
     // ── Solicitar compra ao almoxarifado ─────────────────────────────────────

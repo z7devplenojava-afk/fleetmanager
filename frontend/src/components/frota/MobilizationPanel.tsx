@@ -14,6 +14,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
+import { clientService, Client } from '@/services/clientService';
+import {
   Table,
   TableBody,
   TableCell,
@@ -65,6 +74,9 @@ const MobilizationPanel: React.FC = () => {
   const [inspectionModalOpen, setInspectionModalOpen] = useState(false);
   const [form, setForm] = useState<MobilizationInspection>({});
 
+  // ===== Clientes =====
+  const [clients, setClients] = useState<Client[]>([]);
+
   // ===== Talões =====
   const [books, setBooks] = useState<DailyLogBook[]>([]);
   const [bookModalOpen, setBookModalOpen] = useState(false);
@@ -84,8 +96,14 @@ const MobilizationPanel: React.FC = () => {
 
   const loadAll = useCallback(async () => {
     try {
-      setInspections(await inspectionService.list());
-      setBooks(await bookService.list());
+      const [insp, bks, cls] = await Promise.all([
+        inspectionService.list().catch(() => []),
+        bookService.list().catch(() => []),
+        clientService.getAllClients().catch(() => []),
+      ]);
+      setInspections(insp);
+      setBooks(bks);
+      setClients(cls);
     } catch {
       // silencioso — painéis individuais mostram erros
     }
@@ -407,11 +425,28 @@ const MobilizationPanel: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Veículo (ID) *</Label>
-              <Input
+              <Label>Veículo *</Label>
+              <VehicleCombobox
                 value={form.vehicle?.id ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, vehicle: e.target.value ? { id: e.target.value } : null }))}
-                placeholder="UUID do veículo"
+                onChange={(val, veh) => {
+                  setForm((f) => {
+                    const plate = veh?.plate || veh?.placa || f.vehiclePlate || '';
+                    const vClientId = veh?.clientId || veh?.client?.id || veh?.clienteId;
+                    const vClientName = veh?.clientName || veh?.client?.name || veh?.client?.fantasyName;
+                    const vContract = veh?.contractNumber || veh?.contractId || f.contractNumber;
+                    const vMileage = veh?.currentMileage ?? f.currentMileage;
+
+                    return {
+                      ...f,
+                      vehicle: val ? { id: val } : null,
+                      vehiclePlate: plate,
+                      client: vClientId ? { id: vClientId } : f.client,
+                      clientName: vClientName || f.clientName,
+                      contractNumber: vContract,
+                      currentMileage: vMileage,
+                    };
+                  });
+                }}
               />
             </div>
             <div className="space-y-1.5">
@@ -420,21 +455,45 @@ const MobilizationPanel: React.FC = () => {
                 value={form.vehiclePlate ?? ''}
                 onChange={(e) => setForm((f) => ({ ...f, vehiclePlate: e.target.value.toUpperCase() }))}
                 placeholder="ABC1D23"
+                className="font-mono uppercase font-semibold"
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Cliente (ID)</Label>
-              <Input
-                value={form.client?.id ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, client: e.target.value ? { id: e.target.value } : null }))}
-                placeholder="UUID do cliente"
-              />
+              <Label>Cliente</Label>
+              <Select
+                value={form.client?.id ?? 'none'}
+                onValueChange={(val) => {
+                  if (!val || val === 'none') {
+                    setForm((f) => ({ ...f, client: null, clientName: undefined }));
+                  } else {
+                    const selected = clients.find((c) => c.id === val);
+                    setForm((f) => ({
+                      ...f,
+                      client: { id: val },
+                      clientName: selected?.name || selected?.fantasyName || selected?.razaoSocial || f.clientName,
+                    }));
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione o cliente (opcional)..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-60 z-[10080]">
+                  <SelectItem value="none">Nenhum cliente</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name || c.fantasyName || c.razaoSocial || c.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Nº do Contrato</Label>
               <Input
                 value={form.contractNumber ?? ''}
                 onChange={(e) => setForm((f) => ({ ...f, contractNumber: e.target.value }))}
+                placeholder="Ex: CT-2024-001"
               />
             </div>
           </div>
@@ -493,11 +552,16 @@ const MobilizationPanel: React.FC = () => {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Veículo (ID)</Label>
-              <Input
+              <Label>Veículo</Label>
+              <VehicleCombobox
                 value={bookForm.vehicle?.id ?? ''}
-                onChange={(e) => setBookForm((f) => ({ ...f, vehicle: e.target.value ? { id: e.target.value } : null }))}
-                placeholder="UUID do veículo"
+                onChange={(val, veh) => {
+                  setBookForm((f) => ({
+                    ...f,
+                    vehicle: val ? { id: val } : null,
+                    vehiclePlate: veh?.plate || veh?.placa || f.vehiclePlate || '',
+                  }));
+                }}
               />
             </div>
             <div className="space-y-1.5">
@@ -506,6 +570,7 @@ const MobilizationPanel: React.FC = () => {
                 value={bookForm.vehiclePlate ?? ''}
                 onChange={(e) => setBookForm((f) => ({ ...f, vehiclePlate: e.target.value.toUpperCase() }))}
                 placeholder="ABC1D23"
+                className="font-mono uppercase font-semibold"
               />
             </div>
             <div className="space-y-1.5">

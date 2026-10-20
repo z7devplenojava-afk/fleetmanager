@@ -363,10 +363,10 @@ const Index: React.FC = () => {
 
   return (
     <StandardLayout>
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-3xl font-black text-foreground mb-2 tracking-tight flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-1.5 sm:mb-2 tracking-tight flex flex-wrap items-center gap-2">
               <span>Bem-vindo, <span className="text-primary italic">{user.name.split(' ')[0]}</span>!</span>
               {isVss && (
                 <Badge className="bg-red-600/15 text-red-500 hover:bg-red-600/25 border border-red-500/30 text-xs px-2.5 py-0.5 font-bold uppercase tracking-wider rounded-md">
@@ -374,10 +374,10 @@ const Index: React.FC = () => {
                 </Badge>
               )}
             </h1>
-            <p className="text-muted-foreground text-sm sm:text-base max-w-2xl leading-relaxed">
+            <p className="text-muted-foreground text-xs sm:text-base max-w-2xl leading-relaxed">
               Acesse as funcionalidades disponíveis através do menu lateral para gerenciar sua frota.
               {(user.role === 'SUPER_ADMIN' || user.role === 'FLEX_ADMIN' || user.role === 'COMPANY_ADMIN') && (
-                <Badge variant="outline" className="ml-3 border-primary/40 text-primary font-bold bg-primary/5 animate-pulse">
+                <Badge variant="outline" className="ml-2 sm:ml-3 border-primary/40 text-primary font-bold bg-primary/5 animate-pulse text-[10px] sm:text-xs">
                   Acesso Total ao Sistema
                 </Badge>
               )}
@@ -388,7 +388,7 @@ const Index: React.FC = () => {
             disabled={refreshing}
             variant="ghost"
             size="sm"
-            className="text-muted-foreground hover:text-primary hover:bg-primary/5 active:scale-95 transition-all h-11 px-4 rounded-xl font-bold"
+            className="self-start sm:self-auto text-muted-foreground hover:text-primary hover:bg-primary/5 active:scale-95 transition-all h-9 sm:h-11 px-3 sm:px-4 rounded-xl font-bold"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? 'Atualizando...' : 'Atualizar'}

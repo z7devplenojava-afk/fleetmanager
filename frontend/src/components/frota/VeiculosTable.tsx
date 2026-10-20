@@ -395,6 +395,130 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
     setSelectedVeiculo(null);
   };
 
+  // Helper para calcular e formatar o tempo de parada para manutenção
+  const getVehicleDowntimeInfo = (
+    workOrder?: FleetWorkOrder | null,
+    legacyMaintenance?: VehicleMaintenance | null
+  ) => {
+    let startDate: Date | null = null;
+    let hasSpecificTime = false;
+
+    if (workOrder) {
+      const rawDate = workOrder.stopDate || workOrder.startDate || workOrder.plannedDate || workOrder.createdAt;
+      if (rawDate) {
+        const datePart = rawDate.split('T')[0];
+        const parts = datePart.split('-').map(Number);
+        if (parts.length === 3) {
+          let h = 0, m = 0, s = 0;
+          if (workOrder.stopTime && workOrder.stopTime.trim()) {
+            const timeParts = workOrder.stopTime.trim().split(':').map(Number);
+            if (!isNaN(timeParts[0])) h = timeParts[0];
+            if (!isNaN(timeParts[1])) m = timeParts[1];
+            if (!isNaN(timeParts[2])) s = timeParts[2];
+            hasSpecificTime = true;
+          } else if (rawDate.includes('T')) {
+            const temp = new Date(rawDate);
+            if (!isNaN(temp.getTime())) {
+              h = temp.getHours();
+              m = temp.getMinutes();
+              s = temp.getSeconds();
+              hasSpecificTime = true;
+            }
+          }
+          startDate = new Date(parts[0], parts[1] - 1, parts[2], h, m, s);
+        }
+      }
+    }
+
+    if (!startDate && legacyMaintenance) {
+      const rawDate = legacyMaintenance.date || legacyMaintenance.createdAt;
+      if (rawDate) {
+        const dt = new Date(rawDate);
+        if (!isNaN(dt.getTime())) {
+          startDate = dt;
+          hasSpecificTime = rawDate.includes('T') || rawDate.includes(':');
+        }
+      }
+    }
+
+    if (!startDate || isNaN(startDate.getTime())) {
+      return null;
+    }
+
+    let endDate: Date | null = null;
+    let isCompleted = false;
+
+    if (workOrder) {
+      if (workOrder.status === WorkOrderStatus.COMPLETED || workOrder.status === WorkOrderStatus.CANCELLED) {
+        isCompleted = true;
+      }
+      if (workOrder.exitDate) {
+        const exitPart = workOrder.exitDate.split('T')[0];
+        const parts = exitPart.split('-').map(Number);
+        if (parts.length === 3) {
+          let h = 23, m = 59, s = 59;
+          if (workOrder.exitTime && workOrder.exitTime.trim()) {
+            const timeParts = workOrder.exitTime.trim().split(':').map(Number);
+            if (!isNaN(timeParts[0])) h = timeParts[0];
+            if (!isNaN(timeParts[1])) m = timeParts[1];
+            if (!isNaN(timeParts[2])) s = timeParts[2];
+          }
+          endDate = new Date(parts[0], parts[1] - 1, parts[2], h, m, s);
+        }
+      } else if (workOrder.completionDate) {
+        const dt = new Date(workOrder.completionDate);
+        if (!isNaN(dt.getTime())) endDate = dt;
+      }
+    }
+
+    const effectiveEnd = endDate || new Date();
+    const diffMs = effectiveEnd.getTime() - startDate.getTime();
+
+    if (diffMs < 0) {
+      return null;
+    }
+
+    const totalMinutes = Math.floor(diffMs / (1000 * 60));
+    const totalHours = Math.floor(totalMinutes / 60);
+    const days = Math.floor(totalHours / 24);
+    const remainingHours = totalHours % 24;
+    const remainingMinutes = totalMinutes % 60;
+
+    let durationFormatted = '';
+    if (days > 0) {
+      durationFormatted = `${days}d ${remainingHours}h`;
+    } else if (totalHours > 0) {
+      durationFormatted = `${totalHours}h ${remainingMinutes}m`;
+    } else {
+      durationFormatted = `${Math.max(1, remainingMinutes)}m`;
+    }
+
+    let severity: 'normal' | 'warning' | 'critical' = 'normal';
+    if (totalHours >= 24) {
+      severity = 'critical';
+    } else if (totalHours >= 4) {
+      severity = 'warning';
+    }
+
+    const startFormatted = hasSpecificTime
+      ? `${startDate.toLocaleDateString('pt-BR')} às ${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`
+      : startDate.toLocaleDateString('pt-BR');
+
+    const label = endDate || isCompleted ? 'Ficou parado' : 'Parado há';
+
+    const fullDetails = endDate
+      ? `Veículo parado de ${startFormatted} até ${endDate.toLocaleDateString('pt-BR')} (Total: ${days > 0 ? `${days}d ` : ''}${remainingHours}h ${remainingMinutes}m)`
+      : `Veículo parado desde ${startFormatted} • Tempo decorrido: ${days > 0 ? `${days}d ` : ''}${remainingHours}h ${remainingMinutes}m`;
+
+    return {
+      label,
+      durationFormatted,
+      startFormatted,
+      severity,
+      fullDetails,
+    };
+  };
+
   const getStatusBadge = (veiculo: Veiculo) => {
     const statusLower = (veiculo.status || '').toLowerCase();
     const workOrder = getVehicleWorkOrder(veiculo.id, veiculo.placa);
@@ -405,6 +529,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
       const osNumber = workOrder?.osNumber || (workOrder?.id ? `OS-${workOrder.id.slice(0, 8)}` : null);
       const osType = workOrder?.maintenanceType || legacyMaintenance?.maintenanceType || '';
       const osDesc = workOrder?.anomaliesDescription || workOrder?.stopReason || workOrder?.otherDescription || workOrder?.notes || legacyMaintenance?.description || '';
+      const downtime = getVehicleDowntimeInfo(workOrder, legacyMaintenance);
 
       const typeLabel = osType ? (
         osType === 'CORRETIVA' ? 'Corretiva' :
@@ -439,6 +564,31 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                   {osDesc}
                 </span>
               )}
+            </div>
+          )}
+
+          {downtime && (
+            <div
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border shadow-xs transition-colors ${
+                downtime.severity === 'critical'
+                  ? 'bg-rose-950/80 border-rose-500/60 text-rose-200'
+                  : downtime.severity === 'warning'
+                  ? 'bg-amber-950/80 border-amber-500/50 text-amber-200'
+                  : 'bg-amber-950/40 border-amber-600/40 text-amber-300'
+              }`}
+              title={downtime.fullDetails}
+            >
+              <Clock
+                className={`w-3 h-3 ${
+                  downtime.severity === 'critical'
+                    ? 'text-rose-400 animate-pulse'
+                    : downtime.severity === 'warning'
+                    ? 'text-amber-400'
+                    : 'text-amber-400/90'
+                }`}
+              />
+              <span className="opacity-80">{downtime.label}:</span>
+              <span className="font-bold font-mono tracking-tight">{downtime.durationFormatted}</span>
             </div>
           )}
 

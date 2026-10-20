@@ -51,6 +51,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, java.util.UUID
     List<Invoice> findByPaymentDate(LocalDate paymentDate);
     List<Invoice> findByPaymentDateBetween(LocalDate startDate, LocalDate endDate);
     
+    // Buscar faturas vinculadas a uma Ordem de Serviço de Manutenção (rastreabilidade)
+    List<Invoice> findByWorkOrderId(java.util.UUID workOrderId);
+    
     // Buscar por categoria
     List<Invoice> findByCategory(String category);
     Page<Invoice> findByCategory(String category, Pageable pageable);

@@ -484,34 +484,32 @@ const Frota: React.FC = () => {
       updated_at: fine.createdAt
     };
 
-    console.log('✅ Multa mapeada:', mappedMulta);
-    console.log('✅ Dados do motorista mapeados:', {
-      motorista_id: mappedMulta.motorista_id,
-      motorista_nome: mappedMulta.motorista_nome,
-      motorista_cnh: mappedMulta.motorista_cnh
-    });
     return mappedMulta;
   };
 
-  // Mapear dados para componentes
-  const veiculosFiltrados = vehicles?.filter(v => {
-    const temId = v && v.id;
-    const temPlate = v && v.plate;
-    const temModel = v && v.model;
-    const temBrand = v && v.brand;
+  // Mapear dados para componentes (memoizado para evitar re-renderizações desnecessárias)
+  const veiculosFiltrados = React.useMemo(() => {
+    return vehicles?.filter(v => {
+      const temId = v && v.id;
+      const temPlate = v && v.plate;
+      const temModel = v && v.model;
+      const temBrand = v && v.brand;
 
-    return temId && temPlate && temModel && temBrand;
-  });
+      return temId && temPlate && temModel && temBrand;
+    }) || [];
+  }, [vehicles]);
 
-  const veiculosComponent = veiculosFiltrados?.map(mapVehicleToComponent) || [];
-  const abastecimentosComponent = fuelRecords?.map(mapFuelRecordToComponent) || [];
-  const multasComponent = fines?.map(mapFineToComponent) || [];
+  const veiculosComponent = React.useMemo(() => {
+    return veiculosFiltrados.map(mapVehicleToComponent);
+  }, [veiculosFiltrados]);
 
-  // Log para debug das multas
-  console.log('🔍 Debug Multas:');
-  console.log('  - fines (dados brutos):', fines);
-  console.log('  - multasComponent (mapeadas):', multasComponent);
-  console.log('  - Quantidade de multas:', multasComponent.length);
+  const abastecimentosComponent = React.useMemo(() => {
+    return fuelRecords?.map(mapFuelRecordToComponent) || [];
+  }, [fuelRecords]);
+
+  const multasComponent = React.useMemo(() => {
+    return fines?.map(mapFineToComponent) || [];
+  }, [fines, vehicles]);
 
   // Error handling
   if (vehiclesError) {
@@ -1545,7 +1543,7 @@ const Frota: React.FC = () => {
             </div>
 
             <VeiculosTable
-              veiculos={vehicles ? vehicles.map(mapVehicleToComponent) : []}
+              veiculos={veiculosComponent}
               searchTerm={searchTerm}
               vehicleTypeFilter={vehicleTypeFilter}
               maintenanceAlertFilter={maintenanceAlertFilter}

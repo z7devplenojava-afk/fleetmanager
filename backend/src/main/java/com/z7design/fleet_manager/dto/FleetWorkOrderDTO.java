@@ -85,6 +85,12 @@ public class FleetWorkOrderDTO {
     private Long downtimeHours;
     private Long downtimeDays;
 
+    // Execução do Serviço
+    private LocalDateTime executionStartDate;
+    private LocalDateTime executionEndDate;
+    private Long executionDurationMinutes;
+    private String executionStartJustification;
+
     private String notes;
     private List<WorkOrderItemDTO> items;
     private List<FleetWorkOrderChecklistDTO> checklistItems;
@@ -215,6 +221,10 @@ public class FleetWorkOrderDTO {
                 .totalCost(entity.getTotalCost())
                 .downtimeHours(entity.getDowntimeHours())
                 .downtimeDays(entity.getDowntimeDays())
+                .executionStartDate(entity.getExecutionStartDate())
+                .executionEndDate(entity.getExecutionEndDate())
+                .executionDurationMinutes(entity.getExecutionDurationMinutes())
+                .executionStartJustification(entity.getExecutionStartJustification())
                 .notes(entity.getNotes())
                 .items(entity.getItems() != null
                         ? entity.getItems().stream().map(WorkOrderItemDTO::fromEntity).collect(Collectors.toList())
