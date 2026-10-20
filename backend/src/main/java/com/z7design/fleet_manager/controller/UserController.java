@@ -178,7 +178,8 @@ public class UserController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Buscar usuÃ¡rio por ID", description = "Retorna um usuÃ¡rio especÃ­fico pelo ID. Permite acesso para usuÃ¡rios autenticados (necessÃ¡rio para chat)")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Buscar usuário por ID", description = "Retorna um usuário específico pelo ID. Permite acesso para usuários autenticados (necessário para chat)")
     public ResponseEntity<?> getUserById(@PathVariable("id") String id) {
         try {
             // Validar ID
@@ -237,29 +238,31 @@ public class UserController {
 
     @GetMapping("/username/{username}")
     @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
-    @Operation(summary = "Buscar usuÃ¡rio por username", description = "Retorna um usuÃ¡rio especÃ­fico pelo username")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Buscar usuário por username", description = "Retorna um usuário específico pelo username")
     public ResponseEntity<UserListResponseDTO> getUserByUsername(@PathVariable("username") String username) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isColaborador = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_COLABORADOR"));
 
-        // Colaborador sÃ³ pode buscar seu prÃ³prio username
+        // Colaborador só pode buscar seu próprio username
         if (isColaborador && !auth.getName().equals(username)) {
             return ResponseEntity.status(403).build();
         }
 
         User user = userService.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado"));
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
         return ResponseEntity.ok(convertToDTO(user));
     }
 
     @GetMapping("/email/{email}")
     @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
-    @Operation(summary = "Buscar usuÃ¡rio por email", description = "Retorna um usuÃ¡rio especÃ­fico pelo email")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Buscar usuário por email", description = "Retorna um usuário específico pelo email")
     public ResponseEntity<UserListResponseDTO> getUserByEmail(@PathVariable("email") String email) {
         User user = userService.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado"));
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
         return ResponseEntity.ok(convertToDTO(user));
     }
@@ -267,7 +270,7 @@ public class UserController {
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
     @Transactional(readOnly = true)
-    @Operation(summary = "Buscar usuÃ¡rios", description = "Busca usuÃ¡rios por nome, email ou username com filtro dinÃ¢mico")
+    @Operation(summary = "Buscar usuários", description = "Busca usuários por nome, email ou username com filtro dinâmico")
     public ResponseEntity<List<UserListResponseDTO>> searchUsers(
             @RequestParam(name = "query", required = false) String query) {
         List<User> users;
@@ -288,15 +291,16 @@ public class UserController {
 
     @GetMapping("/cpf/{cpf}")
     @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
-    @Operation(summary = "Buscar usuÃ¡rio por CPF", description = "Busca usuÃ¡rio atravÃ©s do CPF do funcionÃ¡rio associado")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Buscar usuário por CPF", description = "Busca usuário através do CPF do funcionário associado")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "UsuÃ¡rio encontrado"),
-            @ApiResponse(responseCode = "404", description = "UsuÃ¡rio nÃ£o encontrado"),
+            @ApiResponse(responseCode = "200", description = "Usuário encontrado"),
+            @ApiResponse(responseCode = "404", description = "Usuário não encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<UserListResponseDTO> getUserByCpf(@PathVariable("cpf") String cpf) {
         User user = userService.findByEmployeeCpf(cpf)
-                .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado para o CPF informado"));
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado para o CPF informado"));
 
         return ResponseEntity.ok(convertToDTO(user));
     }
