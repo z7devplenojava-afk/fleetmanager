@@ -504,14 +504,15 @@ public class SecurityConfig {
                                                                 "ROLE_RH", "ROLE_AUXILIAR_DE_RH", "ROLE_DEPARTAMENTO_PESSOAL",
                                                                 "ROLE_ALMOXARIFADO", "ROLE_ESTOQUE", "ROLE_GESTOR_DE_MANUTENCAO",
                                                                 "ROLE_MANUTENCAO", "ROLE_MECANICO", "ROLE_OPERACIONAL",
-                                                                "ROLE_ANALISTA_DE_FROTA", "ROLE_ANALISTA_FROTA")
-                                                // SEGURANÃ‡A: mÃ³dulos de documentos que estavam pÃºblicos para teste agora exigem autenticaÃ§Ã£o
+                                                                "ROLE_ANALISTA_DE_FROTA", "ROLE_ANALISTA_FROTA",
+                                                                "ROLE_SST", "ROLE_SEGURANCA_DO_TRABALHO",
+                                                                "ROLE_AUXILIAR_ADMINISTRATIVO", "ROLE_AUXI_ADMINISTRATIVO")
+                                                // SEGURANÇA: módulos de documentos que estavam públicos para teste agora exigem autenticação
                                                 .requestMatchers("/api/modelos-documentos/**").authenticated()
                                                 .requestMatchers("/api/documentos-gerados/**").authenticated()
                                                 .requestMatchers("/api/assinaturas-documentos/**").authenticated()
-                                                // Endpoints de dependentes - leitura requer permissÃƒÂµes bÃƒÂ¡sicas,
-                                                // escrita
-                                                // requer permissÃƒÂµes especÃƒÂ­ficas
+                                                // Endpoints de dependentes - leitura requer permissões básicas,
+                                                // escrita requer permissões específicas
                                                 .requestMatchers(org.springframework.http.HttpMethod.GET,
                                                                 "/api/dependents/**")
                                                 .hasAnyAuthority(
@@ -519,27 +520,33 @@ public class SecurityConfig {
                                                                 "ADMIN",
                                                                 "GESTOR",
                                                                 "RH",
+                                                                "SST",
                                                                 "ROLE_SUPER_ADMIN",
                                                                 "ROLE_ADMIN",
                                                                 "ROLE_GESTOR",
                                                                 "ROLE_RH",
+                                                                "ROLE_SST",
+                                                                "ROLE_SEGURANCA_DO_TRABALHO",
                                                                 "EMPLOYEES_READ",
                                                                 "EMPLOYEES_WRITE")
                                                 .requestMatchers("/api/dependents/**")
-                                                .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "GESTOR", "RH",
+                                                .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "GESTOR", "RH", "SST",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
-                                                                "ROLE_GESTOR", "ROLE_RH", "EMPLOYEES_READ",
-                                                                "EMPLOYEES_WRITE")
+                                                                "ROLE_GESTOR", "ROLE_RH", "ROLE_SST", "ROLE_SEGURANCA_DO_TRABALHO",
+                                                                "EMPLOYEES_READ", "EMPLOYEES_WRITE")
                                                 // Endpoints de folha de ponto (time-sheets)
                                                 .requestMatchers("/api/time-sheets/**").hasAnyAuthority(
                                                                 "TIME_RECORD_READ",
                                                                 "SUPER_ADMIN",
                                                                 "ADMIN",
                                                                 "RH",
+                                                                "SST",
                                                                 "DEPARTAMENTO_PESSOAL",
                                                                 "ROLE_SUPER_ADMIN",
                                                                 "ROLE_ADMIN",
                                                                 "ROLE_RH",
+                                                                "ROLE_SST",
+                                                                "ROLE_SEGURANCA_DO_TRABALHO",
                                                                 "ROLE_DEPARTAMENTO_PESSOAL")
                                                 // Todo o resto requer autenticaÃƒÂ§ÃƒÂ£o
                                                 .anyRequest().authenticated())

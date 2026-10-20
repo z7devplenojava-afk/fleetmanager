@@ -10,6 +10,8 @@ public enum UserRole {
     RH, // 🟨 Gerencia informações contratuais e pessoais
     ASSISTENCIA_RH, // 🟨 Assistência de RH
     DEPARTAMENTO_PESSOAL, // 🟨 Gestão completa de DP
+    SST, // 🛡️ Segurança do Trabalho
+    SEGURANCA_DO_TRABALHO, // 🛡️ Segurança do Trabalho (Alias)
     FINANCEIRO, // 🟧 Controla relatórios financeiros
     OPERACIONAL, // 🟦 Departamento Operacional
     VIGILANTE, // 🟦 Colaborador operacional
