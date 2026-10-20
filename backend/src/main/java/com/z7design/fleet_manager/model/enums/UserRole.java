@@ -26,6 +26,8 @@ public enum UserRole {
     MANUTENCAO, // 🛠️ Manutenção
     GESTOR_DE_MANUTENCAO, // 🛠️ Gestor de Manutenção
     ENCARREGADO_DE_MANUTENCAO, // 🛠️ Encarregado de Manutenção
+    ANALISTA_DE_FROTA, // 🛠️ Analista de Frota
+    ANALISTA_FROTA, // 🛠️ Analista de Frota
     ALMOXARIFADO, // 📦 Almoxarifado
     COMPRAS, // 🛒 Compras
     GESTOR_DE_COMPRAS, // 🛒 Gestor de Compras

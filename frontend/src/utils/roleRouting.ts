@@ -13,6 +13,8 @@ export const getDashboardRouteForRole = (role?: string): string => {
     case 'GESTOR_DE_MANUTENCAO':
     case 'ENCARREGADO_DE_MANUTENCAO':
     case 'MANUTENCAO':
+    case 'ANALISTA_DE_FROTA':
+    case 'ANALISTA_FROTA':
       return '/manutencao';
 
     case 'PORTARIA':

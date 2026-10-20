@@ -503,7 +503,8 @@ public class SecurityConfig {
                                                                 "ROLE_GESTOR", "ROLE_SUPERVISOR",
                                                                 "ROLE_RH", "ROLE_AUXILIAR_DE_RH", "ROLE_DEPARTAMENTO_PESSOAL",
                                                                 "ROLE_ALMOXARIFADO", "ROLE_ESTOQUE", "ROLE_GESTOR_DE_MANUTENCAO",
-                                                                "ROLE_MANUTENCAO", "ROLE_MECANICO", "ROLE_OPERACIONAL")
+                                                                "ROLE_MANUTENCAO", "ROLE_MECANICO", "ROLE_OPERACIONAL",
+                                                                "ROLE_ANALISTA_DE_FROTA", "ROLE_ANALISTA_FROTA")
                                                 // SEGURANÃ‡A: mÃ³dulos de documentos que estavam pÃºblicos para teste agora exigem autenticaÃ§Ã£o
                                                 .requestMatchers("/api/modelos-documentos/**").authenticated()
                                                 .requestMatchers("/api/documentos-gerados/**").authenticated()

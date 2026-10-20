@@ -137,24 +137,16 @@ public class RoleMigrationService {
         try {
             log.info("Verificando e criando roles padrÃ£o (assÃ­ncrono)...");
 
-            // Verificar se jÃ¡ existem roles
-            long roleCount = roleRepository.count();
-            if (roleCount > 0) {
-                log.info("Roles jÃ¡ existem no banco. Pulando criaÃ§Ã£o de roles padrÃ£o.");
-                return;
-            }
-
+            // Criar roles padrão que ainda não existirem
             createDefaultRoles();
-            log.info("Roles padrÃ£o criadas com sucesso!");
+            log.info("Roles padrão verificadas com sucesso!");
         } catch (Exception e) {
-            log.error("âŒ Erro durante criaÃ§Ã£o de roles padrÃ£o: {}", e.getMessage(), e);
-            // NÃ£o re-lanÃ§ar exceÃ§Ã£o para nÃ£o crashar a aplicaÃ§Ã£o
-            // A criaÃ§Ã£o de roles padrÃ£o nÃ£o Ã© crÃ­tica para o funcionamento bÃ¡sico
+            log.error("❌ Erro durante verificação de roles padrão: {}", e.getMessage(), e);
         }
     }
 
     private void createDefaultRoles() {
-        // Criar roles padrÃ£o se nÃ£o existirem
+        // Criar roles padrão se não existirem
         String[] defaultRoles = {
                 "FLEX_ADMIN",
                 "COMPANY_ADMIN",
@@ -168,6 +160,8 @@ public class RoleMigrationService {
                 "USER",
                 "MANUTENCAO",
                 "MECANICO",
+                "ANALISTA_DE_FROTA",
+                "ANALISTA_FROTA",
                 "GESTOR_TRAFEGO",
                 "GESTOR_DE_TRAFEGO",
                 "MOTORISTA",
