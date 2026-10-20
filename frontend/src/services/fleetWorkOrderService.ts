@@ -249,8 +249,23 @@ class FleetWorkOrderService {
 
     async uploadPhotos(files: File[]): Promise<string[]> {
         if (!files || files.length === 0) return [];
+
+        // Otimização client-side: comprime imagens maiores que 800KB para evitar 413 Payload Too Large e acelerar o envio
+        const processedFiles = await Promise.all(
+            files.map(async (file) => {
+                if (file.type && file.type.startsWith('image/') && file.size > 800 * 1024) {
+                    try {
+                        return await compressImageToFile(file);
+                    } catch (e) {
+                        return file;
+                    }
+                }
+                return file;
+            })
+        );
+
         const formData = new FormData();
-        files.forEach(f => formData.append('photos', f));
+        processedFiles.forEach(f => formData.append('photos', f));
         const { data } = await api.post('/fleet-work-orders/upload-photos', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
@@ -346,6 +361,53 @@ class FleetWorkOrderService {
         const { data } = await api.get(`/fleet-work-orders/${id}/execution-history`);
         return data || [];
     }
+}
+
+async function compressImageToFile(file: File, maxWidth = 1920, maxHeight = 1920, quality = 0.82): Promise<File> {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+                            resolve(new File([blob], newFileName, { type: 'image/jpeg', lastModified: Date.now() }));
+                        } else {
+                            resolve(file);
+                        }
+                    }, 'image/jpeg', quality);
+                } else {
+                    resolve(file);
+                }
+            };
+            img.onerror = () => resolve(file);
+            img.src = event.target?.result as string;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+    });
 }
 
 export const fleetWorkOrderService = new FleetWorkOrderService();
