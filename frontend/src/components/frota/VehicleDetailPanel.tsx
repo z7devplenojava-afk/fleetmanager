@@ -672,11 +672,40 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
                           </h4>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                             {String(merged.photos).split(',').filter(Boolean).map((photo, i) => {
-                              const url = photo.startsWith('http') ? photo : `${getApiUrl().replace('/api', '')}${photo}`;
+                              const trimmed = photo.trim();
+                              const url = trimmed.startsWith('http') || trimmed.startsWith('data:')
+                                ? trimmed
+                                : (trimmed.startsWith('/api/') || trimmed.startsWith('/uploads/')
+                                  ? (trimmed.startsWith('/uploads/') ? `/api${trimmed}` : trimmed)
+                                  : (trimmed.startsWith('/') ? `/api/uploads${trimmed}` : `/api/uploads/vehicles/${trimmed}`));
+
                               return (
-                                <div key={i} className="relative group rounded-lg overflow-hidden border border-gray-600 bg-seguranca-graphite h-36">
-                                  <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover"
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                <div key={i} className="relative group rounded-lg overflow-hidden border border-gray-600 bg-seguranca-graphite h-36 flex items-center justify-center">
+                                  <img
+                                    src={url}
+                                    alt={`Foto ${i + 1}`}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      const target = e.currentTarget;
+                                      if (!target.dataset.fallbackTried && !trimmed.startsWith('http') && !trimmed.startsWith('data:')) {
+                                        target.dataset.fallbackTried = '1';
+                                        target.src = `/api/uploads/${trimmed.replace(/^\/+/, '')}`;
+                                        return;
+                                      }
+                                      target.style.display = 'none';
+                                      const parent = target.parentElement;
+                                      if (parent) {
+                                        const fb = parent.querySelector('.photo-ph') as HTMLElement;
+                                        if (fb) fb.style.display = 'flex';
+                                      }
+                                    }}
+                                  />
+                                  <div className="photo-ph hidden w-full h-full flex-col items-center justify-center bg-gray-900/90 text-gray-400 p-2 text-center">
+                                    <Car className="h-6 w-6 text-gray-500 mb-1" />
+                                    <span className="text-[10px] truncate max-w-full text-gray-300 font-mono">
+                                      {trimmed.split('/').pop() || `Foto ${i + 1}`}
+                                    </span>
+                                  </div>
                                   <button
                                     className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/40 transition-colors"
                                     onClick={() => window.open(url, '_blank')}

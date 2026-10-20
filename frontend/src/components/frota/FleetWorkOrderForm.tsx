@@ -1782,24 +1782,27 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         {formData.photoAttachments && formData.photoAttachments.length > 0 && (
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                                 {formData.photoAttachments.map((photo, idx) => {
-                                    const photoSrc = photo.startsWith('data:') || photo.startsWith('blob:') || photo.startsWith('http://') || photo.startsWith('https://')
-                                        ? photo
-                                        : (photo.startsWith('/') ? photo : `/${photo}`);
+                                    const trimmed = photo.trim();
+                                    const photoSrc = trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')
+                                        ? trimmed
+                                        : (trimmed.startsWith('/api/uploads/')
+                                            ? trimmed
+                                            : (trimmed.startsWith('/uploads/')
+                                                ? `/api${trimmed}`
+                                                : (trimmed.startsWith('/') ? `/api/uploads${trimmed}` : `/api/uploads/maintenance/${trimmed}`)));
 
                                     return (
-                                        <div key={idx} className="relative group border border-gray-700 rounded-lg overflow-hidden bg-black/60 aspect-video">
+                                        <div key={idx} className="relative group border border-gray-700 rounded-lg overflow-hidden bg-black/60 aspect-video flex items-center justify-center">
                                             <img
                                                 src={photoSrc}
                                                 alt={`Evidência ${idx + 1}`}
                                                 className="w-full h-full object-cover"
                                                 onError={(e) => {
                                                     const target = e.currentTarget;
-                                                    if (!target.dataset.fallbackTried) {
+                                                    if (!target.dataset.fallbackTried && !trimmed.startsWith('data:') && !trimmed.startsWith('blob:') && !trimmed.startsWith('http')) {
                                                         target.dataset.fallbackTried = '1';
-                                                        if (photoSrc.startsWith('/uploads/')) {
-                                                            target.src = `/api${photoSrc}`;
-                                                            return;
-                                                        }
+                                                        target.src = `/api/uploads/${trimmed.replace(/^\/+/, '')}`;
+                                                        return;
                                                     }
                                                     target.style.display = 'none';
                                                     const parent = target.parentElement;

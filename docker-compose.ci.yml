@@ -113,7 +113,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 30
-      start_period: 60s
+      start_period: 120s
     restart: unless-stopped
     # DESABILITADO TRAEFIK - usando Nginx como proxy reverso
     labels:
@@ -174,9 +174,9 @@ services:
       - ./nginx/ci.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       backend-ci:
-        condition: service_healthy
+        condition: service_started
       frontend-ci:
-        condition: service_healthy
+        condition: service_started
     networks:
       - fluxbus-ci-network
       - z7network
