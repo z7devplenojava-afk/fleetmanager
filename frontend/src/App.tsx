@@ -242,7 +242,7 @@ const AdmissaoDemissao = lazy(() => import('@/pages/AdmissaoDemissao'));
 const CentrosDeCusto = lazy(() => import('@/pages/CentrosDeCusto'));
 const ImportarDadosBancarios = lazy(() => import('@/pages/ImportarDadosBancarios'));
 const ImportarWhatsappPDF = lazy(() => import('@/pages/ImportarWhatsappPDF'));
-const GestaoAtestados = lazy(() => import('@/pages/rh/GestaoAtestados'));
+const GestaoAtestados = lazy(() => import('@/pages/RH/GestaoAtestados'));
 const ModuloDespesasPage = lazy(() => import('@/pages/financeiro/ModuloDespesasPage'));
 
 // Páginas adicionais
