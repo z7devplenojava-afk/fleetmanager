@@ -23,6 +23,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -97,11 +98,16 @@ public class EPIDeliveryFormController {
         return ResponseEntity.ok(forms);
     }
 
-    @Operation(summary = "Busca fichas de entrega de EPI por funcionÃ¡rio")
+    @Operation(summary = "Busca fichas de entrega de EPI por funcionário")
     @GetMapping("/employee/{employeeId}")
     public ResponseEntity<List<EPIDeliveryFormDTO>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
-        List<EPIDeliveryFormDTO> forms = epiDeliveryFormService.findByEmployeeId(employeeId);
-        return ResponseEntity.ok(forms);
+        try {
+            List<EPIDeliveryFormDTO> forms = epiDeliveryFormService.findByEmployeeId(employeeId);
+            return ResponseEntity.ok(forms != null ? forms : Collections.emptyList());
+        } catch (Exception e) {
+            log.warn("⚠️ Aviso ao buscar fichas de EPI do funcionário {}: {}", employeeId, e.getMessage());
+            return ResponseEntity.ok(Collections.emptyList());
+        }
     }
 
     @Operation(summary = "Busca fichas de entrega de EPI por empresa")

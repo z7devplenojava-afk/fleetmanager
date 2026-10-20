@@ -4,6 +4,26 @@
 -- Multi-tenant: company_id em todas as entidades + índice de isolamento.
 -- =====================================================================
 
+-- 0. Limpeza defensiva de tabela legada email_messages sem folder_id (schema antigo incompatível)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name = 'email_messages'
+    ) AND NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+          AND table_name = 'email_messages' 
+          AND column_name = 'folder_id'
+    ) THEN
+        DROP TABLE IF EXISTS email_attachments CASCADE;
+        DROP TABLE IF EXISTS email_messages CASCADE;
+    END IF;
+END $$;
+
 -- 1. Contas de E-mail (credenciais IMAP/SMTP criptografadas)
 CREATE TABLE IF NOT EXISTS email_accounts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

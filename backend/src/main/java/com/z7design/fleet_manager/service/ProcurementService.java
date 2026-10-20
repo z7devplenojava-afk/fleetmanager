@@ -2,6 +2,7 @@ package com.z7design.fleet_manager.service;
 
 import com.z7design.fleet_manager.dto.procurement.*;
 import com.z7design.fleet_manager.model.*;
+import com.z7design.fleet_manager.model.enums.StockCategory;
 import com.z7design.fleet_manager.repository.*;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class ProcurementService {
     private final StockItemRepository stockItemRepository;
     private final FleetWorkOrderRepository workOrderRepository;
     private final UserRepository userRepository;
+    private final CompanyRepository companyRepository;
     private final SystemNotificationService notificationService;
 
     private User resolveCurrentUser() {
@@ -42,6 +44,29 @@ public class ProcurementService {
             return userRepository.findByUsername(auth.getName()).orElse(null);
         }
         return null;
+    }
+
+    private UUID resolveCompanyId(MaterialRequisition requisition, ProcurementPurchaseOrder po, StockItem stockItem) {
+        UUID companyId = TenantContext.get();
+        if (companyId != null) return companyId;
+
+        User currentUser = resolveCurrentUser();
+        if (currentUser != null && currentUser.getCompanyId() != null) {
+            return currentUser.getCompanyId();
+        }
+        if (po != null && po.getCompanyId() != null) {
+            return po.getCompanyId();
+        }
+        if (requisition != null && requisition.getCompanyId() != null) {
+            return requisition.getCompanyId();
+        }
+        if (stockItem != null && stockItem.getCompanyId() != null) {
+            return stockItem.getCompanyId();
+        }
+        return companyRepository.findAll().stream()
+                .findFirst()
+                .map(Company::getId)
+                .orElse(null);
     }
 
     @Transactional
@@ -310,14 +335,13 @@ public class ProcurementService {
 
     @Transactional
     public StockInvoiceEntryDTO registerInvoiceEntryAndReleaseStock(InvoiceEntryRequestDTO dto) {
-        UUID companyId = TenantContext.get();
         User currentUser = resolveCurrentUser();
 
         ProcurementPurchaseOrder po = null;
         MaterialRequisition requisition = null;
         if (dto.getPurchaseOrderId() != null) {
             po = purchaseOrderRepository.findById(dto.getPurchaseOrderId()).orElse(null);
-            if (po != null) {
+            if (po != null && po.getRequisitionId() != null) {
                 requisition = requisitionRepository.findById(po.getRequisitionId()).orElse(null);
             }
         }
@@ -333,10 +357,61 @@ public class ProcurementService {
             stockItem = stockItemRepository.findById(requisition.getStockItemId()).orElse(null);
         }
 
-        if (stockItem != null) {
-            int current = stockItem.getCurrentQuantity() != null ? stockItem.getCurrentQuantity() : 0;
-            stockItem.setCurrentQuantity(current + dto.getQuantityReceived().intValue());
+        // Se ainda não encontrou o item no estoque, tentar buscar por código/itemCode ou nome
+        if (stockItem == null && requisition != null) {
+            if (requisition.getItemCode() != null && !requisition.getItemCode().isBlank()) {
+                stockItem = stockItemRepository.findByCode(requisition.getItemCode().trim()).orElse(null);
+            }
+            if (stockItem == null && requisition.getItemName() != null && !requisition.getItemName().isBlank()) {
+                List<StockItem> found = stockItemRepository.findByNameContainingIgnoreCase(requisition.getItemName().trim());
+                if (!found.isEmpty()) {
+                    stockItem = found.get(0);
+                }
+            }
+        }
+
+        // Resolver o companyId com fallback seguro (TenantContext -> currentUser -> po -> requisition -> stockItem -> default company)
+        UUID companyId = resolveCompanyId(requisition, po, stockItem);
+
+        // Se ainda não existir item no estoque, cadastrar automaticamente com base na NF-e recebida
+        if (stockItem == null) {
+            String partName = (requisition != null && requisition.getItemName() != null && !requisition.getItemName().isBlank())
+                    ? requisition.getItemName().trim()
+                    : "Peça NF " + (dto.getInvoiceNumber() != null ? dto.getInvoiceNumber() : "");
+            String code = (requisition != null && requisition.getItemCode() != null && !requisition.getItemCode().isBlank())
+                    ? requisition.getItemCode().trim()
+                    : "PEC-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+
+            if (stockItemRepository.existsByCode(code)) {
+                code = code + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+            }
+
+            int qty = dto.getQuantityReceived() != null ? dto.getQuantityReceived().intValue() : 1;
+            stockItem = new StockItem();
+            stockItem.setCompanyId(companyId);
+            stockItem.setCode(code);
+            stockItem.setName(partName);
+            stockItem.setDescription("Cadastrado automaticamente via entrada de NF-e " + (dto.getInvoiceNumber() != null ? dto.getInvoiceNumber() : ""));
+            stockItem.setCategory(StockCategory.PECAS_MECANICA);
+            stockItem.setCurrentQuantity(qty);
+            stockItem.setMinimumQuantity(0);
             stockItem.setUnitCost(dto.getUnitCost());
+            stockItem.setActive(true);
+            stockItem = stockItemRepository.save(stockItem);
+
+            if (requisition != null) {
+                requisition.setStockItemId(stockItem.getId());
+                requisitionRepository.save(requisition);
+            }
+        } else {
+            int current = stockItem.getCurrentQuantity() != null ? stockItem.getCurrentQuantity() : 0;
+            stockItem.setCurrentQuantity(current + (dto.getQuantityReceived() != null ? dto.getQuantityReceived().intValue() : 0));
+            if (dto.getUnitCost() != null) {
+                stockItem.setUnitCost(dto.getUnitCost());
+            }
+            if (stockItem.getCompanyId() == null && companyId != null) {
+                stockItem.setCompanyId(companyId);
+            }
             stockItemRepository.save(stockItem);
         }
 
@@ -360,10 +435,11 @@ public class ProcurementService {
         }
 
         // 4. Criar Reserva no Estoque para a OS e transicionar status da OS
-        if (requisition != null && requisition.getWorkOrderId() != null && Boolean.TRUE.equals(dto.getReleaseToWorkOrder())) {
+        UUID targetStockItemId = stockItem != null ? stockItem.getId() : (requisition != null ? requisition.getStockItemId() : null);
+        if (requisition != null && requisition.getWorkOrderId() != null && Boolean.TRUE.equals(dto.getReleaseToWorkOrder()) && targetStockItemId != null) {
             StockReservation reservation = StockReservation.builder()
-                    .companyId(companyId != null ? companyId : requisition.getCompanyId())
-                    .stockItemId(stockItem != null ? stockItem.getId() : (requisition.getStockItemId() != null ? requisition.getStockItemId() : null))
+                    .companyId(companyId)
+                    .stockItemId(targetStockItemId)
                     .workOrderId(requisition.getWorkOrderId())
                     .vehicleId(requisition.getVehicleId())
                     .requisitionId(requisition.getId())
@@ -372,7 +448,7 @@ public class ProcurementService {
                     .reservedById(currentUser != null ? currentUser.getId() : null)
                     .reservedByName(currentUser != null ? currentUser.getName() : "Almoxarifado")
                     .reservedAt(LocalDateTime.now())
-                    .notes("Peça recebida via NF-e " + dto.getInvoiceNumber() + " e liberada para instalação.")
+                    .notes("Peça recebida via NF-e " + (dto.getInvoiceNumber() != null ? dto.getInvoiceNumber() : "") + " e liberada para instalação.")
                     .build();
             stockReservationRepository.save(reservation);
 
@@ -387,7 +463,7 @@ public class ProcurementService {
 
         // 5. Registrar entrada de NF-e
         StockInvoiceEntry entry = StockInvoiceEntry.builder()
-                .companyId(companyId != null ? companyId : (po != null ? po.getCompanyId() : requisition.getCompanyId()))
+                .companyId(companyId)
                 .purchaseOrderId(po != null ? po.getId() : null)
                 .requisitionId(requisition != null ? requisition.getId() : null)
                 .stockItemId(stockItem != null ? stockItem.getId() : null)

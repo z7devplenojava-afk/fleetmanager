@@ -12,13 +12,14 @@ import { Separator } from '@/components/ui/separator';
 import {
     Wrench, Trash2, Plus, ClipboardList, Clock, History,
     Gauge, AlertTriangle, Send, ChevronDown, ChevronUp, CheckCircle, XCircle, MinusCircle, UserCheck,
-    Camera, UploadCloud, Image as LucideImage, Package, ShieldCheck, Tag, FileText, Check, AlertCircle
+    Camera, UploadCloud, Image as LucideImage, Package, ShieldCheck, Tag, FileText, Check, AlertCircle,
+    Timer, Edit, PlayCircle, StopCircle, RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import fleetWorkOrderService, {
     WorkOrderStatus, LaborType, WorkOrderItemType, WorkOrderPriority, MaintenanceType, ChecklistStatus,
-    WorkOrderItem, FleetWorkOrder, FleetWorkOrderChecklist, WorkOrderHistoryEntry
+    WorkOrderItem, FleetWorkOrder, FleetWorkOrderChecklist, WorkOrderHistoryEntry, ExecutionHistoryEntry
 } from '@/services/fleetWorkOrderService';
 import fleetService from '@/services/fleetService';
 import { clientService } from '@/services/clientService';
@@ -80,11 +81,123 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         laborType: LaborType.INTERNAL,
         stopDate: new Date().toISOString().split('T')[0],
         stopTime: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        executionStartDate: undefined,
+        executionEndDate: undefined,
+        executionStartJustification: undefined,
         laborCost: 0, partsCost: 0, totalCost: 0,
         odometerIn: undefined, odometerOut: undefined,
         stopReason: '', mechanicName: '', notes: '', items: [], checklistItems: [],
         anomaliesDescription: '', otherDescription: '', maintenancePerformed: ''
     });
+
+    // Estado do controle de execução do serviço
+    const [showCorrectionModal, setShowCorrectionModal] = useState(false);
+    const [correctionJustification, setCorrectionJustification] = useState('');
+    const [correctionNewDate, setCorrectionNewDate]     = useState('');
+    const [correctionNewTime, setCorrectionNewTime]     = useState('');
+    const [isSavingCorrection, setIsSavingCorrection]   = useState(false);
+    const [executionHistoryEntries, setExecutionHistoryEntries] = useState<ExecutionHistoryEntry[]>([]);
+    const [showExecutionHistory, setShowExecutionHistory] = useState(false);
+    const [isLoadingExecHistory, setIsLoadingExecHistory] = useState(false);
+
+    // Duração calculada em tempo real (front-end preview)
+    const calculatedDuration = React.useMemo(() => {
+        const start = formData.executionStartDate;
+        const end   = formData.executionEndDate;
+        if (!start) return null;
+        try {
+            const startDate = new Date(start);
+            const endDate = end ? new Date(end) : new Date();
+            const diff = endDate.getTime() - startDate.getTime();
+            if (isNaN(diff) || diff < 0) return null;
+            const totalMin = Math.floor(diff / 60000);
+            const d = Math.floor(totalMin / 1440);
+            const h = Math.floor((totalMin % 1440) / 60);
+            const m = totalMin % 60;
+            return { days: d, hours: h, minutes: m, totalMinutes: totalMin, isRunning: !end };
+        } catch { return null; }
+    }, [formData.executionStartDate, formData.executionEndDate]);
+
+    const formatDurationString = (dur: { days: number; hours: number; minutes: number; totalMinutes?: number } | null) => {
+        if (!dur) return '—';
+        if (dur.days === 0 && dur.hours === 0 && dur.minutes === 0) return 'Menos de 1 minuto';
+        const parts: string[] = [];
+        if (dur.days > 0) parts.push(`${dur.days} ${dur.days === 1 ? 'dia' : 'dias'}`);
+        if (dur.hours > 0) parts.push(`${dur.hours} ${dur.hours === 1 ? 'hora' : 'horas'}`);
+        if (dur.minutes > 0 || parts.length === 0) parts.push(`${dur.minutes} ${dur.minutes === 1 ? 'minuto' : 'minutos'}`);
+        return parts.join(', ');
+    };
+
+    const handleOpenCorrectionModal = () => {
+        if (formData.executionStartDate) {
+            setCorrectionNewDate(formData.executionStartDate.substring(0, 10));
+            setCorrectionNewTime(formData.executionStartDate.substring(11, 16));
+        } else {
+            setCorrectionNewDate(new Date().toISOString().substring(0, 10));
+            setCorrectionNewTime(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        }
+        setCorrectionJustification('');
+        setShowCorrectionModal(true);
+    };
+
+    const handleSaveCorrection = async () => {
+        if (!correctionNewDate || !correctionNewTime) {
+            toast({ title: 'Atenção', description: 'Informe a nova data e horário de início.', variant: 'destructive' });
+            return;
+        }
+        if (!correctionJustification.trim()) {
+            toast({ title: 'Justificativa Obrigatória', description: 'Por favor, informe a justificativa para a correção do início da execução.', variant: 'destructive' });
+            return;
+        }
+        const newStartIso = `${correctionNewDate}T${correctionNewTime}:00`;
+
+        if (order?.id) {
+            setIsSavingCorrection(true);
+            try {
+                const updated = await fleetWorkOrderService.correctExecutionStart(
+                    order.id,
+                    newStartIso,
+                    correctionJustification.trim(),
+                    user?.name || user?.username || 'Usuário'
+                );
+                setFormData(p => ({
+                    ...p,
+                    executionStartDate: updated.executionStartDate,
+                    executionDurationMinutes: updated.executionDurationMinutes,
+                    executionStartJustification: updated.executionStartJustification,
+                }));
+                toast({ title: 'Início Atualizado', description: 'A data/hora de início foi corrigida e registrada no histórico com sucesso.' });
+                setShowCorrectionModal(false);
+                queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+            } catch (err: any) {
+                const msg = err?.response?.data?.error || err?.response?.data?.message || 'Falha ao salvar correção do início.';
+                toast({ title: 'Erro', description: msg, variant: 'destructive' });
+            } finally {
+                setIsSavingCorrection(false);
+            }
+        } else {
+            setFormData(p => ({
+                ...p,
+                executionStartDate: newStartIso,
+                executionStartJustification: correctionJustification.trim()
+            }));
+            setShowCorrectionModal(false);
+        }
+    };
+
+    const handleLoadExecutionHistory = async () => {
+        if (!order?.id) return;
+        setIsLoadingExecHistory(true);
+        try {
+            const list = await fleetWorkOrderService.getExecutionHistory(order.id);
+            setExecutionHistoryEntries(list);
+            setShowExecutionHistory(true);
+        } catch (err) {
+            toast({ title: 'Erro', description: 'Não foi possível carregar o histórico de execução.', variant: 'destructive' });
+        } finally {
+            setIsLoadingExecHistory(false);
+        }
+    };
 
     // Histórico
     const { data: history = [] } = useQuery<WorkOrderHistoryEntry[]>({
@@ -92,6 +205,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         queryFn: () => fleetWorkOrderService.getHistory(order!.id),
         enabled: isEdit && showHistory,
     });
+
 
     // Veículos da frota via React Query
     const { data: vehiclesRaw = [], isLoading: isLoadingVehicles } = useQuery<Vehicle[]>({
@@ -475,22 +589,112 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         setNewPhotoUrl('');
     };
 
+    // Itens padrão de contingência / fallback de inspeção preventiva
+    const DEFAULT_CHECKLIST_FALLBACK: { descricao: string; categoria: string }[] = [
+        // Mecânica
+        { descricao: 'Conferir barras e ponteiras', categoria: 'MECANICA' },
+        { descricao: 'Conferir coifa', categoria: 'MECANICA' },
+        { descricao: 'Conferir mangas de eixo', categoria: 'MECANICA' },
+        { descricao: 'Conferir vazamentos pneumáticos', categoria: 'MECANICA' },
+        { descricao: 'Conferir freio de estacionamento', categoria: 'MECANICA' },
+        { descricao: 'Conferir amortecedores', categoria: 'MECANICA' },
+        { descricao: 'Conferir estabilizadores', categoria: 'MECANICA' },
+        { descricao: 'Conferir cuícas', categoria: 'MECANICA' },
+        { descricao: 'Conferir lonas', categoria: 'MECANICA' },
+        { descricao: 'Conferir catracas de freio', categoria: 'MECANICA' },
+        { descricao: 'Conferir freio motor', categoria: 'MECANICA' },
+        { descricao: 'Conferir cubos dianteiros e traseiros', categoria: 'MECANICA' },
+        { descricao: 'Conferir folga eixo S', categoria: 'MECANICA' },
+        { descricao: 'Conferir flange da caixa de câmbio', categoria: 'MECANICA' },
+        { descricao: 'Conferir cruzeta', categoria: 'MECANICA' },
+        { descricao: 'Conferir embreagem', categoria: 'MECANICA' },
+        { descricao: 'Conferir pinos de centro do feixe de molas', categoria: 'MECANICA' },
+        { descricao: 'Lubrificar feixe de molas', categoria: 'MECANICA' },
+        { descricao: 'Lubrificar rolamentos', categoria: 'MECANICA' },
+        { descricao: 'Lubrificar cruzetas', categoria: 'MECANICA' },
+        { descricao: 'Lubrificar sistema de freio', categoria: 'MECANICA' },
+        { descricao: 'Conferir rolamento central', categoria: 'MECANICA' },
+        { descricao: 'Conferir mancal / eixo cardan', categoria: 'MECANICA' },
+        // Elétrica
+        { descricao: 'Conferir polos da bateria', categoria: 'ELETRICA' },
+        { descricao: 'Conferir cabos da bateria', categoria: 'ELETRICA' },
+        { descricao: 'Conferir carregamento da bateria (27V)', categoria: 'ELETRICA' },
+        { descricao: 'Conferir parte elétrica', categoria: 'ELETRICA' },
+        { descricao: 'Conferir farol, farolete, lanternas, seta e buzina', categoria: 'ELETRICA' },
+        // Motor
+        { descricao: 'Conferir óleo do motor', categoria: 'MOTOR' },
+        { descricao: 'Conferir filtros', categoria: 'MOTOR' },
+        { descricao: 'Conferir radiador e arrefecimento', categoria: 'MOTOR' },
+        { descricao: 'Conferir motor e correias', categoria: 'MOTOR' },
+        // Pneus
+        { descricao: 'Conferir pneus, calibração e aperto dos parafusos', categoria: 'PNEUS' },
+        // Carroceria
+        { descricao: 'Conferir carroceria, porta-malas e painel de instrução', categoria: 'CARROCERIA' }
+    ];
+
+    const [isLoadingChecklist, setIsLoadingChecklist] = useState(false);
+
+    const handleLoadDefaultChecklist = async (overrideVehicleId?: string) => {
+        setIsLoadingChecklist(true);
+        try {
+            const targetVehId = overrideVehicleId || formData.vehicleId;
+            const currentVeh = vehicles.find(v => v.id === targetVehId);
+            const vType = (currentVeh?.vehicleType || '').toUpperCase();
+            const busType = (currentVeh?.busType || '').toUpperCase();
+            const modelStr = ((currentVeh?.model || '') + ' ' + (currentVeh?.brand || '')).toUpperCase();
+
+            // Detecta se é VAN ou ÔNIBUS/MICRO-ÔNIBUS
+            let filterType = 'BUS';
+            if (vType === 'VAN' || modelStr.includes('VAN') || modelStr.includes('SPRINTER') || modelStr.includes('DUCATO') || modelStr.includes('TRANSIT') || modelStr.includes('MASTER')) {
+                filterType = 'VAN';
+            }
+
+            const masterItems = await fleetWorkOrderService.getChecklistMasterItems(filterType);
+            let itemsToUse: { id?: string; descricao: string; categoria: string }[] = [];
+            if (masterItems && masterItems.length > 0) {
+                itemsToUse = masterItems;
+            } else {
+                itemsToUse = DEFAULT_CHECKLIST_FALLBACK;
+            }
+
+            const initialChecklist: FleetWorkOrderChecklist[] = itemsToUse.map(m => ({
+                checklistItemId: m.id,
+                checklistItemDescricao: m.descricao,
+                checklistItemCategoria: m.categoria,
+                situacao: ChecklistStatus.OK,
+                observacao: '',
+                reparoRealizado: ''
+            }));
+            setFormData(p => ({ ...p, checklistItems: initialChecklist }));
+            const labelTipo = filterType === 'VAN' ? 'Van' : (vType.includes('MINI') || modelStr.includes('MICRO') || modelStr.includes('VOLARE') ? 'Micro-ônibus' : 'Ônibus');
+            toast({
+                title: `Checklist Preventivo (${labelTipo})`,
+                description: `${initialChecklist.length} itens de inspeção adicionados à OS.`,
+            });
+        } catch {
+            const fallbackChecklist: FleetWorkOrderChecklist[] = DEFAULT_CHECKLIST_FALLBACK.map(m => ({
+                checklistItemDescricao: m.descricao,
+                checklistItemCategoria: m.categoria,
+                situacao: ChecklistStatus.OK,
+                observacao: '',
+                reparoRealizado: ''
+            }));
+            setFormData(p => ({ ...p, checklistItems: fallbackChecklist }));
+            toast({
+                title: 'Checklist preventivo padrão carregado',
+                description: `${fallbackChecklist.length} itens padrão adicionados.`,
+            });
+        } finally {
+            setIsLoadingChecklist(false);
+        }
+    };
+
     // Carregar itens mestre de checklist caso selecione PREVENTIVA e ainda não tenha itens
     useEffect(() => {
         if (formData.maintenanceType === MaintenanceType.PREVENTIVA && (!formData.checklistItems || formData.checklistItems.length === 0)) {
-            fleetWorkOrderService.getChecklistMasterItems().then(masterItems => {
-                const initialChecklist: FleetWorkOrderChecklist[] = masterItems.map(m => ({
-                    checklistItemId: m.id,
-                    checklistItemDescricao: m.descricao,
-                    checklistItemCategoria: m.categoria,
-                    situacao: ChecklistStatus.OK,
-                    observacao: '',
-                    reparoRealizado: ''
-                }));
-                setFormData(p => ({ ...p, checklistItems: initialChecklist }));
-            }).catch(() => {});
+            handleLoadDefaultChecklist();
         }
-    }, [formData.maintenanceType]);
+    }, [formData.maintenanceType, formData.vehicleId]);
 
     // Popular form ao abrir
     useEffect(() => {
@@ -534,6 +738,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     }, [user]);
 
     const [isRequestingPurchase, setIsRequestingPurchase] = useState(false);
+
 
     const handleRequestPurchase = async () => {
         if (!order?.id) {
@@ -1066,10 +1271,29 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
     const currentOsNumber = order?.osNumber || formData.osNumber || (order?.id ? order.id.slice(0, 8) : formData.id ? formData.id.slice(0, 8) : null);
 
-    if (!isOpen) return null;
+    const handleCloseDrawer = () => {
+        onClose();
+        setTimeout(() => {
+            if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                document.body.style.pointerEvents = '';
+                document.body.style.overflow = '';
+            }
+        }, 50);
+    };
+
+    useEffect(() => {
+        return () => {
+            setTimeout(() => {
+                if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                    document.body.style.pointerEvents = '';
+                    document.body.style.overflow = '';
+                }
+            }, 50);
+        };
+    }, []);
 
     return (
-        <ResponsiveDrawer isOpen={isOpen} onClose={onClose}
+        <ResponsiveDrawer isOpen={isOpen} onClose={handleCloseDrawer}
             title={currentOsNumber ? `OS #${currentOsNumber} — ${isEdit ? 'Editar' : 'Ordem de Serviço'}` : 'Nova Ordem de Serviço'}
             description="Cadastre manutenções corretivas e preventivas com controle completo de checklist e execução."
             footer={footer}
@@ -1144,6 +1368,9 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                             ? selectedVeh.currentMileage
                                             : p.odometerIn
                                     }));
+                                    if (formData.maintenanceType === MaintenanceType.PREVENTIVA && (!isEdit || !order?.checklistItems || order.checklistItems.length === 0)) {
+                                        handleLoadDefaultChecklist(v);
+                                    }
                                 }}
                                 options={vehicleOptions}
                                 placeholder="Selecione ou busque por placa ou código..."
@@ -1287,6 +1514,142 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     </div>
                 </Section>
 
+                {/* ── Seção 3: Tempo de Execução do Serviço ───────────────────────── */}
+                <Section
+                    title="Tempo de Execução do Serviço"
+                    icon={<Timer className="h-4 w-4 text-emerald-400" />}
+                    action={
+                        isEdit && order?.id ? (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleLoadExecutionHistory}
+                                    className="h-7 text-xs border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white"
+                                >
+                                    <History className="h-3 w-3 mr-1 text-blue-400" />
+                                    Histórico de Correções
+                                </Button>
+                            </div>
+                        ) : null
+                    }
+                >
+                    <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-4 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Início da Execução */}
+                            <div className="space-y-1.5 p-3 rounded-lg bg-black/40 border border-gray-800">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                                        <PlayCircle className="h-3.5 w-3.5 text-emerald-400" />
+                                        Início da Execução
+                                    </Label>
+                                    {isEdit && order?.executionStartDate && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={handleOpenCorrectionModal}
+                                            className="h-6 text-[11px] px-2 text-amber-400 hover:text-amber-300 hover:bg-amber-950/40"
+                                            title="Corrigir horário de início com justificativa obrigatória"
+                                        >
+                                            <Edit className="h-3 w-3 mr-1" /> Corrigir com Justificativa
+                                        </Button>
+                                    )}
+                                </div>
+                                <Input
+                                    type="datetime-local"
+                                    value={formData.executionStartDate ? formData.executionStartDate.substring(0, 16) : ''}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        setFormData(p => ({
+                                            ...p,
+                                            executionStartDate: val ? (val.length === 16 ? `${val}:00` : val) : undefined
+                                        }));
+                                    }}
+                                    className="bg-seguranca-black border-gray-700 text-sm focus:border-emerald-500"
+                                />
+                                <p className="text-[11px] text-gray-400">
+                                    Preenchido automaticamente ao entregar itens no Almoxarifado ou ao iniciar a manutenção.
+                                </p>
+                            </div>
+
+                            {/* Término da Execução */}
+                            <div className="space-y-1.5 p-3 rounded-lg bg-black/40 border border-gray-800">
+                                <Label className="text-xs font-semibold text-blue-400 flex items-center gap-1.5">
+                                    <StopCircle className="h-3.5 w-3.5 text-blue-400" />
+                                    Término da Execução
+                                </Label>
+                                <Input
+                                    type="datetime-local"
+                                    value={formData.executionEndDate ? formData.executionEndDate.substring(0, 16) : ''}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        setFormData(p => ({
+                                            ...p,
+                                            executionEndDate: val ? (val.length === 16 ? `${val}:00` : val) : undefined
+                                        }));
+                                    }}
+                                    className="bg-seguranca-black border-gray-700 text-sm focus:border-blue-500"
+                                />
+                                <p className="text-[11px] text-gray-400">
+                                    Preenchido ao concluir as atividades mecânicas da OS.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Apuração Automática da Duração */}
+                        <div className="rounded-lg p-3 bg-gradient-to-r from-emerald-950/30 via-gray-900/40 to-blue-950/30 border border-emerald-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                    <Clock className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 block">
+                                        Tempo Total de Execução Calculado
+                                    </span>
+                                    <span className="text-base font-bold text-emerald-300">
+                                        {calculatedDuration
+                                            ? formatDurationString(calculatedDuration)
+                                            : (formData.executionDurationMinutes
+                                                ? formatDurationString({
+                                                    days: Math.floor(formData.executionDurationMinutes / 1440),
+                                                    hours: Math.floor((formData.executionDurationMinutes % 1440) / 60),
+                                                    minutes: formData.executionDurationMinutes % 60
+                                                })
+                                                : 'Aguardando definição de início e término')}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {calculatedDuration?.isRunning && (
+                                <Badge className="bg-amber-950/80 text-amber-300 border border-amber-700/60 px-2.5 py-1 text-xs self-start sm:self-auto flex items-center gap-1.5 animate-pulse">
+                                    <span className="h-2 w-2 rounded-full bg-amber-400"></span>
+                                    Em execução contínua
+                                </Badge>
+                            )}
+
+                            {calculatedDuration && !calculatedDuration.isRunning && (
+                                <Badge className="bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 px-2.5 py-1 text-xs self-start sm:self-auto flex items-center gap-1.5">
+                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                                    Execução Finalizada
+                                </Badge>
+                            )}
+                        </div>
+
+                        {/* Justificativa da última correção se houver */}
+                        {formData.executionStartJustification && (
+                            <div className="text-xs bg-amber-950/30 border border-amber-800/40 rounded-lg p-2.5 text-amber-200/90 flex items-start gap-2">
+                                <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                                <div>
+                                    <span className="font-semibold text-amber-300">Justificativa do Início:</span>{' '}
+                                    {formData.executionStartJustification}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </Section>
+
                 {/* ── Seção Dinâmica Corretiva vs Preventiva ──────────────────────── */}
                 {formData.maintenanceType === MaintenanceType.CORRETIVA ? (
                     <Section title="Manutenção Corretiva — Anomalias" icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}>
@@ -1305,11 +1668,27 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     <Section title="Checklist de Inspeção Preventiva" icon={<ClipboardList className="h-4 w-4 text-green-400" />}>
                         <div className="space-y-6">
                             {Object.keys(checklistByCategory).length === 0 ? (
-                                <p className="text-sm text-gray-500 italic">Carregando itens de inspeção…</p>
+                                <div className="p-6 rounded-lg border border-dashed border-gray-800 bg-black/30 text-center space-y-3">
+                                    <ClipboardList className="h-8 w-8 text-gray-500 mx-auto" />
+                                    <p className="text-sm text-gray-400">
+                                        {isLoadingChecklist ? 'Carregando itens de inspeção preventiva...' : 'Nenhum item de inspeção carregado para esta OS.'}
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleLoadDefaultChecklist}
+                                        disabled={isLoadingChecklist}
+                                        className="border-green-800 text-green-400 hover:bg-green-950/40"
+                                    >
+                                        <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isLoadingChecklist ? 'animate-spin' : ''}`} />
+                                        {isLoadingChecklist ? 'Carregando...' : 'Carregar Itens Padrão de Inspeção'}
+                                    </Button>
+                                </div>
                             ) : (
                                 Object.entries(checklistByCategory).map(([category, items]) => (
                                     <div key={category} className="border border-gray-800 rounded-lg p-3 bg-gray-900/40 space-y-3">
-                                        <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider text-red-400 flex items-center gap-2">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-green-400 flex items-center gap-2">
                                             <span>•</span> {category}
                                         </h4>
                                         <div className="space-y-2">
@@ -1402,22 +1781,55 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         {/* Grid de Previews */}
                         {formData.photoAttachments && formData.photoAttachments.length > 0 && (
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                                {formData.photoAttachments.map((photo, idx) => (
-                                    <div key={idx} className="relative group border border-gray-700 rounded-lg overflow-hidden bg-black/60 aspect-video">
-                                        <img src={photo} alt={`Evidência ${idx + 1}`} className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                            <a href={photo} target="_blank" rel="noreferrer" title="Visualizar em tamanho real" className="p-1.5 bg-gray-900/80 rounded-full text-white hover:bg-gray-800">
-                                                <LucideImage className="h-4 w-4" />
-                                            </a>
-                                            <button type="button" onClick={() => handleRemovePhoto(idx)} title="Remover foto" className="p-1.5 bg-red-600/80 rounded-full text-white hover:bg-red-700">
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
+                                {formData.photoAttachments.map((photo, idx) => {
+                                    const photoSrc = photo.startsWith('data:') || photo.startsWith('blob:') || photo.startsWith('http://') || photo.startsWith('https://')
+                                        ? photo
+                                        : (photo.startsWith('/') ? photo : `/${photo}`);
+
+                                    return (
+                                        <div key={idx} className="relative group border border-gray-700 rounded-lg overflow-hidden bg-black/60 aspect-video">
+                                            <img
+                                                src={photoSrc}
+                                                alt={`Evidência ${idx + 1}`}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    const target = e.currentTarget;
+                                                    if (!target.dataset.fallbackTried) {
+                                                        target.dataset.fallbackTried = '1';
+                                                        if (photoSrc.startsWith('/uploads/')) {
+                                                            target.src = `/api${photoSrc}`;
+                                                            return;
+                                                        }
+                                                    }
+                                                    target.style.display = 'none';
+                                                    const parent = target.parentElement;
+                                                    if (parent) {
+                                                        const fallback = parent.querySelector('.photo-error-fallback') as HTMLElement;
+                                                        if (fallback) fallback.style.display = 'flex';
+                                                    }
+                                                }}
+                                            />
+                                            <div className="photo-error-fallback hidden w-full h-full flex-col items-center justify-center p-2 text-center bg-gray-900/90 text-gray-400">
+                                                <LucideImage className="h-6 w-6 text-gray-500 mb-1" />
+                                                <span className="text-[10px] truncate max-w-full px-1 text-gray-300 font-mono">
+                                                    {photo.split('/').pop() || `Evidência ${idx + 1}`}
+                                                </span>
+                                                <span className="text-[9px] text-amber-400">Falha ao carregar</span>
+                                            </div>
+                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                <a href={photoSrc} target="_blank" rel="noreferrer" title="Visualizar em tamanho real" className="p-1.5 bg-gray-900/80 rounded-full text-white hover:bg-gray-800">
+                                                    <LucideImage className="h-4 w-4" />
+                                                </a>
+                                                <button type="button" onClick={() => handleRemovePhoto(idx)} title="Remover foto" className="p-1.5 bg-red-600/80 rounded-full text-white hover:bg-red-700">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                            <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] text-gray-300 pointer-events-none">
+                                                Foto #{idx + 1}
+                                            </div>
                                         </div>
-                                        <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] text-gray-300">
-                                            Foto #{idx + 1}
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -1869,6 +2281,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     </div>
                 </Section>
 
+
                 {/* ── Seção 7: Responsáveis e Assinaturas ──────────────────────── */}
                 <Section title="Responsáveis & Assinaturas" icon={<UserCheck className="h-4 w-4 text-purple-400" />}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2029,6 +2442,107 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 </div>
             )}
 
+            {/* Modal de Correção de Início com Justificativa */}
+            {showCorrectionModal && (
+                <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-lg w-full p-5 space-y-4 shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+                            <div className="flex items-center gap-2">
+                                <Edit className="h-5 w-5 text-amber-400" />
+                                <h3 className="text-base font-bold text-white">Corrigir Início da Execução</h3>
+                            </div>
+                            <Button size="sm" variant="ghost" onClick={() => setShowCorrectionModal(false)} className="h-7 w-7 p-0 text-gray-400">✕</Button>
+                        </div>
+
+                        <p className="text-xs text-gray-400">
+                            Qualquer alteração na data e hora em que a manutenção foi iniciada requer justificativa obrigatória e será registrada no histórico de auditoria da OS.
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <Label className="text-xs text-gray-300">Nova Data *</Label>
+                                <Input type="date" value={correctionNewDate} onChange={e => setCorrectionNewDate(e.target.value)} className="bg-black/60 border-gray-700" />
+                            </div>
+                            <div>
+                                <Label className="text-xs text-gray-300">Novo Horário *</Label>
+                                <Input type="time" value={correctionNewTime} onChange={e => setCorrectionNewTime(e.target.value)} className="bg-black/60 border-gray-700" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <Label className="text-xs text-gray-300">Justificativa da Correção *</Label>
+                            <Textarea
+                                value={correctionJustification}
+                                onChange={e => setCorrectionJustification(e.target.value)}
+                                placeholder="Descreva detalhadamente o motivo da correção (ex: Peças foram entregues às 08:30 mas o lançamento ocorreu apenas às 10:15)..."
+                                className="bg-black/60 border-gray-700 min-h-[90px] text-sm text-gray-200"
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setShowCorrectionModal(false)} disabled={isSavingCorrection}>
+                                Cancelar
+                            </Button>
+                            <Button type="button" size="sm" onClick={handleSaveCorrection} disabled={isSavingCorrection} className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
+                                {isSavingCorrection ? 'Salvando...' : 'Salvar Correção'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Histórico de Auditoria da Execução */}
+            {showExecutionHistory && (
+                <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-xl w-full p-5 space-y-4 shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+                            <div className="flex items-center gap-2">
+                                <History className="h-5 w-5 text-blue-400" />
+                                <h3 className="text-base font-bold text-white">Histórico de Correções do Início</h3>
+                            </div>
+                            <Button size="sm" variant="ghost" onClick={() => setShowExecutionHistory(false)} className="h-7 w-7 p-0 text-gray-400">✕</Button>
+                        </div>
+
+                        {isLoadingExecHistory ? (
+                            <p className="text-xs text-gray-400 py-4 text-center">Carregando histórico...</p>
+                        ) : executionHistoryEntries.length === 0 ? (
+                            <p className="text-xs text-gray-400 py-6 text-center italic">
+                                Nenhum ajuste manual foi registrado para esta OS. O início permanece o original.
+                            </p>
+                        ) : (
+                            <div className="max-h-[350px] overflow-y-auto space-y-3 pr-1">
+                                {executionHistoryEntries.map(entry => (
+                                    <div key={entry.id} className="p-3 rounded-lg bg-black/50 border border-gray-800 space-y-1.5 text-xs">
+                                        <div className="flex items-center justify-between text-gray-400">
+                                            <span className="font-semibold text-gray-300">{entry.performedBy || 'Usuário'}</span>
+                                            <span>{new Date(entry.createdAt).toLocaleString('pt-BR')}</span>
+                                        </div>
+                                        <div className="text-gray-300">
+                                            <span className="text-gray-500 line-through mr-2">
+                                                {entry.previousStartDate ? new Date(entry.previousStartDate).toLocaleString('pt-BR') : 'Não definido'}
+                                            </span>
+                                            ➜{' '}
+                                            <span className="text-emerald-400 font-semibold">
+                                                {new Date(entry.newStartDate).toLocaleString('pt-BR')}
+                                            </span>
+                                        </div>
+                                        <div className="bg-gray-950/80 p-2 rounded border border-gray-800/80 text-gray-300 italic">
+                                            "{entry.justification}"
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex justify-end pt-2 border-t border-gray-800">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setShowExecutionHistory(false)}>
+                                Fechar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Modal de Pré-visualização e Impressão da OS em PDF */}
             <FleetWorkOrderViewModal
                 isOpen={isPdfModalOpen}
@@ -2040,7 +2554,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     );
 };
 
-// ── Sub-componentes ────────────────────────────────────────────────────────────
+// ── Sub-componentes ───────────────────────────────────────────────────────────
+
 const Section: React.FC<{ title: string; icon?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }> = ({ title, icon, action, children }) => (
     <div className="space-y-3">
         <div className="flex items-center justify-between">

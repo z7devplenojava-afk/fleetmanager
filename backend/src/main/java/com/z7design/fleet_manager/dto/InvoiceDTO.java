@@ -109,6 +109,10 @@ public class InvoiceDTO {
     private java.util.UUID ddaInvoiceId;
     private Boolean isCanceled;
     
+    // Rastreabilidade de Ordem de Serviço
+    private java.util.UUID workOrderId;
+    private String workOrderNumber;
+    
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -198,6 +202,8 @@ public class InvoiceDTO {
             dto.setNfeKey(invoice.getNfeKey());
             dto.setDdaInvoiceId(invoice.getDdaInvoiceId());
             dto.setIsCanceled(invoice.getIsCanceled());
+            dto.setWorkOrderId(invoice.getWorkOrderId());
+            dto.setWorkOrderNumber(invoice.getWorkOrderNumber());
             
             // Tratamento seguro para relacionamentos (pode causar LazyInitializationException)
             try {

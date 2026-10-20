@@ -42,15 +42,20 @@ export const clientService = {
   // Buscar todos os clientes
   async getAllClients(): Promise<Client[]> {
     try {
-      const response = await api.get('/api/clients/all');
-      return response.data;
-    } catch (error: any) {
-      if (isConnectionError(error)) {
-        console.warn('⚠️ Backend não está disponível. Retornando array vazio para clientes.');
-        return [];
+      try {
+        const response = await api.get('/api/clients/all');
+        if (Array.isArray(response.data)) return response.data;
+        if (Array.isArray(response.data?.content)) return response.data.content;
+      } catch (inner) {
+        // Fallback para listagem padrão de clientes
+        const fallback = await api.get('/api/clients?size=1000');
+        if (Array.isArray(fallback.data)) return fallback.data;
+        if (Array.isArray(fallback.data?.content)) return fallback.data.content;
       }
-      console.error('Erro ao buscar clientes:', error);
-      throw new Error('Falha ao buscar clientes');
+      return [];
+    } catch (error: any) {
+      console.warn('⚠️ Não foi possível carregar lista de clientes:', error);
+      return [];
     }
   },
 

@@ -87,6 +87,16 @@ class DailyLogService {
         }
     }
 
+    async create(log: Partial<DailyLog>): Promise<DailyLog> {
+        const response = await api.post('/api/daily-logs', log);
+        return response.data;
+    }
+
+    async update(id: string, log: Partial<DailyLog>): Promise<DailyLog> {
+        const response = await api.put(`/api/daily-logs/${id}`, log);
+        return response.data;
+    }
+
     async delete(id: string): Promise<void> {
         await api.delete(`/api/daily-logs/${id}`);
     }

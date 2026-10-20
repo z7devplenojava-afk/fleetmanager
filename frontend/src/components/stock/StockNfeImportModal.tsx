@@ -53,6 +53,12 @@ interface StockNfeImportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  /** NF-e já analisada (evita pedir o arquivo novamente). */
+  initialData?: StockNfeParsedDTO | null;
+  /** Índices dos itens da NF que devem ser ignorados (ex.: item já preenchido no formulário atual). */
+  excludeItemIndexes?: number[];
+  /** Quando true, processa apenas o estoque (não gera contas a pagar). */
+  itemsOnly?: boolean;
 }
 
 interface EditableItemRow {
@@ -76,7 +82,10 @@ interface EditableItemRow {
 export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   open,
   onOpenChange,
-  onSuccess
+  onSuccess,
+  initialData,
+  excludeItemIndexes,
+  itemsOnly = false
 }) => {
   const { toast } = useToast();
 
@@ -95,13 +104,47 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   useEffect(() => {
     if (open) {
       loadStockItems();
+      setCreateFinancialAccounts(!itemsOnly);
+      if (initialData) {
+        applyParsedData(initialData);
+      }
     } else {
       // Resetar estado ao fechar
       setFile(null);
       setParsedData(null);
       setItemsRows([]);
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialData ? JSON.stringify(initialData) : '', itemsOnly]);
+
+  const applyParsedData = (data: StockNfeParsedDTO) => {
+    setParsedData(data);
+    const excluded = new Set(excludeItemIndexes || []);
+    const rows: EditableItemRow[] = data.items
+      .map((it, index) => ({ it, index }))
+      .filter(({ index }) => !excluded.has(index))
+      .map(({ it }) => {
+        const hasMatch = !!it.matchedStockItemId;
+        return {
+          selected: true,
+          action: hasMatch ? 'LINK_EXISTING' : 'CREATE_NEW',
+          matchedStockItemId: it.matchedStockItemId || undefined,
+          productCode: it.productCode || '',
+          name: it.description || '',
+          category: (it.suggestedCategory as StockCategory) || StockCategory.PECAS_MECANICA,
+          quantity: it.quantity || 1,
+          unitCost: it.unitPrice || 0,
+          totalPrice: it.totalPrice || 0,
+          unitOfMeasure: it.unitOfMeasure || 'UN',
+          barcode: it.barcode || '',
+          ncm: it.ncm || '',
+          cfop: it.cfop || '',
+          isBattery: it.isBattery || false,
+          isTire: it.isTire || false
+        };
+      });
+    setItemsRows(rows);
+  };
 
   const loadStockItems = async () => {
     try {
@@ -137,31 +180,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
     try {
       setParsing(true);
       const data = await stockNfeService.parseNfe(fileToParse);
-      setParsedData(data);
-
-      // Preencher linhas de itens adaptáveis
-      const rows: EditableItemRow[] = data.items.map((it) => {
-        const hasMatch = !!it.matchedStockItemId;
-        return {
-          selected: true,
-          action: hasMatch ? 'LINK_EXISTING' : 'CREATE_NEW',
-          matchedStockItemId: it.matchedStockItemId || undefined,
-          productCode: it.productCode || '',
-          name: it.description || '',
-          category: (it.suggestedCategory as StockCategory) || StockCategory.PECAS_MECANICA,
-          quantity: it.quantity || 1,
-          unitCost: it.unitPrice || 0,
-          totalPrice: it.totalPrice || 0,
-          unitOfMeasure: it.unitOfMeasure || 'UN',
-          barcode: it.barcode || '',
-          ncm: it.ncm || '',
-          cfop: it.cfop || '',
-          isBattery: it.isBattery || false,
-          isTire: it.isTire || false
-        };
-      });
-
-      setItemsRows(rows);
+      applyParsedData(data);
 
       if (data.alreadyImported) {
         toast({
@@ -213,7 +232,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   const handleSubmit = async () => {
     if (!parsedData) return;
 
-    if (parsedData.alreadyImported) {
+    if (parsedData.alreadyImported && !itemsOnly) {
       toast({
         title: 'Operação bloqueada',
         description: 'Não é possível importar uma nota fiscal que já foi processada anteriormente.',
@@ -247,13 +266,15 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
     }
 
     // Parcelas financeiras
-    const installmentsPayload: ProcessInstallmentPayload[] = (parsedData.installments || []).map((inst) => ({
-      installmentNumber: inst.installmentNumber,
-      dueDate: inst.dueDate,
-      amount: inst.amount,
-      barcode: inst.barcode,
-      notes: `NF ${parsedData.invoiceNumber} - Parcela ${inst.installmentNumber}`
-    }));
+    const installmentsPayload: ProcessInstallmentPayload[] = itemsOnly
+      ? []
+      : (parsedData.installments || []).map((inst) => ({
+          installmentNumber: inst.installmentNumber,
+          dueDate: inst.dueDate,
+          amount: inst.amount,
+          barcode: inst.barcode,
+          notes: `NF ${parsedData.invoiceNumber} - Parcela ${inst.installmentNumber}`
+        }));
 
     const payload: StockNfeProcessRequestDTO = {
       accessKey: parsedData.accessKey,
@@ -282,7 +303,9 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
 
       toast({
         title: 'Importação concluída com sucesso!',
-        description: `${res.itemsCreated} novo(s) item(ns), ${res.itemsUpdated} atualizado(s), ${res.batteriesCreated} bateria(s), ${res.tiresCreated} pneu(s) e ${res.financialAccountsCreated} conta(s) a pagar gerada(s).`
+        description: itemsOnly
+          ? `${res.itemsCreated} novo(s) item(ns) cadastrado(s) e ${res.itemsUpdated} atualizado(s) no estoque.`
+          : `${res.itemsCreated} novo(s) item(ns), ${res.itemsUpdated} atualizado(s), ${res.batteriesCreated} bateria(s), ${res.tiresCreated} pneu(s) e ${res.financialAccountsCreated} conta(s) a pagar gerada(s).`
       });
 
       // Disparar sincronização global
@@ -313,10 +336,14 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
         <DialogHeader>
           <DialogTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-white">
             <FileText className="h-6 w-6 text-seguranca-yellow" />
-            Importar XML/PDF de Nota Fiscal (Estoque & Financeiro)
+            {itemsOnly
+              ? 'Cadastrar Itens Restantes da Nota Fiscal no Estoque'
+              : 'Importar XML/PDF de Nota Fiscal (Estoque & Financeiro)'}
           </DialogTitle>
           <DialogDescription className="text-gray-300 text-xs sm:text-sm">
-            Importe o XML ou o PDF (DANFE) da NF-e para alimentar automaticamente o estoque geral, abas de Baterias/Pneus e criar as parcelas no Contas a Pagar.
+            {itemsOnly
+              ? 'Os demais itens da NF-e serão cadastrados no estoque. O financeiro é tratado no item principal do formulário.'
+              : 'Importe o XML ou o PDF (DANFE) da NF-e para alimentar automaticamente o estoque geral, abas de Baterias/Pneus e criar as parcelas no Contas a Pagar.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -609,6 +636,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
             </div>
 
             {/* Passo 3: Integração Financeira (Contas a Pagar) */}
+            {!itemsOnly && (
             <Card className="bg-seguranca-black/40 border-gray-700 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2">
@@ -660,6 +688,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                 </div>
               )}
             </Card>
+            )}
           </div>
         )}
 
@@ -685,7 +714,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
             {parsedData && (
               <Button
                 onClick={handleSubmit}
-                disabled={processing || selectedCount === 0 || parsedData.alreadyImported}
+                disabled={processing || selectedCount === 0 || (parsedData.alreadyImported && !itemsOnly)}
                 className="bg-seguranca-red hover:bg-seguranca-red/90 text-white font-semibold flex items-center gap-2"
               >
                 {processing ? (

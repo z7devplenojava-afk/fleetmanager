@@ -104,6 +104,6 @@ public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
     boolean existsByCode(String code);
 
     // Verificar se código existe para a empresa via query nativa (ignora filtro tenant)
-    @Query(value = "SELECT COUNT(*) > 0 FROM stock_items WHERE (:companyId IS NULL OR company_id = :companyId) AND code = :code", nativeQuery = true)
+    @Query(value = "SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END FROM stock_items WHERE (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) AND code = :code", nativeQuery = true)
     boolean existsByCompanyIdAndCodeNative(@Param("companyId") UUID companyId, @Param("code") String code);
 }

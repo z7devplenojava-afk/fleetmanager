@@ -28,6 +28,8 @@ export interface CreateContaAPagarRequest {
   parentInvoiceId?: string;
   nfeKey?: string;
   ddaInvoiceId?: string;
+  workOrderId?: string;
+  workOrderNumber?: string;
 }
 
 export interface BankCredential {
@@ -340,7 +342,9 @@ export const contasAPagarService = {
         paidAmount: invoice.paidAmount != null ? parseFloat(invoice.paidAmount) : undefined,
         balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
         bankAccountInfo: invoice.bankAccountInfo,
-        isCanceled: invoice.isCanceled
+        isCanceled: invoice.isCanceled,
+        workOrderId: invoice.workOrderId ? String(invoice.workOrderId) : undefined,
+        workOrderNumber: invoice.workOrderNumber || undefined
       };
     });
   },
@@ -395,7 +399,9 @@ export const contasAPagarService = {
       paidAmount: invoice.paidAmount != null ? parseFloat(invoice.paidAmount) : undefined,
       balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
       bankAccountInfo: invoice.bankAccountInfo,
-      isCanceled: invoice.isCanceled
+      isCanceled: invoice.isCanceled,
+      workOrderId: invoice.workOrderId ? String(invoice.workOrderId) : undefined,
+      workOrderNumber: invoice.workOrderNumber || undefined
     };
   },
 
@@ -431,7 +437,9 @@ export const contasAPagarService = {
       category: conta.categoria === 'NENHUMA' ? undefined : conta.categoria,
       notes: conta.observacoes,
       centroCusto: conta.centroCusto === 'NENHUM' ? undefined : conta.centroCusto,
-      companySigla: conta.companySigla
+      companySigla: conta.companySigla,
+      workOrderId: conta.workOrderId,
+      workOrderNumber: conta.workOrderNumber
     };
 
 
@@ -469,6 +477,8 @@ export const contasAPagarService = {
     if (conta.observacoes) requestData.notes = conta.observacoes;
     if (conta.centroCusto !== undefined) requestData.centroCusto = conta.centroCusto === 'NENHUM' ? undefined : conta.centroCusto;
     if (conta.companySigla !== undefined) requestData.companySigla = conta.companySigla;
+    if (conta.workOrderId !== undefined) requestData.workOrderId = conta.workOrderId;
+    if (conta.workOrderNumber !== undefined) requestData.workOrderNumber = conta.workOrderNumber;
     
     // Se não há unitId, buscar uma unidade padrão
     if (!requestData.unitId) {

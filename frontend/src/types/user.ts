@@ -195,6 +195,10 @@ export interface User {
   groups: UserGroupData[];
   permissions: UserPermissions;
   isOnline?: boolean;
+  blocked?: boolean;
+  blockedUntil?: string | null;
+  blockedReason?: string | null;
+  blockedBy?: string | null;
   individualPermissions?: PermissionDTO[];
   customPermissions?: string[]; // Permissões customizadas concedidas pelo SUPER_ADMIN (para COLABORADOR)
   avatar?: string;

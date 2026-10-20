@@ -57,18 +57,37 @@ export interface EmployeeRisk {
   updatedAt: string;
 }
 
+export interface MedicalExamType {
+  id: string;
+  name: string;
+  description?: string;
+  examCategory: 'ADMISSIONAL' | 'PERIODICO' | 'RETORNO' | 'MUDANCA_FUNCAO' | 'DEMISSIONAL' | string;
+  validityMonths?: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface MedicalExam {
   id: string;
   employeeId: string;
   employeeName: string;
+  employeeRegistrationNumber?: string;
+  examTypeId?: string;
   examType: string;
-  examCategory: 'ADMISSIONAL' | 'PERIODICO' | 'RETORNO' | 'MUDANCA_FUNCAO' | 'DEMISSIONAL';
+  examCategory: 'ADMISSIONAL' | 'PERIODICO' | 'RETORNO' | 'MUDANCA_FUNCAO' | 'DEMISSIONAL' | string;
+  validityMonths?: number;
   scheduledDate: string;
+  examDate?: string;
   performedDate?: string;
+  nextExamDate?: string;
+  expirationDate?: string;
   status: 'PENDENTE' | 'REALIZADO' | 'ATRASADO' | 'CANCELADO';
   result?: 'APTO' | 'INAPTO' | 'APTO_COM_RESTRICOES';
   doctorName?: string;
+  doctorCrm?: string;
   clinicName?: string;
+  restrictions?: string;
   notes?: string;
   documentUrl?: string;
   createdAt: string;
@@ -102,10 +121,15 @@ export interface TrainingParticipation {
   trainingId: string;
   trainingName: string;
   scheduledDate: string;
+  participationDate?: string;
   completionDate?: string;
+  expirationDate?: string;
+  hours?: number;
   status: 'AGENDADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'REPROVADO' | 'CANCELADO';
   score?: number;
+  certificateNumber?: string;
   certificateUrl?: string;
+  instructorName?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -176,12 +200,20 @@ export interface EPIDelivery {
 // DTOs para criação/atualização
 export interface CreateMedicalExamDTO {
   employeeId: string;
-  examType: string;
-  examCategory: string;
+  examTypeId?: string;
+  examType?: string;
+  examCategory?: string;
   scheduledDate: string;
+  examDate?: string;
+  nextExamDate?: string;
+  status?: string;
+  result?: string;
   doctorName?: string;
+  doctorCrm?: string;
   clinicName?: string;
+  restrictions?: string;
   notes?: string;
+  documentUrl?: string;
 }
 
 export interface CreateSSTTrainingDTO {
@@ -371,6 +403,17 @@ export const sstService = {
     });
   },
 
+  // Tipos de Exame Médico
+  async getExamTypes(): Promise<MedicalExamType[]> {
+    const response = await api.get('/api/sst/medical-exams/types');
+    return response.data;
+  },
+
+  async createExamType(examType: Partial<MedicalExamType>): Promise<MedicalExamType> {
+    const response = await api.post('/api/sst/medical-exams/types', examType);
+    return response.data;
+  },
+
   // Exames Médicos
   async getMedicalExams(): Promise<MedicalExam[]> {
     const response = await api.get('/api/sst/medical-exams');
@@ -378,7 +421,7 @@ export const sstService = {
   },
 
   async getMedicalExamById(id: string): Promise<MedicalExam> {
-    const response = await api.get(`/sst/medical-exams/${id}`);
+    const response = await api.get(`/api/sst/medical-exams/${id}`);
     return response.data;
   },
 
@@ -387,32 +430,27 @@ export const sstService = {
     return response.data;
   },
 
-  async updateMedicalExam(id: string, exam: Partial<MedicalExam>): Promise<MedicalExam> {
-    const response = await api.put(`/sst/medical-exams/${id}`, exam);
+  async updateMedicalExam(id: string, exam: Partial<CreateMedicalExamDTO>): Promise<MedicalExam> {
+    const response = await api.put(`/api/sst/medical-exams/${id}`, exam);
     return response.data;
   },
 
   async deleteMedicalExam(id: string): Promise<void> {
-    await api.delete(`/sst/medical-exams/${id}`);
+    await api.delete(`/api/sst/medical-exams/${id}`);
   },
 
   async getMedicalExamsByEmployee(employeeId: string): Promise<MedicalExam[]> {
-    const response = await api.get(`/sst/medical-exams/employee/${employeeId}`);
+    const response = await api.get(`/api/sst/medical-exams/employee/${employeeId}`);
     return response.data;
   },
 
-  async getMedicalExamsByStatus(status: string): Promise<MedicalExam[]> {
-    const response = await api.get(`/sst/medical-exams/status/${status}`);
-    return response.data;
-  },
-
-  async getMedicalExamsByCategory(category: string): Promise<MedicalExam[]> {
-    const response = await api.get(`/sst/medical-exams/category/${category}`);
+  async getExpiredExams(): Promise<MedicalExam[]> {
+    const response = await api.get('/api/sst/medical-exams/expired');
     return response.data;
   },
 
   async getExpiringMedicalExams(days: number = 30): Promise<MedicalExam[]> {
-    const response = await api.get(`/sst/medical-exams/expiring/${days}`);
+    const response = await api.get(`/api/sst/medical-exams/expiring?daysAhead=${days}`);
     return response.data;
   },
 

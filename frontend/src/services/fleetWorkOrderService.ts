@@ -156,6 +156,13 @@ export interface FleetWorkOrder {
     // Tempo parado (calculado pelo backend)
     downtimeHours?: number;
     downtimeDays?: number;
+
+    // Execução do Serviço
+    executionStartDate?: string;      // ISO datetime
+    executionEndDate?: string;        // ISO datetime
+    executionDurationMinutes?: number; // Calculado automaticamente
+    executionStartJustification?: string;
+
     notes?: string;
 
     items: WorkOrderItem[];
@@ -163,6 +170,21 @@ export interface FleetWorkOrder {
     photoAttachments?: string[];
     createdAt?: string;
     updatedAt?: string;
+}
+
+/** Conta a pagar lançada no financeiro a partir de uma O.S. de manutenção */
+export interface MaintenanceExpense {
+    id: string;
+    invoiceNumber: string;
+    description?: string;
+    amount: number;
+    /** PENDENTE | PAGA | SOLICITADA | CANCELADA | ... */
+    status: string;
+    dueDate?: string;
+    paymentDate?: string;
+    category?: string;
+    workOrderNumber?: string;
+    createdAt?: string;
 }
 
 export interface VehicleMaintenanceRanking {
@@ -177,6 +199,16 @@ export interface VehicleMaintenanceRanking {
     completionRate: number;
     /** KEEP | REVIEW | RETIRE */
     recommendation: string;
+}
+
+export interface ExecutionHistoryEntry {
+    id: string;
+    workOrderId: string;
+    previousStartDate?: string;
+    newStartDate: string;
+    justification: string;
+    performedBy?: string;
+    createdAt: string;
 }
 
 class FleetWorkOrderService {
@@ -195,8 +227,9 @@ class FleetWorkOrderService {
         return data;
     }
 
-    async getChecklistMasterItems(): Promise<ChecklistItemMaster[]> {
-        const { data } = await api.get('/fleet-work-orders/checklist-items');
+    async getChecklistMasterItems(vehicleType?: string): Promise<ChecklistItemMaster[]> {
+        const params = vehicleType ? { vehicleType } : {};
+        const { data } = await api.get('/fleet-work-orders/checklist-items', { params });
         return data;
     }
 
@@ -255,6 +288,18 @@ class FleetWorkOrderService {
         return data;
     }
 
+    // ── Lançamento de despesa no Financeiro (Contas a Pagar) ─────────────────
+
+    async getExpenses(id: string): Promise<MaintenanceExpense[]> {
+        const { data } = await api.get(`/fleet-work-orders/${id}/expense`);
+        return data || [];
+    }
+
+    async launchExpense(id: string, performedBy?: string): Promise<MaintenanceExpense> {
+        const { data } = await api.post(`/fleet-work-orders/${id}/expense`, { performedBy });
+        return data;
+    }
+
     // ── Solicitar compra ao almoxarifado ─────────────────────────────────────
 
     async requestPurchase(id: string): Promise<any> {
@@ -274,6 +319,32 @@ class FleetWorkOrderService {
     async duplicate(id: string): Promise<FleetWorkOrder> {
         const { data } = await api.post(`/fleet-work-orders/${id}/duplicate`);
         return data;
+    }
+
+    // ── Execução do Serviço ─────────────────────────────────────────────────
+
+    /**
+     * Corrige a data de início da execução com justificativa obrigatória.
+     * O registro anterior é salvo no histórico de audi de execução.
+     */
+    async correctExecutionStart(
+        id: string,
+        executionStartDate: string,
+        justification: string,
+        performedBy: string
+    ): Promise<FleetWorkOrder> {
+        const { data } = await api.patch(`/fleet-work-orders/${id}/execution-start`, {
+            executionStartDate,
+            justification,
+            performedBy,
+        });
+        return data;
+    }
+
+    /** Retorna o histórico de correções do início da execução */
+    async getExecutionHistory(id: string): Promise<ExecutionHistoryEntry[]> {
+        const { data } = await api.get(`/fleet-work-orders/${id}/execution-history`);
+        return data || [];
     }
 }
 

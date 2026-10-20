@@ -1366,7 +1366,55 @@ public class EmployeeService {
                     dto.setPosition(null);
                 }
             }
-            
+
+            // Cargo (descriÃ§Ã£o textual plana para o frontend)
+            if (e.getPosition() != null && e.getPosition().getName() != null) {
+                try {
+                    dto.setPositionDescription(e.getPosition().getName());
+                } catch (Exception positionDescEx) {
+                    System.err.println("[WARNING] Erro ao mapear positionDescription: " + positionDescEx.getMessage());
+                    dto.setPositionDescription(null);
+                }
+            }
+
+            // Dependentes (mapeados de forma plana; nunca lanÃ§a exceÃ§Ã£o)
+            try {
+                if (e.getDependents() != null && !e.getDependents().isEmpty()) {
+                    java.util.List<com.z7design.fleet_manager.dto.DependentDTO> dependentDTOs = new java.util.ArrayList<>();
+                    for (com.z7design.fleet_manager.model.Dependent dependent : e.getDependents()) {
+                        com.z7design.fleet_manager.dto.DependentDTO dependentDTO =
+                                com.z7design.fleet_manager.dto.DependentDTO.builder()
+                                        .id(dependent.getId())
+                                        .employeeId(e.getId())
+                                        .employeeName(e.getName())
+                                        .name(dependent.getName())
+                                        .relationship(dependent.getRelationship())
+                                        .birthDate(dependent.getBirthDate())
+                                        .cpf(dependent.getCpf())
+                                        .rg(dependent.getRg())
+                                        .gender(dependent.getGender())
+                                        .phone(dependent.getPhone())
+                                        .email(dependent.getEmail())
+                                        .address(dependent.getAddress())
+                                        .city(dependent.getCity())
+                                        .state(dependent.getState())
+                                        .zipCode(dependent.getZipCode())
+                                        .isStudent(dependent.getIsStudent())
+                                        .schoolName(dependent.getSchoolName())
+                                        .isBeneficiary(dependent.getIsBeneficiary())
+                                        .notes(dependent.getNotes())
+                                        .createdAt(dependent.getCreatedAt())
+                                        .updatedAt(dependent.getUpdatedAt())
+                                        .build();
+                        dependentDTOs.add(dependentDTO);
+                    }
+                    dto.setDependents(dependentDTOs);
+                }
+            } catch (Exception dependentsEx) {
+                System.err.println("[WARNING] Erro ao mapear dependents: " + dependentsEx.getMessage());
+                dto.setDependents(null);
+            }
+
             if (e.getUnit() != null) {
                 try {
                     // ForÃ§ar inicializaÃ§Ã£o do unit (LAZY loading)

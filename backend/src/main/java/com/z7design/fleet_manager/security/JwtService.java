@@ -5,6 +5,7 @@ import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.service.UserCompanyResolver;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -48,9 +49,11 @@ public class JwtService {
             String username = extractClaim(token, Claims::getSubject);
             log.debug("Username extraído do token: {}", username);
             return username;
+        } catch (ExpiredJwtException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Erro ao extrair username do token: {}", e.getMessage());
-            throw new RuntimeException("Token JWT inválido: " + e.getMessage());
+            throw new RuntimeException("Token JWT inválido: " + e.getMessage(), e);
         }
     }
 
@@ -230,9 +233,12 @@ public class JwtService {
                     .getBody();
             log.debug("Claims extraídos do token: {}", claims);
             return claims;
+        } catch (ExpiredJwtException e) {
+            log.warn("Token JWT expirado: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("Erro ao analisar token JWT: {}", e.getMessage());
-            throw new RuntimeException("Erro ao analisar token JWT: " + e.getMessage());
+            throw new RuntimeException("Erro ao analisar token JWT: " + e.getMessage(), e);
         }
     }
 

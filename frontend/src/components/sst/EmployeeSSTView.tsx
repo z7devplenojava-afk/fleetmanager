@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -39,6 +40,10 @@ import {
   Mail,
   CreditCard,
   Building,
+  History,
+  UserPlus,
+  FileDown,
+  Baby,
 } from 'lucide-react';
 import {
   Dialog,
@@ -54,6 +59,9 @@ import employeeService, { Employee } from '@/services/employeeService';
 import { documentService, Document } from '@/services/documentService';
 import { sstService, MedicalExam, TrainingParticipation } from '@/services/sstService';
 import { epiDeliveryFormService, EPIDeliveryForm } from '@/services/epiDeliveryFormService';
+import { employeeHistoryService } from '@/services/employeeHistoryService';
+import { sstDossierPdfGenerator } from '@/utils/sstDossierPdfGenerator';
+import type { EmployeeHistoryItem } from '@/types/employee';
 import { EpiDeliveryModal } from './EpiDeliveryModal';
 
 export const EmployeeSSTView: React.FC = () => {
@@ -68,7 +76,7 @@ export const EmployeeSSTView: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   // Sub-aba ativa no perfil do colaborador
-  const [activeSubTab, setActiveSubTab] = useState<'docs' | 'exams' | 'trainings' | 'epis' | 'fichas'>('docs');
+  const [activeSubTab, setActiveSubTab] = useState<'docs' | 'exams' | 'trainings' | 'epis' | 'fichas' | 'historico' | 'dependentes'>('docs');
 
   // Estados de dados do colaborador selecionado
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -76,8 +84,16 @@ export const EmployeeSSTView: React.FC = () => {
   const [medicalExams, setMedicalExams] = useState<MedicalExam[]>([]);
   const [trainings, setTrainings] = useState<TrainingParticipation[]>([]);
   const [epiForms, setEpiForms] = useState<EPIDeliveryForm[]>([]);
+  const [history, setHistory] = useState<EmployeeHistoryItem[]>([]);
+  const [dependents, setDependents] = useState<NonNullable<Employee['dependents']>>([]);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [isEpiDeliveryModalOpen, setIsEpiDeliveryModalOpen] = useState(false);
+
+  // Estados do formulário de histórico
+  const [newHistoryType, setNewHistoryType] = useState<EmployeeHistoryItem['type']>('remanejamento');
+  const [newHistoryDate, setNewHistoryDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [newHistoryDescription, setNewHistoryDescription] = useState('');
+  const [isAddingHistory, setIsAddingHistory] = useState(false);
 
   // Estados para Gestão de Fichas de EPI (Ações: Visualizar, Editar, Excluir)
   const [selectedFichaForView, setSelectedFichaForView] = useState<EPIDeliveryForm | null>(null);
@@ -100,6 +116,8 @@ export const EmployeeSSTView: React.FC = () => {
       setMedicalExams([]);
       setTrainings([]);
       setEpiForms([]);
+      setHistory([]);
+      setDependents([]);
     }
   }, [selectedEmployee?.id]);
 
@@ -127,17 +145,20 @@ export const EmployeeSSTView: React.FC = () => {
   const loadEmployeeSSTData = async (employeeId: string) => {
     setLoadingDetails(true);
     try {
-      const [docsData, examsData, trainingsData, epiFormsData] = await Promise.all([
+      const [docsData, examsData, trainingsData, epiFormsData, historyData] = await Promise.all([
         documentService.getDocumentsByEmployee(employeeId).catch(() => []),
         sstService.getMedicalExamsByEmployee(employeeId).catch(() => []),
         sstService.getTrainingParticipationsByEmployee(employeeId).catch(() => []),
         epiDeliveryFormService.getByEmployeeId(employeeId).catch(() => []),
+        employeeHistoryService.getHistory(selectedEmployee as any).catch(() => []),
       ]);
 
       setDocuments(docsData || []);
       setMedicalExams(examsData || []);
       setTrainings(trainingsData || []);
       setEpiForms(epiFormsData || []);
+      setHistory(historyData || []);
+      setDependents(selectedEmployee?.dependents || []);
     } catch (err) {
       console.error('Erro ao carregar detalhes de SST do funcionário:', err);
       toast({
@@ -284,6 +305,151 @@ export const EmployeeSSTView: React.FC = () => {
       });
     } finally {
       setDownloadingPdfId(null);
+    }
+  };
+
+  // Download do Prontuário SST completo (PDF)
+  const handleDownloadSstDossier = async () => {
+    if (!selectedEmployee) return;
+    try {
+      setDownloadingPdfId('sst-dossier');
+
+      const orderedExams = [...medicalExams].sort((a, b) => {
+        const da = a.examDate || a.scheduledDate || '';
+        const db = b.examDate || b.scheduledDate || '';
+        return db.localeCompare(da);
+      });
+      const latestExam = orderedExams.find((e) => e.result || e.examDate) || orderedExams[0];
+
+      await sstDossierPdfGenerator.generateAndDownload(
+        {
+          employee: {
+            name: selectedEmployee.name,
+            cpf: selectedEmployee.cpf || selectedEmployee.document,
+            registrationNumber: selectedEmployee.registrationNumber,
+            position: selectedEmployee.position?.name || selectedEmployee.positionDescription,
+            department: selectedEmployee.department?.name,
+            hireDate: selectedEmployee.hireDate,
+            terminationDate: selectedEmployee.terminationDate,
+            status: selectedEmployee.status,
+            phone: selectedEmployee.phone,
+            email: selectedEmployee.email,
+            birthDate: selectedEmployee.birthDate,
+          },
+          aso: latestExam
+            ? {
+                examType: latestExam.examType,
+                examCategory: latestExam.examCategory,
+                examDate: latestExam.examDate || latestExam.scheduledDate,
+                nextExamDate: latestExam.nextExamDate || latestExam.expirationDate,
+                status: latestExam.status,
+                result: latestExam.result,
+                clinicName: latestExam.clinicName,
+                doctorName: latestExam.doctorName,
+                restrictions: latestExam.restrictions,
+              }
+            : null,
+          exams: orderedExams.map((e) => ({
+            examType: e.examType,
+            examCategory: e.examCategory,
+            examDate: e.examDate || e.scheduledDate,
+            nextExamDate: e.nextExamDate || e.expirationDate,
+            status: e.status,
+            result: e.result,
+            clinicName: e.clinicName,
+            doctorName: e.doctorName,
+            restrictions: e.restrictions,
+          })),
+          trainings: trainings.map((t) => ({
+            trainingName: t.trainingName,
+            hours: t.hours,
+            completionDate: t.completionDate,
+            expirationDate: t.expirationDate,
+            status: t.status,
+            instructorName: t.instructorName,
+          })),
+          epis: deliveredEPIs.map((e) => ({
+            epiName: e.epiName,
+            ca: e.ca,
+            quantity: e.quantity,
+            deliveryDate: e.deliveryDate,
+            validityDate: e.validityDate,
+            responsible: e.responsible,
+          })),
+          dependents: (dependents || []).map((d) => ({
+            name: d.name,
+            relationship: d.relationship,
+            birthDate: d.birthDate,
+            cpf: d.cpf,
+          })),
+          documents: documents.map((d: any) => ({
+            type: d.type,
+            number: d.number,
+            issueDate: d.issueDate,
+            expirationDate: d.expirationDate,
+          })),
+          history: history.map((h) => ({ date: h.date, description: h.description, type: h.type })),
+        },
+        `prontuario-sst-${selectedEmployee.name.replace(/\s+/g, '_')}.pdf`,
+      );
+
+      toast({
+        title: 'Prontuário gerado',
+        description: 'O PDF do prontuário SST foi baixado com sucesso.',
+      });
+    } catch (err) {
+      console.error('Erro ao gerar prontuário SST:', err);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível gerar o PDF do prontuário SST.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDownloadingPdfId(null);
+    }
+  };
+
+  const handleAddHistory = async () => {
+    if (!selectedEmployee?.id) return;
+    if (!newHistoryDescription.trim()) {
+      toast({ title: 'Atenção', description: 'Descreva o evento do histórico.', variant: 'destructive' });
+      return;
+    }
+    try {
+      setIsAddingHistory(true);
+      await employeeHistoryService.addItem(selectedEmployee.id, {
+        type: newHistoryType,
+        date: newHistoryDate,
+        description: newHistoryDescription.trim(),
+      });
+      setNewHistoryDescription('');
+      const updated = await employeeHistoryService.getHistory(selectedEmployee as any).catch(() => []);
+      setHistory(updated || []);
+      toast({ title: 'Histórico atualizado', description: 'O evento foi registrado no prontuário.' });
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível registrar o evento no histórico.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAddingHistory(false);
+    }
+  };
+
+  const handleDeleteHistory = async (itemId: string) => {
+    if (!selectedEmployee?.id) return;
+    try {
+      await employeeHistoryService.removeItem(selectedEmployee.id, itemId);
+      const updated = await employeeHistoryService.getHistory(selectedEmployee as any).catch(() => []);
+      setHistory(updated || []);
+      toast({ title: 'Evento removido', description: 'O registro foi removido do histórico.' });
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível remover o evento (pode ter sido gerado automaticamente pelo cadastro).',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -483,6 +649,21 @@ export const EmployeeSSTView: React.FC = () => {
                       <Button
                         size="sm"
                         variant="outline"
+                        onClick={handleDownloadSstDossier}
+                        disabled={downloadingPdfId === 'sst-dossier'}
+                        className="text-xs border-emerald-500 text-emerald-400 hover:bg-emerald-500/10 h-8"
+                      >
+                        {downloadingPdfId === 'sst-dossier' ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Prontuário SST (PDF)
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() => setIsEpiDeliveryModalOpen(true)}
                         className="text-xs border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 h-8"
                       >
@@ -514,7 +695,7 @@ export const EmployeeSSTView: React.FC = () => {
 
               {/* Sub-Abas do Colaborador: Documentos, Exames, Treinamentos, EPIs, Ficha de EPI */}
               <Tabs value={activeSubTab} onValueChange={(val: any) => setActiveSubTab(val)} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 gap-1 bg-seguranca-graphite border-gray-600 p-1 rounded-xl">
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 bg-seguranca-graphite border-gray-600 p-1 rounded-xl">
                   <TabsTrigger
                     value="docs"
                     className="text-xs text-seguranca-lightgray data-[state='active']:bg-seguranca-red data-[state='active']:text-white flex items-center gap-1.5"
@@ -549,6 +730,20 @@ export const EmployeeSSTView: React.FC = () => {
                   >
                     <FileCheck className="h-3.5 w-3.5" />
                     Fichas de EPI ({epiForms.length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="historico"
+                    className="text-xs text-seguranca-lightgray data-[state='active']:bg-seguranca-red data-[state='active']:text-white flex items-center gap-1.5"
+                  >
+                    <History className="h-3.5 w-3.5" />
+                    Histórico ({history.length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="dependentes"
+                    className="text-xs text-seguranca-lightgray data-[state='active']:bg-seguranca-red data-[state='active']:text-white flex items-center gap-1.5"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Dependentes ({dependents.length})
                   </TabsTrigger>
                 </TabsList>
 
@@ -1048,6 +1243,163 @@ export const EmployeeSSTView: React.FC = () => {
                       ) : (
                         <div className="py-10 text-center text-gray-400 text-xs">
                           Nenhuma ficha de entrega de EPI registrada para este funcionário.
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Sub-Aba 6: Histórico do Colaborador */}
+                <TabsContent value="historico" className="mt-4">
+                  <Card className="bg-seguranca-graphite border-gray-600">
+                    <CardHeader className="py-3 px-4 border-b border-gray-700/60">
+                      <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                        <History className="h-4 w-4 text-cyan-400" />
+                        Histórico Funcional do Colaborador
+                      </CardTitle>
+                      <CardDescription className="text-xs text-gray-400">
+                        Eventos, movimentações e afastamentos persistidos no prontuário do colaborador
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4 space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end bg-seguranca-black/40 border border-gray-700 rounded-lg p-3">
+                        <div className="sm:col-span-3 space-y-1">
+                          <Label className="text-[11px] text-gray-400">Tipo de Evento</Label>
+                          <select
+                            value={newHistoryType}
+                            onChange={(e) => setNewHistoryType(e.target.value as EmployeeHistoryItem['type'])}
+                            className="w-full h-9 rounded-md bg-seguranca-graphite border border-gray-600 text-xs text-white px-2 focus:outline-none focus:border-seguranca-red"
+                          >
+                            <option value="admissao">Admissão</option>
+                            <option value="remanejamento">Remanejamento</option>
+                            <option value="premiacao">Premiação</option>
+                            <option value="advertencia">Advertência</option>
+                            <option value="falta">Falta</option>
+                            <option value="afastamento">Afastamento</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-3 space-y-1">
+                          <Label className="text-[11px] text-gray-400">Data</Label>
+                          <Input
+                            type="date"
+                            value={newHistoryDate}
+                            onChange={(e) => setNewHistoryDate(e.target.value)}
+                            className="bg-seguranca-graphite border-gray-600 text-white text-xs h-9"
+                          />
+                        </div>
+                        <div className="sm:col-span-4 space-y-1">
+                          <Label className="text-[11px] text-gray-400">Descrição</Label>
+                          <Input
+                            placeholder="Descreva o evento..."
+                            value={newHistoryDescription}
+                            onChange={(e) => setNewHistoryDescription(e.target.value)}
+                            className="bg-seguranca-graphite border-gray-600 text-white text-xs h-9"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <Button
+                            onClick={handleAddHistory}
+                            disabled={isAddingHistory}
+                            className="w-full h-9 text-xs bg-cyan-600 hover:bg-cyan-700 text-white"
+                          >
+                            {isAddingHistory ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <>
+                                <Plus className="h-3.5 w-3.5 mr-1" />
+                                Registrar
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {loadingDetails ? (
+                        <div className="py-12 text-center text-gray-400">
+                          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-seguranca-yellow" />
+                          <span className="text-xs">Carregando histórico...</span>
+                        </div>
+                      ) : history.length > 0 ? (
+                        <ol className="relative border-l border-gray-700 ml-3 space-y-4">
+                          {history.map((item) => (
+                            <li key={item.id} className="ml-4">
+                              <span className="absolute -left-[7px] mt-1.5 h-3 w-3 rounded-full bg-cyan-500 border-2 border-seguranca-graphite" />
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge variant="outline" className="border-cyan-500/40 text-cyan-300 text-[10px] capitalize">
+                                      {item.type || 'evento'}
+                                    </Badge>
+                                    <span className="text-[11px] text-gray-400">
+                                      {item.date ? new Date(`${item.date}T12:00:00`).toLocaleDateString('pt-BR') : '—'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-200 mt-1">{item.description}</p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteHistory(item.id)}
+                                  className="h-7 px-2 text-xs text-rose-400 hover:text-white hover:bg-rose-600/20 shrink-0"
+                                  title="Remover evento"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <div className="py-10 text-center text-gray-400 text-xs">
+                          Nenhum evento de histórico registrado para este colaborador.
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Sub-Aba 7: Dependentes */}
+                <TabsContent value="dependentes" className="mt-4">
+                  <Card className="bg-seguranca-graphite border-gray-600">
+                    <CardHeader className="py-3 px-4 border-b border-gray-700/60">
+                      <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                        <UserPlus className="h-4 w-4 text-amber-400" />
+                        Dependentes do Colaborador
+                      </CardTitle>
+                      <CardDescription className="text-xs text-gray-400">
+                        Dependentes cadastrados no prontuário (para fins de benefícios e SST)
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {dependents.length > 0 ? (
+                        <Table>
+                          <TableHeader className="bg-seguranca-black/40">
+                            <TableRow className="border-gray-700">
+                              <TableHead className="text-xs text-gray-300">Nome</TableHead>
+                              <TableHead className="text-xs text-gray-300">Parentesco</TableHead>
+                              <TableHead className="text-xs text-gray-300">Nascimento</TableHead>
+                              <TableHead className="text-xs text-gray-300">CPF</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {dependents.map((dep, idx) => (
+                              <TableRow key={dep.id || `${dep.name}-${idx}`} className="border-gray-700/60 hover:bg-seguranca-black/30">
+                                <TableCell className="text-xs font-semibold text-white flex items-center gap-2">
+                                  <Baby className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                                  {dep.name}
+                                </TableCell>
+                                <TableCell className="text-xs text-gray-300 capitalize">{dep.relationship || '—'}</TableCell>
+                                <TableCell className="text-xs text-gray-400">
+                                  {dep.birthDate ? new Date(`${dep.birthDate}T12:00:00`).toLocaleDateString('pt-BR') : '—'}
+                                </TableCell>
+                                <TableCell className="text-xs font-mono text-gray-300">{dep.cpf || '—'}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      ) : (
+                        <div className="py-10 text-center text-gray-400 text-xs">
+                          Nenhum dependente cadastrado para este colaborador.
                         </div>
                       )}
                     </CardContent>

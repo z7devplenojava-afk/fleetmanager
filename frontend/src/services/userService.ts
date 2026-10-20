@@ -8,6 +8,11 @@ export interface User {
   active: boolean;
   roles: string[];
   companyId?: string;
+  blocked?: boolean;
+  blockedUntil?: string | null;
+  blockedReason?: string | null;
+  blockedBy?: string | null;
+  isOnline?: boolean;
 }
 
 export interface CreateUserRequest {
@@ -77,6 +82,21 @@ export const userService = {
 
   async toggleUserStatus(id: string, active: boolean): Promise<User> {
     return this.updateUser(id, { active });
+  },
+
+  /** Bloqueia um usuário por tempo definido (minutes = null/0 => permanente) */
+  async blockUser(id: string, minutes: number | null, reason?: string): Promise<User> {
+    const response = await api.post(`/api/users/${id}/block`, {
+      durationMinutes: minutes && minutes > 0 ? minutes : null,
+      reason,
+    });
+    return response.data;
+  },
+
+  /** Desbloqueia um usuário imediatamente */
+  async unblockUser(id: string): Promise<User> {
+    const response = await api.post(`/api/users/${id}/unblock`);
+    return response.data;
   },
 
   async addUserPermissions(userId: string, permissionIds: string[]): Promise<any[]> {

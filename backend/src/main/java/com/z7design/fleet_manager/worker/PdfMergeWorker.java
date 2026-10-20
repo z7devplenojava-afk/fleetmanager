@@ -32,6 +32,7 @@ import java.util.*;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "fluxbus.redis.workers.enabled", havingValue = "true")
 public class PdfMergeWorker {
 
     private final StringRedisTemplate redisTemplate;
@@ -100,6 +101,8 @@ public class PdfMergeWorker {
                     log.error("Erro ao processar match", e);
                 }
             }
+        } catch (org.springframework.data.redis.RedisConnectionFailureException e) {
+            log.warn("⚠️ PdfMergeWorker: Redis offline ({}) - aguardando conexão...", e.getMessage());
         } catch (Exception e) {
             log.error("Erro no PdfMergeWorker", e);
         }

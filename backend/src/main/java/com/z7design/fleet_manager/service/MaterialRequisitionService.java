@@ -457,7 +457,17 @@ public class MaterialRequisitionService {
         req.setReceivedByName(receivedBy);
         req.setDeliveryNotes(notes);
         req.setStatus(MaterialRequisition.RequisitionStatus.INSTALLED_COMPLETED);
-        req.setReleasedAt(deliveryDate);
+        // Se a OS associada ainda não tiver data de início de execução, inicializa com a data de entrega dos materiais
+        if (req.getWorkOrderId() != null) {
+            workOrderRepository.findById(req.getWorkOrderId()).ifPresent(wo -> {
+                if (wo.getExecutionStartDate() == null) {
+                    wo.setExecutionStartDate(deliveryDate);
+                    wo.recalculateExecutionDuration();
+                    workOrderRepository.save(wo);
+                    log.info("⏱️ Início da execução da OS {} definido automaticamente pela entrega do almoxarifado em {}", wo.getId(), deliveryDate);
+                }
+            });
+        }
 
         req = requisitionRepository.save(req);
 

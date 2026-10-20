@@ -195,8 +195,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const groupPermissions = generatePermissionsFromGroups(groups);
         const combinedPermissions = combinePermissions(rolePermissions, groupPermissions);
 
-        // Ajustar função exibida de acordo com os grupos (ex.: GRUPO_DPE -> Departamento Pessoal)
-        const effectiveRole = determineEffectiveRole(updatedUser.role as UserRole, groups);
+        // Ajustar função exibida de acordo com os grupos — mas NUNCA rebaixa um SUPER_ADMIN
+        // (determineEffectiveRole só promove COLABORADOR; manter o role atual se já for forte)
+        const effectiveRole = updatedUser.role && updatedUser.role !== 'COLABORADOR'
+          ? (updatedUser.role as UserRole)
+          : determineEffectiveRole(updatedUser.role as UserRole, groups);
         const userWithPermissions = { ...updatedUser, role: effectiveRole, permissions: combinedPermissions };
 
         setUser(userWithPermissions);
@@ -520,9 +523,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.data) {
         const savedUser = localStorage.getItem('user');
         const userData = savedUser ? JSON.parse(savedUser) : {};
-        const primaryRole = (response.data.roles && response.data.roles.length > 0)
-          ? (typeof response.data.roles[0] === 'string' ? response.data.roles[0] : response.data.roles[0].name)
-          : userData.role;
+
+        // Aplicar prioridade de roles — garante que SUPER_ADMIN sempre vença ADMIN, etc.
+        const rolesFromServer: string[] = (response.data.roles || []).map(
+          (r: any) => (typeof r === 'string' ? r : r.name)
+        );
+        const ROLE_PRIORITY: UserRole[] = [
+          'SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN',
+          'GESTOR', 'GESTOR_COMERCIAL', 'COMERCIAL', 'VENDAS',
+          'GESTOR_DE_COMPRAS', 'COMPRAS', 'ALMOXARIFADO',
+          'GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'MANUTENCAO', 'MECANICO',
+          'GESTOR_OPERACIONAL', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO',
+          'OPERACIONAL', 'ASSISTENTE_OPERACIONAL', 'MOTORISTA',
+          'GESTOR_FINANCEIRO', 'FINANCEIRO', 'ASSISTENTE_FINANCEIRO',
+          'RH', 'ASSISTENCIA_RH', 'AUXILIAR_DE_RH',
+          'DEPARTAMENTO_PESSOAL', 'AUXILIAR_DE_DEPARTAMENTO_PESSOAL', 'AUX_DEP',
+          'SUPERVISOR', 'TI_SUPORTE', 'AUDITOR', 'PORTARIA', 'VIGILANTE',
+          'AUXI_ADMINISTRATIVO', 'AUXILIAR_ADMINISTRATIVO',
+          'ASSISTENTE_LIMPEZA', 'LAVADOR',
+          'COLABORADOR', 'EMPLOYEE', 'CLIENTE', 'CLIENT_USER',
+        ];
+        let primaryRole: User['role'] = userData.role || 'COLABORADOR';
+        if (rolesFromServer.length > 0) {
+          for (const p of ROLE_PRIORITY) {
+            if (rolesFromServer.includes(p)) {
+              primaryRole = p as User['role'];
+              break;
+            }
+          }
+        }
+        console.log('🔄 refreshUser: roles do servidor:', rolesFromServer, '→ role principal:', primaryRole);
 
         const updatedUser = {
           ...userData,
@@ -532,9 +562,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: response.data.email || userData.email,
           whatsapp: response.data.whatsapp || userData.whatsapp,
           active: response.data.active !== undefined ? response.data.active : userData.active,
-          roles: response.data.roles || userData.roles,
-          role: primaryRole || userData.role,
-          // Atualizar flags de primeiro acesso e LGPD vindos do servidor
+          roles: rolesFromServer.length > 0 ? rolesFromServer : userData.roles,
+          role: primaryRole,
           firstAccessCompleted: response.data.firstAccessCompleted !== undefined
             ? response.data.firstAccessCompleted
             : userData.firstAccessCompleted,

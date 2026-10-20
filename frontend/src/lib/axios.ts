@@ -2,6 +2,64 @@ import axios from 'axios';
 import { getApiUrl, isHttpDebugMode } from '../config/environment';
 import { isConnectionError, createConnectionError } from '../utils/connectionError';
 
+/** Decodifica (sem verificar assinatura) o payload do JWT para ler a data de expiração. */
+function getTokenExpirationMs(token: string): number | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Intervalo de renovação proativa: se o token expira em menos de 5 minutos, renova antes da requisição. */
+const PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
+let isRefreshing = false;
+let pendingRefreshResolvers: Array<() => void> = [];
+
+async function proactiveTokenRefresh(): Promise<void> {
+  const tokenKey = import.meta.env.VITE_TOKEN_KEY || 'token';
+  const refreshKey = import.meta.env.VITE_REFRESH_TOKEN_KEY || 'refreshToken';
+  const token = localStorage.getItem(tokenKey) || localStorage.getItem('token');
+  const refreshToken = localStorage.getItem(refreshKey) || localStorage.getItem('refreshToken');
+
+  if (!token || !refreshToken) return;
+
+  const expMs = getTokenExpirationMs(token);
+  if (expMs === null) return;
+
+  const timeLeftMs = expMs - Date.now();
+  // Só renova se estiver próximo de expirar e ainda não expirou
+  if (timeLeftMs > PROACTIVE_REFRESH_THRESHOLD_MS || timeLeftMs <= 0) return;
+
+  // Evita múltiplas renovações simultâneas
+  if (isRefreshing) {
+    return new Promise<void>((resolve) => pendingRefreshResolvers.push(resolve));
+  }
+
+  isRefreshing = true;
+  try {
+    const response = await axios.post(
+      `${import.meta.env.VITE_API_URL || '/api'}/auth/refresh-token`,
+      { refreshToken }
+    );
+    const { token: newToken, refreshToken: newRefreshToken } = response.data;
+    localStorage.setItem(tokenKey, newToken);
+    localStorage.setItem('token', newToken);
+    if (newRefreshToken) {
+      localStorage.setItem(refreshKey, newRefreshToken);
+      localStorage.setItem('refreshToken', newRefreshToken);
+    }
+    pendingRefreshResolvers.forEach(r => r());
+  } catch (err) {
+    // Refresh falhou — não interrompe a requisição; o interceptor de response trata o 401
+    console.warn('[axios] Refresh proativo falhou:', err);
+  } finally {
+    isRefreshing = false;
+    pendingRefreshResolvers = [];
+  }
+}
+
 const api = axios.create({
   baseURL: getApiUrl(),
 });
@@ -13,7 +71,10 @@ const SERVER_DOWN_COOLDOWN_MS = 30000;
 
 // Request interceptor
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
+    // Renova o token proativamente se estiver prestes a expirar (< 5 min)
+    await proactiveTokenRefresh();
+
     // Normaliza URLs para evitar duplicação de "/api/api/..."
     try {
       const base = (config.baseURL || '').replace(/\/$/, '');

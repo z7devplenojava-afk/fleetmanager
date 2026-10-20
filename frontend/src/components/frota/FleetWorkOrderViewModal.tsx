@@ -154,10 +154,31 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
     const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.2, 0.6));
     const handleRotate = () => setRotation(prev => (prev + 90) % 360);
 
+    const handleClose = () => {
+        onClose();
+        setTimeout(() => {
+            if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                document.body.style.pointerEvents = '';
+                document.body.style.overflow = '';
+            }
+        }, 50);
+    };
+
+    useEffect(() => {
+        return () => {
+            setTimeout(() => {
+                if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                    document.body.style.pointerEvents = '';
+                    document.body.style.overflow = '';
+                }
+            }, 50);
+        };
+    }, []);
+
     if (!isOpen || (!order && !initialBlob)) return null;
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
+        <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className="max-w-6xl w-[95vw] h-[92vh] max-h-[95vh] overflow-hidden bg-seguranca-graphite border-gray-700 p-0 flex flex-col z-[10100]">
                 {/* Header */}
                 <DialogHeader className="bg-gradient-to-r from-seguranca-black via-gray-900 to-seguranca-black border-b border-gray-800 p-4 shrink-0">

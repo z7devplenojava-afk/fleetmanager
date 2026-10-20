@@ -191,8 +191,31 @@ const VeiculoFormModal: React.FC<VeiculoFormModalProps> = ({ isOpen, onClose, on
     }
   };
 
+  React.useEffect(() => {
+    return () => {
+      setTimeout(() => {
+        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+          document.body.style.pointerEvents = '';
+          document.body.style.overflow = '';
+        }
+      }, 50);
+    };
+  }, []);
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onClose();
+      setTimeout(() => {
+        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+          document.body.style.pointerEvents = '';
+          document.body.style.overflow = '';
+        }
+      }, 50);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-seguranca-darkgray text-seguranca-white border-seguranca-darkgray">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
@@ -203,12 +226,15 @@ const VeiculoFormModal: React.FC<VeiculoFormModalProps> = ({ isOpen, onClose, on
           </DialogDescription>
         </DialogHeader>
 
-        <VehicleForm
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-          submitLabel="Cadastrar Veículo"
-          isEditMode={false}
-        />
+        {isOpen && (
+          <VehicleForm
+            key="new-vehicle-form"
+            onSubmit={handleSubmit}
+            isLoading={isLoading}
+            submitLabel="Cadastrar Veículo"
+            isEditMode={false}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -1,8 +1,13 @@
 package com.z7design.fleet_manager.service;
 
+import com.z7design.fleet_manager.dto.MedicalExamRequestDTO;
+import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.model.MedicalExamType;
 import com.z7design.fleet_manager.model.MedicalExam;
+import com.z7design.fleet_manager.model.enums.MedicalExamCategory;
+import com.z7design.fleet_manager.model.enums.MedicalExamResult;
 import com.z7design.fleet_manager.model.enums.MedicalExamStatus;
+import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.MedicalExamTypeRepository;
 import com.z7design.fleet_manager.repository.MedicalExamRepository;
 import com.z7design.fleet_manager.service.SSTAlertService;
@@ -26,6 +31,7 @@ public class MedicalExamService {
 
     private final MedicalExamTypeRepository examTypeRepository;
     private final MedicalExamRepository examRepository;
+    private final EmployeeRepository employeeRepository;
     private final SSTAlertService alertService;
 
     // ========== TIPOS DE EXAME ==========
@@ -179,7 +185,138 @@ public class MedicalExamService {
     }
 
     /**
-     * Exclui exame mÃ©dico
+     * Cria um exame médico a partir do DTO da API (resolve funcionário e tipo).
+     */
+    public MedicalExam createExamFromRequest(MedicalExamRequestDTO dto) {
+        if (dto == null || dto.getEmployeeId() == null) {
+            throw new IllegalArgumentException("Funcionário é obrigatório para registrar o exame.");
+        }
+        Employee employee = employeeRepository.findById(dto.getEmployeeId())
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário não encontrado: " + dto.getEmployeeId()));
+        MedicalExam exam = new MedicalExam();
+        exam.setEmployee(employee);
+        applyRequest(exam, dto);
+        return createExam(exam);
+    }
+
+    /**
+     * Atualiza um exame médico a partir do DTO da API.
+     */
+    public MedicalExam updateExamFromRequest(UUID id, MedicalExamRequestDTO dto) {
+        return examRepository.findById(id)
+                .map(existing -> {
+                    applyRequest(existing, dto);
+                    calculateNextExamDate(existing);
+                    syncEmployeeExamDates(existing);
+                    return examRepository.save(existing);
+                })
+                .orElse(null);
+    }
+
+    private void applyRequest(MedicalExam exam, MedicalExamRequestDTO dto) {
+        if (dto.getEmployeeId() != null
+                && (exam.getEmployee() == null || !dto.getEmployeeId().equals(exam.getEmployee().getId()))) {
+            employeeRepository.findById(dto.getEmployeeId()).ifPresent(exam::setEmployee);
+        }
+        if (dto.getExamTypeId() != null) {
+            examTypeRepository.findById(dto.getExamTypeId()).ifPresent(exam::setExamType);
+        } else if (dto.getExamType() != null && !dto.getExamType().isBlank()) {
+            exam.setExamType(resolveExamTypeByName(dto.getExamType(), dto.getExamCategory()));
+        }
+        if (dto.getScheduledDate() != null) {
+            exam.setScheduledDate(dto.getScheduledDate());
+        }
+        if (dto.getExamDate() != null) {
+            exam.setExamDate(dto.getExamDate());
+        }
+        if (dto.getNextExamDate() != null) {
+            exam.setNextExamDate(dto.getNextExamDate());
+        }
+        if (dto.getStatus() != null && !dto.getStatus().isBlank()) {
+            exam.setStatus(parseStatus(dto.getStatus()));
+        }
+        if (dto.getResult() != null && !dto.getResult().isBlank()) {
+            exam.setResult(parseResult(dto.getResult()));
+        }
+        exam.setDoctorName(dto.getDoctorName());
+        exam.setDoctorCrm(dto.getDoctorCrm());
+        exam.setClinicName(dto.getClinicName());
+        exam.setRestrictions(dto.getRestrictions());
+        exam.setDocumentUrl(dto.getDocumentUrl());
+        exam.setNotes(dto.getNotes());
+    }
+
+    private MedicalExamType resolveExamTypeByName(String name, String category) {
+        String trimmed = name.trim();
+        return examTypeRepository.findAll().stream()
+                .filter(t -> t.getName() != null && t.getName().equalsIgnoreCase(trimmed))
+                .findFirst()
+                .orElseGet(() -> {
+                    MedicalExamCategory cat = MedicalExamCategory.PERIODICO;
+                    if (category != null && !category.isBlank()) {
+                        try {
+                            cat = MedicalExamCategory.valueOf(category.toUpperCase());
+                        } catch (IllegalArgumentException ignored) {
+                            // mantém o padrão
+                        }
+                    }
+                    MedicalExamType created = MedicalExamType.builder()
+                            .name(trimmed)
+                            .examCategory(cat)
+                            .validityMonths(12)
+                            .isMandatory(false)
+                            .isActive(true)
+                            .build();
+                    log.info("Tipo de exame criado automaticamente: {} ({})", trimmed, cat);
+                    return examTypeRepository.save(created);
+                });
+    }
+
+    private MedicalExamStatus parseStatus(String status) {
+        try {
+            return MedicalExamStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return MedicalExamStatus.PENDENTE;
+        }
+    }
+
+    private MedicalExamResult parseResult(String result) {
+        try {
+            return MedicalExamResult.valueOf(result.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Busca exames por status
+     */
+    @Transactional(readOnly = true)
+    public List<MedicalExam> getExamsByStatus(String status) {
+        MedicalExamStatus parsed = parseStatus(status);
+        return examRepository.findAll().stream()
+                .filter(exam -> exam.getStatus() == parsed)
+                .toList();
+    }
+
+    /**
+     * Busca exames por categoria (do tipo de exame)
+     */
+    @Transactional(readOnly = true)
+    public List<MedicalExam> getExamsByCategory(String category) {
+        MedicalExamCategory parsed;
+        try {
+            parsed = MedicalExamCategory.valueOf(category.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return List.of();
+        }
+        return examRepository.findAll().stream()
+                .filter(exam -> exam.getExamType() != null && exam.getExamType().getExamCategory() == parsed)
+                .toList();
+    }
+
+    /**
+     * Exclui exame médico
      */
     public void deleteExam(UUID id) {
         log.info("Excluindo exame mÃ©dico: {}", id);

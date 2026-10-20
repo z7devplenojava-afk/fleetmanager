@@ -25,7 +25,10 @@ import {
   MessageCircle,
   Send,
   Bell,
-  Building
+  Building,
+  Lock,
+  Unlock,
+  ShieldOff
 } from 'lucide-react';
 import { useGSAP } from '@/hooks/use-gsap';
 import { UserViewModal } from '@/components/usuarios/UserViewModal';
@@ -69,6 +72,15 @@ const Usuarios: React.FC = () => {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+
+  // Estados do bloqueio de usuário
+  const [blockTargetUser, setBlockTargetUser] = useState<User | null>(null);
+  const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
+  const [blockDurationPreset, setBlockDurationPreset] = useState<string>('15');
+  const [blockCustomMinutes, setBlockCustomMinutes] = useState<number>(60);
+  const [blockReason, setBlockReason] = useState('');
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [isUnblockingId, setIsUnblockingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadUsers();
@@ -200,6 +212,71 @@ const Usuarios: React.FC = () => {
   const handleUserDeleted = () => {
     setSelectedUserIds(prev => prev.filter(id => id !== selectedUser?.id));
     loadUsers();
+  };
+
+  // ── Bloqueio de usuário ──────────────────────────────────────────────
+  const isUserCurrentlyBlocked = (user: User): boolean => {
+    if (!user.blocked) return false;
+    if (!user.blockedUntil) return true; // bloqueio permanente
+    return new Date(user.blockedUntil).getTime() > Date.now();
+  };
+
+  const formatBlockUntil = (user: User): string => {
+    if (!user.blocked) return '';
+    if (!user.blockedUntil) return 'Permanente';
+    return `Até ${new Date(user.blockedUntil).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+  };
+
+  const handleOpenBlockDialog = (user: User) => {
+    setBlockTargetUser(user);
+    setBlockDurationPreset('15');
+    setBlockCustomMinutes(60);
+    setBlockReason('');
+    setIsBlockDialogOpen(true);
+  };
+
+  const handleConfirmBlock = async () => {
+    if (!blockTargetUser) return;
+    setIsBlocking(true);
+    try {
+      const minutes = blockDurationPreset === 'permanent' ? null : blockDurationPreset === 'custom' ? blockCustomMinutes : parseInt(blockDurationPreset, 10);
+      const blockedUser = await userService.blockUser(blockTargetUser.id, minutes, blockReason || undefined);
+      setUsers(prev => prev.map(u => (u.id === blockedUser.id ? { ...u, ...blockedUser } : u)));
+      toast({
+        title: 'Usuário Bloqueado',
+        description: `${blockedUser.name} foi bloqueado${blockedUser.blockedUntil ? ` até ${new Date(blockedUser.blockedUntil).toLocaleString('pt-BR')}` : ' de forma permanente'}. Ao tentar acessar, verá a mensagem para procurar o Administrador.`,
+      });
+      setIsBlockDialogOpen(false);
+      setBlockTargetUser(null);
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao Bloquear',
+        description: error.response?.data?.error || 'Não foi possível bloquear o usuário.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsBlocking(false);
+    }
+  };
+
+  const handleUnblockUser = async (user: User) => {
+    setIsUnblockingId(user.id);
+    try {
+      const unblocked = await userService.unblockUser(user.id);
+      setUsers(prev => prev.map(u => (u.id === unblocked.id ? { ...u, ...unblocked } : u)));
+      toast({
+        title: 'Usuário Desbloqueado',
+        description: `${unblocked.name} voltou a ter acesso ao sistema.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao Desbloquear',
+        description: error.response?.data?.error || 'Não foi possível desbloquear o usuário.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUnblockingId(null);
+    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -509,6 +586,7 @@ const Usuarios: React.FC = () => {
                       <TableHead className="text-seguranca-lightgray">Email</TableHead>
                       <TableHead className="text-seguranca-lightgray">Empresa</TableHead>
                       <TableHead className="text-seguranca-lightgray">Cargo</TableHead>
+                      <TableHead className="text-seguranca-lightgray text-center">Bloquear</TableHead>
                       <TableHead className="text-seguranca-lightgray">Status</TableHead>
                       <TableHead className="text-seguranca-lightgray">Grupos</TableHead>
                       <TableHead className="text-seguranca-lightgray text-right">Ações</TableHead>
@@ -563,6 +641,42 @@ const Usuarios: React.FC = () => {
                           {extractRoleNames(user.roles).map((role: string) => (
                             <Badge key={role} className={getRoleColor(role)}>{getRoleDisplayName(role)}</Badge>
                           ))}
+                        </TableCell>
+                        {/* Coluna Bloquear */}
+                        <TableCell className="text-center">
+                          {isUserCurrentlyBlocked(user) ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <Badge className="bg-red-100 text-red-800 flex items-center gap-1">
+                                <Lock className="h-3 w-3" />
+                                {formatBlockUntil(user)}
+                              </Badge>
+                              {currentUser && String(user.id) !== String(currentUser.id) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={isUnblockingId === user.id}
+                                  onClick={() => handleUnblockUser(user)}
+                                  title="Desbloquear Usuário"
+                                  className="text-emerald-600 hover:text-emerald-700 h-7 px-2 text-xs"
+                                >
+                                  <Unlock className="h-3.5 w-3.5 mr-1" />
+                                  Desbloquear
+                                </Button>
+                              )}
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={currentUser && String(user.id) === String(currentUser.id)}
+                              onClick={() => handleOpenBlockDialog(user)}
+                              title={currentUser && String(user.id) === String(currentUser.id) ? 'Você não pode bloquear a si mesmo' : 'Bloquear Usuário por tempo'}
+                              className="text-amber-600 hover:text-amber-700 h-8 px-3 text-xs"
+                            >
+                              <Lock className="h-3.5 w-3.5 mr-1" />
+                              Bloquear
+                            </Button>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge className={user.isOnline ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'}>
@@ -663,6 +777,96 @@ const Usuarios: React.FC = () => {
         onClose={() => setIsCreateModalOpen(false)}
         onSave={handleUserCreated}
       />
+
+      {/* Modal de Bloqueio de Usuário */}
+      <Dialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
+        <DialogContent className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray">
+          <DialogHeader>
+            <DialogTitle className="text-amber-500 flex items-center gap-2">
+              <Lock className="h-5 w-5" /> Bloquear Usuário
+            </DialogTitle>
+            <DialogDescription className="text-gray-300">
+              Defina por quanto tempo <strong className="text-white">{blockTargetUser?.name}</strong> ficará bloqueado.
+              Durante o bloqueio, o usuário não conseguirá acessar o sistema e verá a mensagem
+              para procurar o Administrador do sistema.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-2">
+            <div>
+              <label className="text-xs text-gray-400 uppercase tracking-wide block mb-2">Tempo de Bloqueio</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: '15', label: '15 minutos' },
+                  { value: '30', label: '30 minutos' },
+                  { value: '60', label: '1 hora' },
+                  { value: '480', label: '8 horas' },
+                  { value: '1440', label: '24 horas' },
+                  { value: 'custom', label: 'Personalizado' },
+                  { value: 'permanent', label: 'Permanente' },
+                ].map((opt) => (
+                  <Button
+                    key={opt.value}
+                    type="button"
+                    size="sm"
+                    variant={blockDurationPreset === opt.value ? 'default' : 'outline'}
+                    onClick={() => setBlockDurationPreset(opt.value)}
+                    className={
+                      blockDurationPreset === opt.value
+                        ? (opt.value === 'permanent' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-amber-600 hover:bg-amber-700 text-black')
+                        : 'border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black text-xs'
+                    }
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {blockDurationPreset === 'custom' && (
+              <div>
+                <label className="text-xs text-gray-400 uppercase tracking-wide block mb-1">Tempo personalizado (minutos)</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={blockCustomMinutes}
+                  onChange={(e) => setBlockCustomMinutes(parseInt(e.target.value, 10) || 1)}
+                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="text-xs text-gray-400 uppercase tracking-wide block mb-1">Motivo (opcional)</label>
+              <Input
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                placeholder="Ex: Suspensão temporária por procedimento interno"
+                className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsBlockDialogOpen(false)}
+              disabled={isBlocking}
+              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmBlock}
+              disabled={isBlocking}
+              className={blockDurationPreset === 'permanent' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-amber-600 hover:bg-amber-700 text-black font-semibold'}
+            >
+              <Lock className="h-4 w-4 mr-1" />
+              {isBlocking ? 'Bloqueando...' : blockDurationPreset === 'permanent' ? 'Bloquear Permanente' : 'Confirmar Bloqueio'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Exclusão em Massa */}
       <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>

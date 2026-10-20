@@ -134,7 +134,10 @@ public class SecurityConfig {
                                                                                                     // do chat requerem
                                                                                                     // autenticaÃƒÂ§ÃƒÂ£o
                                                 .requestMatchers("/files/**").permitAll()
-                                                // Endpoints HR - requerem permissÃƒÂµes especÃƒÂ­ficas
+                                                .requestMatchers("/uploads/**").permitAll()
+                                                // Endpoints de Atestados Médicos e CID-10
+                                                .requestMatchers("/api/cid10/**", "/api/medical-certificates/**").authenticated()
+                                                // Endpoints HR - requerem permissões específicas
                                                 .requestMatchers("/api/hr/**")
                                                 .hasAnyAuthority("EMPLOYEES_READ", "EMPLOYEES_WRITE",
                                                                 "EMPLOYEES_CREATE", "EMPLOYEES_DELETE",

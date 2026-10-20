@@ -27,6 +27,10 @@ import java.util.UUID;
 import com.z7design.fleet_manager.model.Company.CompanyStatus;
 import java.util.List;
 import java.util.Optional;
+import com.z7design.fleet_manager.model.Driver;
+import com.z7design.fleet_manager.model.Position;
+import com.z7design.fleet_manager.repository.DriverRepository;
+import com.z7design.fleet_manager.repository.PositionRepository;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,6 +41,8 @@ public class EmployeePdfImportService {
 
     private final EmployeeRepository employeeRepository;
     private final CompanyRepository companyRepository;
+    private final PositionRepository positionRepository;
+    private final DriverRepository driverRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -74,6 +80,11 @@ public class EmployeePdfImportService {
 
         byte[] fileBytes = file.getBytes();
         try (PDDocument document = PDDocument.load(fileBytes)) {
+            if (document.isEncrypted()) {
+                try {
+                    document.setAllSecurityToBeRemoved(true);
+                } catch (Exception ignored) {}
+            }
             PDFTextStripper stripper = new PDFTextStripper();
             
             // Tenta primeiro extrair pagina por pagina
@@ -534,8 +545,77 @@ public class EmployeePdfImportService {
             employee.setSpouseBirthDate(spouseBirthDate);
         }
 
+        // Tratar Cargo / Posição
+        if (cargo != null && !cargo.isBlank()) {
+            String trimmedCargo = cargo.trim();
+            Optional<Position> optPos = positionRepository.findByName(trimmedCargo);
+            Position position = null;
+            if (optPos.isPresent()) {
+                position = optPos.get();
+            } else {
+                try {
+                    position = new Position();
+                    position.setName(truncate(trimmedCargo, 100));
+                    position.setCbo(cbo != null ? truncate(cbo, 10) : null);
+                    position.setBaseSalary(employee.getSalario() != null ? employee.getSalario() : BigDecimal.ZERO);
+                    position = positionRepository.save(position);
+                    log.info("Cargo cadastrado automaticamente: {}", position.getName());
+                } catch (Exception posEx) {
+                    log.warn("Não foi possível salvar cargo '{}': {}", trimmedCargo, posEx.getMessage());
+                }
+            }
+            if (position != null) {
+                employee.setPosition(position);
+            }
+        }
+
         try {
             Employee saved = employeeRepository.save(employee);
+
+            // Sincronizar com Gestão de Motoristas se o cargo for Motorista
+            boolean isMotorista = false;
+            if (cargo != null && cargo.toUpperCase().contains("MOTORISTA")) {
+                isMotorista = true;
+            } else if (cbo != null && (cbo.startsWith("7823") || cbo.startsWith("7824") || cbo.startsWith("7825"))) {
+                isMotorista = true;
+            }
+
+            if (isMotorista) {
+                try {
+                    String cleanCpf = (cpf != null) ? cpf.replaceAll("[^0-9]", "") : null;
+                    String cleanCnh = (cnh != null) ? cnh.trim() : (saved.getCnhNumber() != null ? saved.getCnhNumber().trim() : null);
+
+                    Driver driver = null;
+                    if (cleanCpf != null && !cleanCpf.isBlank()) {
+                        driver = driverRepository.findByCpf(cleanCpf).orElse(null);
+                    }
+                    if (driver == null && cleanCnh != null && !cleanCnh.isBlank()) {
+                        driver = driverRepository.findByLicenseNumber(cleanCnh).orElse(null);
+                    }
+
+                    if (driver == null) {
+                        driver = new Driver();
+                        driver.setStatus("ATIVO");
+                        log.info("Criando novo registro em Gestão de Motoristas para {}", saved.getName());
+                    } else {
+                        log.info("Atualizando motorista existente em Gestão de Motoristas para {}", saved.getName());
+                    }
+
+                    driver.setName(saved.getName());
+                    if (cleanCpf != null) driver.setCpf(cleanCpf);
+                    if (cleanCnh != null) driver.setLicenseNumber(cleanCnh);
+                    if (cnhCategoria != null) driver.setCnhCategory(truncate(cnhCategoria, 10));
+                    if (cnhValidadeStr != null) driver.setCnhExpiration(parseDate(cnhValidadeStr));
+                    if (saved.getPhone() != null) driver.setPhone(saved.getPhone());
+                    if (saved.getCompanyId() != null) driver.setCompanyId(saved.getCompanyId());
+
+                    driverRepository.save(driver);
+                    log.info("Motorista salvo com sucesso na Gestão de Motoristas: {}", driver.getName());
+                } catch (Exception drvEx) {
+                    log.error("Erro ao sincronizar motorista para {}: {}", saved.getName(), drvEx.getMessage());
+                }
+            }
+
             return new EmployeeSavedStatus(saved, isNew);
         } catch (Exception e) {
             log.error("Erro ao salvar funcionário '{}': {}", employee.getName(), e.getMessage(), e);

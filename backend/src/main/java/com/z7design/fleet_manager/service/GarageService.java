@@ -47,6 +47,9 @@ public class GarageService {
 
     // ==================== LEITURA ====================
 
+    // readOnly=true evita LazyInitializationException quando open-in-view=false (CI/prod):
+    // o DTO acessa garage.responsibleEmployee e vehicle.workPostEntity (LAZY).
+    @Transactional(readOnly = true)
     public List<GarageDTO> list(UUID companyId) {
         List<Garage> list = companyId != null
                 ? garageRepository.findByCompanyIdOrderByCreatedAtDesc(companyId)
@@ -104,6 +107,7 @@ public class GarageService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public GarageDTO getById(UUID id, UUID companyId) {
         Garage garage = findScoped(id, companyId);
         return GarageDTO.fromEntity(garage, vehicleRepository.findByGarageId(id));

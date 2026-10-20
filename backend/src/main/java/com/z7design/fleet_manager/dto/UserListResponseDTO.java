@@ -36,4 +36,10 @@ public class UserListResponseDTO {
     private String companyId;
     private String companyName;
     private Boolean isOnline; // Status online/offline do usuário
+
+    // Campos de bloqueio administrativo
+    private Boolean blocked;
+    private LocalDateTime blockedUntil;
+    private String blockedReason;
+    private String blockedBy;
 } 

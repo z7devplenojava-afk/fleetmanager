@@ -164,6 +164,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   FLEX_ADMIN: new Set([
     'dashboard',
@@ -204,6 +211,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   COMPANY_ADMIN: new Set([
     'dashboard',
@@ -244,6 +258,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   ADMIN: new Set([
     'dashboard',
@@ -288,6 +309,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   SUPERVISOR: new Set([
     'dashboard',
@@ -319,6 +347,10 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'operacional-despesas',
+    'manutencao-despesas',
+    'frota-despesas',
+    'rh-sst-despesas',
   ]),
   GESTOR: new Set([
     'dashboard',
@@ -345,6 +377,11 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'operacional-despesas',
+    'manutencao-despesas',
+    'frota-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   RH: new Set([
     'dashboard',
@@ -390,6 +427,9 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-templates',
     'ticketing-trips',
     'mobilizacao-transportes',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
   ]),
   DEPARTAMENTO_PESSOAL: new Set([
     'dashboard',
@@ -435,6 +475,9 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-templates',
     'ticketing-trips',
     'mobilizacao-transportes',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
   ]),
   COMERCIAL: new Set([
     'dashboard',
@@ -493,6 +536,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'supervisao',
     'chat-interno',
     'mensagens',
+    'operacional-despesas',
   ]),
   GESTOR_OPERACIONAL: new Set([
     'dashboard',
@@ -514,6 +558,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'supervisao',
     'chat-interno',
     'mensagens',
+    'operacional-despesas',
   ]),
   VIGILANTE: new Set([
     'dashboard',
@@ -538,6 +583,8 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
   ]),
   GESTOR_DE_MANUTENCAO: new Set([
     'dashboard',
@@ -555,6 +602,8 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
   ]),
   ENCARREGADO_DE_MANUTENCAO: new Set([
     'dashboard',
@@ -570,6 +619,8 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
   ]),
   ALMOXARIFADO: new Set([
     'dashboard',
@@ -581,6 +632,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'compras-solicitacoes',
     'chat-interno',
     'mensagens',
+    'almoxarifado-despesas',
   ]),
   COMPRAS: new Set([
     'dashboard',
@@ -592,6 +644,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'estoque-fornecedores',
     'chat-interno',
     'mensagens',
+    'almoxarifado-despesas',
   ]),
   GESTOR_DE_COMPRAS: new Set([
     'dashboard',
@@ -603,6 +656,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'estoque-fornecedores',
     'chat-interno',
     'mensagens',
+    'almoxarifado-despesas',
   ]),
   GESTOR_TRAFEGO: new Set([
     'dashboard',
@@ -649,6 +703,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'mobilizacao-transportes',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   GESTOR_FINANCEIRO: new Set([
     'dashboard',
@@ -665,6 +726,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'mobilizacao-transportes',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   ASSISTENTE_FINANCEIRO: new Set([
     'dashboard',
@@ -676,6 +744,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-financeira-movimentacoes',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   CLIENTE: new Set([
     'dashboard',
@@ -719,6 +794,13 @@ export function DynamicSidebar() {
       text: 'Operacional',
       to: '/operacional',
       id: 'operacional',
+      requiredPermission: 'EMPLOYEES_READ'
+    },
+    {
+      icon: DollarSign,
+      text: 'Despesas Operacionais',
+      to: '/operacional/despesas',
+      id: 'operacional-despesas',
       requiredPermission: 'EMPLOYEES_READ'
     },
     {
@@ -962,6 +1044,20 @@ export function DynamicSidebar() {
       id: 'payrolls',
       requiredPermission: 'PAYSLIPS_READ'
     },
+    {
+      icon: DollarSign,
+      text: 'Despesas RH',
+      to: '/rh/despesas',
+      id: 'rh-despesas',
+      requiredPermission: 'EMPLOYEES_READ'
+    },
+    {
+      icon: Receipt,
+      text: 'Despesas DP',
+      to: '/dp/despesas',
+      id: 'dp-despesas',
+      requiredPermission: 'PAYSLIPS_READ'
+    },
 
     // ===== MÓDULO SST - SAÚDE E SEGURANÇA DO TRABALHO =====
     {
@@ -999,13 +1095,6 @@ export function DynamicSidebar() {
       id: 'rh-sst-treinamentos',
       requiredPermission: 'EMPLOYEES_READ'
     },
-    // {
-    //   icon: FileCheck,
-    //   text: 'Inspeções',
-    //   to: '/rh/sst/inspecoes', // TODO: Implementar
-    //   id: 'rh-sst-inspecoes',
-    //   requiredPermission: 'EMPLOYEES_READ'
-    // },
     {
       icon: Users,
       text: 'CIPA',
@@ -1018,6 +1107,13 @@ export function DynamicSidebar() {
       text: 'Relatórios SST',
       to: '/rh/sst/relatorios',
       id: 'rh-sst-relatorios',
+      requiredPermission: 'EMPLOYEES_READ'
+    },
+    {
+      icon: DollarSign,
+      text: 'Despesas SST',
+      to: '/rh/sst/despesas',
+      id: 'rh-sst-despesas',
       requiredPermission: 'EMPLOYEES_READ'
     },
     {
@@ -1039,6 +1135,21 @@ export function DynamicSidebar() {
       text: 'Dashboard Manutenção',
       to: '/manutencao',
       id: 'manutencao',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
+    {
+      icon: DollarSign,
+      text: 'Despesas com Manutenção',
+      to: '/manutencao?tab=despesas',
+      id: 'manutencao-despesas',
+      requiredPermission: 'EQUIPMENTS_READ',
+      color: 'text-amber-400'
+    },
+    {
+      icon: Truck,
+      text: 'Despesas da Frota',
+      to: '/frota/despesas',
+      id: 'frota-despesas',
       requiredPermission: 'EQUIPMENTS_READ'
     },
     {
@@ -1342,6 +1453,13 @@ export function DynamicSidebar() {
       to: '/compras/relatorios',
       id: 'compras-relatorios',
       requiredPermission: 'REPORTS_READ'
+    },
+    {
+      icon: DollarSign,
+      text: 'Despesas Almoxarifado',
+      to: '/almoxarifado/despesas',
+      id: 'almoxarifado-despesas',
+      requiredPermission: 'EQUIPMENTS_READ'
     },
     // ===== PLATAFORMA FLUXBUS (SaaS) =====
     {

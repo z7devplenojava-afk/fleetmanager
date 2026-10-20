@@ -34,7 +34,8 @@ import {
   FileUp,
   BarChart3,
   LogIn,
-  LogOut
+  LogOut,
+  X
 } from 'lucide-react';
 import { useGSAP } from '@/hooks/use-gsap';
 import { useToast } from '@/hooks/use-toast';
@@ -50,6 +51,8 @@ import DocumentosGerarTab from '@/components/funcionarios/DocumentosGerarTab';
 import { EmployeePdfImportModal } from '@/components/funcionarios/EmployeePdfImportModal';
 import DependenteModal from '@/components/dependentes/DependenteModal';
 import { FuncionariosTable, getEmployeeTerminationDate } from '@/components/funcionarios/FuncionariosTable';
+import { EmployeeViewModal } from '@/components/funcionarios/EmployeeViewModal';
+import { EmployeeCrachaModal } from '@/components/funcionarios/EmployeeCrachaModal';
 import ExcelImportModal from '@/components/funcionarios/ExcelImportModal';
 import { FileSpreadsheet } from 'lucide-react';
 import { workPostService, WorkPost } from '@/services/workPostService';
@@ -80,6 +83,20 @@ const Funcionarios: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [employeeToEdit, setEmployeeToEdit] = useState<Employee | null>(null);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [employeeToView, setEmployeeToView] = useState<Employee | null>(null);
+  const [crachaModalOpen, setCrachaModalOpen] = useState(false);
+  const [employeeToCracha, setEmployeeToCracha] = useState<Employee | null>(null);
+
+  const handleViewEmployee = (employee: Employee) => {
+    setEmployeeToView(employee);
+    setViewModalOpen(true);
+  };
+
+  const handleOpenCracha = (employee: Employee) => {
+    setEmployeeToCracha(employee);
+    setCrachaModalOpen(true);
+  };
   useGSAP();
   const { toast } = useToast();
   const location = useLocation();
@@ -212,22 +229,26 @@ const Funcionarios: React.FC = () => {
       
       // Buscar dados completos do funcionário do backend
       console.log('🔍 Buscando dados completos do funcionário:', employee.id);
-      const fullEmployeeData = await employeeService.getEmployeeById(employee.id);
-      console.log('🔍 Dados completos recebidos:', fullEmployeeData);
-      
-      // Verificar se os dados foram recebidos corretamente
-      if (!fullEmployeeData || !fullEmployeeData.id) {
-        throw new Error('Dados do funcionário não foram retornados corretamente');
+      let fullEmployeeData: Employee | null = null;
+      try {
+        fullEmployeeData = await employeeService.getEmployeeById(employee.id);
+      } catch {
+        // silencioso — fallback abaixo
       }
-      
+      console.log('🔍 Dados completos recebidos:', fullEmployeeData);
+
+      // Fallback: se a API não retornou dados (ex: IDs de seed), usar o objeto local
+      if (!fullEmployeeData || !fullEmployeeData.id) {
+        console.warn('⚠️ getEmployeeById retornou null — usando dados locais do funcionário');
+        fullEmployeeData = employee;
+      }
+
       // Definir dados primeiro, depois abrir modal
-      // IMPORTANTE: Garantir que modalOpen está false antes de abrir editModalOpen
       setModalOpen(false);
       setEmployeeToEdit(fullEmployeeData);
       setEditModalOpen(true);
-      
+
       console.log('🔍 Estado após setEditModalOpen:', true);
-      
       console.log('🔍 Estado após setEmployeeToEdit:', fullEmployeeData);
     } catch (error) {
       console.error('❌ Erro ao buscar dados do funcionário:', error);
@@ -326,6 +347,19 @@ const Funcionarios: React.FC = () => {
       matchesWorkPost && matchesClient && matchesGarage &&
       matchesHireStart && matchesHireEnd && matchesTermStart && matchesTermEnd;
   });
+
+  const activeFiltersCount = useMemo(() => {
+    return [
+      searchTerm.trim() !== '',
+      statusFilter !== 'all',
+      departmentFilter !== 'all',
+      workPostFilter !== 'all',
+      clientFilter !== 'all',
+      garageFilter !== 'all',
+      Boolean(hireStart || hireEnd),
+      Boolean(termStart || termEnd),
+    ].filter(Boolean).length;
+  }, [searchTerm, statusFilter, departmentFilter, workPostFilter, clientFilter, garageFilter, hireStart, hireEnd, termStart, termEnd]);
 
   // Departamentos/setores únicos com rótulo legível
   const departments = useMemo(() => {
@@ -607,14 +641,32 @@ Confirma a exclusão?`)) {
   };
 
   return (
-    <StandardLayout 
-      title="Gestão de Funcionários"
-      subtitle={`${filteredEmployees.length} funcionário${filteredEmployees.length !== 1 ? 's' : ''} no sistema`}
-    >
-      <Tabs value={activeTab} onValueChange={(value) => {
-        setActiveTab(value);
-        navigate(`/rh/funcionarios?tab=${value}`, { replace: true });
-      }} className="w-full">
+    <StandardLayout>
+      <div className="space-y-4">
+        {/* ── HEADER DA PÁGINA (TÍTULO + REGRAS DE EXCLUSÃO COMPACTAS) ── */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-1">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+              Gestão de Funcionários
+            </h1>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              {filteredEmployees.length} funcionário{filteredEmployees.length !== 1 ? 's' : ''} no sistema
+            </p>
+          </div>
+
+          {/* Card Compacto: Regras de Exclusão de Funcionários */}
+          <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-blue-950/40 border border-blue-800/60 text-xs text-blue-300 shadow-sm max-w-xl">
+            <AlertCircle className="h-4 w-4 text-blue-400 shrink-0" />
+            <span className="leading-snug">
+              <strong className="text-blue-200">Regras de Exclusão:</strong> Apenas funcionários com status <span className="text-amber-300 font-semibold">"Demitido"</span> podem ser excluídos do sistema.
+            </span>
+          </div>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={(value) => {
+          setActiveTab(value);
+          navigate(`/rh/funcionarios?tab=${value}`, { replace: true });
+        }} className="w-full">
         <TabsList className="mb-4 bg-seguranca-black/50 border border-gray-600/30 p-1 flex-wrap h-auto justify-start">
           <TabsTrigger value="lista" className="data-[state='active']:bg-seguranca-red data-[state='active']:text-white flex-grow sm:flex-grow-0">
             <Users className="h-4 w-4 mr-2" />
@@ -748,7 +800,77 @@ Confirma a exclusão?`)) {
         </TabsContent>
         
         <TabsContent value="lista">
-          <div className="space-y-6">
+          <div className="space-y-4">
+            {/* ── BARRA SUPERIOR DE AÇÕES (TODOS OS BOTÕES NO TOPO) ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gradient-to-r from-seguranca-graphite/80 via-seguranca-black to-seguranca-graphite/80 border border-gray-700/60 rounded-xl p-3 shadow-md" data-animate="fadeDown">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setRefreshing(true);
+                    loadEmployees();
+                    setTimeout(() => setRefreshing(false), 1000);
+                  }}
+                  disabled={refreshing}
+                  className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite text-xs h-9"
+                >
+                  <RefreshCw size={15} className={`mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
+                  Atualizar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-600/50 text-blue-400 hover:bg-blue-900/20 text-xs h-9"
+                  onClick={() => setExcelImportModalOpen(true)}
+                >
+                  <FileSpreadsheet size={15} className="mr-1.5" />
+                  Importar Excel
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-red-600/50 text-red-400 hover:bg-red-900/20 text-xs h-9"
+                  onClick={() => setPdfImportModalOpen(true)}
+                >
+                  <FileUp size={15} className="mr-1.5" />
+                  Importar Ficha PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-seguranca-yellow/50 text-seguranca-yellow hover:bg-seguranca-yellow/10 text-xs h-9"
+                  onClick={handleFullReport}
+                  disabled={exporting || !filteredEmployees.length}
+                >
+                  {exporting ? (
+                    <Loader2 size={15} className="mr-1.5 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet size={15} className="mr-1.5" />
+                  )}
+                  Relatório Completo
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-gray-500/50 text-seguranca-lightgray hover:bg-seguranca-graphite text-xs h-9"
+                  onClick={() => navigate('/rh/relatorios/funcionarios')}
+                >
+                  <BarChart3 size={15} className="mr-1.5" />
+                  Relatórios
+                </Button>
+              </div>
+
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red text-white font-semibold text-xs h-9 shadow-lg shadow-seguranca-red/20 px-4"
+                onClick={handleOpenModal}
+              >
+                <Plus size={16} className="mr-1.5" />
+                Novo Funcionário
+              </Button>
+            </div>
+
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-animate="fadeDown">
               <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 hover:border-blue-500/50 transition-all duration-300 group">
@@ -808,179 +930,111 @@ Confirma a exclusão?`)) {
               </Card>
             </div>
 
-            {/* Última admissão / última demissão */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-animate="fadeDown">
-              <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 hover:border-emerald-500/50 transition-all duration-300 group">
-                <div className="p-5">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p className="text-gray-400 text-sm font-medium">Última Admissão</p>
-                      <p className="text-lg font-bold text-emerald-400 mt-2 truncate">
-                        {lastAdmission?.name || '—'}
-                      </p>
-                      {lastAdmission?.hireDate && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(lastAdmission.hireDate + 'T00:00:00').toLocaleDateString('pt-BR')}
-                        </p>
-                      )}
-                    </div>
-                    <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 group-hover:bg-emerald-500/30 transition-colors">
-                      <LogIn className="h-6 w-6 text-emerald-400" />
-                    </div>
-                  </div>
+            {/* ── BARRA COMPACTA: ÚLTIMA ADMISSÃO & ÚLTIMA DEMISSÃO (ESTILO IMAGEM 3) ── */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-2.5 bg-gradient-to-r from-seguranca-graphite/60 via-seguranca-black to-seguranca-graphite/60 border border-gray-700/50 rounded-xl text-xs shadow-sm" data-animate="fadeDown">
+              <div className="flex items-center gap-2 text-gray-300">
+                <div className="p-1 rounded-md bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 shrink-0">
+                  <LogIn className="h-3.5 w-3.5" />
                 </div>
-              </Card>
-              <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 hover:border-orange-500/50 transition-all duration-300 group">
-                <div className="p-5">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p className="text-gray-400 text-sm font-medium">Última Demissão</p>
-                      <p className="text-lg font-bold text-orange-400 mt-2 truncate">
-                        {lastDismissal?.name || '—'}
-                      </p>
-                      {lastDismissal && getEmployeeTerminationDate(lastDismissal) && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date((getEmployeeTerminationDate(lastDismissal) as string) + 'T00:00:00').toLocaleDateString('pt-BR')}
-                        </p>
-                      )}
-                    </div>
-                    <div className="p-3 rounded-xl bg-orange-500/20 border border-orange-500/30 group-hover:bg-orange-500/30 transition-colors">
-                      <LogOut className="h-6 w-6 text-orange-400" />
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </div>
+                <span className="text-gray-400">Última admissão no cadastro:</span>
+                <strong className="text-emerald-400 font-semibold">{lastAdmission?.name || '—'}</strong>
+                {lastAdmission?.hireDate && (
+                  <span className="text-gray-400 font-medium">· {new Date(lastAdmission.hireDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                )}
+              </div>
 
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" data-animate="fadeDown">
-              <div className="flex flex-wrap gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setRefreshing(true);
-                    loadEmployees();
-                    setTimeout(() => setRefreshing(false), 1000);
-                  }}
-                  disabled={refreshing}
-                  className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite hover:border-seguranca-red/50"
-                >
-                  <RefreshCw size={20} className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                  Atualizar
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-blue-600/50 text-blue-400 hover:bg-blue-900/20"
-                  onClick={() => setExcelImportModalOpen(true)}
-                >
-                  <FileSpreadsheet size={20} className="mr-2" />
-                  Importar Excel
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-red-600/50 text-red-400 hover:bg-red-900/20"
-                  onClick={() => setPdfImportModalOpen(true)}
-                >
-                  <FileUp size={20} className="mr-2" />
-                  Importar Ficha PDF
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-seguranca-yellow/50 text-seguranca-yellow hover:bg-seguranca-yellow/10"
-                  onClick={handleFullReport}
-                  disabled={exporting || !filteredEmployees.length}
-                >
-                  {exporting ? (
-                    <Loader2 size={20} className="mr-2 animate-spin" />
-                  ) : (
-                    <FileSpreadsheet size={20} className="mr-2" />
-                  )}
-                  Relatório Completo
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-gray-500/50 text-seguranca-lightgray hover:bg-seguranca-graphite"
-                  onClick={() => navigate('/rh/relatorios/funcionarios')}
-                >
-                  <BarChart3 size={20} className="mr-2" />
-                  Relatórios
-                </Button>
-                <Button
-                  className="bg-gradient-to-r from-seguranca-red to-seguranca-darkred hover:from-seguranca-darkred hover:to-seguranca-red shadow-lg shadow-seguranca-red/20"
-                  onClick={handleOpenModal}
-                >
-                  <Plus size={20} className="mr-2" />
-                  Novo Funcionário
-                </Button>
+              <div className="flex items-center gap-2 text-gray-300">
+                <div className="p-1 rounded-md bg-orange-500/20 border border-orange-500/30 text-orange-400 shrink-0">
+                  <LogOut className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-gray-400">Última demissão no cadastro:</span>
+                <strong className="text-orange-400 font-semibold">{lastDismissal?.name || '—'}</strong>
+                {lastDismissal && getEmployeeTerminationDate(lastDismissal) && (
+                  <span className="text-gray-400 font-medium">· {new Date((getEmployeeTerminationDate(lastDismissal) as string) + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                )}
               </div>
             </div>
 
-            {/* Notificação sobre regras de exclusão */}
-            <Card className="bg-blue-900/20 border-blue-600/50" data-animate="fadeUp">
-              <CardContent className="p-4">
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+
+            {/* Filtros Modernos */}
+            <Card className="bg-gradient-to-br from-seguranca-graphite/90 via-seguranca-black/95 to-seguranca-graphite/90 border border-gray-700/60 p-5 rounded-2xl shadow-xl shadow-black/20" data-animate="fadeUp">
+              {/* Header do Card */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-seguranca-red/15 border border-seguranca-red/30 text-seguranca-red shadow-sm">
+                    <Search className="h-4 w-4" />
+                  </div>
                   <div>
-                    <h4 className="text-blue-400 font-semibold">Regras de Exclusão de Funcionários</h4>
-                    <p className="text-blue-300 text-sm mt-1">
-                      <strong>⚠️ Importante:</strong> Apenas funcionários com status "Demitido" podem ser excluídos do sistema. 
-                      Para excluir um funcionário ativo, primeiro altere seu status para "Demitido" usando o botão "Demitir".
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-white text-sm tracking-tight">Pesquisar Funcionários</h3>
+                      {activeFiltersCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-seguranca-red/20 border border-seguranca-red/40 text-seguranca-red">
+                          {activeFiltersCount} {activeFiltersCount === 1 ? 'filtro ativo' : 'filtros ativos'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Mostrando <span className="text-white font-medium">{filteredEmployees.length}</span> de <span className="text-white font-medium">{employees.length}</span> funcionários
                     </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-
-            {/* Filtros Modernos */}
-            <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 p-6" data-animate="fadeUp">
-              {/* Search Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-seguranca-red/20 border border-seguranca-red/30">
-                    <Search className="h-5 w-5 text-seguranca-red" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white">Pesquisar Funcionários</h3>
-                    <p className="text-sm text-gray-400">Filtre e encontre funcionários rapidamente</p>
-                  </div>
-                </div>
                 <Button 
                   variant="outline"
                   size="sm"
                   onClick={() => {
                     setRefreshing(true);
                     clearFilters();
-                    setTimeout(() => setRefreshing(false), 1000);
+                    setTimeout(() => setRefreshing(false), 800);
                   }}
                   disabled={refreshing}
-                  className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-graphite"
+                  className={`text-xs h-8 px-3 rounded-lg transition-all ${
+                    activeFiltersCount > 0
+                      ? 'border-seguranca-red/50 text-seguranca-red hover:bg-seguranca-red/10'
+                      : 'border-gray-700 text-gray-400 hover:text-white hover:bg-seguranca-graphite'
+                  }`}
                 >
                   {refreshing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <RefreshCw size={16} className="mr-2" />
+                    <RefreshCw size={13} className="mr-1.5" />
                   )}
-                  Limpar
+                  {activeFiltersCount > 0 ? `Limpar (${activeFiltersCount})` : 'Limpar'}
                 </Button>
               </div>
 
-              {/* Search Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <div className="relative sm:col-span-2 lg:col-span-2 xl:col-span-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              {/* Grid de Filtros: 2 linhas perfeitas de 4 colunas em desktop */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* 1. Busca por texto */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
                   <Input
                     placeholder="Digite o nome, CPF ou email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 h-11 bg-seguranca-black/70 border-gray-600 text-seguranca-lightgray placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow/20"
+                    className="pl-9 pr-7 h-10 text-xs bg-seguranca-black/70 border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray placeholder:text-gray-500 focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20 rounded-lg transition-colors"
                   />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-0.5 rounded transition-colors"
+                      title="Limpar busca"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
                 </div>
                 
+                {/* 2. Status */}
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="h-11 bg-seguranca-black/70 border border-gray-600 rounded-md px-3 py-2 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow/20 outline-none"
+                  className={`h-10 text-xs rounded-lg px-3 outline-none transition-colors cursor-pointer ${
+                    statusFilter !== 'all'
+                      ? 'bg-blue-950/30 border border-blue-500/50 text-blue-200'
+                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20'
+                  }`}
                 >
                   <option value="all">📋 Todos os status</option>
                   <option value="ACTIVE">✅ Ativo</option>
@@ -992,10 +1046,15 @@ Confirma a exclusão?`)) {
                   <option value="SUSPENDED">⏸️ Suspenso</option>
                 </select>
                 
+                {/* 3. Departamento */}
                 <select
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="h-11 bg-seguranca-black/70 border border-gray-600 rounded-md px-3 py-2 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow/20 outline-none"
+                  className={`h-10 text-xs rounded-lg px-3 outline-none transition-colors cursor-pointer ${
+                    departmentFilter !== 'all'
+                      ? 'bg-blue-950/30 border border-blue-500/50 text-blue-200'
+                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20'
+                  }`}
                 >
                   <option value="all">🏢 Todos os departamentos</option>
                   {departments.map(dept => (
@@ -1003,10 +1062,15 @@ Confirma a exclusão?`)) {
                   ))}
                 </select>
 
+                {/* 4. Obra / Setor */}
                 <select
                   value={workPostFilter}
                   onChange={(e) => setWorkPostFilter(e.target.value)}
-                  className="h-11 bg-seguranca-black/70 border border-gray-600 rounded-md px-3 py-2 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow/20 outline-none"
+                  className={`h-10 text-xs rounded-lg px-3 outline-none transition-colors cursor-pointer ${
+                    workPostFilter !== 'all'
+                      ? 'bg-blue-950/30 border border-blue-500/50 text-blue-200'
+                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20'
+                  }`}
                 >
                   <option value="all">📍 Obra / Setor (posto)</option>
                   {workPosts.map(wp => (
@@ -1014,10 +1078,15 @@ Confirma a exclusão?`)) {
                   ))}
                 </select>
 
+                {/* 5. Clientes */}
                 <select
                   value={clientFilter}
                   onChange={(e) => setClientFilter(e.target.value)}
-                  className="h-11 bg-seguranca-black/70 border border-gray-600 rounded-md px-3 py-2 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow/20 outline-none"
+                  className={`h-10 text-xs rounded-lg px-3 outline-none transition-colors cursor-pointer ${
+                    clientFilter !== 'all'
+                      ? 'bg-blue-950/30 border border-blue-500/50 text-blue-200'
+                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20'
+                  }`}
                 >
                   <option value="all">👥 Todos os clientes</option>
                   {clients.map(c => (
@@ -1025,10 +1094,15 @@ Confirma a exclusão?`)) {
                   ))}
                 </select>
 
+                {/* 6. Garagens */}
                 <select
                   value={garageFilter}
                   onChange={(e) => setGarageFilter(e.target.value)}
-                  className="h-11 bg-seguranca-black/70 border border-gray-600 rounded-md px-3 py-2 text-seguranca-lightgray focus:border-seguranca-yellow focus:ring-seguranca-yellow/20 outline-none"
+                  className={`h-10 text-xs rounded-lg px-3 outline-none transition-colors cursor-pointer ${
+                    garageFilter !== 'all'
+                      ? 'bg-blue-950/30 border border-blue-500/50 text-blue-200'
+                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20'
+                  }`}
                 >
                   <option value="all">🚗 Todas as garagens (responsável)</option>
                   {garages.map(g => (
@@ -1036,41 +1110,86 @@ Confirma a exclusão?`)) {
                   ))}
                 </select>
 
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-400">Admissão (início)</label>
-                  <Input
+                {/* 7. Período de Admissão Compacto e Elegante */}
+                <div
+                  className={`h-10 rounded-lg px-2.5 flex items-center gap-1.5 transition-all ${
+                    hireStart || hireEnd
+                      ? 'bg-emerald-950/20 border border-emerald-500/50 shadow-sm shadow-emerald-500/10'
+                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/20'
+                  }`}
+                  title="Filtrar por período de admissão"
+                >
+                  <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 shrink-0 select-none">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>Admissão</span>
+                  </div>
+                  <div className="h-3.5 w-px bg-gray-700 shrink-0 mx-0.5" />
+                  <input
                     type="date"
                     value={hireStart}
                     onChange={(e) => setHireStart(e.target.value)}
-                    className="h-11 bg-seguranca-black/70 border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow"
+                    title="Data de admissão inicial"
+                    className="flex-1 min-w-0 bg-transparent text-[11px] text-gray-200 focus:outline-none [color-scheme:dark] cursor-pointer"
                   />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-400">Admissão (fim)</label>
-                  <Input
+                  <span className="text-gray-500 text-[10px] shrink-0 font-medium select-none">a</span>
+                  <input
                     type="date"
                     value={hireEnd}
                     onChange={(e) => setHireEnd(e.target.value)}
-                    className="h-11 bg-seguranca-black/70 border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow"
+                    title="Data de admissão final"
+                    className="flex-1 min-w-0 bg-transparent text-[11px] text-gray-200 focus:outline-none [color-scheme:dark] cursor-pointer"
                   />
+                  {(hireStart || hireEnd) && (
+                    <button
+                      type="button"
+                      onClick={() => { setHireStart(''); setHireEnd(''); }}
+                      className="p-0.5 text-gray-400 hover:text-emerald-300 rounded transition-colors shrink-0"
+                      title="Limpar período de admissão"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-400">Demissão (início)</label>
-                  <Input
+
+                {/* 8. Período de Demissão Compacto e Elegante */}
+                <div
+                  className={`h-10 rounded-lg px-2.5 flex items-center gap-1.5 transition-all ${
+                    termStart || termEnd
+                      ? 'bg-rose-950/20 border border-rose-500/50 shadow-sm shadow-rose-500/10'
+                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 focus-within:border-rose-500/50 focus-within:ring-1 focus-within:ring-rose-500/20'
+                  }`}
+                  title="Filtrar por período de demissão"
+                >
+                  <div className="flex items-center gap-1 text-[11px] font-semibold text-rose-400 shrink-0 select-none">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>Demissão</span>
+                  </div>
+                  <div className="h-3.5 w-px bg-gray-700 shrink-0 mx-0.5" />
+                  <input
                     type="date"
                     value={termStart}
                     onChange={(e) => setTermStart(e.target.value)}
-                    className="h-11 bg-seguranca-black/70 border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow"
+                    title="Data de demissão inicial"
+                    className="flex-1 min-w-0 bg-transparent text-[11px] text-gray-200 focus:outline-none [color-scheme:dark] cursor-pointer"
                   />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-400">Demissão (fim)</label>
-                  <Input
+                  <span className="text-gray-500 text-[10px] shrink-0 font-medium select-none">a</span>
+                  <input
                     type="date"
                     value={termEnd}
                     onChange={(e) => setTermEnd(e.target.value)}
-                    className="h-11 bg-seguranca-black/70 border-gray-600 text-seguranca-lightgray focus:border-seguranca-yellow"
+                    title="Data de demissão final"
+                    className="flex-1 min-w-0 bg-transparent text-[11px] text-gray-200 focus:outline-none [color-scheme:dark] cursor-pointer"
                   />
+                  {(termStart || termEnd) && (
+                    <button
+                      type="button"
+                      onClick={() => { setTermStart(''); setTermEnd(''); }}
+                      className="p-0.5 text-gray-400 hover:text-rose-300 rounded transition-colors shrink-0"
+                      title="Limpar período de demissão"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
                 </div>
               </div>
             </Card>
@@ -1079,6 +1198,7 @@ Confirma a exclusão?`)) {
             <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 p-6" data-animate="fadeUp">
               <FuncionariosTable
                 employees={filteredEmployees}
+                onView={handleViewEmployee}
                 onEdit={handleEditEmployee}
                 onDelete={deleteEmployee}
                 onTerminate={handleTerminateEmployee}
@@ -1091,6 +1211,7 @@ Confirma a exclusão?`)) {
                     (dependentesTab as HTMLElement).click();
                   }
                 }}
+                onCracha={handleOpenCracha}
                 isLoading={loading}
               />
             </Card>
@@ -1178,6 +1299,44 @@ Confirma a exclusão?`)) {
         }}
         employeeToEdit={editModalOpen && employeeToEdit ? employeeToEdit : null}
       />
+
+      {/* Modal de Visualização Completa do Funcionário */}
+      <EmployeeViewModal
+        employee={employeeToView}
+        isOpen={viewModalOpen}
+        onClose={() => {
+          setViewModalOpen(false);
+          setEmployeeToView(null);
+        }}
+        onEdit={(employee) => {
+          setViewModalOpen(false);
+          handleEditEmployee(employee);
+        }}
+        onViewDocuments={(employee) => {
+          setViewModalOpen(false);
+          handleViewDocuments(employee);
+        }}
+        onViewDependents={(employee) => {
+          setViewModalOpen(false);
+          setSelectedEmployee(employee);
+          const tabsList = document.querySelector('[role="tablist"]');
+          const dependentesTab = tabsList?.querySelector('[value="dependentes"]');
+          if (dependentesTab) {
+            (dependentesTab as HTMLElement).click();
+          }
+        }}
+      />
+
+      {/* Modal de Crachá & QR Code do Funcionário */}
+      <EmployeeCrachaModal
+        employee={employeeToCracha}
+        isOpen={crachaModalOpen}
+        onClose={() => {
+          setCrachaModalOpen(false);
+          setEmployeeToCracha(null);
+        }}
+      />
+      </div>
     </StandardLayout>
   );
 };

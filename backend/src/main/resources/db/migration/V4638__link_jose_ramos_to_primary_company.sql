@@ -1,6 +1,8 @@
 -- =====================================================
 -- Migration V4638: Garantir acesso irrestrito de Super Admin para jose.ramos
--- =====================================================
+-- Ensure columns exist
+ALTER TABLE users ADD COLUMN IF NOT EXISTS first_access_completed BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS require_password_change BOOLEAN NOT NULL DEFAULT FALSE;
 
 DO $$
 DECLARE

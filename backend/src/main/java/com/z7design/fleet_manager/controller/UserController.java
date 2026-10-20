@@ -7,6 +7,7 @@ import com.z7design.fleet_manager.dto.ProfileResponse;
 import com.z7design.fleet_manager.dto.UpdateUserRequest;
 import com.z7design.fleet_manager.dto.CreateUserRequest;
 import com.z7design.fleet_manager.model.User;
+import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.service.LgpdConsentService;
 import com.z7design.fleet_manager.service.UserService;
 import com.z7design.fleet_manager.service.UserOnlineStatusService;
@@ -40,6 +41,7 @@ public class UserController {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserController.class);
 
     private final UserService userService;
+    private final UserRepository userRepository;
     private final UserOnlineStatusService userOnlineStatusService;
     private final LgpdConsentService lgpdConsentService;
 
@@ -459,6 +461,13 @@ public class UserController {
         dto.setEmployeeCode(user.getEmployeeCode());
         dto.setPhone(user.getPhone());
         dto.setAddress(user.getAddress());
+
+        // Bloqueio administrativo
+        dto.setBlocked(Boolean.TRUE.equals(user.getBlocked()) && (user.getBlockedUntil() == null
+                || user.getBlockedUntil().isAfter(java.time.LocalDateTime.now())));
+        dto.setBlockedUntil(user.getBlockedUntil());
+        dto.setBlockedReason(user.getBlockedReason());
+        dto.setBlockedBy(user.getBlockedBy());
         if (user.getCompanyId() != null) {
             dto.setCompanyId(user.getCompanyId().toString());
         }
@@ -507,6 +516,92 @@ public class UserController {
         }
 
         return dto;
+    }
+
+    // ── Bloquear / Desbloquear usuário (por tempo) ──────────────────────────
+
+    /**
+     * Bloqueia um usuário. Corpo: { durationMinutes?: number, reason?: string }.
+     * durationMinutes nulo/0 = bloqueio permanente até ser desbloqueado.
+     * O usuário bloqueado verá a mensagem de bloqueio e deverá procurar o
+     * Administrador do sistema.
+     */
+    @PostMapping("/{id}/block")
+    @PreAuthorize("hasAuthority('USERS_DELETE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @Transactional
+    public ResponseEntity<?> blockUser(
+            @PathVariable("id") String id,
+            @RequestBody(required = false) Map<String, Object> body) {
+        try {
+            UUID userId = UUID.fromString(id);
+            User user = userService.findById(userId)
+                    .orElse(null);
+            if (user == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String currentUsername = (auth != null) ? auth.getName() : "Admin";
+            if (currentUsername.equalsIgnoreCase(user.getUsername())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Não é permitido bloquear sua própria conta de usuário."));
+            }
+
+            Long durationMinutes = null;
+            String reason = null;
+            if (body != null) {
+                if (body.get("durationMinutes") instanceof Number n) {
+                    long v = n.longValue();
+                    durationMinutes = v > 0 ? v : null;
+                }
+                if (body.get("reason") instanceof String s && !s.isBlank()) {
+                    reason = s.trim();
+                }
+            }
+
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            user.setBlocked(true);
+            user.setBlockedAt(now);
+            user.setBlockedUntil(durationMinutes != null ? now.plusMinutes(durationMinutes) : null);
+            user.setBlockedBy(currentUsername);
+            user.setBlockedReason(reason);
+
+            User saved = userRepository.save(user);
+            log.info("Usuário {} bloqueado por {} até {} ({})", saved.getUsername(), currentUsername,
+                    saved.getBlockedUntil(), reason != null ? reason : "sem motivo informado");
+
+            return ResponseEntity.ok(convertToDTO(saved));
+        } catch (Exception e) {
+            log.error("Erro ao bloquear usuário {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Erro ao bloquear usuário: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Desbloqueia um usuário imediatamente.
+     */
+    @PostMapping("/{id}/unblock")
+    @PreAuthorize("hasAuthority('USERS_DELETE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @Transactional
+    public ResponseEntity<?> unblockUser(@PathVariable("id") String id) {
+        try {
+            UUID userId = UUID.fromString(id);
+            User user = userService.findById(userId)
+                    .orElse(null);
+            if (user == null) {
+                return ResponseEntity.notFound().build();
+            }
+            user.setBlocked(false);
+            user.setBlockedUntil(null);
+            user.setBlockedAt(null);
+            user.setBlockedReason(null);
+            user.setBlockedBy(null);
+            User saved = userRepository.save(user);
+            log.info("Usuário {} desbloqueado com sucesso", saved.getUsername());
+            return ResponseEntity.ok(convertToDTO(saved));
+        } catch (Exception e) {
+            log.error("Erro ao desbloquear usuário {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Erro ao desbloquear usuário: " + e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{id}")

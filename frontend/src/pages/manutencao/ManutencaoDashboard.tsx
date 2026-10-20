@@ -19,8 +19,10 @@ import {
     FileText,
     MoreHorizontal,
     Eye,
-    Gauge
+    Gauge,
+    DollarSign
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -40,6 +42,7 @@ import {
     generateFleetWorkOrderPDFBlob
 } from '@/utils/fleetWorkOrderPDFGenerator';
 import TcoPanel from '@/components/frota/TcoPanel';
+import ModuloDespesasPanel from '@/components/financeiro/ModuloDespesasPanel';
 
 const STATUS_CONFIG: Record<WorkOrderStatus, { label: string, color: string, icon: any }> = {
     [WorkOrderStatus.OPEN]: { label: 'Aberta', color: 'bg-blue-600 text-white', icon: Clock },
@@ -60,8 +63,11 @@ const ManutencaoDashboard: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
-    // PRD Módulo 6: Painel TCO de decisão de substituição por placa
-    const [view, setView] = useState<'os' | 'tco'>('os');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tabParam = searchParams.get('tab');
+    const [view, setView] = useState<'os' | 'tco' | 'despesas'>(
+        tabParam === 'despesas' ? 'despesas' : tabParam === 'tco' ? 'tco' : 'os'
+    );
     const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
 
     const queryClient = useQueryClient();
@@ -146,11 +152,14 @@ const ManutencaoDashboard: React.FC = () => {
 
     return (
         <StandardLayout title="Gestão de Manutenção" subtitle="Controle e agendamento de manutenções e ordens de serviço da frota">
-            {/* PRD Módulo 6: alternância entre Ordens de Serviço e Painel TCO */}
-            <div className="flex gap-2 mb-4">
+            {/* PRD Módulo 6: alternância entre Ordens de Serviço, Painel TCO e Despesas com Manutenção */}
+            <div className="flex flex-wrap gap-2 mb-4">
                 <Button
                     variant={view === 'os' ? 'default' : 'outline'}
-                    onClick={() => setView('os')}
+                    onClick={() => {
+                        setView('os');
+                        setSearchParams({});
+                    }}
                     size="sm"
                     className="h-9"
                 >
@@ -159,17 +168,38 @@ const ManutencaoDashboard: React.FC = () => {
                 </Button>
                 <Button
                     variant={view === 'tco' ? 'default' : 'outline'}
-                    onClick={() => setView('tco')}
+                    onClick={() => {
+                        setView('tco');
+                        setSearchParams({ tab: 'tco' });
+                    }}
                     size="sm"
                     className="h-9"
                 >
                     <Gauge className="h-4 w-4 mr-2" />
                     Painel TCO (Substituição)
                 </Button>
+                <Button
+                    variant={view === 'despesas' ? 'default' : 'outline'}
+                    onClick={() => {
+                        setView('despesas');
+                        setSearchParams({ tab: 'despesas' });
+                    }}
+                    size="sm"
+                    className={`h-9 ${view === 'despesas' ? 'bg-amber-500 hover:bg-amber-600 text-black font-semibold' : 'border-amber-500/40 text-amber-300 hover:bg-amber-500/10'}`}
+                >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Despesas com Manutenção
+                </Button>
             </div>
 
             {view === 'tco' ? (
                 <TcoPanel />
+            ) : view === 'despesas' ? (
+                <ModuloDespesasPanel
+                    modulo="MANUTENCAO"
+                    titulo="Despesas com Manutenção"
+                    subtitulo="Controle de notas, faturas e lançamentos de contas a pagar vinculados à manutenção e ordens de serviço da frota"
+                />
             ) : (
             <div className="space-y-6">
                 {/* Header & Stats */}
