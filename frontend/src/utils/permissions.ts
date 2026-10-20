@@ -35,7 +35,7 @@ export const ROLE_CATEGORIES: RoleCategory[] = [
   {
     id: 'manutencao',
     name: 'Manutenção & Oficina',
-    roles: ['GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'MANUTENCAO', 'MECANICO'],
+    roles: ['GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'ANALISTA_DE_FROTA', 'ANALISTA_FROTA', 'MANUTENCAO', 'MECANICO'],
   },
   {
     id: 'operacional',
@@ -100,6 +100,8 @@ export const USER_ROLE_LIST: UserRole[] = [
   // Manutenção & Oficina
   'GESTOR_DE_MANUTENCAO',
   'ENCARREGADO_DE_MANUTENCAO',
+  'ANALISTA_DE_FROTA',
+  'ANALISTA_FROTA',
   'MANUTENCAO',
   'MECANICO',
 
@@ -890,6 +892,8 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
     case 'MANUTENCAO':
     case 'GESTOR_DE_MANUTENCAO':
     case 'ENCARREGADO_DE_MANUTENCAO':
+    case 'ANALISTA_DE_FROTA':
+    case 'ANALISTA_FROTA':
     case 'MECANICO':
       return {
         ...basePermissions,
@@ -901,7 +905,7 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         MESSAGES_CREATE: true,
         EQUIPMENTS_READ: true,
         EQUIPMENTS_WRITE: true,
-        EQUIPMENTS_CREATE: role === 'GESTOR_DE_MANUTENCAO',
+        EQUIPMENTS_CREATE: role === 'GESTOR_DE_MANUTENCAO' || role === 'ANALISTA_DE_FROTA' || role === 'ANALISTA_FROTA',
         EQUIPMENTS_ASSIGN: true,
         STOCK_READ: true,
         STOCK_WRITE: true,
@@ -1409,6 +1413,8 @@ export const getRoleDisplayName = (role: UserRole): string => {
     MANUTENCAO: 'Manutenção',
     GESTOR_DE_MANUTENCAO: 'Gestor de Manutenção',
     ENCARREGADO_DE_MANUTENCAO: 'Encarregado de Manutenção',
+    ANALISTA_DE_FROTA: 'Analista de Frota',
+    ANALISTA_FROTA: 'Analista de Frota',
     ALMOXARIFADO: 'Almoxarifado',
     COMPRAS: 'Compras',
     GESTOR_DE_COMPRAS: 'Gestor de Compras',
@@ -1459,6 +1465,8 @@ export const getRoleColor = (role: UserRole): string => {
     MANUTENCAO: 'bg-blue-600 text-white',
     GESTOR_DE_MANUTENCAO: 'bg-blue-700 text-white',
     ENCARREGADO_DE_MANUTENCAO: 'bg-blue-800 text-white',
+    ANALISTA_DE_FROTA: 'bg-teal-700 text-white',
+    ANALISTA_FROTA: 'bg-teal-700 text-white',
     ALMOXARIFADO: 'bg-amber-600 text-white',
     COMPRAS: 'bg-emerald-600 text-white',
     GESTOR_DE_COMPRAS: 'bg-emerald-700 text-white',
