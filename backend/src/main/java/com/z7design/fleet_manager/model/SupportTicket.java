@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 import com.z7design.fleet_manager.model.enums.TicketStatus;
 import com.z7design.fleet_manager.model.enums.TicketPriority;
 import com.z7design.fleet_manager.model.enums.TicketCategory;
+import org.hibernate.annotations.Filter;
 
 /**
  * Entidade que representa um ticket de atendimento
@@ -22,6 +23,7 @@ import com.z7design.fleet_manager.model.enums.TicketCategory;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class SupportTicket {
     
     @Id

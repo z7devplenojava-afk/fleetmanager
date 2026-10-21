@@ -10,6 +10,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * Movimentação de veículo entre garagens (remanejamento) ou entrada/saída de pátio.
@@ -25,6 +26,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class GarageMovement {
 
     @Id

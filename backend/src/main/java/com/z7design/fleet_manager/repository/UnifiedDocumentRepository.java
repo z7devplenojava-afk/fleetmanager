@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.repository;
 
 import com.z7design.fleet_manager.model.UnifiedDocument;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -47,8 +48,15 @@ public interface UnifiedDocumentRepository extends JpaRepository<UnifiedDocument
     
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
-    @org.springframework.data.jpa.repository.Query(value = "UPDATE unified_documents SET receipt_id = NULL WHERE receipt_id = :receiptId", nativeQuery = true)
-    int removeReceiptReference(@Param("receiptId") UUID receiptId);
+    @org.springframework.data.jpa.repository.Query(value = "UPDATE unified_documents SET receipt_id = NULL WHERE receipt_id = :receiptId " +
+            "AND (CAST(:companyId AS uuid) IS NULL " +
+            "OR payslip_id IN (SELECT p.id FROM payslips p WHERE p.company_id = CAST(:companyId AS uuid)) " +
+            "OR employee_id IN (SELECT e.id FROM employees e WHERE e.company_id = CAST(:companyId AS uuid)))", nativeQuery = true)
+    int removeReceiptReferenceScoped(@Param("receiptId") UUID receiptId, @Param("companyId") UUID companyId);
+
+    default int removeReceiptReference(UUID receiptId) {
+        return removeReceiptReferenceScoped(receiptId, TenantContext.get());
+    }
     
     /**
      * Query otimizada para buscar unified documents com payslips relacionados
@@ -70,5 +78,13 @@ public interface UnifiedDocumentRepository extends JpaRepository<UnifiedDocument
      */
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
-    void deleteByFileName(String fileName);
+    @org.springframework.data.jpa.repository.Query(value = "DELETE FROM unified_documents WHERE file_name = :fileName " +
+            "AND (CAST(:companyId AS uuid) IS NULL " +
+            "OR payslip_id IN (SELECT p.id FROM payslips p WHERE p.company_id = CAST(:companyId AS uuid)) " +
+            "OR employee_id IN (SELECT e.id FROM employees e WHERE e.company_id = CAST(:companyId AS uuid)))", nativeQuery = true)
+    int deleteByFileNameScoped(@Param("fileName") String fileName, @Param("companyId") UUID companyId);
+
+    default void deleteByFileName(String fileName) {
+        deleteByFileNameScoped(fileName, TenantContext.get());
+    }
 } 

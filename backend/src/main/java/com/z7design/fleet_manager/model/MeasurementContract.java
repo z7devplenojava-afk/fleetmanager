@@ -11,11 +11,13 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 @Entity
 @Table(name = "measurement_contracts")
 @Data
 @EqualsAndHashCode(callSuper = false)
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class MeasurementContract {
 
     @Id

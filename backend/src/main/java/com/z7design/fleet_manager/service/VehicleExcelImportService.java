@@ -99,7 +99,7 @@ public class VehicleExcelImportService {
                 } catch (Exception e) {
                     log.warn("Erro ao inserir veículo {}: {}. Tentando recuperar por busca direta...", v.getPlate(), e.getMessage());
                     try {
-                        Optional<Vehicle> rawOpt = vehicleRepository.findByPlateRaw(v.getPlate());
+                        Optional<Vehicle> rawOpt = vehicleRepository.findByPlateRawScoped(v.getPlate(), currentCompanyId);
                         if (rawOpt.isPresent()) {
                             Vehicle existing = rawOpt.get();
                             existing.setDeletedAt(null);
@@ -419,7 +419,7 @@ public class VehicleExcelImportService {
         Vehicle vehicle = existingMap.get(cleanedPlateKey);
         if (vehicle == null) {
             try {
-                Optional<Vehicle> opt = vehicleRepository.findByPlateRaw(finalPlate);
+                Optional<Vehicle> opt = vehicleRepository.findByPlateRawScoped(finalPlate, currentCompanyId);
                 if (opt.isPresent()) {
                     vehicle = opt.get();
                     existingMap.put(cleanedPlateKey, vehicle);

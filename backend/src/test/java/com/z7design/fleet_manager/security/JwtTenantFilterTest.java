@@ -87,11 +87,6 @@ class JwtTenantFilterTest {
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
         when(jwtService.extractEmpresaId(token)).thenReturn(companyId);
 
-        // Security Context (Normal User)
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        doReturn(Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")))
-                .when(authentication).getAuthorities();
-
         // Act
         jwtTenantFilter.doFilterInternal(request, response, filterChain);
 
@@ -148,11 +143,6 @@ class JwtTenantFilterTest {
         // Header is missing
         when(request.getHeader("X-Target-Company-ID")).thenReturn(null);
 
-        // Security Context (Super Admin)
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        doReturn(Collections.singletonList(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
-                .when(authentication).getAuthorities();
-
         // Act
         jwtTenantFilter.doFilterInternal(request, response, filterChain);
 
@@ -174,8 +164,7 @@ class JwtTenantFilterTest {
 
         when(jwtService.extractEmpresaId(token)).thenReturn(tokenCompanyId);
 
-        // O usuário normal nunca lê o header X-Target-Company-ID (por isso ele é
-        // ignorado); portanto não fazemos stub desse header neste cenário.
+        when(request.getHeader("X-Target-Company-ID")).thenReturn(targetCompanyId.toString());
 
         // Security Context (Normal User)
         when(securityContext.getAuthentication()).thenReturn(authentication);

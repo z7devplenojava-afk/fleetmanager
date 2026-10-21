@@ -48,6 +48,9 @@ class ClientObraImportServiceTest {
     private WorkPostRepository workPostRepository;
 
     @Mock
+    private UserCompanyResolver userCompanyResolver;
+
+    @Mock
     private PlatformTransactionManager transactionManager;
 
     @Mock
@@ -58,6 +61,7 @@ class ClientObraImportServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(userCompanyResolver.resolveCurrentCompanyId()).thenReturn(null);
         lenient().when(transactionManager.getTransaction(any())).thenReturn(transactionStatus);
         lenient().when(clientRepository.findAll()).thenReturn(Collections.emptyList());
         lenient().when(vehicleRepository.findAll()).thenReturn(Collections.emptyList());

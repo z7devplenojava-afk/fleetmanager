@@ -10,6 +10,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * PRD 1.0 - MÓDULO 4 (RF-04.3): Laudo de Fumaça Preta / Opacidade.
@@ -21,6 +22,7 @@ import java.util.UUID;
         uniqueConstraints = @UniqueConstraint(name = "uq_opacity_vehicle_month", columnNames = {"vehicle_id", "test_date"}))
 @Data
 @EqualsAndHashCode(of = "id")
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class OpacityTest {
 
     /** Escala Ringelmann: 0 (sem fumaça) a 5 (fumaça densa). PRD: aprovação exige ≤ 2. */

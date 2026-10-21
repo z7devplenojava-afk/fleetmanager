@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * Auditoria de Inventário Físico do Almoxarifado com escopo parametrizável e fluxo de aprovação.
@@ -25,6 +26,7 @@ import java.util.UUID;
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class WarehouseInventoryAudit {
 
     @Id

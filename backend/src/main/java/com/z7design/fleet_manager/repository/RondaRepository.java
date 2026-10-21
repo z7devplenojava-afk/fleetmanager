@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.repository;
 
 import com.z7design.fleet_manager.model.Ronda;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import com.z7design.fleet_manager.model.enums.RondaPrioridade;
 import com.z7design.fleet_manager.model.enums.RondaStatus;
 import com.z7design.fleet_manager.model.enums.RondaTipo;
@@ -39,7 +40,7 @@ public interface RondaRepository extends JpaRepository<Ronda, UUID>, JpaSpecific
     Page<Ronda> findByLocalId(UUID localId, Pageable pageable);
     
     @Query(value = "SELECT r.* FROM rondas r " +
-           "WHERE " +
+           "WHERE (CAST(:companyId AS uuid) IS NULL OR r.responsavel_id IN (SELECT e.id FROM employees e WHERE e.company_id = CAST(:companyId AS uuid))) AND " +
            "(:status IS NULL OR r.status = :status) AND " +
            "(:tipo IS NULL OR r.tipo = :tipo) AND " +
            "(:prioridade IS NULL OR r.prioridade = :prioridade) AND " +
@@ -53,7 +54,7 @@ public interface RondaRepository extends JpaRepository<Ronda, UUID>, JpaSpecific
            "(r.endereco IS NOT NULL AND LOWER(r.endereco::text) LIKE LOWER('%' || :searchTerm || '%')))",
            nativeQuery = true,
            countQuery = "SELECT COUNT(*) FROM rondas r " +
-           "WHERE " +
+           "WHERE (CAST(:companyId AS uuid) IS NULL OR r.responsavel_id IN (SELECT e.id FROM employees e WHERE e.company_id = CAST(:companyId AS uuid))) AND " +
            "(:status IS NULL OR r.status = :status) AND " +
            "(:tipo IS NULL OR r.tipo = :tipo) AND " +
            "(:prioridade IS NULL OR r.prioridade = :prioridade) AND " +
@@ -65,7 +66,7 @@ public interface RondaRepository extends JpaRepository<Ronda, UUID>, JpaSpecific
            "LOWER(r.nome::text) LIKE LOWER('%' || :searchTerm || '%') OR " +
            "(r.descricao IS NOT NULL AND LOWER(r.descricao::text) LIKE LOWER('%' || :searchTerm || '%')) OR " +
            "(r.endereco IS NOT NULL AND LOWER(r.endereco::text) LIKE LOWER('%' || :searchTerm || '%')))")
-    Page<Ronda> search(
+    Page<Ronda> searchScoped(
             @Param("status") String status,
             @Param("tipo") String tipo,
             @Param("prioridade") String prioridade,
@@ -74,14 +75,36 @@ public interface RondaRepository extends JpaRepository<Ronda, UUID>, JpaSpecific
             @Param("dataInicio") LocalDateTime dataInicio,
             @Param("dataFim") LocalDateTime dataFim,
             @Param("searchTerm") String searchTerm,
+            @Param("companyId") UUID companyId,
             Pageable pageable
     );
+
+    default Page<Ronda> search(
+            String status,
+            String tipo,
+            String prioridade,
+            UUID responsavelId,
+            UUID localId,
+            LocalDateTime dataInicio,
+            LocalDateTime dataFim,
+            String searchTerm,
+            Pageable pageable
+    ) {
+        return searchScoped(status, tipo, prioridade, responsavelId, localId, dataInicio, dataFim,
+                searchTerm, TenantContext.get(), pageable);
+    }
     
     @Query("SELECT COUNT(r) FROM Ronda r WHERE r.status = :status")
     Long countByStatus(@Param("status") RondaStatus status);
     
-    @Query(value = "SELECT COUNT(*) FROM rondas WHERE DATE(data_inicio) = CURRENT_DATE", nativeQuery = true)
-    Long countTodayRondas();
+    @Query(value = "SELECT COUNT(*) FROM rondas r " +
+            "WHERE (CAST(:companyId AS uuid) IS NULL OR r.responsavel_id IN (SELECT e.id FROM employees e WHERE e.company_id = CAST(:companyId AS uuid))) " +
+            "AND DATE(data_inicio) = CURRENT_DATE", nativeQuery = true)
+    Long countTodayRondasScoped(@Param("companyId") UUID companyId);
+
+    default Long countTodayRondas() {
+        return countTodayRondasScoped(TenantContext.get());
+    }
     
     @Query("SELECT COUNT(r) FROM Ronda r WHERE r.dataInicio >= :startOfWeek AND r.dataInicio <= :endOfWeek")
     Long countWeekRondas(@Param("startOfWeek") LocalDateTime startOfWeek, @Param("endOfWeek") LocalDateTime endOfWeek);

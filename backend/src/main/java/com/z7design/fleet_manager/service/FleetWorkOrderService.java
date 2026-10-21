@@ -723,7 +723,7 @@ public class FleetWorkOrderService {
         String baseNumber = "MNT-" + osLabel;
         String invoiceNumber = baseNumber;
         int suffix = 1;
-        while (invoiceRepository.existsByInvoiceNumberNative(invoiceNumber)) {
+        while (invoiceRepository.existsByInvoiceNumberNativeScoped(invoiceNumber, order.getCompanyId())) {
             suffix++;
             invoiceNumber = baseNumber + "-" + suffix;
         }

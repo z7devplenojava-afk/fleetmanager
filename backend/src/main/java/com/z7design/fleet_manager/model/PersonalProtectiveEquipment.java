@@ -16,12 +16,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * Entidade que representa os EPIs (Equipamentos de ProteÃ§Ã£o Individual)
  */
 @Entity
 @Table(name = "personal_protective_equipment")
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class PersonalProtectiveEquipment {
 
     @Id

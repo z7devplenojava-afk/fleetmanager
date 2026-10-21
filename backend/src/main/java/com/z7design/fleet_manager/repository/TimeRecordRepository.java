@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.repository;
 
 import com.z7design.fleet_manager.model.TimeRecord;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -28,16 +29,28 @@ public interface TimeRecordRepository extends JpaRepository<TimeRecord, UUID> {
        List<TimeRecord> findTodayRecordsByEmployeeId(@Param("employeeId") UUID employeeId);
 
        @Query(value = "SELECT * FROM time_records tr WHERE tr.employee_id = :employeeId " +
+                     "AND (CAST(:companyId AS uuid) IS NULL OR tr.company_id = CAST(:companyId AS uuid)) " +
                      "ORDER BY tr.recorded_at DESC LIMIT 1", nativeQuery = true)
-       Optional<TimeRecord> findLastRecordByEmployeeId(@Param("employeeId") UUID employeeId);
+       Optional<TimeRecord> findLastRecordByEmployeeIdScoped(@Param("employeeId") UUID employeeId,
+                     @Param("companyId") UUID companyId);
+
+       default Optional<TimeRecord> findLastRecordByEmployeeId(UUID employeeId) {
+              return findLastRecordByEmployeeIdScoped(employeeId, TenantContext.get());
+       }
 
        @Query(value = "SELECT COUNT(*) FROM time_records tr WHERE tr.employee_id = :employeeId " +
                      "AND EXTRACT(YEAR FROM tr.recorded_at) = :year " +
-                     "AND EXTRACT(MONTH FROM tr.recorded_at) = :month", nativeQuery = true)
-       Long countByEmployeeIdAndMonthYear(
+                     "AND EXTRACT(MONTH FROM tr.recorded_at) = :month " +
+                     "AND (CAST(:companyId AS uuid) IS NULL OR tr.company_id = CAST(:companyId AS uuid))", nativeQuery = true)
+       Long countByEmployeeIdAndMonthYearScoped(
                      @Param("employeeId") UUID employeeId,
                      @Param("month") int month,
-                     @Param("year") int year);
+                     @Param("year") int year,
+                     @Param("companyId") UUID companyId);
+
+       default Long countByEmployeeIdAndMonthYear(UUID employeeId, int month, int year) {
+              return countByEmployeeIdAndMonthYearScoped(employeeId, month, year, TenantContext.get());
+       }
 
        Page<TimeRecord> findByStatusOrderByRecordedAtDesc(TimeRecord.RecordStatus status, Pageable pageable);
 
