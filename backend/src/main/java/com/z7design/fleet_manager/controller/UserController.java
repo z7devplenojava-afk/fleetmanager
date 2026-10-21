@@ -336,6 +336,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('USERS_WRITE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @Transactional
     @Operation(summary = "Atualizar usuÃ¡rio", description = "Atualiza os dados de um usuÃ¡rio existente")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "UsuÃ¡rio atualizado com sucesso"),
@@ -505,7 +506,9 @@ public class UserController {
                             g.setGroupName(group.getGroupName() != null ? group.getGroupName().name() : null);
                             g.setDisplayName(group.getDisplayName());
                             g.setDescription(group.getDescription());
-                            g.setPermissions(group.getPermissions());
+                            g.setPermissions(group.getPermissions() != null
+                                    ? new java.util.HashSet<>(group.getPermissions())
+                                    : java.util.Collections.emptySet());
                             // userCount pode ser preenchido em endpoints especÃ­ficos de grupos
                             return g;
                         })
