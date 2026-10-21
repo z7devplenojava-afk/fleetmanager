@@ -3,7 +3,9 @@ package com.z7design.fleet_manager.service;
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.repository.CompanyRepository;
+import com.z7design.fleet_manager.repository.DriverRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
+import com.z7design.fleet_manager.repository.PositionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,11 +31,18 @@ class EmployeePdfImportServiceTest {
     @Mock
     private CompanyRepository companyRepository;
 
+    @Mock
+    private PositionRepository positionRepository;
+
+    @Mock
+    private DriverRepository driverRepository;
+
     private EmployeePdfImportService service;
 
     @BeforeEach
     void setUp() {
-        service = new EmployeePdfImportService(employeeRepository, companyRepository);
+        service = new EmployeePdfImportService(employeeRepository, companyRepository, positionRepository,
+                driverRepository);
 
         lenient().when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }

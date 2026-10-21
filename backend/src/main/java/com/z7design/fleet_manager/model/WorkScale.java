@@ -12,6 +12,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.z7design.fleet_manager.model.enums.WorkScaleType;
+import org.hibernate.annotations.Filter;
 
 @Data
 @Entity
@@ -19,6 +20,7 @@ import com.z7design.fleet_manager.model.enums.WorkScaleType;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class WorkScale {
 
     @Id

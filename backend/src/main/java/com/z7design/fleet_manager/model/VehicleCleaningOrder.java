@@ -10,6 +10,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * Ordem de limpeza/higienização de um veículo com fluxo ponta a ponta:
@@ -29,6 +30,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class VehicleCleaningOrder {
 
     @Id

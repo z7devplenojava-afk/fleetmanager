@@ -11,6 +11,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * Garagem (pátio/base) onde os veículos ficam recolhidos.
@@ -30,6 +31,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class Garage {
 
     @Id

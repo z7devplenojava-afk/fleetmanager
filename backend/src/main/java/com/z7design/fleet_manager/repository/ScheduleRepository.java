@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.repository;
 
 import com.z7design.fleet_manager.model.Schedule;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -32,6 +33,11 @@ public interface ScheduleRepository extends JpaRepository<Schedule, UUID> {
     List<Schedule> findAllWithRelations();
 
     @Modifying
-    @Query(value = "DELETE FROM schedules WHERE id = :id", nativeQuery = true)
-    void deleteByIdNative(@Param("id") UUID id);
+    @Query(value = "DELETE FROM schedules WHERE id = :id " +
+            "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid))", nativeQuery = true)
+    void deleteByIdNativeScoped(@Param("id") UUID id, @Param("companyId") UUID companyId);
+
+    default void deleteByIdNative(UUID id) {
+        deleteByIdNativeScoped(id, TenantContext.get());
+    }
 }

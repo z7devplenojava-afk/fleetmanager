@@ -4,18 +4,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import java.util.UUID;
 
-import org.hibernate.Filter;
-import org.hibernate.Session;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.z7design.fleet_manager.tenant.TenantContext;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -41,9 +38,6 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final CompanyRepository companyRepository;
 
-    @PersistenceContext
-    private EntityManager entityManager;
-
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleRepository roleRepository,
             CompanyRepository companyRepository) {
         this.userRepository = userRepository;
@@ -53,23 +47,29 @@ public class UserService {
     }
 
     public Optional<User> findById(UUID id) {
-        return userRepository.findById(id);
+        if (!isSuperAdmin() || TenantContext.isImpersonating()) {
+            return userRepository.findById(id);
+        }
+        return withoutTenantFilter(() -> userRepository.findById(id));
     }
 
     public List<User> findAll() {
         if (!isSuperAdmin() || TenantContext.isImpersonating()) {
             return userRepository.findAll();
         }
-        Session session = entityManager.unwrap(Session.class);
-        Filter active = session.getEnabledFilter("tenantFilter");
-        Object companyId = active != null ? TenantContext.get() : null;
-        session.disableFilter("tenantFilter");
+        return withoutTenantFilter(userRepository::findAll);
+    }
+
+    private <T> T withoutTenantFilter(Supplier<T> action) {
+        UUID tenantId = TenantContext.get();
+        boolean impersonating = TenantContext.isImpersonating();
         try {
-            return userRepository.findAll();
+            TenantContext.set(null);
+            TenantContext.setImpersonating(false);
+            return action.get();
         } finally {
-            if (companyId != null) {
-                session.enableFilter("tenantFilter").setParameter("companyId", companyId);
-            }
+            TenantContext.set(tenantId);
+            TenantContext.setImpersonating(impersonating);
         }
     }
 

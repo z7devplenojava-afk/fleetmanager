@@ -23,8 +23,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*");
 
-        // Suporte a clientes SockJS com fallback (ex: https://ci.fluxbus.com.br/ws/info)
-        registry.addEndpoint("/ws")
+        // SockJS em path separado para não sobrescrever o endpoint nativo /ws.
+        // Registrar os dois no mesmo path faz o handshake nativo /ws cair em 400.
+        registry.addEndpoint("/ws-sockjs")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
     }

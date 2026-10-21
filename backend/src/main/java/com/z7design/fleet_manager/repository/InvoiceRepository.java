@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.repository;
 
 import com.z7design.fleet_manager.model.Invoice;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import com.z7design.fleet_manager.model.enums.ExpenseStatus;
 import com.z7design.fleet_manager.model.enums.ExpenseType;
 import org.springframework.data.domain.Page;
@@ -63,8 +64,14 @@ public interface InvoiceRepository extends JpaRepository<Invoice, java.util.UUID
     Optional<Invoice> findFirstByInvoiceNumber(String invoiceNumber);
 
     // Verificar se número de fatura existe no banco (query nativa sem filtro de tenant)
-    @Query(value = "SELECT COUNT(*) > 0 FROM invoices WHERE invoice_number = :invoiceNumber", nativeQuery = true)
-    boolean existsByInvoiceNumberNative(@Param("invoiceNumber") String invoiceNumber);
+    @Query(value = "SELECT COUNT(*) > 0 FROM invoices WHERE invoice_number = :invoiceNumber " +
+            "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid))", nativeQuery = true)
+    boolean existsByInvoiceNumberNativeScoped(@Param("invoiceNumber") String invoiceNumber,
+            @Param("companyId") UUID companyId);
+
+    default boolean existsByInvoiceNumberNative(String invoiceNumber) {
+        return existsByInvoiceNumberNativeScoped(invoiceNumber, TenantContext.get());
+    }
 
     // Buscar por nÃºmero de despesa SIGLO
     Optional<Invoice> findByExpenseNumberAndInstallmentSeq(String expenseNumber, Integer installmentSeq);

@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * Documento de Entrada (NF-e de compra e conferência operacional).
@@ -27,6 +28,7 @@ import java.util.UUID;
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class WarehouseInboundDocument {
 
     @Id

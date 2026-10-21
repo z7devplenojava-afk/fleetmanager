@@ -20,6 +20,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
 
 /**
  * Ferias Coletivas - CLT Art. 139 e 140.
@@ -37,6 +38,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "ferias_coletivas")
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class FeriasColetivas {
 
     @Id

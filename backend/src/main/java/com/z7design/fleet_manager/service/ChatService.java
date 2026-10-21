@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import com.z7design.fleet_manager.repository.ChatMessageRepository;
 import com.z7design.fleet_manager.repository.DepartmentRepository;
 import com.z7design.fleet_manager.repository.UserGroupRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
+import com.z7design.fleet_manager.tenant.TenantContext;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -85,7 +87,8 @@ public class ChatService {
         // Definir destinatÃ¡rio
         if (request.getRecipientId() != null) {
             User recipient = userRepository.findById(request.getRecipientId())
-                .orElseThrow(() -> new BusinessException("UsuÃ¡rio destinatÃ¡rio nÃ£o encontrado"));
+                .orElseThrow(() -> new BusinessException("Usuario destinatario nao encontrado"));
+            validateSameTenant(recipient);
             chatMessage.setRecipient(recipient);
         }
         
@@ -159,10 +162,21 @@ public class ChatService {
         log.info("Buscando conversa entre {} e {}", currentUsername, otherUserId);
         
         User currentUser = userRepository.findByUsername(currentUsername)
-            .orElseThrow(() -> new BusinessException("UsuÃ¡rio atual nÃ£o encontrado: " + currentUsername));
+            .orElseThrow(() -> new BusinessException("Usuario atual nao encontrado: " + currentUsername));
+
+        User otherUser = userRepository.findById(otherUserId)
+            .orElseThrow(() -> new BusinessException("Usuario nao encontrado"));
+        validateSameTenant(otherUser);
         
         List<ChatMessage> messages = chatMessageRepository.findConversationBetweenUsers(currentUser.getId(), otherUserId);
         return messages.stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
+    private void validateSameTenant(User user) {
+        UUID tenantId = TenantContext.get();
+        if (tenantId != null && user.getCompanyId() != null && !tenantId.equals(user.getCompanyId())) {
+            throw new AccessDeniedException("Acesso negado: usuario pertence a outra empresa.");
+        }
     }
     
     /**

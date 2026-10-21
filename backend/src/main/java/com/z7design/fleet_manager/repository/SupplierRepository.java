@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.repository;
 
 import com.z7design.fleet_manager.model.Supplier;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,9 +25,15 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
     // Buscar por CNPJ
     Optional<Supplier> findByCnpj(String cnpj);
 
-    // Buscar por CNPJ limpo via query nativa (ignora filtro de tenant e formatações)
-    @Query(value = "SELECT * FROM suppliers WHERE REPLACE(REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', ''), ' ', '') = :cleanCnpj LIMIT 1", nativeQuery = true)
-    Optional<Supplier> findByCleanCnpjNative(@Param("cleanCnpj") String cleanCnpj);
+    // Buscar por CNPJ limpo via query nativa (ignora formatações, respeitando a empresa)
+    @Query(value = "SELECT * FROM suppliers WHERE REPLACE(REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', ''), ' ', '') = :cleanCnpj " +
+            "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) LIMIT 1", nativeQuery = true)
+    Optional<Supplier> findByCleanCnpjNativeScoped(@Param("cleanCnpj") String cleanCnpj,
+            @Param("companyId") UUID companyId);
+
+    default Optional<Supplier> findByCleanCnpjNative(String cleanCnpj) {
+        return findByCleanCnpjNativeScoped(cleanCnpj, TenantContext.get());
+    }
 
     // Buscar por nome exato
     Optional<Supplier> findFirstByNameIgnoreCase(String name);

@@ -10,10 +10,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import org.hibernate.annotations.Filter;
+
 import com.z7design.fleet_manager.model.enums.ChatMessageType;
 
 @Entity
 @Table(name = "chat_messages")
+@Filter(name = "tenantFilter", condition = "(sender_id IN (SELECT u.id FROM users u WHERE u.company_id = :companyId) OR recipient_id IN (SELECT u.id FROM users u WHERE u.company_id = :companyId))")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

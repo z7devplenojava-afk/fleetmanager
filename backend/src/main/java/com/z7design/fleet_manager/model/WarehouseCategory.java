@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * Categoria hierárquica do Almoxarifado (árvore ilimitada com auto-relacionamento).
@@ -24,6 +25,7 @@ import java.util.UUID;
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class WarehouseCategory {
 
     @Id

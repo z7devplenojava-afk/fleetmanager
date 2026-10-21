@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.enums.EmploymentStatus;
+import com.z7design.fleet_manager.tenant.TenantContext;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
@@ -56,8 +57,13 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
                         "LEFT JOIN units u ON e.unit_id = u.id " +
                         "LEFT JOIN companies c ON e.company_id = c.id " +
                         "LEFT JOIN work_posts wp ON e.work_post_id = wp.id " +
-                        "LEFT JOIN departments d ON e.department_id = d.id", nativeQuery = true)
-        List<Object[]> findBasicData();
+                        "LEFT JOIN departments d ON e.department_id = d.id " +
+                        "WHERE (CAST(:companyId AS uuid) IS NULL OR e.company_id = CAST(:companyId AS uuid))", nativeQuery = true)
+        List<Object[]> findBasicDataScoped(@Param("companyId") UUID companyId);
+
+        default List<Object[]> findBasicData() {
+                return findBasicDataScoped(TenantContext.get());
+        }
 
         // Buscar dados básicos COM relacionamentos de cargo, unidade, empresa, workPost
         // e department por termo de busca (nome ou CPF)
@@ -69,11 +75,16 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
                         "LEFT JOIN companies c ON e.company_id = c.id " +
                         "LEFT JOIN work_posts wp ON e.work_post_id = wp.id " +
                         "LEFT JOIN departments d ON e.department_id = d.id " +
-                        "WHERE UPPER(e.name) LIKE UPPER(CONCAT('%', :searchTerm, '%')) " +
-                        "OR REGEXP_REPLACE(COALESCE(e.document, ''), '[^0-9]', '', 'g') LIKE CONCAT('%', REGEXP_REPLACE(:searchTerm, '[^0-9]', '', 'g'), '%') "
-                        +
-                        "OR UPPER(COALESCE(e.email, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%'))", nativeQuery = true)
-        List<Object[]> findBasicDataBySearchTerm(@Param("searchTerm") String searchTerm);
+                        "WHERE (UPPER(e.name) LIKE UPPER(CONCAT('%', :searchTerm, '%')) " +
+                        "OR REGEXP_REPLACE(COALESCE(e.document, ''), '[^0-9]', '', 'g') LIKE CONCAT('%', REGEXP_REPLACE(:searchTerm, '[^0-9]', '', 'g'), '%') " +
+                        "OR UPPER(COALESCE(e.email, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%'))) " +
+                        "AND (CAST(:companyId AS uuid) IS NULL OR e.company_id = CAST(:companyId AS uuid))", nativeQuery = true)
+        List<Object[]> findBasicDataBySearchTermScoped(@Param("searchTerm") String searchTerm,
+                        @Param("companyId") UUID companyId);
+
+        default List<Object[]> findBasicDataBySearchTerm(String searchTerm) {
+                return findBasicDataBySearchTermScoped(searchTerm, TenantContext.get());
+        }
 
         // Buscar apenas o nome por ID para evitar carregar toda a entidade (e colunas
         // inexistentes em alguns ambientes)
@@ -81,30 +92,55 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
         Optional<String> findNameById(@Param("id") UUID id);
 
         // Buscar por CPF (coluna document do banco)
-        @Query(value = "SELECT * FROM employees WHERE REGEXP_REPLACE(COALESCE(document, ''), '[^0-9]', '', 'g') = :cpf LIMIT 1", nativeQuery = true)
-        Optional<Employee> findByCpf(@Param("cpf") String cpf);
+        @Query(value = "SELECT * FROM employees WHERE REGEXP_REPLACE(COALESCE(document, ''), '[^0-9]', '', 'g') = :cpf " +
+                        "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) LIMIT 1", nativeQuery = true)
+        Optional<Employee> findByCpfScoped(@Param("cpf") String cpf, @Param("companyId") UUID companyId);
 
-        // Buscar por matrícula (registration_number)
-        @Query(value = "SELECT * FROM employees WHERE UPPER(TRIM(registration_number)) = UPPER(TRIM(:registrationNumber)) LIMIT 1", nativeQuery = true)
-        Optional<Employee> findByRegistrationNumber(@Param("registrationNumber") String registrationNumber);
+        default Optional<Employee> findByCpf(String cpf) {
+                return findByCpfScoped(cpf, TenantContext.get());
+        }
+
+        // Buscar por matricula (registration_number)
+        @Query(value = "SELECT * FROM employees WHERE UPPER(TRIM(registration_number)) = UPPER(TRIM(:registrationNumber)) " +
+                        "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) LIMIT 1", nativeQuery = true)
+        Optional<Employee> findByRegistrationNumberScoped(@Param("registrationNumber") String registrationNumber,
+                        @Param("companyId") UUID companyId);
+
+        default Optional<Employee> findByRegistrationNumber(String registrationNumber) {
+                return findByRegistrationNumberScoped(registrationNumber, TenantContext.get());
+        }
 
         // Buscar por nome (exato, case insensitive)
-        @Query(value = "SELECT * FROM employees WHERE UPPER(TRIM(name)) = UPPER(TRIM(:name)) LIMIT 1", nativeQuery = true)
-        Optional<Employee> findByNameExact(@Param("name") String name);
+        @Query(value = "SELECT * FROM employees WHERE UPPER(TRIM(name)) = UPPER(TRIM(:name)) " +
+                        "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) LIMIT 1", nativeQuery = true)
+        Optional<Employee> findByNameExactScoped(@Param("name") String name, @Param("companyId") UUID companyId);
 
-        // Buscar por WhatsApp/phone normalizado (remove caracteres não numéricos)
-        // A normalização acontece no código Java, aqui busca por valores normalizados
+        default Optional<Employee> findByNameExact(String name) {
+                return findByNameExactScoped(name, TenantContext.get());
+        }
+
+        // Buscar por WhatsApp/phone normalizado (remove caracteres nao numericos)
+        // A normalizacao acontece no codigo Java, aqui busca por valores normalizados
         @Query(value = "SELECT * FROM employees WHERE " +
-                        "REGEXP_REPLACE(COALESCE(whatsapp, ''), '[^0-9]', '', 'g') = :whatsapp OR " +
-                        "REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g') = :whatsapp " +
-                        "LIMIT 1", nativeQuery = true)
-        Optional<Employee> findByWhatsApp(@Param("whatsapp") String whatsapp);
+                        "(REGEXP_REPLACE(COALESCE(whatsapp, ''), '[^0-9]', '', 'g') = :whatsapp OR " +
+                        "REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g') = :whatsapp) " +
+                        "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) LIMIT 1", nativeQuery = true)
+        Optional<Employee> findByWhatsAppScoped(@Param("whatsapp") String whatsapp, @Param("companyId") UUID companyId);
 
-        // Buscar por conta corrente (normaliza removendo espaços, hífens e pontos)
+        default Optional<Employee> findByWhatsApp(String whatsapp) {
+                return findByWhatsAppScoped(whatsapp, TenantContext.get());
+        }
+
+        // Buscar por conta corrente (normaliza removendo espacos, hifens e pontos)
         @Query(value = "SELECT * FROM employees WHERE " +
                         "REGEXP_REPLACE(COALESCE(conta_corrente, ''), '[^0-9]', '', 'g') = :contaCorrente " +
-                        "LIMIT 1", nativeQuery = true)
-        Optional<Employee> findByContaCorrente(@Param("contaCorrente") String contaCorrente);
+                        "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) LIMIT 1", nativeQuery = true)
+        Optional<Employee> findByContaCorrenteScoped(@Param("contaCorrente") String contaCorrente,
+                        @Param("companyId") UUID companyId);
+
+        default Optional<Employee> findByContaCorrente(String contaCorrente) {
+                return findByContaCorrenteScoped(contaCorrente, TenantContext.get());
+        }
 
         // SECURITY: Buscar todos os employee records de um usuário (para validação de
         // acesso a empresas)

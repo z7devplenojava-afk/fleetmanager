@@ -1146,7 +1146,7 @@ public class StockNfeService {
 
                 String generatedInvoiceNum = String.format("NF-%s/%02d", cleanDocNum, instReq.getInstallmentNumber());
                 int invAttempt = 1;
-                while (invoiceRepository.existsByInvoiceNumberNative(generatedInvoiceNum)) {
+                while (invoiceRepository.existsByInvoiceNumberNativeScoped(generatedInvoiceNum, companyId)) {
                     generatedInvoiceNum = String.format("NF-%s/%02d-%d", cleanDocNum, instReq.getInstallmentNumber(), invAttempt++);
                     if (generatedInvoiceNum.length() > 50) {
                         generatedInvoiceNum = generatedInvoiceNum.substring(0, 50);
@@ -1211,7 +1211,7 @@ public class StockNfeService {
 
         if (!cleanCnpj.isBlank()) {
             try {
-                Optional<Supplier> found = supplierRepository.findByCleanCnpjNative(cleanCnpj);
+                Optional<Supplier> found = supplierRepository.findByCleanCnpjNativeScoped(cleanCnpj, companyId);
                 if (found.isPresent()) {
                     return found.get();
                 }

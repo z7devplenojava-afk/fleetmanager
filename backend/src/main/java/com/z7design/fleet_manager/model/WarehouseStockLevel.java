@@ -9,6 +9,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * Saldo de estoque físico e reservado por produto e localização física.
@@ -23,6 +24,7 @@ import java.util.UUID;
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class WarehouseStockLevel {
 
     @Id
