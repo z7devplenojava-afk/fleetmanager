@@ -96,7 +96,7 @@ const environments: Record<string, EnvironmentConfig> = {
   ci: {
     name: 'CI - Integração Contínua',
     apiUrl: 'https://ci.fluxbus.com.br/api',
-    wsUrl: 'wss://ci.fluxbus.com.br/ws',
+    wsUrl: 'wss://ci.z7botsolutions.com.br/ws',
     debug: true,
     features: {
       notifications: true,
