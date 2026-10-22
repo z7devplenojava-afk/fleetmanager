@@ -221,6 +221,13 @@ jobs:
                 docker pull z7design/fluxbus-frontend:ci && \
                 docker pull z7design/fluxbus-whatsapp:ci && break || sleep 15
               done
+
+              # Iniciar banco antes do backend para remover registros de migracao
+              # com falha (PostgreSQL faz rollback, mas o Flyway mantem a linha).
+              docker compose -f docker-compose.ci.yml up -d postgres-ci
+              docker exec fluxbus-db-ci sh -c 'until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do sleep 1; done'
+              docker exec fluxbus-db-ci sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DELETE FROM flyway_schema_history WHERE success = false;"' || true
+
               docker compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans || {
                 echo "❌ Falha ao subir containers no CI. Logs do backend:"
                 docker logs fluxbus-backend-ci --tail 100 || true
