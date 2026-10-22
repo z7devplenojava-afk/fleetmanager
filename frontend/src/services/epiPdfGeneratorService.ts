@@ -92,14 +92,21 @@ export const epiPdfGeneratorService = {
       companyDetails += (companyDetails ? ' • ' : '') + compAddress;
     }
 
-    // Carregar imagem de logo se disponível
+    // Carregar imagem de logo se disponível (com fallback oficial São Silvestre)
     let logoImg: HTMLImageElement | null = null;
-    if (compLogoUrl) {
+    const candidateUrls = [
+      compLogoUrl,
+      '/images/sao-silvestre-timbre-retrato.png',
+      '/images/sao-silvestre-timbre.png',
+      '/images/sao-silvestre-modelo-tabela.png',
+      '/logo.png'
+    ].filter(Boolean) as string[];
+
+    for (const url of candidateUrls) {
       try {
-        logoImg = await loadImage(compLogoUrl);
-      } catch (err) {
-        console.warn('Não foi possível carregar imagem do logo da empresa para o PDF:', err);
-      }
+        logoImg = await loadImage(url);
+        if (logoImg && logoImg.width > 0) break;
+      } catch (_) {}
     }
 
     const formNumber = options.formNumber || `OS-EPI-${signedAt.getFullYear()}-${String(Math.floor(Math.random() * 900000) + 100000)}`;

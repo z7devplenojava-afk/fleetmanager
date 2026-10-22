@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 
 import java.util.UUID;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,6 +34,13 @@ import org.slf4j.LoggerFactory;
 @Service
 public class UserService {
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
+
+    private static final java.util.Set<String> ADMIN_ROLE_NAMES = java.util.Set.of(
+            "SUPER_ADMIN", "FLEX_ADMIN", "COMPANY_ADMIN", "ADMIN");
+    private static final java.util.Set<String> GLOBAL_MANAGER_ROLE_NAMES = java.util.Set.of(
+            "SUPER_ADMIN", "FLEX_ADMIN");
+    private static final java.util.Set<String> TENANT_MANAGER_ROLE_NAMES = java.util.Set.of(
+            "COMPANY_ADMIN", "ADMIN");
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -75,9 +83,177 @@ public class UserService {
     }
 
     private boolean isSuperAdmin() {
+        return getCurrentRoleNames().contains("SUPER_ADMIN");
+    }
+
+    private java.util.Set<String> getCurrentRoleNames() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth != null && auth.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()) || "SUPER_ADMIN".equals(a.getAuthority()));
+        if (auth == null || auth.getAuthorities() == null) {
+            return java.util.Collections.emptySet();
+        }
+        return auth.getAuthorities().stream()
+                .map(authority -> normalizeRoleName(authority.getAuthority()))
+                .filter(StringUtils::hasText)
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    private String normalizeRoleName(String role) {
+        if (!StringUtils.hasText(role)) {
+            return "";
+        }
+        String normalized = role.trim().toUpperCase();
+        return normalized.startsWith("ROLE_") ? normalized.substring(5) : normalized;
+    }
+
+    private boolean isAdminRoleName(String role) {
+        return ADMIN_ROLE_NAMES.contains(normalizeRoleName(role));
+    }
+
+    private boolean isCurrentUserGlobalManager() {
+        return getCurrentRoleNames().stream().anyMatch(GLOBAL_MANAGER_ROLE_NAMES::contains);
+    }
+
+    private boolean isCurrentUserTenantManager() {
+        return getCurrentRoleNames().stream().anyMatch(TENANT_MANAGER_ROLE_NAMES::contains);
+    }
+
+    private boolean hasAdminRole(User user) {
+        return user != null && user.getRoles() != null && user.getRoles().stream()
+                .filter(java.util.Objects::nonNull)
+                .map(Role::getName)
+                .anyMatch(this::isAdminRoleName);
+    }
+
+    public User getCurrentUserOrThrow() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new AccessDeniedException("Usuário não autenticado.");
+        }
+        if (auth.getPrincipal() instanceof User user) {
+            return user;
+        }
+        return userRepository.findByUsername(auth.getName())
+                .or(() -> userRepository.findByEmail(auth.getName()))
+                .orElseThrow(() -> new AccessDeniedException("Usuário autenticado não encontrado."));
+    }
+
+    public UUID getCurrentCompanyId() {
+        User currentUser = getCurrentUserOrThrow();
+        return currentUser.getCompanyId() != null ? currentUser.getCompanyId() : TenantContext.get();
+    }
+
+    public void assertCanCreateUser(CreateUserRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Dados do usuário não fornecidos");
+        }
+
+        if (!isSuperAdmin()) {
+            if (!isCurrentUserGlobalManager() && !isCurrentUserTenantManager()) {
+                throw new AccessDeniedException("Apenas administradores podem criar usuários.");
+            }
+            boolean assignsAdminRole = request.getRoles() != null && request.getRoles().stream()
+                    .anyMatch(this::isAdminRoleName);
+            if (assignsAdminRole) {
+                throw new AccessDeniedException("Somente SUPER_ADMIN pode criar contas de administrador.");
+            }
+        }
+
+        if (isCurrentUserTenantManager() && !isCurrentUserGlobalManager()) {
+            UUID currentCompanyId = getCurrentCompanyId();
+            if (currentCompanyId == null) {
+                throw new AccessDeniedException("Administrador sem empresa vinculada não pode criar usuários.");
+            }
+            if (request.getCompanyId() != null && !currentCompanyId.equals(request.getCompanyId())) {
+                throw new AccessDeniedException("Não é permitido criar usuários em outra empresa.");
+            }
+            request.setCompanyId(currentCompanyId);
+        }
+    }
+
+    public void assertCanManageUser(User targetUser) {
+        if (targetUser == null) {
+            throw new AccessDeniedException("Usuário não encontrado.");
+        }
+
+        User currentUser = getCurrentUserOrThrow();
+        boolean isSelf = currentUser.getId() != null && currentUser.getId().equals(targetUser.getId());
+
+        if (isSuperAdmin()) {
+            return;
+        }
+
+        if (hasAdminRole(targetUser) && !isSelf) {
+            throw new AccessDeniedException("Somente SUPER_ADMIN pode gerenciar contas de administrador.");
+        }
+
+        if (isCurrentUserGlobalManager()) {
+            return;
+        }
+
+        if (isCurrentUserTenantManager()) {
+            UUID currentCompanyId = getCurrentCompanyId();
+            if (currentCompanyId == null
+                    || targetUser.getCompanyId() == null
+                    || !currentCompanyId.equals(targetUser.getCompanyId())) {
+                throw new AccessDeniedException("Não é permitido gerenciar usuários de outra empresa.");
+            }
+            return;
+        }
+
+        throw new AccessDeniedException("Apenas administradores podem gerenciar usuários.");
+    }
+
+    private void assertCanAssignRoles(User targetUser, List<String> requestedRoles) {
+        if (requestedRoles == null || requestedRoles.isEmpty() || isSuperAdmin()) {
+            return;
+        }
+
+        java.util.Set<String> requestedAdminRoles = requestedRoles.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(this::normalizeRoleName)
+                .filter(ADMIN_ROLE_NAMES::contains)
+                .collect(java.util.stream.Collectors.toSet());
+
+        if (requestedAdminRoles.isEmpty()) {
+            return;
+        }
+
+        java.util.Set<String> existingAdminRoles = targetUser.getRoles() == null
+                ? java.util.Collections.emptySet()
+                : targetUser.getRoles().stream()
+                        .filter(java.util.Objects::nonNull)
+                        .map(Role::getName)
+                        .map(this::normalizeRoleName)
+                        .filter(ADMIN_ROLE_NAMES::contains)
+                        .collect(java.util.stream.Collectors.toSet());
+
+        if (!existingAdminRoles.containsAll(requestedAdminRoles)) {
+            throw new AccessDeniedException("Somente SUPER_ADMIN pode atribuir perfis de administrador.");
+        }
+    }
+
+    private void assertCanUpdateUser(User targetUser, com.z7design.fleet_manager.dto.UpdateUserRequest request) {
+        assertCanManageUser(targetUser);
+        assertCanAssignRoles(targetUser, request.getRoles());
+
+        if (isCurrentUserTenantManager() && !isCurrentUserGlobalManager()) {
+            UUID currentCompanyId = getCurrentCompanyId();
+            if (Boolean.TRUE.equals(request.getRemoveCompany())) {
+                throw new AccessDeniedException("Não é permitido desvincular usuários da empresa.");
+            }
+            if (request.getCompanyId() != null
+                    && (currentCompanyId == null || !currentCompanyId.equals(request.getCompanyId()))) {
+                throw new AccessDeniedException("Não é permitido mover usuários para outra empresa.");
+            }
+        }
+    }
+
+    private void assertCanDeleteUser(User targetUser) {
+        assertCanManageUser(targetUser);
+        User currentUser = getCurrentUserOrThrow();
+        if (currentUser.getId() != null && currentUser.getId().equals(targetUser.getId())) {
+            throw new AccessDeniedException("Não é permitido excluir sua própria conta de usuário.");
+        }
     }
 
     public User createFromRequest(CreateUserRequest request) {
@@ -104,6 +280,8 @@ public class UserService {
             throw new IllegalArgumentException("Pelo menos uma funÃ§Ã£o deve ser selecionada");
         }
 
+        assertCanCreateUser(request);
+
         // Verificar se username jÃ¡ existe
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new IllegalArgumentException("Nome de usuÃ¡rio jÃ¡ estÃ¡ em uso");
@@ -124,8 +302,8 @@ public class UserService {
             throw new IllegalArgumentException("Senha deve ter pelo menos 6 caracteres");
         }
 
-        // Permitir exceÃ§Ã£o para padrÃ£o cpf@2025
-        boolean isCpfDefault = request.getPassword().matches("^\\d{11}@2025$");
+        // Permitir exceção para padrão cpf@2025/2026 e senha padrão corporativa FluxBus@2026
+        boolean isCpfDefault = request.getPassword().matches("^\\d{11}@202[0-9]$") || "FluxBus@2026".equals(request.getPassword());
         if (!isCpfDefault
                 && !request.getPassword().matches("^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^a-zA-Z0-9\\s]).*$")) {
             throw new IllegalArgumentException(
@@ -289,6 +467,8 @@ public class UserService {
         User existingUser = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado"));
 
+        assertCanUpdateUser(existingUser, request);
+
         if (!StringUtils.hasText(request.getName())) {
             throw new IllegalArgumentException("Nome nÃ£o pode ser vazio");
         }
@@ -442,12 +622,17 @@ public class UserService {
     public void delete(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        assertCanDeleteUser(user);
         userRepository.deleteById(id);
     }
 
     public Map<String, Object> deleteBulk(List<UUID> ids, String currentUsername) {
         if (ids == null || ids.isEmpty()) {
             return Map.of("deletedCount", 0, "message", "Nenhum ID fornecido");
+        }
+
+        for (UUID id : ids) {
+            userRepository.findById(id).ifPresent(this::assertCanManageUser);
         }
 
         UUID currentUserId = null;

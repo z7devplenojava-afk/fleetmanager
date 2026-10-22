@@ -55,33 +55,33 @@ const AbastecimentoDashboard: React.FC = () => {
 
     return (
         <StandardLayout title="Controle de Abastecimento" subtitle="Gestão de consumo, estoque e infraestrutura de combustível">
-            <div className="space-y-6">
+            <div className="space-y-6 pb-32 sm:pb-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-2 bg-seguranca-graphite border-gray-600 p-1 mb-6">
-                        <TabsTrigger value="vehicles" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
-                            <Fuel size={16} className="mr-2" /> Veículos
+                    <TabsList className="flex items-center justify-start h-auto w-full bg-seguranca-graphite border border-gray-700/80 overflow-x-auto no-scrollbar p-1.5 gap-1.5 rounded-xl mb-6">
+                        <TabsTrigger value="vehicles" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
+                            <Fuel size={16} className="mr-2 shrink-0" /> Veículos
                         </TabsTrigger>
-                        <TabsTrigger value="externo" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-green-600">
-                            <MapPin size={16} className="mr-2" /> Abast. Externo
+                        <TabsTrigger value="externo" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-green-600 data-[state='active']:text-white">
+                            <MapPin size={16} className="mr-2 shrink-0" /> Abast. Externo
                         </TabsTrigger>
-                        <TabsTrigger value="infra" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
-                            <Settings size={16} className="mr-2" /> Tanques & Bombas
+                        <TabsTrigger value="infra" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
+                            <Settings size={16} className="mr-2 shrink-0" /> Tanques & Bombas
                         </TabsTrigger>
-                        <TabsTrigger value="deliveries" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
-                            <ShoppingCart size={16} className="mr-2" /> Entradas (NF)
+                        <TabsTrigger value="deliveries" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
+                            <ShoppingCart size={16} className="mr-2 shrink-0" /> Entradas (NF)
                         </TabsTrigger>
-                        <TabsTrigger value="readings" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
-                            <Gauge size={16} className="mr-2" /> Fechamentos
+                        <TabsTrigger value="readings" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
+                            <Gauge size={16} className="mr-2 shrink-0" /> Fechamentos
                         </TabsTrigger>
-                        <TabsTrigger value="reports" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
-                            <BarChart3 size={16} className="mr-2" /> Relatórios
+                        <TabsTrigger value="reports" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
+                            <BarChart3 size={16} className="mr-2 shrink-0" /> Relatórios
                         </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="vehicles" className="space-y-6 mt-0">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full md:w-auto">
-                                <Card className="bg-seguranca-graphite border-gray-600 min-w-[180px]">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full md:w-auto">
+                                <Card className="bg-seguranca-graphite border-gray-600">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Gasto</CardTitle>
                                     </CardHeader>
@@ -91,7 +91,7 @@ const AbastecimentoDashboard: React.FC = () => {
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card className="bg-seguranca-graphite border-gray-600 min-w-[180px]">
+                                <Card className="bg-seguranca-graphite border-gray-600">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-xs font-medium text-gray-400 uppercase tracking-wider">Litros Totais</CardTitle>
                                     </CardHeader>
@@ -101,7 +101,7 @@ const AbastecimentoDashboard: React.FC = () => {
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card className="bg-seguranca-graphite border-gray-600 min-w-[180px]">
+                                <Card className="bg-seguranca-graphite border-gray-600">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-xs font-medium text-gray-400 uppercase tracking-wider">Média Abast.</CardTitle>
                                     </CardHeader>
@@ -112,17 +112,17 @@ const AbastecimentoDashboard: React.FC = () => {
                                     </CardContent>
                                 </Card>
                             </div>
-                            <div className="flex gap-2 w-full md:w-auto">
+                            <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full md:w-auto">
                                 <Button
                                     variant="outline"
-                                    className="flex-1 md:flex-none border-gray-600 text-gray-400 hover:bg-gray-700"
+                                    className="flex-1 md:flex-none border-gray-600 text-gray-400 hover:bg-gray-700 h-10 text-xs sm:text-sm"
                                     onClick={() => refetchRecords()}
                                 >
-                                    <RefreshCw size={18} className={`mr-2 ${recordsLoading ? 'animate-spin' : ''}`} />
+                                    <RefreshCw size={16} className={`mr-2 ${recordsLoading ? 'animate-spin' : ''}`} />
                                     Atualizar
                                 </Button>
-                                <Button onClick={() => setIsModalOpen(true)} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-900/20">
-                                    <Plus size={18} className="mr-2" />
+                                <Button onClick={() => setIsModalOpen(true)} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-900/20 h-10 text-xs sm:text-sm font-semibold">
+                                    <Plus size={16} className="mr-1.5" />
                                     Abastecimento Interno
                                 </Button>
                             </div>

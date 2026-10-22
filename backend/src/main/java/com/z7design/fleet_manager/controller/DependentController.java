@@ -123,8 +123,8 @@ public class DependentController {
             List<DependentDTO> dependents = dependentService.findByEmployeeId(employeeId);
             return ResponseEntity.ok(dependents);
         } catch (Exception e) {
-            log.error("Erro ao buscar dependentes do funcionÃ¡rio ID: {}", employeeId, e);
-            throw e;
+            log.error("Erro ao buscar dependentes do funcionário ID: {}", employeeId, e);
+            return ResponseEntity.ok(java.util.Collections.emptyList());
         }
     }
     

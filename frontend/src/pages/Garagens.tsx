@@ -858,7 +858,7 @@ export const Garagens: React.FC = () => {
       title="Gestão de Garagens & Pátios"
       subtitle="Controle em tempo real de ocupação, manutenções, clientes, tempo de permanência e portaria rápida via QR Code"
     >
-      <div className="p-3 sm:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-3 sm:p-6 space-y-6 max-w-7xl mx-auto pb-32 sm:pb-8">
         
         {/* ========================================================================= */}
         {/* 1. HEADER OPERACIONAL COM AÇÕES RÁPIDAS MOBILE-FRIENDLY */}

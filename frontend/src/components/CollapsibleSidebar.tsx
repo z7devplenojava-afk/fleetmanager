@@ -104,6 +104,7 @@ const mainMenuItems = [
   { icon: Users, text: 'Portal do Passageiro', to: '/passenger', id: 'passenger-portal' },
   { icon: User2, text: 'Portal do Motorista', to: '/driver-dashboard', id: 'driver-dashboard' },
   { icon: ClipboardCheck, text: 'Check-in / Check-out', to: '/driver/checklist', id: 'driver-checklist' },
+  { icon: Clock, text: 'Ponto Eletrônico', to: '/rh/ponto-eletronico', id: 'ponto-eletronico' },
   { icon: FileSpreadsheet, text: 'Holerites', to: '/holerites', id: 'holerites' },
   { icon: Building2, text: 'Filiais', to: '/filiais', id: 'filiais' },
 ];
@@ -587,15 +588,12 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
   ]),
   MOTORISTA: new Set([
     'dashboard',
-    'holerites',
     'driver-dashboard',
     'driver-checklist',
-    'driver-trips',
+    'ponto-eletronico',
+    'holerites',
     'chat-interno',
     'mensagens',
-    'ticketing-booking',
-    'mobilizacao-transportes',
-    'operacional-rateio-servicos',
   ]),
   MECANICO: new Set([
     'dashboard',
@@ -986,6 +984,118 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'chat-interno',
     'mensagens',
   ]),
+  ENCARREGADO_DE_TRANSPORTES: new Set([
+    'dashboard',
+    'vss-inicio',
+    'trafego-dashboard',
+    'trafego-rotas',
+    'vss-linhas',
+    'vss-horarios',
+    'vss-veiculos',
+    'vss-motoristas',
+    'trafego-passageiros',
+    'vss-passageiros',
+    'vss-escalas',
+    'trafego-viagens',
+    'trafego-turnos',
+    'trafego-atribuicoes',
+    'vss-parte-diaria',
+    'vss-medicoes',
+    'vss-relatorios',
+    'driver-trips',
+    'passenger-qrcode',
+    'frota',
+    'garagens',
+    'gestao-limpeza',
+    'lavajato',
+    'mobilizacao-transportes',
+    'chat-interno',
+    'mensagens',
+  ]),
+  ENCARREGADO_TRANSPORTES: new Set([
+    'dashboard',
+    'vss-inicio',
+    'trafego-dashboard',
+    'trafego-rotas',
+    'vss-linhas',
+    'vss-horarios',
+    'vss-veiculos',
+    'vss-motoristas',
+    'trafego-passageiros',
+    'vss-passageiros',
+    'vss-escalas',
+    'trafego-viagens',
+    'trafego-turnos',
+    'trafego-atribuicoes',
+    'vss-parte-diaria',
+    'vss-medicoes',
+    'vss-relatorios',
+    'driver-trips',
+    'passenger-qrcode',
+    'frota',
+    'garagens',
+    'gestao-limpeza',
+    'lavajato',
+    'mobilizacao-transportes',
+    'chat-interno',
+    'mensagens',
+  ]),
+  ENCARREGADO_DE_TRAFEGO: new Set([
+    'dashboard',
+    'vss-inicio',
+    'trafego-dashboard',
+    'trafego-rotas',
+    'vss-linhas',
+    'vss-horarios',
+    'vss-veiculos',
+    'vss-motoristas',
+    'trafego-passageiros',
+    'vss-passageiros',
+    'vss-escalas',
+    'trafego-viagens',
+    'trafego-turnos',
+    'trafego-atribuicoes',
+    'vss-parte-diaria',
+    'vss-medicoes',
+    'vss-relatorios',
+    'driver-trips',
+    'passenger-qrcode',
+    'frota',
+    'garagens',
+    'gestao-limpeza',
+    'lavajato',
+    'mobilizacao-transportes',
+    'chat-interno',
+    'mensagens',
+  ]),
+  ENCARREGADO_TRAFEGO: new Set([
+    'dashboard',
+    'vss-inicio',
+    'trafego-dashboard',
+    'trafego-rotas',
+    'vss-linhas',
+    'vss-horarios',
+    'vss-veiculos',
+    'vss-motoristas',
+    'trafego-passageiros',
+    'vss-passageiros',
+    'vss-escalas',
+    'trafego-viagens',
+    'trafego-turnos',
+    'trafego-atribuicoes',
+    'vss-parte-diaria',
+    'vss-medicoes',
+    'vss-relatorios',
+    'driver-trips',
+    'passenger-qrcode',
+    'frota',
+    'garagens',
+    'gestao-limpeza',
+    'lavajato',
+    'mobilizacao-transportes',
+    'chat-interno',
+    'mensagens',
+  ]),
   ADMIN: new Set([
     'dashboard',
     'portal-cliente',
@@ -1282,6 +1392,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'employee-portal',
     'driver-dashboard',
     'driver-checklist',
+    'ponto-eletronico',
     'holerites',
     'filiais',
     
@@ -1546,13 +1657,31 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     return hasPermission(requiredPermission);
   }, [hasPermission]);
 
+  const isSuperAdmin = useMemo(() => {
+    return userRoles.some(r => r === 'SUPER_ADMIN' || r === 'FLEX_ADMIN') || user?.role === 'SUPER_ADMIN' || (user?.role as any) === 'ROLE_SUPER_ADMIN';
+  }, [userRoles, user?.role]);
+
+  const isMotorista = useMemo(() => {
+    if (isSuperAdmin) return false;
+    return userRoles.some(r => r === 'MOTORISTA') || user?.role === 'MOTORISTA' || (user?.role as any) === 'ROLE_MOTORISTA';
+  }, [isSuperAdmin, userRoles, user?.role]);
+
   const filteredMainMenuItems = useMemo(() => filterItemsForRole(mainMenuItems), [filterItemsForRole]);
   const filteredManutencaoItems = useMemo(() => filterItemsForRole(manutencaoMenuItems), [filterItemsForRole]);
   const filteredFinanceiroItems = useMemo(() => filterItemsForRole(financeiroMenuItems), [filterItemsForRole]);
-  const filteredOperacionalItems = useMemo(() => filterItemsForRole(operacionalMenuItems), [filterItemsForRole]);
+  const filteredOperacionalItems = useMemo(
+    () => (isMotorista ? [] : filterItemsForRole(operacionalMenuItems)),
+    [isMotorista, filterItemsForRole]
+  );
   const filteredRhItems = useMemo(() => filterItemsForRole(rhMenuItems), [filterItemsForRole]);
-  const filteredTicketingItems = useMemo(() => filterItemsForRole(ticketingMenuItems), [filterItemsForRole]);
-  const filteredMobilizacaoItems = useMemo(() => filterItemsForRole(mobilizacaoMenuItems), [filterItemsForRole]);
+  const filteredTicketingItems = useMemo(
+    () => (isMotorista ? [] : filterItemsForRole(ticketingMenuItems)),
+    [isMotorista, filterItemsForRole]
+  );
+  const filteredMobilizacaoItems = useMemo(
+    () => (isMotorista ? [] : filterItemsForRole(mobilizacaoMenuItems)),
+    [isMotorista, filterItemsForRole]
+  );
   const filteredSstItems = useMemo(() => filterItemsForRole(sstMenuItems), [filterItemsForRole]);
   const filteredDepartamentoPessoalItems = useMemo(() => filterItemsForRole(departamentoPessoalMenuItems), [filterItemsForRole]);
   const filteredComercialItems = useMemo(() => filterItemsForRole(comercialMenuItems), [filterItemsForRole]);
@@ -1568,10 +1697,13 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     }),
     [hasPermission]
   );
-  const filteredAtendimentoItems = useMemo(() => atendimentoMenuItems, []);
-  const filteredTrafegoItems = useMemo(() =>
-    trafegoMenuItems.filter(item => hasPermission(item.permission)),
-    [hasPermission]
+  const filteredAtendimentoItems = useMemo(
+    () => (isMotorista ? [] : filterItemsForRole(atendimentoMenuItems)),
+    [isMotorista, filterItemsForRole]
+  );
+  const filteredTrafegoItems = useMemo(
+    () => (isMotorista ? [] : filterItemsForRole(trafegoMenuItems).filter(item => hasPermission(item.permission))),
+    [isMotorista, filterItemsForRole, hasPermission]
   );
   const filteredFiscalItems = useMemo(() => filterItemsForRole(fiscalMenuItems), [filterItemsForRole]);
   const filteredSistemaItems = useMemo(() => filterItemsForRole(sistemaMenuItems), [filterItemsForRole]);
@@ -1852,16 +1984,16 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           {renderModuleSection('manutencao', 'Manutenção & Frota', filteredManutencaoItems)}
 
           {/* Módulo de Mobilização */}
-          {renderModuleSection('mobilizacao', 'Mobilização', filteredMobilizacaoItems)}
+          {!isMotorista && renderModuleSection('mobilizacao', 'Mobilização', filteredMobilizacaoItems)}
 
           {/* Módulo de Passagens (Ticketing) */}
-          {renderModuleSection('ticketing', 'Gestão de Passagens', filteredTicketingItems)}
+          {!isMotorista && renderModuleSection('ticketing', 'Gestão de Passagens', filteredTicketingItems)}
 
           {/* Módulo Financeiro */}
           {shouldShowModule('FINANCIAL_READ') && renderModuleSection('financeiro', 'Módulo Financeiro', filteredFinanceiroItems)}
 
           {/* Grupo Operacional */}
-          {shouldShowModule() && renderModuleSection('operacional', 'Operacional', filteredOperacionalItems)}
+          {!isMotorista && shouldShowModule() && renderModuleSection('operacional', 'Operacional', filteredOperacionalItems)}
 
           {/* Grupo RH */}
           {shouldShowModule('EMPLOYEES_READ') && renderModuleSection('rh', 'Recursos Humanos', filteredRhItems)}
@@ -1885,10 +2017,10 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           {renderModuleSection('comunicacao', 'Comunicação Interna', filteredComunicacaoInternaItems)}
 
           {/* Grupo Atendimento */}
-          {renderModuleSection('atendimento', 'Atendimento', filteredAtendimentoItems)}
+          {!isMotorista && renderModuleSection('atendimento', 'Atendimento', filteredAtendimentoItems)}
 
           {/* Módulo de Gestão de Tráfego */}
-          {renderModuleSection('trafego', 'Gestão de Tráfego', filteredTrafegoItems)}
+          {!isMotorista && renderModuleSection('trafego', 'Gestão de Tráfego', filteredTrafegoItems)}
 
           {/* Módulo Fiscal */}
           {shouldShowModule('FINANCIAL_READ') && renderModuleSection('fiscal', 'Módulo Fiscal', filteredFiscalItems)}

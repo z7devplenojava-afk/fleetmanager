@@ -41,6 +41,8 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 }) => {
   const { user: currentUser, hasRole, refreshUser } = useAuth();
   const { toast } = useToast();
+  const isSuperAdmin = hasRole('SUPER_ADMIN');
+  const canManageCompanies = isSuperAdmin || hasRole('FLEX_ADMIN');
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -113,12 +115,11 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
           console.error('Erro ao carregar grupos:', error);
         });
 
-      const isFlexAdmin = hasRole('FLEX_ADMIN') || hasRole('SUPER_ADMIN') || hasRole('COMPANY_ADMIN');
-      if (isFlexAdmin) {
+      if (canManageCompanies) {
         companyService.getAllCompanies().then(setCompanies).catch(console.error);
       }
     }
-  }, [isOpen, hasRole]);
+  }, [isOpen, canManageCompanies]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
@@ -130,8 +131,8 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
   const handleSave = async () => {
     if (!user) return;
 
-    // Validação de senha (apenas se ADMIN estiver tentando alterar)
-    const isAdmin = currentUser?.role === 'SUPER_ADMIN' || hasRole('FLEX_ADMIN') || hasRole('COMPANY_ADMIN');
+    // Validação de senha (apenas se SUPER_ADMIN estiver tentando alterar)
+    const isAdmin = isSuperAdmin;
     if (isAdmin && (formData.password || formData.confirmPassword)) {
       if (!formData.password || !formData.confirmPassword) {
         toast({
@@ -233,8 +234,8 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         employeeCode: formData.employeeCode || '',
         phone: cleanPhone || undefined,
         address: formData.address || '',
-        companyId: (!formData.companyId || formData.companyId === 'none' || formData.companyId.trim() === '') ? undefined : formData.companyId.trim(),
-        removeCompany: (!formData.companyId || formData.companyId === 'none' || formData.companyId.trim() === '') && (hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN')) ? true : undefined,
+        companyId: canManageCompanies && formData.companyId && formData.companyId !== 'none' && formData.companyId.trim() !== '' ? formData.companyId.trim() : undefined,
+        removeCompany: canManageCompanies && (!formData.companyId || formData.companyId === 'none' || formData.companyId.trim() === '') ? true : undefined,
       };
 
       // Apenas ADMINS podem alterar senha via UI de edição
@@ -429,7 +430,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                   <RoleMultiSelect
                     selectedRoles={formData.roles}
                     onChange={(roles) => handleInputChange('roles', roles)}
-                    isSuperAdmin={hasRole('FLEX_ADMIN') || hasRole('SUPER_ADMIN')}
+                    isSuperAdmin={isSuperAdmin}
                   />
                 </div>
 
@@ -439,7 +440,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                     <Label htmlFor="company" className="text-seguranca-lightgray">
                       Empresa
                     </Label>
-                    {(hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN')) && formData.companyId && formData.companyId !== 'none' && (
+                    {canManageCompanies && formData.companyId && formData.companyId !== 'none' && (
                       <button
                         type="button"
                         onClick={() => handleInputChange('companyId', 'none')}
@@ -449,7 +450,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                       </button>
                     )}
                   </div>
-                  {hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN') || hasRole('COMPANY_ADMIN') || hasRole('ADMIN') ? (
+                  {canManageCompanies ? (
                     <Select
                       value={formData.companyId || 'none'}
                       onValueChange={(value) => handleInputChange('companyId', value === 'none' ? '' : value)}
@@ -458,7 +459,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                         <SelectValue placeholder="Selecione a empresa" />
                       </SelectTrigger>
                       <SelectContent className="bg-seguranca-black border-gray-600">
-                        {(hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN')) && (
+                        {canManageCompanies && (
                           <SelectItem value="none" className="text-emerald-400 font-medium">
                             Sem Empresa (Acesso Global / Matriz FluxBus)
                           </SelectItem>

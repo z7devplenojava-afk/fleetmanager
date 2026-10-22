@@ -77,7 +77,18 @@ public class ExcelReportLayoutService {
     }
 
     public int addHeader(Sheet sheet, Workbook workbook, Company company, String reportTitle, int lastColumn) {
-        log.info("Adicionando cabeÃ§alho Excel - Empresa: {}, TÃ­tulo: {}", company.getName(), reportTitle);
+        if (company == null) {
+            company = companyRepository.findByStatus(Company.CompanyStatus.ACTIVE).stream().findFirst()
+                .or(() -> companyRepository.findAll().stream().findFirst())
+                .orElseGet(() -> {
+                    Company c = new Company();
+                    c.setName("FLUXBUS");
+                    c.setCnpj("00.000.000/0001-00");
+                    c.setAddress("Matriz");
+                    return c;
+                });
+        }
+        log.info("Adicionando cabeçalho Excel - Empresa: {}, Título: {}", company.getName(), reportTitle);
         
         int currentRow = 0;
         int safeLastColumn = Math.max(0, lastColumn);
@@ -142,7 +153,18 @@ public class ExcelReportLayoutService {
     }
 
     public void addFooter(Sheet sheet, Workbook workbook, Company company, int lastColumn) {
-        log.info("Adicionando rodapÃ© Excel - Empresa: {}", company.getName());
+        if (company == null) {
+            company = companyRepository.findByStatus(Company.CompanyStatus.ACTIVE).stream().findFirst()
+                .or(() -> companyRepository.findAll().stream().findFirst())
+                .orElseGet(() -> {
+                    Company c = new Company();
+                    c.setName("FLUXBUS");
+                    c.setCnpj("00.000.000/0001-00");
+                    c.setAddress("Matriz");
+                    return c;
+                });
+        }
+        log.info("Adicionando rodapé Excel - Empresa: {}", company.getName());
         
         int lastRowNum = sheet.getLastRowNum();
         int footerStartRow = lastRowNum + 1;

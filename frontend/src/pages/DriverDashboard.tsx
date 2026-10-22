@@ -15,7 +15,8 @@ import {
     Gavel,
     Download,
     Eye,
-    Wrench
+    Wrench,
+    FileText
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +27,7 @@ import { StandardLayout } from '@/components/StandardLayout';
 import { useToast } from '@/hooks/use-toast';
 import driverService from '@/services/driverService';
 import { scheduleService, Schedule } from '@/services/scheduleService';
+import { ParteDiariaModal } from '@/components/financeiro/ParteDiariaModal';
 import api from '@/lib/axios';
 import { format, parseISO, startOfMonth, endOfMonth, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -55,6 +57,7 @@ const DriverDashboard: React.FC = () => {
     const [schedulesLoading, setSchedulesLoading] = useState(true);
     const [schedulesError, setSchedulesError] = useState<string | null>(null);
     const [pdfLoading, setPdfLoading] = useState<'view' | 'download' | null>(null);
+    const [isParteDiariaModalOpen, setIsParteDiariaModalOpen] = useState(false);
 
     useEffect(() => {
         loadDriverFines();
@@ -180,6 +183,13 @@ const DriverDashboard: React.FC = () => {
 
     const quickActions = [
         {
+            title: 'Lançamento de Parte Diária',
+            description: 'Lançar ficha de veículo, horários e KM para medição',
+            icon: FileText,
+            color: 'bg-amber-600',
+            action: () => setIsParteDiariaModalOpen(true)
+        },
+        {
             title: 'Check-in / Check-out',
             description: 'Checklist de vistoria do veículo',
             icon: ClipboardCheck,
@@ -190,7 +200,7 @@ const DriverDashboard: React.FC = () => {
             title: 'Ordem de Serviço (OS)',
             description: 'Abrir chamado de manutenção e fotos com câmera',
             icon: Wrench,
-            color: 'bg-amber-600',
+            color: 'bg-orange-600',
             to: '/driver/work-orders'
         },
         {
@@ -201,10 +211,17 @@ const DriverDashboard: React.FC = () => {
             to: '/driver/trips'
         },
         {
-            title: 'Controle de Horas',
-            description: 'Registre seu ponto e veja horas',
+            title: 'Registro de Ponto Eletrônico',
+            description: 'Registre sua entrada, intervalos e saída diária',
             icon: Clock,
-            color: 'bg-green-500',
+            color: 'bg-emerald-600',
+            to: '/rh/ponto-eletronico'
+        },
+        {
+            title: 'Controle de Horas',
+            description: 'Espelho de ponto e banco de horas',
+            icon: CheckCircle2,
+            color: 'bg-green-600',
             to: '/rh/controle-horas'
         },
         {
@@ -243,8 +260,8 @@ const DriverDashboard: React.FC = () => {
                     {quickActions.map((action) => (
                         <Card
                             key={action.title}
-                            className="cursor-pointer hover:shadow-md transition-shadow group"
-                            onClick={() => navigate(action.to)}
+                            className="cursor-pointer hover:shadow-md transition-shadow group border hover:border-amber-500/40"
+                            onClick={() => (action as any).action ? (action as any).action() : (action as any).to && navigate((action as any).to)}
                         >
                             <CardContent className="p-6 flex items-start gap-4">
                                 <div className={`p-3 rounded-lg ${action.color} text-white`}>
@@ -495,6 +512,16 @@ const DriverDashboard: React.FC = () => {
                     </Card>
                 </div>
             </div>
+
+            <ParteDiariaModal
+                isOpen={isParteDiariaModalOpen}
+                onClose={() => setIsParteDiariaModalOpen(false)}
+                onSuccess={() => {
+                    setIsParteDiariaModalOpen(false);
+                }}
+                initialDriverName={user?.name}
+                initialDriverId={user?.id}
+            />
         </StandardLayout>
     );
 };

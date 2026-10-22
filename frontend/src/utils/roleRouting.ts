@@ -34,6 +34,10 @@ export const getDashboardRouteForRole = (role?: string): string => {
 
     case 'GESTOR_TRAFEGO':
     case 'GESTOR_DE_TRAFEGO':
+    case 'ENCARREGADO_DE_TRANSPORTES':
+    case 'ENCARREGADO_TRANSPORTES':
+    case 'ENCARREGADO_DE_TRAFEGO':
+    case 'ENCARREGADO_TRAFEGO':
       return '/fretamento';
 
     case 'RH':

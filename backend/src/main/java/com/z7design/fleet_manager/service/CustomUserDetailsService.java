@@ -21,7 +21,10 @@ public class CustomUserDetailsService implements UserDetailsService {
         System.out.println("🔍 CustomUserDetailsService: Buscando usuário: " + username);
 
         String target = username != null ? username.trim() : "";
-        User user = userRepository.findByUsernameOrEmailIgnoreCase(target)
+        String cleanDigits = target.replaceAll("\\D", "");
+
+        User user = userRepository.findByIdentifierNative(target, cleanDigits)
+                .or(() -> userRepository.findByUsernameOrEmailIgnoreCase(target))
                 .or(() -> userRepository.findByUsername(target))
                 .or(() -> userRepository.findByEmail(target))
                 .orElseThrow(() -> {

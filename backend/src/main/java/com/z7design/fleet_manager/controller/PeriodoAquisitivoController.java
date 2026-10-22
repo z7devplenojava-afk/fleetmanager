@@ -64,7 +64,13 @@ public class PeriodoAquisitivoController {
     @GetMapping("/ativo/{employeeId}")
     public ResponseEntity<PeriodoAquisitivo> getAtivo(
             @Parameter(description = "ID do colaborador") @PathVariable("employeeId") UUID employeeId) {
-        return ResponseEntity.ok(periodoAquisitivoService.getOrCreateVigente(employeeId));
+        try {
+            return ResponseEntity.ok(periodoAquisitivoService.getOrCreateVigente(employeeId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(null);
+        } catch (Exception e) {
+            return ResponseEntity.ok(null);
+        }
     }
 
     @Operation(summary = "Simula o saldo consolidado do colaborador",
@@ -72,7 +78,13 @@ public class PeriodoAquisitivoController {
     @GetMapping("/saldo/{employeeId}")
     public ResponseEntity<SaldoSimulado> simularSaldo(
             @Parameter(description = "ID do colaborador") @PathVariable("employeeId") UUID employeeId) {
-        return ResponseEntity.ok(periodoAquisitivoService.simularSaldo(employeeId));
+        try {
+            return ResponseEntity.ok(periodoAquisitivoService.simularSaldo(employeeId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(null);
+        } catch (Exception e) {
+            return ResponseEntity.ok(null);
+        }
     }
 
     @Operation(summary = "Alertas de periodo concessivo",

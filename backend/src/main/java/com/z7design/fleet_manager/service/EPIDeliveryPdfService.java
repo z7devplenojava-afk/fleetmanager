@@ -194,41 +194,49 @@ public class EPIDeliveryPdfService {
     }
 
     private String loadLogoAsDataUri(String logoUrl) {
-        if (logoUrl == null || logoUrl.isBlank()) {
-            return null;
-        }
-        try {
-            byte[] bytes;
-            if (logoUrl.startsWith("http://") || logoUrl.startsWith("https://")) {
-                bytes = new URL(logoUrl).openStream().readAllBytes();
-            } else {
-                Path logoPath = resolveLogoPath(logoUrl);
-                if (logoPath == null || !Files.exists(logoPath)) {
-                    log.warn("Logo da empresa não encontrado em disco: {}", logoUrl);
-                    return null;
+        if (logoUrl != null && !logoUrl.isBlank()) {
+            try {
+                byte[] bytes;
+                if (logoUrl.startsWith("http://") || logoUrl.startsWith("https://")) {
+                    bytes = new URL(logoUrl).openStream().readAllBytes();
+                } else {
+                    Path logoPath = resolveLogoPath(logoUrl);
+                    if (logoPath != null && Files.exists(logoPath)) {
+                        bytes = Files.readAllBytes(logoPath);
+                    } else {
+                        bytes = null;
+                    }
                 }
-                bytes = Files.readAllBytes(logoPath);
+                if (bytes != null && bytes.length > 0) {
+                    String lower = logoUrl.toLowerCase();
+                    String mime;
+                    if (lower.endsWith(".png")) {
+                        mime = "image/png";
+                    } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+                        mime = "image/jpeg";
+                    } else if (lower.endsWith(".gif")) {
+                        mime = "image/gif";
+                    } else {
+                        mime = "image/png";
+                    }
+                    return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
+                }
+            } catch (Exception e) {
+                log.warn("Erro ao carregar logo da empresa ({}): {}", logoUrl, e.getMessage());
             }
-            if (bytes == null || bytes.length == 0) {
-                return null;
-            }
-
-            String lower = logoUrl.toLowerCase();
-            String mime;
-            if (lower.endsWith(".png")) {
-                mime = "image/png";
-            } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
-                mime = "image/jpeg";
-            } else if (lower.endsWith(".gif")) {
-                mime = "image/gif";
-            } else {
-                return null;
-            }
-            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
-        } catch (Exception e) {
-            log.warn("Erro ao carregar logo da empresa ({}): {}", logoUrl, e.getMessage());
-            return null;
         }
+
+        // Fallback oficial Viação São Silvestre em classpath
+        try {
+            org.springframework.core.io.ClassPathResource resource = new org.springframework.core.io.ClassPathResource("static/images/sao-silvestre-timbre.png");
+            if (resource.exists()) {
+                byte[] defaultBytes = resource.getInputStream().readAllBytes();
+                return "data:image/png;base64," + Base64.getEncoder().encodeToString(defaultBytes);
+            }
+        } catch (Exception ex) {
+            log.warn("Erro ao carregar logo oficial em classpath: {}", ex.getMessage());
+        }
+        return null;
     }
 
     private Path resolveLogoPath(String logoUrl) {
@@ -253,6 +261,14 @@ public class EPIDeliveryPdfService {
 
         Employee employee = form.getEmployee();
         Company company = form.getCompany();
+        if (company == null && employee != null) {
+            company = employee.getCompany();
+        }
+        if (company == null) {
+            company = companyRepository.findByStatus(com.z7design.fleet_manager.model.Company.CompanyStatus.ACTIVE).stream().findFirst()
+                .or(() -> companyRepository.findAll().stream().findFirst())
+                .orElse(null);
+        }
 
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Ficha EPI");
@@ -437,6 +453,14 @@ public class EPIDeliveryPdfService {
         log.info("📄 Gerando ficha de entrega de EPI via Fallback iText...");
         Company company = form.getCompany();
         Employee employee = form.getEmployee();
+        if (company == null && employee != null) {
+            company = employee.getCompany();
+        }
+        if (company == null) {
+            company = companyRepository.findByStatus(com.z7design.fleet_manager.model.Company.CompanyStatus.ACTIVE).stream().findFirst()
+                .or(() -> companyRepository.findAll().stream().findFirst())
+                .orElse(null);
+        }
 
         ReportLayoutConfig config = ReportLayoutConfig.builder()
             .companyId(company != null ? company.getId() : null)

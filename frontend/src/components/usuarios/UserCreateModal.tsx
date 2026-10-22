@@ -53,21 +53,22 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
     whatsapp: '',
   });
 
-  const isSuperAdmin = hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN');
+  const isSuperAdmin = hasRole('SUPER_ADMIN');
+  const canManageCompanies = isSuperAdmin || hasRole('FLEX_ADMIN');
 
   useEffect(() => {
-    if (isSuperAdmin && isOpen) {
+    if (canManageCompanies && isOpen) {
       loadCompanies();
     }
-  }, [isSuperAdmin, isOpen]);
+  }, [canManageCompanies, isOpen]);
 
   useEffect(() => {
     if (companyId) {
       setSelectedCompanyId(companyId);
-    } else if (!isSuperAdmin && currentEmpresa?.id) {
+    } else if (!canManageCompanies && currentEmpresa?.id) {
       setSelectedCompanyId(currentEmpresa.id);
     }
-  }, [companyId, currentEmpresa, isSuperAdmin]);
+  }, [companyId, currentEmpresa, canManageCompanies]);
 
   const loadCompanies = async () => {
     try {
@@ -270,7 +271,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
                   <Label htmlFor="company" className="text-seguranca-lightgray">
                     Empresa *
                   </Label>
-                  {isSuperAdmin ? (
+                  {canManageCompanies ? (
                     <Select
                       value={selectedCompanyId}
                       onValueChange={setSelectedCompanyId}

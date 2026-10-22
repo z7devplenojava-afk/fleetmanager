@@ -133,21 +133,53 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         try {
-            log.info("ðŸ” Tentando autenticar usuÃ¡rio: {}", request.getUsername());
-
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+            log.info("🔍 Tentando autenticar com identificador: {}", request.getUsername());
 
             String target = request.getUsername() != null ? request.getUsername().trim() : "";
-            User user = userRepository.findByUsernameOrEmailIgnoreCase(target)
+            String cleanDigits = target.replaceAll("\\D", "");
+
+            User user = userRepository.findByIdentifierNative(target, cleanDigits)
+                    .or(() -> userRepository.findByUsernameOrEmailIgnoreCase(target))
                     .or(() -> userRepository.findByUsername(target))
                     .or(() -> userRepository.findByEmail(target))
-                    .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuário não encontrado: " + target));
+                    .orElse(null);
+
+            if (user == null) {
+                // Verificar se é funcionário cadastrado no RH sem usuário/senha criada
+                if (cleanDigits.length() >= 11) {
+                    var empOpt = employeeRepository.findByCpf(cleanDigits);
+                    if (empOpt.isPresent()) {
+                        var emp = empOpt.get();
+                        log.warn("⚠️ Colaborador {} (CPF {}) cadastrado no RH, mas sem senha configurada.", emp.getName(), cleanDigits);
+                        throw new org.springframework.security.authentication.AccountStatusException(
+                                "Colaborador " + emp.getName() + " cadastrado, mas sua senha de acesso ainda não foi configurada. Por favor, realize o Primeiro Acesso para definir sua senha.") {};
+                    }
+                }
+                throw new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuário não encontrado: " + target);
+            }
+
+            // Usar o username canônico do User no authenticationManager
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(user.getUsername(), request.getPassword()));
 
             log.info("✅ Usuário encontrado: {} (ID: {})", user.getUsername(), user.getId());
             // SEGURANÇA: log do hash BCrypt da senha removido (vazava credencial em logs)
             log.info("🔐 Login - Active: {}, Status: {}, CompanyID: {}", user.isActive(), user.getStatus(),
                     user.getCompanyId());
+
+            // Sincronizar companyId se o usuário ainda não tiver vínculo direto mas o funcionário tiver
+            if (user.getCompanyId() == null && user.getId() != null) {
+                try {
+                    Optional<UUID> employeeCompanyId = employeeRepository.findCompanyIdByUserIdNative(user.getId());
+                    if (employeeCompanyId.isPresent()) {
+                        user.setCompanyId(employeeCompanyId.get());
+                        userRepository.save(user);
+                        log.info("🏢 Sincronizado companyId {} para o usuário {} a partir do Employee", employeeCompanyId.get(), user.getUsername());
+                    }
+                } catch (Exception ex) {
+                    log.warn("⚠️ Erro ao sincronizar companyId do Employee para o User: {}", ex.getMessage());
+                }
+            }
 
             // BLOQUEIO ADMINISTRATIVO: usuário bloqueado (permanente ou temporário vigente)
             // recebe mensagem clara para procurar o Administrador do sistema.

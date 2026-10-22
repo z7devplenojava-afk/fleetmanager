@@ -434,22 +434,24 @@ public class PeriodoAquisitivoService {
         Employee emp = employeeRepository.findById(employeeId).orElseThrow();
         LocalDate hoje = LocalDate.now();
 
-        Period periodo = Period.between(emp.getHireDate(), hoje);
+        LocalDate hireDate = emp.getHireDate() != null ? emp.getHireDate() : (pa != null && pa.getDataInicio() != null ? pa.getDataInicio() : hoje);
+        Period periodo = Period.between(hireDate, hoje);
         boolean primeiroAno = periodo.getYears() == 0 && periodo.getMonths() < 11;
+        int saldo = (pa != null && pa.getDiasSaldo() != null) ? pa.getDiasSaldo() : 0;
 
         return new SaldoSimulado(
-            pa.getId(),
-            pa.getDataInicio(),
-            pa.getDataFim(),
-            pa.getLimiteConcessivo(),
-            pa.getDiasDireito(),
-            pa.getDiasSaldo(),
-            pa.getDiasUtilizados(),
-            pa.getFaltasInjustificadas(),
-            pa.getStatus(),
+            pa != null ? pa.getId() : null,
+            pa != null ? pa.getDataInicio() : null,
+            pa != null ? pa.getDataFim() : null,
+            pa != null ? pa.getLimiteConcessivo() : null,
+            pa != null && pa.getDiasDireito() != null ? pa.getDiasDireito() : 30,
+            saldo,
+            pa != null && pa.getDiasUtilizados() != null ? pa.getDiasUtilizados() : 0,
+            pa != null && pa.getFaltasInjustificadas() != null ? pa.getFaltasInjustificadas() : 0,
+            pa != null ? pa.getStatus() : PeriodoAquisitivoStatus.EM_ANDAMENTO,
             primeiroAno,
-            diasAte(pa.getLimiteConcessivo(), hoje),
-            pa.getDiasSaldo() / 3
+            diasAte(pa != null ? pa.getLimiteConcessivo() : null, hoje),
+            saldo / 3
         );
     }
 
