@@ -64,13 +64,16 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting.current) return;
-    isSubmitting.current = true;
     setError('');
 
     if (!username || !password) {
       setError('Por favor, preencha todos os campos.');
       return;
     }
+
+    // Marcar envio APENAS após validação — antes, um submit vazio travava
+    // isSubmitting em true e o botão parava de responder para sempre
+    isSubmitting.current = true;
 
     setLoading(true);
     try {

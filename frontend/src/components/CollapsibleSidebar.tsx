@@ -1787,12 +1787,12 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 
   return (
     <>
-      {/* Overlay para mobile com alta opacidade e backdrop blur */}
-      {isMobile && (
+      {/* Overlay para mobile — renderizado APENAS quando a gaveta está aberta.
+          Mantê-lo no DOM com opacity-0 causava bug conhecido do WebKit/Safari PWA:
+          o backdrop-filter continuava escurecendo/borrando a tela inteira. */}
+      {isMobile && !collapsed && (
         <div
-          className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-50 transition-opacity duration-300 ${
-            collapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'
-          }`}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
           onClick={onToggle}
           aria-hidden="true"
         />
