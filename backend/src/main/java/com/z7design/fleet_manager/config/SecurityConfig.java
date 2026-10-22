@@ -142,13 +142,18 @@ public class SecurityConfig {
                                                 .hasAnyAuthority("EMPLOYEES_READ", "EMPLOYEES_WRITE",
                                                                 "EMPLOYEES_CREATE", "EMPLOYEES_DELETE",
                                                                 "SUPER_ADMIN", "ADMIN", "HR", "ROLE_SUPER_ADMIN",
-                                                                "ROLE_ADMIN", "ROLE_HR", "ROLE_RH")
-                                                // Endpoints SST - requerem permissÃƒÂµes especÃƒÂ­ficas
+                                                                "ROLE_ADMIN", "ROLE_HR", "ROLE_RH",
+                                                                "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN", "FLEX_ADMIN",
+                                                                "ROLE_MANUTENCAO", "MANUTENCAO", "ROLE_GESTOR", "ROLE_SUPERVISOR")
+                                                // Endpoints SST - requerem permissões específicas
                                                 .requestMatchers("/api/sst/**")
                                                 .hasAnyAuthority("EMPLOYEES_READ", "EMPLOYEES_WRITE",
                                                                 "EMPLOYEES_CREATE", "EMPLOYEES_DELETE",
                                                                 "SUPER_ADMIN", "ADMIN", "HR", "ROLE_SUPER_ADMIN",
-                                                                "ROLE_ADMIN", "ROLE_HR", "ROLE_RH")
+                                                                "ROLE_ADMIN", "ROLE_HR", "ROLE_RH",
+                                                                "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN", "FLEX_ADMIN",
+                                                                "ROLE_MANUTENCAO", "MANUTENCAO", "ROLE_GESTOR", "ROLE_SUPERVISOR",
+                                                                "ROLE_SST", "SST", "ROLE_SEGURANCA_DO_TRABALHO")
                                                 // Endpoints de usuÃƒÂ¡rios - permitir leitura para usuÃƒÂ¡rios autenticados
                                                 // (para
                                                 // chat), escrita requer permissÃƒÂµes especÃƒÂ­ficas
@@ -394,46 +399,12 @@ public class SecurityConfig {
                                                 // Endpoints de mensagens - permitir para todos os roles principais,
                                                 // incluindo
                                                 // Departamento Pessoal
-                                                .requestMatchers("/api/v1/messages/**").hasAnyAuthority(
-                                                                "SUPER_ADMIN",
-                                                                "ADMIN",
-                                                                "SUPERVISOR",
-                                                                "COLABORADOR",
-                                                                "VIGILANTE",
-                                                                "RH",
-                                                                "DEPARTAMENTO_PESSOAL",
-                                                                "FINANCEIRO",
-                                                                "GESTOR",
-                                                                "ROLE_SUPER_ADMIN",
-                                                                "ROLE_ADMIN",
-                                                                "ROLE_SUPERVISOR",
-                                                                "ROLE_COLABORADOR",
-                                                                "ROLE_VIGILANTE",
-                                                                "ROLE_RH",
-                                                                "ROLE_DEPARTAMENTO_PESSOAL",
-                                                                "ROLE_FINANCEIRO",
-                                                                "ROLE_GESTOR",
-                                                                "ROLE_COMPANY_ADMIN",
-                                                                "ROLE_FLEX_ADMIN")
+                                                .requestMatchers("/api/v1/messages/**").authenticated()
                                                 // Endpoints de suporte e atendimento - requerem permissÃƒÂµes
                                                 // especÃƒÂ­ficas
-                                                .requestMatchers("/api/v1/support/**")
-                                                .hasAnyAuthority("SUPPORT_READ", "SUPPORT_WRITE", "SUPPORT_CREATE",
-                                                                "SUPPORT_DELETE",
-                                                                "SUPPORT_MANAGE", "ATTENDANCE_READ", "ATTENDANCE_WRITE",
-                                                                "ATTENDANCE_MANAGE",
-                                                                "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_RH",
-                                                                "ROLE_DEPARTAMENTO_PESSOAL",
-                                                                "ROLE_FINANCEIRO", "ROLE_COMERCIAL", "ROLE_SUPERVISOR")
+                                                .requestMatchers("/api/v1/support/**").authenticated()
                                                 // Endpoints de chatbot - mesmas permissÃƒÂµes de suporte
-                                                .requestMatchers("/api/v1/support/chatbot/**")
-                                                .hasAnyAuthority("SUPPORT_READ", "SUPPORT_WRITE", "SUPPORT_CREATE",
-                                                                "SUPPORT_DELETE",
-                                                                "SUPPORT_MANAGE", "ATTENDANCE_READ", "ATTENDANCE_WRITE",
-                                                                "ATTENDANCE_MANAGE",
-                                                                "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_RH",
-                                                                "ROLE_DEPARTAMENTO_PESSOAL",
-                                                                "ROLE_FINANCEIRO", "ROLE_COMERCIAL", "ROLE_SUPERVISOR")
+                                                .requestMatchers("/api/v1/support/chatbot/**").authenticated()
                                                 // SEGURANÃ‡A: mÃ³dulos com dados pessoais que estavam "temporariamente pÃºblicos
                                                 // para debug" agora exigem autenticaÃ§Ã£o (LGPD).
                                                 .requestMatchers("/api/employees/**").authenticated()
@@ -523,6 +494,9 @@ public class SecurityConfig {
                                                                 "SST",
                                                                 "ROLE_SUPER_ADMIN",
                                                                 "ROLE_ADMIN",
+                                                                "ROLE_COMPANY_ADMIN",
+                                                                "COMPANY_ADMIN",
+                                                                "ROLE_FLEX_ADMIN",
                                                                 "ROLE_GESTOR",
                                                                 "ROLE_RH",
                                                                 "ROLE_SST",
@@ -532,6 +506,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/dependents/**")
                                                 .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "GESTOR", "RH", "SST",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
+                                                                "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN",
                                                                 "ROLE_GESTOR", "ROLE_RH", "ROLE_SST", "ROLE_SEGURANCA_DO_TRABALHO",
                                                                 "EMPLOYEES_READ", "EMPLOYEES_WRITE")
                                                 // Endpoints de folha de ponto (time-sheets)
@@ -539,6 +514,9 @@ public class SecurityConfig {
                                                                 "TIME_RECORD_READ",
                                                                 "SUPER_ADMIN",
                                                                 "ADMIN",
+                                                                "ROLE_COMPANY_ADMIN",
+                                                                "COMPANY_ADMIN",
+                                                                "ROLE_FLEX_ADMIN",
                                                                 "RH",
                                                                 "SST",
                                                                 "DEPARTAMENTO_PESSOAL",

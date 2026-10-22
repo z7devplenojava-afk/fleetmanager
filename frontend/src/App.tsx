@@ -614,7 +614,7 @@ function App() {
                         </ProtectedRoute>
                       } />
                       <Route path="/mensagens" element={
-                        <ProtectedRoute requiredPermissions={['MESSAGES_READ']}>
+                        <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <Mensagens />
                           </Suspense>
@@ -638,14 +638,14 @@ function App() {
 
                       {/* Módulo de Gestão de Atendimento com rotas aninhadas */}
                       <Route path="/gestao-atendimento" element={
-                        <ProtectedRoute requiredPermissions={['ATTENDANCE_READ']}>
+                        <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <GestaoAtendimento />
                           </Suspense>
                         </ProtectedRoute>
                       } />
                       <Route path="/gestao-atendimento/:page" element={
-                        <ProtectedRoute requiredPermissions={['ATTENDANCE_READ']}>
+                        <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <GestaoAtendimento />
                           </Suspense>

@@ -32,7 +32,7 @@ public class SSTTrainingController {
 
     @GetMapping
     @Operation(summary = "Listar treinamentos", description = "Retorna todos os treinamentos cadastrados")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<SSTTraining>> getAllTrainings() {
         List<SSTTraining> trainings = trainingService.getAllTrainings();
         return ResponseEntity.ok(trainings);
@@ -40,7 +40,7 @@ public class SSTTrainingController {
 
     @GetMapping("/with-stats")
     @Operation(summary = "Listar treinamentos com estatÃ­sticas", description = "Retorna todos os treinamentos com informaÃ§Ãµes agregadas (participantes, certificados vencendo, etc.)")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<SSTTrainingDTO>> getAllTrainingsWithStats() {
         List<SSTTrainingDTO> trainings = trainingService.getAllTrainingsWithStats();
         return ResponseEntity.ok(trainings);
@@ -48,7 +48,7 @@ public class SSTTrainingController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar treinamento por ID", description = "Retorna um treinamento especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<SSTTraining> getTrainingById(@PathVariable("id") UUID id) {
         SSTTraining training = trainingService.getTrainingById(id);
         if (training == null) {
@@ -59,7 +59,7 @@ public class SSTTrainingController {
 
     @GetMapping("/{id}/with-stats")
     @Operation(summary = "Buscar treinamento por ID com estatÃ­sticas", description = "Retorna um treinamento especÃ­fico com informaÃ§Ãµes agregadas")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<SSTTrainingDTO> getTrainingWithStatsById(@PathVariable("id") UUID id) {
         SSTTrainingDTO training = trainingService.getTrainingWithStatsById(id);
         if (training == null) {
@@ -70,7 +70,7 @@ public class SSTTrainingController {
 
     @GetMapping("/active")
     @Operation(summary = "Listar treinamentos ativos", description = "Retorna todos os treinamentos ativos")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<SSTTraining>> getActiveTrainings() {
         List<SSTTraining> trainings = trainingService.getActiveTrainings();
         return ResponseEntity.ok(trainings);
@@ -78,7 +78,7 @@ public class SSTTrainingController {
 
     @PostMapping
     @Operation(summary = "Criar treinamento", description = "Cria um novo treinamento")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<SSTTraining> createTraining(@RequestBody SSTTraining training) {
         SSTTraining created = trainingService.createTraining(training);
         return ResponseEntity.ok(created);
@@ -86,7 +86,7 @@ public class SSTTrainingController {
 
     @PostMapping("/create")
     @Operation(summary = "Criar treinamento a partir de DTO", description = "Cria um novo treinamento a partir de DTO")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<SSTTraining> createTrainingFromDTO(@RequestBody CreateSSTTrainingDTO dto) {
         SSTTraining created = trainingService.createTrainingFromDTO(dto);
         return ResponseEntity.ok(created);
@@ -94,7 +94,7 @@ public class SSTTrainingController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar treinamento", description = "Atualiza um treinamento existente")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<SSTTraining> updateTraining(@PathVariable("id") UUID id, @RequestBody SSTTraining training) {
         SSTTraining updated = trainingService.updateTraining(id, training);
         if (updated == null) {
@@ -105,7 +105,7 @@ public class SSTTrainingController {
 
     @PutMapping("/{id}/update")
     @Operation(summary = "Atualizar treinamento a partir de DTO", description = "Atualiza um treinamento existente a partir de DTO")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<SSTTraining> updateTrainingFromDTO(@PathVariable("id") UUID id, @RequestBody CreateSSTTrainingDTO dto) {
         SSTTraining existing = trainingService.getTrainingById(id);
         if (existing == null) {
@@ -128,7 +128,7 @@ public class SSTTrainingController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir treinamento", description = "Exclui um treinamento")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<Void> deleteTraining(@PathVariable("id") UUID id) {
         trainingService.deleteTraining(id);
         return ResponseEntity.noContent().build();
@@ -138,7 +138,7 @@ public class SSTTrainingController {
 
     @GetMapping("/participations")
     @Operation(summary = "Listar participaÃ§Ãµes", description = "Retorna todas as participaÃ§Ãµes em treinamentos")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<TrainingParticipationDTO>> getAllParticipations() {
         List<TrainingParticipationDTO> participations = trainingService.getAllParticipations().stream()
                 .map(TrainingParticipationDTO::fromEntity)
@@ -148,7 +148,7 @@ public class SSTTrainingController {
 
     @GetMapping("/participations/{id}")
     @Operation(summary = "Buscar participaÃ§Ã£o por ID", description = "Retorna uma participaÃ§Ã£o especÃ­fica")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<TrainingParticipationDTO> getParticipationById(@PathVariable("id") UUID id) {
         TrainingParticipation participation = trainingService.getParticipationById(id);
         if (participation == null) {
@@ -159,7 +159,7 @@ public class SSTTrainingController {
 
     @GetMapping("/participations/employee/{employeeId}")
     @Operation(summary = "Listar participaÃ§Ãµes por funcionÃ¡rio", description = "Retorna participaÃ§Ãµes de um funcionÃ¡rio especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<TrainingParticipationDTO>> getParticipationsByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<TrainingParticipationDTO> participations = trainingService.getParticipationsByEmployee(employeeId).stream()
                 .map(TrainingParticipationDTO::fromEntity)
@@ -169,7 +169,7 @@ public class SSTTrainingController {
 
     @GetMapping("/participations/training/{trainingId}")
     @Operation(summary = "Listar participaÃ§Ãµes por treinamento", description = "Retorna participaÃ§Ãµes de um treinamento especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<TrainingParticipationDTO>> getParticipationsByTraining(@PathVariable("trainingId") UUID trainingId) {
         List<TrainingParticipationDTO> participations = trainingService.getParticipationsByTraining(trainingId).stream()
                 .map(TrainingParticipationDTO::fromEntity)
@@ -179,7 +179,7 @@ public class SSTTrainingController {
 
     @PostMapping("/participations")
     @Operation(summary = "Criar participaÃ§Ã£o", description = "Cria uma nova participaÃ§Ã£o em treinamento")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<TrainingParticipationDTO> createParticipation(@RequestBody TrainingParticipation participation) {
         TrainingParticipation created = trainingService.createParticipation(participation);
         return ResponseEntity.ok(TrainingParticipationDTO.fromEntity(created));
@@ -187,7 +187,7 @@ public class SSTTrainingController {
 
     @PutMapping("/participations/{id}")
     @Operation(summary = "Atualizar participaÃ§Ã£o", description = "Atualiza uma participaÃ§Ã£o existente")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<TrainingParticipationDTO> updateParticipation(@PathVariable("id") UUID id, @RequestBody TrainingParticipation participation) {
         TrainingParticipation updated = trainingService.updateParticipation(id, participation);
         if (updated == null) {
@@ -198,7 +198,7 @@ public class SSTTrainingController {
 
     @DeleteMapping("/participations/{id}")
     @Operation(summary = "Excluir participaÃ§Ã£o", description = "Exclui uma participaÃ§Ã£o")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<Void> deleteParticipation(@PathVariable("id") UUID id) {
         trainingService.deleteParticipation(id);
         return ResponseEntity.noContent().build();
@@ -208,7 +208,7 @@ public class SSTTrainingController {
 
     @GetMapping("/expired")
     @Operation(summary = "Listar treinamentos vencidos", description = "Retorna treinamentos que estÃ£o vencidos")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<TrainingParticipationDTO>> getExpiredTrainings() {
         List<TrainingParticipationDTO> participations = trainingService.getExpiredTrainings().stream()
                 .map(TrainingParticipationDTO::fromEntity)
@@ -218,7 +218,7 @@ public class SSTTrainingController {
 
     @GetMapping("/expiring")
     @Operation(summary = "Listar treinamentos prÃ³ximos do vencimento", description = "Retorna treinamentos que estÃ£o prÃ³ximos do vencimento")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<TrainingParticipationDTO>> getExpiringTrainings(@RequestParam(value = "daysAhead", defaultValue = "30") int daysAhead) {
         List<TrainingParticipationDTO> participations = trainingService.getExpiringTrainings(daysAhead).stream()
                 .map(TrainingParticipationDTO::fromEntity)
@@ -230,7 +230,7 @@ public class SSTTrainingController {
 
     @PostMapping("/schedule/{trainingId}/employee/{employeeId}")
     @Operation(summary = "Agendar treinamento", description = "Agenda automaticamente um treinamento para um funcionÃ¡rio")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<TrainingParticipationDTO> scheduleTraining(
             @PathVariable("trainingId") UUID trainingId, 
             @PathVariable("employeeId") UUID employeeId,
@@ -241,7 +241,7 @@ public class SSTTrainingController {
 
     @PostMapping("/complete/{participationId}")
     @Operation(summary = "Completar treinamento", description = "Marca um treinamento como completo")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<TrainingParticipationDTO> completeTraining(
             @PathVariable("participationId") UUID participationId,
             @RequestParam(value = "completionDate") LocalDate completionDate,

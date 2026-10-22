@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.z7design.fleet_manager.tenant.TenantContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.z7design.fleet_manager.model.User;
@@ -273,7 +274,15 @@ public class UserService {
         return userRepository.save(existingUser);
     }
 
+    @Transactional
     public User updateFromRequest(UUID id, com.z7design.fleet_manager.dto.UpdateUserRequest request) {
+        if (isSuperAdmin() && !TenantContext.isImpersonating()) {
+            return withoutTenantFilter(() -> doUpdateFromRequest(id, request));
+        }
+        return doUpdateFromRequest(id, request);
+    }
+
+    private User doUpdateFromRequest(UUID id, com.z7design.fleet_manager.dto.UpdateUserRequest request) {
         log.info("Atualizando usuÃ¡rio {} com dados: name={}, email={}, username={}, roles={}",
                 id, request.getName(), request.getEmail(), request.getUsername(), request.getRoles());
 

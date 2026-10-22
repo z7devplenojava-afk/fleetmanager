@@ -32,7 +32,7 @@ public class SSTController {
 
     @GetMapping("/alerts")
     @Operation(summary = "Listar alertas SST", description = "Retorna todos os alertas do sistema SST")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<SSTAlert>> getAllAlerts() {
         List<SSTAlert> alerts = alertService.getAllAlerts();
         return ResponseEntity.ok(alerts);
@@ -40,7 +40,7 @@ public class SSTController {
 
     @GetMapping("/alerts/employee/{employeeId}")
     @Operation(summary = "Listar alertas por funcionÃ¡rio", description = "Retorna alertas de um funcionÃ¡rio especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<SSTAlert>> getAlertsByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<SSTAlert> alerts = alertService.getAlertsByEmployee(employeeId);
         return ResponseEntity.ok(alerts);
@@ -48,7 +48,7 @@ public class SSTController {
 
     @GetMapping("/alerts/unread/employee/{employeeId}")
     @Operation(summary = "Listar alertas nÃ£o lidos por funcionÃ¡rio", description = "Retorna alertas nÃ£o lidos de um funcionÃ¡rio")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<SSTAlert>> getUnreadAlertsByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<SSTAlert> alerts = alertService.getUnreadAlertsByEmployee(employeeId);
         return ResponseEntity.ok(alerts);
@@ -56,7 +56,7 @@ public class SSTController {
 
     @GetMapping("/alerts/overdue")
     @Operation(summary = "Listar alertas vencidos", description = "Retorna alertas que estÃ£o vencidos")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<SSTAlert>> getOverdueAlerts() {
         List<SSTAlert> alerts = alertService.getOverdueAlerts();
         return ResponseEntity.ok(alerts);
@@ -64,7 +64,7 @@ public class SSTController {
 
     @GetMapping("/alerts/due-soon")
     @Operation(summary = "Listar alertas prÃ³ximos do vencimento", description = "Retorna alertas que vencem nos prÃ³ximos dias")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<SSTAlert>> getAlertsDueSoon(@RequestParam(value = "daysAhead", defaultValue = "7") int daysAhead) {
         List<SSTAlert> alerts = alertService.getAlertsDueSoon(daysAhead);
         return ResponseEntity.ok(alerts);
@@ -72,7 +72,7 @@ public class SSTController {
 
     @PostMapping("/alerts/{alertId}/read")
     @Operation(summary = "Marcar alerta como lido", description = "Marca um alerta como lido")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<Void> markAlertAsRead(@PathVariable("alertId") UUID alertId) {
         alertService.markAsRead(alertId);
         return ResponseEntity.ok().build();
@@ -80,7 +80,7 @@ public class SSTController {
 
     @PostMapping("/alerts/{alertId}/resolve")
     @Operation(summary = "Marcar alerta como resolvido", description = "Marca um alerta como resolvido")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<Void> markAlertAsResolved(@PathVariable("alertId") UUID alertId, Authentication authentication) {
         // Obter o usuÃ¡rio atual do contexto de autenticaÃ§Ã£o
         UUID resolvedByUserId = authenticationService.getCurrentUser(authentication).getId();
@@ -90,7 +90,7 @@ public class SSTController {
 
     @GetMapping("/alerts/count/unread/employee/{employeeId}")
     @Operation(summary = "Contar alertas nÃ£o lidos por funcionÃ¡rio", description = "Retorna a quantidade de alertas nÃ£o lidos de um funcionÃ¡rio")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<Long> countUnreadAlertsByEmployee(@PathVariable("employeeId") UUID employeeId) {
         Long count = alertService.countUnreadAlertsByEmployee(employeeId);
         return ResponseEntity.ok(count);
@@ -98,7 +98,7 @@ public class SSTController {
 
     @GetMapping("/alerts/type/{alertType}")
     @Operation(summary = "Listar alertas por tipo", description = "Retorna alertas de um tipo especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<SSTAlert>> getAlertsByType(@PathVariable("alertType") SSTAlertType alertType) {
         List<SSTAlert> alerts = alertService.getAlertsByType(alertType);
         return ResponseEntity.ok(alerts);
@@ -108,7 +108,7 @@ public class SSTController {
 
     @GetMapping("/dashboard/summary")
     @Operation(summary = "Resumo do dashboard SST", description = "Retorna resumo dos indicadores de SST")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<SSTDashboardSummary> getDashboardSummary() {
         SSTDashboardSummary summary = new SSTDashboardSummary();
         
@@ -135,7 +135,7 @@ public class SSTController {
     
     @GetMapping("/reports")
     @Operation(summary = "Listar relatÃ³rios SST", description = "Retorna todos os relatÃ³rios SST disponÃ­veis")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<Map<String, Object>>> getReports() {
         // TODO: Implementar quando a funcionalidade de relatÃ³rios SST for desenvolvida
         // Por enquanto, retorna lista vazia para evitar erros 500
@@ -144,7 +144,7 @@ public class SSTController {
 
     @GetMapping("/reports/executions")
     @Operation(summary = "Listar execuÃ§Ãµes de relatÃ³rios SST", description = "Retorna todas as execuÃ§Ãµes de relatÃ³rios SST")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<Map<String, Object>>> getReportExecutions() {
         // TODO: Implementar quando a funcionalidade de execuÃ§Ãµes de relatÃ³rios SST for desenvolvida
         // Por enquanto, retorna lista vazia para evitar erros 500

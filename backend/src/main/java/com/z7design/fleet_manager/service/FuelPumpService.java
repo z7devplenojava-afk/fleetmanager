@@ -27,6 +27,7 @@ public class FuelPumpService {
 
     // --- Tank Management ---
 
+    @Transactional(readOnly = true)
     public List<FuelTank> getTanks(UUID companyId) {
         return fuelTankRepository.findByCompanyId(companyId);
     }
@@ -41,6 +42,7 @@ public class FuelPumpService {
 
     // --- Pump Management ---
 
+    @Transactional(readOnly = true)
     public List<FuelPump> getPumps(UUID companyId) {
         return fuelPumpRepository.findByCompanyId(companyId);
     }
@@ -55,6 +57,7 @@ public class FuelPumpService {
 
     // --- Deliveries (Input) ---
 
+    @Transactional(readOnly = true)
     public List<FuelDelivery> getDeliveries(UUID companyId) {
         return fuelDeliveryRepository.findByCompanyId(companyId);
     }
@@ -75,6 +78,7 @@ public class FuelPumpService {
 
     // --- Readings (Output) ---
 
+    @Transactional(readOnly = true)
     public List<FuelPumpReading> getReadings(UUID companyId) {
         return fuelPumpReadingRepository.findByCompanyId(companyId);
     }
