@@ -30,7 +30,7 @@ public class SSTEPIDeliveryController {
 
     @GetMapping
     @Operation(summary = "Listar todas as entregas de EPIs", description = "Retorna todas as entregas de EPIs")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<EPIDeliveryDTO>> getAllEPIDeliveries() {
         log.info("GET /api/sst/epi-deliveries - Buscando todas as entregas de EPIs");
         List<EPIDeliveryDTO> deliveries = epiService.getAllEPIDeliveries().stream()
@@ -41,7 +41,7 @@ public class SSTEPIDeliveryController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar entrega de EPI por ID", description = "Retorna uma entrega específica pelo ID")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<EPIDeliveryDTO> getEPIDeliveryById(@PathVariable("id") UUID id) {
         log.info("GET /api/sst/epi-deliveries/{} - Buscando entrega de EPI", id);
         return epiService.getAllEPIDeliveries().stream()
@@ -54,7 +54,7 @@ public class SSTEPIDeliveryController {
 
     @PostMapping
     @Operation(summary = "Criar nova entrega de EPI", description = "Cria uma nova entrega de EPI com suporte a periodicidade, conferência de almoxarifado e estorno")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> createEPIDelivery(@RequestBody CreateEPIDeliveryRequest request) {
         log.info("POST /api/sst/epi-deliveries - Criando entrega de EPI para funcionário: {}", request.getEmployeeId());
         try {
@@ -90,7 +90,7 @@ public class SSTEPIDeliveryController {
 
     @PostMapping("/{id}/verify-almoxarifado")
     @Operation(summary = "Conferir e baixar estoque pelo Almoxarifado", description = "Almoxarifado confere os itens e efetua a baixa no estoque")
-    @PreAuthorize("hasAnyAuthority('ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> verifyDeliveryByAlmoxarifado(@PathVariable("id") UUID id, @RequestParam(value = "userId", required = false) UUID userId) {
         log.info("POST /api/sst/epi-deliveries/{}/verify-almoxarifado - Conferindo itens e efetuando baixa", id);
         try {
@@ -106,7 +106,7 @@ public class SSTEPIDeliveryController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar entrega de EPI", description = "Atualiza uma entrega de EPI existente")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<EPIDelivery> updateEPIDelivery(@PathVariable("id") UUID id, @RequestBody UpdateEPIDeliveryRequest request) {
         log.info("PUT /api/sst/epi-deliveries/{} - Atualizando entrega de EPI", id);
         // TODO: Implementar mÃ©todo updateEPIDelivery no service
@@ -115,7 +115,7 @@ public class SSTEPIDeliveryController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Deletar entrega de EPI", description = "Deleta uma entrega de EPI")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<Void> deleteEPIDelivery(@PathVariable("id") UUID id) {
         log.info("DELETE /api/sst/epi-deliveries/{} - Deletando entrega de EPI", id);
         // TODO: Implementar mÃ©todo deleteEPIDelivery no service
@@ -124,7 +124,7 @@ public class SSTEPIDeliveryController {
 
     @GetMapping("/employee/{employeeId}")
     @Operation(summary = "Listar entregas por funcionÃ¡rio", description = "Retorna todas as entregas de um funcionÃ¡rio especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<EPIDeliveryDTO>> getEPIDeliveriesByEmployee(@PathVariable("employeeId") UUID employeeId) {
         log.info("GET /api/sst/epi-deliveries/employee/{} - Buscando entregas por funcionÃ¡rio", employeeId);
         try {
@@ -140,7 +140,7 @@ public class SSTEPIDeliveryController {
 
     @GetMapping("/epi/{epiId}")
     @Operation(summary = "Listar entregas por EPI", description = "Retorna todas as entregas de um EPI especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<EPIDeliveryDTO>> getEPIDeliveriesByEPI(@PathVariable("epiId") UUID epiId) {
         log.info("GET /api/sst/epi-deliveries/epi/{} - Buscando entregas por EPI", epiId);
         try {
@@ -156,7 +156,7 @@ public class SSTEPIDeliveryController {
 
     @GetMapping("/expiring/{days}")
     @Operation(summary = "Listar entregas expirando", description = "Retorna entregas que estÃ£o expirando nos prÃ³ximos X dias")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<EPIDeliveryDTO>> getExpiringEPIDeliveries(@PathVariable("days") int days) {
         log.info("GET /api/sst/epi-deliveries/expiring/{} - Buscando entregas expirando em {} dias", days, days);
         // TODO: Implementar mÃ©todo getExpiringEPIDeliveries no service
@@ -165,7 +165,7 @@ public class SSTEPIDeliveryController {
 
     @PostMapping("/{id}/confirm-receipt")
     @Operation(summary = "Confirmar recebimento", description = "Confirma o recebimento de uma entrega de EPI")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<Void> confirmEPIReceipt(@PathVariable("id") UUID id, @RequestBody ConfirmReceiptRequest request) {
         log.info("POST /api/sst/epi-deliveries/{}/confirm-receipt - Confirmando recebimento", id);
         try {

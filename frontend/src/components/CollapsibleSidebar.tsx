@@ -1560,19 +1560,15 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const filteredComprasItems = useMemo(() => filterItemsForRole(comprasMenuItems), [filterItemsForRole]);
   const filteredEmailItems = useMemo(() => filterItemsForRole(emailMenuItems), [filterItemsForRole]);
   const filteredComunicacaoInternaItems = useMemo(
-    () => filterItemsForRole(comunicacaoInternaMenuItems).filter(item => {
-      // Regras por permissão para cada item de comunicação interna
-      if (item.id === 'mensagens' || item.id === 'chat-interno') {
-        return hasPermission('MESSAGES_READ');
-      }
+    () => comunicacaoInternaMenuItems.filter(item => {
       if (item.id === 'gestao-mensagens-grupos' || item.id === 'gestao-mensagens-notificacoes') {
         return hasPermission('MESSAGES_MANAGE');
       }
       return true;
     }),
-    [filterItemsForRole, hasPermission]
+    [hasPermission]
   );
-  const filteredAtendimentoItems = useMemo(() => filterItemsForRole(atendimentoMenuItems), [filterItemsForRole]);
+  const filteredAtendimentoItems = useMemo(() => atendimentoMenuItems, []);
   const filteredTrafegoItems = useMemo(() =>
     trafegoMenuItems.filter(item => hasPermission(item.permission)),
     [hasPermission]
@@ -1889,7 +1885,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           {renderModuleSection('comunicacao', 'Comunicação Interna', filteredComunicacaoInternaItems)}
 
           {/* Grupo Atendimento */}
-          {shouldShowModule('ATTENDANCE_READ') && renderModuleSection('atendimento', 'Atendimento', filteredAtendimentoItems)}
+          {renderModuleSection('atendimento', 'Atendimento', filteredAtendimentoItems)}
 
           {/* Módulo de Gestão de Tráfego */}
           {renderModuleSection('trafego', 'Gestão de Tráfego', filteredTrafegoItems)}

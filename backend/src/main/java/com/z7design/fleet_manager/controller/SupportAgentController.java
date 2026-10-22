@@ -31,7 +31,7 @@ public class SupportAgentController {
      * Listar todos os agentes
      */
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<SupportAgentDTO>> getAllAgents() {
         log.info("GET /api/v1/support/agents - Listando todos os agentes");
         List<SupportAgentDTO> agents = agentService.getAllAgents();
@@ -42,7 +42,7 @@ public class SupportAgentController {
      * Listar agentes ativos
      */
     @GetMapping("/active")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<SupportAgentDTO>> getActiveAgents() {
         log.info("GET /api/v1/support/agents/active - Listando agentes ativos");
         List<SupportAgentDTO> agents = agentService.getActiveAgents();
@@ -53,7 +53,7 @@ public class SupportAgentController {
      * Buscar agente por ID
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SupportAgentDTO> getAgentById(@PathVariable("id") UUID id) {
         log.info("GET /api/v1/support/agents/{} - Buscando agente por ID", id);
         SupportAgentDTO agent = agentService.getAgentById(id);
@@ -64,7 +64,7 @@ public class SupportAgentController {
      * Buscar agente por ID do usuÃ¡rio
      */
     @GetMapping("/user/{userId}")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SupportAgentDTO> getAgentByUserId(@PathVariable("userId") UUID userId) {
         log.info("GET /api/v1/support/agents/user/{} - Buscando agente por ID do usuÃ¡rio", userId);
         SupportAgentDTO agent = agentService.getAgentByUserId(userId);
@@ -75,7 +75,7 @@ public class SupportAgentController {
      * Buscar agentes por status
      */
     @GetMapping("/status/{status}")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<SupportAgentDTO>> getAgentsByStatus(@PathVariable("status") AgentStatus status) {
         log.info("GET /api/v1/support/agents/status/{} - Buscando agentes por status", status);
         List<SupportAgentDTO> agents = agentService.getAgentsByStatus(status);
@@ -86,7 +86,7 @@ public class SupportAgentController {
      * Buscar agente disponÃ­vel
      */
     @GetMapping("/available")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SupportAgentDTO> getAvailableAgent() {
         log.info("GET /api/v1/support/agents/available - Buscando agente disponÃ­vel");
         SupportAgentDTO agent = agentService.getAvailableAgent();
@@ -97,7 +97,7 @@ public class SupportAgentController {
      * Criar novo agente
      */
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('SUPPORT_CREATE', 'SUPPORT_MANAGE', 'ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SupportAgentDTO> createAgent(@Valid @RequestBody CreateAgentRequest request) {
         log.info("POST /api/v1/support/agents - Criando novo agente");
         SupportAgentDTO agent = agentService.createAgent(request);
@@ -108,7 +108,7 @@ public class SupportAgentController {
      * Atualizar status do agente
      */
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_WRITE', 'SUPPORT_MANAGE', 'ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SupportAgentDTO> updateAgentStatus(
             @PathVariable("id") UUID id, 
             @RequestParam(value = "status") AgentStatus status) {
@@ -121,7 +121,7 @@ public class SupportAgentController {
      * Atualizar departamento do agente
      */
     @PutMapping("/{id}/department")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_WRITE', 'SUPPORT_MANAGE', 'ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SupportAgentDTO> updateAgentDepartment(
             @PathVariable("id") UUID id, 
             @RequestParam(value = "department") String department) {
@@ -134,7 +134,7 @@ public class SupportAgentController {
      * Ativar/desativar agente
      */
     @PutMapping("/{id}/toggle-active")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_WRITE', 'SUPPORT_MANAGE', 'ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SupportAgentDTO> toggleAgentActive(@PathVariable("id") UUID id) {
         log.info("PUT /api/v1/support/agents/{}/toggle-active - Alternando status ativo", id);
         SupportAgentDTO agent = agentService.toggleAgentActive(id);
@@ -145,7 +145,7 @@ public class SupportAgentController {
      * Deletar agente
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_DELETE', 'SUPPORT_MANAGE', 'ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> deleteAgent(@PathVariable("id") UUID id) {
         log.info("DELETE /api/v1/support/agents/{} - Deletando agente", id);
         agentService.deleteAgent(id);
