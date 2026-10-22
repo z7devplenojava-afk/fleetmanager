@@ -51,8 +51,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
 
-        // Pular filtro para recursos estÃ¡ticos pÃºblicos (logos, uploads, etc)
+        // Pular filtro para recursos estáticos públicos (logos, uploads, etc)
         if (path.startsWith("/api/uploads/companies/logos/") ||
+                (path.startsWith("/api/uploads/") && "GET".equalsIgnoreCase(request.getMethod())) ||
                 path.startsWith("/uploads/") ||
                 path.startsWith("/holerites/") ||
                 path.startsWith("/api/auth/") ||

@@ -159,6 +159,21 @@ export const timeRecordService = {
       responseType: 'blob'
     });
     return response.data;
+  },
+
+  async updateRecord(recordId: string, data: { recordedAt?: string; recordType?: string; justification?: string; managerId?: string }) {
+    const response = await api.put(`/api/time-records/${recordId}`, data);
+    return response.data;
+  },
+
+  async createManualRecord(data: { employeeId: string; recordedAt: string; recordType: string; justification?: string; managerId?: string }) {
+    const response = await api.post('/api/time-records/manual', data);
+    return response.data;
+  },
+
+  async requestAdjustment(data: { employeeId: string; suggestedTime: string; recordType: string; justification: string }) {
+    const response = await api.post('/api/time-records/request-adjustment', data);
+    return response.data;
   }
 };
 

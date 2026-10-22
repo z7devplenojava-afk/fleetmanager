@@ -1755,7 +1755,7 @@ function App() {
 
                       {/* Usuarios */}
                       <Route path="/usuarios" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute requiredRoles={['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN']}>
                           <Usuarios />
                         </ProtectedRoute>
                       } />                      {/* Roles */}
@@ -1872,7 +1872,7 @@ function App() {
 
                       {/* Usuarios */}
                       <Route path="/usuarios" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute requiredRoles={['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN']}>
                           <Usuarios />
                         </ProtectedRoute>
                       } />                      {/* Roles */}

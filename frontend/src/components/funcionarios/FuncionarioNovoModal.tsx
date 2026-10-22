@@ -1401,35 +1401,47 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
   };
 
   const handleEmployeeRecordPdf = async (mode: 'download' | 'preview') => {
-    if (!employeeIdValue) {
-      toast({
-        title: "Atenção",
-        description: "É necessário salvar o funcionário primeiro para gerar a ficha.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setLoading(true);
     try {
-      const blob = await employeeService.generateEmployeeRecordPdf(employeeIdValue);
+      const data = getAdmissionDataFromForm();
+      const pdfDoc = await generateSingleAdmissionDocumentPdf('registro-empregado', data);
+      const blob = pdfDoc.output('blob');
+      const safeName = (data.name || 'funcionario').replace(/\s+/g, '_').toLowerCase();
       if (mode === 'preview') {
         openBlobInNewTab(blob);
       } else {
-        downloadBlob(blob, `ficha-registro-funcionario-${employeeIdValue}.pdf`);
+        downloadBlob(blob, `ficha_registro_${safeName}.pdf`);
       }
       toast({
         title: "Sucesso",
-        description: "Ficha de registro gerada com sucesso!",
+        description: "Ficha de registro de empregado gerada com o cabeçalho padrão com sucesso!",
         variant: "default"
       });
     } catch (error: any) {
-      console.error('❌ Erro ao gerar ficha:', error);
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível gerar a ficha.",
-        variant: "destructive"
-      });
+      console.warn('Tentando fallback para serviço backend:', error);
+      try {
+        if (!employeeIdValue) {
+          throw new Error('É necessário salvar o funcionário primeiro para gerar a ficha.');
+        }
+        const blob = await employeeService.generateEmployeeRecordPdf(employeeIdValue);
+        if (mode === 'preview') {
+          openBlobInNewTab(blob);
+        } else {
+          downloadBlob(blob, `ficha-registro-funcionario-${employeeIdValue}.pdf`);
+        }
+        toast({
+          title: "Sucesso",
+          description: "Ficha de registro gerada com sucesso!",
+          variant: "default"
+        });
+      } catch (err2: any) {
+        console.error('❌ Erro ao gerar ficha:', err2);
+        toast({
+          title: "Erro",
+          description: err2.message || "Não foi possível gerar a ficha.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -1709,7 +1721,7 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
     };
   };
 
-  const handleGenerateAdmissionDoc = (docType: string, mode: 'download' | 'preview') => {
+  const handleGenerateAdmissionDoc = async (docType: string, mode: 'download' | 'preview') => {
     const data = getAdmissionDataFromForm();
     if (!data.name || data.name.trim() === '') {
       toast({
@@ -1721,7 +1733,7 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
     }
 
     try {
-      const pdfDoc = generateSingleAdmissionDocumentPdf(docType, data);
+      const pdfDoc = await generateSingleAdmissionDocumentPdf(docType, data);
       const blob = pdfDoc.output('blob');
       const safeName = data.name.replace(/\s+/g, '_').toLowerCase();
 

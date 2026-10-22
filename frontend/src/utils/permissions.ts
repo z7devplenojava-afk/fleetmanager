@@ -45,7 +45,7 @@ export const ROLE_CATEGORIES: RoleCategory[] = [
   {
     id: 'operacional',
     name: 'Operação, Tráfego & Fretamento',
-    roles: ['GESTOR_OPERACIONAL', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'OPERACIONAL', 'ASSISTENTE_OPERACIONAL', 'MOTORISTA'],
+    roles: ['GESTOR_OPERACIONAL', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO', 'OPERACIONAL', 'ASSISTENTE_OPERACIONAL', 'MOTORISTA'],
   },
   {
     id: 'financeiro',
@@ -116,6 +116,10 @@ export const USER_ROLE_LIST: UserRole[] = [
   'GESTOR_OPERACIONAL',
   'GESTOR_TRAFEGO',
   'GESTOR_DE_TRAFEGO',
+  'ENCARREGADO_DE_TRANSPORTES',
+  'ENCARREGADO_TRANSPORTES',
+  'ENCARREGADO_DE_TRAFEGO',
+  'ENCARREGADO_TRAFEGO',
   'OPERACIONAL',
   'ASSISTENTE_OPERACIONAL',
   'MOTORISTA',
@@ -957,6 +961,10 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
     case 'GESTOR_OPERACIONAL':
     case 'GESTOR_TRAFEGO':
     case 'GESTOR_DE_TRAFEGO':
+    case 'ENCARREGADO_DE_TRANSPORTES':
+    case 'ENCARREGADO_TRANSPORTES':
+    case 'ENCARREGADO_DE_TRAFEGO':
+    case 'ENCARREGADO_TRAFEGO':
     case 'ASSISTENTE_OPERACIONAL':
       return {
         ...basePermissions,
@@ -974,7 +982,7 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         TRAFFIC_MANAGEMENT_READ: true,
         TRAFFIC_MANAGEMENT_WRITE: true,
         TRAFFIC_MANAGEMENT_CREATE: true,
-        TRAFFIC_MANAGEMENT_DELETE: role === 'GESTOR_OPERACIONAL' || role === 'GESTOR_TRAFEGO',
+        TRAFFIC_MANAGEMENT_DELETE: role === 'GESTOR_OPERACIONAL' || role === 'GESTOR_TRAFEGO' || role === 'ENCARREGADO_DE_TRANSPORTES' || role === 'ENCARREGADO_TRANSPORTES' || role === 'ENCARREGADO_DE_TRAFEGO' || role === 'ENCARREGADO_TRAFEGO',
         TRIPS_READ: true,
         TRIPS_WRITE: true,
         TRIPS_EXECUTE: true,
@@ -983,7 +991,7 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         ROUTES_READ: true,
         ROUTES_WRITE: true,
         ROUTES_CREATE: true,
-        ROUTES_DELETE: role === 'GESTOR_OPERACIONAL' || role === 'GESTOR_TRAFEGO',
+        ROUTES_DELETE: role === 'GESTOR_OPERACIONAL' || role === 'GESTOR_TRAFEGO' || role === 'ENCARREGADO_DE_TRANSPORTES' || role === 'ENCARREGADO_TRANSPORTES' || role === 'ENCARREGADO_DE_TRAFEGO' || role === 'ENCARREGADO_TRAFEGO',
         REPORTS_READ: true,
         REPORTS_GENERATE: true,
       };
@@ -1449,6 +1457,10 @@ export const getRoleDisplayName = (role: UserRole): string => {
     GESTOR: 'Gestor',
     GESTOR_TRAFEGO: 'Gestor de Tráfego',
     GESTOR_DE_TRAFEGO: 'Gestor de Tráfego',
+    ENCARREGADO_DE_TRANSPORTES: 'Encarregado de Transportes',
+    ENCARREGADO_TRANSPORTES: 'Encarregado de Transportes',
+    ENCARREGADO_DE_TRAFEGO: 'Encarregado de Tráfego',
+    ENCARREGADO_TRAFEGO: 'Encarregado de Tráfego',
     MOTORISTA: 'Motorista',
     MECANICO: 'Mecânico',
     PORTARIA: 'Portaria / Controle de Acesso',
@@ -1503,6 +1515,10 @@ export const getRoleColor = (role: UserRole): string => {
     GESTOR: 'bg-teal-100 text-teal-800',
     GESTOR_TRAFEGO: 'bg-orange-600 text-white',
     GESTOR_DE_TRAFEGO: 'bg-orange-600 text-white',
+    ENCARREGADO_DE_TRANSPORTES: 'bg-orange-600 text-white',
+    ENCARREGADO_TRANSPORTES: 'bg-orange-600 text-white',
+    ENCARREGADO_DE_TRAFEGO: 'bg-orange-600 text-white',
+    ENCARREGADO_TRAFEGO: 'bg-orange-600 text-white',
     MOTORISTA: 'bg-indigo-600 text-white',
     MECANICO: 'bg-gray-700 text-white',
     PORTARIA: 'bg-slate-500 text-white',

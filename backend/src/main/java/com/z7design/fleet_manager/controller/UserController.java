@@ -7,8 +7,11 @@ import com.z7design.fleet_manager.dto.ProfileResponse;
 import com.z7design.fleet_manager.dto.UpdateUserRequest;
 import com.z7design.fleet_manager.dto.CreateUserRequest;
 import com.z7design.fleet_manager.model.User;
+import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.repository.UserRepository;
+import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.service.LgpdConsentService;
+import java.util.Optional;
 import com.z7design.fleet_manager.service.UserService;
 import com.z7design.fleet_manager.service.UserOnlineStatusService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -38,12 +42,12 @@ import java.util.Objects;
 @Tag(name = "Usuários", description = "Endpoints para gestão de usuários")
 public class UserController {
 
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserController.class);
 
     private final UserService userService;
     private final UserRepository userRepository;
     private final UserOnlineStatusService userOnlineStatusService;
     private final LgpdConsentService lgpdConsentService;
+    private final EmployeeRepository employeeRepository;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
@@ -82,6 +86,16 @@ public class UserController {
             currentUser = userService.findByUsername(username)
                     .or(() -> userService.findByEmail(username))
                     .orElse(null);
+            if (currentUser == null) {
+                try {
+                    UUID userId = UUID.fromString(username);
+                    currentUser = userRepository.findById(userId).orElse(null);
+                } catch (IllegalArgumentException ignored) {}
+            }
+        }
+
+        if (currentUser != null && currentUser.getId() != null) {
+            currentUser = userRepository.findById(currentUser.getId()).orElse(currentUser);
         }
 
         if (currentUser == null) {
@@ -107,6 +121,36 @@ public class UserController {
             }
         }
 
+        UUID employeeId = null;
+        try {
+            Optional<Employee> empOpt = employeeRepository.findByUserId(currentUser.getId());
+            if (empOpt.isPresent()) {
+                employeeId = empOpt.get().getId();
+            } else if (currentUser.getName() != null && !currentUser.getName().isBlank()) {
+                Optional<Employee> empByName = employeeRepository.findByNameIgnoreCase(currentUser.getName().trim());
+                if (empByName.isPresent()) {
+                    Employee emp = empByName.get();
+                    employeeId = emp.getId();
+                    if (emp.getUser() == null) {
+                        emp.setUser(currentUser);
+                        employeeRepository.save(emp);
+                    }
+                }
+            } else if (currentUser.getEmail() != null && !currentUser.getEmail().isBlank()) {
+                Optional<Employee> empByEmail = employeeRepository.findByEmail(currentUser.getEmail().trim());
+                if (empByEmail.isPresent()) {
+                    Employee emp = empByEmail.get();
+                    employeeId = emp.getId();
+                    if (emp.getUser() == null) {
+                        emp.setUser(currentUser);
+                        employeeRepository.save(emp);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Erro ao resolver employeeId no perfil do usuário {}: {}", currentUser.getId(), e.getMessage());
+        }
+
         ProfileResponse response = ProfileResponse.builder()
                 .id(currentUser.getId())
                 .username(currentUser.getUsername())
@@ -117,6 +161,7 @@ public class UserController {
                 .roles(roleNames)
                 .firstAccessCompleted(currentUser.getFirstAccessCompleted() != null && currentUser.getFirstAccessCompleted())
                 .requiresLgpdConsent(requiresLgpdConsent)
+                .employeeId(employeeId)
                 .build();
 
         return ResponseEntity.ok(response);
@@ -237,7 +282,7 @@ public class UserController {
     }
 
     @GetMapping("/username/{username}")
-    @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN') or hasAuthority('USERS_READ')")
     @Transactional(readOnly = true)
     @Operation(summary = "Buscar usuário por username", description = "Retorna um usuário específico pelo username")
     public ResponseEntity<UserListResponseDTO> getUserByUsername(@PathVariable("username") String username) {
@@ -257,7 +302,7 @@ public class UserController {
     }
 
     @GetMapping("/email/{email}")
-    @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN') or hasAuthority('USERS_READ')")
     @Transactional(readOnly = true)
     @Operation(summary = "Buscar usuário por email", description = "Retorna um usuário específico pelo email")
     public ResponseEntity<UserListResponseDTO> getUserByEmail(@PathVariable("email") String email) {
@@ -268,7 +313,7 @@ public class UserController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN') or hasAuthority('USERS_READ')")
     @Transactional(readOnly = true)
     @Operation(summary = "Buscar usuários", description = "Busca usuários por nome, email ou username com filtro dinâmico")
     public ResponseEntity<List<UserListResponseDTO>> searchUsers(
@@ -290,7 +335,7 @@ public class UserController {
     }
 
     @GetMapping("/cpf/{cpf}")
-    @PreAuthorize("hasAuthority('USERS_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN') or hasAuthority('USERS_READ')")
     @Transactional(readOnly = true)
     @Operation(summary = "Buscar usuário por CPF", description = "Busca usuário através do CPF do funcionário associado")
     @ApiResponses(value = {
@@ -306,7 +351,7 @@ public class UserController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('USERS_CREATE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN')")
     @Operation(summary = "Criar usuÃ¡rio", description = "Cria um novo usuÃ¡rio no sistema")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "UsuÃ¡rio criado com sucesso"),
@@ -325,6 +370,9 @@ public class UserController {
             System.out.println("âœ… UsuÃ¡rio criado: " + createdUser.getId());
 
             return ResponseEntity.status(201).body(convertToDTO(createdUser));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Acesso negado"));
         } catch (Exception e) {
             System.err.println("âŒ Erro ao criar usuÃ¡rio: " + e.getMessage());
             e.printStackTrace();
@@ -335,7 +383,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('USERS_WRITE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN')")
     @Transactional
     @Operation(summary = "Atualizar usuÃ¡rio", description = "Atualiza os dados de um usuÃ¡rio existente")
     @ApiResponses(value = {
@@ -399,6 +447,9 @@ public class UserController {
             log.warn("Erro de validaÃ§Ã£o ao atualizar usuÃ¡rio {}: {}", id, e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Dados invÃ¡lidos"));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Acesso negado"));
         } catch (RuntimeException e) {
             log.error("Erro de runtime ao atualizar usuÃ¡rio {}: {}", id, e.getMessage(), e);
             // Retornar erro especÃ­fico baseado na mensagem
@@ -534,7 +585,7 @@ public class UserController {
      * Administrador do sistema.
      */
     @PostMapping("/{id}/block")
-    @PreAuthorize("hasAuthority('USERS_DELETE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN')")
     @Transactional
     public ResponseEntity<?> blockUser(
             @PathVariable("id") String id,
@@ -546,6 +597,8 @@ public class UserController {
             if (user == null) {
                 return ResponseEntity.notFound().build();
             }
+
+            userService.assertCanManageUser(user);
 
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             String currentUsername = (auth != null) ? auth.getName() : "Admin";
@@ -577,6 +630,9 @@ public class UserController {
                     saved.getBlockedUntil(), reason != null ? reason : "sem motivo informado");
 
             return ResponseEntity.ok(convertToDTO(saved));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Acesso negado"));
         } catch (Exception e) {
             log.error("Erro ao bloquear usuário {}: {}", id, e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of("error", "Erro ao bloquear usuário: " + e.getMessage()));
@@ -587,7 +643,7 @@ public class UserController {
      * Desbloqueia um usuário imediatamente.
      */
     @PostMapping("/{id}/unblock")
-    @PreAuthorize("hasAuthority('USERS_DELETE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN')")
     @Transactional
     public ResponseEntity<?> unblockUser(@PathVariable("id") String id) {
         try {
@@ -597,6 +653,7 @@ public class UserController {
             if (user == null) {
                 return ResponseEntity.notFound().build();
             }
+            userService.assertCanManageUser(user);
             user.setBlocked(false);
             user.setBlockedUntil(null);
             user.setBlockedAt(null);
@@ -605,6 +662,9 @@ public class UserController {
             User saved = userRepository.save(user);
             log.info("Usuário {} desbloqueado com sucesso", saved.getUsername());
             return ResponseEntity.ok(convertToDTO(saved));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Acesso negado"));
         } catch (Exception e) {
             log.error("Erro ao desbloquear usuário {}: {}", id, e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of("error", "Erro ao desbloquear usuário: " + e.getMessage()));
@@ -612,7 +672,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('USERS_DELETE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN')")
     @Operation(summary = "Excluir usuário", description = "Exclui um usuário do sistema pelo ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Usuário excluído com sucesso"),
@@ -632,6 +692,9 @@ public class UserController {
         try {
             userService.delete(UUID.fromString(id));
             return ResponseEntity.noContent().build();
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Acesso negado"));
         } catch (org.springframework.dao.DataIntegrityViolationException ex) {
             log.warn("Usuário {} possui registros vinculados e não pode ser excluído fisicamente. Desativando usuário...", id);
             try {
@@ -653,7 +716,7 @@ public class UserController {
     }
 
     @PostMapping("/bulk-delete")
-    @PreAuthorize("hasAuthority('USERS_DELETE') or hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN')")
     @Operation(summary = "Excluir usuários em massa", description = "Exclui múltiplos usuários do sistema pelos IDs informados")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Usuários excluídos com sucesso"),

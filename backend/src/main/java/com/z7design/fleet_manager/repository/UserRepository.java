@@ -85,10 +85,29 @@ public interface UserRepository extends JpaRepository<User, UUID> {
        List<User> searchUsers(@Param("query") String query);
 
        /**
-        * Busca usuÃ¡rio atravÃ©s do CPF do funcionÃ¡rio associado
+        * Busca usuário através do CPF do funcionário associado
         */
        @Query("SELECT u FROM User u " +
                      "JOIN Employee e ON e.user.id = u.id " +
                      "WHERE e.document = :cpf")
        Optional<User> findByEmployeeCpf(@Param("cpf") String cpf);
+
+       /**
+        * Busca usuário por username, email, CPF ou matrícula de funcionário
+        */
+       @Query(value = "SELECT u.* FROM users u " +
+                     "LEFT JOIN employees e ON e.user_id = u.id " +
+                     "WHERE LOWER(u.username) = LOWER(:identifier) " +
+                     "   OR LOWER(u.email) = LOWER(:identifier) " +
+                     "   OR (LENGTH(:cleanDigits) >= 11 AND (" +
+                     "         REGEXP_REPLACE(COALESCE(u.username, ''), '[^0-9]', '', 'g') = :cleanDigits " +
+                     "      OR REGEXP_REPLACE(COALESCE(e.document, ''), '[^0-9]', '', 'g') = :cleanDigits" +
+                     "   )) " +
+                     "   OR (LENGTH(TRIM(:identifier)) >= 2 AND (" +
+                     "         LOWER(TRIM(COALESCE(u.employee_code, ''))) = LOWER(TRIM(:identifier)) " +
+                     "      OR LOWER(TRIM(COALESCE(e.registration_number, ''))) = LOWER(TRIM(:identifier)) " +
+                     "      OR LOWER(TRIM(COALESCE(e.matricula_esocial, ''))) = LOWER(TRIM(:identifier))" +
+                     "   )) " +
+                     "LIMIT 1", nativeQuery = true)
+       Optional<User> findByIdentifierNative(@Param("identifier") String identifier, @Param("cleanDigits") String cleanDigits);
 }

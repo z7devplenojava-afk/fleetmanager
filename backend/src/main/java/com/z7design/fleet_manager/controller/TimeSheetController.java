@@ -29,8 +29,8 @@ public class TimeSheetController {
     private final TimeSheetService timeSheetService;
 
     @GetMapping("/{employeeId}")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL')")
-    @Operation(summary = "Gerar folha de ponto mensal em Excel para um funcionÃ¡rio")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'COMPANY_ADMIN', 'MOTORISTA', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_COMPANY_ADMIN', 'ROLE_MOTORISTA')")
+    @Operation(summary = "Gerar folha de ponto mensal em Excel para um funcionário")
     public ResponseEntity<byte[]> generateTimeSheet(
             @PathVariable("employeeId") UUID employeeId,
             @RequestParam(value = "year", required = false) Integer year,
@@ -50,6 +50,32 @@ public class TimeSheetController {
                     .body(fileBytes);
         } catch (Exception e) {
             log.error("Erro ao gerar folha de ponto: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/{employeeId}/pdf")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'COMPANY_ADMIN', 'MOTORISTA', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_COMPANY_ADMIN', 'ROLE_MOTORISTA')")
+    @Operation(summary = "Gerar folha de ponto mensal em PDF para um funcionário")
+    public ResponseEntity<byte[]> generateTimeSheetPdf(
+            @PathVariable("employeeId") UUID employeeId,
+            @RequestParam(value = "year", required = false) Integer year,
+            @RequestParam(value = "month", required = false) Integer month) {
+        try {
+            LocalDate today = LocalDate.now();
+            int resolvedYear = (year != null) ? year : today.getYear();
+            int resolvedMonth = (month != null) ? month : today.getMonthValue();
+
+            byte[] pdfBytes = timeSheetService.generateMonthlyTimeSheetPdf(employeeId, resolvedYear, resolvedMonth);
+
+            String filename = String.format("espelho-ponto-%s-%02d-%04d.pdf", employeeId, resolvedMonth, resolvedYear);
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(pdfBytes);
+        } catch (Exception e) {
+            log.error("Erro ao gerar folha de ponto em PDF: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().build();
         }
     }

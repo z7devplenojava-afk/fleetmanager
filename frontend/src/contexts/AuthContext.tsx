@@ -293,6 +293,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         'GESTOR_OPERACIONAL',
         'GESTOR_TRAFEGO',
         'GESTOR_DE_TRAFEGO',
+        'ENCARREGADO_DE_TRANSPORTES',
+        'ENCARREGADO_TRANSPORTES',
+        'ENCARREGADO_DE_TRAFEGO',
+        'ENCARREGADO_TRAFEGO',
         'OPERACIONAL',
         'ASSISTENTE_OPERACIONAL',
         'MOTORISTA',
@@ -363,6 +367,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         department: response.data.user?.department,
         position: response.data.user?.position,
         employeeCode: response.data.user?.employeeCode,
+        employeeId: response.data.user?.employeeId || response.data.employeeId,
         firstAccessCompleted: response.data.user?.firstAccessCompleted ?? response.data.firstAccessCompleted ?? false,
         requiresLgpdConsent: response.data?.requiresLgpdConsent === true,
       };
@@ -537,7 +542,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           'GESTOR', 'GESTOR_COMERCIAL', 'COMERCIAL', 'VENDAS',
           'GESTOR_DE_COMPRAS', 'COMPRAS', 'ALMOXARIFADO',
           'GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'ANALISTA_DE_FROTA', 'ANALISTA_FROTA', 'MANUTENCAO', 'MECANICO',
-          'GESTOR_OPERACIONAL', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO',
+          'GESTOR_OPERACIONAL', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO',
           'OPERACIONAL', 'ASSISTENTE_OPERACIONAL', 'MOTORISTA',
           'GESTOR_FINANCEIRO', 'FINANCEIRO', 'ASSISTENTE_FINANCEIRO',
           'RH', 'ASSISTENCIA_RH', 'AUXILIAR_DE_RH',
@@ -569,6 +574,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           active: response.data.active !== undefined ? response.data.active : userData.active,
           roles: rolesFromServer.length > 0 ? rolesFromServer : userData.roles,
           role: primaryRole,
+          employeeId: response.data.employeeId || userData.employeeId,
           firstAccessCompleted: response.data.firstAccessCompleted !== undefined
             ? response.data.firstAccessCompleted
             : userData.firstAccessCompleted,

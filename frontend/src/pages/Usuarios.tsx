@@ -128,6 +128,14 @@ const Usuarios: React.FC = () => {
     return (roles as any[]).map((r) => r.name);
   };
 
+  const normalizeRoleName = (role: string) => role.replace(/^ROLE_/, '').toUpperCase();
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const isAdminUser = (user: User) => extractRoleNames(user.roles)
+    .some(role => ['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(normalizeRoleName(role)));
+  const canManageUser = (user: User) => isSuperAdmin
+    || String(user.id) === String(currentUser?.id)
+    || !isAdminUser(user);
+
   const filterUsers = () => {
     let filtered = users;
 
@@ -153,14 +161,9 @@ const Usuarios: React.FC = () => {
       filtered = filtered.filter(user => extractRoleNames(user.roles).includes(roleFilter));
     }
 
-    const isFlexAdmin = currentUser && (currentUser.role === 'FLEX_ADMIN' || currentUser.role === 'SUPER_ADMIN');
-
-    // Filtro de segurança: esconder usuários FLEX_ADMIN e SUPER_ADMIN de quem não é FlexAdmin
-    if (!isFlexAdmin) {
-      filtered = filtered.filter(user => {
-        const userRoles = extractRoleNames(user.roles);
-        return !userRoles.includes('FLEX_ADMIN') && !userRoles.includes('SUPER_ADMIN');
-      });
+    // Filtro de segurança: somente SUPER_ADMIN gerencia outras contas administrativas
+    if (!isSuperAdmin) {
+      filtered = filtered.filter(user => !isAdminUser(user) || String(user.id) === String(currentUser?.id));
     }
 
     setFilteredUsers(filtered);
@@ -377,9 +380,8 @@ const Usuarios: React.FC = () => {
                 <option value="all">Todos os cargos</option>
                 {roles
                   .filter(role => {
-                    const isFlexAdmin = currentUser && (currentUser.role === 'FLEX_ADMIN' || currentUser.role === 'SUPER_ADMIN');
-                    if (!isFlexAdmin) {
-                      return role !== 'FLEX_ADMIN' && role !== 'SUPER_ADMIN' && role !== 'TI_SUPORTE';
+                    if (!isSuperAdmin) {
+                      return !['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN', 'TI_SUPORTE'].includes(normalizeRoleName(role));
                     }
                     return true;
                   })
@@ -712,24 +714,28 @@ const Usuarios: React.FC = () => {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditUser(user)}
-                              title="Editar Usuário"
-                              className="text-green-600 hover:text-green-700"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteUser(user)}
-                              title="Excluir Usuário"
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canManageUser(user) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditUser(user)}
+                                title="Editar Usuário"
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canManageUser(user) && String(user.id) !== String(currentUser?.id) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteUser(user)}
+                                title="Excluir Usuário"
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

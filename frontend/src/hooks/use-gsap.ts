@@ -13,11 +13,15 @@ export const useGSAP = () => {
   const triggersRef = useRef<ScrollTrigger[]>([]);
 
   useEffect(() => {
+    let safetyTimer: ReturnType<typeof setTimeout> | undefined;
+
     const timer = setTimeout(() => {
       const elements = document.querySelectorAll('[data-animate]');
       if (elements.length === 0) {
         return;
       }
+
+      const tweens: { element: Element; tween: gsap.core.Tween | null }[] = [];
 
       elements.forEach((element) => {
         const animationType = element.getAttribute('data-animate') || 'fadeUp';
@@ -66,11 +70,29 @@ export const useGSAP = () => {
         if (tween?.scrollTrigger) {
           triggersRef.current.push(tween.scrollTrigger);
         }
+
+        tweens.push({ element, tween });
       });
+
+      // 🛡 Safety-net mobile/PWA: em iOS/Safari standalone o ScrollTrigger
+      // às vezes não dispara e deixa os elementos presos em opacity 0
+      // (tela "vazia"/escura). Após o tempo máximo das animações, revela
+      // qualquer elemento que não rodou e cancela o tween órfão.
+      safetyTimer = setTimeout(() => {
+        ScrollTrigger.refresh();
+        tweens.forEach(({ element, tween }) => {
+          if (window.getComputedStyle(element).opacity === '0') {
+            tween?.scrollTrigger?.kill();
+            tween?.kill();
+            gsap.set(element, { opacity: 1, visibility: 'visible', clearProps: 'transform' });
+          }
+        });
+      }, 2000);
     }, 20);
 
     return () => {
       clearTimeout(timer);
+      if (safetyTimer) clearTimeout(safetyTimer);
       triggersRef.current.forEach((t) => t.kill());
       triggersRef.current = [];
     };

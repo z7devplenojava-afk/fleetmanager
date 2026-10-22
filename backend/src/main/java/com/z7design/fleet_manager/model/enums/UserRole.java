@@ -25,6 +25,10 @@ public enum UserRole {
     PORTARIA, // 🔘 Controle de acesso
     GESTOR_TRAFEGO, // 🚦 Gestão de escalas e tráfego
     GESTOR_DE_TRAFEGO, // 🚦 Gestão de escalas e tráfego
+    ENCARREGADO_DE_TRANSPORTES, // 🚦 Encarregado de Transportes
+    ENCARREGADO_TRANSPORTES, // 🚦 Encarregado de Transportes
+    ENCARREGADO_DE_TRAFEGO, // 🚦 Encarregado de Tráfego
+    ENCARREGADO_TRAFEGO, // 🚦 Encarregado de Tráfego
     MANUTENCAO, // 🛠️ Manutenção
     GESTOR_DE_MANUTENCAO, // 🛠️ Gestor de Manutenção
     ENCARREGADO_DE_MANUTENCAO, // 🛠️ Encarregado de Manutenção

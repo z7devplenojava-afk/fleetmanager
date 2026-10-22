@@ -64,13 +64,16 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting.current) return;
-    isSubmitting.current = true;
     setError('');
 
     if (!username || !password) {
       setError('Por favor, preencha todos os campos.');
       return;
     }
+
+    // Marcar envio APENAS após validação — antes, um submit vazio travava
+    // isSubmitting em true e o botão parava de responder para sempre
+    isSubmitting.current = true;
 
     setLoading(true);
     try {
@@ -97,6 +100,21 @@ const Login = () => {
         setTimeout(() => {
           navigate('/request-access');
         }, 1500);
+        return;
+      }
+
+      // Colaborador cadastrado no RH necessitando primeiro acesso para definir senha
+      if (errorCode === 'FIRST_ACCESS_REQUIRED') {
+        const msg = err?.response?.data?.message || 'Colaborador localizado, mas é necessário criar sua senha de acesso.';
+        toast({
+          title: "Primeiro Acesso Necessário",
+          description: msg,
+          variant: "default"
+        });
+        setError(msg);
+        setTimeout(() => {
+          navigate('/first-access/change-password', { state: { identifier: username } });
+        }, 2000);
         return;
       }
 
@@ -194,7 +212,7 @@ const Login = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-xs font-bold uppercase tracking-tighter text-white/90 ml-1">
-                  Usuário
+                  CPF, Matrícula ou E-mail
                 </Label>
                 <div className="relative group">
                   <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-primary transition-colors" />
@@ -204,8 +222,8 @@ const Login = () => {
                     autoComplete="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="h-14 bg-black/40 border-white/10 focus:border-primary/50 focus:ring-primary/20 rounded-2xl pl-12 transition-all placeholder:text-white/20 font-medium text-white !bg-black/40 !text-white"
-                    placeholder="ex: jose.ramos"
+                    className="h-14 bg-black/40 border-white/10 focus:border-primary/50 focus:ring-primary/20 rounded-2xl pl-12 transition-all placeholder:text-white/30 font-medium text-white !bg-black/40 !text-white text-sm sm:text-base"
+                    placeholder="000.000.000-00, matrícula ou e-mail"
                   />
                 </div>
               </div>

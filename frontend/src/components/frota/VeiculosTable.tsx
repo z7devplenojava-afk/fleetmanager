@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Trash2, Eye, Download, Trash2Icon, Edit3, AlertTriangle, Clock, CheckCircle2, CalendarClock, Loader2, QrCode, Wrench, FileText } from 'lucide-react';
+import { Edit, Trash2, Eye, Download, Trash2Icon, Edit3, AlertTriangle, Clock, CheckCircle2, CalendarClock, Loader2, QrCode, Wrench, FileText, MoreHorizontal, Car, Bus, Truck } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +14,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import VeiculoDeleteDialog from './VeiculoDeleteDialog';
 import VehicleDetailPanel from './VehicleDetailPanel';
 import VehicleQRCodeModal from './VehicleQRCodeModal';
@@ -635,48 +641,44 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
   return (
     <>
       {/* Cabeçalho com Estatísticas */}
-      <div className="bg-seguranca-black border border-gray-600 rounded-lg p-4 mb-4">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="bg-seguranca-black border border-gray-700/80 rounded-xl p-3 sm:p-4 mb-4 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4">
           <div>
-            <h2 className="text-xl font-semibold text-seguranca-lightgray mb-2">
+            <h2 className="text-base sm:text-xl font-bold text-seguranca-lightgray mb-2.5">
               Veículos da Frota
             </h2>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-400">Total de veículos:</span>
-                <span className="text-seguranca-lightgray font-semibold">{filteredVeiculos.length}</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="bg-seguranca-graphite/60 border border-gray-700/60 rounded-lg p-2 flex flex-col">
+                <span className="text-[11px] text-gray-400">Total</span>
+                <span className="text-white font-extrabold text-base sm:text-lg">{filteredVeiculos.length}</span>
               </div>
-              {filteredVeiculos.length > 0 && (
-                <>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400">Ativos:</span>
-                    <span className="text-green-400 font-semibold">
-                      {filteredVeiculos.filter(v => !isVehicleInMaintenance(v.id, v.placa, v.status) && (v.status.toLowerCase() === 'ativo' || v.status.toLowerCase() === 'active')).length}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400">Em manutenção:</span>
-                    <span className="text-amber-400 font-semibold">
-                      {filteredVeiculos.filter(v => isVehicleInMaintenance(v.id, v.placa, v.status)).length}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400">Inativos:</span>
-                    <span className="text-red-400 font-semibold">
-                      {filteredVeiculos.filter(v => v.status.toLowerCase() === 'inativo' || v.status.toLowerCase() === 'inactive').length}
-                    </span>
-                  </div>
-                </>
-              )}
+              <div className="bg-green-950/20 border border-green-800/40 rounded-lg p-2 flex flex-col">
+                <span className="text-[11px] text-green-400/80">Ativos</span>
+                <span className="text-green-400 font-extrabold text-base sm:text-lg">
+                  {filteredVeiculos.filter(v => !isVehicleInMaintenance(v.id, v.placa, v.status) && (v.status.toLowerCase() === 'ativo' || v.status.toLowerCase() === 'active')).length}
+                </span>
+              </div>
+              <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-2 flex flex-col">
+                <span className="text-[11px] text-amber-400/80">Em Manutenção</span>
+                <span className="text-amber-400 font-extrabold text-base sm:text-lg">
+                  {filteredVeiculos.filter(v => isVehicleInMaintenance(v.id, v.placa, v.status)).length}
+                </span>
+              </div>
+              <div className="bg-red-950/20 border border-red-800/40 rounded-lg p-2 flex flex-col">
+                <span className="text-[11px] text-red-400/80">Inativos</span>
+                <span className="text-red-400 font-extrabold text-base sm:text-lg">
+                  {filteredVeiculos.filter(v => v.status.toLowerCase() === 'inativo' || v.status.toLowerCase() === 'inactive').length}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={handleExport}
-              className="border-green-500 text-green-500 hover:bg-green-500 hover:text-white"
+              className="border-green-500/60 text-green-500 hover:bg-green-500 hover:text-white w-full sm:w-auto h-10 sm:h-9"
             >
               <Download size={16} className="mr-2" />
               Exportar
@@ -738,11 +740,264 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
         </div>
       )}
 
-      <div className="w-full overflow-auto bg-seguranca-black border border-gray-600 rounded-lg">
+      {/* ========================================================================= */}
+      {/* 1. VISUALIZAÇÃO MOBILE (CARDS INDIVIDUAIS COM DESIGN RESPONSIVO)           */}
+      {/* ========================================================================= */}
+      <div className="block md:hidden space-y-3">
+        {filteredVeiculos.length > 0 && (
+          <div className="flex items-center justify-between bg-seguranca-graphite border border-gray-700/80 rounded-lg px-3 py-2 text-xs">
+            <label className="flex items-center gap-2 cursor-pointer text-gray-300">
+              <Checkbox
+                checked={selectAll}
+                onCheckedChange={handleSelectAll}
+                className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
+              />
+              <span>Selecionar todos ({filteredVeiculos.length})</span>
+            </label>
+            {selectedItems.size > 0 && (
+              <span className="text-seguranca-yellow font-bold">
+                {selectedItems.size} selecionado(s)
+              </span>
+            )}
+          </div>
+        )}
+
+        {filteredVeiculos.map((veiculo) => {
+          const alert = getMaintenanceAlert(veiculo.id);
+          const alertCfg = alert ? ALERT_BADGE[alert.alertLevel] : null;
+          const AlertIcon = alertCfg ? alertCfg.icon : null;
+
+          const workOrder = getVehicleWorkOrder(veiculo.id, veiculo.placa);
+          const legacyMaintenance = getVehicleLegacyMaintenance(veiculo.id, veiculo.placa);
+          const inMaintenance = isVehicleInMaintenance(veiculo.id, veiculo.placa, veiculo.status);
+          const osNumber = workOrder?.osNumber || (workOrder?.id ? `OS-${workOrder.id.slice(0, 8)}` : null);
+          const osType = workOrder?.maintenanceType || legacyMaintenance?.maintenanceType || '';
+          const osDesc = workOrder?.anomaliesDescription || workOrder?.stopReason || workOrder?.otherDescription || workOrder?.notes || legacyMaintenance?.description || '';
+          const downtime = getVehicleDowntimeInfo(workOrder, legacyMaintenance);
+          const typeLabel = osType ? (
+            osType === 'CORRETIVA' ? 'Corretiva' :
+            osType === 'PREVENTIVA' ? 'Preventiva' :
+            osType === 'PREDITIVA' ? 'Preditiva' :
+            osType === 'INSPECAO' ? 'Inspeção' :
+            osType === 'LUBRIFICACAO' ? 'Lubrificação' :
+            osType === 'LIMPEZA' ? 'Limpeza' : osType
+          ) : '';
+
+          const statusLower = (veiculo.status || '').toLowerCase();
+          const isAtivo = statusLower === 'ativo' || statusLower === 'active';
+          const isInativo = statusLower === 'inativo' || statusLower === 'inactive';
+
+          return (
+            <div
+              key={`mobile-vehicle-${veiculo.id}`}
+              className="bg-seguranca-black border border-gray-700/80 hover:border-gray-600 rounded-xl p-3.5 space-y-3 shadow-md transition-all"
+            >
+              {/* Header do Card Mobile: Checkbox + Ícone Veículo + Placa + Status */}
+              <div className="flex items-center justify-between gap-2 border-b border-gray-800 pb-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Checkbox
+                    checked={selectedItems.has(veiculo.id)}
+                    onCheckedChange={(checked) => handleSelectItem(veiculo.id, checked as boolean)}
+                    className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow h-4 w-4 shrink-0"
+                  />
+                  
+                  {/* Ícone estilizado do tipo de veículo */}
+                  <div className="w-9 h-9 rounded-lg bg-seguranca-graphite border border-gray-700/80 flex items-center justify-center shrink-0 text-seguranca-yellow shadow-inner">
+                    {veiculo.vehicleType === 'ONIBUS' || veiculo.vehicleType === 'BUS' ? (
+                      <Bus className="w-5 h-5 text-seguranca-yellow" />
+                    ) : veiculo.vehicleType === 'CAMINHAO' || veiculo.vehicleType === 'TRUCK' ? (
+                      <Truck className="w-5 h-5 text-seguranca-yellow" />
+                    ) : (
+                      <Car className="w-5 h-5 text-seguranca-yellow" />
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="font-mono font-extrabold text-seguranca-yellow text-base tracking-wider leading-none truncate">
+                      {veiculo.placa}
+                    </div>
+                    <div className="text-[11px] text-gray-400 mt-1 truncate leading-none">
+                      {veiculo.marca} {veiculo.modelo}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="shrink-0 flex items-center gap-1.5">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 border-gray-700 text-gray-400">
+                    {veiculo.ano}
+                  </Badge>
+
+                  {inMaintenance ? (
+                    <Badge className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[10px] px-2 py-0.5 flex items-center gap-1 shadow-xs">
+                      <Wrench className="w-2.5 h-2.5" />
+                      <span>Em Manutenção</span>
+                    </Badge>
+                  ) : isAtivo ? (
+                    <Badge className="bg-emerald-600 text-white font-semibold text-[10px] px-2 py-0.5">
+                      Ativo
+                    </Badge>
+                  ) : isInativo ? (
+                    <Badge variant="destructive" className="font-semibold text-[10px] px-2 py-0.5">
+                      Inativo
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                      {veiculo.status}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Seção Exclusiva de Manutenção / Ordem de Serviço (Largura total, sem quebra horizontal) */}
+              {inMaintenance && (
+                <div className="bg-amber-950/30 border border-amber-600/40 rounded-lg p-2.5 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Wrench className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      {workOrder ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedWorkOrderForView(workOrder)}
+                          className="inline-flex items-center gap-1 font-mono font-bold text-xs text-amber-300 hover:text-amber-200 underline decoration-amber-500/50"
+                          title="Clique para abrir e visualizar a Ordem de Serviço"
+                        >
+                          <FileText className="w-3 h-3 text-amber-400 shrink-0" />
+                          <span>{osNumber}</span>
+                          {typeLabel && <span className="font-normal opacity-80">• {typeLabel}</span>}
+                        </button>
+                      ) : legacyMaintenance ? (
+                        <button
+                          type="button"
+                          onClick={() => onViewMaintenance?.(legacyMaintenance)}
+                          className="text-xs text-amber-300 hover:text-amber-200 underline font-medium"
+                        >
+                          Ver Manutenção
+                        </button>
+                      ) : (
+                        <span className="text-xs font-semibold text-amber-300">Veículo em Manutenção</span>
+                      )}
+                    </div>
+
+                    {downtime && (
+                      <div
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${
+                          downtime.severity === 'critical'
+                            ? 'bg-rose-950/80 border-rose-500/60 text-rose-200'
+                            : downtime.severity === 'warning'
+                            ? 'bg-amber-950/80 border-amber-500/60 text-amber-200'
+                            : 'bg-amber-950/40 border-amber-600/40 text-amber-300'
+                        }`}
+                        title={downtime.fullDetails}
+                      >
+                        <Clock className="w-3 h-3 text-amber-400" />
+                        <span>{downtime.label}: {downtime.durationFormatted}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {osDesc && (
+                    <p className="text-[11px] text-gray-300 bg-black/40 rounded p-1.5 border border-amber-500/20 line-clamp-2">
+                      {osDesc}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Informações detalhadas do Veículo */}
+              <div className="grid grid-cols-2 gap-2 text-xs bg-seguranca-graphite/40 rounded-lg p-2.5 border border-gray-800">
+                <div>
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wider block">KM Atual</span>
+                  <span className="font-mono font-bold text-green-400">
+                    {veiculo.quilometragem ? `${(Number(veiculo.quilometragem) / 1000).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} km` : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Combustível</span>
+                  <span className="text-gray-200 capitalize">
+                    {veiculo.combustivel || '—'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Badge de Alerta de Manutenção */}
+              {alert && alertCfg && AlertIcon && (
+                <div
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold w-full ${alertCfg.className}`}
+                  title={alert.mostCriticalTaskName
+                    ? `${alert.mostCriticalTaskName}${alert.mostCriticalMessage ? ` — ${alert.mostCriticalMessage}` : ''}`
+                    : alertCfg.label}
+                >
+                  <AlertIcon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{alertCfg.label}</span>
+                </div>
+              )}
+
+              {/* Barra de Ações Mobile com toque confortável */}
+              <div className="flex items-center justify-between gap-1.5 pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setQrModalVehicle(veiculo)}
+                  className="flex-1 h-9 border-amber-500/50 text-amber-400 hover:bg-amber-950/30 text-xs font-semibold"
+                  title="Ver QR Code do veículo"
+                >
+                  <QrCode size={14} className="mr-1" />
+                  QR Code
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleView(veiculo)}
+                  className="flex-1 h-9 border-gray-700 text-gray-300 hover:bg-gray-800 text-xs"
+                >
+                  <Eye size={14} className="mr-1" />
+                  Detalhes
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(veiculo)}
+                  className="flex-1 h-9 border-yellow-600/50 text-yellow-400 hover:bg-yellow-950/30 text-xs"
+                >
+                  <Edit size={14} className="mr-1" />
+                  Editar
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDelete(veiculo)}
+                  className="h-9 w-9 p-0 border-red-700/50 text-red-400 hover:bg-red-950/30 shrink-0"
+                  title="Excluir Veículo"
+                >
+                  <Trash2 size={15} />
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+
+        {filteredVeiculos.length === 0 && (
+          <div className="text-center py-12 bg-seguranca-black border border-gray-700 rounded-xl p-4">
+            <div className="w-14 h-14 mx-auto mb-2 border-2 border-dashed border-gray-600 rounded-full flex items-center justify-center text-2xl">
+              🚗
+            </div>
+            <p className="text-base font-semibold text-gray-200">Nenhum veículo encontrado</p>
+            <p className="text-xs text-gray-400 mt-1">Ajuste os filtros ou cadastre um novo veículo na frota.</p>
+          </div>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2. VISUALIZAÇÃO DESKTOP (TABELA DENSA COMPLETA)                            */}
+      {/* ========================================================================= */}
+      <div className="hidden md:block w-full overflow-auto bg-seguranca-black border border-gray-600 rounded-lg">
         <Table>
           <TableHeader>
             <TableRow className="bg-seguranca-graphite hover:bg-seguranca-graphite">
-              <TableHead className="w-12 text-center">
+              <TableHead className="w-10 text-center">
                 <Checkbox
                   checked={selectAll}
                   onCheckedChange={handleSelectAll}
@@ -750,14 +1005,14 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                   className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
                 />
               </TableHead>
-              <TableHead className="text-seguranca-lightgray font-semibold">Placa</TableHead>
-              <TableHead className="text-seguranca-lightgray font-semibold">Marca/Modelo</TableHead>
-              <TableHead className="text-seguranca-lightgray font-semibold text-center">Ano</TableHead>
-              <TableHead className="text-seguranca-lightgray font-semibold text-center">Tipo</TableHead>
-              <TableHead className="text-seguranca-lightgray font-semibold text-center">Combustível</TableHead>
-              <TableHead className="text-seguranca-lightgray font-semibold text-center">Quilometragem</TableHead>
-              <TableHead className="text-seguranca-lightgray font-semibold text-center">Status</TableHead>
-              <TableHead className="text-seguranca-lightgray font-semibold text-right">Ações</TableHead>
+              <TableHead className="text-seguranca-lightgray font-semibold text-xs sm:text-sm">Placa</TableHead>
+              <TableHead className="text-seguranca-lightgray font-semibold text-xs sm:text-sm">Marca/Modelo</TableHead>
+              <TableHead className="hidden lg:table-cell text-seguranca-lightgray font-semibold text-center text-xs sm:text-sm">Ano</TableHead>
+              <TableHead className="hidden lg:table-cell text-seguranca-lightgray font-semibold text-center text-xs sm:text-sm">Tipo</TableHead>
+              <TableHead className="hidden xl:table-cell text-seguranca-lightgray font-semibold text-center text-xs sm:text-sm">Combustível</TableHead>
+              <TableHead className="hidden md:table-cell text-seguranca-lightgray font-semibold text-center text-xs sm:text-sm">Quilometragem</TableHead>
+              <TableHead className="text-seguranca-lightgray font-semibold text-center text-xs sm:text-sm">Status</TableHead>
+              <TableHead className="text-seguranca-lightgray font-semibold text-right text-xs sm:text-sm">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -766,7 +1021,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                 key={veiculo.id}
                 className="hover:bg-seguranca-graphite/50 transition-colors border-b border-gray-700"
               >
-                <TableCell className="w-12 text-center">
+                <TableCell className="w-10 text-center px-2">
                   <Checkbox
                     checked={selectedItems.has(veiculo.id)}
                     onCheckedChange={(checked) => handleSelectItem(veiculo.id, checked as boolean)}
@@ -774,43 +1029,55 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                     className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
                   />
                 </TableCell>
-                <TableCell className="text-seguranca-lightgray">
-                  <div className="font-mono font-semibold text-seguranca-yellow text-lg">
-                    {veiculo.placa}
-                  </div>
-                  {(() => {
-                    const alert = getMaintenanceAlert(veiculo.id);
-                    if (!alert) return null;
-                    const cfg = ALERT_BADGE[alert.alertLevel];
-                    if (!cfg) return null;
-                    const AlertIcon = cfg.icon;
-                    return (
-                      <div
-                        className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${cfg.className}`}
-                        title={alert.mostCriticalTaskName
-                          ? `${alert.mostCriticalTaskName}${alert.mostCriticalMessage ? ` — ${alert.mostCriticalMessage}` : ''}`
-                          : cfg.label}
-                      >
-                        <AlertIcon className="h-3 w-3" />
-                        {cfg.label}
-                      </div>
-                    );
-                  })()}
-                </TableCell>
-                <TableCell className="text-seguranca-lightgray">
+                <TableCell className="text-seguranca-lightgray py-3 px-2">
                   <div className="flex flex-col">
-                    <span className="font-semibold">{veiculo.marca}</span>
-                    <span className="text-sm text-gray-400">{veiculo.modelo}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="font-mono font-bold text-seguranca-yellow text-base sm:text-lg leading-tight">
+                        {veiculo.placa}
+                      </div>
+                      <Badge variant="outline" className="md:hidden text-[9px] px-1 h-4 border-gray-600 text-gray-400">
+                        {veiculo.ano}
+                      </Badge>
+                    </div>
+                    <div className="md:hidden flex flex-col mt-0.5">
+                        <span className="text-[10px] text-gray-400 truncate max-w-[140px]">
+                          {veiculo.marca} {veiculo.modelo}
+                        </span>
+                    </div>
+                    {(() => {
+                      const alert = getMaintenanceAlert(veiculo.id);
+                      if (!alert) return null;
+                      const cfg = ALERT_BADGE[alert.alertLevel];
+                      if (!cfg) return null;
+                      const AlertIcon = cfg.icon;
+                      return (
+                        <div
+                          className={`mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold w-fit ${cfg.className}`}
+                          title={alert.mostCriticalTaskName
+                            ? `${alert.mostCriticalTaskName}${alert.mostCriticalMessage ? ` — ${alert.mostCriticalMessage}` : ''}`
+                            : cfg.label}
+                        >
+                          <AlertIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                          {cfg.label}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </TableCell>
-                <TableCell className="text-center text-seguranca-lightgray">
-                  <span className="font-mono font-semibold text-blue-400">
+                <TableCell className="hidden md:table-cell text-seguranca-lightgray">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-sm">{veiculo.marca}</span>
+                    <span className="text-xs text-gray-400">{veiculo.modelo}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="hidden lg:table-cell text-center text-seguranca-lightgray">
+                  <span className="font-mono font-semibold text-blue-400 text-sm">
                     {veiculo.ano}
                   </span>
                 </TableCell>
-                <TableCell className="text-center text-seguranca-lightgray">
+                <TableCell className="hidden lg:table-cell text-center text-seguranca-lightgray">
                   {veiculo.vehicleType && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-900/30 text-purple-400 border border-purple-700/30">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-900/30 text-purple-400 border border-purple-700/30">
                       {veiculo.vehicleType === 'BUS_ROAD' ? '🚌 Rodoviário' :
                        veiculo.vehicleType === 'BUS_LUXURY_TOURISM' ? '🚌✨ Luxo Turismo' :
                        veiculo.vehicleType === 'BUS_URBAN' ? '🏙️ Urbano' :
@@ -826,57 +1093,50 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                     </span>
                   )}
                 </TableCell>
-                <TableCell className="text-center text-seguranca-lightgray">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-900/20 text-blue-400 border border-blue-700/30">
+                <TableCell className="hidden xl:table-cell text-center text-seguranca-lightgray">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-900/20 text-blue-400 border border-blue-700/30">
                     {veiculo.combustivel.charAt(0).toUpperCase() + veiculo.combustivel.slice(1)}
                   </span>
                 </TableCell>
-                <TableCell className="text-center text-seguranca-lightgray">
-                  <span className="font-mono font-semibold text-green-400">
+                <TableCell className="hidden md:table-cell text-center text-seguranca-lightgray">
+                  <span className="font-mono font-semibold text-green-400 text-xs sm:text-sm">
                     {veiculo.quilometragem ? `${(Number(veiculo.quilometragem) / 1000).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} km` : '-'}
                   </span>
                 </TableCell>
-                <TableCell className="text-center">
-                  {getStatusBadge(veiculo)}
+                <TableCell className="text-center py-3 px-2">
+                  <div className="scale-90 sm:scale-100 origin-center">
+                    {getStatusBadge(veiculo)}
+                  </div>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right py-3 px-2">
                   <div className="flex justify-end gap-1">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setQrModalVehicle(veiculo)}
-                      className="h-8 w-8 p-0 border-yellow-500/60 text-yellow-500 hover:bg-yellow-500 hover:text-black"
+                      className="h-7 w-7 sm:h-8 sm:w-8 p-0 border-yellow-500/60 text-yellow-500 hover:bg-yellow-500 hover:text-black"
                       title="Ver QR Code do veículo"
                     >
                       <QrCode size={14} />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleView(veiculo)}
-                      className="h-8 w-8 p-0 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
-                      title="Visualizar detalhes"
-                    >
-                      <Eye size={14} />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(veiculo)}
-                      className="h-8 w-8 p-0 border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-white"
-                      title="Editar"
-                    >
-                      <Edit size={14} />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(veiculo)}
-                      className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-                      title="Excluir"
-                    >
-                      <Trash2 size={14} />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 p-0 hover:bg-gray-700">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-seguranca-graphite border-gray-600 z-[10100]">
+                        <DropdownMenuItem onClick={() => handleView(veiculo)} className="text-gray-200">
+                          <Eye className="mr-2 h-4 w-4" /> Detalhes
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEdit(veiculo)} className="text-yellow-400">
+                          <Edit className="mr-2 h-4 w-4" /> Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDelete(veiculo)} className="text-red-400">
+                          <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>

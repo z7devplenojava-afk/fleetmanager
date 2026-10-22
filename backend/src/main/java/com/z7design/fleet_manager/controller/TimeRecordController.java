@@ -33,7 +33,7 @@ public class TimeRecordController {
     private final TimeRecordReportService timeRecordReportService;
 
     @PostMapping("/register")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_CREATE', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_CREATE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR', 'ROLE_MECANICO') or isAuthenticated()")
     public ResponseEntity<?> registerTimeRecord(@RequestBody Map<String, Object> request) {
         try {
             UUID employeeId = UUID.fromString((String) request.get("employeeId"));
@@ -68,7 +68,7 @@ public class TimeRecordController {
     }
 
     @GetMapping("/today/{employeeId}")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR') or isAuthenticated()")
     public ResponseEntity<?> getTodayRecords(@PathVariable("employeeId") UUID employeeId) {
         try {
             List<TimeRecord> records = timeRecordService.getTodayRecords(employeeId);
@@ -84,7 +84,7 @@ public class TimeRecordController {
     }
 
     @GetMapping("/employee/{employeeId}")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR') or isAuthenticated()")
     public ResponseEntity<?> getEmployeeRecords(
             @PathVariable("employeeId") UUID employeeId,
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -99,7 +99,7 @@ public class TimeRecordController {
                     "totalElements", records.getTotalElements(),
                     "currentPage", records.getNumber()));
         } catch (Exception e) {
-            log.error("Erro ao buscar registros do funcionÃ¡rio: {}", e.getMessage());
+            log.error("Erro ao buscar registros do funcionário: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "error", e.getMessage()));
@@ -107,7 +107,7 @@ public class TimeRecordController {
     }
 
     @GetMapping("/period/{employeeId}")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR') or isAuthenticated()")
     public ResponseEntity<?> getRecordsByPeriod(
             @PathVariable("employeeId") UUID employeeId,
             @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -119,7 +119,7 @@ public class TimeRecordController {
                     "success", true,
                     "data", records));
         } catch (Exception e) {
-            log.error("Erro ao buscar registros por perÃ­odo: {}", e.getMessage());
+            log.error("Erro ao buscar registros por período: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "error", e.getMessage()));
@@ -127,7 +127,7 @@ public class TimeRecordController {
     }
 
     @GetMapping("/next-record-type/{employeeId}")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR') or isAuthenticated()")
     public ResponseEntity<?> getNextRecordType(@PathVariable("employeeId") UUID employeeId) {
         try {
             TimeRecord.RecordType nextType = timeRecordService.getNextRecordType(employeeId);
@@ -374,7 +374,7 @@ public class TimeRecordController {
     }
 
     @PostMapping("/{recordId}/justify")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_CREATE', 'TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_CREATE', 'TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR') or isAuthenticated()")
     public ResponseEntity<?> submitJustification(
             @PathVariable("recordId") UUID recordId,
             @RequestBody Map<String, String> request,
@@ -391,6 +391,91 @@ public class TimeRecordController {
         } catch (Exception e) {
             log.error("Erro ao enviar justificativa: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{recordId}")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'COMPANY_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_COMPANY_ADMIN')")
+    public ResponseEntity<?> updateTimeRecord(
+            @PathVariable("recordId") UUID recordId,
+            @RequestBody Map<String, Object> request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            java.time.LocalDateTime recordedAt = null;
+            if (request.get("recordedAt") != null) {
+                recordedAt = java.time.LocalDateTime.parse(request.get("recordedAt").toString());
+            }
+            TimeRecord.RecordType recordType = null;
+            if (request.get("recordType") != null) {
+                recordType = TimeRecord.RecordType.valueOf(request.get("recordType").toString());
+            }
+            String reason = (String) request.get("justification");
+            UUID managerId = null;
+            if (request.get("managerId") != null && !request.get("managerId").toString().isEmpty()) {
+                managerId = UUID.fromString(request.get("managerId").toString());
+            }
+
+            TimeRecord record = timeRecordService.updateTimeRecord(recordId, recordedAt, recordType, reason, managerId);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Ponto atualizado com sucesso pelo RH/DPE",
+                    "data", record));
+        } catch (Exception e) {
+            log.error("Erro ao atualizar ponto pelo RH/DPE: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/manual")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'COMPANY_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_COMPANY_ADMIN')")
+    public ResponseEntity<?> createManualRecord(
+            @RequestBody Map<String, Object> request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            UUID employeeId = UUID.fromString(request.get("employeeId").toString());
+            java.time.LocalDateTime recordedAt = java.time.LocalDateTime.parse(request.get("recordedAt").toString());
+            TimeRecord.RecordType recordType = TimeRecord.RecordType.valueOf(request.get("recordType").toString());
+            String reason = (String) request.get("justification");
+            UUID managerId = null;
+            if (request.get("managerId") != null && !request.get("managerId").toString().isEmpty()) {
+                managerId = UUID.fromString(request.get("managerId").toString());
+            }
+
+            TimeRecord record = timeRecordService.createManualRecord(employeeId, recordedAt, recordType, reason, managerId);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Ponto manual registrado com sucesso pelo RH/DPE",
+                    "data", record));
+        } catch (Exception e) {
+            log.error("Erro ao registrar ponto manual: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/request-adjustment")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_CREATE', 'TIME_RECORD_READ', 'MOTORISTA', 'ROLE_MOTORISTA', 'SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> requestAdjustment(
+            @RequestBody Map<String, Object> request) {
+        try {
+            UUID employeeId = UUID.fromString(request.get("employeeId").toString());
+            java.time.LocalDateTime suggestedTime = java.time.LocalDateTime.parse(request.get("suggestedTime").toString());
+            TimeRecord.RecordType recordType = TimeRecord.RecordType.valueOf(request.get("recordType").toString());
+            String justification = (String) request.get("justification");
+
+            TimeRecord record = timeRecordService.requestAdjustment(employeeId, suggestedTime, recordType, justification);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Solicitação de ajuste de ponto enviada com sucesso ao RH/DPE",
+                    "data", record));
+        } catch (Exception e) {
+            log.error("Erro ao solicitar ajuste de ponto: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", e.getMessage()));
         }
     }
 }

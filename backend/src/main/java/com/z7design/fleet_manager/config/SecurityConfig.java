@@ -49,7 +49,7 @@ public class SecurityConfig {
         }
 
         @Bean
-        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationProvider authenticationProvider) throws Exception {
                 http
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .csrf(csrf -> csrf.disable())
@@ -123,18 +123,17 @@ public class SecurityConfig {
                                                                 "/swagger-ui.html")
                                                 .permitAll()
                                                 .requestMatchers("/api/v1/document-processing/**").authenticated()
-                                                // Arquivos pÃƒÂºblicos (imagens e uploads)
+                                                // Arquivos públicos (imagens e uploads)
                                                 .requestMatchers("/uploads/**").permitAll()
-                                                // Logos e banners de empresas - permitir acesso pÃºblico para exibiÃ§Ã£o
+                                                .requestMatchers("/files/**").permitAll()
+                                                // Leitura de uploads públicos/estáticos (ex.: fotos de manutenção, avatares, banners)
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/uploads/**").permitAll()
+                                                // Logos e banners de empresas - permitir acesso público para exibição
                                                 .requestMatchers("/api/uploads/companies/logos/**").permitAll()
                                                 .requestMatchers("/api/uploads/companies/banners/**").permitAll()
                                                 .requestMatchers("/api/uploads/companies/logo").authenticated()
                                                 .requestMatchers("/api/uploads/companies/banner-upload", "/api/uploads/companies/banners").authenticated()
-                                                .requestMatchers("/api/uploads/**").authenticated() // Outros arquivos
-                                                                                                    // do chat requerem
-                                                                                                    // autenticaÃƒÂ§ÃƒÂ£o
-                                                .requestMatchers("/files/**").permitAll()
-                                                .requestMatchers("/uploads/**").permitAll()
+                                                .requestMatchers("/api/uploads/**").authenticated() // Demais operações de upload requerem autenticação
                                                 // Endpoints de Atestados Médicos e CID-10
                                                 .requestMatchers("/api/cid10/**", "/api/medical-certificates/**").authenticated()
                                                 // Endpoints HR - requerem permissões específicas
@@ -154,14 +153,8 @@ public class SecurityConfig {
                                                                 "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN", "FLEX_ADMIN",
                                                                 "ROLE_MANUTENCAO", "MANUTENCAO", "ROLE_GESTOR", "ROLE_SUPERVISOR",
                                                                 "ROLE_SST", "SST", "ROLE_SEGURANCA_DO_TRABALHO")
-                                                // Endpoints de usuÃƒÂ¡rios - permitir leitura para usuÃƒÂ¡rios autenticados
-                                                // (para
-                                                // chat), escrita requer permissÃƒÂµes especÃƒÂ­ficas
-                                                // IMPORTANTE: Regras especÃƒÂ­ficas devem vir ANTES das genÃƒÂ©ricas
-                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users")
-                                                .authenticated()
-                                                .requestMatchers(org.springframework.http.HttpMethod.GET,
-                                                                "/api/users/{id}")
+                                                // Endpoints de usuários - permitir leitura para usuários autenticados
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users", "/api/users/profile", "/api/users/{id}")
                                                 .authenticated()
                                                 .requestMatchers(org.springframework.http.HttpMethod.POST,
                                                                 "/api/users/**")
@@ -528,7 +521,7 @@ public class SecurityConfig {
                                                                 "ROLE_DEPARTAMENTO_PESSOAL")
                                                 // Todo o resto requer autenticaÃƒÂ§ÃƒÂ£o
                                                 .anyRequest().authenticated())
-                                .authenticationProvider(authenticationProvider())
+                                .authenticationProvider(authenticationProvider)
                                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterAfter(jwtTenantFilter, UsernamePasswordAuthenticationFilter.class)
                                 // SEGURANÃ‡A: rate limiting de tentativas de login (10/15min por IP)
@@ -538,15 +531,10 @@ public class SecurityConfig {
         }
 
         @Bean
-        public PasswordEncoder passwordEncoder() {
-                return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
-        }
-
-        @Bean
-        public AuthenticationProvider authenticationProvider() {
+        public AuthenticationProvider authenticationProvider(PasswordEncoder passwordEncoder) {
                 DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
                 authProvider.setUserDetailsService(customUserDetailsService);
-                authProvider.setPasswordEncoder(passwordEncoder());
+                authProvider.setPasswordEncoder(passwordEncoder);
                 return authProvider;
         }
 
@@ -569,7 +557,14 @@ public class SecurityConfig {
                                 "http://localhost:[*]",
                                 "http://127.0.0.1:[*]",
                                 "https://localhost:[*]",
-                                "https://127.0.0.1:[*]"
+                                "https://127.0.0.1:[*]",
+                                // Permitir acesso via IP na rede local (Wi-Fi)
+                                "http://192.168.*:[*]",
+                                "https://192.168.*:[*]",
+                                "http://172.*:[*]",
+                                "https://172.*:[*]",
+                                "http://10.*:[*]",
+                                "https://10.*:[*]"
                 ));
                 configuration.setAllowedMethods(
                                 Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));

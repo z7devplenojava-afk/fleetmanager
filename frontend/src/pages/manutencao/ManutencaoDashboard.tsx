@@ -269,39 +269,46 @@ const ManutencaoDashboard: React.FC = () => {
                 </div>
 
                 {/* Filters */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-seguranca-graphite p-3 rounded-lg border border-gray-700">
-                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                        <div className="relative w-full sm:w-60">
+                <div className="flex flex-col gap-3 bg-seguranca-graphite p-3 rounded-xl border border-gray-700 shadow-md">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
+                        <div className="relative flex-1">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                             <Input
                                 placeholder="Pesquisar por OS, placa, modelo..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
-                                className="pl-9 bg-seguranca-black border-gray-600 text-sm h-9"
+                                className="pl-9 bg-seguranca-black border-gray-600 text-sm h-10 sm:h-9 rounded-lg"
                             />
                         </div>
-                        <div className="flex items-center gap-1">
-                            <Input
-                                type="date"
-                                value={dateFrom}
-                                onChange={e => setDateFrom(e.target.value)}
-                                className="bg-seguranca-black border-gray-600 text-xs h-9 w-32 text-gray-300"
-                                title="Data inicial"
-                            />
-                            <span className="text-gray-500 text-xs">até</span>
-                            <Input
-                                type="date"
-                                value={dateTo}
-                                onChange={e => setDateTo(e.target.value)}
-                                className="bg-seguranca-black border-gray-600 text-xs h-9 w-32 text-gray-300"
-                                title="Data final"
-                            />
+                        <div className="grid grid-cols-2 sm:flex items-center gap-2">
+                            <div className="flex items-center gap-1">
+                                <Input
+                                    type="date"
+                                    value={dateFrom}
+                                    onChange={e => setDateFrom(e.target.value)}
+                                    className="bg-seguranca-black border-gray-600 text-xs h-10 sm:h-9 w-full sm:w-32 text-gray-300 rounded-lg"
+                                    title="Data inicial"
+                                />
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <Input
+                                    type="date"
+                                    value={dateTo}
+                                    onChange={e => setDateTo(e.target.value)}
+                                    className="bg-seguranca-black border-gray-600 text-xs h-10 sm:h-9 w-full sm:w-32 text-gray-300 rounded-lg"
+                                    title="Data final"
+                                />
+                            </div>
                         </div>
+                    </div>
+
+                    {/* Filtros de Tipo */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                         <Button
                             variant={typeFilter === 'ALL' ? 'default' : 'outline'}
                             onClick={() => setTypeFilter('ALL')}
                             size="sm"
-                            className="h-9 text-xs"
+                            className="h-8 text-xs shrink-0 whitespace-nowrap rounded-lg"
                         >
                             Todos Tipos
                         </Button>
@@ -309,7 +316,7 @@ const ManutencaoDashboard: React.FC = () => {
                             variant={typeFilter === MaintenanceType.CORRETIVA ? 'default' : 'outline'}
                             onClick={() => setTypeFilter(MaintenanceType.CORRETIVA)}
                             size="sm"
-                            className="h-9 text-xs border-orange-600/40 text-orange-400"
+                            className="h-8 text-xs shrink-0 whitespace-nowrap border-orange-600/40 text-orange-400 rounded-lg"
                         >
                             🔧 Corretiva
                         </Button>
@@ -317,18 +324,19 @@ const ManutencaoDashboard: React.FC = () => {
                             variant={typeFilter === MaintenanceType.PREVENTIVA ? 'default' : 'outline'}
                             onClick={() => setTypeFilter(MaintenanceType.PREVENTIVA)}
                             size="sm"
-                            className="h-9 text-xs border-green-600/40 text-green-400"
+                            className="h-8 text-xs shrink-0 whitespace-nowrap border-green-600/40 text-green-400 rounded-lg"
                         >
                             📋 Preventiva
                         </Button>
                     </div>
 
-                    <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto">
+                    {/* Filtros de Status com scroll horizontal perfeito no mobile */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full py-1 border-t border-gray-700/60 pt-2">
                         <Button
                             variant={statusFilter === 'ALL' ? 'default' : 'outline'}
                             onClick={() => setStatusFilter('ALL')}
                             size="sm"
-                            className="h-8 text-xs"
+                            className="h-8 text-xs shrink-0 whitespace-nowrap rounded-lg font-medium"
                         >
                             Todos Status
                         </Button>
@@ -338,7 +346,7 @@ const ManutencaoDashboard: React.FC = () => {
                                 variant={statusFilter === status ? 'default' : 'outline'}
                                 onClick={() => setStatusFilter(status as WorkOrderStatus)}
                                 size="sm"
-                                className={`h-8 text-xs ${statusFilter === status ? config.color : 'text-gray-400'}`}
+                                className={`h-8 text-xs shrink-0 whitespace-nowrap rounded-lg font-medium ${statusFilter === status ? config.color : 'text-gray-300 border-gray-700 hover:border-gray-500'}`}
                             >
                                 {config.label}
                             </Button>
@@ -346,16 +354,98 @@ const ManutencaoDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Table */}
-                <Card className="bg-seguranca-graphite border-gray-600 overflow-hidden">
+                {/* Table / Cards View */}
+                <Card className="bg-seguranca-graphite border-gray-600 overflow-hidden shadow-lg">
                     <CardHeader className="border-b border-gray-600/50 bg-seguranca-black/20 pb-3 pt-3">
-                        <CardTitle className="text-seguranca-lightgray flex items-center text-lg">
-                            <ClipboardList className="mr-2 text-seguranca-yellow" size={20} />
-                            Ordens de Serviço e Manutenções da Frota
+                        <CardTitle className="text-seguranca-lightgray flex items-center justify-between text-base sm:text-lg">
+                            <span className="flex items-center">
+                                <ClipboardList className="mr-2 text-seguranca-yellow" size={20} />
+                                Ordens de Serviço e Manutenções da Frota
+                            </span>
+                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-600">
+                                {filteredOrders.length} OS
+                            </Badge>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <div className="overflow-x-auto">
+                        {/* Visualização em Cards para Mobile (< md) */}
+                        <div className="block md:hidden divide-y divide-gray-700/80">
+                            {filteredOrders.length === 0 ? (
+                                <div className="p-8 text-center text-gray-400 text-sm">
+                                    Nenhuma ordem de serviço encontrada com os filtros selecionados.
+                                </div>
+                            ) : (
+                                filteredOrders.map(order => (
+                                    <div key={`mobile-${order.id}`} className="p-3.5 space-y-2.5 hover:bg-seguranca-black/30 transition-colors">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="font-bold text-sm text-seguranca-lightgray">
+                                                {order.osNumber || `OS-${order.id.slice(0, 8)}`}
+                                            </span>
+                                            <div className="flex items-center gap-1.5">
+                                                <Badge variant="outline" className={`font-bold text-[10px] px-1.5 py-0.5 ${order.maintenanceType === MaintenanceType.PREVENTIVA ? 'border-green-500 text-green-400' : 'border-orange-500 text-orange-400'}`}>
+                                                    {order.maintenanceType || 'CORRETIVA'}
+                                                </Badge>
+                                                <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-[10px] px-2 py-0.5`}>
+                                                    {STATUS_CONFIG[order.status]?.label || order.status}
+                                                </Badge>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between gap-2 bg-seguranca-black/40 p-2.5 rounded-lg border border-gray-700/60">
+                                            <div>
+                                                <div className="font-mono font-bold text-seguranca-yellow text-base">
+                                                    {order.vehiclePlate || 'N/A'}
+                                                </div>
+                                                <div className="text-xs text-gray-400">
+                                                    {order.vehicleModel || 'Veículo não informado'}
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xs text-gray-400">Custo Total</div>
+                                                <div className="font-mono font-bold text-sm text-emerald-400">
+                                                    {(order.totalCost || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between text-xs text-gray-400 pt-0.5">
+                                            <span>
+                                                Data: {order.stopDate ? new Date(order.stopDate + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                                            </span>
+                                            <span>
+                                                {order.odometerIn != null ? `${order.odometerIn.toLocaleString('pt-BR')} km` : ''}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 pt-1 border-t border-gray-700/50">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => { setSelectedOrder(order); setIsFormModalOpen(true); }}
+                                                className="flex-1 h-8 text-xs border-gray-600 text-gray-200 hover:bg-gray-700"
+                                            >
+                                                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                                                Ver / Editar
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleGeneratePDF(order)}
+                                                disabled={generatingPdfId === order.id}
+                                                className="h-8 px-3 text-xs border-red-500/60 text-red-400 hover:bg-red-500/10"
+                                                title="Gerar PDF"
+                                            >
+                                                <FileText className="h-3.5 w-3.5 mr-1" />
+                                                PDF
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Visualização em Tabela para Desktop (>= md) */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-seguranca-black/50 text-gray-400 uppercase text-xs">
                                     <tr>

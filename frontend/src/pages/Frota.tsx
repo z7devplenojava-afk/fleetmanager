@@ -1366,10 +1366,10 @@ const Frota: React.FC = () => {
 
   return (
     <StandardLayout title="Gestão de Frota" subtitle="Controle completo da frota de veículos">
-      <div className="space-y-6">
+      <div className="space-y-6 pb-32 sm:pb-8">
 
         {/* Cards de Resumo */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6">
           <Card className="bg-seguranca-graphite border-gray-600">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-seguranca-lightgray">Veículos Ativos</CardTitle>
@@ -1465,80 +1465,84 @@ const Frota: React.FC = () => {
           </TabsList>
 
           <TabsContent value="veiculos" className="mt-6 space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
-                <div className="relative flex-1 max-w-sm w-full">
-                  <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                  <Input
-                    placeholder="Buscar por placa, marca ou modelo..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8 bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  />
+            <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-3 sm:p-4 space-y-3">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 flex-1">
+                  <div className="relative flex-1 max-w-full md:max-w-xs">
+                    <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                    <Input
+                      placeholder="Placa, marca ou modelo..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 bg-seguranca-black border-gray-600 text-seguranca-lightgray h-10 text-sm"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={vehicleTypeFilter}
+                      onChange={(e) => setVehicleTypeFilter(e.target.value)}
+                      className="flex-1 md:flex-none bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded-md px-3 py-2 text-xs focus:border-seguranca-yellow focus:ring-1 focus:ring-seguranca-yellow h-10"
+                    >
+                      <option value="ALL">🚌 Todos Tipos</option>
+                      <option value="BUS_ROAD">🚌 Rodoviário</option>
+                      <option value="BUS_LUXURY_TOURISM">🚌✨ Turismo</option>
+                      <option value="BUS_URBAN">🏙️ Urbano</option>
+                      <option value="MINIBUS">🚐 Micro</option>
+                      <option value="VAN">🚐 Van</option>
+                      <option value="CAR_UTILITY">🚗 Utilitário</option>
+                      <option value="CAR">🚗 Carro</option>
+                      <option value="TRUCK">🚛 Caminhão</option>
+                      <option value="MOTORCYCLE">🏍️ Moto</option>
+                      <option value="PICKUP">🛻 Pickup</option>
+                      <option value="SUV">🚙 SUV</option>
+                    </select>
+                    <select
+                      value={maintenanceAlertFilter}
+                      onChange={(e) => setMaintenanceAlertFilter(e.target.value)}
+                      className="flex-1 md:flex-none bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded-md px-3 py-2 text-xs focus:border-seguranca-yellow focus:ring-1 focus:ring-seguranca-yellow h-10"
+                    >
+                      <option value="ALL">🔧 Manut: Todas</option>
+                      <option value="OVERDUE">🔴 Vencida</option>
+                      <option value="UPCOMING">🟡 Próxima</option>
+                      <option value="OK">🟢 Em Dia</option>
+                      <option value="NO_SCHEDULE">⚪ Sem Plano</option>
+                    </select>
+                  </div>
                 </div>
-                <select
-                  value={vehicleTypeFilter}
-                  onChange={(e) => setVehicleTypeFilter(e.target.value)}
-                  className="bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded-md px-3 py-2 text-sm focus:border-seguranca-yellow focus:ring-1 focus:ring-seguranca-yellow"
-                >
-                  <option value="ALL">🚌 Todos os Tipos</option>
-                  <option value="BUS_ROAD">🚌 Ônibus Rodoviário</option>
-                  <option value="BUS_LUXURY_TOURISM">🚌✨ Ônibus Luxo Turismo</option>
-                  <option value="BUS_URBAN">🏙️ Ônibus Urbano</option>
-                  <option value="MINIBUS">🚐 Micro-ônibus</option>
-                  <option value="VAN">🚐 Van</option>
-                  <option value="CAR_UTILITY">🚗 Carro Utilitário</option>
-                  <option value="CAR">🚗 Carro</option>
-                  <option value="TRUCK">🚛 Caminhão</option>
-                  <option value="MOTORCYCLE">🏍️ Motocicleta</option>
-                  <option value="PICKUP">🛻 Pickup</option>
-                  <option value="SUV">🚙 SUV</option>
-                  <option value="OTHER">❓ Outro</option>
-                </select>
-                <select
-                  value={maintenanceAlertFilter}
-                  onChange={(e) => setMaintenanceAlertFilter(e.target.value)}
-                  className="bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded-md px-3 py-2 text-sm focus:border-seguranca-yellow focus:ring-1 focus:ring-seguranca-yellow"
-                >
-                  <option value="ALL">🔧 Manutenção: Todas</option>
-                  <option value="OVERDUE">🔴 Vencida</option>
-                  <option value="UPCOMING">🟡 Próxima</option>
-                  <option value="OK">🟢 Em Dia</option>
-                  <option value="NO_SCHEDULE">⚪ Sem Plano</option>
-                </select>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setIsCrlvModalOpen(true)}
-                  variant="outline"
-                  className="border-blue-500 text-blue-400 hover:bg-blue-600 hover:text-white font-semibold"
-                >
-                  <FileCheck size={16} className="mr-2" />
-                  Importar CRLV (PDF)
-                </Button>
-                <Button
-                  onClick={() => setIsVehicleImportModalOpen(true)}
-                  variant="outline"
-                  className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black font-semibold"
-                >
-                  <FileSpreadsheet size={16} className="mr-2" />
-                  Importar Excel
-                </Button>
-                <Button
-                  onClick={() => setIsVehicleReportModalOpen(true)}
-                  variant="outline"
-                  className="border-green-500 text-green-500 hover:bg-green-500 hover:text-white"
-                >
-                  <FileText size={16} className="mr-2" />
-                  Relatório
-                </Button>
-                <Button
-                  onClick={() => setIsVeiculoModalOpen(true)}
-                  className="bg-seguranca-red hover:bg-seguranca-darkred"
-                >
-                  <Plus size={16} className="mr-2" />
-                  Novo Veículo
-                </Button>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={() => setIsCrlvModalOpen(true)}
+                    variant="outline"
+                    className="flex-1 sm:flex-none border-blue-500/60 text-blue-400 hover:bg-blue-600 hover:text-white font-bold text-[11px] sm:text-xs h-9"
+                  >
+                    <FileCheck size={14} className="mr-1.5" />
+                    CRLV
+                  </Button>
+                  <Button
+                    onClick={() => setIsVehicleImportModalOpen(true)}
+                    variant="outline"
+                    className="flex-1 sm:flex-none border-seguranca-yellow/60 text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black font-bold text-[11px] sm:text-xs h-9"
+                  >
+                    <FileSpreadsheet size={14} className="mr-1.5" />
+                    Excel
+                  </Button>
+                  <Button
+                    onClick={() => setIsVehicleReportModalOpen(true)}
+                    variant="outline"
+                    className="flex-1 sm:flex-none border-green-500/60 text-green-500 hover:bg-green-500 hover:text-white font-bold text-[11px] sm:text-xs h-9"
+                  >
+                    <FileText size={14} className="mr-1.5" />
+                    PDF
+                  </Button>
+                  <Button
+                    onClick={() => setIsVeiculoModalOpen(true)}
+                    className="flex-1 sm:flex-none bg-seguranca-red hover:bg-seguranca-darkred font-bold text-[11px] sm:text-xs h-9"
+                  >
+                    <Plus size={14} className="mr-1.5" />
+                    Novo
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -1961,21 +1965,23 @@ const Frota: React.FC = () => {
               )}
 
               {/* Tabela de Multas */}
-              <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
-                <div className="flex items-center space-x-3">
-                  <h3 className="text-seguranca-lightgray font-semibold flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-red-500" />
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 bg-seguranca-graphite border border-gray-600 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center justify-between sm:justify-start gap-3">
+                  <h3 className="text-seguranca-lightgray font-semibold flex items-center gap-2 text-base sm:text-lg">
+                    <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
                     Gestão de Multas
                   </h3>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowMultaSelection(!showMultaSelection)}
-                    className={showMultaSelection ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"}
+                    className={`text-xs h-8 ${showMultaSelection ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"}`}
                   >
                     {showMultaSelection ? 'Desativar Seleção' : 'Ativar Seleção'}
                   </Button>
                 </div>
+
+                <div className="flex items-center flex-col sm:flex-row gap-2">
                   <Button
                     onClick={() => {
                       setFineQueryPlate('');
@@ -1983,19 +1989,20 @@ const Frota: React.FC = () => {
                       setFineQueryUf('MG');
                       setIsFineQueryModalOpen(true);
                     }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center gap-1.5 shadow-sm"
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center justify-center gap-1.5 shadow-sm h-9 text-xs sm:text-sm"
                   >
                     <Search size={16} />
-                    Consultar Multas & Restrições (Governo/Brokers)
+                    Consultar Multas (Governo/Brokers)
                   </Button>
                   <Button
                     onClick={() => setIsMultaModalOpen(true)}
-                    className="bg-seguranca-red hover:bg-seguranca-darkred"
+                    className="w-full sm:w-auto bg-seguranca-red hover:bg-seguranca-darkred text-white flex items-center justify-center gap-1.5 h-9 text-xs sm:text-sm"
                   >
-                    <Plus size={16} className="mr-2" />
+                    <Plus size={16} />
                     Nova Multa
                   </Button>
                 </div>
+              </div>
 
               <div className="bg-seguranca-black border border-gray-600 rounded-lg overflow-hidden">
                 <MultasTable

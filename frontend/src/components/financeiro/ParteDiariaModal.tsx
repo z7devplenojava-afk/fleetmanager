@@ -17,9 +17,11 @@ import { contractService } from '@/services/contractService';
 interface ParteDiariaModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: () => void;
   initialClientId?: string;
   initialClientName?: string;
+  initialDriverName?: string;
+  initialDriverId?: string;
   parteDiariaToEdit?: ParteDiaria | null;
   isReadOnly?: boolean;
 }
@@ -30,6 +32,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   onSuccess,
   initialClientId,
   initialClientName,
+  initialDriverName,
+  initialDriverId,
   parteDiariaToEdit,
   isReadOnly = false
 }) => {
@@ -40,29 +44,46 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [motoristasFuncionarios, setMotoristasFuncionarios] = useState<{ id: string; name: string; cargo: string }[]>([]);
 
-  // Dados do Cabeçalho da Parte Diária (Preenchido com base na Ficha Física Nº 13103 da Viação São Silvestre)
-  const [docNumber, setDocNumber] = useState<string>('13103');
-  const [docDate, setDocDate] = useState<string>('2025-12-13');
+  // Dados do Cabeçalho da Parte Diária (Preenchido com base na Ficha Física Nº 13102 da Viação São Silvestre)
+  const [docNumber, setDocNumber] = useState<string>('13102');
+  const [docDate, setDocDate] = useState<string>('2025-12-12');
   const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const [clientName, setClientName] = useState<string>('FMQC');
-  const [contractNumber, setContractNumber] = useState<string>('CT-2025/FMQC');
-  const [obraName, setObraName] = useState<string>('FMQC IBIRITÉ');
-  const [vehicleType, setVehicleType] = useState<string>('MICRO'); // CARRO, ONIBUS, MICRO, VAN
+  const [clientName, setClientName] = useState<string>('FM2C');
+  const [manualClientMode, setManualClientMode] = useState<boolean>(false);
+  const [contractNumber, setContractNumber] = useState<string>('CT-2025/FM2C');
+  const [obraName, setObraName] = useState<string>('FM2C IBIRITÉ');
+  const [vehicleType, setVehicleType] = useState<string>('MICRO'); // CARRO, ÔNIBUS, MICRO, VAN
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
-  const [vehiclePlate, setVehiclePlate] = useState<string>('QMR-2F82');
-  const [driverName, setDriverName] = useState<string>('João da Silva (Motorista)');
-  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
+  const [vehiclePlate, setVehiclePlate] = useState<string>('QMR-2E82');
+  const [manualPlateMode, setManualPlateMode] = useState<boolean>(false);
+  const [driverName, setDriverName] = useState<string>(initialDriverName || 'João da Silva (Motorista)');
+  const [selectedDriverId, setSelectedDriverId] = useState<string>(initialDriverId || '');
   const [dpSignature, setDpSignature] = useState<string>('José Mário Ramos (DP)');
+
+  // Linha em digitação para rápido lançamento
+  const [newActivity, setNewActivity] = useState<{
+    startTime: string;
+    endTime: string;
+    description: string;
+    startKm: number | string;
+    endKm: number | string;
+  }>({
+    startTime: '14:30',
+    endTime: '15:50',
+    description: 'Ibirité FM2C',
+    startKm: 403834,
+    endKm: 403869
+  });
 
   // Atividades do dia com KM de início/fim por trajeto conforme ficha física
   const [activities, setActivities] = useState<ParteDiariaAtividade[]>([
-    { startTime: '05:20', endTime: '06:59', description: 'Ibirite FMQC', startKm: 404014, endKm: 404058, activityType: 'REGULAR' },
-    { startTime: '07:00', endTime: '08:05', description: 'FMQC Ibirite', startKm: 404058, endKm: 404085, activityType: 'REGULAR' }
+    { startTime: '14:30', endTime: '15:50', description: 'Ibirité FM2C', startKm: 403834, endKm: 403869, activityType: 'REGULAR' },
+    { startTime: '16:00', endTime: '17:47', description: 'FM2C Ibirité', startKm: 403969, endKm: 404017, activityType: 'REGULAR' }
   ]);
 
   // Hodômetro e KM
-  const [startKm, setStartKm] = useState<number>(404014);
-  const [endKm, setEndKm] = useState<number>(404085);
+  const [startKm, setStartKm] = useState<number>(403834);
+  const [endKm, setEndKm] = useState<number>(404017);
   const [disregardedKm, setDisregardedKm] = useState<number>(0);
   const [disregardReason, setDisregardReason] = useState<string>('');
   const [notes, setNotes] = useState<string>('Operação realizada com sucesso conforme parte diária física.');
@@ -169,11 +190,48 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
           setClientName(fmqcClient.name);
         }
       }
+      if (initialDriverName) {
+        setDriverName(initialDriverName);
+      }
+      if (initialDriverId) {
+        setSelectedDriverId(initialDriverId);
+      }
     } catch (err) {
       console.error('Erro ao carregar dados do formulário:', err);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const detectVehicleType = (v: any): string => {
+    if (!v) return 'MICRO';
+    const typeStr = (
+      v.vehicleType ||
+      v.busType ||
+      v.tipo ||
+      v.type ||
+      v.categoria ||
+      v.modelo ||
+      v.model ||
+      ''
+    ).toString().toUpperCase();
+
+    if (typeStr.includes('MICRO') || typeStr.includes('MINIBUS')) {
+      return 'MICRO';
+    } else if (typeStr.includes('VAN')) {
+      return 'VAN';
+    } else if (typeStr.includes('ONIBUS') || typeStr.includes('ÔNIBUS') || typeStr.includes('BUS')) {
+      return 'ÔNIBUS';
+    } else if (
+      typeStr.includes('CARRO') || 
+      typeStr.includes('CAR') || 
+      typeStr.includes('PICKUP') || 
+      typeStr.includes('UTILITARIO') || 
+      typeStr.includes('SUV')
+    ) {
+      return 'CARRO';
+    }
+    return 'MICRO';
   };
 
   const handleClientChange = async (clientId: string) => {
@@ -187,8 +245,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
       const contractsList = Array.isArray(rawContracts) ? rawContracts : (rawContracts as any)?.content || [];
       if (contractsList.length > 0) {
         const firstContract = contractsList[0];
-        setContractNumber(firstContract.contractNumber || `CT-2025/${selected?.name?.substring(0, 6).toUpperCase() || 'FMQC'}`);
-        setObraName(firstContract.description || firstContract.obraName || 'FMQC IBIRITÉ');
+        setContractNumber(firstContract.contractNumber || `CT-2025/${selected?.name?.substring(0, 6).toUpperCase() || 'FM2C'}`);
+        setObraName(firstContract.description || firstContract.obraName || 'FM2C IBIRITÉ');
       }
     } catch (err) {
       console.warn('Erro ao carregar contratos do cliente:', err);
@@ -200,6 +258,20 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     const found = vehicles.find(v => v.id === vId);
     if (found) {
       setVehiclePlate(found.placa || found.plate || '');
+      setVehicleType(detectVehicleType(found));
+    }
+  };
+
+  const handlePlateChange = (plateText: string) => {
+    setVehiclePlate(plateText);
+    const cleanPlate = plateText.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const found = vehicles.find(v => {
+      const p = (v.placa || v.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      return p === cleanPlate || (cleanPlate.length >= 4 && p.includes(cleanPlate));
+    });
+    if (found) {
+      setSelectedVehicleId(found.id);
+      setVehicleType(detectVehicleType(found));
     }
   };
 
@@ -208,8 +280,60 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     const newStartKm = last?.endKm || startKm;
     setActivities([
       ...activities,
-      { startTime: '08:10', endTime: '12:00', description: '', startKm: newStartKm, endKm: newStartKm + 10, activityType: 'REGULAR' }
+      { startTime: '16:00', endTime: '17:47', description: '', startKm: newStartKm, endKm: newStartKm + 10, activityType: 'REGULAR' }
     ]);
+  };
+
+  const handleCommitNewActivity = () => {
+    if (!newActivity.startTime || !newActivity.endTime) {
+      toast({
+        title: 'Horário Obrigatório',
+        description: 'Informe a Hora Início e Hora Fim.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    const startNum = parseFloat(String(newActivity.startKm)) || 0;
+    const endNum = parseFloat(String(newActivity.endKm)) || 0;
+    if (endNum > 0 && startNum > 0 && endNum < startNum) {
+      toast({
+        title: 'KM Inválido',
+        description: 'KM Fim não pode ser menor que o KM Início.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const activityToAdd: ParteDiariaAtividade = {
+      startTime: newActivity.startTime,
+      endTime: newActivity.endTime,
+      description: newActivity.description || 'Trajeto',
+      startKm: startNum,
+      endKm: endNum,
+      activityType: 'REGULAR'
+    };
+
+    setActivities(prev => {
+      const next = [...prev, activityToAdd];
+      if (next.length === 1 || startKm === 0) {
+        setStartKm(startNum);
+      }
+      setEndKm(endNum);
+      return next;
+    });
+
+    setNewActivity({
+      startTime: newActivity.endTime,
+      endTime: '',
+      description: '',
+      startKm: endNum,
+      endKm: endNum
+    });
+
+    toast({
+      title: 'Trajeto Lançado!',
+      description: `${activityToAdd.description} (${activityToAdd.startTime} - ${activityToAdd.endTime}) adicionado à lista abaixo.`,
+    });
   };
 
   const handleRemoveActivity = (index: number) => {
@@ -223,41 +347,43 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
     // Se alterou KM na primeira ou última atividade, atualizar o hodômetro geral
     if (index === 0 && field === 'startKm') {
-      setStartKm(Number(value) || 0);
+      setStartKm(parseFloat(String(value)) || 0);
     }
     if (index === updated.length - 1 && field === 'endKm') {
-      setEndKm(Number(value) || 0);
+      setEndKm(parseFloat(String(value)) || 0);
     }
   };
 
-  // Preencher com dados reais da Ficha Física da Viação São Silvestre (Image 3)
+  // Preencher com dados reais da Ficha Física da Viação São Silvestre (Ficha Nº 13102)
   const handleFillSampleData = () => {
-    setDocNumber('13103');
-    setDocDate('2025-12-13');
-    setClientName('FMQC');
-    setContractNumber('CT-2025/FMQC');
-    setObraName('FMQC IBIRITÉ');
+    setDocNumber('13102');
+    setDocDate('2025-12-12');
+    setClientName('FM2C');
+    setContractNumber('CT-2025/FM2C');
+    setObraName('FM2C IBIRITÉ');
     setVehicleType('MICRO');
-    setVehiclePlate('QMR-2F82');
-    setDriverName('João da Silva (Motorista)');
-    setStartKm(404014);
-    setEndKm(404085);
+    setVehiclePlate('QMR-2E82');
+    if (!initialDriverName) {
+      setDriverName('João da Silva (Motorista)');
+    }
+    setStartKm(403834);
+    setEndKm(404017);
     setDisregardedKm(0);
     setDpSignature('José Mário Ramos (DP)');
-    setNotes('Operação de transporte regular executada conforme apontamentos de campo na Parte Diária Nº 13103.');
+    setNotes('Parte Diária de Veículos Nº 13102 - Viação São Silvestre.');
     setActivities([
-      { startTime: '05:20', endTime: '06:59', description: 'Ibirite FMQC', startKm: 404014, endKm: 404058, activityType: 'REGULAR' },
-      { startTime: '07:00', endTime: '08:05', description: 'FMQC Ibirite', startKm: 404058, endKm: 404085, activityType: 'REGULAR' }
+      { startTime: '14:30', endTime: '15:50', description: 'Ibirité FM2C', startKm: 403834, endKm: 403869, activityType: 'REGULAR' },
+      { startTime: '16:00', endTime: '17:47', description: 'FM2C Ibirité', startKm: 403969, endKm: 404017, activityType: 'REGULAR' }
     ]);
     toast({
       title: 'Dados da Ficha Carregados!',
-      description: 'Campos preenchidos com os dados da Parte Diária Nº 13103 da Viação São Silvestre.',
+      description: 'Campos preenchidos com os dados da Parte Diária Nº 13102 (FM2C - QMR-2E82).',
     });
   };
 
-  // Cálculos Automáticos de KM
-  const drivenKm = Math.max(0, (endKm || 0) - (startKm || 0));
-  const consideredKm = Math.max(0, drivenKm - (disregardedKm || 0));
+  // Cálculos Automáticos de KM (com suporte a números decimais)
+  const drivenKm = Math.max(0, Number(((endKm || 0) - (startKm || 0)).toFixed(2)));
+  const consideredKm = Math.max(0, Number((drivenKm - (disregardedKm || 0)).toFixed(2)));
 
   // Lista unificada de motoristas sugeridos (Funcionários com cargo Motorista + Motoristas Cadastrados)
   const combinedMotoristas = [
@@ -327,7 +453,9 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
         });
       }
 
-      onSuccess();
+      if (typeof onSuccess === 'function') {
+        onSuccess();
+      }
       onClose();
     } catch (err: any) {
       console.error('Erro ao salvar Parte Diária:', err);
@@ -409,13 +537,22 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
             {/* Seção 1: Cliente, Contrato, Obra, Tipo Veículo, Placa e Motorista */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-950/80 p-4 rounded-xl border border-slate-800">
               <div>
-                <Label className="text-xs text-slate-400 font-semibold uppercase">CLIENTE</Label>
-                {clients.length > 0 ? (
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-slate-400 font-semibold uppercase">CLIENTE</Label>
+                  <button
+                    type="button"
+                    onClick={() => setManualClientMode(!manualClientMode)}
+                    className="text-[10px] text-amber-400 hover:underline font-bold"
+                  >
+                    {manualClientMode ? 'Buscar na Base' : 'Digitar Nome'}
+                  </button>
+                </div>
+                {!manualClientMode && clients.length > 0 ? (
                   <Select value={selectedClientId} onValueChange={handleClientChange}>
                     <SelectTrigger className="bg-slate-900 border-slate-700 text-white h-9 mt-1 rounded-xl">
-                      <SelectValue placeholder="Selecione o cliente..." />
+                      <SelectValue placeholder="Selecione o cliente da base..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                    <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-60 overflow-y-auto">
                       {clients.map(c => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
@@ -451,9 +588,11 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 />
               </div>
 
-              {/* Seleção do Tipo de Veículo */}
+              {/* Seleção do Tipo de Veículo (Auto-detectado pela placa ou selecionável) */}
               <div>
-                <Label className="text-xs text-slate-400 font-semibold uppercase">TIPO DE VEÍCULO</Label>
+                <Label className="text-xs text-slate-400 font-semibold uppercase">
+                  TIPO DE VEÍCULO <span className="text-[10px] text-amber-400 font-normal">(Auto-detectado pela Placa)</span>
+                </Label>
                 <div className="grid grid-cols-4 gap-1.5 mt-1">
                   {['CARRO', 'ÔNIBUS', 'MICRO', 'VAN'].map(type => (
                     <button
@@ -462,7 +601,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                       onClick={() => setVehicleType(type)}
                       className={`py-1.5 px-1 rounded-lg text-[11px] font-extrabold transition-all border ${
                         vehicleType === type
-                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/70 shadow-sm'
+                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/70 shadow-sm ring-1 ring-amber-500/50'
                           : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700'
                       }`}
                     >
@@ -472,12 +611,22 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 </div>
               </div>
 
+              {/* PLACA DO VEÍCULO (Busca da base de dados e detecção automática do tipo de veículo) */}
               <div>
-                <Label className="text-xs text-slate-400 font-semibold uppercase">PLACA DO VEÍCULO</Label>
-                {vehicles.length > 0 ? (
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-slate-400 font-semibold uppercase">PLACA DO VEÍCULO</Label>
+                  <button
+                    type="button"
+                    onClick={() => setManualPlateMode(!manualPlateMode)}
+                    className="text-[10px] text-amber-400 hover:underline font-bold"
+                  >
+                    {manualPlateMode ? 'Buscar na Frota' : 'Digitar Placa Livre'}
+                  </button>
+                </div>
+                {!manualPlateMode && vehicles.length > 0 ? (
                   <Select value={selectedVehicleId} onValueChange={handleVehicleChange}>
                     <SelectTrigger className="bg-slate-900 border-slate-700 text-white font-mono font-bold h-9 mt-1 rounded-xl">
-                      <SelectValue placeholder="Selecione a placa..." />
+                      <SelectValue placeholder="Selecione o veículo da frota..." />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-60 overflow-y-auto">
                       {vehicles.slice(0, 100).map((v: any) => (
@@ -490,8 +639,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 ) : (
                   <Input
                     value={vehiclePlate}
-                    onChange={(e) => setVehiclePlate(e.target.value)}
-                    placeholder="Ex: QMR-2F82"
+                    onChange={(e) => handlePlateChange(e.target.value)}
+                    placeholder="Ex: QMR-2E82"
                     className="bg-slate-900 border-slate-700 text-white font-mono font-bold h-9 mt-1 rounded-xl"
                   />
                 )}
@@ -554,8 +703,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
               </div>
             </div>
 
-            {/* Seção 2: Tabela de Atividades */}
-            <div className="space-y-3">
+            {/* Seção 2: Lançamento de Atividades (conforme vai lançando vai listando abaixo) */}
+            <div className="space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                   <Clock className="h-4 w-4 text-amber-400" />
@@ -568,19 +717,107 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                   variant="outline"
                   className="border-slate-700 text-amber-400 hover:bg-amber-500/10 text-xs h-8 rounded-xl"
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Linha / Trajeto
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Linha Vazia
                 </Button>
               </div>
 
-              <div className="border border-slate-800 rounded-xl overflow-x-auto bg-slate-950">
-                <table className="w-full text-xs text-left text-slate-300 min-w-[600px]">
+              {/* Formulário de Lançamento Rápido */}
+              <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-900/80 border border-amber-500/30 rounded-xl p-4 space-y-3 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-wide flex items-center gap-1.5">
+                    <Plus className="h-4 w-4" /> Lançar Nova Atividade / Trajeto
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    Preencha os campos e lance para alimentar a lista abaixo
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2.5 items-end">
+                  <div>
+                    <Label className="text-[11px] text-slate-300 font-semibold uppercase">Hora Início (Time)</Label>
+                    <Input
+                      type="time"
+                      value={newActivity.startTime}
+                      onChange={(e) => setNewActivity(prev => ({ ...prev, startTime: e.target.value }))}
+                      className="bg-slate-900 border-slate-700 text-white font-mono font-bold h-9 text-xs rounded-lg mt-1 [color-scheme:dark]"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-[11px] text-slate-300 font-semibold uppercase">Hora Término (Time)</Label>
+                    <Input
+                      type="time"
+                      value={newActivity.endTime}
+                      onChange={(e) => setNewActivity(prev => ({ ...prev, endTime: e.target.value }))}
+                      className="bg-slate-900 border-slate-700 text-white font-mono font-bold h-9 text-xs rounded-lg mt-1 [color-scheme:dark]"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label className="text-[11px] text-slate-300 font-semibold uppercase">Descrição das Atividades</Label>
+                    <Input
+                      type="text"
+                      placeholder="Ex: Ibirité FM2C / FM2C Ibirité"
+                      value={newActivity.description}
+                      onChange={(e) => setNewActivity(prev => ({ ...prev, description: e.target.value }))}
+                      className="bg-slate-900 border-slate-700 text-white font-semibold h-9 text-xs rounded-lg mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-[11px] text-slate-300 font-semibold uppercase">KM Inicial (Decimal)</Label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="Ex: 403834.0"
+                      value={newActivity.startKm || ''}
+                      onChange={(e) => setNewActivity(prev => ({ ...prev, startKm: parseFloat(e.target.value) || 0 }))}
+                      className="bg-slate-900 border-slate-700 text-white font-mono font-bold h-9 text-xs rounded-lg mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-[11px] text-slate-300 font-semibold uppercase">KM Final (Decimal)</Label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="Ex: 403869.0"
+                      value={newActivity.endKm || ''}
+                      onChange={(e) => setNewActivity(prev => ({ ...prev, endKm: parseFloat(e.target.value) || 0 }))}
+                      className="bg-slate-900 border-slate-700 text-white font-mono font-bold h-9 text-xs rounded-lg mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-1 border-t border-slate-800/80">
+                  <div className="text-xs text-slate-400 font-mono">
+                    {newActivity.endKm && newActivity.startKm && Number(newActivity.endKm) >= Number(newActivity.startKm) ? (
+                      <span className="text-emerald-400 font-semibold">
+                        KM deste trajeto: {(Number(newActivity.endKm) - Number(newActivity.startKm)).toFixed(1)} km
+                      </span>
+                    ) : null}
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleCommitNewActivity}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold h-9 px-4 text-xs rounded-xl shadow-md hover:shadow-amber-500/20 transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="h-4 w-4" /> Lançar na Lista Abaixo
+                  </Button>
+                </div>
+              </div>
+
+              {/* Tabela de Atividades Lançadas (Lista abaixo) */}
+              <div className="border border-slate-800 rounded-xl overflow-x-auto bg-slate-950 shadow-inner">
+                <table className="w-full text-xs text-left text-slate-300 min-w-[650px]">
                   <thead className="bg-slate-900 text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-800">
                     <tr>
-                      <th className="p-2.5 w-24 text-center">Início</th>
-                      <th className="p-2.5 w-24 text-center">Término</th>
+                      <th className="p-2.5 w-24 text-center">Início (Time)</th>
+                      <th className="p-2.5 w-24 text-center">Término (Time)</th>
                       <th className="p-2.5">Descrição das Atividades (Trajeto)</th>
-                      <th className="p-2.5 w-28 text-center">KM Início</th>
-                      <th className="p-2.5 w-28 text-center">KM Fim</th>
+                      <th className="p-2.5 w-28 text-center">KM Início (Dec)</th>
+                      <th className="p-2.5 w-28 text-center">KM Fim (Dec)</th>
+                      <th className="p-2.5 w-20 text-center">KM Rodado</th>
                       <th className="p-2.5 w-12 text-center">Ação</th>
                     </tr>
                   </thead>
@@ -592,7 +829,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                             type="time"
                             value={act.startTime || ''}
                             onChange={(e) => handleActivityChange(idx, 'startTime', e.target.value)}
-                            className="bg-slate-900 border-slate-700 text-white text-center h-8 text-xs font-mono font-bold rounded-lg"
+                            className="bg-slate-900 border-slate-700 text-white text-center h-8 text-xs font-mono font-bold rounded-lg [color-scheme:dark]"
                           />
                         </td>
                         <td className="p-2">
@@ -600,7 +837,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                             type="time"
                             value={act.endTime || ''}
                             onChange={(e) => handleActivityChange(idx, 'endTime', e.target.value)}
-                            className="bg-slate-900 border-slate-700 text-white text-center h-8 text-xs font-mono font-bold rounded-lg"
+                            className="bg-slate-900 border-slate-700 text-white text-center h-8 text-xs font-mono font-bold rounded-lg [color-scheme:dark]"
                           />
                         </td>
                         <td className="p-2">
@@ -614,20 +851,27 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                         <td className="p-2">
                           <Input
                             type="number"
+                            step="any"
                             value={act.startKm ?? ''}
-                            onChange={(e) => handleActivityChange(idx, 'startKm', Number(e.target.value))}
-                            placeholder="Ex: 404014"
+                            onChange={(e) => handleActivityChange(idx, 'startKm', parseFloat(e.target.value) || 0)}
+                            placeholder="Ex: 403834.0"
                             className="bg-slate-900 border-slate-700 text-white text-center font-mono font-bold h-8 text-xs rounded-lg"
                           />
                         </td>
                         <td className="p-2">
                           <Input
                             type="number"
+                            step="any"
                             value={act.endKm ?? ''}
-                            onChange={(e) => handleActivityChange(idx, 'endKm', Number(e.target.value))}
-                            placeholder="Ex: 404058"
+                            onChange={(e) => handleActivityChange(idx, 'endKm', parseFloat(e.target.value) || 0)}
+                            placeholder="Ex: 403869.0"
                             className="bg-slate-900 border-slate-700 text-white text-center font-mono font-bold h-8 text-xs rounded-lg"
                           />
+                        </td>
+                        <td className="p-2 text-center font-mono font-bold text-sky-400 text-xs">
+                          {((act.endKm || 0) - (act.startKm || 0) > 0)
+                            ? `${((act.endKm || 0) - (act.startKm || 0)).toFixed(1)}`
+                            : '0.0'}
                         </td>
                         <td className="p-2 text-center">
                           {activities.length > 1 && (
@@ -655,8 +899,9 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 <Label className="text-xs text-slate-400 font-semibold uppercase">KM INÍCIO (HODÔMETRO)</Label>
                 <Input
                   type="number"
+                  step="any"
                   value={startKm}
-                  onChange={(e) => setStartKm(Number(e.target.value))}
+                  onChange={(e) => setStartKm(parseFloat(e.target.value) || 0)}
                   className="bg-slate-900 border-slate-700 text-white font-mono font-bold mt-1 h-9 rounded-xl"
                 />
               </div>
@@ -665,8 +910,9 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 <Label className="text-xs text-slate-400 font-semibold uppercase">KM FIM (HODÔMETRO)</Label>
                 <Input
                   type="number"
+                  step="any"
                   value={endKm}
-                  onChange={(e) => setEndKm(Number(e.target.value))}
+                  onChange={(e) => setEndKm(parseFloat(e.target.value) || 0)}
                   className="bg-slate-900 border-slate-700 text-white font-mono font-bold mt-1 h-9 rounded-xl"
                 />
               </div>
@@ -690,8 +936,9 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 <Label className="text-xs text-slate-400 font-semibold uppercase">KM DESCONSIDERADO (ABATIMENTO)</Label>
                 <Input
                   type="number"
+                  step="any"
                   value={disregardedKm}
-                  onChange={(e) => setDisregardedKm(Number(e.target.value))}
+                  onChange={(e) => setDisregardedKm(parseFloat(e.target.value) || 0)}
                   placeholder="0"
                   className="bg-slate-900 border-slate-700 text-white font-mono mt-1 h-9 rounded-xl"
                 />

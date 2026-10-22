@@ -23,5 +23,6 @@ public class ProfileResponse {
     private List<String> roles;
     private Boolean firstAccessCompleted;
     private Boolean requiresLgpdConsent;
+    private UUID employeeId;
 }
 

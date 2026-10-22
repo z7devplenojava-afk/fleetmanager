@@ -785,4 +785,98 @@ public class TimeRecordService {
 
         return balance;
     }
+
+    @Transactional
+    public TimeRecord updateTimeRecord(UUID recordId, LocalDateTime recordedAt, TimeRecord.RecordType recordType, String reason, UUID managerId) {
+        TimeRecord record = timeRecordRepository.findById(recordId)
+                .orElseThrow(() -> new RuntimeException("Registro de ponto não encontrado: " + recordId));
+
+        LocalDateTime previousTime = record.getRecordedAt();
+        TimeRecord.RecordType previousType = record.getRecordType();
+
+        if (recordedAt != null) {
+            record.setRecordedAt(recordedAt);
+        }
+        if (recordType != null) {
+            record.setRecordType(recordType);
+        }
+
+        record.setIsManual(true);
+        record.setOrigin("MANUAL_ADJUSTMENT");
+        record.setApprovedById(managerId);
+        record.setApprovedAt(LocalDateTime.now());
+        record.setStatus(TimeRecord.RecordStatus.APPROVED);
+
+        String note = String.format("Ajuste realizado pelo RH/DPE em %s. Anterior: [%s %s]. Novo: [%s %s]. Motivo: %s",
+                LocalDateTime.now(), previousType, previousTime, record.getRecordType(), record.getRecordedAt(),
+                reason != null ? reason : "Ajuste manual administrativo");
+
+        record.setProcessingNotes(note);
+        if (reason != null && !reason.trim().isEmpty()) {
+            record.setJustification(reason);
+        }
+
+        log.info("✏️ Ponto ID {} ajustado pelo RH/DPE (Manager: {})", recordId, managerId);
+        return timeRecordRepository.save(record);
+    }
+
+    @Transactional
+    public TimeRecord createManualRecord(UUID employeeId, LocalDateTime recordedAt, TimeRecord.RecordType recordType, String reason, UUID managerId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Funcionário não encontrado: " + employeeId));
+
+        TimeRecord record = new TimeRecord();
+        record.setEmployee(employee);
+        record.setRecordType(recordType != null ? recordType : TimeRecord.RecordType.ENTRADA);
+        record.setRecordedAt(recordedAt != null ? recordedAt : LocalDateTime.now());
+        record.setIsManual(true);
+        record.setOrigin("MANUAL_ADJUSTMENT");
+        record.setStatus(TimeRecord.RecordStatus.APPROVED);
+        record.setApprovedById(managerId);
+        record.setApprovedAt(LocalDateTime.now());
+        record.setLocation("Registro Manual (RH/DPE)");
+        record.setJustification(reason);
+        record.setProcessingNotes("Criado manualmente pelo RH/DPE em " + LocalDateTime.now() + ". Motivo: " + reason);
+
+        UUID tenantCompanyId = TenantContext.get();
+        if (tenantCompanyId != null) {
+            record.setCompanyId(tenantCompanyId);
+        } else if (employee.getCompanyId() != null) {
+            record.setCompanyId(employee.getCompanyId());
+        }
+
+        log.info("➕ Ponto manual criado para funcionário {} pelo RH/DPE (Manager: {})", employeeId, managerId);
+        return timeRecordRepository.save(record);
+    }
+
+    @Transactional
+    public TimeRecord requestAdjustment(UUID employeeId, LocalDateTime suggestedTime, TimeRecord.RecordType recordType, String justification) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Funcionário não encontrado: " + employeeId));
+
+        if (justification == null || justification.trim().isEmpty()) {
+            throw new RuntimeException("É obrigatório informar a justificativa para solicitar o ajuste de ponto.");
+        }
+
+        TimeRecord record = new TimeRecord();
+        record.setEmployee(employee);
+        record.setRecordType(recordType != null ? recordType : TimeRecord.RecordType.ENTRADA);
+        record.setRecordedAt(suggestedTime != null ? suggestedTime : LocalDateTime.now());
+        record.setIsManual(true);
+        record.setOrigin("SOLICITACAO_MOTORISTA");
+        record.setStatus(TimeRecord.RecordStatus.PENDING);
+        record.setLocation("Solicitação de Ajuste de Ponto");
+        record.setJustification(justification);
+        record.setProcessingNotes("Solicitação de ajuste enviada pelo colaborador em " + LocalDateTime.now() + ". Aguardando análise do RH/DPE.");
+
+        UUID tenantCompanyId = TenantContext.get();
+        if (tenantCompanyId != null) {
+            record.setCompanyId(tenantCompanyId);
+        } else if (employee.getCompanyId() != null) {
+            record.setCompanyId(employee.getCompanyId());
+        }
+
+        log.info("📩 Solicitação de ajuste de ponto enviada pelo colaborador {} para horário {}", employeeId, suggestedTime);
+        return timeRecordRepository.save(record);
+    }
 }

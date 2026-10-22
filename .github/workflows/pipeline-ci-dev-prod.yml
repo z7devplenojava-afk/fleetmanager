@@ -117,7 +117,7 @@ jobs:
           build-args: |
             VITE_API_URL=${{ env.CI_URL }}/api
             VITE_WS_URL=wss://ci.z7botsolutions.com.br/ws
-            VITE_ENVIRONMENT=ci
+            VITE_ENVIRONMENT: ci
 
       - name: "🐳 Build & Push WhatsApp :ci"
         uses: docker/build-push-action@v5
@@ -221,6 +221,13 @@ jobs:
                 docker pull z7design/fluxbus-frontend:ci && \
                 docker pull z7design/fluxbus-whatsapp:ci && break || sleep 15
               done
+
+              # Iniciar banco antes do backend para remover registros de migracao
+              # com falha (PostgreSQL faz rollback, mas o Flyway mantem a linha).
+              docker compose -f docker-compose.ci.yml up -d postgres-ci
+              docker exec fluxbus-db-ci sh -c 'until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do sleep 1; done'
+              docker exec fluxbus-db-ci sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DELETE FROM flyway_schema_history WHERE success = false;"' || true
+
               docker compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans || {
                 echo "❌ Falha ao subir containers no CI. Logs do backend:"
                 docker logs fluxbus-backend-ci --tail 100 || true
@@ -277,17 +284,20 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: "🔍 Verificar Login"
+        run: |
+          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
+            echo "❌ DOCKER_USERNAME esta vazio! Verifique os secrets do ambiente 'dev'."
+            exit 1
+          fi
+          echo "✅ DOCKER_USERNAME configurado."
+
       - name: "🐳 Re-tag CI -> DEV e push"
         run: |
-          docker pull z7design/fluxbus-backend:ci
-          docker pull z7design/fluxbus-frontend:ci
-          docker pull z7design/fluxbus-whatsapp:ci
-          docker tag z7design/fluxbus-backend:ci  z7design/fluxbus-backend:dev
-          docker tag z7design/fluxbus-frontend:ci z7design/fluxbus-frontend:dev
-          docker tag z7design/fluxbus-whatsapp:ci z7design/fluxbus-whatsapp:dev
-          docker push z7design/fluxbus-backend:dev
-          docker push z7design/fluxbus-frontend:dev
-          docker push z7design/fluxbus-whatsapp:dev
+          # Usar buildx imagetools para re-taggear sem precisar dar pull nas camadas (mais rapido e evita erros de daemon local)
+          docker buildx imagetools create z7design/fluxbus-backend:ci  --tag z7design/fluxbus-backend:dev
+          docker buildx imagetools create z7design/fluxbus-frontend:ci --tag z7design/fluxbus-frontend:dev
+          docker buildx imagetools create z7design/fluxbus-whatsapp:ci --tag z7design/fluxbus-whatsapp:dev
 
       - name: "🔑 Instalar sshpass"
         run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
@@ -379,17 +389,19 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: "🔍 Verificar Login"
+        run: |
+          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
+            echo "❌ DOCKER_USERNAME esta vazio! Verifique os secrets do ambiente 'prod'."
+            exit 1
+          fi
+          echo "✅ DOCKER_USERNAME configurado."
+
       - name: "🐳 Re-tag CI -> PROD e push"
         run: |
-          docker pull z7design/fluxbus-backend:ci
-          docker pull z7design/fluxbus-frontend:ci
-          docker pull z7design/fluxbus-whatsapp:ci
-          docker tag z7design/fluxbus-backend:ci  z7design/fluxbus-backend:prod
-          docker tag z7design/fluxbus-frontend:ci z7design/fluxbus-frontend:prod
-          docker tag z7design/fluxbus-whatsapp:ci z7design/fluxbus-whatsapp:prod
-          docker push z7design/fluxbus-backend:prod
-          docker push z7design/fluxbus-frontend:prod
-          docker push z7design/fluxbus-whatsapp:prod
+          docker buildx imagetools create z7design/fluxbus-backend:ci  --tag z7design/fluxbus-backend:prod
+          docker buildx imagetools create z7design/fluxbus-frontend:ci --tag z7design/fluxbus-frontend:prod
+          docker buildx imagetools create z7design/fluxbus-whatsapp:ci --tag z7design/fluxbus-whatsapp:prod
 
       - name: "🔑 Instalar sshpass"
         run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass

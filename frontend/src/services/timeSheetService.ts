@@ -13,6 +13,19 @@ class TimeSheetService {
 
     return response.data as Blob;
   }
+
+  async downloadTimeSheetPdf(employeeId: string, year?: number, month?: number) {
+    const params: any = {};
+    if (year) params.year = year;
+    if (month) params.month = month;
+
+    const response = await api.get(`/api/time-sheets/${employeeId}/pdf`, {
+      params,
+      responseType: 'blob',
+    });
+
+    return response.data as Blob;
+  }
 }
 
 export const timeSheetService = new TimeSheetService();

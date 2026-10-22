@@ -113,18 +113,21 @@ public class DependentService {
         log.info("Dependente excluÃ­do com sucesso. ID: {}", id);
     }
     
+    @Transactional(readOnly = true)
     public DependentDTO findById(UUID id) {
         return mapToDTO(findByIdEntity(id));
     }
     
+    @Transactional(readOnly = true)
     public List<DependentDTO> findByEmployeeId(UUID employeeId) {
-        log.info("Buscando dependentes do funcionÃ¡rio ID: {}", employeeId);
+        log.info("Buscando dependentes do funcionário ID: {}", employeeId);
         return dependentRepository.findByEmployeeId(employeeId)
             .stream()
             .map(this::mapToDTO)
             .collect(Collectors.toList());
     }
     
+    @Transactional(readOnly = true)
     public List<DependentDTO> findAll() {
         log.info("Buscando todos os dependentes");
         return dependentRepository.findAll()
@@ -133,6 +136,7 @@ public class DependentService {
             .collect(Collectors.toList());
     }
     
+    @Transactional(readOnly = true)
     public List<DependentDTO> findByCpf(String cpf) {
         log.info("Buscando dependente por CPF: {}", cpf);
         return dependentRepository.findByCpf(cpf)
@@ -141,6 +145,7 @@ public class DependentService {
             .collect(Collectors.toList());
     }
     
+    @Transactional(readOnly = true)
     public List<DependentDTO> findByRelationship(String relationship) {
         log.info("Buscando dependentes por relacionamento: {}", relationship);
         return dependentRepository.findByRelationship(relationship)
@@ -151,14 +156,23 @@ public class DependentService {
     
     private Dependent findByIdEntity(UUID id) {
         return dependentRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Dependente nÃ£o encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("Dependente não encontrado"));
     }
     
     private DependentDTO mapToDTO(Dependent dependent) {
+        UUID empId = null;
+        String empName = null;
+        try {
+            if (dependent.getEmployee() != null) {
+                empId = dependent.getEmployee().getId();
+                empName = dependent.getEmployee().getName();
+            }
+        } catch (Exception ignored) {}
+
         return DependentDTO.builder()
             .id(dependent.getId())
-            .employeeId(dependent.getEmployee().getId())
-            .employeeName(dependent.getEmployee().getName())
+            .employeeId(empId)
+            .employeeName(empName)
             .name(dependent.getName())
             .relationship(dependent.getRelationship())
             .birthDate(dependent.getBirthDate())

@@ -88,6 +88,16 @@ public class AuthenticationController {
                                 "code", "USER_BLOCKED"));
             }
 
+            // Tratamento específico para Primeiro Acesso necessário (colaborador cadastrado no RH sem senha)
+            if (errorMessage != null && (errorMessage.contains("Primeiro Acesso") || errorMessage.contains("sem senha configurada") || errorMessage.contains("não foi configurada"))) {
+                log.warn("ℹ️ Colaborador {} necessita realizar primeiro acesso.", username);
+                return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                                "error", "Forbidden",
+                                "message", errorMessage,
+                                "code", "FIRST_ACCESS_REQUIRED"));
+            }
+
             // Tratamento específico para usuário sem empresa
             if (errorMessage != null && errorMessage.contains("não possui empresa vinculada")) {
                 log.warn("⛔ Usuário {} sem empresa vinculada. Retornando 403 específico.", username);
@@ -156,16 +166,22 @@ public class AuthenticationController {
     })
     @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Objeto de requisiÃ§Ã£o para renovaÃ§Ã£o de token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RefreshTokenRequest.class), examples = @ExampleObject(value = "{\"refreshToken\": \"eyJhbGci...\"}")))
     @PostMapping("/refresh-token")
-    public ResponseEntity<AuthenticationResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
-        AuthenticationResponse response = authenticationService.refreshToken(request);
+    public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
+        try {
+            AuthenticationResponse response = authenticationService.refreshToken(request);
 
-        // Log da atividade de refresh token
-        if (response.getUser() != null) {
-            logService.logUserActivity(response.getUser().getUsername(), "REFRESH_TOKEN",
-                    "Token de acesso renovado");
+            // Log da atividade de refresh token
+            if (response.getUser() != null) {
+                logService.logUserActivity(response.getUser().getUsername(), "REFRESH_TOKEN",
+                        "Token de acesso renovado");
+            }
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.warn("Falha ao renovar token de acesso via refresh-token: {}", e.getMessage());
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Unauthorized", "message", "Token de refresh inválido ou expirado"));
         }
-
-        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Teste de saÃºde da API", description = "Endpoint simples para testar se a API estÃ¡ funcionando.")
