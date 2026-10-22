@@ -3,15 +3,22 @@
 -- Vincula registros operacionais orfaos (company_id IS NULL) a empresa
 -- Viacao Sao Silvestre para que seus usuarios tenham visibilidade no multi-tenant.
 --
--- IMPORTANTE: nem todas as tabelas listadas possuem company_id (por exemplo
--- work_posts, routes e purchase_requests). A migracao verifica a existencia da
--- coluna antes de executar o UPDATE para nao bloquear a inicializacao do backend.
+-- Observacoes:
+--  * Nem todas as tabelas listadas possuem company_id (ex.: work_posts, routes e
+--    purchase_requests). A existencia da coluna e verificada antes do UPDATE.
+--  * Algumas tabelas possuem restricoes de unicidade compostas com company_id
+--    (ex.: stock_items -> uk_stock_items_company_code UNIQUE (company_id, code)).
+--    Quando dois orfaos compartilham a mesma chave, ou quando a chave ja existe
+--    para a empresa de destino, o UPDATE em massa viola a constraint. Nesse caso
+--    a migracao cai para uma vinculacao registro-a-registro que ignora apenas os
+--    conflitos, garantindo que a inicializacao do backend nunca seja bloqueada.
 -- =============================================================================
 
 DO $$
 DECLARE
     v_vss_id UUID;
     v_table TEXT;
+    v_ctid TID;
     v_tables TEXT[] := ARRAY[
         'vehicles',
         'employees',
@@ -58,8 +65,25 @@ BEGIN
               AND table_name = v_table
               AND column_name = 'company_id'
         ) THEN
-            EXECUTE format('UPDATE %I SET company_id = $1 WHERE company_id IS NULL', v_table)
-            USING v_vss_id;
+            BEGIN
+                EXECUTE format('UPDATE %I SET company_id = $1 WHERE company_id IS NULL', v_table)
+                USING v_vss_id;
+            EXCEPTION WHEN unique_violation THEN
+                -- Ha orfaos que colidem com registros ja existentes da empresa
+                -- (ou entre si). Vincula um a um, ignorando somente os conflitos.
+                RAISE NOTICE 'Tabela %: conflito de unicidade; vinculando orfaos sem conflito.', v_table;
+
+                FOR v_ctid IN EXECUTE format('SELECT ctid FROM %I WHERE company_id IS NULL', v_table)
+                LOOP
+                    BEGIN
+                        EXECUTE format('UPDATE %I SET company_id = $1 WHERE ctid = $2 AND company_id IS NULL', v_table)
+                        USING v_vss_id, v_ctid;
+                    EXCEPTION WHEN unique_violation THEN
+                        -- Orfao duplicado: permanece sem empresa.
+                        NULL;
+                    END;
+                END LOOP;
+            END;
         END IF;
     END LOOP;
 
