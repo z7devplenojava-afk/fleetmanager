@@ -89,6 +89,15 @@ public class VehicleGateChecklistService {
                 .type(dto.getType())
                 .occurredAt(dto.getOccurredAt() != null ? dto.getOccurredAt() : LocalDateTime.now())
                 .kmReading(dto.getKmReading())
+                .initialKm(dto.getInitialKm())
+                .finalKm(dto.getFinalKm())
+                .distanceTravelled(dto.getDistanceTravelled())
+                .hasDisplacement(dto.getHasDisplacement())
+                .displacementType(dto.getDisplacementType())
+                .displacementInitialKm(dto.getDisplacementInitialKm())
+                .displacementFinalKm(dto.getDisplacementFinalKm())
+                .displacementDistance(dto.getDisplacementDistance())
+                .totalKmTravelled(dto.getTotalKmTravelled())
                 .odometerPhotoUrl(dto.getOdometerPhotoUrl())
                 .odometerPhotoDescription(dto.getOdometerPhotoDescription())
                 .checklistData(dto.getChecklistData())
@@ -164,6 +173,15 @@ public class VehicleGateChecklistService {
         dto.setType(entity.getType());
         dto.setOccurredAt(entity.getOccurredAt());
         dto.setKmReading(entity.getKmReading());
+        dto.setInitialKm(entity.getInitialKm());
+        dto.setFinalKm(entity.getFinalKm());
+        dto.setDistanceTravelled(entity.getDistanceTravelled());
+        dto.setHasDisplacement(entity.getHasDisplacement());
+        dto.setDisplacementType(entity.getDisplacementType());
+        dto.setDisplacementInitialKm(entity.getDisplacementInitialKm());
+        dto.setDisplacementFinalKm(entity.getDisplacementFinalKm());
+        dto.setDisplacementDistance(entity.getDisplacementDistance());
+        dto.setTotalKmTravelled(entity.getTotalKmTravelled());
         dto.setOdometerPhotoUrl(entity.getOdometerPhotoUrl());
         dto.setOdometerPhotoDescription(entity.getOdometerPhotoDescription());
         dto.setChecklistData(entity.getChecklistData());

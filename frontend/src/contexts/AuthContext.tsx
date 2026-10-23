@@ -4,7 +4,7 @@ import { useToast } from '@/components/ui/use-toast';
 import api from '@/lib/axios';
 import { User, AuthContextType, UserGroupData, UserRole, EmpresaInfo } from '@/types/user';
 import { generatePermissions, generatePermissionsFromGroups, combinePermissions } from '@/utils/permissions';
-import { getDashboardRouteForRole } from '@/utils/roleRouting';
+import { getDashboardRouteForRole, isDriverUser } from '@/utils/roleRouting';
 import { groupService } from '@/services/groupService';
 import { companyService } from '@/services/companyService';
 import { getApiUrl } from '@/config/environment';
@@ -354,13 +354,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Permissões combinadas:', combinedPermissions);
       }
 
+      const isDriver = isDriverUser({
+        role: userRole,
+        roles: userRoles,
+        position: response.data.user?.position,
+        isDriver: response.data.user?.isDriver,
+      });
+
+      const effectiveUserRole = isDriver ? 'MOTORISTA' : userRole;
+
       const userData: User = {
         id: response.data.user?.id || '',
         name: response.data.user?.fullName || response.data.user?.name || 'Usuário Teste',
         email: response.data.user?.email || email,
         username: response.data.user?.username || email, // CPF usado no login
-        role: userRole,
-        roles: userRoles, // Adicionar a propriedade roles
+        role: effectiveUserRole,
+        roles: isDriver && !userRoles.includes('MOTORISTA') ? [...userRoles, 'MOTORISTA'] : userRoles,
         groups: userGroups,
         permissions: combinedPermissions,
         avatar: response.data.user?.avatar,
@@ -370,6 +379,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         employeeId: response.data.user?.employeeId || response.data.employeeId,
         firstAccessCompleted: response.data.user?.firstAccessCompleted ?? response.data.firstAccessCompleted ?? false,
         requiresLgpdConsent: response.data?.requiresLgpdConsent === true,
+        isDriver: isDriver,
       };
 
       // Validar que o ID foi fornecido
@@ -427,7 +437,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Definir para onde navegar
       // ORDEM OBRIGATÓRIA: 1) LGPD → 2) Troca de senha → 3) 2FA → 4) Dashboard
-      let destination = getDashboardRouteForRole(userRole);
+      let destination = getDashboardRouteForRole(effectiveUserRole, userData);
       const isSuperAdmin = (userRole ?? '').toUpperCase().includes('SUPER_ADMIN');
       if (!isSuperAdmin && requiresLgpdConsent) {
         // 1º: Aceitar LGPD/Termos
@@ -564,6 +574,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         console.log('🔄 refreshUser: roles do servidor:', rolesFromServer, '→ role principal:', primaryRole);
 
+        const position = response.data.position || userData.position;
+        const department = response.data.department || userData.department;
+        const isDriver = isDriverUser({
+          role: primaryRole,
+          roles: rolesFromServer,
+          position: position,
+          isDriver: response.data.isDriver ?? userData.isDriver,
+        });
+
+        // Se for motorista e não for perfil administrativo privilegiado, garante a role MOTORISTA
+        const isSuperOrAdmin = ['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(primaryRole);
+        if (isDriver && !isSuperOrAdmin) {
+          primaryRole = 'MOTORISTA';
+        }
+
         const updatedUser = {
           ...userData,
           id: response.data.id || userData.id,
@@ -574,6 +599,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           active: response.data.active !== undefined ? response.data.active : userData.active,
           roles: rolesFromServer.length > 0 ? rolesFromServer : userData.roles,
           role: primaryRole,
+          position: position,
+          department: department,
+          isDriver: isDriver,
           employeeId: response.data.employeeId || userData.employeeId,
           firstAccessCompleted: response.data.firstAccessCompleted !== undefined
             ? response.data.firstAccessCompleted
@@ -592,13 +620,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('user', JSON.stringify(userWithPermissions));
       }
     } catch (error) {
-      console.error('Erro ao atualizar dados do usuário:', error);
+      console.warn('⚠️ refreshUser: Não foi possível sincronizar perfil em segundo plano com o servidor (usando dados locais da sessão):', error);
     }
   };
 
   const setFirstAccessCompleted = (completed: boolean) => {
     if (!user) return;
     const updatedUser = { ...user, firstAccessCompleted: completed };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
+  const setRequiresLgpdConsent = (required: boolean) => {
+    if (!user) return;
+    const updatedUser = { ...user, requiresLgpdConsent: required };
     setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));
   };
@@ -644,6 +679,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     },
     refreshUser,
     setFirstAccessCompleted,
+    setRequiresLgpdConsent,
     hasRole: (role: UserRole | string) => {
       if (!user) return false;
       // Trata tanto o papel principal (role) quanto a lista de papéis (roles)

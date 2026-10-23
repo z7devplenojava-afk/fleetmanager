@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const FirstAccessChangePassword = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { setFirstAccessCompleted } = useAuth();
+  const { setFirstAccessCompleted, refreshUser } = useAuth();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -80,6 +80,13 @@ const FirstAccessChangePassword = () => {
         });
 
         setFirstAccessCompleted(true);
+        if (refreshUser) {
+          try {
+            await refreshUser();
+          } catch (e) {
+            console.warn('Erro ao atualizar usuário após alteração de senha:', e);
+          }
+        }
 
         setTimeout(() => {
           navigate('/dashboard', { replace: true });

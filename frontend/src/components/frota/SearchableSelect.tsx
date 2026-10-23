@@ -134,7 +134,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const isBelowMin = minSearchLength && searchQuery.trim().length > 0 && searchQuery.trim().length < minSearchLength;
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild disabled={disabled}>
         <button
           type="button"

@@ -7,6 +7,7 @@ import { ScrollPreservingLink } from './ScrollPreservingLink';
 import UserProfileModal from './UserProfileModal';
 import Logo from './Logo';
 import { UserRole } from '@/types/user';
+import { isDriverUser } from '@/utils/roleRouting';
 import {
   BarChart3,
   FileText,
@@ -1663,8 +1664,8 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 
   const isMotorista = useMemo(() => {
     if (isSuperAdmin) return false;
-    return userRoles.some(r => r === 'MOTORISTA') || user?.role === 'MOTORISTA' || (user?.role as any) === 'ROLE_MOTORISTA';
-  }, [isSuperAdmin, userRoles, user?.role]);
+    return isDriverUser(user) || userRoles.some(r => r === 'MOTORISTA' || r === 'ROLE_MOTORISTA');
+  }, [isSuperAdmin, user, userRoles]);
 
   const filteredMainMenuItems = useMemo(() => filterItemsForRole(mainMenuItems), [filterItemsForRole]);
   const filteredManutencaoItems = useMemo(() => filterItemsForRole(manutencaoMenuItems), [filterItemsForRole]);

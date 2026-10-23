@@ -38,6 +38,7 @@ import timeRecordService, { TimeRecord } from '@/services/timeRecordService';
 import { timeSheetService } from '@/services/timeSheetService';
 import api from '@/lib/axios';
 import { employeeService } from '@/services/employeeService';
+import { isDriverUser } from '@/utils/roleRouting';
 
 const PontoEletronico: React.FC = () => {
   const { toast } = useToast();
@@ -62,7 +63,7 @@ const PontoEletronico: React.FC = () => {
     user?.role === 'RH' || 
     user?.role === 'DEPARTAMENTO_PESSOAL';
 
-  const isMotorista = user?.role === 'MOTORISTA' || !isRHOrAdmin;
+  const isMotorista = isDriverUser(user) || !isRHOrAdmin;
 
   // Modais de ações rápidas
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
@@ -198,11 +199,13 @@ const PontoEletronico: React.FC = () => {
     try {
       setLoadingRecords(true);
       const response = await timeRecordService.getTodayRecords(targetId);
-      if (response.success) {
-        setRegistrosHoje(response.data);
-      }
+      const records = Array.isArray(response)
+        ? response
+        : (response?.data && Array.isArray(response.data) ? response.data : []);
+      setRegistrosHoje(records);
     } catch (error: any) {
       console.error('Erro ao carregar registros:', error);
+      setRegistrosHoje([]);
     } finally {
       setLoadingRecords(false);
     }
@@ -398,15 +401,10 @@ const PontoEletronico: React.FC = () => {
       setHistoryLoading(true);
       setShowHistoryDialog(true);
       const response = await timeRecordService.getEmployeeRecords(targetId, 0, 50);
-      if (response.success) {
-        setHistoryRecords(response.data);
-      } else {
-        toast({
-          title: 'Erro ao carregar histórico',
-          description: response.error || 'Tente novamente mais tarde',
-          variant: 'destructive',
-        });
-      }
+      const records = Array.isArray(response)
+        ? response
+        : (response?.data && Array.isArray(response.data) ? response.data : []);
+      setHistoryRecords(records);
     } catch (error: any) {
       console.error('Erro ao carregar histórico:', error);
       toast({

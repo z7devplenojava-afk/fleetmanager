@@ -10,7 +10,7 @@ const Dashboard = () => {
   const { user } = useAuth();
   useGSAP();
 
-  const roleDestination = getDashboardRouteForRole(user?.role);
+  const roleDestination = getDashboardRouteForRole(user?.role, user);
   if (roleDestination !== '/dashboard') {
     return <Navigate to={roleDestination} replace />;
   }

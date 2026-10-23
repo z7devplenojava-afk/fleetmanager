@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { isDriverUser } from '@/utils/roleRouting';
 import {
   BarChart3,
   Users,
@@ -52,6 +53,12 @@ import { useToast } from '@/hooks/use-toast';
 const Index: React.FC = () => {
   const { user, logout, empresa } = useAuth();
   const navigate = useNavigate();
+
+  // Motoristas devem sempre visualizar o Portal do Motorista (/driver-dashboard)
+  if (isDriverUser(user)) {
+    return <Navigate to="/driver-dashboard" replace />;
+  }
+
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState<DashboardSummary | null>(null);

@@ -45,9 +45,11 @@ public class TimeRecordService {
         log.info("📝 Registrando ponto - Employee: {}, Tipo: {}, QRCode: {}",
                 employeeId, recordType, qrCode);
 
-        // Buscar funcionário
+        // Buscar funcionário (por ID ou fallback por userId)
         Employee employee = employeeRepository.findById(employeeId)
+                .or(() -> employeeRepository.findByUserId(employeeId))
                 .orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
+        UUID effectiveEmployeeId = employee.getId();
 
         // Validar QR Code se fornecido
         WorkPost workPost = null;
@@ -78,7 +80,7 @@ public class TimeRecordService {
         }
 
         // Validar sequência de registros
-        validateRecordSequence(employeeId, recordType);
+        validateRecordSequence(effectiveEmployeeId, recordType);
 
         // Criar registro
         TimeRecord record = new TimeRecord();
@@ -156,7 +158,13 @@ public class TimeRecordService {
     }
 
     public List<TimeRecord> getTodayRecords(UUID employeeId) {
-        return timeRecordRepository.findTodayRecordsByEmployeeId(employeeId);
+        UUID effectiveId = employeeId;
+        if (!employeeRepository.existsById(employeeId)) {
+            effectiveId = employeeRepository.findByUserId(employeeId)
+                    .map(Employee::getId)
+                    .orElse(employeeId);
+        }
+        return timeRecordRepository.findTodayRecordsByEmployeeId(effectiveId);
     }
 
     public List<TimeRecord> getRecordsByPeriod(UUID employeeId, LocalDate startDate, LocalDate endDate) {
@@ -242,7 +250,13 @@ public class TimeRecordService {
     }
 
     public TimeRecord.RecordType getNextRecordType(UUID employeeId) {
-        List<TimeRecord> todayRecords = timeRecordRepository.findTodayRecordsByEmployeeId(employeeId);
+        UUID effectiveId = employeeId;
+        if (!employeeRepository.existsById(employeeId)) {
+            effectiveId = employeeRepository.findByUserId(employeeId)
+                    .map(Employee::getId)
+                    .orElse(employeeId);
+        }
+        List<TimeRecord> todayRecords = timeRecordRepository.findTodayRecordsByEmployeeId(effectiveId);
 
         if (todayRecords.isEmpty()) {
             return TimeRecord.RecordType.ENTRADA;

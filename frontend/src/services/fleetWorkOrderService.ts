@@ -250,12 +250,12 @@ class FleetWorkOrderService {
     async uploadPhotos(files: File[]): Promise<string[]> {
         if (!files || files.length === 0) return [];
 
-        // Otimização client-side: comprime imagens maiores que 800KB para evitar 413 Payload Too Large e acelerar o envio
+        // Otimização client-side preventiva: comprime imagens maiores que 250KB para evitar 413 Payload Too Large e acelerar o envio
         const processedFiles = await Promise.all(
             files.map(async (file) => {
-                if (file.type && file.type.startsWith('image/') && file.size > 800 * 1024) {
+                if (file.type && file.type.startsWith('image/') && file.size > 250 * 1024) {
                     try {
-                        return await compressImageToFile(file);
+                        return await compressImageToFile(file, 1600, 1600, 0.75);
                     } catch (e) {
                         return file;
                     }
@@ -264,12 +264,41 @@ class FleetWorkOrderService {
             })
         );
 
-        const formData = new FormData();
-        processedFiles.forEach(f => formData.append('photos', f));
-        const { data } = await api.post('/fleet-work-orders/upload-photos', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        return data?.urls || [];
+        // Tentativa de envio em lote
+        try {
+            const formData = new FormData();
+            processedFiles.forEach(f => formData.append('photos', f));
+            const { data } = await api.post('/fleet-work-orders/upload-photos', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            return data?.urls || [];
+        } catch (err: any) {
+            // Se falhar em lote (ex: 413 Payload Too Large ou timeout), tenta envio individual com compressão compacta
+            console.warn('Upload em lote de fotos falhou, tentando envio unitário resiliente:', err?.response?.status || err?.message);
+            const uploadedUrls: string[] = [];
+            for (const file of processedFiles) {
+                try {
+                    let toUpload = file;
+                    if (file.type && file.type.startsWith('image/')) {
+                        toUpload = await compressImageToFile(file, 1280, 1280, 0.65);
+                    }
+                    const singleForm = new FormData();
+                    singleForm.append('photos', toUpload);
+                    const { data } = await api.post('/fleet-work-orders/upload-photos', singleForm, {
+                        headers: { 'Content-Type': 'multipart/form-data' },
+                    });
+                    if (data?.urls && Array.isArray(data.urls)) {
+                        uploadedUrls.push(...data.urls);
+                    }
+                } catch (singleErr) {
+                    console.error('Falha ao enviar foto individual:', singleErr);
+                }
+            }
+            if (uploadedUrls.length > 0) {
+                return uploadedUrls;
+            }
+            throw err;
+        }
     }
 
     async create(order: Partial<FleetWorkOrder>): Promise<FleetWorkOrder> {

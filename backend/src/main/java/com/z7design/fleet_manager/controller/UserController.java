@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
 import java.util.Objects;
@@ -72,99 +73,160 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
     })
     public ResponseEntity<ProfileResponse> getProfile() {
-        // Obter o usuário atual do contexto de segurança
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).build();
-        }
-
-        String username = authentication.getName();
-        User currentUser = null;
-        if (authentication.getPrincipal() instanceof User) {
-            currentUser = (User) authentication.getPrincipal();
-        } else {
-            currentUser = userService.findByUsername(username)
-                    .or(() -> userService.findByEmail(username))
-                    .orElse(null);
-            if (currentUser == null) {
-                try {
-                    UUID userId = UUID.fromString(username);
-                    currentUser = userRepository.findById(userId).orElse(null);
-                } catch (IllegalArgumentException ignored) {}
-            }
-        }
-
-        if (currentUser != null && currentUser.getId() != null) {
-            currentUser = userRepository.findById(currentUser.getId()).orElse(currentUser);
-        }
-
-        if (currentUser == null) {
-            return ResponseEntity.status(404).build();
-        }
-
-        List<String> roleNames = currentUser.getRoles() != null ? currentUser.getRoles().stream()
-                .filter(Objects::nonNull)
-                .map(role -> role.getName())
-                .filter(Objects::nonNull)
-                .collect(java.util.stream.Collectors.toList()) : java.util.Collections.emptyList();
-
-        // Construir resposta
-        boolean isSuperAdmin = roleNames.stream().anyMatch(r ->
-            r.equalsIgnoreCase("SUPER_ADMIN") || r.equalsIgnoreCase("ROLE_SUPER_ADMIN")
-        );
-        boolean requiresLgpdConsent = false;
-        if (!isSuperAdmin) {
-            try {
-                requiresLgpdConsent = !lgpdConsentService.hasAcceptedAllRequiredConsents(currentUser.getId());
-            } catch (Exception e) {
-                log.warn("Erro ao verificar consentimento LGPD para perfil (assumindo false): {}", e.getMessage());
-            }
-        }
-
-        UUID employeeId = null;
         try {
-            Optional<Employee> empOpt = employeeRepository.findByUserId(currentUser.getId());
-            if (empOpt.isPresent()) {
-                employeeId = empOpt.get().getId();
-            } else if (currentUser.getName() != null && !currentUser.getName().isBlank()) {
-                Optional<Employee> empByName = employeeRepository.findByNameIgnoreCase(currentUser.getName().trim());
-                if (empByName.isPresent()) {
-                    Employee emp = empByName.get();
-                    employeeId = emp.getId();
-                    if (emp.getUser() == null) {
-                        emp.setUser(currentUser);
-                        employeeRepository.save(emp);
-                    }
+            // Obter o usuário atual do contexto de segurança
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(401).build();
+            }
+
+            String username = authentication.getName();
+            User currentUser = null;
+            if (authentication.getPrincipal() instanceof User) {
+                currentUser = (User) authentication.getPrincipal();
+            } else {
+                try {
+                    currentUser = userService.findByUsername(username)
+                            .or(() -> userService.findByEmail(username))
+                            .orElse(null);
+                } catch (Exception e) {
+                    log.warn("Erro ao buscar usuário por username/email {}: {}", username, e.getMessage());
                 }
-            } else if (currentUser.getEmail() != null && !currentUser.getEmail().isBlank()) {
-                Optional<Employee> empByEmail = employeeRepository.findByEmail(currentUser.getEmail().trim());
-                if (empByEmail.isPresent()) {
-                    Employee emp = empByEmail.get();
-                    employeeId = emp.getId();
-                    if (emp.getUser() == null) {
-                        emp.setUser(currentUser);
-                        employeeRepository.save(emp);
-                    }
+                if (currentUser == null) {
+                    try {
+                        UUID userId = UUID.fromString(username);
+                        currentUser = userRepository.findById(userId).orElse(null);
+                    } catch (Exception ignored) {}
                 }
             }
+
+            if (currentUser != null && currentUser.getId() != null) {
+                try {
+                    currentUser = userRepository.findById(currentUser.getId()).orElse(currentUser);
+                } catch (Exception e) {
+                    log.warn("Erro ao recarregar currentUser via userRepository: {}", e.getMessage());
+                }
+            }
+
+            if (currentUser == null) {
+                return ResponseEntity.status(404).build();
+            }
+
+            // Garante lista mutável de roles sempre
+            List<String> roleNames = new ArrayList<>();
+            try {
+                if (currentUser.getRoles() != null) {
+                    currentUser.getRoles().stream()
+                            .filter(Objects::nonNull)
+                            .map(role -> role.getName())
+                            .filter(Objects::nonNull)
+                            .forEach(roleNames::add);
+                }
+            } catch (Exception e) {
+                log.warn("Erro ao extrair roles de currentUser: {}", e.getMessage());
+            }
+
+            // Construir resposta
+            boolean isSuperAdmin = roleNames.stream().anyMatch(r ->
+                r.equalsIgnoreCase("SUPER_ADMIN") || r.equalsIgnoreCase("ROLE_SUPER_ADMIN")
+            );
+            boolean requiresLgpdConsent = false;
+            if (!isSuperAdmin) {
+                try {
+                    requiresLgpdConsent = !lgpdConsentService.hasAcceptedAllRequiredConsents(currentUser.getId());
+                } catch (Exception e) {
+                    log.warn("Erro ao verificar consentimento LGPD para perfil (assumindo false): {}", e.getMessage());
+                }
+            }
+
+            UUID employeeId = null;
+            String position = null;
+            String department = null;
+            try {
+                Employee emp = employeeRepository.findByUserId(currentUser.getId()).orElse(null);
+                if (emp == null && currentUser.getUsername() != null) {
+                    String cleanCpf = currentUser.getUsername().replaceAll("\\D", "");
+                    if (cleanCpf.length() >= 11) {
+                        emp = employeeRepository.findByCpf(cleanCpf).orElse(null);
+                    }
+                }
+                if (emp == null && currentUser.getName() != null && !currentUser.getName().isBlank()) {
+                    List<Employee> empsByName = employeeRepository.findByNameContainingIgnoreCase(currentUser.getName().trim());
+                    if (!empsByName.isEmpty()) {
+                        emp = empsByName.get(0);
+                    }
+                }
+                if (emp == null && currentUser.getEmail() != null && !currentUser.getEmail().isBlank()) {
+                    emp = employeeRepository.findByEmail(currentUser.getEmail().trim()).orElse(null);
+                }
+
+                if (emp != null) {
+                    employeeId = emp.getId();
+                    try {
+                        if (emp.getPosition() != null) {
+                            position = emp.getPosition().getName();
+                        }
+                    } catch (Exception exPos) {
+                        log.debug("Erro ao carregar position do funcionário: {}", exPos.getMessage());
+                    }
+                    try {
+                        if (emp.getDepartment() != null) {
+                            department = emp.getDepartment().getName();
+                        }
+                    } catch (Exception exDep) {
+                        log.debug("Erro ao carregar department do funcionário: {}", exDep.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Erro ao resolver employeeId no perfil do usuário {}: {}", currentUser.getId(), e.getMessage());
+            }
+
+            boolean hasDriverRole = roleNames.stream().anyMatch(r ->
+                r.equalsIgnoreCase("MOTORISTA") || r.equalsIgnoreCase("ROLE_MOTORISTA")
+            );
+            boolean hasDriverPosition = position != null && (
+                position.toLowerCase().contains("motorista") ||
+                position.toLowerCase().contains("condutor") ||
+                position.toLowerCase().contains("driver")
+            );
+            boolean isDriver = hasDriverRole || hasDriverPosition;
+            if (hasDriverPosition && !hasDriverRole) {
+                roleNames.add("MOTORISTA");
+            }
+
+            ProfileResponse response = ProfileResponse.builder()
+                    .id(currentUser.getId())
+                    .username(currentUser.getUsername())
+                    .name(currentUser.getName())
+                    .email(currentUser.getEmail())
+                    .whatsapp(currentUser.getWhatsapp())
+                    .active(currentUser.isActive())
+                    .roles(roleNames)
+                    .firstAccessCompleted(currentUser.getFirstAccessCompleted() != null && currentUser.getFirstAccessCompleted())
+                    .requiresLgpdConsent(requiresLgpdConsent)
+                    .employeeId(employeeId)
+                    .position(position)
+                    .department(department)
+                    .isDriver(isDriver)
+                    .build();
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.warn("Erro ao resolver employeeId no perfil do usuário {}: {}", currentUser.getId(), e.getMessage());
+            log.error("Erro inesperado ao gerar perfil do usuário logado: ", e);
+            // Fallback para evitar 500 na interface
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String name = (auth != null) ? auth.getName() : "Usuário";
+            ProfileResponse fallback = ProfileResponse.builder()
+                    .username(name)
+                    .name(name)
+                    .active(true)
+                    .roles(List.of())
+                    .firstAccessCompleted(true)
+                    .requiresLgpdConsent(false)
+                    .isDriver(false)
+                    .build();
+            return ResponseEntity.ok(fallback);
         }
-
-        ProfileResponse response = ProfileResponse.builder()
-                .id(currentUser.getId())
-                .username(currentUser.getUsername())
-                .name(currentUser.getName())
-                .email(currentUser.getEmail())
-                .whatsapp(currentUser.getWhatsapp())
-                .active(currentUser.isActive())
-                .roles(roleNames)
-                .firstAccessCompleted(currentUser.getFirstAccessCompleted() != null && currentUser.getFirstAccessCompleted())
-                .requiresLgpdConsent(requiresLgpdConsent)
-                .employeeId(employeeId)
-                .build();
-
-        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/profile")

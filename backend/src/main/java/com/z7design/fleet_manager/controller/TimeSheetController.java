@@ -29,7 +29,7 @@ public class TimeSheetController {
     private final TimeSheetService timeSheetService;
 
     @GetMapping("/{employeeId}")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'COMPANY_ADMIN', 'MOTORISTA', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_COMPANY_ADMIN', 'ROLE_MOTORISTA')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'COMPANY_ADMIN', 'MOTORISTA', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_COMPANY_ADMIN', 'ROLE_MOTORISTA', 'COLABORADOR', 'ROLE_COLABORADOR', 'EMPLOYEE', 'ROLE_EMPLOYEE')")
     @Operation(summary = "Gerar folha de ponto mensal em Excel para um funcionário")
     public ResponseEntity<byte[]> generateTimeSheet(
             @PathVariable("employeeId") UUID employeeId,
@@ -55,7 +55,7 @@ public class TimeSheetController {
     }
 
     @GetMapping("/{employeeId}/pdf")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'COMPANY_ADMIN', 'MOTORISTA', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_COMPANY_ADMIN', 'ROLE_MOTORISTA')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'COMPANY_ADMIN', 'MOTORISTA', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_COMPANY_ADMIN', 'ROLE_MOTORISTA', 'COLABORADOR', 'ROLE_COLABORADOR', 'EMPLOYEE', 'ROLE_EMPLOYEE')")
     @Operation(summary = "Gerar folha de ponto mensal em PDF para um funcionário")
     public ResponseEntity<byte[]> generateTimeSheetPdf(
             @PathVariable("employeeId") UUID employeeId,

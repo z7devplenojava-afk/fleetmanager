@@ -13,7 +13,7 @@ import api from '@/lib/axios';
 
 const LgpdConsent = () => {
   const navigate = useNavigate();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, setRequiresLgpdConsent } = useAuth();
   const { toast } = useToast();
   
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -66,6 +66,10 @@ const LgpdConsent = () => {
       // Marcar consentimento LGPD como completo (sem userId no path)
       await api.post('/lgpd/complete-first-access');
 
+      if (setRequiresLgpdConsent) {
+        setRequiresLgpdConsent(false);
+      }
+
       toast({
         title: 'Consentimentos registrados',
         description: 'Todos os consentimentos foram aceitos com sucesso.',
@@ -83,7 +87,7 @@ const LgpdConsent = () => {
         // Ainda precisa trocar a senha no primeiro acesso
         navigate('/first-access/change-password', { replace: true });
       } else {
-        const targetRoute = getDashboardRouteForRole(user?.role);
+        const targetRoute = getDashboardRouteForRole(user?.role, user);
         navigate(targetRoute, { replace: true });
       }
     } catch (error: any) {

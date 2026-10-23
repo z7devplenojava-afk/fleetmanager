@@ -13,7 +13,7 @@ import {
     Wrench, Trash2, Plus, ClipboardList, Clock, History,
     Gauge, AlertTriangle, Send, ChevronDown, ChevronUp, CheckCircle, XCircle, MinusCircle, UserCheck,
     Camera, UploadCloud, Image as LucideImage, Package, ShieldCheck, Tag, FileText, Check, AlertCircle,
-    Timer, Edit, PlayCircle, StopCircle, RefreshCw
+    Timer, Edit, PlayCircle, StopCircle, RefreshCw, Zap, Sparkles, Car
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -59,11 +59,30 @@ const ACTION_ICONS: Record<string, string> = {
     COST_UPDATE:   '💰',
 };
 
+const QUICK_SYMPTOMS = [
+    'Barulho no freio / lonas',
+    'Vazamento de ar pneumático',
+    'Superaquecimento do motor',
+    'Luz de alerta / falha no painel',
+    'Embreagem patinando ou dura',
+    'Folga na suspensão / direção',
+    'Pneu furado ou danificado',
+    'Falha elétrica / partida / bateria',
+    'Ar-condicionado não gela',
+    'Troca de óleo e filtros',
+    'Revisão periódica programada',
+    'Vazamento de fluidos ou óleo',
+    'Limpador / farol queimado'
+];
+
 const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order, initialVehicleId }) => {
     const { toast }       = useToast();
     const { user }        = useAuth();
     const queryClient     = useQueryClient();
     const isEdit          = !!order?.id;
+
+    // Modo Abertura Rápida (ativo por padrão para novas manutenções)
+    const [isExpressMode, setIsExpressMode] = useState(!isEdit);
 
     const [isLoading, setIsLoading]         = useState(false);
     const [newNote, setNewNote]             = useState('');
@@ -700,6 +719,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     useEffect(() => {
         if (order) {
             setFormData({ ...order });
+            setIsExpressMode(false);
         } else {
             const today = new Date().toISOString().split('T')[0];
             const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -716,10 +736,56 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 stopReason: '', mechanicName: '', notes: '', items: [], checklistItems: [],
                 anomaliesDescription: '', otherDescription: '', maintenancePerformed: ''
             });
+            setIsExpressMode(true);
         }
         setShowHistory(false);
         setNewNote('');
     }, [order, isOpen, initialVehicleId]);
+
+    // Veículo selecionado atualmente
+    const selectedVehicle = React.useMemo(() => {
+        if (!formData.vehicleId) return null;
+        return vehicles.find(v => v.id === formData.vehicleId) || null;
+    }, [formData.vehicleId, vehicles]);
+
+    // Seleção de veículo centralizada com auto-preenchimento
+    const handleSelectVehicle = (v: string) => {
+        const selectedVeh = vehicles.find(veh => veh.id === v);
+        const vehGarage = selectedVeh?.garageId
+            ? garagesForOS.find((g: Garage) => g.id === selectedVeh.garageId)
+            : undefined;
+        setFormData(p => ({
+            ...p,
+            vehicleId: v,
+            vehiclePlate: selectedVeh?.plate || (selectedVeh as any)?.placa || p.vehiclePlate,
+            vehicleModel: selectedVeh?.model || (selectedVeh as any)?.modelo || p.vehicleModel,
+            clientId: selectedVeh?.clientId || p.clientId,
+            sectorId: selectedVeh?.workPostId || p.sectorId,
+            workPostId: selectedVeh?.workPostId || p.workPostId,
+            workPostName: (selectedVeh as any)?.workPostName || p.workPostName,
+            garageId: p.garageId || selectedVeh?.garageId || undefined,
+            garageName: p.garageName || vehGarage?.name || selectedVeh?.garageName || undefined,
+            odometerIn: (selectedVeh?.currentMileage !== undefined && selectedVeh?.currentMileage !== null)
+                ? selectedVeh.currentMileage
+                : p.odometerIn
+        }));
+        if (formData.maintenanceType === MaintenanceType.PREVENTIVA && (!isEdit || !order?.checklistItems || order.checklistItems.length === 0)) {
+            handleLoadDefaultChecklist(v);
+        }
+    };
+
+    // Inserção rápida de queixa / sintoma
+    const handleAddSymptomChip = (symptom: string) => {
+        setFormData(p => {
+            const current = (p.anomaliesDescription || p.stopReason || '').trim();
+            const updated = current ? `${current}; ${symptom}` : symptom;
+            return {
+                ...p,
+                anomaliesDescription: updated,
+                stopReason: updated
+            };
+        });
+    };
 
     // Limite de valor para serviço exigir aprovação obrigatória do Gestor (R$ 500,00)
     const HIGH_VALUE_SERVICE_THRESHOLD = 500;
@@ -1080,8 +1146,9 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             return;
         }
 
-        if (formData.maintenanceType === MaintenanceType.CORRETIVA && !formData.anomaliesDescription?.trim()) {
-            toast({ title: 'Erro', description: 'A descrição de anomalias é obrigatória para OS Corretiva.', variant: 'destructive' });
+        const defectText = (formData.anomaliesDescription || formData.stopReason || '').trim();
+        if (formData.maintenanceType === MaintenanceType.CORRETIVA && !defectText) {
+            toast({ title: 'Atenção', description: 'Informe o defeito relatado ou anomalia para a OS Corretiva.', variant: 'destructive' });
             return;
         }
 
@@ -1106,8 +1173,16 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         const effectiveId = order?.id || formData.id;
         setIsLoading(true);
         try {
+            const today = new Date().toISOString().split('T')[0];
+            const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const resolvedAnomalies = defectText || (formData.maintenanceType === MaintenanceType.PREVENTIVA ? 'Revisão preventiva periódica' : '');
+
             const payload: Partial<FleetWorkOrder> = {
                 ...formData,
+                stopDate: formData.stopDate || today,
+                stopTime: formData.stopTime || nowTime,
+                stopReason: formData.stopReason?.trim() || resolvedAnomalies,
+                anomaliesDescription: resolvedAnomalies,
                 status: submitStatus || formData.status || WorkOrderStatus.OPEN,
                 items: (formData.items || []).map(it => ({ ...it, type: it.type ?? WorkOrderItemType.PART })),
             };
@@ -1138,10 +1213,11 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             return;
         }
 
-        if (formData.maintenanceType === MaintenanceType.CORRETIVA && !formData.anomaliesDescription?.trim()) {
+        const defectText = (formData.anomaliesDescription || formData.stopReason || '').trim();
+        if (formData.maintenanceType === MaintenanceType.CORRETIVA && !defectText) {
             toast({
                 title: 'Descrição Obrigatória',
-                description: 'A descrição de anomalias é obrigatória para OS Corretiva.',
+                description: 'Informe a descrição do defeito ou anomalia para OS Corretiva.',
                 variant: 'destructive'
             });
             return;
@@ -1162,8 +1238,16 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
         setIsGeneratingPdf(true);
         try {
+            const today = new Date().toISOString().split('T')[0];
+            const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const resolvedAnomalies = defectText || (formData.maintenanceType === MaintenanceType.PREVENTIVA ? 'Revisão preventiva periódica' : '');
+
             const payload: Partial<FleetWorkOrder> = {
                 ...formData,
+                stopDate: formData.stopDate || today,
+                stopTime: formData.stopTime || nowTime,
+                stopReason: formData.stopReason?.trim() || resolvedAnomalies,
+                anomaliesDescription: resolvedAnomalies,
                 status: formData.status || WorkOrderStatus.OPEN,
                 items: (formData.items || []).map(it => ({ ...it, type: it.type ?? WorkOrderItemType.PART })),
             };
@@ -1222,6 +1306,17 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         <div className="flex w-full justify-between items-center gap-3 flex-wrap">
             <Button variant="outline" onClick={onClose} className="border-gray-600 text-gray-300">Cancelar</Button>
             <div className="flex gap-2 flex-wrap justify-end items-center">
+                {isExpressMode && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsExpressMode(false)}
+                        className="border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 text-xs"
+                    >
+                        <ClipboardList className="mr-1.5 h-3.5 w-3.5 text-blue-400" />
+                        Modo Completo / Peças
+                    </Button>
+                )}
                 <Button
                     type="button"
                     variant="outline"
@@ -1232,31 +1327,44 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     <FileText className="mr-2 h-4 w-4 text-red-400" />
                     {isGeneratingPdf ? 'Gerando OS...' : 'Gerar e Visualizar OS'}
                 </Button>
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
-                    disabled={isLoading || isGeneratingPdf}
-                    className="border-blue-500 text-blue-400 hover:bg-blue-500/10"
-                >
-                    <Clock className="mr-2 h-4 w-4" /> Salvar Rascunho / Aberta
-                </Button>
-                <Button
-                    type="button"
-                    onClick={() => handleSubmit(WorkOrderStatus.IN_PROGRESS)}
-                    disabled={isLoading || isGeneratingPdf}
-                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
-                >
-                    <Wrench className="mr-2 h-4 w-4" /> Em Andamento
-                </Button>
-                <Button
-                    type="button"
-                    onClick={() => handleSubmit(WorkOrderStatus.COMPLETED)}
-                    disabled={isLoading || isGeneratingPdf}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold"
-                >
-                    <CheckCircle className="mr-2 h-4 w-4" /> Concluir OS
-                </Button>
+                {isExpressMode ? (
+                    <Button
+                        type="button"
+                        onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
+                        disabled={isLoading || isGeneratingPdf}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-950/50"
+                    >
+                        <Zap className="mr-2 h-4 w-4 text-amber-300" /> Abrir OS Imediatamente
+                    </Button>
+                ) : (
+                    <>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
+                            disabled={isLoading || isGeneratingPdf}
+                            className="border-blue-500 text-blue-400 hover:bg-blue-500/10"
+                        >
+                            <Clock className="mr-2 h-4 w-4" /> Salvar Rascunho / Aberta
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => handleSubmit(WorkOrderStatus.IN_PROGRESS)}
+                            disabled={isLoading || isGeneratingPdf}
+                            className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
+                        >
+                            <Wrench className="mr-2 h-4 w-4" /> Em Andamento
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => handleSubmit(WorkOrderStatus.COMPLETED)}
+                            disabled={isLoading || isGeneratingPdf}
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold"
+                        >
+                            <CheckCircle className="mr-2 h-4 w-4" /> Concluir OS
+                        </Button>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -1330,51 +1438,310 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     </Button>
                 </div>
 
-                {/* ── Seção 1: Tipo & Identificação ──────────────────────────── */}
-                <Section title="Identificação da OS" icon={<ClipboardList className="h-4 w-4 text-red-500" />}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <Field label="Tipo de Manutenção *">
-                            <Select value={formData.maintenanceType || MaintenanceType.CORRETIVA}
-                                onValueChange={v => setFormData(p => ({ ...p, maintenanceType: v as MaintenanceType }))}>
-                                <SelectTrigger className="bg-seguranca-black border-gray-600 font-bold"><SelectValue /></SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600">
-                                    <SelectItem value={MaintenanceType.CORRETIVA}>🔧 CORRETIVA</SelectItem>
-                                    <SelectItem value={MaintenanceType.PREVENTIVA}>📋 PREVENTIVA</SelectItem>
-                                    <SelectItem value={MaintenanceType.PREDITIVA}>📊 PREDITIVA</SelectItem>
-                                    <SelectItem value={MaintenanceType.INSPECAO}>🔍 INSPEÇÃO</SelectItem>
-                                    <SelectItem value={MaintenanceType.LUBRIFICACAO}>🛢️ LUBRIFICAÇÃO</SelectItem>
-                                    <SelectItem value={MaintenanceType.LIMPEZA}>🧼 HIGIENIZAÇÃO / LIMPEZA</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </Field>
-                        <Field label="Equipamento / Veículo *">
+                {/* ── Seletor de Modo: Abertura Expressa vs Formulário Completo ── */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-gradient-to-r from-gray-900/90 via-black to-gray-900/90 border border-gray-800 rounded-xl">
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center p-1 bg-black/80 rounded-lg border border-gray-800">
+                            <button
+                                type="button"
+                                onClick={() => setIsExpressMode(true)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                    isExpressMode
+                                        ? 'bg-amber-500 text-black shadow-md'
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                <Zap className="h-3.5 w-3.5" />
+                                ⚡ Abertura Expressa
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsExpressMode(false)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                    !isExpressMode
+                                        ? 'bg-blue-600 text-white shadow-md'
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                <ClipboardList className="h-3.5 w-3.5" />
+                                📋 Formulário Completo
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                        {isExpressMode ? (
+                            <span className="flex items-center gap-1.5 text-amber-400 font-medium">
+                                <Zap className="h-3.5 w-3.5 text-amber-400" />
+                                Modo Rápido: apenas campos essenciais para entrada na oficina
+                            </span>
+                        ) : (
+                            <span className="flex items-center gap-1.5 text-blue-400 font-medium">
+                                <ClipboardList className="h-3.5 w-3.5 text-blue-400" />
+                                Modo Detalhado: gestão de peças, orçamentos e checklist de 33 itens
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {isExpressMode ? (
+                    <div className="space-y-5 animate-in fade-in duration-200">
+                        {/* 1. Veículo e Odômetro */}
+                        <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800 space-y-3 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                                    <Car className="h-4 w-4 text-amber-400" />
+                                    1. Equipamento / Veículo *
+                                </Label>
+                                {selectedVehicle && (
+                                    <Badge variant="outline" className="border-amber-500/40 text-amber-300 text-[11px] font-mono">
+                                        {selectedVehicle.fleetNumber ? `Frota #${selectedVehicle.fleetNumber}` : selectedVehicle.plate}
+                                    </Badge>
+                                )}
+                            </div>
+
                             <SearchableSelect
                                 value={formData.vehicleId || ''}
                                 fallbackLabel={formData.vehiclePlate ? `${formData.vehiclePlate}${formData.vehicleModel ? ` - ${formData.vehicleModel}` : ''}` : undefined}
-                                onChange={(v) => {
-                                    const selectedVeh = vehicles.find(veh => veh.id === v);
-                                    const vehGarage = selectedVeh?.garageId
-                                        ? garagesForOS.find((g: Garage) => g.id === selectedVeh.garageId)
-                                        : undefined;
-                                    setFormData(p => ({
-                                        ...p,
-                                        vehicleId: v,
-                                        clientId: selectedVeh?.clientId || p.clientId,
-                                        sectorId: selectedVeh?.workPostId || p.sectorId,
-                                        workPostId: selectedVeh?.workPostId || p.workPostId,
-                                        garageId: p.garageId || selectedVeh?.garageId || undefined,
-                                        garageName: p.garageName || vehGarage?.name || selectedVeh?.garageName || undefined,
-                                        odometerIn: (selectedVeh?.currentMileage !== undefined && selectedVeh?.currentMileage !== null)
-                                            ? selectedVeh.currentMileage
-                                            : p.odometerIn
-                                    }));
-                                    if (formData.maintenanceType === MaintenanceType.PREVENTIVA && (!isEdit || !order?.checklistItems || order.checklistItems.length === 0)) {
-                                        handleLoadDefaultChecklist(v);
-                                    }
-                                }}
+                                onChange={handleSelectVehicle}
                                 options={vehicleOptions}
-                                placeholder="Selecione ou busque por placa ou código..."
-                                searchPlaceholder="Buscar placa, código, modelo ou marca..."
+                                placeholder="Selecione ou busque o veículo por placa ou código..."
+                                searchPlaceholder="Buscar placa, prefixo, código ou modelo..."
+                                emptyText={isLoadingVehicles ? "Carregando veículos da frota..." : "Nenhum veículo encontrado."}
+                            />
+
+                            {selectedVehicle ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-gray-800/80 text-xs">
+                                    <div className="bg-black/50 p-2.5 rounded-lg border border-gray-800">
+                                        <span className="text-gray-500 block text-[10px] uppercase font-bold tracking-wider">Veículo</span>
+                                        <span className="text-white font-bold block truncate">
+                                            {selectedVehicle.plate || '—'}
+                                            {selectedVehicle.model ? ` · ${selectedVehicle.model}` : ''}
+                                        </span>
+                                    </div>
+
+                                    <div className="bg-black/50 p-2.5 rounded-lg border border-gray-800">
+                                        <span className="text-gray-500 block text-[10px] uppercase font-bold tracking-wider">KM Entrada (Atual)</span>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={formData.odometerIn ?? ''}
+                                            onChange={e => setFormData(p => ({ ...p, odometerIn: parseInt(e.target.value) || undefined }))}
+                                            placeholder="KM entrada"
+                                            className="h-7 text-xs bg-seguranca-black border-gray-700 mt-1 font-mono text-emerald-400 font-bold"
+                                        />
+                                    </div>
+
+                                    <div className="bg-black/50 p-2.5 rounded-lg border border-gray-800">
+                                        <span className="text-gray-500 block text-[10px] uppercase font-bold tracking-wider">Garagem / Pátio</span>
+                                        <span className="text-gray-300 block truncate mt-1">
+                                            {formData.garageName || selectedVehicle.garageName || 'Pátio Operacional'}
+                                        </span>
+                                    </div>
+
+                                    <div className="bg-black/50 p-2.5 rounded-lg border border-gray-800">
+                                        <span className="text-gray-500 block text-[10px] uppercase font-bold tracking-wider">Cliente / Obra</span>
+                                        <span className="text-gray-300 block truncate mt-1">
+                                            {formData.workPostName || selectedVehicle.clientName || 'Geral'}
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-gray-500 italic">
+                                    Ao selecionar o veículo, a garagem, cliente/obra e quilometragem atual serão preenchidos automaticamente.
+                                </p>
+                            )}
+                        </div>
+
+                        {/* 2. Tipo de Manutenção, Prioridade e Mecânico */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Tipo de Manutenção */}
+                            <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800 space-y-3 shadow-sm">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                                    <Wrench className="h-4 w-4 text-amber-400" />
+                                    2. Tipo de Manutenção *
+                                </Label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { type: MaintenanceType.CORRETIVA, label: 'Corretiva', icon: '🔧', desc: 'Reparo / Quebra' },
+                                        { type: MaintenanceType.PREVENTIVA, label: 'Preventiva', icon: '📋', desc: 'Revisão periódica' },
+                                        { type: MaintenanceType.LUBRIFICACAO, label: 'Lubrificação', icon: '🛢️', desc: 'Troca de óleo' },
+                                        { type: MaintenanceType.LIMPEZA, label: 'Higienização', icon: '🧼', desc: 'Limpeza e lavagem' },
+                                    ].map(opt => {
+                                        const isSelected = (formData.maintenanceType || MaintenanceType.CORRETIVA) === opt.type;
+                                        return (
+                                            <button
+                                                key={opt.type}
+                                                type="button"
+                                                onClick={() => setFormData(p => ({ ...p, maintenanceType: opt.type }))}
+                                                className={`p-3 rounded-lg border text-left transition-all ${
+                                                    isSelected
+                                                        ? 'bg-amber-500/15 border-amber-500 text-white shadow-md ring-1 ring-amber-500/50'
+                                                        : 'bg-black/40 border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-300'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-2 font-bold text-xs text-white">
+                                                    <span className="text-base">{opt.icon}</span> {opt.label}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500 mt-0.5">{opt.desc}</div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Prioridade & Mecânico */}
+                            <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800 space-y-3 shadow-sm">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                                    <ShieldCheck className="h-4 w-4 text-amber-400" />
+                                    3. Prioridade & Mecânico
+                                </Label>
+
+                                <div>
+                                    <span className="text-[11px] text-gray-400 block mb-1.5 uppercase font-medium">Prioridade de Atendimento</span>
+                                    <div className="grid grid-cols-4 gap-1.5">
+                                        {[
+                                            { key: WorkOrderPriority.LOW, label: 'Baixa', activeClass: 'bg-gray-700 text-gray-200 border-gray-500' },
+                                            { key: WorkOrderPriority.MEDIUM, label: 'Média', activeClass: 'bg-blue-600/40 text-blue-200 border-blue-400' },
+                                            { key: WorkOrderPriority.HIGH, label: 'Alta', activeClass: 'bg-orange-600/40 text-orange-200 border-orange-400' },
+                                            { key: WorkOrderPriority.URGENT, label: 'Urgente', activeClass: 'bg-red-600/50 text-red-100 border-red-500 animate-pulse' },
+                                        ].map(prio => {
+                                            const isSelected = (formData.priority || WorkOrderPriority.MEDIUM) === prio.key;
+                                            return (
+                                                <button
+                                                    key={prio.key}
+                                                    type="button"
+                                                    onClick={() => setFormData(p => ({ ...p, priority: prio.key }))}
+                                                    className={`py-2 px-1 rounded-lg border text-center text-xs font-bold transition-all ${
+                                                        isSelected
+                                                            ? `${prio.activeClass} shadow-sm ring-1 ring-white/20`
+                                                            : 'bg-black/40 border-gray-800 text-gray-500 hover:border-gray-700'
+                                                    }`}
+                                                >
+                                                    {prio.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="pt-1">
+                                    <span className="text-[11px] text-gray-400 block mb-1.5 uppercase font-medium">Mecânico / Responsável da Oficina</span>
+                                    <SearchableSelect
+                                        value={formData.mechanicId || ''}
+                                        fallbackLabel={formData.mechanicName || undefined}
+                                        onChange={(v, opt) => {
+                                            setFormData(p => ({
+                                                ...p,
+                                                mechanicId: v,
+                                                mechanicName: opt ? opt.label : p.mechanicName
+                                            }));
+                                        }}
+                                        options={mechanicOptions}
+                                        placeholder={formData.mechanicName || "Selecionar mecânico (ou deixar na fila)..."}
+                                        searchPlaceholder="Buscar mecânico..."
+                                        emptyText="Nenhum mecânico encontrado."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 3. Defeito Relatado / Queixa com Sintomas Rápidos */}
+                        <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800 space-y-3 shadow-sm">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                                    4. Defeito Relatado / Motivo da Entrada *
+                                </Label>
+                                <span className="text-[11px] text-gray-500">
+                                    Clique nas queixas rápidas para preencher instantaneamente
+                                </span>
+                            </div>
+
+                            {/* Chips Rápidos de Sintomas */}
+                            <div className="flex flex-wrap gap-1.5 p-2.5 rounded-lg bg-black/40 border border-gray-800/80">
+                                {QUICK_SYMPTOMS.map((symptom) => (
+                                    <button
+                                        key={symptom}
+                                        type="button"
+                                        onClick={() => handleAddSymptomChip(symptom)}
+                                        className="text-[11px] px-2.5 py-1 rounded-full bg-gray-800/80 hover:bg-amber-500/20 text-gray-300 hover:text-amber-300 border border-gray-700/60 hover:border-amber-500/40 transition-all text-left flex items-center gap-1 active:scale-95 shadow-xs"
+                                    >
+                                        <Plus className="h-3 w-3 text-amber-400 shrink-0" />
+                                        {symptom}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <Textarea
+                                value={formData.anomaliesDescription || formData.stopReason || ''}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    setFormData(p => ({ ...p, anomaliesDescription: val, stopReason: val }));
+                                }}
+                                placeholder="Descreva a queixa do motorista ou motivo da manutenção (ex: barulho forte na suspensão, luz do freio no painel, vazamento de ar...)"
+                                className="bg-seguranca-black border-gray-700 text-sm min-h-[95px] focus:border-amber-500"
+                            />
+                        </div>
+
+                        {/* 4. Card de Ação Rápida */}
+                        <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/40 via-black to-blue-950/40 border border-emerald-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <Zap className="h-4 w-4 text-emerald-400" />
+                                    <span className="text-sm font-bold text-white">Pronto para iniciar o atendimento!</span>
+                                </div>
+                                <p className="text-xs text-gray-400">
+                                    A OS será aberta imediatamente com horário de entrada registrado. Peças do estoque, serviços e checklists podem ser lançados durante o serviço.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsExpressMode(false)}
+                                    className="border-gray-700 text-gray-300 text-xs hover:text-white"
+                                >
+                                    Lançar Peças / Detalhes →
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
+                                    disabled={isLoading || isGeneratingPdf}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 px-4 shadow-lg shadow-emerald-950/50"
+                                >
+                                    <Zap className="mr-1.5 h-3.5 w-3.5 text-amber-300" />
+                                    ⚡ Criar O.S. Agora
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-6 animate-in fade-in duration-200">
+                        {/* ── Seção 1: Tipo & Identificação ──────────────────────────── */}
+                        <Section title="Identificação da OS" icon={<ClipboardList className="h-4 w-4 text-red-500" />}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <Field label="Tipo de Manutenção *">
+                                    <Select value={formData.maintenanceType || MaintenanceType.CORRETIVA}
+                                        onValueChange={v => setFormData(p => ({ ...p, maintenanceType: v as MaintenanceType }))}>
+                                        <SelectTrigger className="bg-seguranca-black border-gray-600 font-bold"><SelectValue /></SelectTrigger>
+                                        <SelectContent className="bg-seguranca-black border-gray-600">
+                                            <SelectItem value={MaintenanceType.CORRETIVA}>🔧 CORRETIVA</SelectItem>
+                                            <SelectItem value={MaintenanceType.PREVENTIVA}>📋 PREVENTIVA</SelectItem>
+                                            <SelectItem value={MaintenanceType.PREDITIVA}>📊 PREDITIVA</SelectItem>
+                                            <SelectItem value={MaintenanceType.INSPECAO}>🔍 INSPEÇÃO</SelectItem>
+                                            <SelectItem value={MaintenanceType.LUBRIFICACAO}>🛢️ LUBRIFICAÇÃO</SelectItem>
+                                            <SelectItem value={MaintenanceType.LIMPEZA}>🧼 HIGIENIZAÇÃO / LIMPEZA</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+                                <Field label="Equipamento / Veículo *">
+                                    <SearchableSelect
+                                        value={formData.vehicleId || ''}
+                                        fallbackLabel={formData.vehiclePlate ? `${formData.vehiclePlate}${formData.vehicleModel ? ` - ${formData.vehicleModel}` : ''}` : undefined}
+                                        onChange={handleSelectVehicle}
+                                        options={vehicleOptions}
+                                        placeholder="Selecione ou busque por placa ou código..."
+                                        searchPlaceholder="Buscar placa, código, modelo ou marca..."
                                 emptyText={isLoadingVehicles ? "Carregando veículos da frota..." : "Nenhum veículo encontrado."}
                             />
                         </Field>
@@ -2356,6 +2723,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             </div>
                         )}
                     </Section>
+                )}
+                    </div>
                 )}
             </div>
 

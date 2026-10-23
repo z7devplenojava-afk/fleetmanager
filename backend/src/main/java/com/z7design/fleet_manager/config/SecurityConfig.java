@@ -518,7 +518,13 @@ public class SecurityConfig {
                                                                 "ROLE_RH",
                                                                 "ROLE_SST",
                                                                 "ROLE_SEGURANCA_DO_TRABALHO",
-                                                                "ROLE_DEPARTAMENTO_PESSOAL")
+                                                                "ROLE_DEPARTAMENTO_PESSOAL",
+                                                                "MOTORISTA",
+                                                                "ROLE_MOTORISTA",
+                                                                "COLABORADOR",
+                                                                "ROLE_COLABORADOR",
+                                                                "EMPLOYEE",
+                                                                "ROLE_EMPLOYEE")
                                                 // Todo o resto requer autenticaÃƒÂ§ÃƒÂ£o
                                                 .anyRequest().authenticated())
                                 .authenticationProvider(authenticationProvider)

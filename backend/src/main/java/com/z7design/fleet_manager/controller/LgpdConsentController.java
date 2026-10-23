@@ -37,12 +37,18 @@ public class LgpdConsentController {
             HttpServletRequest httpRequest
     ) {
         try {
-            // Obter usuÃ¡rio autenticado do contexto de seguranÃ§a
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(401).body(Map.of(
+                        "success", false,
+                        "message", "Usuário não autenticado"
+                ));
+            }
+
             User currentUser = authenticationService.getCurrentUser(authentication);
             UUID userId = currentUser.getId();
             
-            log.info("ðŸ“ Registrando consentimento {} para usuÃ¡rio autenticado: {} (ID: {})", 
+            log.info("📝 Registrando consentimento {} para usuário autenticado: {} (ID: {})", 
                     request.getConsentType(), currentUser.getUsername(), userId);
 
             String ipAddress = getClientIP(httpRequest);
@@ -66,7 +72,7 @@ public class LgpdConsentController {
             log.error("Erro ao registrar consentimento: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(Map.of(
                     "success", false,
-                    "message", e.getMessage()
+                    "message", e.getMessage() != null ? e.getMessage() : "Erro interno ao registrar consentimento"
             ));
         }
     }
@@ -95,12 +101,18 @@ public class LgpdConsentController {
     @Operation(summary = "Completar primeiro acesso", description = "Marca primeiro acesso como completo")
     public ResponseEntity<?> completeFirstAccess() {
         try {
-            // Obter usuÃ¡rio autenticado do contexto de seguranÃ§a
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(401).body(Map.of(
+                        "success", false,
+                        "message", "Usuário não autenticado"
+                ));
+            }
+
             User currentUser = authenticationService.getCurrentUser(authentication);
             UUID userId = currentUser.getId();
             
-            log.info("âœ… Completando primeiro acesso para usuÃ¡rio: {} (ID: {})", 
+            log.info("✅ Completando primeiro acesso para usuário: {} (ID: {})", 
                     currentUser.getUsername(), userId);
             
             consentService.markFirstAccessCompleted(userId);
@@ -112,7 +124,7 @@ public class LgpdConsentController {
             log.error("Erro ao completar primeiro acesso: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(Map.of(
                     "success", false,
-                    "message", e.getMessage()
+                    "message", e.getMessage() != null ? e.getMessage() : "Erro interno ao completar primeiro acesso"
             ));
         }
     }
