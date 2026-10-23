@@ -5,6 +5,7 @@ import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.model.enums.EmploymentStatus;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional
 public class HRService {
     
@@ -223,17 +225,14 @@ public class HRService {
     }
 
     private EmployeeDTO.JobInfoDTO convertJobInfoToDTO(Employee employee) {
-        // Calcular probationEndDate se nÃ£o estiver definido
         LocalDate probationEndDate = employee.getProbationEndDate();
         if (probationEndDate == null && employee.getHireDate() != null) {
-            // Tentar calcular para 30, 45 ou 90 dias e verificar qual estÃ¡ vencendo
             LocalDate today = LocalDate.now();
             LocalDate threeDaysFromNow = today.plusDays(3);
             LocalDate endDate30 = employee.getHireDate().plusDays(30);
             LocalDate endDate45 = employee.getHireDate().plusDays(45);
             LocalDate endDate90 = employee.getHireDate().plusDays(90);
             
-            // Verificar qual perÃ­odo estÃ¡ vencendo (hoje ou nos prÃ³ximos 3 dias)
             if (!endDate30.isBefore(today) && !endDate30.isAfter(threeDaysFromNow)) {
                 probationEndDate = endDate30;
             } else if (!endDate45.isBefore(today) && !endDate45.isAfter(threeDaysFromNow)) {
@@ -244,15 +243,31 @@ public class HRService {
         }
         
         return EmployeeDTO.JobInfoDTO.builder()
-                .position(employee.getPosition() != null ? employee.getPosition().getName() : null)
-                .function(null) // NÃ£o existe no modelo atual
-                .unit(employee.getUnit() != null ? employee.getUnit().getName() : null)
+                .position(safeGetPositionName(employee))
+                .function(null)
+                .unit(safeGetUnitName(employee))
                 .admissionDate(employee.getHireDate())
                 .probationEndDate(probationEndDate)
-                .contractType(null) // NÃ£o existe no modelo atual
-                .salary(null) // NÃ£o existe no modelo atual
-                .status(employee.getStatus().toString())
+                .contractType(null)
+                .salary(null)
+                .status(employee.getStatus() != null ? employee.getStatus().name() : "ACTIVE")
                 .build();
+    }
+
+    private String safeGetPositionName(Employee employee) {
+        try {
+            return employee.getPosition() != null ? employee.getPosition().getName() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String safeGetUnitName(Employee employee) {
+        try {
+            return employee.getUnit() != null ? employee.getUnit().getName() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private List<EmployeeDTO.DocumentDTO> convertDocumentsToDTO(Employee employee) {

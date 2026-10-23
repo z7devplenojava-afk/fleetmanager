@@ -140,7 +140,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/hr/**")
                                                 .hasAnyAuthority("EMPLOYEES_READ", "EMPLOYEES_WRITE",
                                                                 "EMPLOYEES_CREATE", "EMPLOYEES_DELETE",
-                                                                "SUPER_ADMIN", "ADMIN", "HR", "ROLE_SUPER_ADMIN",
+                                                                "SUPER_ADMIN", "ADMIN", "HR", "RH", "ROLE_SUPER_ADMIN",
                                                                 "ROLE_ADMIN", "ROLE_HR", "ROLE_RH",
                                                                 "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN", "FLEX_ADMIN",
                                                                 "ROLE_MANUTENCAO", "MANUTENCAO", "ROLE_GESTOR", "ROLE_SUPERVISOR")
@@ -148,7 +148,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/sst/**")
                                                 .hasAnyAuthority("EMPLOYEES_READ", "EMPLOYEES_WRITE",
                                                                 "EMPLOYEES_CREATE", "EMPLOYEES_DELETE",
-                                                                "SUPER_ADMIN", "ADMIN", "HR", "ROLE_SUPER_ADMIN",
+                                                                "SUPER_ADMIN", "ADMIN", "HR", "RH", "ROLE_SUPER_ADMIN",
                                                                 "ROLE_ADMIN", "ROLE_HR", "ROLE_RH",
                                                                 "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN", "FLEX_ADMIN",
                                                                 "ROLE_MANUTENCAO", "MANUTENCAO", "ROLE_GESTOR", "ROLE_SUPERVISOR",

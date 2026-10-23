@@ -9,6 +9,7 @@ import com.z7design.fleet_manager.service.VacationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/hr")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "RH", description = "Endpoints para gestÃ£o de recursos humanos")
 public class HRController {
     
@@ -27,20 +29,30 @@ public class HRController {
     private final VacationService vacationService;
     
     @GetMapping("/employees/probation-expiring")
-    @Operation(summary = "Buscar funcionÃ¡rios com experiÃªncia vencendo", 
-               description = "Retorna funcionÃ¡rios cujo perÃ­odo de experiÃªncia vence nos prÃ³ximos X dias")
+    @Operation(summary = "Buscar funcionários com experiência vencendo", 
+               description = "Retorna funcionários cujo período de experiência vence nos próximos X dias")
     public ResponseEntity<List<EmployeeDTO>> getEmployeesWithExpiringProbation(
             @RequestParam(value = "days", defaultValue = "7") int days) {
-        List<EmployeeDTO> employees = hrService.getEmployeesWithExpiringProbation(days);
-        return ResponseEntity.ok(employees);
+        try {
+            List<EmployeeDTO> employees = hrService.getEmployeesWithExpiringProbation(days);
+            return ResponseEntity.ok(employees != null ? employees : List.of());
+        } catch (Exception e) {
+            log.error("Erro ao buscar funcionários com experiência vencendo: {}", e.getMessage(), e);
+            return ResponseEntity.ok(List.of());
+        }
     }
     
-    @GetMapping("/stats")
-    @Operation(summary = "EstatÃ­sticas de RH", 
-               description = "Retorna estatÃ­sticas gerais de recursos humanos")
+        @GetMapping("/stats")
+    @Operation(summary = "Estatísticas de RH", 
+               description = "Retorna estatísticas gerais de recursos humanos")
     public ResponseEntity<Map<String, Object>> getHRStats() {
-        Map<String, Object> stats = hrService.getHRStats();
-        return ResponseEntity.ok(stats);
+        try {
+            Map<String, Object> stats = hrService.getHRStats();
+            return ResponseEntity.ok(stats != null ? stats : Map.of());
+        } catch (Exception e) {
+            log.error("Erro ao buscar estatísticas de RH: {}", e.getMessage(), e);
+            return ResponseEntity.ok(Map.of());
+        }
     }
     
     @GetMapping("/employees/active")
