@@ -35,12 +35,22 @@ import {
   Edit2,
   Search,
   RefreshCw,
-  Truck
+  Truck,
+  Gauge,
+  X
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { parteDiariaService, ParteDiaria } from '@/services/parteDiariaService';
 import { clientService } from '@/services/clientService';
 import { ParteDiariaModal } from './ParteDiariaModal';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -495,18 +505,226 @@ export const ClientContractMeasurementManager: React.FC = () => {
     toast({ title: 'Veículo adicionado à medição' });
   };
 
-  const handleAddExtraTrip = () => {
-    const newTrip: ExtraTripItem = {
-      id: `et-${Date.now()}`,
+  // State e Handlers: Viagens Extras (Modal & CRUD)
+  const [isExtraTripModalOpen, setIsExtraTripModalOpen] = useState<boolean>(false);
+  const [selectedExtraTrip, setSelectedExtraTrip] = useState<ExtraTripItem | null>(null);
+  const [extraTripForm, setExtraTripForm] = useState<{
+    date: string;
+    plate: string;
+    route: string;
+    vehicleType: string;
+    tripCost: number;
+  }>({
+    date: new Date().toISOString().split('T')[0],
+    plate: 'RUR-7A78',
+    route: '',
+    vehicleType: 'Ônibus Rodoviário',
+    tripCost: 800.00
+  });
+
+  const handleOpenAddExtraTrip = () => {
+    setSelectedExtraTrip(null);
+    setExtraTripForm({
       date: new Date().toISOString().split('T')[0],
-      plate: 'RUR-7A78',
-      route: 'Viagem Adicional de Apoio',
-      vehicleType: 'Ônibus',
-      tripCost: 800.00,
-      total: 800.00
-    };
-    setExtraTrips([...extraTrips, newTrip]);
-    toast({ title: 'Viagem extra adicionada' });
+      plate: leasedVehicles[0]?.plate || 'RUR-7A78',
+      route: '',
+      vehicleType: 'Ônibus Rodoviário',
+      tripCost: 800.00
+    });
+    setIsExtraTripModalOpen(true);
+  };
+
+  const handleOpenEditExtraTrip = (trip: ExtraTripItem) => {
+    setSelectedExtraTrip(trip);
+    setExtraTripForm({
+      date: trip.date,
+      plate: trip.plate,
+      route: trip.route,
+      vehicleType: trip.vehicleType,
+      tripCost: trip.tripCost
+    });
+    setIsExtraTripModalOpen(true);
+  };
+
+  const handleSaveExtraTrip = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!extraTripForm.plate || !extraTripForm.route) {
+      toast({
+        title: 'Campos Obrigatórios',
+        description: 'Informe a placa e o trajeto da viagem extra.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const costNum = Number(extraTripForm.tripCost) || 0;
+
+    if (selectedExtraTrip) {
+      setExtraTrips(prev =>
+        prev.map(t =>
+          t.id === selectedExtraTrip.id
+            ? {
+                ...t,
+                date: extraTripForm.date,
+                plate: extraTripForm.plate.toUpperCase(),
+                route: extraTripForm.route,
+                vehicleType: extraTripForm.vehicleType,
+                tripCost: costNum,
+                total: costNum
+              }
+            : t
+        )
+      );
+      toast({
+        title: 'Viagem Extra Atualizada!',
+        description: `Viagem (${extraTripForm.plate}) atualizada com sucesso.`
+      });
+    } else {
+      const newItem: ExtraTripItem = {
+        id: `et-${Date.now()}`,
+        date: extraTripForm.date,
+        plate: extraTripForm.plate.toUpperCase(),
+        route: extraTripForm.route,
+        vehicleType: extraTripForm.vehicleType,
+        tripCost: costNum,
+        total: costNum
+      };
+      setExtraTrips(prev => [...prev, newItem]);
+      toast({
+        title: 'Viagem Extra Adicionada!',
+        description: `Nova viagem registrada com valor de R$ ${costNum.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`
+      });
+    }
+
+    setIsExtraTripModalOpen(false);
+    setSelectedExtraTrip(null);
+  };
+
+  const handleDeleteExtraTrip = (tripId: string) => {
+    setExtraTrips(prev => prev.filter(t => t.id !== tripId));
+    toast({
+      title: 'Viagem Extra Removida',
+      description: 'O lançamento foi excluído da medição.'
+    });
+  };
+
+  // State e Handlers: Quilometragem Excedente (Modal & CRUD)
+  const [isExcessKmModalOpen, setIsExcessKmModalOpen] = useState<boolean>(false);
+  const [selectedExcessKm, setSelectedExcessKm] = useState<ExcessKmItem | null>(null);
+  const [excessKmForm, setExcessKmForm] = useState<{
+    periodMonth: string;
+    plate: string;
+    franchiseKm: number;
+    totalKmDriven: number;
+    disregardedKm: number;
+    excessKmRate: number;
+  }>({
+    periodMonth: 'ABRIL',
+    plate: 'RUR-7A78',
+    franchiseKm: 2000,
+    totalKmDriven: 2500,
+    disregardedKm: 0,
+    excessKmRate: 8.60
+  });
+
+  const handleOpenAddExcessKm = () => {
+    setSelectedExcessKm(null);
+    setExcessKmForm({
+      periodMonth: 'ABRIL',
+      plate: leasedVehicles[0]?.plate || 'RUR-7A78',
+      franchiseKm: 2000,
+      totalKmDriven: 2500,
+      disregardedKm: 0,
+      excessKmRate: 8.60
+    });
+    setIsExcessKmModalOpen(true);
+  };
+
+  const handleOpenEditExcessKm = (item: ExcessKmItem) => {
+    setSelectedExcessKm(item);
+    setExcessKmForm({
+      periodMonth: item.periodMonth,
+      plate: item.plate,
+      franchiseKm: item.franchiseKm,
+      totalKmDriven: item.totalKmDriven,
+      disregardedKm: item.disregardedKm,
+      excessKmRate: item.excessKmRate
+    });
+    setIsExcessKmModalOpen(true);
+  };
+
+  const handleSaveExcessKm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!excessKmForm.plate || !excessKmForm.periodMonth) {
+      toast({
+        title: 'Campos Obrigatórios',
+        description: 'Informe o período e a placa do veículo.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const franchise = Number(excessKmForm.franchiseKm) || 0;
+    const driven = Number(excessKmForm.totalKmDriven) || 0;
+    const disregarded = Number(excessKmForm.disregardedKm) || 0;
+    const considered = Math.max(0, driven - disregarded);
+    const excess = Math.max(0, considered - franchise);
+    const rate = Number(excessKmForm.excessKmRate) || 0;
+    const totalVal = Number((excess * rate).toFixed(2));
+
+    if (selectedExcessKm) {
+      setExcessKmItems(prev =>
+        prev.map(i =>
+          i.id === selectedExcessKm.id
+            ? {
+                ...i,
+                periodMonth: excessKmForm.periodMonth.toUpperCase(),
+                plate: excessKmForm.plate.toUpperCase(),
+                franchiseKm: franchise,
+                totalKmDriven: driven,
+                disregardedKm: disregarded,
+                consideredKm: considered,
+                excessKm: excess,
+                excessKmRate: rate,
+                totalExcessValue: totalVal
+              }
+            : i
+        )
+      );
+      toast({
+        title: 'Apuração de KM Atualizada!',
+        description: `Apuração da placa ${excessKmForm.plate} calculada com sucesso.`
+      });
+    } else {
+      const newItem: ExcessKmItem = {
+        id: `ekm-${Date.now()}`,
+        periodMonth: excessKmForm.periodMonth.toUpperCase(),
+        plate: excessKmForm.plate.toUpperCase(),
+        franchiseKm: franchise,
+        totalKmDriven: driven,
+        disregardedKm: disregarded,
+        consideredKm: considered,
+        excessKm: excess,
+        excessKmRate: rate,
+        totalExcessValue: totalVal
+      };
+      setExcessKmItems(prev => [...prev, newItem]);
+      toast({
+        title: 'Apuração de KM Adicionada!',
+        description: `Apuração registrada com ${excess} KM excedentes (R$ ${totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).`
+      });
+    }
+
+    setIsExcessKmModalOpen(false);
+    setSelectedExcessKm(null);
+  };
+
+  const handleDeleteExcessKm = (itemId: string) => {
+    setExcessKmItems(prev => prev.filter(i => i.id !== itemId));
+    toast({
+      title: 'Apuração Removida',
+      description: 'O cálculo de KM excedente foi excluído da medição.'
+    });
   };
 
   const handleAddDeduction = () => {
@@ -925,7 +1143,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
                   Viagens não contempladas no contrato fixo executadas sob demanda do cliente.
                 </CardDescription>
               </div>
-              <Button onClick={handleAddExtraTrip} size="sm" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold">
+              <Button onClick={handleOpenAddExtraTrip} size="sm" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold">
                 <Plus className="w-4 h-4 mr-1" /> Adicionar Viagem Extra
               </Button>
             </CardHeader>
@@ -939,20 +1157,51 @@ export const ClientContractMeasurementManager: React.FC = () => {
                       <TableHead className="text-zinc-300">Trajeto / Destino</TableHead>
                       <TableHead className="text-zinc-300">Tipo de Veículo</TableHead>
                       <TableHead className="text-right text-zinc-300">Valor Viagem</TableHead>
+                      <TableHead className="text-center text-zinc-300 w-24">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {extraTrips.map(trip => (
-                      <TableRow key={trip.id} className="border-zinc-800">
-                        <TableCell className="font-mono text-xs text-zinc-300">{trip.date}</TableCell>
-                        <TableCell className="font-mono text-xs font-bold text-blue-400">{trip.plate}</TableCell>
-                        <TableCell className="text-zinc-200">{trip.route}</TableCell>
-                        <TableCell className="text-zinc-400 text-xs">{trip.vehicleType}</TableCell>
-                        <TableCell className="text-right font-mono font-bold text-emerald-400">
-                          R$ {trip.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {extraTrips.length === 0 ? (
+                      <TableRow className="border-zinc-800">
+                        <TableCell colSpan={6} className="text-center py-6 text-zinc-500 text-xs">
+                          Nenhuma viagem extra cadastrada para esta medição.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      extraTrips.map(trip => (
+                        <TableRow key={trip.id} className="border-zinc-800 hover:bg-zinc-900/50">
+                          <TableCell className="font-mono text-xs text-zinc-300">{trip.date}</TableCell>
+                          <TableCell className="font-mono text-xs font-bold text-blue-400">{trip.plate}</TableCell>
+                          <TableCell className="text-zinc-200">{trip.route}</TableCell>
+                          <TableCell className="text-zinc-400 text-xs">{trip.vehicleType}</TableCell>
+                          <TableCell className="text-right font-mono font-bold text-emerald-400">
+                            R$ {trip.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenEditExtraTrip(trip)}
+                                className="h-8 w-8 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-950/40 rounded-lg"
+                                title="Editar Viagem Extra"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteExtraTrip(trip.id)}
+                                className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg"
+                                title="Excluir Viagem Extra"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -961,11 +1210,16 @@ export const ClientContractMeasurementManager: React.FC = () => {
 
           {/* Quilometragem Excedente */}
           <Card className="bg-zinc-950 border-zinc-800 text-zinc-100">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold text-amber-400">Quilometragem Excedente (Apuração de Hodômetro)</CardTitle>
-              <CardDescription className="text-zinc-400 text-xs">
-                Cálculo de Franquia Contratada vs KM Rodado, glosas desconsideradas e valor por KM excedente.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-bold text-amber-400">Quilometragem Excedente (Apuração de Hodômetro)</CardTitle>
+                <CardDescription className="text-zinc-400 text-xs">
+                  Cálculo de Franquia Contratada vs KM Rodado, glosas desconsideradas e valor por KM excedente.
+                </CardDescription>
+              </div>
+              <Button onClick={handleOpenAddExcessKm} size="sm" className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold">
+                <Plus className="w-4 h-4 mr-1" /> Lançar KM Excedente
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="border border-zinc-800 rounded-lg overflow-x-auto">
@@ -981,33 +1235,65 @@ export const ClientContractMeasurementManager: React.FC = () => {
                       <TableHead className="text-right text-zinc-300">KM Excedido</TableHead>
                       <TableHead className="text-right text-zinc-300">Valor/KM Exc.</TableHead>
                       <TableHead className="text-right text-zinc-300">Valor Total Exc.</TableHead>
+                      <TableHead className="text-center text-zinc-300 w-24">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {excessKmItems.map(item => (
-                      <TableRow key={item.id} className="border-zinc-800">
-                        <TableCell className="font-bold text-zinc-300 text-xs">{item.periodMonth}</TableCell>
-                        <TableCell className="font-mono text-xs font-bold text-blue-400">{item.plate}</TableCell>
-                        <TableCell className="text-right font-mono text-zinc-300">{item.franchiseKm.toLocaleString('pt-BR')}</TableCell>
-                        <TableCell className="text-right font-mono text-zinc-200 font-semibold">{item.totalKmDriven.toLocaleString('pt-BR')}</TableCell>
-                        <TableCell className="text-right font-mono text-zinc-500">{item.disregardedKm.toLocaleString('pt-BR')}</TableCell>
-                        <TableCell className="text-right font-mono text-zinc-300">{item.consideredKm.toLocaleString('pt-BR')}</TableCell>
-                        <TableCell className="text-right font-mono font-bold text-amber-400">
-                          {item.excessKm > 0 ? item.excessKm.toLocaleString('pt-BR') : '0'}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-zinc-400 text-xs">
-                          R$ {item.excessKmRate.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-bold text-emerald-400">
-                          R$ {item.totalExcessValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {excessKmItems.length === 0 ? (
+                      <TableRow className="border-zinc-800">
+                        <TableCell colSpan={10} className="text-center py-6 text-zinc-500 text-xs">
+                          Nenhuma apuração de KM excedente lançada.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      excessKmItems.map(item => (
+                        <TableRow key={item.id} className="border-zinc-800 hover:bg-zinc-900/50">
+                          <TableCell className="font-bold text-zinc-300 text-xs">{item.periodMonth}</TableCell>
+                          <TableCell className="font-mono text-xs font-bold text-blue-400">{item.plate}</TableCell>
+                          <TableCell className="text-right font-mono text-zinc-300">{item.franchiseKm.toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className="text-right font-mono text-zinc-200 font-semibold">{item.totalKmDriven.toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className="text-right font-mono text-zinc-500">{item.disregardedKm.toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className="text-right font-mono text-zinc-300">{item.consideredKm.toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className="text-right font-mono font-bold text-amber-400">
+                            {item.excessKm > 0 ? item.excessKm.toLocaleString('pt-BR') : '0'}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-zinc-400 text-xs">
+                            R$ {item.excessKmRate.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-bold text-emerald-400">
+                            R$ {item.totalExcessValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenEditExcessKm(item)}
+                                className="h-8 w-8 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-950/40 rounded-lg"
+                                title="Editar Apuração de KM"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteExcessKm(item.id)}
+                                className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg"
+                                title="Excluir Apuração de KM"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                     <TableRow className="bg-zinc-900/80 font-bold border-t-2 border-zinc-700">
                       <TableCell colSpan={8} className="text-right uppercase text-zinc-300">Total KM Excedente:</TableCell>
                       <TableCell className="text-right font-mono text-amber-400 text-base">
                         R$ {totalExcessKm.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </TableCell>
+                      <TableCell></TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -1210,6 +1496,260 @@ export const ClientContractMeasurementManager: React.FC = () => {
         parteDiariaToEdit={selectedParteDiaria}
         isReadOnly={isModalReadOnly}
       />
+
+      {/* MODAL: Adicionar / Editar Viagem Extra */}
+      <Dialog open={isExtraTripModalOpen} onOpenChange={setIsExtraTripModalOpen}>
+        <DialogContent className="w-[95vw] max-w-lg bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-2xl p-0 overflow-hidden shadow-2xl">
+          <div className="bg-zinc-900/90 border-b border-zinc-800 p-4 sm:p-5 flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <Navigation className="h-5 w-5 text-blue-400" />
+                {selectedExtraTrip ? 'Editar Viagem Extra' : 'Adicionar Viagem Extra'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-zinc-400 mt-0.5">
+                {selectedExtraTrip ? 'Altere as informações da viagem sob demanda.' : 'Preencha os dados da viagem extra executada para o cliente.'}
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsExtraTripModalOpen(false)}
+              className="w-8 h-8 rounded-lg bg-zinc-800/80 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 flex items-center justify-center transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveExtraTrip} className="p-4 sm:p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Data da Viagem *</Label>
+                <Input
+                  type="date"
+                  value={extraTripForm.date}
+                  onChange={(e) => setExtraTripForm(prev => ({ ...prev, date: e.target.value }))}
+                  required
+                  className="bg-zinc-900 border-zinc-700 text-white text-xs h-10 rounded-xl [color-scheme:dark]"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Placa do Veículo *</Label>
+                <Input
+                  value={extraTripForm.plate}
+                  onChange={(e) => setExtraTripForm(prev => ({ ...prev, plate: e.target.value.toUpperCase() }))}
+                  placeholder="Ex: RUR-7A78"
+                  required
+                  className="bg-zinc-900 border-zinc-700 text-blue-400 font-mono font-bold text-xs h-10 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Trajeto / Destino *</Label>
+              <Input
+                value={extraTripForm.route}
+                onChange={(e) => setExtraTripForm(prev => ({ ...prev, route: e.target.value }))}
+                placeholder="Ex: Belo Horizonte X Ouro Preto (Turno Especial)"
+                required
+                className="bg-zinc-900 border-zinc-700 text-white text-xs h-10 rounded-xl"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Tipo de Veículo</Label>
+                <Select
+                  value={extraTripForm.vehicleType}
+                  onValueChange={(val) => setExtraTripForm(prev => ({ ...prev, vehicleType: val }))}
+                >
+                  <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white text-xs h-10 rounded-xl">
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
+                    <SelectItem value="Ônibus Rodoviário">Ônibus Rodoviário</SelectItem>
+                    <SelectItem value="Ônibus Urbano">Ônibus Urbano</SelectItem>
+                    <SelectItem value="Micro-ônibus">Micro-ônibus</SelectItem>
+                    <SelectItem value="Van Executiva">Van Executiva</SelectItem>
+                    <SelectItem value="Carro / Apoio">Carro / Apoio</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Valor da Viagem (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={extraTripForm.tripCost}
+                  onChange={(e) => setExtraTripForm(prev => ({ ...prev, tripCost: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0,00"
+                  required
+                  className="bg-zinc-900 border-zinc-700 text-emerald-400 font-mono font-bold text-sm h-10 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsExtraTripModalOpen(false)}
+                className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 text-xs h-9 px-4 rounded-xl"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs h-9 px-4 rounded-xl shadow-lg shadow-blue-600/20"
+              >
+                {selectedExtraTrip ? 'Salvar Alterações' : 'Adicionar Viagem Extra'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Adicionar / Editar KM Excedente */}
+      <Dialog open={isExcessKmModalOpen} onOpenChange={setIsExcessKmModalOpen}>
+        <DialogContent className="w-[95vw] max-w-lg bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-2xl p-0 overflow-hidden shadow-2xl">
+          <div className="bg-zinc-900/90 border-b border-zinc-800 p-4 sm:p-5 flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <Gauge className="h-5 w-5 text-amber-400" />
+                {selectedExcessKm ? 'Editar Apuração de KM Excedente' : 'Lançar Quilometragem Excedente'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-zinc-400 mt-0.5">
+                Cálculo automático de franquia contratada, KM rodado e glosas desconsideradas.
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsExcessKmModalOpen(false)}
+              className="w-8 h-8 rounded-lg bg-zinc-800/80 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 flex items-center justify-center transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveExcessKm} className="p-4 sm:p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Período / Mês *</Label>
+                <Input
+                  value={excessKmForm.periodMonth}
+                  onChange={(e) => setExcessKmForm(prev => ({ ...prev, periodMonth: e.target.value.toUpperCase() }))}
+                  placeholder="Ex: ABRIL"
+                  required
+                  className="bg-zinc-900 border-zinc-700 text-white font-bold text-xs h-10 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Placa do Veículo *</Label>
+                <Input
+                  value={excessKmForm.plate}
+                  onChange={(e) => setExcessKmForm(prev => ({ ...prev, plate: e.target.value.toUpperCase() }))}
+                  placeholder="Ex: RUR-7A78"
+                  required
+                  className="bg-zinc-900 border-zinc-700 text-blue-400 font-mono font-bold text-xs h-10 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Franquia (KM) *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={excessKmForm.franchiseKm}
+                  onChange={(e) => setExcessKmForm(prev => ({ ...prev, franchiseKm: parseFloat(e.target.value) || 0 }))}
+                  required
+                  className="bg-zinc-900 border-zinc-700 text-white font-mono text-xs h-10 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">KM Rodado Total *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={excessKmForm.totalKmDriven}
+                  onChange={(e) => setExcessKmForm(prev => ({ ...prev, totalKmDriven: parseFloat(e.target.value) || 0 }))}
+                  required
+                  className="bg-zinc-900 border-zinc-700 text-white font-mono text-xs h-10 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">KM Desconsiderado</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={excessKmForm.disregardedKm}
+                  onChange={(e) => setExcessKmForm(prev => ({ ...prev, disregardedKm: parseFloat(e.target.value) || 0 }))}
+                  className="bg-zinc-900 border-zinc-700 text-zinc-400 font-mono text-xs h-10 rounded-xl"
+                />
+              </div>
+            </div>
+
+            {/* Painel de Cálculo em Tempo Real */}
+            {(() => {
+              const considered = Math.max(0, excessKmForm.totalKmDriven - excessKmForm.disregardedKm);
+              const excess = Math.max(0, considered - excessKmForm.franchiseKm);
+              const totalVal = excess * excessKmForm.excessKmRate;
+              return (
+                <div className="bg-zinc-900/70 border border-zinc-800 rounded-xl p-3 grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-zinc-950/80 p-2 rounded-lg border border-zinc-800">
+                    <span className="text-[10px] text-zinc-400 block font-medium">KM Considerado</span>
+                    <span className="text-xs font-mono font-bold text-zinc-200">{considered.toLocaleString('pt-BR')} km</span>
+                  </div>
+                  <div className="bg-zinc-950/80 p-2 rounded-lg border border-zinc-800">
+                    <span className="text-[10px] text-amber-400 block font-medium">KM Excedido</span>
+                    <span className="text-xs font-mono font-bold text-amber-300">{excess > 0 ? excess.toLocaleString('pt-BR') : '0'} km</span>
+                  </div>
+                  <div className="bg-zinc-950/80 p-2 rounded-lg border border-zinc-800">
+                    <span className="text-[10px] text-emerald-400 block font-medium">Valor Total Exc.</span>
+                    <span className="text-xs font-mono font-bold text-emerald-400">R$ {totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div>
+              <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Valor por KM Excedente (R$/KM) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={excessKmForm.excessKmRate}
+                onChange={(e) => setExcessKmForm(prev => ({ ...prev, excessKmRate: parseFloat(e.target.value) || 0 }))}
+                placeholder="Ex: 8.60"
+                required
+                className="bg-zinc-900 border-zinc-700 text-amber-400 font-mono font-bold text-sm h-10 rounded-xl"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsExcessKmModalOpen(false)}
+                className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 text-xs h-9 px-4 rounded-xl"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs h-9 px-4 rounded-xl shadow-lg shadow-amber-500/20"
+              >
+                {selectedExcessKm ? 'Salvar Apuração' : 'Lançar KM Excedente'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Diálogo de Confirmação de Exclusão */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
