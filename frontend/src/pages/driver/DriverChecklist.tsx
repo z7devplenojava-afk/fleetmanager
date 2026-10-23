@@ -35,8 +35,11 @@ import {
     TrendingUp,
     Eye,
     FileText,
-    ExternalLink
+    ExternalLink,
+    WifiOff,
+    CloudUpload
 } from 'lucide-react';
+import { offlineSyncService } from '@/services/offlineSyncService';
 import { useNavigate } from 'react-router-dom';
 import { Switch } from '@/components/ui/switch';
 import { isDriverUser } from '@/utils/roleRouting';
@@ -104,6 +107,70 @@ const DriverChecklist: React.FC = () => {
     );
     // Disparado após submit/limpeza para recarregar os itens configurados do veículo
     const [reloadKey, setReloadKey] = useState(0);
+
+    // Controle de modo offline e fila de sincronização
+    const [isNetworkOnline, setIsNetworkOnline] = useState<boolean>(() => offlineSyncService.isOnline());
+    const [pendingOfflineCount, setPendingOfflineCount] = useState<number>(() => offlineSyncService.getPendingChecklists().length);
+    const [isSyncingOffline, setIsSyncingOffline] = useState(false);
+
+    useEffect(() => {
+        const updateOnlineStatus = () => {
+            setIsNetworkOnline(offlineSyncService.isOnline());
+        };
+
+        const handleQueueChange = () => {
+            setPendingOfflineCount(offlineSyncService.getPendingChecklists().length);
+        };
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        window.addEventListener('fluxbus-offline-queue-changed', handleQueueChange);
+
+        const cleanupAutoSync = offlineSyncService.initAutoSync((syncedCount) => {
+            queryClient.invalidateQueries({ queryKey: ['vehicle-gate-checklists'] });
+            queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+            queryClient.invalidateQueries({ queryKey: ['driver-checklist-history'] });
+            toast({
+                title: 'Sincronização Concluída',
+                description: `${syncedCount} checklist(s) salvo(s) offline foram transmitidos com sucesso!`,
+            });
+        });
+
+        return () => {
+            window.removeEventListener('online', updateOnlineStatus);
+            window.removeEventListener('offline', updateOnlineStatus);
+            window.removeEventListener('fluxbus-offline-queue-changed', handleQueueChange);
+            cleanupAutoSync();
+        };
+    }, [queryClient, toast]);
+
+    const handleManualSync = async () => {
+        setIsSyncingOffline(true);
+        try {
+            const { synced, failed } = await offlineSyncService.syncAllPending(() => {
+                queryClient.invalidateQueries({ queryKey: ['vehicle-gate-checklists'] });
+                queryClient.invalidateQueries({ queryKey: ['driver-checklist-history'] });
+            });
+            if (synced > 0) {
+                queryClient.invalidateQueries({ queryKey: ['vehicle-gate-checklists'] });
+                queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+                queryClient.invalidateQueries({ queryKey: ['driver-checklist-history'] });
+                toast({
+                    title: 'Sincronizado!',
+                    description: `${synced} checklist(s) enviado(s) com sucesso.`,
+                });
+            }
+            if (failed > 0) {
+                toast({
+                    title: 'Sincronização pendente',
+                    description: `${failed} checklist(s) não puderam ser enviados. Verifique sua conexão.`,
+                    variant: 'destructive',
+                });
+            }
+        } finally {
+            setIsSyncingOffline(false);
+        }
+    };
 
     const { data: vehicles = [] } = useQuery({
         queryKey: ['vehicles'],
@@ -351,10 +418,24 @@ const DriverChecklist: React.FC = () => {
             });
             resetForm();
         },
-        onError: (err: Error) => {
+        onError: (err: any, variables) => {
+            const isNetworkError = !err?.response || !navigator.onLine || err?.code === 'ERR_NETWORK';
+            if (isNetworkError && variables?.data) {
+                offlineSyncService.saveOfflineChecklist(variables.data, {
+                    vehiclePlate: selectedVehicle?.plate,
+                    driverName: matchedDriver?.name || user?.name,
+                });
+                setPendingOfflineCount(offlineSyncService.getPendingChecklists().length);
+                toast({
+                    title: 'Sem sinal - Checklist gravado offline',
+                    description: 'A rede oscilou durante o envio. O registro foi armazenado com segurança no dispositivo e será enviado assim que a internet voltar.',
+                });
+                resetForm();
+                return;
+            }
             toast({
                 title: 'Erro ao registrar checklist',
-                description: err.message || 'Tente novamente.',
+                description: err?.message || 'Tente novamente.',
                 variant: 'destructive',
             });
         },
@@ -468,25 +549,41 @@ const DriverChecklist: React.FC = () => {
             return;
         }
 
+        const checklistPayloadData = {
+            vehicleId,
+            driverId: effectiveDriverId || undefined,
+            type: activeTab,
+            kmReading: finalOdometer,
+            initialKm: kmInitNum != null && !Number.isNaN(kmInitNum) ? kmInitNum : undefined,
+            finalKm: kmFinalNum != null && !Number.isNaN(kmFinalNum) ? kmFinalNum : undefined,
+            distanceTravelled: tripDistance > 0 ? tripDistance : undefined,
+            hasDisplacement,
+            displacementType: hasDisplacement ? 'Deslocamento Garagem' : undefined,
+            displacementInitialKm: hasDisplacement ? (Number.parseInt(displacementInitialKm || kmFinal, 10) || undefined) : undefined,
+            displacementFinalKm: hasDisplacement ? displacementFinalNum : undefined,
+            displacementDistance: hasDisplacement && displacementDistance > 0 ? displacementDistance : undefined,
+            totalKmTravelled: totalDistance > 0 ? totalDistance : (tripDistance > 0 ? tripDistance : undefined),
+            checklistData: checklistDataJson,
+            driverProblemReport: driverProblemReport.trim() || undefined,
+            observations: observations.trim() || undefined,
+        };
+
+        if (!offlineSyncService.isOnline()) {
+            offlineSyncService.saveOfflineChecklist(checklistPayloadData, {
+                vehiclePlate: selectedVehicle?.plate,
+                driverName: matchedDriver?.name || user?.name,
+            });
+            setPendingOfflineCount(offlineSyncService.getPendingChecklists().length);
+            toast({
+                title: 'Checklist salvo no aparelho (Modo Offline)',
+                description: 'Você está sem conexão de rede. Os dados foram gravados com sucesso e serão enviados automaticamente quando o sinal retornar.',
+            });
+            resetForm();
+            return;
+        }
+
         createMutation.mutate({
-            data: {
-                vehicleId,
-                driverId: effectiveDriverId || undefined,
-                type: activeTab,
-                kmReading: finalOdometer,
-                initialKm: kmInitNum != null && !Number.isNaN(kmInitNum) ? kmInitNum : undefined,
-                finalKm: kmFinalNum != null && !Number.isNaN(kmFinalNum) ? kmFinalNum : undefined,
-                distanceTravelled: tripDistance > 0 ? tripDistance : undefined,
-                hasDisplacement,
-                displacementType: hasDisplacement ? 'Deslocamento Garagem' : undefined,
-                displacementInitialKm: hasDisplacement ? (Number.parseInt(displacementInitialKm || kmFinal, 10) || undefined) : undefined,
-                displacementFinalKm: hasDisplacement ? displacementFinalNum : undefined,
-                displacementDistance: hasDisplacement && displacementDistance > 0 ? displacementDistance : undefined,
-                totalKmTravelled: totalDistance > 0 ? totalDistance : (tripDistance > 0 ? tripDistance : undefined),
-                checklistData: checklistDataJson,
-                driverProblemReport: driverProblemReport.trim() || undefined,
-                observations: observations.trim() || undefined,
-            },
+            data: checklistPayloadData,
             odometerFile: odometerPhotoFile || undefined,
             odometerDesc: odometerPhotoDescription || undefined,
             vehiclePhotos: vehiclePhotos.length > 0 ? vehiclePhotos : undefined,
@@ -531,6 +628,51 @@ const DriverChecklist: React.FC = () => {
                         </p>
                     </div>
                 </div>
+
+                {/* Banner de Modo Offline e Sincronização */}
+                {(!isNetworkOnline || pendingOfflineCount > 0) && (
+                    <div className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm transition-all ${
+                        !isNetworkOnline
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
+                            : 'bg-primary/10 border-primary/20 text-foreground'
+                    }`}>
+                        <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${!isNetworkOnline ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' : 'bg-primary/20 text-primary'}`}>
+                                {!isNetworkOnline ? (
+                                    <WifiOff className="h-5 w-5 animate-pulse" />
+                                ) : (
+                                    <CloudUpload className="h-5 w-5" />
+                                )}
+                            </div>
+                            <div>
+                                <p className="font-semibold text-sm">
+                                    {!isNetworkOnline ? 'Modo Offline Ativo' : 'Checklists Salvos no Aparelho'}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    {!isNetworkOnline
+                                        ? 'Sem internet no momento. Pode preencher e salvar o checklist normalmente: ele será armazenado com segurança e transmitido assim que o sinal voltar.'
+                                        : `${pendingOfflineCount} checklist(s) aguardando envio para o servidor.`}
+                                </p>
+                            </div>
+                        </div>
+                        {isNetworkOnline && pendingOfflineCount > 0 && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleManualSync}
+                                disabled={isSyncingOffline}
+                                className="shrink-0 bg-background hover:bg-muted font-medium"
+                            >
+                                {isSyncingOffline ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                    <CloudUpload className="h-4 w-4 mr-2 text-primary" />
+                                )}
+                                Sincronizar ({pendingOfflineCount})
+                            </Button>
+                        )}
+                    </div>
+                )}
 
                 {/* Indicador de manutenção baseado no KM */}
                 {selectedVehicle && kmReading && !Number.isNaN(Number.parseInt(kmReading, 10)) && (

@@ -58,12 +58,58 @@ export default defineConfig(({ mode }) => {
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{css,html,png,svg,ico}'],
+        globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        navigateFallback: null,
-        navigateFallbackDenylist: [/^\/api/, /^\/ws/]
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/, /^\/ws/, /^\/uploads/],
+        runtimeCaching: [
+          // Fontes e estilos de terceiros
+          {
+            urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          // Imagens locais
+          {
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images-cache',
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
+          },
+          // Suporte Offline Área do Motorista: NetworkFirst com fallback para cache
+          {
+            urlPattern: /\/api\/(vehicles|drivers|frota\/checklist-configs|frota\/vehicles|schedules|vehicle-gate-checklists|fines)/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'driver-offline-api-cache',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 dias
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
       },
     }),
   ];
@@ -108,7 +154,8 @@ export default defineConfig(({ mode }) => {
       minify: 'terser', // Usar terser para melhor minificação
       terserOptions: {
         compress: {
-          drop_console: false, // Manter console.logs para debug
+          drop_console: true,
+          drop_debugger: true, // Manter console.logs para debug
         },
       },
       rollupOptions: {
