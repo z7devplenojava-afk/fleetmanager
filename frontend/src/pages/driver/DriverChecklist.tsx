@@ -601,24 +601,28 @@ const DriverChecklist: React.FC = () => {
                     </Card>
                 )}
 
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2 pb-2">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 pb-2 max-w-xl">
                     <Button
                         variant={activeTab === 'EXIT' ? 'default' : 'outline'}
                         onClick={() => setActiveTab('EXIT')}
-                        className={`h-11 sm:h-10 text-xs sm:text-sm font-semibold ${
-                            activeTab === 'EXIT' ? 'bg-blue-600 hover:bg-blue-700 shadow-sm' : ''
+                        className={`h-14 sm:h-12 px-3 sm:px-6 text-sm sm:text-base font-bold rounded-xl transition-all shadow-sm ${
+                            activeTab === 'EXIT'
+                                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md ring-2 ring-blue-500/30'
+                                : 'hover:bg-muted/80 text-muted-foreground hover:text-foreground'
                         }`}
                     >
-                        <LogOut className="mr-2 h-4 w-4 shrink-0" /> Check-out (Saída)
+                        <LogOut className="mr-2 h-5 w-5 shrink-0" /> Check-out (Saída)
                     </Button>
                     <Button
                         variant={activeTab === 'ARRIVAL' ? 'default' : 'outline'}
                         onClick={() => setActiveTab('ARRIVAL')}
-                        className={`h-11 sm:h-10 text-xs sm:text-sm font-semibold ${
-                            activeTab === 'ARRIVAL' ? 'bg-green-600 hover:bg-green-700 shadow-sm' : ''
+                        className={`h-14 sm:h-12 px-3 sm:px-6 text-sm sm:text-base font-bold rounded-xl transition-all shadow-sm ${
+                            activeTab === 'ARRIVAL'
+                                ? 'bg-green-600 hover:bg-green-700 text-white shadow-md ring-2 ring-green-500/30'
+                                : 'hover:bg-muted/80 text-muted-foreground hover:text-foreground'
                         }`}
                     >
-                        <LogIn className="mr-2 h-4 w-4 shrink-0" /> Check-in (Chegada)
+                        <LogIn className="mr-2 h-5 w-5 shrink-0" /> Check-in (Chegada)
                     </Button>
                 </div>
 
@@ -627,11 +631,11 @@ const DriverChecklist: React.FC = () => {
                     <div className="lg:col-span-2 space-y-6">
                         {/* Identificação */}
                         <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                                     <Car className="h-5 w-5 text-primary" /> Identificação
                                 </CardTitle>
-                                <CardDescription>
+                                <CardDescription className="text-xs sm:text-sm">
                                     {activeTab === 'EXIT'
                                         ? 'Registre a saída do veículo antes de iniciar a viagem.'
                                         : 'Registre a chegada do veículo ao final da viagem.'}
@@ -640,38 +644,39 @@ const DriverChecklist: React.FC = () => {
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label className="text-sm font-semibold">Veículo *</Label>
+                                        <Label className="text-sm sm:text-base font-bold text-foreground">Veículo *</Label>
                                         <SearchableSelect
                                             value={vehicleId}
                                             onChange={(val) => setVehicleId(val)}
                                             options={vehicleOptions}
+                                            size="lg"
                                             placeholder="Selecione o veículo..."
                                             searchPlaceholder="Buscar por placa, modelo ou frota..."
                                             emptyText="Nenhum veículo encontrado."
-                                            className="w-full bg-muted/40 border-input text-foreground h-10 rounded-md"
+                                            className="w-full bg-muted/40 border-input text-foreground h-14 sm:h-12 rounded-xl"
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Motorista {isDriver ? 'Responsável' : ''}</Label>
+                                        <Label className="text-sm sm:text-base font-bold text-foreground">Motorista {isDriver ? 'Responsável' : ''}</Label>
                                         {isDriver ? (
                                             <div className="space-y-1.5">
-                                                <div className="flex items-center gap-2.5 h-10 px-3 rounded-md border border-input bg-muted/40 text-sm">
-                                                    <UserCheck className="h-4 w-4 text-emerald-500 shrink-0" />
-                                                    <span className="font-semibold text-foreground truncate">
+                                                <div className="flex items-center gap-2.5 h-14 sm:h-12 px-3.5 rounded-xl border border-input bg-muted/40 text-sm sm:text-base">
+                                                    <UserCheck className="h-5 w-5 text-emerald-500 shrink-0" />
+                                                    <span className="font-bold text-foreground truncate">
                                                         {user?.name || 'Motorista Logado'}
                                                     </span>
-                                                    <Badge variant="outline" className="ml-auto text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                                                    <Badge variant="outline" className="ml-auto text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
                                                         Você (Motorista)
                                                     </Badge>
                                                 </div>
-                                                <p className="text-[11px] text-muted-foreground">
+                                                <p className="text-xs text-muted-foreground">
                                                     Identificação automática pelo seu login de motorista.
                                                 </p>
                                             </div>
                                         ) : (
                                             <>
                                                 <Select value={driverId || 'none'} onValueChange={(v) => setDriverId(v === 'none' ? '' : v)}>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="h-14 sm:h-12 text-sm sm:text-base font-semibold rounded-xl">
                                                         <SelectValue placeholder="Selecione o motorista" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -695,13 +700,15 @@ const DriverChecklist: React.FC = () => {
 
                                 {selectedVehicle && (
                                     <div className="flex flex-wrap gap-3 pt-2">
-                                        <Badge variant="outline">KM atual: {selectedVehicle.currentMileage?.toLocaleString('pt-BR')} km</Badge>
+                                        <Badge variant="outline" className="text-xs py-1 px-2.5">
+                                            KM atual: <strong className="ml-1 font-mono text-emerald-400">{selectedVehicle.currentMileage?.toLocaleString('pt-BR')} km</strong>
+                                        </Badge>
                                         {selectedVehicle.lastMaintenanceDate && (
-                                            <Badge variant="outline">
+                                            <Badge variant="outline" className="text-xs py-1 px-2.5">
                                                 Última manutenção: {new Date(selectedVehicle.lastMaintenanceDate + 'T00:00:00').toLocaleDateString('pt-BR')}
                                             </Badge>
                                         )}
-                                        <Badge variant="outline">
+                                        <Badge variant="outline" className="text-xs py-1 px-2.5">
                                             Status: {selectedVehicle.status === 'ACTIVE' ? 'Ativo' : selectedVehicle.status}
                                         </Badge>
                                     </div>
@@ -727,7 +734,7 @@ const DriverChecklist: React.FC = () => {
                             <CardContent className="space-y-4">
                                 {activeTab === 'EXIT' ? (
                                     <div className="space-y-2">
-                                        <Label className="text-sm font-semibold flex items-center gap-1.5">
+                                        <Label className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
                                             <MapPin className="h-4 w-4 text-emerald-500" />
                                             KM Inicial da Viagem (Origem) *
                                         </Label>
@@ -740,18 +747,18 @@ const DriverChecklist: React.FC = () => {
                                                 setKmReading(e.target.value);
                                             }}
                                             placeholder="Ex: 45000"
-                                            className="font-mono text-lg h-11"
+                                            className="font-mono text-xl sm:text-2xl font-bold h-14 sm:h-13 text-blue-400 tracking-wider rounded-xl border-blue-500/40 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                                         />
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-xs sm:text-sm text-muted-foreground">
                                             Quilometragem no momento do embarque inicial dos passageiros.
                                         </p>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                                            <div className="space-y-1.5">
-                                                <Label className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
-                                                    <MapPin className="h-3.5 w-3.5 text-emerald-500" />
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label className="text-sm sm:text-base font-bold text-muted-foreground flex items-center gap-1.5">
+                                                    <MapPin className="h-4 w-4 text-emerald-500" />
                                                     KM Inicial da Viagem (Origem)
                                                 </Label>
                                                 <Input
@@ -760,12 +767,12 @@ const DriverChecklist: React.FC = () => {
                                                     value={kmInitial}
                                                     onChange={(e) => setKmInitial(e.target.value)}
                                                     placeholder="Ex: 45000"
-                                                    className="font-mono"
+                                                    className="font-mono text-lg sm:text-xl font-bold h-14 sm:h-13 rounded-xl"
                                                 />
                                             </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-1">
-                                                    <MapPin className="h-3.5 w-3.5 text-blue-500" />
+                                            <div className="space-y-2">
+                                                <Label className="text-sm sm:text-base font-bold text-foreground flex items-center gap-1.5">
+                                                    <MapPin className="h-4 w-4 text-blue-500" />
                                                     KM Final da Viagem (Destino Cliente) *
                                                 </Label>
                                                 <Input
@@ -779,36 +786,37 @@ const DriverChecklist: React.FC = () => {
                                                         if (!hasDisplacement) setKmReading(val);
                                                     }}
                                                     placeholder="Ex: 45042"
-                                                    className="font-mono text-base font-bold"
+                                                    className="font-mono text-xl sm:text-2xl font-bold h-14 sm:h-13 text-emerald-400 tracking-wider rounded-xl border-emerald-500/40 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                                                 />
                                             </div>
                                         </div>
 
                                         {tripDistance > 0 && (
-                                            <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-between text-xs sm:text-sm">
-                                                <span className="text-blue-400 font-medium flex items-center gap-1.5">
-                                                    <Route className="h-4 w-4" /> Percurso da Viagem com Passageiros:
+                                            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between text-sm sm:text-base">
+                                                <span className="text-blue-400 font-bold flex items-center gap-2">
+                                                    <Route className="h-5 w-5" /> Percurso da Viagem com Passageiros:
                                                 </span>
-                                                <Badge className="bg-blue-600 text-white font-bold font-mono">
+                                                <Badge className="bg-blue-600 text-white font-bold font-mono text-sm sm:text-base px-3 py-1">
                                                     {tripDistance} km
                                                 </Badge>
                                             </div>
                                         )}
 
                                         {/* Bloco de Deslocamento para a Garagem */}
-                                        <div className="p-3.5 sm:p-4 rounded-xl border border-zinc-800 bg-zinc-950/40 space-y-3.5">
+                                        <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-950/40 space-y-4">
                                             <div className="flex items-center justify-between gap-3">
                                                 <div className="space-y-0.5">
-                                                    <Label className="text-sm font-semibold flex items-center gap-1.5 cursor-pointer">
-                                                        <Building2 className="h-4 w-4 text-amber-500" />
+                                                    <Label className="text-sm sm:text-base font-bold flex items-center gap-2 cursor-pointer">
+                                                        <Building2 className="h-5 w-5 text-amber-500" />
                                                         Deslocamento para a Garagem
                                                     </Label>
-                                                    <p className="text-xs text-muted-foreground">
+                                                    <p className="text-xs sm:text-sm text-muted-foreground">
                                                         Ative caso tenha retornado com o veículo para a garagem após entregar os passageiros.
                                                     </p>
                                                 </div>
                                                 <Switch
                                                     checked={hasDisplacement}
+                                                    className="scale-110"
                                                     onCheckedChange={(checked) => {
                                                         setHasDisplacement(checked);
                                                         if (checked) {
@@ -821,21 +829,21 @@ const DriverChecklist: React.FC = () => {
                                             </div>
 
                                             {hasDisplacement && (
-                                                <div className="pt-2 border-t border-zinc-800/80 space-y-3 animate-in fade-in-50">
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                                                        <div className="space-y-1.5">
-                                                            <Label className="text-xs text-muted-foreground">
+                                                <div className="pt-3 border-t border-zinc-800/80 space-y-4 animate-in fade-in-50">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs sm:text-sm font-semibold text-muted-foreground">
                                                                 KM Inicial do Deslocamento
                                                             </Label>
-                                                            <div className="h-10 px-3 rounded-md border border-input bg-muted/50 flex items-center font-mono text-sm font-bold text-foreground">
+                                                            <div className="h-14 sm:h-13 px-4 rounded-xl border border-input bg-muted/50 flex items-center font-mono text-lg sm:text-xl font-bold text-foreground">
                                                                 {displacementInitialKm || kmFinal || '—'}
                                                             </div>
-                                                            <p className="text-[10px] text-muted-foreground">
+                                                            <p className="text-[11px] text-muted-foreground">
                                                                 Puxado automaticamente do KM final do cliente.
                                                             </p>
                                                         </div>
-                                                        <div className="space-y-1.5">
-                                                            <Label className="text-xs font-semibold text-amber-400">
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs sm:text-sm font-bold text-amber-400">
                                                                 KM Final na Garagem *
                                                             </Label>
                                                             <Input
@@ -847,9 +855,9 @@ const DriverChecklist: React.FC = () => {
                                                                     setKmReading(e.target.value);
                                                                 }}
                                                                 placeholder="Ex: 45055"
-                                                                className="font-mono text-base font-bold border-amber-500/40 focus:border-amber-500"
+                                                                className="font-mono text-xl sm:text-2xl font-bold h-14 sm:h-13 text-amber-400 tracking-wider rounded-xl border-amber-500/50 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                                                             />
-                                                            <p className="text-[10px] text-muted-foreground">
+                                                            <p className="text-[11px] text-muted-foreground">
                                                                 Leitura do odômetro ao estacionar na garagem.
                                                             </p>
                                                         </div>
@@ -1164,26 +1172,28 @@ const DriverChecklist: React.FC = () => {
                             </CardContent>
                         </Card>
 
-                        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-2">
+                        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
                             <Button
                                 variant="outline"
                                 onClick={resetForm}
                                 disabled={createMutation.isPending}
-                                className="h-12 sm:h-10 text-sm font-medium w-full sm:w-auto"
+                                className="h-14 sm:h-12 px-6 text-sm sm:text-base font-semibold w-full sm:w-auto rounded-xl hover:bg-muted"
                             >
                                 Limpar
                             </Button>
                             <Button
                                 onClick={handleSubmit}
                                 disabled={createMutation.isPending}
-                                className={`h-12 sm:h-10 text-base sm:text-sm font-semibold w-full sm:w-auto shadow-md ${
-                                    activeTab === 'EXIT' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
+                                className={`h-14 sm:h-12 px-6 sm:px-8 text-base sm:text-lg font-bold w-full sm:w-auto rounded-xl shadow-lg transition-all ${
+                                    activeTab === 'EXIT'
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/30 ring-2 ring-blue-500/20'
+                                        : 'bg-green-600 hover:bg-green-700 text-white shadow-green-900/30 ring-2 ring-green-500/20'
                                 }`}
                             >
                                 {createMutation.isPending ? (
                                     <Loader2 className="h-5 w-5 animate-spin mr-2" />
                                 ) : (
-                                    <ClipboardCheck className="h-5 w-5 mr-2" />
+                                    <ClipboardCheck className="h-5 w-5 sm:h-6 sm:w-6 mr-2 shrink-0" />
                                 )}
                                 {createMutation.isPending
                                     ? 'Registrando...'
