@@ -17,7 +17,6 @@ import { getRoleDisplayName } from '@/utils/permissions';
 import { CollapsibleSidebar } from './CollapsibleSidebar';
 import { useSidebar } from '@/hooks/useSidebar';
 import { Breadcrumb } from './Breadcrumb';
-import { HistoryNavButtons } from './HistoryNavButtons';
 import { NotificationBell } from './NotificationBell';
 import UserProfileModal from './UserProfileModal';
 import { BottomNav } from './BottomNav';
@@ -153,9 +152,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               >
                 {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
               </Button>
-
-              {/* Botões de Avançar e Voltar entre telas */}
-              <HistoryNavButtons variant="header" />
 
               {/* Logo Dinâmica (Logo da Empresa logada ou FluxBus) */}
               <div className="flex items-center space-x-3 shrink-0">
