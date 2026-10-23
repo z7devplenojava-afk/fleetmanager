@@ -32,8 +32,12 @@ import {
     Building2,
     Route,
     MapPin,
-    TrendingUp
+    TrendingUp,
+    Eye,
+    FileText,
+    ExternalLink
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Switch } from '@/components/ui/switch';
 import { isDriverUser } from '@/utils/roleRouting';
 import { CameraCapture } from '@/components/frota/CameraCapture';
@@ -50,8 +54,9 @@ import fleetService from '@/services/fleetService';
 import driverService from '@/services/driverService';
 import checklistConfigService from '@/services/checklistConfigService';
 import api from '@/lib/axios';
-import type { ChecklistType, ChecklistItem } from '@/types/portaria';
+import type { ChecklistType, ChecklistItem, VehicleGateChecklist } from '@/types/portaria';
 import { DEFAULT_CHECKLIST_ITEMS, CATEGORY_LABELS, configToChecklistItem } from '@/utils/checklistConfig';
+import { ChecklistDetailsModal } from '@/components/frota/ChecklistDetailsModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/config/environment';
@@ -75,6 +80,10 @@ const DriverChecklist: React.FC = () => {
     const { user } = useAuth();
     const { toast } = useToast();
     const queryClient = useQueryClient();
+
+    const navigate = useNavigate();
+    const [selectedChecklistForView, setSelectedChecklistForView] = useState<VehicleGateChecklist | null>(null);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
     const [activeTab, setActiveTab] = useState<ChecklistType>('EXIT');
     const [vehicleId, setVehicleId] = useState('');
@@ -493,14 +502,16 @@ const DriverChecklist: React.FC = () => {
         return groups;
     }, [checklistItems]);
 
-    // Histórico dos checklists do motorista logado
+    // Histórico de checklists: motorista logado vê os seus; gestores/admins veem os da frota ou do filtro selecionado
     const { data: history = [], isLoading: isLoadingHistory } = useQuery({
-        queryKey: ['driver-checklist-history', effectiveDriverId],
+        queryKey: ['driver-checklist-history', effectiveDriverId, isDriver, driverId, vehicleId],
         queryFn: async () => {
-            const all = await vehicleGateChecklistService.findAll({});
-            return all
-                .filter((c) => !effectiveDriverId || c.driverId === effectiveDriverId)
-                .slice(0, 10);
+            const filterDriver = isDriver ? effectiveDriverId : (driverId || undefined);
+            const all = await vehicleGateChecklistService.findAll({
+                driverId: filterDriver || undefined,
+                vehicleId: vehicleId || undefined,
+            });
+            return all.slice(0, 15);
         },
     });
 
@@ -1186,13 +1197,27 @@ const DriverChecklist: React.FC = () => {
                     {/* Coluna lateral: histórico */}
                     <div className="space-y-6">
                         <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <CalendarClock className="h-5 w-5 text-primary" /> Meus últimos registros
-                                </CardTitle>
-                                <CardDescription>
-                                    {driverId ? 'Histórico do motorista selecionado' : 'Histórico de checklists'}
-                                </CardDescription>
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <div>
+                                        <CardTitle className="flex items-center gap-2 text-base font-bold">
+                                            <CalendarClock className="h-5 w-5 text-primary" /> Meus últimos registros
+                                        </CardTitle>
+                                        <CardDescription className="text-xs">
+                                            {driverId ? 'Histórico do motorista selecionado' : 'Histórico recente da frota'}
+                                        </CardDescription>
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-xs px-2 gap-1.5 border-border hover:bg-muted text-foreground"
+                                        onClick={() => navigate('/manutencao/portaria')}
+                                        title="Abrir painel completo de portaria e relatórios"
+                                    >
+                                        <ExternalLink className="h-3 w-3 text-primary" />
+                                        Relatórios Gerais
+                                    </Button>
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 {isLoadingHistory ? (
@@ -1202,13 +1227,20 @@ const DriverChecklist: React.FC = () => {
                                         Nenhum registro ainda.
                                     </p>
                                 ) : (
-                                    <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+                                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                                         {history.map((c) => (
-                                            <div key={c.id} className="border rounded-lg p-3 space-y-2">
+                                            <div
+                                                key={c.id}
+                                                className="border rounded-lg p-3 space-y-2 bg-card/60 hover:border-primary/50 hover:bg-card transition-all cursor-pointer shadow-sm group"
+                                                onClick={() => {
+                                                    setSelectedChecklistForView(c);
+                                                    setIsDetailsModalOpen(true);
+                                                }}
+                                            >
                                                 <div className="flex items-center justify-between">
                                                     <Badge
                                                         variant="outline"
-                                                        className={c.type === 'EXIT' ? 'border-blue-500 text-blue-500' : 'border-green-500 text-green-600'}
+                                                        className={c.type === 'EXIT' ? 'border-blue-500 text-blue-500 font-semibold' : 'border-green-500 text-green-600 font-semibold'}
                                                     >
                                                         {c.type === 'EXIT' ? 'Saída' : 'Chegada'}
                                                     </Badge>
@@ -1217,9 +1249,16 @@ const DriverChecklist: React.FC = () => {
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-sm font-medium">{c.vehiclePlate || '-'}</span>
+                                                    <div>
+                                                        <span className="text-sm font-bold text-foreground block">{c.vehiclePlate || '-'}</span>
+                                                        {c.driverName && (
+                                                            <span className="text-xs text-muted-foreground truncate block max-w-[140px]">
+                                                                {c.driverName}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <div className="text-right">
-                                                        <span className="font-mono text-sm font-semibold block">{c.kmReading} km</span>
+                                                        <span className="font-mono text-sm font-semibold block">{c.kmReading.toLocaleString('pt-BR')} km</span>
                                                         {c.distanceTravelled != null && (
                                                             <span className="text-[10px] text-blue-400 block font-mono">
                                                                 Viagem: {c.distanceTravelled} km
@@ -1231,14 +1270,9 @@ const DriverChecklist: React.FC = () => {
                                                 {(c.odometerPhotoUrl || c.vehiclePhotos) && (
                                                     <div className="flex items-center gap-3 text-xs">
                                                         {c.odometerPhotoUrl && (
-                                                            <a
-                                                                href={`${mediaBase}${c.odometerPhotoUrl}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="inline-flex items-center gap-1 text-primary hover:underline"
-                                                            >
+                                                            <span className="inline-flex items-center gap-1 text-primary">
                                                                 <ImageIcon className="h-3 w-3" /> Odômetro
-                                                            </a>
+                                                            </span>
                                                         )}
                                                         {c.vehiclePhotos && (
                                                             <span className="inline-flex items-center gap-1 text-muted-foreground">
@@ -1249,11 +1283,24 @@ const DriverChecklist: React.FC = () => {
                                                     </div>
                                                 )}
                                                 {c.driverProblemReport && (
-                                                    <p className="text-xs text-amber-600 flex items-start gap-1">
-                                                        <ShieldAlert className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                                    <p className="text-xs text-red-400 bg-red-500/10 p-1.5 rounded flex items-start gap-1">
+                                                        <ShieldAlert className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                                                         <span className="line-clamp-2">{c.driverProblemReport}</span>
                                                     </p>
                                                 )}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="w-full h-7 text-xs text-primary hover:bg-primary/10 gap-1.5 justify-center border border-border/50 group-hover:border-primary/40 mt-1"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedChecklistForView(c);
+                                                        setIsDetailsModalOpen(true);
+                                                    }}
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                    Ver Checklist & Relatório PDF
+                                                </Button>
                                             </div>
                                         ))}
                                     </div>
@@ -1275,6 +1322,12 @@ const DriverChecklist: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            <ChecklistDetailsModal
+                checklist={selectedChecklistForView}
+                open={isDetailsModalOpen}
+                onOpenChange={setIsDetailsModalOpen}
+            />
         </StandardLayout>
     );
 };

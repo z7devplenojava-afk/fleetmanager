@@ -26,11 +26,13 @@ public interface VehicleGateChecklistRepository extends JpaRepository<VehicleGat
             "LEFT JOIN FETCH vgc.vehicle " +
             "LEFT JOIN FETCH vgc.driver " +
             "WHERE (:vehicleId IS NULL OR vgc.vehicle.id = :vehicleId) AND " +
+            "(:driverId IS NULL OR vgc.driver.id = :driverId) AND " +
             "(:type IS NULL OR vgc.type = :type) AND " +
             "(:dateFrom IS NULL OR vgc.occurredAt >= :dateFrom) AND " +
             "(:dateTo IS NULL OR vgc.occurredAt <= :dateTo)")
     List<VehicleGateChecklist> findByFilters(
             @Param("vehicleId") UUID vehicleId,
+            @Param("driverId") UUID driverId,
             @Param("type") VehicleGateChecklist.ChecklistType type,
             @Param("dateFrom") LocalDateTime dateFrom,
             @Param("dateTo") LocalDateTime dateTo);

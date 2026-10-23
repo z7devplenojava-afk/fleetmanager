@@ -4,12 +4,14 @@ import type { VehicleGateChecklist, CreateVehicleGateChecklistDTO, ChecklistType
 class VehicleGateChecklistService {
   async findAll(params?: {
     vehicleId?: string;
+    driverId?: string;
     type?: ChecklistType;
     dateFrom?: string;
     dateTo?: string;
   }): Promise<VehicleGateChecklist[]> {
     const searchParams = new URLSearchParams();
     if (params?.vehicleId) searchParams.set('vehicleId', params.vehicleId);
+    if (params?.driverId) searchParams.set('driverId', params.driverId);
     if (params?.type) searchParams.set('type', params.type);
     if (params?.dateFrom) searchParams.set('dateFrom', params.dateFrom);
     if (params?.dateTo) searchParams.set('dateTo', params.dateTo);

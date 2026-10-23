@@ -51,11 +51,11 @@ public class VehicleGateChecklistService {
     }
 
     @Transactional(readOnly = true)
-    public List<VehicleGateChecklistDTO> findByFilters(UUID vehicleId, VehicleGateChecklist.ChecklistType type,
+    public List<VehicleGateChecklistDTO> findByFilters(UUID vehicleId, UUID driverId, VehicleGateChecklist.ChecklistType type,
                                                        LocalDate dateFrom, LocalDate dateTo) {
         LocalDateTime dateFromDt = dateFrom != null ? dateFrom.atStartOfDay() : null;
         LocalDateTime dateToDt = dateTo != null ? dateTo.atTime(LocalTime.MAX) : null;
-        return repository.findByFilters(vehicleId, type, dateFromDt, dateToDt).stream()
+        return repository.findByFilters(vehicleId, driverId, type, dateFromDt, dateToDt).stream()
                 .sorted((a, b) -> {
                     if (a.getOccurredAt() == null && b.getOccurredAt() == null) return 0;
                     if (a.getOccurredAt() == null) return 1;
@@ -83,6 +83,14 @@ public class VehicleGateChecklistService {
             driver = driverRepository.findById(dto.getDriverId()).orElse(null);
         }
 
+        UUID effectiveCompanyId = dto.getCompanyId();
+        if (effectiveCompanyId == null) {
+            effectiveCompanyId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        }
+        if (effectiveCompanyId == null && vehicle.getCompanyId() != null) {
+            effectiveCompanyId = vehicle.getCompanyId();
+        }
+
         VehicleGateChecklist entity = VehicleGateChecklist.builder()
                 .vehicle(vehicle)
                 .driver(driver)
@@ -104,7 +112,7 @@ public class VehicleGateChecklistService {
                 .driverProblemReport(dto.getDriverProblemReport())
                 .observations(dto.getObservations())
                 .vehiclePhotos(dto.getVehiclePhotos())
-                .companyId(dto.getCompanyId())
+                .companyId(effectiveCompanyId)
                 .build();
 
         entity = repository.save(entity);
