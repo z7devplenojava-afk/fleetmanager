@@ -942,19 +942,31 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 </div>
               </div>
 
-              {/* Botão de Exemplo rápido no desktop/mobile */}
-              {!isReadOnly && !parteDiariaToEdit && (
-                <Button
+              {/* Ações do Topo: Exemplo e Botão Fechar (X) */}
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                {!isReadOnly && !parteDiariaToEdit && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFillSampleData}
+                    className="border-amber-500/40 text-amber-300 hover:bg-amber-500/10 text-[10px] sm:text-[11px] h-8 sm:h-9 px-2 sm:px-2.5 rounded-xl shrink-0 gap-1"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                    <span className="hidden xs:inline">Exemplo</span>
+                  </Button>
+                )}
+
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleFillSampleData}
-                  className="border-amber-500/40 text-amber-300 hover:bg-amber-500/10 text-[10px] sm:text-[11px] h-7 sm:h-8 px-2 sm:px-2.5 rounded-lg shrink-0 gap-1"
+                  onClick={onClose}
+                  aria-label="Fechar modal"
+                  title="Fechar (Esc)"
+                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800/90 hover:bg-red-500/20 text-slate-300 hover:text-red-400 border border-slate-700/80 hover:border-red-500/40 flex items-center justify-center transition-all active:scale-95 shadow-sm"
                 >
-                  <Sparkles className="h-3 w-3 text-amber-400" />
-                  <span>Exemplo</span>
-                </Button>
-              )}
+                  <X className="h-4 w-4 sm:h-5 sm:w-5" />
+                </button>
+              </div>
             </div>
 
             {/* Ficha & Data em Linha Compacta */}
@@ -1762,21 +1774,11 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
             )}
           </div>
 
-          {/* Rodapé fixo do Modal */}
-          <DialogFooter className="bg-slate-900/90 p-4 border-t border-slate-800 rounded-b-2xl flex flex-row items-center justify-between gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              className="text-slate-400 hover:text-white text-xs h-9"
-            >
-              Fechar
-            </Button>
-
-            <span className="text-[11px] text-slate-400 hidden sm:inline">
-              Parte Diária Oficial • Viação São Silvestre
-            </span>
-          </DialogFooter>
+          {/* Rodapé informativo discreto do Modal */}
+          <div className="bg-slate-900/60 px-4 py-2.5 border-t border-slate-800/80 rounded-b-2xl flex items-center justify-between text-[11px] text-slate-500">
+            <span>Parte Diária Oficial • Viação São Silvestre</span>
+            <span className="font-mono">Ficha Nº {docNumber}</span>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
