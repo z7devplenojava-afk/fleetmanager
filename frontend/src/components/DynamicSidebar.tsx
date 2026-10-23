@@ -1762,7 +1762,7 @@ export function DynamicSidebar() {
     if (user) {
       const allowedSet = ROLE_ALLOWED_ITEM_IDS[user.role as UserRole];
       if (allowedSet) {
-        filteredItems = filteredItems.filter((item) => allowedSet.has(item.id));
+        filteredItems = filteredItems.filter((item) => item.id === 'ponto-eletronico' || allowedSet.has(item.id));
       }
     }
 
@@ -1860,6 +1860,10 @@ export function DynamicSidebar() {
     const allowedSet = ROLE_ALLOWED_ITEM_IDS[normalizedRole];
 
     const filtered = allMenuItems.filter(item => {
+      if (item.id === 'ponto-eletronico') {
+        const isExternalClient = normalizedRole === 'CLIENTE' || normalizedRole === 'CLIENT_USER';
+        if (!isExternalClient) return true;
+      }
       if (allowedSet && !allowedSet.has(item.id)) {
         console.log(`⚠️ ${normalizedRole} - removendo item não permitido: ${item.id}`);
         return false;

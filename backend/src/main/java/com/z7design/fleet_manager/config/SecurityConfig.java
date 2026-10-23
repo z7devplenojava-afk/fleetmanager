@@ -502,29 +502,8 @@ public class SecurityConfig {
                                                                 "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN",
                                                                 "ROLE_GESTOR", "ROLE_RH", "ROLE_SST", "ROLE_SEGURANCA_DO_TRABALHO",
                                                                 "EMPLOYEES_READ", "EMPLOYEES_WRITE")
-                                                // Endpoints de folha de ponto (time-sheets)
-                                                .requestMatchers("/api/time-sheets/**").hasAnyAuthority(
-                                                                "TIME_RECORD_READ",
-                                                                "SUPER_ADMIN",
-                                                                "ADMIN",
-                                                                "ROLE_COMPANY_ADMIN",
-                                                                "COMPANY_ADMIN",
-                                                                "ROLE_FLEX_ADMIN",
-                                                                "RH",
-                                                                "SST",
-                                                                "DEPARTAMENTO_PESSOAL",
-                                                                "ROLE_SUPER_ADMIN",
-                                                                "ROLE_ADMIN",
-                                                                "ROLE_RH",
-                                                                "ROLE_SST",
-                                                                "ROLE_SEGURANCA_DO_TRABALHO",
-                                                                "ROLE_DEPARTAMENTO_PESSOAL",
-                                                                "MOTORISTA",
-                                                                "ROLE_MOTORISTA",
-                                                                "COLABORADOR",
-                                                                "ROLE_COLABORADOR",
-                                                                "EMPLOYEE",
-                                                                "ROLE_EMPLOYEE")
+                                                // Endpoints de folha de ponto (time-sheets) e registro de ponto - disponíveis para todos os funcionários autenticados
+                                                .requestMatchers("/api/time-sheets/**", "/api/time-records/**").authenticated()
                                                 // Todo o resto requer autenticaÃƒÂ§ÃƒÂ£o
                                                 .anyRequest().authenticated())
                                 .authenticationProvider(authenticationProvider)

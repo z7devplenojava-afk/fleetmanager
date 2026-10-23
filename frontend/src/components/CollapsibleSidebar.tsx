@@ -349,6 +349,7 @@ const sistemaMenuItems = [
 const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
   COLABORADOR: new Set([
     'dashboard',
+    'ponto-eletronico',
     'holerites',
     'chat-interno',
     'gestao-mensagens-enviar',
@@ -361,6 +362,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
   // RH e Departamento Pessoal NÃO veem módulo Operacional
   RH: new Set([
     'dashboard',
+    'ponto-eletronico',
     'holerites',
     'filiais',
     'configuracoes',
@@ -1611,8 +1613,15 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     if (!allowedItemIds) {
       return items;
     }
-    return items.filter(item => allowedItemIds.has(item.id));
-  }, [allowedItemIds]);
+    return items.filter(item => {
+      // O Ponto Eletrônico deve ficar disponível universalmente para todos os funcionários
+      if (item.id === 'ponto-eletronico') {
+        const isExternalClient = userRoles.length > 0 && userRoles.every(r => r === 'CLIENTE' || r === 'CLIENT_USER');
+        return !isExternalClient;
+      }
+      return allowedItemIds.has(item.id);
+    });
+  }, [allowedItemIds, userRoles]);
 
   const handleProfileClick = () => {
     setIsProfileModalOpen(true);

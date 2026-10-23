@@ -1387,6 +1387,14 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/ponto-eletronico" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <PontoEletronico />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/ponto" element={<Navigate to="/rh/ponto-eletronico" replace />} />
                       <Route path="/rh/ponto-admin/dashboard" element={
                         <ProtectedRoute requiredPermissions={['TIME_RECORD_MANAGE']}>
                           <Suspense fallback={<LoadingSpinner />}>
