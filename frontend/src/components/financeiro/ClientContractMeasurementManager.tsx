@@ -367,7 +367,12 @@ export const ClientContractMeasurementManager: React.FC = () => {
   const loadPartesDiarias = async () => {
     try {
       setPartesLoading(true);
-      const apiPartes = await parteDiariaService.getPartesDiarias(undefined, undefined, selectedClientId).catch(() => []);
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(selectedClientId);
+      const apiPartes = await parteDiariaService.getPartesDiarias(
+        undefined,
+        undefined,
+        isUuid ? selectedClientId : undefined
+      ).catch(() => []);
       if (Array.isArray(apiPartes) && apiPartes.length > 0) {
         setPartesDiariasMap(prev => ({
           ...prev,
