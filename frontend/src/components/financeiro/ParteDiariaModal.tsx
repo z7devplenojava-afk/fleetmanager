@@ -38,6 +38,74 @@ import { employeeService, Employee } from '@/services/employeeService';
 import { contractService } from '@/services/contractService';
 import { workPostService, WorkPost } from '@/services/workPostService';
 import { routeService, Route } from '@/services/routeService';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
+
+interface ClientPresetData {
+  name: string;
+  contracts: Array<{ contractNumber: string; description: string }>;
+  obras: Array<{ name: string; city?: string }>;
+}
+
+const PRESET_CLIENTS: Record<string, ClientPresetData> = {
+  anglogold: {
+    name: 'ANGLOGOLD ASHANTI CÓRREGO DO SÍTIO MINERAÇÃO S.A.',
+    contracts: [
+      { contractNumber: 'CT-2024/AGA-01', description: 'Fretamento Operacional Planta Cuiabá (Sabará/MG)' },
+      { contractNumber: 'CT-2024/AGA-02', description: 'Transporte Operacional Planta Queiroz & Mina Lamego' },
+      { contractNumber: 'CT-2025/AGA-03', description: 'Transporte Administrativo Nova Lima' }
+    ],
+    obras: [
+      { name: 'PLANTA CUIABÁ - SABARÁ/MG', city: 'Sabará/MG' },
+      { name: 'PLANTA QUEIROZ - NOVA LIMA/MG', city: 'Nova Lima/MG' },
+      { name: 'MINA LAMEGO - SABARÁ/MG', city: 'Sabará/MG' },
+      { name: 'CÓRREGO DO SÍTIO - SANTA BÁRBARA/MG', city: 'Santa Bárbara/MG' }
+    ]
+  },
+  vale: {
+    name: 'VALE S.A.',
+    contracts: [
+      { contractNumber: 'CT-2024/VALE-01', description: 'Fretamento Mina de Brucutu' },
+      { contractNumber: 'CT-2024/VALE-02', description: 'Fretamento Complexo Itabira' },
+      { contractNumber: 'CT-2025/VALE-03', description: 'Transporte Mina de Conceição' }
+    ],
+    obras: [
+      { name: 'MINA DE BRUCUTU - SÃO GONÇALO DO RIO ABAIXO/MG', city: 'São Gonçalo do Rio Abaixo/MG' },
+      { name: 'COMPLEXO ITABIRA - ITABIRA/MG', city: 'Itabira/MG' },
+      { name: 'MINA DE CONCEIÇÃO - ITABIRA/MG', city: 'Itabira/MG' }
+    ]
+  },
+  fm2c: {
+    name: 'FM2C ENGENHARIA & GESTÃO',
+    contracts: [
+      { contractNumber: 'CT-2025/FM2C', description: 'Prestação de Serviços de Fretamento Contínuo' },
+      { contractNumber: 'CT-2024/FM2C-02', description: 'Transporte de Equipes e Turnos' }
+    ],
+    obras: [
+      { name: 'FM2C IBIRITÉ', city: 'Ibirité/MG' },
+      { name: 'FM2C BETIM', city: 'Betim/MG' },
+      { name: 'FM2C CONTAGEM', city: 'Contagem/MG' }
+    ]
+  },
+  geraes: {
+    name: 'GERAES MINERAÇÃO E LOGÍSTICA',
+    contracts: [
+      { contractNumber: 'CT-2024/GER-01', description: 'Fretamento Operacional Linha Mina' }
+    ],
+    obras: [
+      { name: 'GERAES - MINA CENTRAL', city: 'Minas Gerais' },
+      { name: 'GERAES - BELO HORIZONTE/MG', city: 'Belo Horizonte/MG' }
+    ]
+  },
+  almenara: {
+    name: 'VIAÇÃO ALMENARA / FRETAMENTO',
+    contracts: [
+      { contractNumber: 'CT-2025/ALM-01', description: 'Fretamento e Apoio de Transporte' }
+    ],
+    obras: [
+      { name: 'OPERAÇÃO VALE DO JEQUITINHONHA', city: 'Almenara/MG' }
+    ]
+  }
+};
 
 const cleanDriverName = (name?: string) => {
   if (!name) return '';
@@ -87,6 +155,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
   // Refs para navegação rápida ao clicar nos cards do topo
   const veiculoSectionRef = useRef<HTMLDivElement>(null);
+  const driverSectionRef = useRef<HTMLDivElement>(null);
   const driverInputRef = useRef<HTMLInputElement>(null);
   const clienteSectionRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +166,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const [clientName, setClientName] = useState<string>(initialClientName || 'FM2C');
   const [manualClientMode, setManualClientMode] = useState<boolean>(false);
   const [contractNumber, setContractNumber] = useState<string>(initialContractNumber || 'CT-2025/FM2C');
+  const [manualContractMode, setManualContractMode] = useState<boolean>(false);
+  const [clientContracts, setClientContracts] = useState<Array<{ id?: string; contractNumber: string; description?: string; obraName?: string }>>([]);
   const [obraName, setObraName] = useState<string>(initialObraName || 'FM2C IBIRITÉ');
   const [manualObraMode, setManualObraMode] = useState<boolean>(false);
   const [vehicleType, setVehicleType] = useState<string>('MICRO'); // CARRO, ÔNIBUS, MICRO, VAN
@@ -105,6 +176,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const [manualPlateMode, setManualPlateMode] = useState<boolean>(false);
   const [driverName, setDriverName] = useState<string>(cleanDriverName(initialDriverName || 'Fernando Silva Santos'));
   const [selectedDriverId, setSelectedDriverId] = useState<string>(initialDriverId || '');
+  const [manualDriverMode, setManualDriverMode] = useState<boolean>(false);
   const [dpSignature, setDpSignature] = useState<string>('José Mário Ramos (DP)');
 
   // Linha em digitação para rápido lançamento
@@ -275,11 +347,84 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
       if (initialDriverId) {
         setSelectedDriverId(initialDriverId);
       }
+
+      // Carregar e sincronizar contratos e obras para o cliente selecionado
+      const finalClientId = parteDiariaToEdit?.clientId || initialClientId || (clientList.length > 0 ? clientList[0].id : '');
+      const finalClientName = parteDiariaToEdit?.clientName || initialClientName || (clientList.length > 0 ? clientList[0].name : 'FM2C');
+      await resolveClientContractsAndObras(finalClientId, finalClientName, clientList, workPostList);
     } catch (err) {
       console.error('Erro ao carregar dados do formulário:', err);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const resolveClientContractsAndObras = async (
+    targetClientId: string,
+    targetClientName: string,
+    _clientsArray: Client[] = clients,
+    workPostsArray: WorkPost[] = workPosts
+  ) => {
+    const lower = (targetClientName || '').toLowerCase();
+    let presetContracts: Array<{ contractNumber: string; description: string }> = [];
+    let presetObras: Array<{ name: string; city?: string }> = [];
+
+    for (const [key, p] of Object.entries(PRESET_CLIENTS)) {
+      if (lower.includes(key) || p.name.toLowerCase().includes(lower)) {
+        presetContracts = p.contracts;
+        presetObras = p.obras;
+        break;
+      }
+    }
+
+    let backendContracts: any[] = [];
+    if (targetClientId && !targetClientId.startsWith('preset-')) {
+      try {
+        const raw = await contractService.getContractsByClient(targetClientId).catch(async () => {
+          return await contractService.getContracts({ clientId: targetClientId }).catch(() => []);
+        });
+        backendContracts = Array.isArray(raw) ? raw : (raw as any)?.content || [];
+      } catch (err) {
+        console.warn('Erro ao carregar contratos do cliente:', err);
+      }
+    }
+
+    const combinedContracts: Array<{ id?: string; contractNumber: string; description?: string; obraName?: string }> = [];
+    const seenContracts = new Set<string>();
+
+    backendContracts.forEach((c: any) => {
+      const num = c.contractNumber || c.number;
+      if (num && !seenContracts.has(num.toUpperCase())) {
+        seenContracts.add(num.toUpperCase());
+        combinedContracts.push({
+          id: c.id,
+          contractNumber: num,
+          description: c.description || c.notes,
+          obraName: c.obraName
+        });
+      }
+    });
+
+    presetContracts.forEach(p => {
+      if (!seenContracts.has(p.contractNumber.toUpperCase())) {
+        seenContracts.add(p.contractNumber.toUpperCase());
+        combinedContracts.push({
+          contractNumber: p.contractNumber,
+          description: p.description
+        });
+      }
+    });
+
+    if (combinedContracts.length === 0 && targetClientName) {
+      const cleanPrefix = targetClientName.replace(/[^A-Za-z0-9]/g, '').substring(0, 6).toUpperCase();
+      combinedContracts.push({
+        contractNumber: `CT-2025/${cleanPrefix || 'FM2C'}`,
+        description: `Contrato de Transporte ${targetClientName}`
+      });
+    }
+
+    setClientContracts(combinedContracts);
+    return { combinedContracts, presetObras };
   };
 
   const detectVehicleType = (v: any): string => {
@@ -302,19 +447,31 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     return 'MICRO';
   };
 
-  const handleClientChange = async (clientId: string) => {
+  const handleClientChange = async (clientId: string, clientNameOverride?: string) => {
     setSelectedClientId(clientId);
-    const selected = clients.find(c => c.id === clientId);
-    if (selected) {
-      setClientName(selected.name);
+    const selected = clients.find(c => c.id === clientId) || availableClients.find(c => c.id === clientId);
+    const resolvedName = clientNameOverride || selected?.name || clientName;
+    if (resolvedName) {
+      setClientName(resolvedName);
     }
 
+    const { combinedContracts, presetObras } = await resolveClientContractsAndObras(clientId, resolvedName);
+
+    // Atualiza contrato automaticamente se o atual não pertencer à nova lista
+    if (combinedContracts.length > 0) {
+      const alreadyHas = combinedContracts.some(c => c.contractNumber === contractNumber);
+      if (!alreadyHas) {
+        setContractNumber(combinedContracts[0].contractNumber);
+      }
+    }
+
+    // Atualiza obra automaticamente se houver obras vinculadas
     const clientObrasFound = workPosts.filter((wp: any) => {
       const cId = wp.clientId || wp.client?.id;
       const cName = wp.clientName || wp.client?.name;
       return (
         cId === clientId ||
-        (selected?.name && cName && cName.trim().toLowerCase() === selected.name.trim().toLowerCase())
+        (resolvedName && cName && cName.trim().toLowerCase() === resolvedName.trim().toLowerCase())
       );
     });
 
@@ -323,20 +480,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
       if (clientObrasFound[0].contractId) {
         setContractNumber(`CT-${clientObrasFound[0].contractId.substring(0, 8)}`);
       }
-    }
-
-    try {
-      const rawContracts = await contractService.getContracts({ clientId }).catch(() => []);
-      const contractsList = Array.isArray(rawContracts) ? rawContracts : (rawContracts as any)?.content || [];
-      if (contractsList.length > 0) {
-        const firstContract = contractsList[0];
-        setContractNumber(firstContract.contractNumber || `CT-2025/${selected?.name?.substring(0, 6).toUpperCase() || 'FM2C'}`);
-        if (clientObrasFound.length === 0 && (firstContract.description || firstContract.obraName)) {
-          setObraName(firstContract.description || firstContract.obraName);
-        }
-      }
-    } catch (err) {
-      console.warn('Erro ao carregar contratos do cliente:', err);
+    } else if (presetObras.length > 0) {
+      setObraName(presetObras[0].name);
     }
   };
 
@@ -500,19 +645,67 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   );
 
   const clientObras = React.useMemo(() => {
-    if (!selectedClientId) return workPosts;
-    return workPosts.filter((wp: any) => {
+    const list: Array<{ id?: string; name: string; city?: string; contractId?: string }> = [];
+    const seenNames = new Set<string>();
+
+    workPosts.forEach((wp: any) => {
       const cId = wp.clientId || wp.client?.id;
       const cName = wp.clientName || wp.client?.name;
-      return (
-        cId === selectedClientId ||
-        (clientName && cName && cName.trim().toLowerCase() === clientName.trim().toLowerCase())
-      );
+      const isMatch = !selectedClientId || cId === selectedClientId ||
+        (clientName && cName && cName.trim().toLowerCase() === clientName.trim().toLowerCase());
+
+      if (isMatch && wp.name && !seenNames.has(wp.name.toUpperCase())) {
+        seenNames.add(wp.name.toUpperCase());
+        list.push({
+          id: wp.id,
+          name: wp.name,
+          city: wp.city || wp.cidade,
+          contractId: wp.contractId
+        });
+      }
     });
-  }, [workPosts, selectedClientId, clientName]);
+
+    const lower = (clientName || '').toLowerCase();
+    for (const [key, p] of Object.entries(PRESET_CLIENTS)) {
+      if (lower.includes(key) || p.name.toLowerCase().includes(lower)) {
+        p.obras.forEach(o => {
+          if (!seenNames.has(o.name.toUpperCase())) {
+            seenNames.add(o.name.toUpperCase());
+            list.push({
+              name: o.name,
+              city: o.city
+            });
+          }
+        });
+        break;
+      }
+    }
+
+    if (obraName && !seenNames.has(obraName.toUpperCase())) {
+      list.unshift({
+        name: obraName
+      });
+    }
+
+    return list;
+  }, [workPosts, selectedClientId, clientName, obraName]);
 
   const availableClients = React.useMemo(() => {
     const list = [...clients];
+    const seenNames = new Set(list.map(c => (c.name || '').trim().toLowerCase()));
+
+    Object.values(PRESET_CLIENTS).forEach(p => {
+      const pKey = p.name.trim().toLowerCase();
+      if (!seenNames.has(pKey) && !Array.from(seenNames).some(n => n.includes('anglo') && pKey.includes('anglo'))) {
+        seenNames.add(pKey);
+        list.push({
+          id: `preset-${p.name.substring(0, 10).toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+          name: p.name,
+          status: 'ACTIVE'
+        } as any);
+      }
+    });
+
     const cleanCurrent = (clientName || '').trim().toLowerCase();
     if (clientName && !list.some(c => c.id === selectedClientId || (c.name && c.name.trim().toLowerCase() === cleanCurrent))) {
       list.unshift({
@@ -539,6 +732,72 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     return list;
   }, [vehicles, selectedVehicleId, vehiclePlate, vehicleType]);
 
+  const vehicleOptions = React.useMemo<SearchableOption[]>(() => {
+    return availableVehicles.map((v: any) => {
+      const plate = v.placa || v.plate || 'SEM PLACA';
+      const model = v.modelo || v.model || v.brand || 'Veículo';
+      const type = detectVehicleType(v);
+      const kmStr = v.currentMileage != null && Number(v.currentMileage) > 0 
+        ? `${Number(v.currentMileage).toLocaleString('pt-BR')} km` 
+        : '';
+      return {
+        value: v.id || plate,
+        label: plate,
+        subtitle: `${model}${kmStr ? ` • ${kmStr}` : ''}`,
+        badge: type,
+        badgeColor: type === 'ÔNIBUS' ? 'emerald' : type === 'MICRO' ? 'amber' : 'blue',
+        keywords: [plate, model, v.brand, v.fabricante, v.prefixo, v.prefix, type]
+      };
+    });
+  }, [availableVehicles]);
+
+  const driverOptions = React.useMemo<SearchableOption[]>(() => {
+    return combinedMotoristas.map((m: any) => {
+      const cleaned = cleanDriverName(m.name);
+      return {
+        value: m.id || cleaned,
+        label: cleaned,
+        subtitle: m.sub || 'Motorista',
+        badge: 'MOTORISTA',
+        badgeColor: 'amber',
+        keywords: [cleaned, m.sub || '', m.name]
+      };
+    });
+  }, [combinedMotoristas]);
+
+  const clientOptions = React.useMemo<SearchableOption[]>(() => {
+    return availableClients.map((c: any) => ({
+      value: c.id,
+      label: c.name,
+      subtitle: c.cnpj ? `CNPJ: ${c.cnpj}` : undefined,
+      badge: 'CLIENTE',
+      badgeColor: 'blue',
+      keywords: [c.name, c.tradeName || '', c.razaoSocial || '', c.cnpj || '']
+    }));
+  }, [availableClients]);
+
+  const contractOptions = React.useMemo<SearchableOption[]>(() => {
+    return clientContracts.map(ct => ({
+      value: ct.contractNumber,
+      label: ct.contractNumber,
+      subtitle: ct.description || (clientName ? `Contrato — ${clientName}` : undefined),
+      badge: 'CONTRATO',
+      badgeColor: 'amber',
+      keywords: [ct.contractNumber, ct.description || '']
+    }));
+  }, [clientContracts, clientName]);
+
+  const obraOptions = React.useMemo<SearchableOption[]>(() => {
+    return clientObras.map(ob => ({
+      value: ob.name,
+      label: ob.name,
+      subtitle: ob.city ? `Localidade: ${ob.city}` : (clientName ? `Cliente: ${clientName}` : undefined),
+      badge: 'OBRA',
+      badgeColor: 'emerald',
+      keywords: [ob.name, ob.city || '']
+    }));
+  }, [clientObras, clientName]);
+
   const jumpToVeiculo = () => {
     setCurrentStep('veiculo');
     setTimeout(() => {
@@ -548,10 +807,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
   const jumpToMotorista = () => {
     setCurrentStep('veiculo');
-    setShowDriverDropdown(true);
     setTimeout(() => {
-      driverInputRef.current?.focus();
-      driverInputRef.current?.select();
+      driverSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 50);
   };
 
@@ -886,22 +1143,23 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                       </button>
                     </div>
 
-                    {!manualPlateMode && availableVehicles.length > 0 ? (
-                      <Select
-                        value={selectedVehicleId || (availableVehicles.find(v => (v.placa || v.plate || '').toUpperCase() === (vehiclePlate || '').toUpperCase())?.id || availableVehicles[0]?.id || '')}
-                        onValueChange={handleVehicleChange}
-                      >
-                        <SelectTrigger className="bg-slate-950 border-slate-700 text-white font-mono font-bold h-11 rounded-xl">
-                          <SelectValue placeholder="Selecione o veículo da frota..." />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-60 overflow-y-auto">
-                          {availableVehicles.slice(0, 100).map((v: any) => (
-                            <SelectItem key={v.id} value={v.id}>
-                              {v.placa || v.plate} — {v.modelo || v.model || 'Veículo'}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    {!manualPlateMode && vehicleOptions.length > 0 ? (
+                      <SearchableSelect
+                        value={selectedVehicleId || (availableVehicles.find(v => (v.placa || v.plate || '').toUpperCase() === (vehiclePlate || '').toUpperCase())?.id || '')}
+                        fallbackLabel={vehiclePlate ? `${vehiclePlate} — ${vehicleType}` : undefined}
+                        onChange={(val, opt) => {
+                          handleVehicleChange(val);
+                          if (opt?.label) {
+                            setVehiclePlate(opt.label);
+                          }
+                        }}
+                        options={vehicleOptions}
+                        placeholder="Clique ou digite a placa do veículo..."
+                        searchPlaceholder="Digite a placa ou modelo (ex: QMR, Agrale)..."
+                        emptyText="Nenhum veículo encontrado para esta busca."
+                        size="lg"
+                        className="bg-slate-950 border-slate-700 text-white font-mono font-bold"
+                      />
                     ) : (
                       <Input
                         value={vehiclePlate}
@@ -914,61 +1172,46 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 </div>
 
                 {/* Motorista Responsável */}
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-3 relative">
-                  <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
-                    <User className="h-4 w-4" /> Quem é o Motorista?
+                <div ref={driverSectionRef} className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-3 relative">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                      <User className="h-4 w-4" /> Quem é o Motorista?
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setManualDriverMode(!manualDriverMode)}
+                      className="text-[11px] text-amber-400 hover:underline font-bold"
+                    >
+                      {manualDriverMode ? 'Buscar Motoristas Cadastrados' : 'Digitar Nome Livre'}
+                    </button>
                   </div>
 
-                  <div className="relative">
+                  {!manualDriverMode && driverOptions.length > 0 ? (
+                    <SearchableSelect
+                      value={selectedDriverId || driverName}
+                      fallbackLabel={driverName || 'Selecione o motorista...'}
+                      onChange={(val, opt) => {
+                        if (opt?.label) {
+                          setDriverName(cleanDriverName(opt.label));
+                          setSelectedDriverId(val);
+                        }
+                      }}
+                      options={driverOptions}
+                      placeholder="Clique ou digite o nome do motorista..."
+                      searchPlaceholder="Digite o nome do motorista (ex: Fernando)..."
+                      emptyText="Nenhum motorista ou colaborador encontrado."
+                      size="lg"
+                      className="bg-slate-950 border-slate-700 text-white font-semibold"
+                    />
+                  ) : (
                     <Input
                       ref={driverInputRef}
                       value={driverName}
-                      onChange={(e) => {
-                        const cleaned = cleanDriverName(e.target.value);
-                        setDriverName(cleaned);
-                        setDriverSearchFilter(cleaned);
-                        setShowDriverDropdown(true);
-                      }}
-                      onFocus={() => setShowDriverDropdown(true)}
-                      placeholder="Digite ou selecione o motorista..."
-                      className="bg-slate-950 border-slate-700 text-white font-semibold text-sm h-11 pr-10 rounded-xl"
+                      onChange={(e) => setDriverName(cleanDriverName(e.target.value))}
+                      placeholder="Digite o nome do motorista livremente..."
+                      className="bg-slate-950 border-slate-700 text-white font-semibold text-sm h-11 rounded-xl"
                     />
-                    <User className="absolute right-3 top-3.5 h-4 w-4 text-amber-400 pointer-events-none" />
-
-                    {showDriverDropdown && combinedMotoristas.length > 0 && (
-                      <div className="absolute z-50 left-0 right-0 top-12 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-52 overflow-y-auto p-1.5">
-                        <div className="px-2 py-1 text-[10px] text-amber-400 font-bold uppercase tracking-wider border-b border-slate-800">
-                          Motoristas & Colaboradores Sugeridos ({combinedMotoristas.length})
-                        </div>
-                        {filteredMotoristas.length === 0 ? (
-                          <div className="p-3 text-xs text-slate-400 text-center">
-                            Usar nome digitado: <strong className="text-white">"{driverName}"</strong>
-                          </div>
-                        ) : (
-                          filteredMotoristas.slice(0, 30).map((m, idx) => (
-                            <div
-                              key={m.id || idx}
-                              onClick={() => {
-                                setDriverName(cleanDriverName(m.name));
-                                setSelectedDriverId(m.id);
-                                setShowDriverDropdown(false);
-                              }}
-                              className="p-2.5 hover:bg-amber-500/20 rounded-lg cursor-pointer transition-colors flex items-center justify-between text-xs"
-                            >
-                              <span className="text-white font-semibold">{cleanDriverName(m.name)}</span>
-                              <span className="text-[10px] text-amber-400/80">{m.sub}</span>
-                            </div>
-                          ))
-                        )}
-                        <div
-                          onClick={() => setShowDriverDropdown(false)}
-                          className="p-2 text-center text-xs text-amber-400 font-bold hover:underline cursor-pointer border-t border-slate-800"
-                        >
-                          ✓ Confirmar Nome Digitado Manualmente
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
 
                 {/* Cliente e Obra */}
@@ -989,38 +1232,68 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                           {manualClientMode ? 'Buscar' : 'Digitar'}
                         </button>
                       </div>
-                      {!manualClientMode && availableClients.length > 0 ? (
-                        <Select
-                          value={selectedClientId || (availableClients.find(c => c.name.toLowerCase() === (clientName || '').toLowerCase())?.id || availableClients[0]?.id || '')}
-                          onValueChange={handleClientChange}
-                        >
-                          <SelectTrigger className="bg-slate-950 border-slate-700 text-white h-10 rounded-xl">
-                            <SelectValue placeholder="Selecione o cliente..." />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-60 overflow-y-auto">
-                            {availableClients.map(c => (
-                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      {!manualClientMode && clientOptions.length > 0 ? (
+                        <SearchableSelect
+                          value={selectedClientId || (availableClients.find(c => c.name.toLowerCase() === (clientName || '').toLowerCase())?.id || '')}
+                          fallbackLabel={clientName || 'Selecione o cliente...'}
+                          onChange={(val, opt) => {
+                            handleClientChange(val, opt?.label);
+                          }}
+                          options={clientOptions}
+                          placeholder="Selecione ou busque o cliente..."
+                          searchPlaceholder="Buscar cliente (ex: AngloGold, Vale, FM2C)..."
+                          emptyText="Nenhum cliente encontrado."
+                          className="bg-slate-950 border-slate-700 text-white"
+                        />
                       ) : (
                         <Input
                           value={clientName}
-                          onChange={(e) => setClientName(e.target.value)}
-                          placeholder="Ex: FM2C"
+                          onChange={(e) => {
+                            setClientName(e.target.value);
+                            resolveClientContractsAndObras('', e.target.value);
+                          }}
+                          placeholder="Ex: AngloGold Ashanti"
                           className="bg-slate-950 border-slate-700 text-white font-bold h-10 rounded-xl"
                         />
                       )}
                     </div>
 
                     <div>
-                      <Label className="text-xs text-slate-300 font-semibold mb-1 block">Nº Contrato</Label>
-                      <Input
-                        value={contractNumber}
-                        onChange={(e) => setContractNumber(e.target.value)}
-                        placeholder="Ex: CT-2025/FM2C"
-                        className="bg-slate-950 border-slate-700 text-amber-300 font-bold h-10 rounded-xl"
-                      />
+                      <div className="flex items-center justify-between mb-1">
+                        <Label className="text-xs text-slate-300 font-semibold">Nº Contrato</Label>
+                        <button
+                          type="button"
+                          onClick={() => setManualContractMode(!manualContractMode)}
+                          className="text-[10px] text-amber-400 hover:underline font-bold"
+                        >
+                          {manualContractMode ? 'Buscar Contratos' : 'Digitar'}
+                        </button>
+                      </div>
+                      {!manualContractMode && contractOptions.length > 0 ? (
+                        <SearchableSelect
+                          value={contractNumber}
+                          fallbackLabel={contractNumber || 'Selecione o contrato...'}
+                          onChange={(val) => {
+                            setContractNumber(val);
+                            const ct = clientContracts.find(c => c.contractNumber === val);
+                            if (ct?.obraName) {
+                              setObraName(ct.obraName);
+                            }
+                          }}
+                          options={contractOptions}
+                          placeholder="Selecione o contrato..."
+                          searchPlaceholder="Buscar contrato (ex: CT-2024)..."
+                          emptyText="Nenhum contrato cadastrado para este cliente."
+                          className="bg-slate-950 border-slate-700 text-amber-300 font-bold"
+                        />
+                      ) : (
+                        <Input
+                          value={contractNumber}
+                          onChange={(e) => setContractNumber(e.target.value)}
+                          placeholder="Ex: CT-2024/AGA-01"
+                          className="bg-slate-950 border-slate-700 text-amber-300 font-bold h-10 rounded-xl"
+                        />
+                      )}
                     </div>
 
                     <div>
@@ -1037,33 +1310,28 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                         </button>
                       </div>
 
-                      {!manualObraMode && clientObras.length > 0 ? (
-                        <Select
-                          value={clientObras.some((w: any) => w.name === obraName) ? obraName : (clientObras[0]?.name || '')}
-                          onValueChange={(val) => {
+                      {!manualObraMode && obraOptions.length > 0 ? (
+                        <SearchableSelect
+                          value={obraName}
+                          fallbackLabel={obraName || 'Selecione a obra...'}
+                          onChange={(val) => {
                             setObraName(val);
-                            const wp = clientObras.find((w: any) => w.name === val);
+                            const wp = clientObras.find(w => w.name === val);
                             if (wp?.contractId) {
                               setContractNumber(`CT-${wp.contractId.substring(0, 8)}`);
                             }
                           }}
-                        >
-                          <SelectTrigger className="bg-slate-950 border-slate-700 text-white font-semibold h-10 rounded-xl">
-                            <SelectValue placeholder="Selecione a Obra..." />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-60 overflow-y-auto">
-                            {clientObras.map((wp: any) => (
-                              <SelectItem key={wp.id} value={wp.name}>
-                                {wp.name} {wp.city ? `(${wp.city})` : ''}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          options={obraOptions}
+                          placeholder="Selecione a obra..."
+                          searchPlaceholder="Buscar obra (ex: Planta Cuiabá, Mina)..."
+                          emptyText="Nenhuma obra cadastrada para o cliente."
+                          className="bg-slate-950 border-slate-700 text-white font-semibold"
+                        />
                       ) : (
                         <Input
                           value={obraName}
                           onChange={(e) => setObraName(e.target.value)}
-                          placeholder="Ex: FM2C IBIRITÉ"
+                          placeholder="Ex: PLANTA CUIABÁ - SABARÁ/MG"
                           className="bg-slate-950 border-slate-700 text-white font-semibold h-10 rounded-xl"
                         />
                       )}
