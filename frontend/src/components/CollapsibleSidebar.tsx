@@ -401,9 +401,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'mensagens',
     'gestao-mensagens-grupos',
     'gestao-mensagens-notificacoes',
-    'ticketing-booking',
-    'ticketing-templates',
-    'ticketing-trips',
     'mobilizacao-transportes',
   ]),
   DEPARTAMENTO_PESSOAL: new Set([
@@ -446,9 +443,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'mensagens',
     'gestao-mensagens-grupos',
     'gestao-mensagens-notificacoes',
-    'ticketing-booking',
-    'ticketing-templates',
-    'ticketing-trips',
     'mobilizacao-transportes',
   ]),
   SST: new Set([
@@ -1676,6 +1670,12 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     return isDriverUser(user) || userRoles.some(r => r === 'MOTORISTA' || r === 'ROLE_MOTORISTA');
   }, [isSuperAdmin, user, userRoles]);
 
+  const isRhOrDp = useMemo(() => {
+    if (isSuperAdmin) return false;
+    return userRoles.some(r => r === 'RH' || r === 'ROLE_RH' || r === 'DEPARTAMENTO_PESSOAL' || r === 'ROLE_DEPARTAMENTO_PESSOAL')
+      || user?.role === 'RH' || user?.role === 'DEPARTAMENTO_PESSOAL';
+  }, [isSuperAdmin, userRoles, user?.role]);
+
   const filteredMainMenuItems = useMemo(() => filterItemsForRole(mainMenuItems), [filterItemsForRole]);
   const filteredManutencaoItems = useMemo(() => filterItemsForRole(manutencaoMenuItems), [filterItemsForRole]);
   const filteredFinanceiroItems = useMemo(() => filterItemsForRole(financeiroMenuItems), [filterItemsForRole]);
@@ -1685,8 +1685,8 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   );
   const filteredRhItems = useMemo(() => filterItemsForRole(rhMenuItems), [filterItemsForRole]);
   const filteredTicketingItems = useMemo(
-    () => (isMotorista ? [] : filterItemsForRole(ticketingMenuItems)),
-    [isMotorista, filterItemsForRole]
+    () => (isMotorista || isRhOrDp ? [] : filterItemsForRole(ticketingMenuItems)),
+    [isMotorista, isRhOrDp, filterItemsForRole]
   );
   const filteredMobilizacaoItems = useMemo(
     () => (isMotorista ? [] : filterItemsForRole(mobilizacaoMenuItems)),
@@ -1997,7 +1997,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           {!isMotorista && renderModuleSection('mobilizacao', 'Mobilização', filteredMobilizacaoItems)}
 
           {/* Módulo de Passagens (Ticketing) */}
-          {!isMotorista && renderModuleSection('ticketing', 'Gestão de Passagens', filteredTicketingItems)}
+          {!isMotorista && !isRhOrDp && renderModuleSection('ticketing', 'Gestão de Passagens', filteredTicketingItems)}
 
           {/* Módulo Financeiro */}
           {shouldShowModule('FINANCIAL_READ') && renderModuleSection('financeiro', 'Módulo Financeiro', filteredFinanceiroItems)}
