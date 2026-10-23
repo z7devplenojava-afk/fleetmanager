@@ -155,8 +155,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                     {selectedOption.badge}
                   </Badge>
                 )}
-                {selectedOption.subtitle && !selectedOption.badge && (
-                  <span className="text-gray-400 text-xs truncate">({selectedOption.subtitle})</span>
+                {selectedOption.subtitle && (
+                  <span className="text-gray-400 text-xs truncate max-w-[130px] sm:max-w-xs">({selectedOption.subtitle})</span>
                 )}
               </div>
             ) : fallbackLabel ? (
@@ -196,7 +196,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           setTimeout(() => inputRef.current?.focus(), 60);
         }}
         onCloseAutoFocus={(e) => e.preventDefault()}
-        className="w-[var(--radix-popover-trigger-width)] min-w-[280px] p-0 bg-seguranca-graphite border border-gray-700 rounded-lg shadow-2xl z-[10070] overflow-hidden flex flex-col"
+        className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[260px] p-0 bg-seguranca-graphite border border-gray-700 rounded-lg shadow-2xl z-[10070] overflow-hidden flex flex-col"
       >
         {/* Barra de Pesquisa */}
         <div className="p-2 border-b border-gray-700 bg-seguranca-black flex items-center gap-2">

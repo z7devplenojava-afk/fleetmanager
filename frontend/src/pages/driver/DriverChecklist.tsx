@@ -44,6 +44,7 @@ import {
     SelectTrigger,
     SelectValue
 } from '@/components/ui/select';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
 import vehicleGateChecklistService from '@/services/vehicleGateChecklistService';
 import fleetService from '@/services/fleetService';
 import driverService from '@/services/driverService';
@@ -122,6 +123,55 @@ const DriverChecklist: React.FC = () => {
         () => vehicles.find((v) => v.id === vehicleId),
         [vehicles, vehicleId]
     );
+
+    // Limpeza de texto de marca/modelo e prevenção de ruídos de assinatura digital do Detran
+    const cleanVehicleDesc = (brand?: string | null, model?: string | null) => {
+        const isJunk = (val?: string | null) => {
+            if (!val) return true;
+            const lower = val.toLowerCase().trim();
+            return (
+                lower.includes('assinado') ||
+                lower.includes('assinatura') ||
+                lower.includes('detran') ||
+                lower.includes('certificado') ||
+                lower.includes('digitalmente') ||
+                lower.includes('documento') ||
+                lower.length > 50
+            );
+        };
+
+        const cleanBrand = isJunk(brand) ? '' : brand?.trim() || '';
+        const cleanModel = isJunk(model) ? '' : model?.trim() || '';
+
+        if (cleanBrand && cleanModel) {
+            if (cleanModel.toLowerCase().includes(cleanBrand.toLowerCase())) {
+                return cleanModel;
+            }
+            return `${cleanBrand} ${cleanModel}`;
+        }
+        return cleanBrand || cleanModel || '';
+    };
+
+    // Opções otimizadas e limpas para o seletor responsivo
+    const vehicleOptions = useMemo<SearchableOption[]>(() => {
+        return vehicles.map((v) => {
+            const desc = cleanVehicleDesc(v.brand, v.model);
+            return {
+                value: v.id,
+                label: v.plate,
+                subtitle: desc || undefined,
+                badge: v.currentMileage != null ? `${v.currentMileage.toLocaleString('pt-BR')} km` : undefined,
+                badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+                keywords: [
+                    v.plate,
+                    v.plate.replace(/[^a-zA-Z0-9]/g, ''),
+                    v.brand || '',
+                    v.model || '',
+                    v.fleetNumber || ''
+                ].filter(Boolean)
+            };
+        });
+    }, [vehicles]);
 
     // Auto-seleciona o motorista se o usuário logado for motorista ou tiver registro correspondente
     useEffect(() => {
@@ -579,20 +629,16 @@ const DriverChecklist: React.FC = () => {
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label>Veículo *</Label>
-                                        <Select value={vehicleId} onValueChange={setVehicleId}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Selecione o veículo" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {vehicles.map((v) => (
-                                                    <SelectItem key={v.id} value={v.id}>
-                                                        {v.plate} - {v.brand} {v.model}
-                                                        {v.currentMileage != null ? ` (KM: ${v.currentMileage})` : ''}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <Label className="text-sm font-semibold">Veículo *</Label>
+                                        <SearchableSelect
+                                            value={vehicleId}
+                                            onChange={(val) => setVehicleId(val)}
+                                            options={vehicleOptions}
+                                            placeholder="Selecione o veículo..."
+                                            searchPlaceholder="Buscar por placa, modelo ou frota..."
+                                            emptyText="Nenhum veículo encontrado."
+                                            className="w-full bg-muted/40 border-input text-foreground h-10 rounded-md"
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Motorista {isDriver ? 'Responsável' : ''}</Label>
