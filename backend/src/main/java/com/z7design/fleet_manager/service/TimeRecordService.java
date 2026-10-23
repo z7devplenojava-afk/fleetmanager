@@ -15,6 +15,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -88,7 +94,7 @@ public class TimeRecordService {
         record.setWorkPost(workPost);
         record.setRecordType(recordType);
         record.setRecordedAt(LocalDateTime.now());
-        record.setLocation(location);
+        record.setLocation(resolveLocation(location, latitude, longitude));
         record.setLatitude(latitude);
         record.setLongitude(longitude);
         record.setIpAddress(ipAddress);
@@ -111,6 +117,65 @@ public class TimeRecordService {
         log.info("✅ Ponto registrado com sucesso - ID: {}", saved.getId());
 
         return saved;
+    }
+
+    private String resolveLocation(String location, Double latitude, Double longitude) {
+        if (location != null && !location.isBlank() 
+                && !location.equalsIgnoreCase("Localização capturada")
+                && !location.equalsIgnoreCase("Sem localização")) {
+            return location.trim();
+        }
+
+        if (latitude != null && longitude != null) {
+            try {
+                org.springframework.http.client.SimpleClientHttpRequestFactory requestFactory = 
+                        new org.springframework.http.client.SimpleClientHttpRequestFactory();
+                requestFactory.setConnectTimeout(3000);
+                requestFactory.setReadTimeout(3000);
+                RestTemplate restTemplate = new RestTemplate(requestFactory);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("User-Agent", "FluxBus-FleetManager/1.0");
+                headers.set("Accept-Language", "pt-BR,pt;q=0.9");
+                HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+                String url = String.format(Locale.US,
+                        "https://nominatim.openstreetmap.org/reverse?format=json&lat=%.6f&lon=%.6f&zoom=18&addressdetails=1",
+                        latitude, longitude);
+
+                ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                    Map<String, Object> body = response.getBody();
+                    if (body.get("address") instanceof Map) {
+                        Map<String, Object> addr = (Map<String, Object>) body.get("address");
+                        String road = (String) addr.getOrDefault("road", addr.getOrDefault("pedestrian", addr.getOrDefault("street", "")));
+                        String number = addr.get("house_number") != null ? ", " + addr.get("house_number") : "";
+                        String suburb = (String) addr.getOrDefault("suburb", addr.getOrDefault("neighbourhood", addr.getOrDefault("quarter", "")));
+                        String city = (String) addr.getOrDefault("city", addr.getOrDefault("town", addr.getOrDefault("municipality", "")));
+                        String state = (String) addr.getOrDefault("state", "");
+
+                        List<String> parts = new ArrayList<>();
+                        if (road != null && !road.isBlank()) parts.add(road + number);
+                        if (suburb != null && !suburb.isBlank() && !suburb.equalsIgnoreCase(road)) parts.add(suburb);
+                        if (city != null && !city.isBlank()) {
+                            parts.add(state != null && !state.isBlank() ? city + " - " + state : city);
+                        }
+
+                        if (!parts.isEmpty()) {
+                            return String.join(" - ", parts);
+                        }
+                    }
+                    if (body.get("display_name") != null) {
+                        return (String) body.get("display_name");
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Não foi possível resolver geocodificação reversa no backend: {}", e.getMessage());
+            }
+            return String.format(Locale.US, "Lat: %.5f, Lng: %.5f", latitude, longitude);
+        }
+
+        return location != null && !location.isBlank() ? location : "Sem localização";
     }
 
     private void validateRecordSequence(UUID employeeId, TimeRecord.RecordType newRecordType) {
