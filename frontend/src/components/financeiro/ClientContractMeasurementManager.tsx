@@ -1204,6 +1204,9 @@ export const ClientContractMeasurementManager: React.FC = () => {
         onSuccess={handleParteDiariaSuccess}
         initialClientId={currentClient.id}
         initialClientName={currentClient.clientName}
+        initialContractNumber={currentClient.contractNumber}
+        initialObraName={leasedVehicles[0]?.route || ''}
+        initialVehiclePlate={leasedVehicles[0]?.plate || ''}
         parteDiariaToEdit={selectedParteDiaria}
         isReadOnly={isModalReadOnly}
       />

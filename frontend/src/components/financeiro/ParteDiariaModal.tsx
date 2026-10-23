@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,12 +39,20 @@ import { contractService } from '@/services/contractService';
 import { workPostService, WorkPost } from '@/services/workPostService';
 import { routeService, Route } from '@/services/routeService';
 
+const cleanDriverName = (name?: string) => {
+  if (!name) return '';
+  return name.replace(/\s*\((motorista|condutor|driver)\)\s*/gi, '').trim();
+};
+
 interface ParteDiariaModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
   initialClientId?: string;
   initialClientName?: string;
+  initialContractNumber?: string;
+  initialObraName?: string;
+  initialVehiclePlate?: string;
   initialDriverName?: string;
   initialDriverId?: string;
   parteDiariaToEdit?: ParteDiaria | null;
@@ -59,6 +67,9 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   onSuccess,
   initialClientId,
   initialClientName,
+  initialContractNumber,
+  initialObraName,
+  initialVehiclePlate,
   initialDriverName,
   initialDriverId,
   parteDiariaToEdit,
@@ -74,20 +85,25 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const [routes, setRoutes] = useState<Route[]>([]);
   const [motoristasFuncionarios, setMotoristasFuncionarios] = useState<{ id: string; name: string; cargo: string }[]>([]);
 
+  // Refs para navegação rápida ao clicar nos cards do topo
+  const veiculoSectionRef = useRef<HTMLDivElement>(null);
+  const driverInputRef = useRef<HTMLInputElement>(null);
+  const clienteSectionRef = useRef<HTMLDivElement>(null);
+
   // Dados do Cabeçalho da Parte Diária
   const [docNumber, setDocNumber] = useState<string>('13102');
-  const [docDate, setDocDate] = useState<string>('2025-12-12');
-  const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const [clientName, setClientName] = useState<string>('FM2C');
+  const [docDate, setDocDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [selectedClientId, setSelectedClientId] = useState<string>(initialClientId || '');
+  const [clientName, setClientName] = useState<string>(initialClientName || 'FM2C');
   const [manualClientMode, setManualClientMode] = useState<boolean>(false);
-  const [contractNumber, setContractNumber] = useState<string>('CT-2025/FM2C');
-  const [obraName, setObraName] = useState<string>('FM2C IBIRITÉ');
+  const [contractNumber, setContractNumber] = useState<string>(initialContractNumber || 'CT-2025/FM2C');
+  const [obraName, setObraName] = useState<string>(initialObraName || 'FM2C IBIRITÉ');
   const [manualObraMode, setManualObraMode] = useState<boolean>(false);
   const [vehicleType, setVehicleType] = useState<string>('MICRO'); // CARRO, ÔNIBUS, MICRO, VAN
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
-  const [vehiclePlate, setVehiclePlate] = useState<string>('QMR-2E82');
+  const [vehiclePlate, setVehiclePlate] = useState<string>(initialVehiclePlate || 'QMR-2E82');
   const [manualPlateMode, setManualPlateMode] = useState<boolean>(false);
-  const [driverName, setDriverName] = useState<string>(initialDriverName || 'Fernando Silva Santos (MOTORISTA)');
+  const [driverName, setDriverName] = useState<string>(cleanDriverName(initialDriverName || 'Fernando Silva Santos'));
   const [selectedDriverId, setSelectedDriverId] = useState<string>(initialDriverId || '');
   const [dpSignature, setDpSignature] = useState<string>('José Mário Ramos (DP)');
 
@@ -192,48 +208,69 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
         setVehicleType(parteDiariaToEdit.vehicleModel || 'MICRO');
         setSelectedVehicleId(parteDiariaToEdit.vehicleId || '');
         setVehiclePlate(parteDiariaToEdit.vehiclePlate || 'QMR-2E82');
-        setDriverName(parteDiariaToEdit.driverName || initialDriverName || 'Fernando Silva Santos');
+        setDriverName(cleanDriverName(parteDiariaToEdit.driverName || initialDriverName || 'Fernando Silva Santos'));
         setSelectedDriverId(parteDiariaToEdit.driverId || '');
-        setStartKm(parteDiariaToEdit.startKm ?? 403834);
-        setEndKm(parteDiariaToEdit.endKm ?? 404017);
+        setStartKm(parteDiariaToEdit.startKm ?? 0);
+        setEndKm(parteDiariaToEdit.endKm ?? 0);
         setDisregardedKm(parteDiariaToEdit.disregardedKm ?? 0);
         setDisregardReason(parteDiariaToEdit.disregardReason || '');
         setNotes(parteDiariaToEdit.notes || 'Operação realizada com sucesso conforme parte diária física.');
         if (parteDiariaToEdit.atividades && parteDiariaToEdit.atividades.length > 0) {
           setActivities(parteDiariaToEdit.atividades);
         }
-      } else if (initialClientId) {
-        setSelectedClientId(initialClientId);
-        const cli = clientList.find((c: any) => c.id === initialClientId);
-        if (cli) {
-          setClientName(cli.name);
-        } else if (initialClientName) {
-          setClientName(initialClientName);
+      } else if (initialClientId || initialClientName) {
+        const targetClientId = initialClientId || '';
+        const targetClientName = initialClientName || '';
+        setSelectedClientId(targetClientId);
+        if (targetClientName) {
+          setClientName(targetClientName);
+        } else {
+          const cli = clientList.find((c: any) => c.id === targetClientId);
+          if (cli) setClientName(cli.name);
         }
-        const qmrVehicle = vehicleList.find((v: any) => (v.placa || v.plate || '').toUpperCase().includes('QMR'));
-        if (qmrVehicle) {
-          setSelectedVehicleId(qmrVehicle.id);
-          setVehiclePlate(qmrVehicle.placa || qmrVehicle.plate);
+
+        if (initialContractNumber) {
+          setContractNumber(initialContractNumber);
+        } else if (targetClientName) {
+          setContractNumber(`CT-${targetClientName.substring(0, 6).toUpperCase()}`);
         }
-      } else {
-        const qmrVehicle = vehicleList.find((v: any) => (v.placa || v.plate || '').toUpperCase().includes('QMR'));
-        if (qmrVehicle) {
-          setSelectedVehicleId(qmrVehicle.id);
-          setVehiclePlate(qmrVehicle.placa || qmrVehicle.plate);
-        }
-        const fmqcClient = clientList.find((c: any) => (c.name || '').toUpperCase().includes('FM2C') || (c.name || '').toUpperCase().includes('FMQC'));
-        if (fmqcClient) {
-          setSelectedClientId(fmqcClient.id);
-          setClientName(fmqcClient.name);
-          const relatedObras = workPostList.filter((wp: any) => wp.clientId === fmqcClient.id || (wp.clientName && wp.clientName.includes('FM2C')));
+
+        if (initialObraName) {
+          setObraName(initialObraName);
+        } else {
+          const relatedObras = workPostList.filter((wp: any) => 
+            wp.clientId === targetClientId || (wp.clientName && wp.clientName.toLowerCase().includes(targetClientName.toLowerCase()))
+          );
           if (relatedObras.length > 0) {
             setObraName(relatedObras[0].name);
           }
         }
+
+        if (initialVehiclePlate) {
+          setVehiclePlate(initialVehiclePlate);
+          const foundV = vehicleList.find((v: any) => 
+            (v.placa || v.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase() === 
+            initialVehiclePlate.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+          );
+          if (foundV) {
+            setSelectedVehicleId(foundV.id);
+            setVehicleType(detectVehicleType(foundV));
+          }
+        }
+      } else {
+        if (clientList.length > 0) {
+          setSelectedClientId(clientList[0].id);
+          setClientName(clientList[0].name);
+        }
+        if (vehicleList.length > 0) {
+          setSelectedVehicleId(vehicleList[0].id);
+          setVehiclePlate(vehicleList[0].placa || vehicleList[0].plate || '');
+          setVehicleType(detectVehicleType(vehicleList[0]));
+        }
       }
 
       if (initialDriverName) {
-        setDriverName(initialDriverName);
+        setDriverName(cleanDriverName(initialDriverName));
       }
       if (initialDriverId) {
         setSelectedDriverId(initialDriverId);
@@ -474,6 +511,57 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     });
   }, [workPosts, selectedClientId, clientName]);
 
+  const availableClients = React.useMemo(() => {
+    const list = [...clients];
+    const cleanCurrent = (clientName || '').trim().toLowerCase();
+    if (clientName && !list.some(c => c.id === selectedClientId || (c.name && c.name.trim().toLowerCase() === cleanCurrent))) {
+      list.unshift({
+        id: selectedClientId || 'custom-client',
+        name: clientName,
+        status: 'ACTIVE'
+      } as any);
+    }
+    return list;
+  }, [clients, selectedClientId, clientName]);
+
+  const availableVehicles = React.useMemo(() => {
+    const list = [...vehicles];
+    const cleanPlate = (vehiclePlate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (vehiclePlate && !list.some(v => v.id === selectedVehicleId || (v.placa || v.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase() === cleanPlate)) {
+      list.unshift({
+        id: selectedVehicleId || 'custom-vehicle',
+        placa: vehiclePlate,
+        plate: vehiclePlate,
+        modelo: vehicleType || 'Veículo',
+        model: vehicleType || 'Veículo'
+      } as any);
+    }
+    return list;
+  }, [vehicles, selectedVehicleId, vehiclePlate, vehicleType]);
+
+  const jumpToVeiculo = () => {
+    setCurrentStep('veiculo');
+    setTimeout(() => {
+      veiculoSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  };
+
+  const jumpToMotorista = () => {
+    setCurrentStep('veiculo');
+    setShowDriverDropdown(true);
+    setTimeout(() => {
+      driverInputRef.current?.focus();
+      driverInputRef.current?.select();
+    }, 50);
+  };
+
+  const jumpToCliente = () => {
+    setCurrentStep('veiculo');
+    setTimeout(() => {
+      clienteSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  };
+
   const quickRouteChips = React.useMemo(() => {
     const curObra = obraName || 'Obra';
     return [
@@ -647,7 +735,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 text-xs w-full">
                 <div
-                  onClick={() => setCurrentStep('veiculo')}
+                  onClick={jumpToVeiculo}
                   className="cursor-pointer bg-slate-950/80 hover:bg-slate-900 hover:border-amber-500/50 transition-all p-1.5 rounded-lg border border-slate-800/80 min-w-0 overflow-hidden active:scale-98"
                   title="Toque para alterar o veículo"
                 >
@@ -661,7 +749,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 </div>
 
                 <div
-                  onClick={() => setCurrentStep('veiculo')}
+                  onClick={jumpToMotorista}
                   className="cursor-pointer bg-slate-950/80 hover:bg-slate-900 hover:border-amber-500/50 transition-all p-1.5 rounded-lg border border-slate-800/80 min-w-0 overflow-hidden active:scale-98"
                   title="Toque para alterar o motorista"
                 >
@@ -675,7 +763,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 </div>
 
                 <div
-                  onClick={() => setCurrentStep('veiculo')}
+                  onClick={jumpToCliente}
                   className="cursor-pointer bg-slate-950/80 hover:bg-slate-900 hover:border-amber-500/50 transition-all p-1.5 rounded-lg border border-slate-800/80 min-w-0 overflow-hidden active:scale-98"
                   title="Toque para alterar a obra ou cliente"
                 >
@@ -750,7 +838,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
             {/* ETAPA 1: VEÍCULO E MOTORISTA */}
             {currentStep === 'veiculo' && (
               <div className="space-y-4 animate-in fade-in-50 duration-200">
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4">
+                <div ref={veiculoSectionRef} className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4">
                   <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
                     <Truck className="h-4 w-4" /> Qual é o veículo utilizado?
                   </div>
@@ -798,13 +886,16 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                       </button>
                     </div>
 
-                    {!manualPlateMode && vehicles.length > 0 ? (
-                      <Select value={selectedVehicleId} onValueChange={handleVehicleChange}>
+                    {!manualPlateMode && availableVehicles.length > 0 ? (
+                      <Select
+                        value={selectedVehicleId || (availableVehicles.find(v => (v.placa || v.plate || '').toUpperCase() === (vehiclePlate || '').toUpperCase())?.id || availableVehicles[0]?.id || '')}
+                        onValueChange={handleVehicleChange}
+                      >
                         <SelectTrigger className="bg-slate-950 border-slate-700 text-white font-mono font-bold h-11 rounded-xl">
                           <SelectValue placeholder="Selecione o veículo da frota..." />
                         </SelectTrigger>
                         <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-60 overflow-y-auto">
-                          {vehicles.slice(0, 100).map((v: any) => (
+                          {availableVehicles.slice(0, 100).map((v: any) => (
                             <SelectItem key={v.id} value={v.id}>
                               {v.placa || v.plate} — {v.modelo || v.model || 'Veículo'}
                             </SelectItem>
@@ -830,10 +921,12 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
                   <div className="relative">
                     <Input
+                      ref={driverInputRef}
                       value={driverName}
                       onChange={(e) => {
-                        setDriverName(e.target.value);
-                        setDriverSearchFilter(e.target.value);
+                        const cleaned = cleanDriverName(e.target.value);
+                        setDriverName(cleaned);
+                        setDriverSearchFilter(cleaned);
                         setShowDriverDropdown(true);
                       }}
                       onFocus={() => setShowDriverDropdown(true)}
@@ -856,13 +949,13 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                             <div
                               key={m.id || idx}
                               onClick={() => {
-                                setDriverName(m.name);
+                                setDriverName(cleanDriverName(m.name));
                                 setSelectedDriverId(m.id);
                                 setShowDriverDropdown(false);
                               }}
                               className="p-2.5 hover:bg-amber-500/20 rounded-lg cursor-pointer transition-colors flex items-center justify-between text-xs"
                             >
-                              <span className="text-white font-semibold">{m.name}</span>
+                              <span className="text-white font-semibold">{cleanDriverName(m.name)}</span>
                               <span className="text-[10px] text-amber-400/80">{m.sub}</span>
                             </div>
                           ))
@@ -879,7 +972,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 </div>
 
                 {/* Cliente e Obra */}
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
+                <div ref={clienteSectionRef} className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
                   <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
                     <Building2 className="h-4 w-4" /> Cliente & Obra / Contrato
                   </div>
@@ -896,13 +989,16 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                           {manualClientMode ? 'Buscar' : 'Digitar'}
                         </button>
                       </div>
-                      {!manualClientMode && clients.length > 0 ? (
-                        <Select value={selectedClientId} onValueChange={handleClientChange}>
+                      {!manualClientMode && availableClients.length > 0 ? (
+                        <Select
+                          value={selectedClientId || (availableClients.find(c => c.name.toLowerCase() === (clientName || '').toLowerCase())?.id || availableClients[0]?.id || '')}
+                          onValueChange={handleClientChange}
+                        >
                           <SelectTrigger className="bg-slate-950 border-slate-700 text-white h-10 rounded-xl">
                             <SelectValue placeholder="Selecione o cliente..." />
                           </SelectTrigger>
                           <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-60 overflow-y-auto">
-                            {clients.map(c => (
+                            {availableClients.map(c => (
                               <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                             ))}
                           </SelectContent>
