@@ -123,6 +123,7 @@ const GestaoLimpezaVeiculos = lazy(() => import('@/pages/manutencao/GestaoLimpez
 const Garagens = lazy(() => import('@/pages/Garagens'));
 const Lavajato = lazy(() => import('@/pages/manutencao/Lavajato'));
 const GestaoCertificacoesCFME = lazy(() => import('@/pages/manutencao/GestaoCertificacoesCFME'));
+const TransportOperationalDashboardPage = lazy(() => import('@/pages/fretamento/TransportOperationalDashboardPage'));
 const TrafficManagementDashboard = lazy(() => import('@/pages/fretamento/TrafficManagementDashboard'));
 const RoutesAndPoints = lazy(() => import('@/pages/fretamento/RoutesAndPoints'));
 const Horarios = lazy(() => import('@/pages/fretamento/Horarios'));
@@ -300,16 +301,28 @@ function App() {
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     // Salvaguarda global para evitar que diálogos Radix travem a tela com pointer-events: none ou overflow: hidden
+    let isCleaning = false;
+    let cleanupTimer: any = null;
+
     const cleanupStuckBodyStyles = () => {
-      const hasOpenDialog = document.querySelector('[role="dialog"], [role="alertdialog"]');
-      if (!hasOpenDialog) {
-        if (document.body.style.pointerEvents === 'none') {
-          document.body.style.pointerEvents = '';
+      if (isCleaning) return;
+      clearTimeout(cleanupTimer);
+      cleanupTimer = setTimeout(() => {
+        isCleaning = true;
+        try {
+          const hasOpenDialog = document.querySelector('[role="dialog"], [role="alertdialog"], [data-state="open"]');
+          if (!hasOpenDialog) {
+            if (document.body.style.pointerEvents === 'none') {
+              document.body.style.pointerEvents = '';
+            }
+            if (document.body.style.overflow === 'hidden') {
+              document.body.style.overflow = '';
+            }
+          }
+        } finally {
+          setTimeout(() => { isCleaning = false; }, 50);
         }
-        if (document.body.style.overflow === 'hidden') {
-          document.body.style.overflow = '';
-        }
-      }
+      }, 150);
     };
 
     const bodyObserver = new MutationObserver(() => {
@@ -331,6 +344,7 @@ function App() {
       window.removeEventListener('error', handleMessageChannelError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
       window.removeEventListener('popstate', cleanupStuckBodyStyles);
+      clearTimeout(cleanupTimer);
       bodyObserver.disconnect();
     };
   }, []);
@@ -999,6 +1013,20 @@ function App() {
                         <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
                           <Suspense fallback={<LoadingSpinner />}>
                             <GestaoCertificacoesCFME />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/gestao-trafego/painel-operacional" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TransportOperationalDashboardPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/transporte/painel" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TransportOperationalDashboardPage />
                           </Suspense>
                         </ProtectedRoute>
                       } />

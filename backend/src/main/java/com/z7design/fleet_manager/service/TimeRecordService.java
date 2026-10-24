@@ -39,9 +39,53 @@ public class TimeRecordService {
     private final TimeRecordRepository timeRecordRepository;
     private final QRCodeWorkPostRepository qrCodeWorkPostRepository;
     private final EmployeeRepository employeeRepository;
+    private final UserRepository userRepository;
     private final WorkPostRepository workPostRepository;
     private final CompanyRepository companyRepository;
     private final WorkJourneyConfigService workJourneyConfigService;
+
+    public Employee resolveEmployee(UUID employeeId) {
+        if (employeeId == null) {
+            throw new RuntimeException("ID do funcionário não fornecido");
+        }
+
+        Optional<Employee> empOpt = employeeRepository.findById(employeeId)
+                .or(() -> employeeRepository.findByUserId(employeeId))
+                .or(() -> employeeRepository.findByUserIdGlobal(employeeId))
+                .or(() -> employeeRepository.findByIdGlobal(employeeId));
+
+        if (empOpt.isEmpty()) {
+            User user = userRepository.findByIdNative(employeeId)
+                    .or(() -> userRepository.findById(employeeId))
+                    .orElse(null);
+            if (user != null) {
+                String cleanCpf = user.getUsername() != null ? user.getUsername().replaceAll("\\D", "") : "";
+                if (cleanCpf.length() >= 11) {
+                    empOpt = employeeRepository.findByCpfGlobal(cleanCpf);
+                }
+                if (empOpt.isEmpty() && user.getEmail() != null && !user.getEmail().isBlank()) {
+                    empOpt = employeeRepository.findByEmail(user.getEmail().trim());
+                }
+                if (empOpt.isEmpty() && user.getName() != null && !user.getName().isBlank()) {
+                    List<Employee> emps = employeeRepository.findByNameContainingIgnoreCase(user.getName().trim());
+                    if (!emps.isEmpty()) {
+                        empOpt = Optional.of(emps.get(0));
+                    }
+                }
+                empOpt.ifPresent(emp -> {
+                    try {
+                        emp.setUser(user);
+                        employeeRepository.save(emp);
+                        log.info("🔗 Vínculo automático restaurado com sucesso: User {} -> Employee {}", user.getUsername(), emp.getId());
+                    } catch (Exception ex) {
+                        log.warn("Erro ao salvar auto-vínculo no ponto: {}", ex.getMessage());
+                    }
+                });
+            }
+        }
+
+        return empOpt.orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
+    }
 
     @Transactional
     public TimeRecord registerTimeRecord(UUID employeeId, TimeRecord.RecordType recordType,
@@ -51,10 +95,8 @@ public class TimeRecordService {
         log.info("📝 Registrando ponto - Employee: {}, Tipo: {}, QRCode: {}",
                 employeeId, recordType, qrCode);
 
-        // Buscar funcionário (por ID ou fallback por userId)
-        Employee employee = employeeRepository.findById(employeeId)
-                .or(() -> employeeRepository.findByUserId(employeeId))
-                .orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
+        // Buscar funcionário (por ID ou fallback inteligente por userId/CPF)
+        Employee employee = resolveEmployee(employeeId);
         UUID effectiveEmployeeId = employee.getId();
 
         // Validar QR Code se fornecido
@@ -223,24 +265,21 @@ public class TimeRecordService {
     }
 
     public List<TimeRecord> getTodayRecords(UUID employeeId) {
-        UUID effectiveId = employeeId;
-        if (!employeeRepository.existsById(employeeId)) {
-            effectiveId = employeeRepository.findByUserId(employeeId)
-                    .map(Employee::getId)
-                    .orElse(employeeId);
-        }
+        UUID effectiveId = resolveEmployee(employeeId).getId();
         return timeRecordRepository.findTodayRecordsByEmployeeId(effectiveId);
     }
 
     public List<TimeRecord> getRecordsByPeriod(UUID employeeId, LocalDate startDate, LocalDate endDate) {
+        UUID effectiveId = resolveEmployee(employeeId).getId();
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(LocalTime.MAX);
         return timeRecordRepository.findByEmployeeIdAndRecordedAtBetweenOrderByRecordedAtAsc(
-                employeeId, start, end);
+                effectiveId, start, end);
     }
 
     public Page<TimeRecord> getRecordsByEmployee(UUID employeeId, Pageable pageable) {
-        return timeRecordRepository.findByEmployeeIdOrderByRecordedAtDesc(employeeId, pageable);
+        UUID effectiveId = resolveEmployee(employeeId).getId();
+        return timeRecordRepository.findByEmployeeIdOrderByRecordedAtDesc(effectiveId, pageable);
     }
 
     public Page<TimeRecord> getPendingRecords(Pageable pageable) {
@@ -274,10 +313,8 @@ public class TimeRecordService {
     }
 
     public WorkedHoursReportDTO getWorkedHoursReport(UUID employeeId, LocalDate startDate, LocalDate endDate) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
-
-        List<TimeRecord> records = getRecordsByPeriod(employeeId, startDate, endDate);
+        Employee employee = resolveEmployee(employeeId);
+        List<TimeRecord> records = getRecordsByPeriod(employee.getId(), startDate, endDate);
 
         java.util.Map<LocalDate, DailyWorkedHoursDTO.DailyWorkedHoursDTOBuilder> dailyMap = new java.util.HashMap<>();
 
@@ -315,12 +352,7 @@ public class TimeRecordService {
     }
 
     public TimeRecord.RecordType getNextRecordType(UUID employeeId) {
-        UUID effectiveId = employeeId;
-        if (!employeeRepository.existsById(employeeId)) {
-            effectiveId = employeeRepository.findByUserId(employeeId)
-                    .map(Employee::getId)
-                    .orElse(employeeId);
-        }
+        UUID effectiveId = resolveEmployee(employeeId).getId();
         List<TimeRecord> todayRecords = timeRecordRepository.findTodayRecordsByEmployeeId(effectiveId);
 
         if (todayRecords.isEmpty()) {

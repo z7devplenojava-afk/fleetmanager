@@ -63,6 +63,7 @@ public class StockNfeService {
     private final UserRepository userRepository;
     private final StockService stockService;
     private final UserCompanyResolver userCompanyResolver;
+    private final TesseractService tesseractService;
 
     /**
      * Faz o parse seguro do XML da NF-e e analisa previamente os itens e financeiro
@@ -161,7 +162,7 @@ public class StockNfeService {
             BigDecimal vDesc = parseDecimal(getTagValue(doc, "vDesc"));
 
             // Verificar se o fornecedor já existe
-            UUID existingSupplierId = findExistingSupplierId(cnpj);
+            UUID existingSupplierId = findExistingSupplierId(cnpj, companyId);
 
             // Verificar duplicidade da Nota Fiscal
             DuplicateCheck duplicateCheck = checkAlreadyImported(nNf, accessKey);
@@ -221,7 +222,7 @@ public class StockNfeService {
                     String matchedName = null;
                     Integer matchedQty = null;
 
-                    Optional<StockItem> matchedItem = matchExistingItem(cProd, xProd);
+                    Optional<StockItem> matchedItem = matchExistingItem(cProd, xProd, companyId);
                     if (matchedItem.isPresent()) {
                         StockItem found = matchedItem.get();
                         matchedId = found.getId();
@@ -297,21 +298,46 @@ public class StockNfeService {
      */
     @Transactional(readOnly = true)
     public StockNfeParsedDTO parsePdf(MultipartFile file, UUID companyId) {
-        try (InputStream is = file.getInputStream(); PDDocument document = PDDocument.load(is)) {
-            if (document.isEncrypted()) {
-                throw new BusinessException("O PDF da NF-e está protegido por senha. Gere o DANFE sem senha e tente novamente.");
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("Nenhum arquivo PDF foi fornecido para importação.");
+        }
+        try {
+            byte[] fileBytes = file.getBytes();
+            try (PDDocument document = PDDocument.load(fileBytes)) {
+                if (document.isEncrypted()) {
+                    throw new BusinessException("O PDF da NF-e está protegido por senha. Gere o DANFE sem senha e tente novamente.");
+                }
+                PDFTextStripper stripper = new PDFTextStripper();
+                String text = stripper.getText(document);
+
+                // Se o PDF não contém texto nativo ou é uma digitalização / imagem
+                if (text == null || text.isBlank() || text.trim().length() < 30) {
+                    if (tesseractService != null && tesseractService.isAvailable()) {
+                        log.info("PDF da NF-e sem texto nativo suficiente (tamanho: {}). Executando OCR via Tesseract...",
+                                text != null ? text.trim().length() : 0);
+                        try {
+                            String ocrText = tesseractService.extractTextFromPdf(file);
+                            if (ocrText != null && !ocrText.isBlank() && ocrText.trim().length() > (text != null ? text.trim().length() : 0)) {
+                                text = ocrText;
+                                log.info("OCR concluído com sucesso. Texto extraído: {} caracteres", text.length());
+                            }
+                        } catch (Exception ocrEx) {
+                            log.warn("Tentativa de OCR Tesseract no PDF falhou: {}", ocrEx.getMessage());
+                        }
+                    }
+                }
+
+                if (text == null || text.isBlank() || text.trim().length() < 10) {
+                    throw new BusinessException("Não foi possível extrair o texto deste PDF (o arquivo pode ser uma imagem digitalizada sem texto legível). Para maior precisão, importe o arquivo XML da NF-e.");
+                }
+
+                return parseDanfeText(text, companyId);
             }
-            PDFTextStripper stripper = new PDFTextStripper();
-            String text = stripper.getText(document);
-            if (text == null || text.isBlank()) {
-                throw new BusinessException("Não foi possível extrair texto do PDF. Se o DANFE for uma imagem digitalizada, envie o XML da NF-e.");
-            }
-            return parseDanfeText(text, companyId);
         } catch (BusinessException be) {
             throw be;
         } catch (Exception e) {
             log.error("Erro ao realizar parse do PDF da NF-e: {}", e.getMessage(), e);
-            throw new BusinessException("Não foi possível processar o PDF da NF-e: " + e.getMessage());
+            throw new BusinessException("Não foi possível processar o PDF da NF-e: " + e.getMessage() + ". Para maior precisão, importe o arquivo XML da NF-e.");
         }
     }
 
@@ -347,7 +373,7 @@ public class StockNfeService {
             List<StockNfeParsedDTO.StockNfeInstallmentDTO> installments = extractInstallments(lines);
 
             // Itens da NF
-            List<StockNfeParsedDTO.StockNfeItemDTO> items = extractItems(lines);
+            List<StockNfeParsedDTO.StockNfeItemDTO> items = extractItems(lines, companyId);
 
             // Totais
             BigDecimal vProd = extractMoney(flat, "(?i)VALOR TOTAL DOS PRODUTOS|VALOR DOS PRODUTOS");
@@ -366,7 +392,7 @@ public class StockNfeService {
                         + (supplierInfo.name != null && !supplierInfo.name.isBlank() ? " - " + supplierInfo.name : "");
 
                 StockCategory cat = detectCategory(fallbackDesc, false, false);
-                Optional<StockItem> matchedItem = matchExistingItem(fallbackCode, fallbackDesc);
+                Optional<StockItem> matchedItem = matchExistingItem(fallbackCode, fallbackDesc, companyId);
 
                 items.add(StockNfeParsedDTO.StockNfeItemDTO.builder()
                         .productCode(fallbackCode)
@@ -400,7 +426,7 @@ public class StockNfeService {
                 vNF = itemsSum.compareTo(BigDecimal.ZERO) > 0 ? itemsSum : vProd;
             }
 
-            UUID existingSupplierId = findExistingSupplierId(supplierInfo.cnpj);
+            UUID existingSupplierId = findExistingSupplierId(supplierInfo.cnpj, companyId);
             DuplicateCheck duplicateCheck = checkAlreadyImported(nNf, accessKey);
 
             return StockNfeParsedDTO.builder()
@@ -621,7 +647,7 @@ public class StockNfeService {
         }
     }
 
-    private List<StockNfeParsedDTO.StockNfeItemDTO> extractItems(List<String> lines) {
+    private List<StockNfeParsedDTO.StockNfeItemDTO> extractItems(List<String> lines, UUID companyId) {
         List<StockNfeParsedDTO.StockNfeItemDTO> items = new ArrayList<>();
 
         int start = -1;
@@ -766,7 +792,7 @@ public class StockNfeService {
             boolean isBattery = detectBattery(desc);
             boolean isTire = detectTire(desc);
             StockCategory suggestedCategory = detectCategory(desc, isBattery, isTire);
-            Optional<StockItem> matchedItem = matchExistingItem(row.code, desc);
+            Optional<StockItem> matchedItem = matchExistingItem(row.code, desc, companyId);
 
             items.add(StockNfeParsedDTO.StockNfeItemDTO.builder()
                     .productCode(row.code)
@@ -881,19 +907,38 @@ public class StockNfeService {
     /**
      * Procura um item de estoque existente pelo código do produto ou, na falta, pelo nome.
      */
-    private Optional<StockItem> matchExistingItem(String cProd, String xProd) {
-        if (cProd != null && !cProd.isBlank()) {
-            Optional<StockItem> byCode = stockItemRepository.findByCode(cProd.trim());
-            if (byCode.isPresent()) {
-                return byCode;
+    private Optional<StockItem> matchExistingItem(String cProd, String xProd, UUID companyId) {
+        try {
+            if (cProd != null && !cProd.isBlank()) {
+                String cleanCode = cProd.trim();
+                if (companyId != null) {
+                    Optional<StockItem> byCompany = stockItemRepository.findFirstByCompanyIdAndCode(companyId, cleanCode);
+                    if (byCompany.isPresent()) {
+                        return byCompany;
+                    }
+                }
+                Optional<StockItem> byCode = stockItemRepository.findFirstByCode(cleanCode);
+                if (byCode.isPresent()) {
+                    return byCode;
+                }
             }
-        }
-        if (xProd != null && !xProd.isBlank()) {
-            String searchPrefix = xProd.length() > 15 ? xProd.substring(0, 15) : xProd;
-            List<StockItem> byName = stockItemRepository.findByNameContainingIgnoreCase(searchPrefix);
-            if (!byName.isEmpty()) {
-                return Optional.of(byName.get(0));
+            if (xProd != null && !xProd.isBlank()) {
+                String searchPrefix = xProd.length() > 15 ? xProd.substring(0, 15) : xProd;
+                List<StockItem> byName = stockItemRepository.findByNameContainingIgnoreCase(searchPrefix);
+                if (companyId != null) {
+                    Optional<StockItem> companyMatch = byName.stream()
+                            .filter(item -> companyId.equals(item.getCompanyId()))
+                            .findFirst();
+                    if (companyMatch.isPresent()) {
+                        return companyMatch;
+                    }
+                }
+                if (!byName.isEmpty()) {
+                    return Optional.of(byName.get(0));
+                }
             }
+        } catch (Exception e) {
+            log.warn("Falha ao buscar item correspondente no estoque (cProd={}, xProd={}): {}", cProd, xProd, e.getMessage());
         }
         return Optional.empty();
     }
@@ -901,16 +946,36 @@ public class StockNfeService {
     /**
      * Localiza um fornecedor já cadastrado pelo CNPJ.
      */
-    private UUID findExistingSupplierId(String cnpj) {
+    private UUID findExistingSupplierId(String cnpj, UUID companyId) {
         if (cnpj == null || cnpj.isBlank()) {
             return null;
         }
-        String cleanCnpj = cnpj.replaceAll("[^0-9]", "");
-        Optional<Supplier> optSupplier = supplierRepository.findByCnpj(cleanCnpj);
-        if (optSupplier.isEmpty()) {
-            optSupplier = supplierRepository.findByCnpj(cnpj);
+        try {
+            String cleanCnpj = cnpj.replaceAll("[^0-9]", "");
+            Optional<Supplier> optSupplier = Optional.empty();
+            if (companyId != null) {
+                optSupplier = supplierRepository.findByCleanCnpjNativeScoped(cleanCnpj, companyId);
+                if (optSupplier.isEmpty()) {
+                    optSupplier = supplierRepository.findFirstByCompanyIdAndCnpj(companyId, cleanCnpj);
+                }
+                if (optSupplier.isEmpty()) {
+                    optSupplier = supplierRepository.findFirstByCompanyIdAndCnpj(companyId, cnpj);
+                }
+            }
+            if (optSupplier.isEmpty()) {
+                optSupplier = supplierRepository.findByCleanCnpjNativeScoped(cleanCnpj, null);
+            }
+            if (optSupplier.isEmpty()) {
+                optSupplier = supplierRepository.findFirstByCnpj(cleanCnpj);
+            }
+            if (optSupplier.isEmpty()) {
+                optSupplier = supplierRepository.findFirstByCnpj(cnpj);
+            }
+            return optSupplier.map(Supplier::getId).orElse(null);
+        } catch (Exception e) {
+            log.warn("Falha ao buscar fornecedor existente por CNPJ {}: {}", cnpj, e.getMessage());
+            return null;
         }
-        return optSupplier.map(Supplier::getId).orElse(null);
     }
 
     /**

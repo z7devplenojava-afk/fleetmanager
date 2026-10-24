@@ -730,11 +730,12 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
   };
 
   const handleSelectChange = (field: string, value: string) => {
-    if (value) {
+    if (value && value !== 'none') {
       const stringValue = String(value);
       setForm((prev) => ({ 
         ...prev, 
-        [field]: { id: stringValue } 
+        [field]: { id: stringValue },
+        ...(field === 'user' ? { removeUser: false } : {})
       }));
       
       // Atualizar estados selecionados
@@ -760,6 +761,7 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
           newForm.unit = { id: '' };
         } else if (field === 'user') {
           newForm.user = { id: '' };
+          (newForm as any).removeUser = true;
           setSelectedUser(null);
           setUserSearchTerm('');
         } else if (field === 'company') {
@@ -801,7 +803,11 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      await employeeService.updateEmployee(funcionario.id, form);
+      const payload = {
+        ...form,
+        removeUser: !form.user?.id || form.user?.id === 'none' || (form as any).removeUser === true
+      };
+      await employeeService.updateEmployee(funcionario.id, payload);
       toast({
         title: "Sucesso",
         description: "Funcionário atualizado com sucesso!",
@@ -913,7 +919,7 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
                   />
                 </div>
                 <Select 
-                  value={form.user?.id ? String(form.user.id) : undefined} 
+                  value={form.user?.id && form.user.id !== 'none' ? String(form.user.id) : "none"} 
                   onValueChange={(value) => handleSelectChange('user', value)}
                 >
                   <SelectTrigger>
@@ -925,14 +931,15 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
                             {selectedUser.email}
                           </span>
                         </div>
-                      ) : form.user?.id ? (
-                        <span className="text-gray-400">Carregando usuário...</span>
                       ) : (
-                        'Selecione um usuário'
+                        'Nenhum usuário vinculado'
                       )}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
+                    <SelectItem value="none">
+                      <span className="text-gray-400 font-normal">Nenhum / Desvincular usuário</span>
+                    </SelectItem>
                     {filteredUsers.length > 0 ? (
                       filteredUsers.map((user) => (
                         <SelectItem key={user.id} value={String(user.id)}>

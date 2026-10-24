@@ -359,22 +359,17 @@ const EscalasViagens: React.FC = () => {
         <StandardLayout title="Escalas e Viagens">
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Escalas e Viagens</h1>
-                        <p className="text-muted-foreground">
-                            Escalas de partida por linha e acompanhamento das viagens do dia
-                        </p>
+                    <div className="flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Data selecionada:</span>
+                        <Input
+                            type="date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            className="w-[160px]"
+                        />
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-2">
-                            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="date"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="w-[160px]"
-                            />
-                        </div>
+                    <div className="flex items-center gap-2">
                         <Button variant="outline" onClick={loadData} disabled={loading}>
                             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Atualizar'}
                         </Button>
@@ -790,56 +785,92 @@ const EscalasViagens: React.FC = () => {
 
             {/* ============================ Modal Escala ============================ */}
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-                <DialogContent className="bg-white">
+                <DialogContent className="bg-seguranca-graphite border border-gray-700 text-white max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>{editing ? 'Editar escala' : 'Nova escala'}</DialogTitle>
-                        <DialogDescription>
-                            Data: {new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR')}
+                        <DialogTitle className="text-white text-lg font-bold flex items-center gap-2">
+                            <CalendarCheck className="w-5 h-5 text-red-500" />
+                            {editing ? 'Editar Escala' : 'Nova Escala de Fretamento'}
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                            Data da operação: {new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR')}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Linha *</Label>
+                            <Label className="text-gray-300 font-medium">Linha / Rota *</Label>
                             <Select
                                 value={formData.routeId}
                                 onValueChange={(v) => setFormData({ ...formData, routeId: v })}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
                                     <SelectValue placeholder="Selecione a linha" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
                                     {routeOptions.map((r) => (
-                                        <SelectItem key={r.id} value={r.id}>
-                                            {r.name}
+                                        <SelectItem key={r.id} value={r.id} className="focus:bg-gray-700 focus:text-white">
+                                            {r.name} {r.unit?.name ? `(${r.unit.name})` : ''}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        {/* Detalhes contextuais da linha selecionada (Fretamento contínuo: cliente, sentido, funcionários) */}
+                        {(() => {
+                            const selectedRoute = routes.find(r => r.id === formData.routeId);
+                            if (!selectedRoute) return null;
+                            return (
+                                <div className="p-3 rounded-lg bg-seguranca-black/60 border border-gray-700/60 space-y-2 text-xs">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-gray-400">Serviço:</span>
+                                        <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30">
+                                            Fretamento Contínuo (Diário)
+                                        </Badge>
+                                    </div>
+                                    {selectedRoute.unit?.name && (
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-gray-400">Cliente / Unidade:</span>
+                                            <span className="text-gray-200 font-semibold">{selectedRoute.unit.name}</span>
+                                        </div>
+                                    )}
+                                    {selectedRoute.shift && (
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-gray-400">Turno / Horário previsto:</span>
+                                            <span className="text-gray-300">{selectedRoute.shift}</span>
+                                        </div>
+                                    )}
+                                    <div className="pt-1 text-[11px] text-gray-400 flex items-center gap-1 border-t border-gray-700/50">
+                                        <span>🚌 Embarque de funcionários da empresa com validação de check-in (ida/retorno).</span>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         <div className="space-y-2">
-                            <Label htmlFor="escala-hora">Horário de partida *</Label>
+                            <Label htmlFor="escala-hora" className="text-gray-300 font-medium">Horário de partida *</Label>
                             <Input
                                 id="escala-hora"
                                 type="time"
                                 value={formData.departureTime}
                                 onChange={(e) => setFormData({ ...formData, departureTime: e.target.value })}
+                                className="bg-seguranca-black border-gray-700 text-white"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>Veículo (opcional)</Label>
+                            <Label className="text-gray-300 font-medium">Veículo (opcional)</Label>
                             <Select
                                 value={formData.vehicleId}
                                 onValueChange={(v) => setFormData({ ...formData, vehicleId: v })}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
                                     <SelectValue placeholder="Sem veículo definido" />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">Sem veículo definido</SelectItem>
+                                <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
+                                    <SelectItem value="none" className="focus:bg-gray-700 focus:text-white">Sem veículo definido</SelectItem>
                                     {vehicles
                                         .filter((v) => v.status === 'ACTIVE')
                                         .map((v) => (
-                                            <SelectItem key={v.id} value={v.id}>
+                                            <SelectItem key={v.id} value={v.id} className="focus:bg-gray-700 focus:text-white">
                                                 {v.plate} {v.model ? `— ${v.model}` : ''}
                                             </SelectItem>
                                         ))}
@@ -847,18 +878,18 @@ const EscalasViagens: React.FC = () => {
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label>Motorista (opcional)</Label>
+                            <Label className="text-gray-300 font-medium">Motorista (opcional)</Label>
                             <Select
                                 value={formData.driverId}
                                 onValueChange={(v) => setFormData({ ...formData, driverId: v })}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
                                     <SelectValue placeholder="Sem motorista definido" />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">Sem motorista definido</SelectItem>
+                                <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
+                                    <SelectItem value="none" className="focus:bg-gray-700 focus:text-white">Sem motorista definido</SelectItem>
                                     {activeDrivers.map((d) => (
-                                        <SelectItem key={d.id} value={d.id}>
+                                        <SelectItem key={d.id} value={d.id} className="focus:bg-gray-700 focus:text-white">
                                             {d.name}
                                         </SelectItem>
                                     ))}
@@ -892,13 +923,14 @@ const EscalasViagens: React.FC = () => {
                             </div>
                         )}
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setModalOpen(false)}>
+                    <DialogFooter className="mt-4 gap-2">
+                        <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800" onClick={() => setModalOpen(false)}>
                             Cancelar
                         </Button>
                         <Button
                             onClick={handleSaveEscala}
                             disabled={saving || violacoes.length > 0 || checking}
+                            className="bg-red-600 hover:bg-red-700 text-white font-medium"
                         >
                             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Salvar
@@ -909,22 +941,25 @@ const EscalasViagens: React.FC = () => {
 
             {/* ============================ Modal Finalizar ============================ */}
             <Dialog open={finishOpen} onOpenChange={setFinishOpen}>
-                <DialogContent className="bg-white">
+                <DialogContent className="bg-seguranca-graphite border border-gray-700 text-white max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>Finalizar viagem</DialogTitle>
-                        <DialogDescription>
+                        <DialogTitle className="text-white text-lg font-bold flex items-center gap-2">
+                            <CheckCircle2 className="w-5 h-5 text-green-500" /> Finalizar Viagem
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-400">
                             Informe o km final, os passageiros realizados e eventuais ocorrências.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="final-km">KM final *</Label>
+                            <Label htmlFor="final-km" className="text-gray-300 font-medium">KM final *</Label>
                             <Input
                                 id="final-km"
                                 type="number"
                                 min={0}
                                 value={finishForm.finalKm}
                                 onChange={(e) => setFinishForm({ ...finishForm, finalKm: e.target.value })}
+                                className="bg-seguranca-black border-gray-700 text-white"
                             />
                             {finishTrip?.initialKm != null && (
                                 <p className="text-xs text-muted-foreground">
@@ -933,30 +968,32 @@ const EscalasViagens: React.FC = () => {
                             )}
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="pax-real">Passageiros realizados</Label>
+                            <Label htmlFor="pax-real" className="text-gray-300 font-medium">Passageiros realizados</Label>
                             <Input
                                 id="pax-real"
                                 type="number"
                                 min={0}
                                 value={finishForm.passengersRealized}
                                 onChange={(e) => setFinishForm({ ...finishForm, passengersRealized: e.target.value })}
+                                className="bg-seguranca-black border-gray-700 text-white"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="ocorrencia">Ocorrência</Label>
+                            <Label htmlFor="ocorrencia" className="text-gray-300 font-medium">Ocorrência</Label>
                             <Input
                                 id="ocorrencia"
                                 value={finishForm.occurrence}
                                 onChange={(e) => setFinishForm({ ...finishForm, occurrence: e.target.value })}
                                 placeholder="Ex.: atraso no trajeto, trânsito..."
+                                className="bg-seguranca-black border-gray-700 text-white"
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setFinishOpen(false)}>
+                    <DialogFooter className="mt-4 gap-2">
+                        <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800" onClick={() => setFinishOpen(false)}>
                             Voltar
                         </Button>
-                        <Button onClick={handleFinish} disabled={finishing}>
+                        <Button onClick={handleFinish} disabled={finishing} className="bg-green-600 hover:bg-green-700 text-white font-medium">
                             {finishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar
                         </Button>

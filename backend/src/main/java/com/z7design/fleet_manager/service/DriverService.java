@@ -18,9 +18,94 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DriverService {
     private final DriverRepository driverRepository;
+    private final com.z7design.fleet_manager.repository.EmployeeRepository employeeRepository;
     private final com.z7design.fleet_manager.repository.UserRepository userRepository;
 
+    @Transactional
+    public void syncDriversFromEmployees() {
+        UUID currentCompanyId = TenantContext.get();
+        List<Object[]> basicData = employeeRepository.findBasicDataScoped(currentCompanyId);
+        
+        for (Object[] row : basicData) {
+            try {
+                // Indices from findBasicData:
+                // 0: e.id, 1: e.name, 2: e.document, 10: e.phone, 12: e.cnh_number, 14: e.cbo, 19: position_name, 22: user_id
+                String name = row[1] != null ? row[1].toString() : null;
+                String document = row[2] != null ? row[2].toString() : null;
+                String phone = row[10] != null ? row[10].toString() : null;
+                String cnh = row[12] != null ? row[12].toString() : null;
+                String cbo = row[14] != null ? row[14].toString() : null;
+                String posName = row[19] != null ? row[19].toString() : null;
+                UUID userId = row[22] != null ? (UUID) row[22] : null;
+
+                boolean isMotorista = false;
+                if (posName != null && posName.toUpperCase().contains("MOTORISTA")) {
+                    isMotorista = true;
+                } else if (cbo != null && (cbo.startsWith("7823") || cbo.startsWith("7824") || cbo.startsWith("7825"))) {
+                    isMotorista = true;
+                }
+
+                if (!isMotorista || name == null || name.isBlank()) {
+                    continue;
+                }
+
+                String cleanCpf = (document != null) ? document.replaceAll("[^0-9]", "") : null;
+                String cleanCnh = (cnh != null && !cnh.trim().isEmpty()) ? cnh.trim() : null;
+
+                Driver driver = null;
+                if (cleanCpf != null && !cleanCpf.isEmpty()) {
+                    driver = driverRepository.findByCleanCpfGlobal(cleanCpf).orElse(null);
+                }
+                if (driver == null && cleanCnh != null) {
+                    driver = driverRepository.findByLicenseNumber(cleanCnh).orElse(null);
+                }
+
+                if (driver == null) {
+                    // Se cleanCnh for vazio, não setar para evitar violação de unique constraint
+                    String licenseToSet = (cleanCnh != null && !cleanCnh.isBlank()) ? cleanCnh : null;
+                    if (licenseToSet != null && driverRepository.existsByLicenseNumber(licenseToSet)) {
+                        licenseToSet = null; // evita colisão se outra entidade estiver com esse número
+                    }
+
+                    driver = Driver.builder()
+                            .name(name.trim())
+                            .cpf(cleanCpf)
+                            .licenseNumber(licenseToSet)
+                            .phone(phone)
+                            .status("ATIVO")
+                            .companyId(currentCompanyId)
+                            .build();
+                } else {
+                    if (driver.getCompanyId() == null && currentCompanyId != null) {
+                        driver.setCompanyId(currentCompanyId);
+                    }
+                    if (cleanCpf != null && (driver.getCpf() == null || driver.getCpf().isEmpty())) {
+                        driver.setCpf(cleanCpf);
+                    }
+                    if (cleanCnh != null && !cleanCnh.isBlank() && (driver.getLicenseNumber() == null || driver.getLicenseNumber().isEmpty())) {
+                        if (!driverRepository.existsByLicenseNumber(cleanCnh)) {
+                            driver.setLicenseNumber(cleanCnh);
+                        }
+                    }
+                    if (phone != null && (driver.getPhone() == null || driver.getPhone().isEmpty())) {
+                        driver.setPhone(phone);
+                    }
+                }
+
+                if (userId != null && driver.getUser() == null) {
+                    driver.setUser(userRepository.findById(userId).orElse(null));
+                }
+
+                driverRepository.save(driver);
+            } catch (Exception e) {
+                // Log and continue to next employee
+                System.err.println("Aviso ao sincronizar motorista: " + e.getMessage());
+            }
+        }
+    }
+
     public List<DriverDTO> getAllDrivers() {
+        syncDriversFromEmployees();
         return driverRepository.findAll().stream()
                 .map(DriverDTO::fromEntity)
                 .collect(Collectors.toList());
@@ -28,7 +113,7 @@ public class DriverService {
 
     public DriverDTO getDriverById(UUID id) {
         Driver driver = driverRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Motorista nÃ£o encontrado com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Motorista não encontrado com ID: " + id));
         return DriverDTO.fromEntity(driver);
     }
 

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -13,6 +14,11 @@ import {
   Bus,
   AlertCircle,
   RefreshCw,
+  Play,
+  QrCode,
+  Users,
+  Map as MapIcon,
+  Navigation,
 } from 'lucide-react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +26,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import { useToast } from '@/hooks/use-toast';
 import { scheduleService, Schedule } from '@/services/scheduleService';
 
@@ -82,11 +91,21 @@ const formatDate = (value?: string) => {
 };
 
 const DriverTripList: React.FC = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const today = new Date();
   const [startDate, setStartDate] = useState(format(startOfMonth(today), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(today), 'yyyy-MM-dd'));
   const [pdfLoading, setPdfLoading] = useState<'view' | 'download' | null>(null);
+  const [routeMapSchedule, setRouteMapSchedule] = useState<Schedule | null>(null);
+
+  const defaultRouteCoords: [number, number][] = [
+    [-19.9191, -43.9386], // Centro BH
+    [-19.9050, -43.9450], // Av. Amazonas
+    [-19.8650, -43.9680], // Av. Cristiano Machado
+    [-19.8300, -43.9750], // Terminal Vilarinho
+    [-19.7950, -43.9850], // Serra Verde
+  ];
 
   const filters = useMemo(
     () => ({ startDate, endDate }),
@@ -310,12 +329,79 @@ const DriverTripList: React.FC = () => {
                         </p>
                       )}
                     </div>
+
+                    <div className="flex-shrink-0 flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRouteMapSchedule(schedule)}
+                        className="text-xs h-9 px-3 rounded-xl gap-1.5"
+                      >
+                        <MapIcon className="h-3.5 w-3.5 text-blue-500" />
+                        Ver Rota
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => navigate(`/driver/trip/${schedule.id}`)}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-9 px-3.5 rounded-xl shadow-md shadow-emerald-600/20"
+                      >
+                        <Play className="h-3.5 w-3.5 mr-1.5 fill-current" />
+                        Executar Viagem
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Modal de Visualização da Rota no Mapa */}
+        <Dialog open={!!routeMapSchedule} onOpenChange={(open) => !open && setRouteMapSchedule(null)}>
+          <DialogContent className="max-w-xl bg-card text-foreground border border-border p-6 rounded-3xl space-y-4">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-black flex items-center gap-2">
+                <Navigation className="h-5 w-5 text-primary" />
+                {routeMapSchedule ? scheduleTitle(routeMapSchedule) : 'Mapa da Rota'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Itinerário completo e pontos de parada cadastrados para esta escala.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="h-64 w-full rounded-2xl overflow-hidden border border-border">
+              <MapContainer center={[-19.8650, -43.9680]} zoom={11} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <Polyline positions={defaultRouteCoords} color="#2563eb" weight={5} opacity={0.8} />
+                {defaultRouteCoords.map((pos, idx) => (
+                  <Marker key={idx} position={pos}>
+                    <Popup>Ponto de Parada 0{idx + 1}</Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+            </div>
+
+            <div className="flex justify-between items-center pt-2">
+              <Button variant="outline" size="sm" onClick={() => setRouteMapSchedule(null)}>
+                Fechar
+              </Button>
+              {routeMapSchedule && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const id = routeMapSchedule.id;
+                    setRouteMapSchedule(null);
+                    navigate(`/driver/trip/${id}`);
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                >
+                  <Play className="h-3.5 w-3.5 mr-1.5" />
+                  Iniciar Execução
+                </Button>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </StandardLayout>
   );

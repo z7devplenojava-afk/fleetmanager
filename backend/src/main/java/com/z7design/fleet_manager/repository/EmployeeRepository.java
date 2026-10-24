@@ -21,6 +21,12 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
 
         Optional<Employee> findByUserId(UUID userId);
 
+        @Query(value = "SELECT * FROM employees WHERE user_id = :userId LIMIT 1", nativeQuery = true)
+        Optional<Employee> findByUserIdGlobal(@Param("userId") UUID userId);
+
+        @Query(value = "SELECT * FROM employees WHERE id = :id LIMIT 1", nativeQuery = true)
+        Optional<Employee> findByIdGlobal(@Param("id") UUID id);
+
         List<Employee> findByStatus(EmploymentStatus status);
 
         Page<Employee> findByStatus(EmploymentStatus status, Pageable pageable);

@@ -391,7 +391,7 @@ const Usuarios: React.FC = () => {
               </select>
 
               <Button
-                className="bg-primary hover:bg-primary/90 text-white font-medium shadow-xs rounded-lg h-9 text-sm"
+                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-medium shadow-xs rounded-lg h-9 text-sm transition-colors cursor-pointer"
                 onClick={handleCreateUser}
               >
                 <Plus size={18} className="mr-1.5" />
@@ -412,14 +412,14 @@ const Usuarios: React.FC = () => {
             <div className="flex flex-wrap gap-2.5 mt-4">
               <Button
                 variant={activeTab === 'all' ? 'default' : 'outline'}
-                className={activeTab === 'all' ? 'bg-primary text-white font-medium shadow-xs h-8 text-xs px-3 rounded-lg' : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 h-8 text-xs px-3 rounded-lg'}
+                className={activeTab === 'all' ? 'bg-red-600 hover:bg-red-700 text-white font-medium shadow-xs h-8 text-xs px-3 rounded-lg' : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 h-8 text-xs px-3 rounded-lg'}
                 onClick={() => setActiveTab('all')}
               >
                 Todos ({users.length})
               </Button>
               <Button
                 variant={activeTab === 'online' ? 'default' : 'outline'}
-                className={activeTab === 'online' ? 'bg-emerald-600 text-white font-medium shadow-xs h-8 text-xs px-3 rounded-lg' : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 h-8 text-xs px-3 rounded-lg'}
+                className={activeTab === 'online' ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs h-8 text-xs px-3 rounded-lg' : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 h-8 text-xs px-3 rounded-lg'}
                 onClick={() => setActiveTab('online')}
               >
                 Online ({onlineCount})

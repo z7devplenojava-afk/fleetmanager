@@ -95,17 +95,26 @@ public class UserController {
                 if (currentUser == null) {
                     try {
                         UUID userId = UUID.fromString(username);
-                        currentUser = userRepository.findById(userId).orElse(null);
+                        currentUser = userRepository.findByIdNative(userId).or(() -> userRepository.findById(userId)).orElse(null);
                     } catch (Exception ignored) {}
                 }
             }
 
             if (currentUser != null && currentUser.getId() != null) {
                 try {
-                    currentUser = userRepository.findById(currentUser.getId()).orElse(currentUser);
+                    final UUID currentUserId = currentUser.getId();
+                    currentUser = userRepository.findByIdNative(currentUserId)
+                            .or(() -> userRepository.findById(currentUserId))
+                            .orElse(currentUser);
                 } catch (Exception e) {
                     log.warn("Erro ao recarregar currentUser via userRepository: {}", e.getMessage());
                 }
+            } else if (username != null) {
+                String cleanDigits = username.replaceAll("\\D", "");
+                currentUser = userRepository.findByIdentifierNative(username, cleanDigits)
+                        .or(() -> userRepository.findByUsernameNative(username))
+                        .or(() -> userRepository.findByEmailNative(username))
+                        .orElse(null);
             }
 
             if (currentUser == null) {
@@ -162,6 +171,15 @@ public class UserController {
 
                 if (emp != null) {
                     employeeId = emp.getId();
+                    if (emp.getUser() == null || !currentUser.getId().equals(emp.getUser().getId())) {
+                        try {
+                            emp.setUser(currentUser);
+                            employeeRepository.save(emp);
+                            log.info("🔗 Vínculo automático restaurado em getProfile entre User @{} e Employee {}", currentUser.getUsername(), emp.getId());
+                        } catch (Exception exLink) {
+                            log.debug("Erro ao persistir vínculo em getProfile: {}", exLink.getMessage());
+                        }
+                    }
                     try {
                         if (emp.getPosition() != null) {
                             position = emp.getPosition().getName();
@@ -239,48 +257,62 @@ public class UserController {
             @ApiResponse(responseCode = "401", description = "Não autenticado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<ProfileResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
-        // Obter o usuário atual do contexto de segurança
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).build();
+    public ResponseEntity<?> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
+        try {
+            // Obter o usuário atual do contexto de segurança
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(401).build();
+            }
+
+            String username = authentication.getName();
+            User currentUser = null;
+            if (authentication.getPrincipal() instanceof User) {
+                currentUser = (User) authentication.getPrincipal();
+            }
+            if (currentUser == null || currentUser.getId() == null) {
+                String cleanDigits = username != null ? username.replaceAll("\\D", "") : "";
+                currentUser = userRepository.findByIdentifierNative(username, cleanDigits)
+                        .or(() -> userRepository.findByUsernameNative(username))
+                        .or(() -> userRepository.findByEmailNative(username))
+                        .or(() -> userService.findByUsername(username))
+                        .or(() -> userService.findByEmail(username))
+                        .orElse(null);
+            }
+
+            if (currentUser == null) {
+                return ResponseEntity.status(404).body(Map.of("error", "Usuário não encontrado"));
+            }
+
+            // Atualizar o perfil
+            User updatedUser = userService.updateProfile(currentUser.getId(), request);
+
+            List<String> roleNames = updatedUser.getRoles() != null ? updatedUser.getRoles().stream()
+                    .filter(Objects::nonNull)
+                    .map(role -> role.getName())
+                    .filter(Objects::nonNull)
+                    .collect(java.util.stream.Collectors.toList()) : java.util.Collections.emptyList();
+
+            // Construir resposta
+            ProfileResponse response = ProfileResponse.builder()
+                    .id(updatedUser.getId())
+                    .username(updatedUser.getUsername())
+                    .name(updatedUser.getName())
+                    .email(updatedUser.getEmail())
+                    .whatsapp(updatedUser.getWhatsapp())
+                    .active(updatedUser.isActive())
+                    .roles(roleNames)
+                    .build();
+
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.warn("Erro de validação ao atualizar perfil: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Erro ao atualizar perfil: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Erro ao atualizar perfil"));
         }
-
-        String username = authentication.getName();
-        User currentUser = null;
-        if (authentication.getPrincipal() instanceof User) {
-            currentUser = (User) authentication.getPrincipal();
-        } else {
-            currentUser = userService.findByUsername(username)
-                    .or(() -> userService.findByEmail(username))
-                    .orElse(null);
-        }
-
-        if (currentUser == null) {
-            return ResponseEntity.status(404).build();
-        }
-
-        // Atualizar o perfil
-        User updatedUser = userService.updateProfile(currentUser.getId(), request);
-
-        List<String> roleNames = updatedUser.getRoles() != null ? updatedUser.getRoles().stream()
-                .filter(Objects::nonNull)
-                .map(role -> role.getName())
-                .filter(Objects::nonNull)
-                .collect(java.util.stream.Collectors.toList()) : java.util.Collections.emptyList();
-
-        // Construir resposta
-        ProfileResponse response = ProfileResponse.builder()
-                .id(updatedUser.getId())
-                .username(updatedUser.getUsername())
-                .name(updatedUser.getName())
-                .email(updatedUser.getEmail())
-                .whatsapp(updatedUser.getWhatsapp())
-                .active(updatedUser.isActive())
-                .roles(roleNames)
-                .build();
-
-        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
@@ -605,6 +637,16 @@ public class UserController {
         } catch (Exception e) {
             log.warn("Erro ao verificar status online do usuÃ¡rio {}: {}", user.getId(), e.getMessage());
             dto.setIsOnline(false);
+        }
+
+        // Vínculo com Funcionário
+        try {
+            employeeRepository.findByUserIdGlobal(user.getId()).ifPresent(emp -> {
+                dto.setEmployeeId(emp.getId().toString());
+                dto.setEmployeeName(emp.getName());
+            });
+        } catch (Exception e) {
+            log.warn("Erro ao buscar funcionário vinculado ao usuário {}: {}", user.getId(), e.getMessage());
         }
 
         // Grupos do usuÃ¡rio

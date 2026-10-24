@@ -165,4 +165,5 @@ class TransportMobilizationService {
     }
 }
 
-export default new TransportMobilizationService();
+export const transportMobilizationService = new TransportMobilizationService();
+export default transportMobilizationService;

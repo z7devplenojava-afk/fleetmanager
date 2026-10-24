@@ -677,7 +677,7 @@ export const contasAPagarService = {
   // Buscar todos os fornecedores
   async getFornecedores(): Promise<Supplier[]> {
     try {
-      const response = await api.get('/api/suppliers/all');
+      const response = await api.get('/api/suppliers/all', { silentErrorLog: true } as any);
       const data = response.data;
       const result = Array.isArray(data) ? data : [];
       console.log('contasAPagarService.getFornecedores:', result.length, 'fornecedores');

@@ -206,6 +206,7 @@ export interface User {
   position?: string;
   employeeCode?: string;
   employeeId?: string;
+  employeeName?: string;
   phone?: string;
   whatsapp?: string;
   username?: string;

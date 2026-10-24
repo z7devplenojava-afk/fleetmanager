@@ -98,7 +98,7 @@ export const getDashboardRouteForRole = (
     case 'ENCARREGADO_TRANSPORTES':
     case 'ENCARREGADO_DE_TRAFEGO':
     case 'ENCARREGADO_TRAFEGO':
-      return '/fretamento';
+      return '/gestao-trafego/painel-operacional';
 
     case 'RH':
     case 'ASSISTENCIA_RH':

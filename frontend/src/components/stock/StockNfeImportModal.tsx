@@ -196,9 +196,10 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       }
     } catch (err: any) {
       console.error('Erro ao ler NF-e:', err);
+      const serverMsg = err.response?.data?.message || err.response?.data?.error;
       toast({
         title: 'Erro no processamento da NF-e',
-        description: err.response?.data?.message || err.message || 'Verifique se o arquivo é uma NF-e SEFAZ válida.',
+        description: serverMsg || err.message || 'Verifique se o arquivo é uma NF-e SEFAZ válida (ou envie o arquivo .xml).',
         variant: 'destructive'
       });
       setParsedData(null);

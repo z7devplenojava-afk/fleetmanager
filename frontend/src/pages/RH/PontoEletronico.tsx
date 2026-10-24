@@ -34,12 +34,12 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Html5QrcodeScanner } from 'html5-qrcode';
 import timeRecordService, { TimeRecord } from '@/services/timeRecordService';
 import { timeSheetService } from '@/services/timeSheetService';
 import api from '@/lib/axios';
 import { employeeService } from '@/services/employeeService';
 import { isDriverUser } from '@/utils/roleRouting';
+import { UniversalQrScannerModal } from '@/components/common/UniversalQrScannerModal';
 
 const PontoEletronico: React.FC = () => {
   const { toast } = useToast();
@@ -55,7 +55,6 @@ const PontoEletronico: React.FC = () => {
   const [qrCodeData, setQrCodeData] = useState<string>('');
   const [geolocation, setGeolocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
   const [loadingAddress, setLoadingAddress] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   // Perfis e Permissões
   const isRHOrAdmin = 
@@ -364,52 +363,20 @@ const PontoEletronico: React.FC = () => {
 
   const openQRScanner = () => {
     setShowQRScanner(true);
-    setTimeout(() => {
-      initQRScanner();
-    }, 100);
-  };
-
-  const initQRScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current.clear();
-    }
-
-    const scanner = new Html5QrcodeScanner(
-      'qr-reader',
-      { 
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
-      },
-      false
-    );
-
-    scanner.render(
-      (decodedText) => {
-        console.log('QR Code lido:', decodedText);
-        setQrCodeData(decodedText);
-        scanner.clear();
-        setShowQRScanner(false);
-        
-        toast({
-          title: "✅ QR Code Lido",
-          description: "Agora você pode registrar o ponto",
-        });
-      },
-      (error) => {
-        // Ignorar erros de scan contínuo
-      }
-    );
-
-    scannerRef.current = scanner;
   };
 
   const closeQRScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current.clear();
-      scannerRef.current = null;
-    }
     setShowQRScanner(false);
+  };
+
+  const handleQRScanSuccess = (decodedText: string) => {
+    console.log('QR Code lido:', decodedText);
+    setQrCodeData(decodedText);
+    setShowQRScanner(false);
+    toast({
+      title: "✅ QR Code Lido com Sucesso",
+      description: "Posto ou veículo validado. Prossiga com o registro do ponto.",
+    });
   };
 
   const getTipoLabel = (tipo: 'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA') => {
@@ -1761,32 +1728,17 @@ const PontoEletronico: React.FC = () => {
       {/* ========================================================================= */}
       {/* MODAL 7: SCANNER QR CODE                                                  */}
       {/* ========================================================================= */}
-      <Dialog open={showQRScanner} onOpenChange={closeQRScanner}>
-        <DialogContent className="sm:max-w-md bg-seguranca-darkgray border-seguranca-gray/30 text-seguranca-lightgray">
-          <DialogHeader>
-            <DialogTitle className="text-seguranca-lightgray flex items-center gap-2">
-              <Camera className="h-5 w-5 text-seguranca-yellow" />
-              Escanear QR Code do Posto
-            </DialogTitle>
-            <DialogDescription className="text-seguranca-gray text-xs sm:text-sm">
-              Aponte a câmera para o QR Code do veículo ou posto operacional
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div 
-              id="qr-reader" 
-              className="rounded-xl overflow-hidden border-2 border-seguranca-yellow/30 bg-black min-h-[250px]"
-            />
-            <Button
-              variant="outline"
-              className="w-full border-seguranca-gray/30 text-seguranca-lightgray"
-              onClick={closeQRScanner}
-            >
-              Cancelar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* MODAL 7: SCANNER QR CODE UNIVERSAL COM CÂMERA DIRETA E FEEDBACK          */}
+      {/* ========================================================================= */}
+      <UniversalQrScannerModal
+        isOpen={showQRScanner}
+        onClose={closeQRScanner}
+        onScanSuccess={handleQRScanSuccess}
+        title="Escanear QR Code do Posto / Veículo"
+        description="Aponte a câmera para o QR Code fixado no posto ou no veículo"
+        placeholderManual="Cole ou digite o código do posto/veículo..."
+        allowManualInput={true}
+      />
     </StandardLayout>
   );
 };

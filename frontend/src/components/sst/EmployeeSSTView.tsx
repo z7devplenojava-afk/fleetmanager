@@ -63,6 +63,7 @@ import { employeeHistoryService } from '@/services/employeeHistoryService';
 import { sstDossierPdfGenerator } from '@/utils/sstDossierPdfGenerator';
 import type { EmployeeHistoryItem } from '@/types/employee';
 import { EpiDeliveryModal } from './EpiDeliveryModal';
+import { epiPdfGeneratorService } from '@/services/epiPdfGeneratorService';
 
 export const EmployeeSSTView: React.FC = () => {
   const navigate = useNavigate();
@@ -225,10 +226,43 @@ export const EmployeeSSTView: React.FC = () => {
     return list;
   }, [epiForms]);
 
-  // Download do PDF da Ficha de EPI
+  // Download do PDF da Ficha de EPI no padrão oficial da OS
   const handleDownloadEpiPdf = async (formId: string) => {
     try {
       setDownloadingPdfId(formId);
+      const ficha = epiForms.find(f => f.id === formId);
+
+      if (selectedEmployee) {
+        const formNumber = formId ? `OS-${formId.substring(0, 8).toUpperCase()}` : undefined;
+
+        await epiPdfGeneratorService.downloadPdf({
+          employee: selectedEmployee,
+          orientation: 'portrait',
+          isManual: false,
+          items: ficha?.items?.map((it, idx) => ({
+            itemNumber: idx + 1,
+            name: it.epiName,
+            ca: it.ca || 'N/A',
+            quantity: it.quantity || 1,
+            deliveryDate: ficha.deliveryDate 
+              ? new Date(ficha.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR') 
+              : new Date().toLocaleDateString('pt-BR'),
+            observations: it.observations
+          })) || [],
+          digitalSignature: null,
+          signedAt: ficha?.deliveryDate ? new Date(ficha.deliveryDate + 'T12:00:00') : new Date(),
+          companyName: ficha?.companyName || (selectedEmployee as any)?.company?.name || 'VIAÇÃO SÃO SILVESTRE S.A.',
+          formNumber: formNumber,
+          responsibleName: ficha?.responsibleEmployeeName || 'Almoxarifado / Segurança do Trabalho'
+        });
+
+        toast({
+          title: 'Download concluído',
+          description: 'O PDF da Ficha de EPI foi gerado no padrão oficial com sucesso.',
+        });
+        return;
+      }
+
       const blob = await epiDeliveryFormService.downloadPdf(formId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

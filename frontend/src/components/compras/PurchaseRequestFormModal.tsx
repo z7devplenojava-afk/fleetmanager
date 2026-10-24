@@ -156,6 +156,51 @@ export function PurchaseRequestFormModal({
     notes: '', unitId: '', requesterId: '', approverId: '',
   });
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const tempId = () => `_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const normalizeNum = (v: any): number => typeof v === 'number' ? v : parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0;
+  const fmtDate = (d?: string) => !d ? '' : d.includes('T') ? d.split('T')[0] : d.length === 10 ? d : d;
+
+  // ── Loaders ───────────────────────────────────────────────────────────────
+  const loadReferenceData = useCallback(async () => {
+    try {
+      const u = await unitService.getAllUnits();
+      setUnits(Array.isArray(u) ? u : []);
+    } catch { /* silent */ }
+    try {
+      const emp = await employeeService.getAllEmployees();
+      setEmployees(Array.isArray(emp) ? emp : []);
+    } catch { /* silent */ }
+    try {
+      const sup = await contasAPagarService.getFornecedores();
+      setSuppliers(Array.isArray(sup) ? sup : []);
+    } catch { /* silent */ }
+    try {
+      const cc = await costCenterService.listActive();
+      setCostCenters(Array.isArray(cc) ? cc : []);
+    } catch { /* silent */ }
+
+    setLoadingInv(true);
+    try {
+      const inv = await inventoryService.getAllInventoryItems();
+      setInventoryItems(Array.isArray(inv) ? inv : (inv as any)?.content || []);
+    } catch {
+      setInventoryItems([]);
+    } finally {
+      setLoadingInv(false);
+    }
+
+    setLoadingOS(true);
+    try {
+      const os = await fleetWorkOrderService.findAll();
+      setWorkOrders(Array.isArray(os) ? os : []);
+    } catch {
+      setWorkOrders([]);
+    } finally {
+      setLoadingOS(false);
+    }
+  }, []);
+
   // ── Reset on open ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
@@ -203,52 +248,7 @@ export function PurchaseRequestFormModal({
         notes: '', unitId: '', requesterId: '', approverId: '',
       });
     }
-  }, [isOpen, request?.id]);
-
-  // ── Loaders ───────────────────────────────────────────────────────────────
-  const loadReferenceData = async () => {
-    try {
-      const u = await unitService.getAllUnits();
-      setUnits(Array.isArray(u) ? u : []);
-    } catch { /* silent */ }
-    try {
-      const emp = await employeeService.getAllEmployees();
-      setEmployees(Array.isArray(emp) ? emp : []);
-    } catch { /* silent */ }
-    try {
-      const sup = await contasAPagarService.getFornecedores();
-      setSuppliers(Array.isArray(sup) ? sup : []);
-    } catch { /* silent */ }
-    try {
-      const cc = await costCenterService.listActive();
-      setCostCenters(Array.isArray(cc) ? cc : []);
-    } catch { /* silent */ }
-
-    setLoadingInv(true);
-    try {
-      const inv = await inventoryService.getAllInventoryItems();
-      setInventoryItems(Array.isArray(inv) ? inv : (inv as any)?.content || []);
-    } catch {
-      setInventoryItems([]);
-    } finally {
-      setLoadingInv(false);
-    }
-
-    setLoadingOS(true);
-    try {
-      const os = await fleetWorkOrderService.findAll();
-      setWorkOrders(Array.isArray(os) ? os : []);
-    } catch {
-      setWorkOrders([]);
-    } finally {
-      setLoadingOS(false);
-    }
-  };
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  const tempId = () => `_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const normalizeNum = (v: any): number => typeof v === 'number' ? v : parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0;
-  const fmtDate = (d?: string) => !d ? '' : d.includes('T') ? d.split('T')[0] : d.length === 10 ? d : d;
+  }, [isOpen, request?.id, loadReferenceData]);
 
   const itemsTotal = formItems.reduce((s, it) => s + ((it.quantity || 0) * (it.unitPrice || 0)), 0);
 
@@ -1124,8 +1124,6 @@ export function PurchaseRequestFormModal({
   // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
-  if (!isOpen) return null;
-
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>

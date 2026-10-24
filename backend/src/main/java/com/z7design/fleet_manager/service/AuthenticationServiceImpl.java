@@ -504,6 +504,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             }
             if (emp != null) {
                 employeeId = emp.getId();
+                if (emp.getUser() == null || !user.getId().equals(emp.getUser().getId())) {
+                    try {
+                        emp.setUser(user);
+                        employeeRepository.save(emp);
+                    } catch (Exception ignored) {}
+                }
                 if (emp.getPosition() != null) {
                     position = emp.getPosition().getName();
                 }

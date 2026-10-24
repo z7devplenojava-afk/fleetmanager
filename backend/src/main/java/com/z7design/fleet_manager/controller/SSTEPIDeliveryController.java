@@ -30,7 +30,7 @@ public class SSTEPIDeliveryController {
 
     @GetMapping
     @Operation(summary = "Listar todas as entregas de EPIs", description = "Retorna todas as entregas de EPIs")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', 'ROLE_GESTOR_OPERACIONAL', 'ROLE_GESTOR_DE_MANUTENCAO', 'ROLE_ENCARREGADO_DE_MANUTENCAO', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN', 'GESTOR_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES')")
     public ResponseEntity<List<EPIDeliveryDTO>> getAllEPIDeliveries() {
         log.info("GET /api/sst/epi-deliveries - Buscando todas as entregas de EPIs");
         List<EPIDeliveryDTO> deliveries = epiService.getAllEPIDeliveries().stream()
@@ -41,7 +41,7 @@ public class SSTEPIDeliveryController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar entrega de EPI por ID", description = "Retorna uma entrega específica pelo ID")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', 'ROLE_GESTOR_OPERACIONAL', 'ROLE_GESTOR_DE_MANUTENCAO', 'ROLE_ENCARREGADO_DE_MANUTENCAO', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN', 'GESTOR_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES')")
     public ResponseEntity<EPIDeliveryDTO> getEPIDeliveryById(@PathVariable("id") UUID id) {
         log.info("GET /api/sst/epi-deliveries/{} - Buscando entrega de EPI", id);
         return epiService.getAllEPIDeliveries().stream()
@@ -54,7 +54,7 @@ public class SSTEPIDeliveryController {
 
     @PostMapping
     @Operation(summary = "Criar nova entrega de EPI", description = "Cria uma nova entrega de EPI com suporte a periodicidade, conferência de almoxarifado e estorno")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', 'ROLE_GESTOR_OPERACIONAL', 'ROLE_GESTOR_DE_MANUTENCAO', 'ROLE_ENCARREGADO_DE_MANUTENCAO', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN', 'GESTOR_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES')")
     public ResponseEntity<?> createEPIDelivery(@RequestBody CreateEPIDeliveryRequest request) {
         log.info("POST /api/sst/epi-deliveries - Criando entrega de EPI para funcionário: {}", request.getEmployeeId());
         try {

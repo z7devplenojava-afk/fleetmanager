@@ -176,10 +176,9 @@ public class SecurityConfig {
                                                 // Endpoints de grupos - permitir consulta de prÃƒÂ³prios grupos para
                                                 // usuÃƒÂ¡rios
                                                 // autenticados
-                                                .requestMatchers("/api/groups/user/**").authenticated()
-                                                // Endpoints de grupos - operaÃƒÂ§ÃƒÂµes administrativas requerem
-                                                // permissÃƒÂµes
-                                                // especÃƒÂ­ficas
+                                                // Endpoints de grupos - leitura permitida para usuários autenticados (chat interno e visualizações)
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/groups", "/api/groups/**").authenticated()
+                                                // Endpoints de grupos - operações administrativas requerem permissões específicas
                                                 .requestMatchers("/api/groups/**")
                                                 .hasAnyAuthority("GROUPS_READ", "GROUPS_WRITE", "GROUPS_CREATE",
                                                                 "GROUPS_DELETE",
@@ -305,6 +304,8 @@ public class SecurityConfig {
                                                 // Endpoints de suppliers (fornecedores) - requerem permissÃƒÂµes
                                                 // administrativas
                                                 // ou financeiras
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/suppliers/**").authenticated()
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/cost-centers/**").authenticated()
                                                 .requestMatchers("/api/suppliers/**")
                                                 .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "FINANCEIRO",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",

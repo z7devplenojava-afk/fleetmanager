@@ -258,7 +258,7 @@ const Frota: React.FC = () => {
     refetch: refetchVehicles
   } = useQuery({
     queryKey: ['vehicles'],
-    queryFn: fleetService.getVehicles,
+    queryFn: () => fleetService.getVehicles(),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1
@@ -272,7 +272,7 @@ const Frota: React.FC = () => {
     refetch: refetchFuelRecords
   } = useQuery({
     queryKey: ['fuelRecords'],
-    queryFn: fleetService.getFuelRecords,
+    queryFn: () => fleetService.getFuelRecords(),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1
@@ -286,7 +286,7 @@ const Frota: React.FC = () => {
     refetch: refetchFines
   } = useQuery({
     queryKey: ['fines'],
-    queryFn: fleetService.getFines,
+    queryFn: () => fleetService.getFines(),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1
@@ -300,7 +300,7 @@ const Frota: React.FC = () => {
     refetch: refetchDrivers
   } = useQuery({
     queryKey: ['drivers'],
-    queryFn: driverService.getDrivers,
+    queryFn: () => driverService.getDrivers(),
     staleTime: 120 * 1000,
     refetchOnWindowFocus: false,
     retry: 1

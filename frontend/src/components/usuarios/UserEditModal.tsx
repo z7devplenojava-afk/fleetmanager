@@ -18,8 +18,9 @@ import { User, Mail, Shield, Users, Save, X } from 'lucide-react';
 import { User as UserType, UserRole, UserGroupData } from '@/types/user';
 import { getRoleDisplayName, getRoleColor, USER_ROLE_LIST } from '@/utils/permissions';
 import { RoleMultiSelect } from './RoleMultiSelect';
-import { userService } from '@/services/userService';
+import { userService, UpdateUserRequest } from '@/services/userService';
 import { companyService } from '@/services/companyService';
+import { employeeService, Employee } from '@/services/employeeService';
 import { useToast } from '@/hooks/use-toast';
 import { permissionService } from '@/services/permissionService';
 import { PermissionDTO } from '@/types/user';
@@ -62,6 +63,9 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
     companyId: '',
   });
   const [companies, setCompanies] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('none');
+  const [isEmployeeLoading, setIsEmployeeLoading] = useState(false);
   const [allPermissions, setAllPermissions] = useState<PermissionDTO[]>([]);
   const [individualPermissions, setIndividualPermissions] = useState<PermissionDTO[]>([]);
   const [isPermLoading, setIsPermLoading] = useState(false);
@@ -101,6 +105,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         avatar: user.avatar || '',
         companyId: user.companyId || '',
       });
+      setSelectedEmployeeId(user.employeeId || 'none');
       setIndividualPermissions(user.individualPermissions || []);
     }
   }, [user]);
@@ -118,8 +123,32 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
       if (canManageCompanies) {
         companyService.getAllCompanies().then(setCompanies).catch(console.error);
       }
+
+      // Carregar funcionários para seleção e vínculo
+      setIsEmployeeLoading(true);
+      employeeService.getAllEmployees()
+        .then(setEmployees)
+        .catch((error) => console.error('Erro ao carregar funcionários:', error))
+        .finally(() => setIsEmployeeLoading(false));
     }
   }, [isOpen, canManageCompanies]);
+
+  const handleEmployeeChange = (employeeId: string) => {
+    setSelectedEmployeeId(employeeId);
+    if (employeeId && employeeId !== 'none') {
+      const emp = employees.find(e => String(e.id) === String(employeeId));
+      if (emp) {
+        // Sincronizar dados em branco do usuário com os dados do funcionário
+        setFormData(prev => ({
+          ...prev,
+          name: prev.name.trim() === '' ? emp.name : prev.name,
+          email: prev.email.trim() === '' && emp.email ? emp.email : prev.email,
+          whatsapp: prev.whatsapp.trim() === '' && emp.phone ? emp.phone.replace(/\D/g, '') : prev.whatsapp,
+          phone: prev.phone.trim() === '' && emp.phone ? emp.phone.replace(/\D/g, '') : prev.phone,
+        }));
+      }
+    }
+  };
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
@@ -205,23 +234,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
     setIsLoading(true);
     try {
-      const updateData: {
-        name: string;
-        email: string;
-        username: string;
-        roles: string[];
-        active: boolean;
-        whatsapp?: string;
-        password?: string;
-        avatar?: string;
-        department?: string;
-        position?: string;
-        employeeCode?: string;
-        phone?: string;
-        address?: string;
-        companyId?: string;
-        removeCompany?: boolean;
-      } = {
+      const updateData: UpdateUserRequest = {
         name: formData.name.trim(),
         email: formData.email.trim(),
         username: formData.username.trim(),
@@ -236,6 +249,8 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         address: formData.address || '',
         companyId: canManageCompanies && formData.companyId && formData.companyId !== 'none' && formData.companyId.trim() !== '' ? formData.companyId.trim() : undefined,
         removeCompany: canManageCompanies && (!formData.companyId || formData.companyId === 'none' || formData.companyId.trim() === '') ? true : undefined,
+        employeeId: selectedEmployeeId !== 'none' && selectedEmployeeId.trim() !== '' ? selectedEmployeeId : undefined,
+        removeEmployee: selectedEmployeeId === 'none' ? true : undefined,
       };
 
       // Apenas ADMINS podem alterar senha via UI de edição
@@ -411,6 +426,59 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                     placeholder="Somente números (ex: 11999999999)"
                     maxLength={20}
                   />
+                </div>
+
+                {/* Seleção de Funcionário Vinculado */}
+                <div className="space-y-2 md:col-span-2 pt-2 border-t border-gray-700/60">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="employee-link" className="text-seguranca-lightgray flex items-center gap-1.5 font-medium">
+                      <Users className="h-4 w-4 text-seguranca-red" />
+                      Funcionário Vinculado (Opcional)
+                    </Label>
+                    {selectedEmployeeId !== 'none' && (
+                      <Badge variant="outline" className="text-xs border-seguranca-red/50 text-seguranca-red">
+                        Vínculo Ativo
+                      </Badge>
+                    )}
+                  </div>
+                  <Select
+                    value={selectedEmployeeId}
+                    onValueChange={handleEmployeeChange}
+                    disabled={isEmployeeLoading}
+                  >
+                    <SelectTrigger id="employee-link" className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                      <SelectValue placeholder={isEmployeeLoading ? "Carregando funcionários..." : "Selecione um funcionário..."} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 bg-seguranca-graphite border-gray-600 text-seguranca-lightgray">
+                      <SelectItem value="none" className="text-gray-400 focus:bg-seguranca-black focus:text-white">
+                        Nenhum / Desvincular funcionário
+                      </SelectItem>
+                      {employees.map((emp) => (
+                        <SelectItem
+                          key={emp.id}
+                          value={String(emp.id)}
+                          className="focus:bg-seguranca-black focus:text-white"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-white">{emp.name}</span>
+                            {(emp.document || emp.cpf) && (
+                              <span className="text-xs text-gray-400">
+                                • CPF/Doc: {emp.document || emp.cpf}
+                              </span>
+                            )}
+                            {emp.positionDescription && (
+                              <span className="text-xs text-gray-400">
+                                • {emp.positionDescription}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-400">
+                    Ao vincular um funcionário, o sistema sincroniza os dados deste usuário com a ficha do colaborador.
+                  </p>
                 </div>
               </div>
             </CardContent>

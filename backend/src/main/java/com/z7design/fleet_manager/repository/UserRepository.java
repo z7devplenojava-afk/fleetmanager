@@ -110,4 +110,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                      "   )) " +
                      "LIMIT 1", nativeQuery = true)
        Optional<User> findByIdentifierNative(@Param("identifier") String identifier, @Param("cleanDigits") String cleanDigits);
+
+       /**
+        * Busca usuário por ID ignorando filtros de tenant do Hibernate (garante busca consistente de entidade)
+        */
+       @Query(value = "SELECT * FROM users WHERE id = :id", nativeQuery = true)
+       Optional<User> findByIdNative(@Param("id") UUID id);
+
+       @Query(value = "SELECT * FROM users WHERE LOWER(username) = LOWER(:username) LIMIT 1", nativeQuery = true)
+       Optional<User> findByUsernameNative(@Param("username") String username);
+
+       @Query(value = "SELECT * FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1", nativeQuery = true)
+       Optional<User> findByEmailNative(@Param("email") String email);
 }

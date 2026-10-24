@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -87,14 +88,10 @@ public class ProcurementService {
                     .status(ProcurementQuoteComparison.ComparisonStatus.READY_FOR_EVALUATION)
                     .build();
             comparison = comparisonRepository.save(comparison);
-        } else {
-            // Limpar opções antigas caso esteja editando
-            optionRepository.deleteAll(comparison.getOptions());
-            comparison.getOptions().clear();
         }
 
         final ProcurementQuoteComparison finalComp = comparison;
-        List<ProcurementQuoteOption> options = dto.getOptions().stream().map(optDto -> {
+        List<ProcurementQuoteOption> newOptions = dto.getOptions().stream().map(optDto -> {
             int termDays = optDto.getPaymentTermDays() != null ? optDto.getPaymentTermDays() : parsePaymentTermDays(optDto.getPaymentTerms());
             return ProcurementQuoteOption.builder()
                     .comparison(finalComp)
@@ -113,8 +110,13 @@ public class ProcurementService {
                     .build();
         }).collect(Collectors.toList());
 
-        options = optionRepository.saveAll(options);
-        comparison.setOptions(options);
+        if (comparison.getOptions() == null) {
+            comparison.setOptions(new ArrayList<>());
+        } else {
+            comparison.getOptions().clear();
+        }
+        comparison.getOptions().addAll(newOptions);
+        comparison = comparisonRepository.save(comparison);
 
         // Executar Análise Inteligente de 3 Cotações
         evaluateTripleQuotes(comparison);

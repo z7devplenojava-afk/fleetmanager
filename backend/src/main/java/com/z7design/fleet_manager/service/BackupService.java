@@ -34,9 +34,15 @@ public class BackupService {
     private int maxFiles;
 
     private final GoogleDriveBackupService googleDriveBackupService;
+    private final com.z7design.fleet_manager.repository.BackupConfigurationRepository backupConfigurationRepository;
+    private final com.z7design.fleet_manager.repository.BackupHistoryRepository backupHistoryRepository;
 
-    public BackupService(GoogleDriveBackupService googleDriveBackupService) {
+    public BackupService(GoogleDriveBackupService googleDriveBackupService,
+                         com.z7design.fleet_manager.repository.BackupConfigurationRepository backupConfigurationRepository,
+                         com.z7design.fleet_manager.repository.BackupHistoryRepository backupHistoryRepository) {
         this.googleDriveBackupService = googleDriveBackupService;
+        this.backupConfigurationRepository = backupConfigurationRepository;
+        this.backupHistoryRepository = backupHistoryRepository;
     }
 
     /**
@@ -173,6 +179,76 @@ public class BackupService {
 
         } catch (IOException e) {
             logger.error("Erro ao limpar backups antigos", e);
+        }
+    }
+
+    /**
+     * Testar conexão com banco de dados PostgreSQL
+     */
+    public boolean testConnection(String host, Integer port, String database, String username, String password) {
+        int targetPort = (port != null && port > 0) ? port : 5432;
+        String targetHost = (host != null && !host.isBlank()) ? host : "localhost";
+        String targetDb = (database != null && !database.isBlank()) ? database : "postgres";
+        String url = String.format("jdbc:postgresql://%s:%d/%s", targetHost, targetPort, targetDb);
+
+        java.util.Properties props = new java.util.Properties();
+        props.setProperty("user", username != null && !username.isBlank() ? username : "postgres");
+        if (password != null && !password.isEmpty()) {
+            props.setProperty("password", password);
+        }
+        props.setProperty("connectTimeout", "5");
+        props.setProperty("socketTimeout", "5");
+
+        try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url, props)) {
+            return conn.isValid(5);
+        } catch (Exception e) {
+            logger.error("Falha ao testar conexão com o banco {}: {}", url, e.getMessage());
+            throw new RuntimeException("Falha ao conectar no banco de dados (" + url + "): " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Executar backup para uma configuração específica
+     */
+    public com.z7design.fleet_manager.model.BackupHistory executeBackupForConfiguration(java.util.UUID configurationId) {
+        com.z7design.fleet_manager.model.BackupConfiguration config = backupConfigurationRepository.findById(configurationId)
+                .orElseThrow(() -> new RuntimeException("Configuração de backup não encontrada: " + configurationId));
+
+        logger.info("Executando backup manual para configuração: {} ({})", config.getName(), config.getType());
+        long startTime = System.currentTimeMillis();
+
+        try {
+            createBackup(config.getType().toLowerCase() + "-" + config.getName());
+            long duration = (System.currentTimeMillis() - startTime) / 1000;
+
+            config.setLastBackupDate(LocalDateTime.now());
+            config.setLastBackupStatus("SUCCESS");
+            config.setLastBackupMessage("Backup executado com sucesso");
+            backupConfigurationRepository.save(config);
+
+            com.z7design.fleet_manager.model.BackupHistory history = com.z7design.fleet_manager.model.BackupHistory.builder()
+                    .configuration(config)
+                    .backupDate(LocalDateTime.now())
+                    .status("SUCCESS")
+                    .message("Backup executado com sucesso")
+                    .durationSeconds((int) Math.max(1, duration))
+                    .build();
+            return backupHistoryRepository.save(history);
+        } catch (Exception e) {
+            long duration = (System.currentTimeMillis() - startTime) / 1000;
+            config.setLastBackupDate(LocalDateTime.now());
+            config.setLastBackupStatus("FAILED");
+            config.setLastBackupMessage(e.getMessage());
+            backupConfigurationRepository.save(config);
+
+            com.z7design.fleet_manager.model.BackupHistory history = com.z7design.fleet_manager.model.BackupHistory.builder()
+                    .configuration(config)
+                    .backupDate(LocalDateTime.now())
+                    .status("FAILED")
+                    .message("Falha: " + e.getMessage())
+                    .durationSeconds((int) duration)
+                    .build();
+            return backupHistoryRepository.save(history);
         }
     }
 

@@ -132,9 +132,10 @@ class FleetService {
   }
 
   // Registros de Abastecimento
-  async getFuelRecords(vehicleId?: string): Promise<FuelRecord[]> {
+  async getFuelRecords(vehicleId?: string | any): Promise<FuelRecord[]> {
     try {
-      const url = vehicleId ? `/api/fuel-records?vehicleId=${vehicleId}` : '/api/fuel-records';
+      const validVehicleId = typeof vehicleId === 'string' && vehicleId.trim() !== '' ? vehicleId.trim() : null;
+      const url = validVehicleId ? `/api/fuel-records?vehicleId=${validVehicleId}` : '/api/fuel-records';
       console.log('🔍 FleetService - Buscando registros de abastecimento:', url);
       
       const response = await api.get(url);
@@ -183,8 +184,9 @@ class FleetService {
   }
 
   // Multas
-  async getFines(vehicleId?: string): Promise<Fine[]> {
-    const url = vehicleId ? `/api/fines?vehicleId=${vehicleId}` : '/api/fines';
+  async getFines(vehicleId?: string | any): Promise<Fine[]> {
+    const validVehicleId = typeof vehicleId === 'string' && vehicleId.trim() !== '' ? vehicleId.trim() : null;
+    const url = validVehicleId ? `/api/fines?vehicleId=${validVehicleId}` : '/api/fines';
     const response = await api.get(url);
     return response.data;
   }
@@ -204,8 +206,9 @@ class FleetService {
   }
 
   // Manutenções
-  async getMaintenances(vehicleId?: string): Promise<Maintenance[]> {
-    const url = vehicleId ? `/api/maintenances?vehicleId=${vehicleId}` : '/api/maintenances';
+  async getMaintenances(vehicleId?: string | any): Promise<Maintenance[]> {
+    const validVehicleId = typeof vehicleId === 'string' && vehicleId.trim() !== '' ? vehicleId.trim() : null;
+    const url = validVehicleId ? `/api/maintenances?vehicleId=${validVehicleId}` : '/api/maintenances';
     const response = await api.get(url);
     return response.data;
   }

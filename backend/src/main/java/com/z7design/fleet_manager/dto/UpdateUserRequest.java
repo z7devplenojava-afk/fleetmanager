@@ -75,6 +75,16 @@ public class UpdateUserRequest {
      */
     private Boolean removeCompany;
 
+    /**
+     * ID do funcionário a ser vinculado ao usuário
+     */
+    private UUID employeeId;
+
+    /**
+     * Se true, desvincula qualquer funcionário atualmente vinculado ao usuário
+     */
+    private Boolean removeEmployee;
+
     // Getters and Setters explicitos para resolver problemas de compilaÃ§Ã£o com
     // Lombok
     public UUID getCompanyId() {
@@ -203,6 +213,22 @@ public class UpdateUserRequest {
 
     public void setRemoveCompany(Boolean removeCompany) {
         this.removeCompany = removeCompany;
+    }
+
+    public UUID getEmployeeId() {
+        return employeeId;
+    }
+
+    public void setEmployeeId(UUID employeeId) {
+        this.employeeId = employeeId;
+    }
+
+    public Boolean getRemoveEmployee() {
+        return removeEmployee;
+    }
+
+    public void setRemoveEmployee(Boolean removeEmployee) {
+        this.removeEmployee = removeEmployee;
     }
 }
 

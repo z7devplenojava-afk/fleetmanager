@@ -35,12 +35,12 @@ export const ROLE_CATEGORIES: RoleCategory[] = [
   {
     id: 'almoxarifado',
     name: 'Almoxarifado & Estoque',
-    roles: ['ALMOXARIFADO'],
+    roles: ['ALMOXARIFADO', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO'],
   },
   {
     id: 'manutencao',
     name: 'Manutenção & Oficina',
-    roles: ['GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'ANALISTA_DE_FROTA', 'ANALISTA_FROTA', 'MANUTENCAO', 'MECANICO'],
+    roles: ['GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'ANALISTA_DE_FROTA', 'ANALISTA_FROTA', 'MANUTENCAO', 'MECANICO', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO'],
   },
   {
     id: 'operacional',
@@ -976,7 +976,12 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         MESSAGES_CREATE: true,
         EQUIPMENTS_READ: true,
         EQUIPMENTS_WRITE: true,
+        EQUIPMENTS_CREATE: true,
         EQUIPMENTS_ASSIGN: true,
+        STOCK_READ: true,
+        STOCK_WRITE: true,
+        STOCK_CREATE: true,
+        STOCK_MANAGE: true,
         EMPLOYEES_READ: true,
         CONTRACTS_READ: true,
         TRAFFIC_MANAGEMENT_READ: true,
