@@ -30,10 +30,18 @@ public class ParteDiariaController {
     @GetMapping
     @Operation(summary = "Listar Partes Diárias", description = "Lista Partes Diárias por cliente, período ou completas")
     public ResponseEntity<List<ParteDiariaDTO>> list(
-            @RequestParam(value = "clientId", required = false) UUID clientId,
+            @RequestParam(value = "clientId", required = false) String clientId,
             @RequestParam(value = "start", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam(value = "end", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
-        return ResponseEntity.ok(parteDiariaService.findFiltered(clientId, start, end));
+        UUID clientUuid = null;
+        if (clientId != null && !clientId.isBlank()) {
+            try {
+                clientUuid = UUID.fromString(clientId.trim());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.ok(List.of());
+            }
+        }
+        return ResponseEntity.ok(parteDiariaService.findFiltered(clientUuid, start, end));
     }
 
     @GetMapping("/{id}")

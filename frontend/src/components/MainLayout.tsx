@@ -142,8 +142,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         {/* Header Interativo e Moderno */}
         <header className="bg-background/95 backdrop-blur-md border-b border-border sticky top-0 z-40 h-[64px] transition-all">
           <div className="flex items-center justify-between px-4 sm:px-6 h-full gap-2 sm:gap-4">
-            {/* Lado esquerdo: Toggle + Logo Dinâmica + Título */}
-            <div className="flex items-center space-x-3 min-w-0">
+            {/* Lado esquerdo: Toggle + Navegação Voltar/Avançar + Logo Dinâmica + Título */}
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -231,27 +231,27 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
               {/* Perfil do Usuário */}
               <div
-                className="flex items-center space-x-2 cursor-pointer p-1 rounded-lg hover:bg-accent/60 transition-all shrink-0"
+                className="flex items-center space-x-2.5 cursor-pointer py-1 px-2 rounded-lg hover:bg-muted/70 border border-transparent hover:border-border/60 transition-all shrink-0"
                 onClick={handleProfileClick}
                 title="Ver meu perfil"
               >
                 <div className="hidden sm:block text-right">
-                  <p className="text-xs font-semibold text-foreground leading-none mb-0.5 truncate max-w-[130px]">
+                  <p className="text-xs font-semibold text-foreground leading-none mb-1 truncate max-w-[130px]">
                     {user.name}
                   </p>
                   <div className="flex items-center justify-end gap-1">
                     {companyName && (
-                      <span className="text-[9px] text-muted-foreground font-medium truncate max-w-[80px]">
+                      <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[80px]">
                         {companyName}
                       </span>
                     )}
-                    <Badge className="bg-primary/15 text-primary text-[8px] h-3.5 font-bold uppercase border-none rounded-sm px-1 italic">
+                    <Badge className="bg-primary/10 text-primary border border-primary/20 text-[9px] font-semibold uppercase rounded-sm px-1.5 py-0">
                       {getRoleDisplayName(user.role)}
                     </Badge>
                   </div>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-yellow-400 flex items-center justify-center shadow-md shrink-0">
-                  <User className="h-4 w-4 text-black font-bold" />
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shadow-xs shrink-0">
+                  <User className="h-4 w-4" />
                 </div>
               </div>
 

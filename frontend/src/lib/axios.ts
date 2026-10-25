@@ -29,8 +29,9 @@ async function proactiveTokenRefresh(): Promise<void> {
   if (expMs === null) return;
 
   const timeLeftMs = expMs - Date.now();
-  // Só renova se estiver próximo de expirar e ainda não expirou
-  if (timeLeftMs > PROACTIVE_REFRESH_THRESHOLD_MS || timeLeftMs <= 0) return;
+  // Só ignora se o token ainda tiver mais de 5 minutos de validade;
+  // se estiver para vencer ou já expirado e houver refreshToken, renova antes de disparar a requisição
+  if (timeLeftMs > PROACTIVE_REFRESH_THRESHOLD_MS) return;
 
   // Evita múltiplas renovações simultâneas
   if (isRefreshing) {

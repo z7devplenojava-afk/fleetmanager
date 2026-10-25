@@ -356,26 +356,26 @@ const Usuarios: React.FC = () => {
     >
       <div className="space-y-6">
         {/* Filtros */}
-        <Card className="bg-seguranca-graphite border-gray-600" data-animate="fadeUp">
-          <CardHeader>
-            <CardTitle className="text-seguranca-lightgray">Filtros</CardTitle>
+        <Card className="bg-card border border-border/80 shadow-xs rounded-xl" data-animate="fadeUp">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-foreground">Filtros de Pesquisa</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
                 <Input
                   placeholder="Buscar usuários..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                  className="pl-9 bg-background border-border text-foreground placeholder:text-muted-foreground rounded-lg h-9 text-sm"
                 />
               </div>
 
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
-                className="bg-seguranca-black border border-gray-600 rounded-md px-3 py-2 text-seguranca-lightgray"
+                className="bg-background border border-border rounded-lg px-3 py-1.5 text-foreground text-sm h-9 focus:outline-none focus:ring-1 focus:ring-primary/40"
               >
                 <option value="all">Todos os cargos</option>
                 {roles
@@ -391,42 +391,42 @@ const Usuarios: React.FC = () => {
               </select>
 
               <Button
-                className="bg-seguranca-red hover:bg-seguranca-darkred"
+                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-medium shadow-xs rounded-lg h-9 text-sm transition-colors cursor-pointer"
                 onClick={handleCreateUser}
               >
-                <Plus size={20} className="mr-2" />
+                <Plus size={18} className="mr-1.5" />
                 Novo Usuário
               </Button>
 
               {selectedUserIds.length > 0 && (
                 <Button
                   variant="destructive"
-                  className="bg-red-600 hover:bg-red-700 text-white animate-pulse"
+                  className="bg-red-600 hover:bg-red-700 text-white shadow-xs rounded-lg h-9 text-sm"
                   onClick={() => setIsBulkDeleteDialogOpen(true)}
                 >
-                  <Trash2 size={18} className="mr-2" />
+                  <Trash2 size={16} className="mr-1.5" />
                   Excluir Selecionados ({selectedUserIds.length})
                 </Button>
               )}
             </div>
-            <div className="flex flex-wrap gap-3 mt-4">
+            <div className="flex flex-wrap gap-2.5 mt-4">
               <Button
                 variant={activeTab === 'all' ? 'default' : 'outline'}
-                className={activeTab === 'all' ? 'bg-seguranca-red hover:bg-seguranca-darkred' : 'border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black'}
+                className={activeTab === 'all' ? 'bg-red-600 hover:bg-red-700 text-white font-medium shadow-xs h-8 text-xs px-3 rounded-lg' : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 h-8 text-xs px-3 rounded-lg'}
                 onClick={() => setActiveTab('all')}
               >
                 Todos ({users.length})
               </Button>
               <Button
                 variant={activeTab === 'online' ? 'default' : 'outline'}
-                className={activeTab === 'online' ? 'bg-emerald-600 hover:bg-emerald-700' : 'border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black'}
+                className={activeTab === 'online' ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs h-8 text-xs px-3 rounded-lg' : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 h-8 text-xs px-3 rounded-lg'}
                 onClick={() => setActiveTab('online')}
               >
                 Online ({onlineCount})
               </Button>
               <Button
                 variant="outline"
-                className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+                className="border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 h-8 text-xs px-3 rounded-lg"
                 onClick={() => {
                   setSearchTerm('');
                   setRoleFilter('all');
@@ -434,7 +434,7 @@ const Usuarios: React.FC = () => {
                   setSelectedUserIds([]);
                 }}
               >
-                <RefreshCw size={20} className="mr-2" />
+                <RefreshCw size={14} className="mr-1.5" />
                 Limpar Filtros
               </Button>
             </div>
@@ -442,13 +442,13 @@ const Usuarios: React.FC = () => {
         </Card>
 
         {/* Lista de Usuários */}
-        <Card className="bg-seguranca-graphite border-gray-600" data-animate="fadeUp">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-seguranca-lightgray">
+        <Card className="bg-card border border-border/80 shadow-xs rounded-xl overflow-hidden" data-animate="fadeUp">
+          <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-border/60 bg-muted/20">
+            <CardTitle className="text-base font-semibold text-foreground">
               {activeTab === 'online' ? 'Usuários Online em Tempo Real' : 'Lista de Usuários'}
             </CardTitle>
             {selectedUserIds.length > 0 && (
-              <span className="text-sm font-medium text-red-400">
+              <span className="text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-md border border-red-200/60 dark:border-red-900/40">
                 {selectedUserIds.length} usuário(s) selecionado(s)
               </span>
             )}
@@ -474,48 +474,48 @@ const Usuarios: React.FC = () => {
               <div className="w-full overflow-x-auto">
                 <Table className="min-w-[1000px]">
                   <TableHeader>
-                    <TableRow className="border-gray-600 bg-emerald-950/20">
-                      <TableHead className="text-seguranca-lightgray">Usuário</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Email</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Empresa Pertencente</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Cargo / Função</TableHead>
-                      <TableHead className="text-seguranca-lightgray text-center">Status</TableHead>
-                      <TableHead className="text-seguranca-lightgray text-right">Ações</TableHead>
+                    <TableRow className="border-b border-border/60 bg-muted/30">
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Usuário</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Email</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Empresa Pertencente</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Cargo / Função</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground text-center">Status</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredUsers.map((user) => (
-                      <TableRow key={user.id} className="border-gray-600 hover:bg-emerald-950/10 transition-colors">
+                      <TableRow key={user.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
                         <TableCell>
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-emerald-600/20 border border-emerald-500/40 rounded-full flex items-center justify-center relative">
-                              <UserIcon className="text-emerald-400" size={20} />
+                            <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60 flex items-center justify-center relative shadow-xs shrink-0">
+                              <UserIcon size={18} />
                               <span
-                                className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-seguranca-graphite animate-pulse"
+                                className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background animate-pulse"
                                 title="Usuário Online"
                               />
                             </div>
                             <div>
-                              <div className="font-semibold text-white flex items-center gap-2">
+                              <div className="font-semibold text-foreground text-sm tracking-tight flex items-center gap-2">
                                 <span>{user.name}</span>
                                 {currentUser && String(user.id) === String(currentUser.id) && (
-                                  <Badge className="bg-emerald-600 text-white text-[10px] px-1.5 py-0">Você</Badge>
+                                  <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] px-1.5 py-0 font-medium">Você</Badge>
                                 )}
                               </div>
-                              <div className="text-xs text-gray-400">ID: {user.id}</div>
+                              <div className="text-xs text-muted-foreground font-mono">ID: {user.id}</div>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="max-w-[240px]">
                           <div className="flex items-center space-x-2">
-                            <Mail size={16} className="text-gray-400 shrink-0" />
-                            <span className="text-seguranca-lightgray truncate">{user.email}</span>
+                            <Mail size={15} className="text-muted-foreground shrink-0" />
+                            <span className="text-foreground/80 text-sm truncate">{user.email}</span>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
-                            <Building size={16} className="text-emerald-400 shrink-0" />
-                            <span className="text-white font-medium">
+                            <Building size={15} className="text-muted-foreground shrink-0" />
+                            <span className="text-foreground font-medium text-sm">
                               {user.companyName || (user.companyId ? 'Empresa Vinculada' : 'FluxBus (Matriz)')}
                             </span>
                           </div>
@@ -529,14 +529,14 @@ const Usuarios: React.FC = () => {
                                 </Badge>
                               ))
                             ) : (
-                              <Badge className="bg-slate-800 text-slate-300">
+                              <Badge className="bg-slate-100 text-slate-700 border border-slate-200/80 font-medium">
                                 {user.role ? getRoleDisplayName(user.role) : 'Colaborador'}
                               </Badge>
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-semibold px-2.5 py-0.5">
+                          <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-xs font-medium px-2.5 py-0.5">
                             ● Online
                           </Badge>
                         </TableCell>
@@ -545,17 +545,17 @@ const Usuarios: React.FC = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black h-8 px-2.5 text-xs"
+                              className="border-border text-foreground hover:bg-muted/60 h-8 px-2.5 text-xs font-medium rounded-lg"
                               onClick={() => navigate(`/chat-interno?user=${user.id}`)}
                               title="Abrir Chat"
                             >
-                              <MessageCircle className="h-3.5 w-3.5 mr-1 text-emerald-400" />
+                              <MessageCircle className="h-3.5 w-3.5 mr-1 text-emerald-600" />
                               Chat
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
-                              className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black h-8 px-2.5 text-xs"
+                              className="border-border text-foreground hover:bg-muted/60 h-8 px-2.5 text-xs font-medium rounded-lg"
                               onClick={() => {
                                 setSelectedUser(user);
                                 setIsViewModalOpen(true);
@@ -576,7 +576,7 @@ const Usuarios: React.FC = () => {
               <div className="w-full overflow-x-auto">
                 <Table className="min-w-[1000px]">
                   <TableHeader>
-                    <TableRow className="border-gray-600">
+                    <TableRow className="border-b border-border/60 bg-muted/30">
                       <TableHead className="w-12 text-center">
                         <Checkbox
                           checked={filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length}
@@ -584,19 +584,19 @@ const Usuarios: React.FC = () => {
                           aria-label="Selecionar todos os usuários"
                         />
                       </TableHead>
-                      <TableHead className="text-seguranca-lightgray">Usuário</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Email</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Empresa</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Cargo</TableHead>
-                      <TableHead className="text-seguranca-lightgray text-center">Bloquear</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Status</TableHead>
-                      <TableHead className="text-seguranca-lightgray">Grupos</TableHead>
-                      <TableHead className="text-seguranca-lightgray text-right">Ações</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Usuário</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Email</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Empresa</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Cargo</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground text-center">Bloquear</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Status</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Grupos</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredUsers.map((user) => (
-                      <TableRow key={user.id} className={`border-gray-600 ${selectedUserIds.includes(user.id) ? 'bg-red-950/20' : ''}`}>
+                      <TableRow key={user.id} className={`border-b border-border/40 hover:bg-muted/30 transition-colors ${selectedUserIds.includes(user.id) ? 'bg-primary/5' : ''}`}>
                         <TableCell className="w-12 text-center">
                           <Checkbox
                             checked={selectedUserIds.includes(user.id)}
@@ -606,49 +606,52 @@ const Usuarios: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-seguranca-red rounded-full flex items-center justify-center relative">
-                              <UserIcon className="text-white" size={20} />
+                            <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center relative shadow-xs shrink-0">
+                              <UserIcon className="text-slate-600 dark:text-slate-300" size={18} />
                               <span
-                                className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-seguranca-graphite ${user.isOnline ? 'bg-emerald-500' : 'bg-gray-500'
-                                  }`}
+                                className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${
+                                  user.isOnline ? 'bg-emerald-500' : 'bg-slate-400'
+                                }`}
                                 title={user.isOnline ? 'Online' : 'Offline'}
                               />
                             </div>
                             <div>
-                              <div className="font-medium text-seguranca-lightgray flex items-center gap-2">
+                              <div className="font-semibold text-foreground text-sm tracking-tight flex items-center gap-2">
                                 {user.name}
-                                <span className={`text-xs ${user.isOnline ? 'text-emerald-400' : 'text-gray-400'}`}>
+                                <span className={`text-[11px] font-medium ${user.isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                                   {user.isOnline ? 'Online' : 'Offline'}
                                 </span>
                               </div>
-                              <div className="text-sm text-gray-400">ID: {user.id}</div>
+                              <div className="text-xs text-muted-foreground font-mono">ID: {user.id}</div>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
-                            <Mail size={16} className="text-gray-400" />
-                            <span className="text-seguranca-lightgray">{user.email}</span>
+                            <Mail size={15} className="text-muted-foreground shrink-0" />
+                            <span className="text-foreground/80 text-sm">{user.email}</span>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
-                            <Building size={16} className="text-gray-400" />
-                            <span className="text-seguranca-lightgray font-medium">
+                            <Building size={15} className="text-muted-foreground shrink-0" />
+                            <span className="text-foreground font-medium text-sm">
                               {user.companyName || (user.companyId ? 'Empresa Vinculada' : 'Sem Empresa')}
                             </span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          {extractRoleNames(user.roles).map((role: string) => (
-                            <Badge key={role} className={getRoleColor(role)}>{getRoleDisplayName(role)}</Badge>
-                          ))}
+                          <div className="flex flex-wrap gap-1">
+                            {extractRoleNames(user.roles).map((role: string) => (
+                              <Badge key={role} className={getRoleColor(role)}>{getRoleDisplayName(role)}</Badge>
+                            ))}
+                          </div>
                         </TableCell>
                         {/* Coluna Bloquear */}
                         <TableCell className="text-center">
                           {isUserCurrentlyBlocked(user) ? (
                             <div className="flex flex-col items-center gap-1">
-                              <Badge className="bg-red-100 text-red-800 flex items-center gap-1">
+                              <Badge className="bg-red-50 text-red-700 border border-red-200/70 dark:bg-red-950/40 dark:text-red-300 flex items-center gap-1 font-medium text-xs">
                                 <Lock className="h-3 w-3" />
                                 {formatBlockUntil(user)}
                               </Badge>
@@ -659,9 +662,9 @@ const Usuarios: React.FC = () => {
                                   disabled={isUnblockingId === user.id}
                                   onClick={() => handleUnblockUser(user)}
                                   title="Desbloquear Usuário"
-                                  className="text-emerald-600 hover:text-emerald-700 h-7 px-2 text-xs"
+                                  className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 h-6 px-2 text-xs font-medium"
                                 >
-                                  <Unlock className="h-3.5 w-3.5 mr-1" />
+                                  <Unlock className="h-3 w-3 mr-1" />
                                   Desbloquear
                                 </Button>
                               )}
@@ -673,31 +676,31 @@ const Usuarios: React.FC = () => {
                               disabled={currentUser && String(user.id) === String(currentUser.id)}
                               onClick={() => handleOpenBlockDialog(user)}
                               title={currentUser && String(user.id) === String(currentUser.id) ? 'Você não pode bloquear a si mesmo' : 'Bloquear Usuário por tempo'}
-                              className="text-amber-600 hover:text-amber-700 h-8 px-3 text-xs"
+                              className="text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 h-7 px-2.5 text-xs font-medium border border-amber-200/60 dark:border-amber-800/60 rounded-md"
                             >
-                              <Lock className="h-3.5 w-3.5 mr-1" />
+                              <Lock className="h-3 w-3 mr-1" />
                               Bloquear
                             </Button>
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge className={user.isOnline ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'}>
-                            {user.isOnline ? 'Online' : 'Offline'}
+                          <Badge className={user.isOnline ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium' : 'bg-slate-100 text-slate-600 border border-slate-200/80 font-medium'}>
+                            {user.isOnline ? '● Online' : 'Offline'}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {user.groups && user.groups.length > 0 ? (
                               user.groups.slice(0, 2).map((group) => (
-                                <Badge key={group.id} variant="outline" className="text-xs">
+                                <Badge key={group.id} variant="outline" className="text-xs bg-muted/40 border-border text-foreground font-normal">
                                   {group.displayName}
                                 </Badge>
                               ))
                             ) : (
-                              <span className="text-gray-400 text-sm">Sem grupos</span>
+                              <span className="text-muted-foreground text-xs">Sem grupos</span>
                             )}
                             {user.groups && user.groups.length > 2 && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-xs bg-muted/40 border-border text-muted-foreground">
                                 +{user.groups.length - 2}
                               </Badge>
                             )}
@@ -710,7 +713,7 @@ const Usuarios: React.FC = () => {
                               size="sm"
                               onClick={() => handleViewUser(user)}
                               title="Visualizar Usuário"
-                              className="text-blue-600 hover:text-blue-700"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -720,7 +723,7 @@ const Usuarios: React.FC = () => {
                                 size="sm"
                                 onClick={() => handleEditUser(user)}
                                 title="Editar Usuário"
-                                className="text-green-600 hover:text-green-700"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-colors"
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -731,7 +734,7 @@ const Usuarios: React.FC = () => {
                                 size="sm"
                                 onClick={() => handleDeleteUser(user)}
                                 title="Excluir Usuário"
-                                className="text-red-600 hover:text-red-700"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

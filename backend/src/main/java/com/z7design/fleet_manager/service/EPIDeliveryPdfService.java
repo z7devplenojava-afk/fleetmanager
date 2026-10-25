@@ -2,6 +2,8 @@ package com.z7design.fleet_manager.service;
 
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceRgb;
+import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.Border;
@@ -110,7 +112,7 @@ public class EPIDeliveryPdfService {
             data.put("companyCnpj", company != null ? CompanyDataFormatter.formatCnpjForHeader(company) : "");
             data.put("companyAddress", company != null ? CompanyDataFormatter.formatFullAddress(company) : "");
             data.put("companyLogo", company != null ? loadLogoAsDataUri(company.getLogoUrl()) : null);
-            data.put("formNumber", form.getId() != null ? "EPI-" + LocalDate.now().getYear() + "-" + form.getId().toString().substring(0, Math.min(6, form.getId().toString().length())).toUpperCase() : "EPI-0001");
+            data.put("formNumber", form.getId() != null ? "OS-" + form.getId().toString().substring(0, Math.min(8, form.getId().toString().length())).toUpperCase() : "OS-EPI-0001");
             data.put("dataEmissao", LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
             data.put("landscape", landscape);
             
@@ -164,7 +166,7 @@ public class EPIDeliveryPdfService {
             }
             data.put("itens", itemsList);
             data.put("itensCount", itemsList.size());
-            data.put("emptyRowsCount", Math.max(0, 8 - itemsList.size()));
+            data.put("emptyRowsCount", Math.max(1, 14 - itemsList.size()));
             data.put("observacoes", form.getObservations());
             data.put("responsavelEntrega", form.getResponsibleEmployee() != null ? form.getResponsibleEmployee().getName() : "Almoxarifado / Segurança do Trabalho");
             data.put("assinaturaDigital", null);
@@ -226,16 +228,6 @@ public class EPIDeliveryPdfService {
             }
         }
 
-        // Fallback oficial Viação São Silvestre em classpath
-        try {
-            org.springframework.core.io.ClassPathResource resource = new org.springframework.core.io.ClassPathResource("static/images/sao-silvestre-timbre.png");
-            if (resource.exists()) {
-                byte[] defaultBytes = resource.getInputStream().readAllBytes();
-                return "data:image/png;base64," + Base64.getEncoder().encodeToString(defaultBytes);
-            }
-        } catch (Exception ex) {
-            log.warn("Erro ao carregar logo oficial em classpath: {}", ex.getMessage());
-        }
         return null;
     }
 
@@ -450,7 +442,7 @@ public class EPIDeliveryPdfService {
     }
 
     private byte[] generateFallbackPdf(EPIDeliveryForm form, boolean landscape) throws Exception {
-        log.info("📄 Gerando ficha de entrega de EPI via Fallback iText...");
+        log.info("📄 Gerando ficha de entrega de EPI via Fallback iText Padrão OS...");
         Company company = form.getCompany();
         Employee employee = form.getEmployee();
         if (company == null && employee != null) {
@@ -462,117 +454,238 @@ public class EPIDeliveryPdfService {
                 .orElse(null);
         }
 
-        ReportLayoutConfig config = ReportLayoutConfig.builder()
-            .companyId(company != null ? company.getId() : null)
-            .reportTitle("FICHA DE CONTROLE E ENTREGA DE EPI")
-            .landscape(landscape)
-            .topMargin(90f)
-            .bottomMargin(45f)
-            .leftMargin(30f)
-            .rightMargin(30f)
-            .build();
-
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         PdfWriter writer = new PdfWriter(baos);
-        StandardReportLayoutService.DocumentWithPdf docWithPdf = standardReportLayoutService.createDocumentWithLayout(writer, config);
-        Document document = docWithPdf.getDocument();
+        PdfDocument pdfDoc = new PdfDocument(writer);
+        pdfDoc.setDefaultPageSize(landscape ? PageSize.A4.rotate() : PageSize.A4);
+        Document document = new Document(pdfDoc);
+        document.setMargins(22f, 25f, 22f, 25f);
 
-        // Dados do Colaborador
-        Table empTable = new Table(UnitValue.createPercentArray(new float[]{20, 30, 20, 30}));
+        DeviceRgb redColor = new DeviceRgb(211, 47, 47); // #d32f2f
+        DeviceRgb greenColor = new DeviceRgb(46, 125, 50); // #2e7d32
+        DeviceRgb lightBgColor = new DeviceRgb(245, 245, 245); // #f5f5f5
+        DeviceRgb borderLight = new DeviceRgb(220, 220, 220); // #dcdcdc
+
+        String compName = (company != null && company.getName() != null ? company.getName() : "VIAÇÃO SÃO SILVESTRE S.A.").toUpperCase();
+        String compCnpj = company != null ? CompanyDataFormatter.formatCnpjForHeader(company) : "";
+        String compAddress = company != null ? CompanyDataFormatter.formatFullAddress(company) : "";
+        String formNum = form.getId() != null ? "OS-" + form.getId().toString().substring(0, Math.min(8, form.getId().toString().length())).toUpperCase() : "OS-EPI-0001";
+        String emissionDate = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+        // 1. Cabeçalho Lado a Lado (Padrão OS)
+        Table headerTable = new Table(UnitValue.createPercentArray(new float[]{55, 45}));
+        headerTable.setWidth(UnitValue.createPercentValue(100));
+        headerTable.setBorder(Border.NO_BORDER);
+
+        Cell leftHeader = new Cell().setBorder(Border.NO_BORDER).setPadding(0);
+        leftHeader.add(new Paragraph(compName).setFontSize(11).setBold().setFontColor(new DeviceRgb(34, 34, 34)));
+        String compDetails = "";
+        if (!compCnpj.isBlank()) compDetails += "CNPJ: " + compCnpj;
+        if (!compAddress.isBlank()) compDetails += (compDetails.isEmpty() ? "" : " • ") + compAddress;
+        if (!compDetails.isEmpty()) {
+            leftHeader.add(new Paragraph(compDetails).setFontSize(7).setFontColor(new DeviceRgb(85, 85, 85)));
+        }
+        headerTable.addCell(leftHeader);
+
+        Cell rightHeader = new Cell().setBorder(Border.NO_BORDER).setTextAlignment(TextAlignment.RIGHT).setPadding(0);
+        rightHeader.add(new Paragraph("ORDEM DE FORNECIMENTO — EPI").setFontSize(11.5f).setBold().setFontColor(redColor).setMarginBottom(1f));
+        rightHeader.add(new Paragraph("NR-06 / SST").setFontSize(7f).setBold().setFontColor(greenColor).setMarginBottom(1f));
+        rightHeader.add(new Paragraph("FICHA Nº " + formNum).setFontSize(8f).setBold().setFontColor(redColor).setMarginBottom(1f));
+        rightHeader.add(new Paragraph("Data de Emissão: " + emissionDate).setFontSize(7f).setFontColor(ColorConstants.GRAY));
+        headerTable.addCell(rightHeader);
+
+        document.add(headerTable);
+
+        // Linha vermelha divisória
+        Table redLine = new Table(UnitValue.createPercentArray(new float[]{100}));
+        redLine.setWidth(UnitValue.createPercentValue(100));
+        redLine.setBorder(Border.NO_BORDER);
+        Cell redLineCell = new Cell().setBorder(Border.NO_BORDER).setBorderBottom(new SolidBorder(redColor, 1.5f)).setHeight(2f);
+        redLine.addCell(redLineCell);
+        document.add(redLine);
+
+        // Seção 1: IDENTIFICAÇÃO DO COLABORADOR E EMPRESA
+        Table sec1Header = new Table(UnitValue.createPercentArray(new float[]{100}));
+        sec1Header.setWidth(UnitValue.createPercentValue(100));
+        sec1Header.setMarginTop(5f).setMarginBottom(2f);
+        Cell sec1Cell = new Cell().setBackgroundColor(lightBgColor)
+            .setBorder(Border.NO_BORDER)
+            .setBorderLeft(new SolidBorder(redColor, 3f))
+            .setPadding(2.5f)
+            .add(new Paragraph("| IDENTIFICAÇÃO DO COLABORADOR E EMPRESA").setFontSize(7.5f).setBold().setFontColor(redColor));
+        sec1Header.addCell(sec1Cell);
+        document.add(sec1Header);
+
+        Table empTable = new Table(UnitValue.createPercentArray(new float[]{18, 32, 18, 32}));
         empTable.setWidth(UnitValue.createPercentValue(100));
-        empTable.setMarginBottom(10);
+        empTable.setMarginBottom(5f);
 
-        empTable.addCell(createPdfCell("Colaborador:", true));
-        empTable.addCell(createPdfCell(employee != null && employee.getName() != null ? employee.getName() : "-", false));
-        empTable.addCell(createPdfCell("CPF:", true));
-        empTable.addCell(createPdfCell(employee != null && employee.getDocument() != null ? employee.getDocument() : "-", false));
-
+        String empName = employee != null && employee.getName() != null ? employee.getName() : "-";
+        String empCpf = employee != null && employee.getDocument() != null ? employee.getDocument() : "-";
         String cargo = "-";
         try {
             if (employee != null && employee.getPosition() != null) cargo = employee.getPosition().getName();
         } catch (Exception ignored) {}
-        empTable.addCell(createPdfCell("Cargo / Função:", true));
-        empTable.addCell(createPdfCell(cargo, false));
-
         String matricula = employee != null && employee.getRegistrationNumber() != null ? employee.getRegistrationNumber() : "-";
-        empTable.addCell(createPdfCell("Matrícula:", true));
-        empTable.addCell(createPdfCell(matricula, false));
+        String setor = "Garagem Central";
+        try {
+            if (employee != null && employee.getUnit() != null) setor = employee.getUnit().getName();
+        } catch (Exception ignored) {}
+        String admissao = "__/__/____";
+        if (employee != null && employee.getHireDate() != null) {
+            admissao = employee.getHireDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        }
 
+        empTable.addCell(createPdfInfoCell("COLABORADOR:", true));
+        empTable.addCell(createPdfInfoCell(empName, false));
+        empTable.addCell(createPdfInfoCell("CPF:", true));
+        empTable.addCell(createPdfInfoCell(empCpf, false));
+
+        empTable.addCell(createPdfInfoCell("CARGO / FUNÇÃO:", true));
+        empTable.addCell(createPdfInfoCell(cargo, false));
+        empTable.addCell(createPdfInfoCell("MATRÍCULA:", true));
+        empTable.addCell(createPdfInfoCell(matricula, false));
+
+        empTable.addCell(createPdfInfoCell("SETOR / UNIDADE:", true));
+        empTable.addCell(createPdfInfoCell(setor, false));
+        empTable.addCell(createPdfInfoCell("ADMISSÃO:", true));
+        empTable.addCell(createPdfInfoCell(admissao, false));
         document.add(empTable);
 
-        // Termo de responsabilidade
-        Paragraph termo = new Paragraph(
-            "Declaro ter recebido os Equipamentos de Proteção Individual (EPIs) abaixo relacionados, novos ou em perfeito estado de conservação, " +
-            "obrigando-me a utilizá-los no desempenho de minhas funções, responsabilizando-me por sua guarda e integridade, ciente das disposições da NR-06 do MTE."
-        ).setFontSize(8).setMarginBottom(10).setTextAlignment(TextAlignment.JUSTIFIED);
-        document.add(termo);
+        // Seção 2: TERMO DE COMPROMISSO E RESPONSABILIDADE
+        Table sec2Header = new Table(UnitValue.createPercentArray(new float[]{100}));
+        sec2Header.setWidth(UnitValue.createPercentValue(100));
+        sec2Header.setMarginBottom(2f);
+        Cell sec2Cell = new Cell().setBackgroundColor(lightBgColor)
+            .setBorder(Border.NO_BORDER)
+            .setBorderLeft(new SolidBorder(redColor, 3f))
+            .setPadding(2.5f)
+            .add(new Paragraph("| TERMO DE COMPROMISSO E RESPONSABILIDADE (NR-06 / NR-01 - PORTARIA 3.214/78)").setFontSize(7.5f).setBold().setFontColor(redColor));
+        sec2Header.addCell(sec2Cell);
+        document.add(sec2Header);
 
-        // Tabela de itens
-        Table itemsTable = new Table(UnitValue.createPercentArray(new float[]{8, 45, 17, 10, 20}));
+        Table termoTable = new Table(UnitValue.createPercentArray(new float[]{100}));
+        termoTable.setWidth(UnitValue.createPercentValue(100));
+        termoTable.setMarginBottom(5f);
+        Cell termoCell = new Cell().setBorder(new SolidBorder(borderLight, 0.5f)).setBackgroundColor(new DeviceRgb(252, 252, 252)).setPadding(3.5f);
+        termoCell.add(new Paragraph("DECLARAÇÃO DE RECEBIMENTO, USO E RESPONSABILIDADE LEGAL (NR-1, NR-6 E CLT ART. 462)")
+            .setFontSize(6.2f).setBold().setFontColor(new DeviceRgb(183, 28, 28)).setMarginBottom(1.5f));
+        termoCell.add(new Paragraph(
+            "Declaro que recebi da empresa os Equipamentos de Proteção Individual (EPIs) abaixo especificados, em perfeito estado de conservação, " +
+            "para uso exclusivo em serviço. Fui treinado quanto ao uso, guarda e conservação (NR-01 e NR-06). Comprometo-me a: a) Usá-los apenas para a " +
+            "finalidade a que se destinam; b) Responsabilizar-me pela sua conservação e guarda; c) Comunicar qualquer alteração que os torne impróprios; " +
+            "d) Cumprir as ordens de serviço e normas de segurança. Ciente de que a recusa injustificada constitui falta grave (NR-1, 1.8.1) e que o extravio " +
+            "ou dano por negligência/dolo enseja ressarcimento mediante desconto salarial na forma do Art. 462, §1º da Consolidação das Leis do Trabalho (CLT)."
+        ).setFontSize(5.6f).setTextAlignment(TextAlignment.JUSTIFIED).setFontColor(new DeviceRgb(50, 50, 50)));
+        termoTable.addCell(termoCell);
+        document.add(termoTable);
+
+        // Seção 3: REGISTRO DE ENTREGA E DEVOLUÇÃO DE EQUIPAMENTOS (EPI)
+        Table sec3Header = new Table(UnitValue.createPercentArray(new float[]{100}));
+        sec3Header.setWidth(UnitValue.createPercentValue(100));
+        sec3Header.setMarginBottom(2f);
+        Cell sec3Cell = new Cell().setBackgroundColor(lightBgColor)
+            .setBorder(Border.NO_BORDER)
+            .setBorderLeft(new SolidBorder(redColor, 3f))
+            .setPadding(2.5f)
+            .add(new Paragraph("| REGISTRO DE ENTREGA E DEVOLUÇÃO DE EQUIPAMENTOS (EPI)").setFontSize(7.5f).setBold().setFontColor(redColor));
+        sec3Header.addCell(sec3Cell);
+        document.add(sec3Header);
+
+        // Tabela de itens: QUANT, DESCRIÇÃO, CA, DATA ENTREGA, RUBRICA, DATA DEVOL, RUBRICA
+        Table itemsTable = new Table(UnitValue.createPercentArray(new float[]{7, 37, 12, 12, 12, 10, 10}));
         itemsTable.setWidth(UnitValue.createPercentValue(100));
-        itemsTable.setMarginBottom(15);
+        itemsTable.setMarginBottom(8f);
 
-        itemsTable.addHeaderCell(createPdfHeaderCell("Item"));
-        itemsTable.addHeaderCell(createPdfHeaderCell("Descrição do Equipamento"));
+        itemsTable.addHeaderCell(createPdfHeaderCell("QUANT"));
+        itemsTable.addHeaderCell(createPdfHeaderCell("DESCRIÇÃO DO EQUIPAMENTO"));
         itemsTable.addHeaderCell(createPdfHeaderCell("Nº CA"));
-        itemsTable.addHeaderCell(createPdfHeaderCell("Qtd"));
-        itemsTable.addHeaderCell(createPdfHeaderCell("Data Entrega"));
+        itemsTable.addHeaderCell(createPdfHeaderCell("DATA ENTREGA"));
+        itemsTable.addHeaderCell(createPdfHeaderCell("RUBRICA EMPREGADO"));
+        itemsTable.addHeaderCell(createPdfHeaderCell("DATA DEVOL."));
+        itemsTable.addHeaderCell(createPdfHeaderCell("RUBRICA"));
 
-        int idx = 1;
+        int rowCount = 0;
         if (form.getItems() != null && !form.getItems().isEmpty()) {
             for (EPIDeliveryFormItem item : form.getItems()) {
-                itemsTable.addCell(createPdfCell(String.valueOf(idx++), false).setTextAlignment(TextAlignment.CENTER));
+                itemsTable.addCell(createPdfCell(String.valueOf(item.getQuantity() != null ? item.getQuantity() : 1), false).setTextAlignment(TextAlignment.CENTER));
                 itemsTable.addCell(createPdfCell(item.getEpiName() != null ? item.getEpiName() : "-", false));
                 itemsTable.addCell(createPdfCell(item.getCa() != null ? item.getCa() : "N/A", false).setTextAlignment(TextAlignment.CENTER));
-                itemsTable.addCell(createPdfCell(String.valueOf(item.getQuantity() != null ? item.getQuantity() : 1), false).setTextAlignment(TextAlignment.CENTER));
                 itemsTable.addCell(createPdfCell(formatDate(form.getDeliveryDate()), false).setTextAlignment(TextAlignment.CENTER));
+                itemsTable.addCell(createPdfCell("", false));
+                itemsTable.addCell(createPdfCell("", false));
+                itemsTable.addCell(createPdfCell("", false));
+                rowCount++;
             }
-        } else {
-            Cell emptyCell = createPdfCell("Nenhum EPI registrado nesta ficha.", false);
-            emptyCell.setTextAlignment(TextAlignment.CENTER);
-            itemsTable.addCell(emptyCell);
+        }
+
+        // Preenche com linhas vazias até 14 linhas (padrão oficial)
+        for (int i = rowCount; i < 14; i++) {
+            itemsTable.addCell(createPdfCell("", false).setHeight(13f));
+            itemsTable.addCell(createPdfCell("", false).setHeight(13f));
+            itemsTable.addCell(createPdfCell("", false).setHeight(13f));
+            itemsTable.addCell(createPdfCell("", false).setHeight(13f));
+            itemsTable.addCell(createPdfCell("", false).setHeight(13f));
+            itemsTable.addCell(createPdfCell("", false).setHeight(13f));
+            itemsTable.addCell(createPdfCell("", false).setHeight(13f));
         }
         document.add(itemsTable);
 
-        // Assinaturas
+        // Seção 4: Assinaturas
         Table sigTable = new Table(UnitValue.createPercentArray(new float[]{50, 50}));
         sigTable.setWidth(UnitValue.createPercentValue(100));
-        sigTable.setMarginTop(25);
+        sigTable.setMarginTop(12f);
 
         Cell colabSig = new Cell().setBorder(Border.NO_BORDER).setTextAlignment(TextAlignment.CENTER);
-        colabSig.add(new Paragraph("_________________________________________").setFontSize(9));
-        colabSig.add(new Paragraph(employee != null && employee.getName() != null ? employee.getName() : "Assinatura do Colaborador").setFontSize(8).setBold());
-        colabSig.add(new Paragraph("Assinatura do Colaborador").setFontSize(7).setFontColor(ColorConstants.GRAY));
+        colabSig.add(new Paragraph("_________________________________________").setFontSize(8));
+        colabSig.add(new Paragraph(empName).setFontSize(7.5f).setBold());
+        colabSig.add(new Paragraph("Assinatura do Colaborador (Recebimento)").setFontSize(6.5f).setFontColor(ColorConstants.GRAY));
 
         Cell respSig = new Cell().setBorder(Border.NO_BORDER).setTextAlignment(TextAlignment.CENTER);
-        respSig.add(new Paragraph("_________________________________________").setFontSize(9));
-        respSig.add(new Paragraph(form.getResponsibleEmployee() != null ? form.getResponsibleEmployee().getName() : "Almoxarifado / Segurança do Trabalho").setFontSize(8).setBold());
-        respSig.add(new Paragraph("Responsável pela Entrega").setFontSize(7).setFontColor(ColorConstants.GRAY));
+        respSig.add(new Paragraph("_________________________________________").setFontSize(8));
+        respSig.add(new Paragraph(form.getResponsibleEmployee() != null ? form.getResponsibleEmployee().getName() : "Almoxarifado / Segurança do Trabalho").setFontSize(7.5f).setBold());
+        respSig.add(new Paragraph("Responsável pela Entrega / Técnico SST").setFontSize(6.5f).setFontColor(ColorConstants.GRAY));
 
         sigTable.addCell(colabSig);
         sigTable.addCell(respSig);
         document.add(sigTable);
 
-        standardReportLayoutService.finalizeDocumentLayout(docWithPdf);
-        document.close();
+        // Rodapé
+        Paragraph footer = new Paragraph(
+            "Ficha de Controle Individual de EPI conforme Norma Regulamentadora NR-06 (Portaria GM nº 3.214/78 do MTE) • Emitido em " + emissionDate
+        ).setFontSize(6.2f).setFontColor(ColorConstants.GRAY).setTextAlignment(TextAlignment.CENTER).setMarginTop(10f);
+        document.add(footer);
 
+        document.close();
         return baos.toByteArray();
     }
 
-    private Cell createPdfCell(String text, boolean bold) {
-        Cell cell = new Cell().add(new Paragraph(text != null ? text : "").setFontSize(8).setBold());
-        if (!bold) {
-            cell = new Cell().add(new Paragraph(text != null ? text : "").setFontSize(8));
+    private Cell createPdfInfoCell(String text, boolean label) {
+        Cell cell = new Cell().setPadding(2.5f);
+        cell.setBorder(new SolidBorder(new DeviceRgb(220, 220, 220), 0.5f));
+        if (label) {
+            cell.setBackgroundColor(new DeviceRgb(250, 250, 250));
+            cell.add(new Paragraph(text != null ? text : "").setFontSize(6.5f).setBold().setFontColor(new DeviceRgb(100, 100, 100)));
+        } else {
+            cell.add(new Paragraph(text != null ? text : "").setFontSize(7f).setFontColor(new DeviceRgb(20, 20, 20)));
         }
-        cell.setPadding(3);
+        return cell;
+    }
+
+    private Cell createPdfCell(String text, boolean bold) {
+        Cell cell = new Cell().add(new Paragraph(text != null ? text : "").setFontSize(7f).setBold());
+        if (!bold) {
+            cell = new Cell().add(new Paragraph(text != null ? text : "").setFontSize(7f));
+        }
+        cell.setPadding(2.5f);
         cell.setBorder(new SolidBorder(ColorConstants.LIGHT_GRAY, 0.5f));
         return cell;
     }
 
     private Cell createPdfHeaderCell(String text) {
-        Cell cell = new Cell().add(new Paragraph(text != null ? text : "").setFontSize(8).setBold().setFontColor(ColorConstants.WHITE));
+        Cell cell = new Cell().add(new Paragraph(text != null ? text : "").setFontSize(6.5f).setBold().setFontColor(ColorConstants.WHITE));
         cell.setBackgroundColor(new DeviceRgb(51, 51, 51));
-        cell.setPadding(4);
+        cell.setPadding(3f);
         cell.setTextAlignment(TextAlignment.CENTER);
         return cell;
     }

@@ -262,22 +262,22 @@
   <table class="header-table">
     <tr>
       <td class="header-left">
-        <div th:if="${companyLogo != null and companyLogo != ''}">
-          <img class="brand-logo" th:src="${companyLogo}" alt="Logo da Empresa" height="40" style="height: 40px; max-height: 40px; max-width: 180px;" />
+        <div th:if="${companyLogo != null and companyLogo != '' and !#strings.contains(companyLogo, 'timbre')}">
+          <img class="brand-logo" th:src="${companyLogo}" alt="Logo da Empresa" height="38" style="height: 38px; max-height: 38px; max-width: 180px;" />
         </div>
-        <div class="brand-name" th:if="${companyName != null and companyName != ''}" th:text="${companyName}">NOME DA EMPRESA</div>
+        <div class="brand-name" th:if="${companyName != null and companyName != ''}" th:text="${companyName}">VIAÇÃO SÃO SILVESTRE S.A.</div>
         <div class="brand-details">
           <span th:if="${companyCnpj != null and companyCnpj != ''}" th:text="${companyCnpj}">CNPJ: --</span>
-          <span th:if="${companyAddress != null and companyAddress != ''}" th:text="' &bull; ' + ${companyAddress}">Endereço</span>
+          <span th:if="${companyAddress != null and companyAddress != ''}" th:text="' • ' + ${companyAddress}">Endereço</span>
         </div>
       </td>
       <td class="header-right">
-        <div class="doc-title">ORDEM DE FORNECIMENTO &mdash; EPI</div>
+        <div class="doc-title">ORDEM DE FORNECIMENTO — EPI</div>
         <div style="margin: 2px 0;">
           <span class="type-badge">NR-06 / SST</span>
         </div>
         <div class="numero-os-badge" th:if="${formNumber != null and formNumber != ''}">
-          FICHA Nº <span th:text="${formNumber}">EPI-0000</span>
+          FICHA Nº <span th:text="${formNumber}">OS-00000000</span>
         </div>
         <div class="data-emissao-compact">
           <b>Data de Emissão:</b> <span th:text="${dataEmissao}">--</span>
@@ -305,7 +305,7 @@
       <tr>
         <td class="label">SETOR / UNIDADE:</td>
         <td class="valor"><span th:text="${funcionarioSetor} ?: '-'">-</span></td>
-        <td class="label">DATA ADMISSÃO:</td>
+        <td class="label">ADMISSÃO:</td>
         <td class="valor"><span th:text="${funcionarioAdmissao} ?: '__/__/____'">__/__/____</span></td>
       </tr>
     </table>
@@ -316,19 +316,9 @@
     <div class="secao-titulo">| TERMO DE COMPROMISSO E RESPONSABILIDADE (NR-06 / NR-01 - PORTARIA 3.214/78)</div>
     <table class="termo-table">
       <tr>
-        <td style="width: 50%;">
-          <div class="termo-subtitulo">Declaração do Colaborador</div>
-          Declaro ter recebido da empresa, a título de empréstimo gratuito para uso exclusivo no desempenho de minhas funções, 
-          os Equipamentos de Proteção Individual (EPIs) relacionados nesta ficha, em perfeito estado de conservação e funcionamento, 
-          tendo sido instruído e treinado quanto ao seu uso adequado, guarda, higienização e conservação, de acordo com a 
-          <b>Portaria 3.214/78 do MTE (NR-1 e NR-6)</b>.
-        </td>
-        <td style="width: 50%;">
-          <div class="termo-subtitulo">Obrigações e Consciência Legal</div>
-          Comprometo-me a: a) Usar o EPI apenas para a finalidade destinada; b) Responsabilizar-me pela sua guarda e conservação; 
-          c) Comunicar imediatamente qualquer alteração ou dano; d) Cumprir as normas de segurança estabelecidas. 
-          Declaro ciência de que a recusa injustificada constitui ato faltoso (NR-1, 1.8.1) e que, em caso de extravio ou dano doloso, 
-          o desconto será lícito conforme o <b>Art. 462, &sect;1º da CLT</b>.
+        <td style="width: 100%;">
+          <div class="termo-subtitulo">DECLARAÇÃO DE RECEBIMENTO, USO E RESPONSABILIDADE LEGAL (NR-1, NR-6 E CLT ART. 462)</div>
+          Declaro que recebi da empresa os Equipamentos de Proteção Individual (EPIs) abaixo especificados, em perfeito estado de conservação, para uso exclusivo em serviço. Fui treinado quanto ao uso, guarda e conservação (NR-01 e NR-06). Comprometo-me a: a) Usá-los apenas para a finalidade a que se destinam; b) Responsabilizar-me pela sua conservação e guarda; c) Comunicar qualquer alteração que os torne impróprios; d) Cumprir as ordens de serviço e normas de segurança. Ciente de que a recusa injustificada constitui falta grave (NR-1, 1.8.1) e que o extravio ou dano por negligência/dolo enseja ressarcimento mediante desconto salarial na forma do Art. 462, §1º da Consolidação das Leis do Trabalho (CLT).
         </td>
       </tr>
     </table>
@@ -336,36 +326,36 @@
 
   <!-- Seção 3: Relação de Equipamentos Entregues -->
   <div class="secao">
-    <div class="secao-titulo">| REGISTRO DE ENTREGA E DEVOLUÇÃO DE EPI</div>
+    <div class="secao-titulo">| REGISTRO DE ENTREGA E DEVOLUÇÃO DE EQUIPAMENTOS (EPI)</div>
     <table class="epi-table">
       <thead>
         <tr>
-          <th style="width: 5%;">ITEM</th>
-          <th style="width: 38%; text-align: left;">DESCRIÇÃO DO EQUIPAMENTO</th>
+          <th style="width: 7%;">QUANT</th>
+          <th style="width: 37%; text-align: left;">DESCRIÇÃO DO EQUIPAMENTO</th>
           <th style="width: 12%;">Nº CA</th>
-          <th style="width: 7%;">QTD</th>
           <th style="width: 12%;">DATA ENTREGA</th>
-          <th style="width: 13%;">RUBRICA EMPREGADO</th>
-          <th style="width: 13%;">DATA DEVOLUÇÃO</th>
+          <th style="width: 12%;">RUBRICA EMPREGADO</th>
+          <th style="width: 10%;">DATA DEVOL.</th>
+          <th style="width: 10%;">RUBRICA</th>
         </tr>
       </thead>
       <tbody>
         <tr th:each="item, iterStat : ${itens}">
-          <td style="text-align: center;" th:text="${iterStat.count}">1</td>
+          <td style="text-align: center;" th:text="${item.quantity} ?: 1">1</td>
           <td style="font-weight: 500;" th:text="${item.epiName} ?: '-'">-</td>
           <td style="text-align: center; font-weight: bold;" th:text="${item.ca} ?: 'N/A'">-</td>
-          <td style="text-align: center;" th:text="${item.quantity} ?: 1">1</td>
           <td style="text-align: center;" th:text="${item.deliveryDate} ?: ${dataEmissao}">-</td>
           <td style="text-align: center; color: #888;">
             <span th:if="${assinaturaDigital != null}">[Assinado]</span>
             <span th:if="${assinaturaDigital == null}"> </span>
           </td>
           <td style="text-align: center; color: #888;"> </td>
+          <td style="text-align: center; color: #888;"> </td>
         </tr>
-        <!-- Linhas vazias se a lista for pequena para preenchimento manual -->
+        <!-- Linhas vazias preenchendo até pelo menos 14 linhas para formulário completo -->
         <th:block th:if="${emptyRowsCount != null and emptyRowsCount &gt; 0}">
           <tr th:each="i : ${#numbers.sequence(1, emptyRowsCount)}">
-            <td style="text-align: center; color: #aaa;" th:text="${itensCount + i}">-</td>
+            <td> </td>
             <td> </td>
             <td> </td>
             <td> </td>
@@ -387,22 +377,21 @@
 
   <!-- Seção 4: Assinaturas -->
   <div class="secao">
-    <div class="secao-titulo">| ASSINATURAS E CIÊNCIA</div>
-    <table class="assinatura-table">
+    <table class="assinatura-table" style="margin-top: 15px;">
       <tr>
-        <td>
+        <td style="width: 50%;">
           <div th:if="${assinaturaDigital != null and assinaturaDigital != ''}">
             <img class="assinatura-digital-img" th:src="${assinaturaDigital}" alt="Assinatura Digital" />
           </div>
           <div class="linha-assinatura">
-            <div class="assinatura-nome" th:text="${funcionarioNome} ?: 'Empregado'">Colaborador</div>
+            <div class="assinatura-nome" th:text="${funcionarioNome} ?: 'Colaborador'">Adelino Rodrigues da Silva</div>
             <div class="assinatura-info">Assinatura do Colaborador (Recebimento)</div>
           </div>
         </td>
-        <td>
+        <td style="width: 50%;">
           <div style="height: 24px;"></div>
           <div class="linha-assinatura">
-            <div class="assinatura-nome" th:text="${responsavelEntrega} ?: 'Almoxarifado / Segurança do Trabalho'">Responsável</div>
+            <div class="assinatura-nome" th:text="${responsavelEntrega} ?: 'Almoxarifado / Segurança do Trabalho'">Almoxarifado / Segurança do Trabalho</div>
             <div class="assinatura-info">Responsável pela Entrega / Técnico SST</div>
           </div>
         </td>
@@ -412,7 +401,7 @@
 
   <!-- Rodapé -->
   <div class="footer">
-    Ficha de Controle Individual de EPI conforme Norma Regulamentadora NR-06 (Portaria GM nº 3.214/78 do MTE) &bull; Gerado eletronicamente em <span th:text="${dataEmissao}">--</span>
+    Ficha de Controle Individual de EPI conforme Norma Regulamentadora NR-06 (Portaria GM nº 3.214/78 do MTE) • Emitido em <span th:text="${dataEmissao}">--</span>
   </div>
 
 </body>

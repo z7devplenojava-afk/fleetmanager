@@ -24,9 +24,17 @@ public interface TimeRecordRepository extends JpaRepository<TimeRecord, UUID> {
 
        Page<TimeRecord> findByWorkPostIdOrderByRecordedAtDesc(UUID workPostId, Pageable pageable);
 
-       @Query("SELECT tr FROM TimeRecord tr WHERE tr.employee.id = :employeeId " +
-                     "AND CAST(tr.recordedAt AS date) = CURRENT_DATE ORDER BY tr.recordedAt DESC")
-       List<TimeRecord> findTodayRecordsByEmployeeId(@Param("employeeId") UUID employeeId);
+       @Query(value = "SELECT * FROM time_records tr WHERE tr.employee_id = :employeeId " +
+                     "AND CAST(tr.recorded_at AS date) = CURRENT_DATE " +
+                     "AND (CAST(:companyId AS uuid) IS NULL OR tr.company_id = CAST(:companyId AS uuid)) " +
+                     "ORDER BY tr.recorded_at DESC", nativeQuery = true)
+       List<TimeRecord> findTodayRecordsByEmployeeIdScoped(
+                     @Param("employeeId") UUID employeeId,
+                     @Param("companyId") UUID companyId);
+
+       default List<TimeRecord> findTodayRecordsByEmployeeId(UUID employeeId) {
+              return findTodayRecordsByEmployeeIdScoped(employeeId, TenantContext.get());
+       }
 
        @Query(value = "SELECT * FROM time_records tr WHERE tr.employee_id = :employeeId " +
                      "AND (CAST(:companyId AS uuid) IS NULL OR tr.company_id = CAST(:companyId AS uuid)) " +
@@ -76,9 +84,16 @@ public interface TimeRecordRepository extends JpaRepository<TimeRecord, UUID> {
                @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
        // Time Control Module - Buscar registros por funcionário e data específica
-       @Query("SELECT tr FROM TimeRecord tr WHERE tr.employee.id = :employeeId " +
-                     "AND CAST(tr.recordedAt AS date) = :date ORDER BY tr.recordedAt ASC")
-       List<TimeRecord> findByEmployeeIdAndDate(
+       @Query(value = "SELECT * FROM time_records tr WHERE tr.employee_id = :employeeId " +
+                     "AND CAST(tr.recorded_at AS date) = :date " +
+                     "AND (CAST(:companyId AS uuid) IS NULL OR tr.company_id = CAST(:companyId AS uuid)) " +
+                     "ORDER BY tr.recorded_at ASC", nativeQuery = true)
+       List<TimeRecord> findByEmployeeIdAndDateScoped(
                      @Param("employeeId") UUID employeeId,
-                     @Param("date") java.time.LocalDate date);
+                     @Param("date") java.time.LocalDate date,
+                     @Param("companyId") UUID companyId);
+
+       default List<TimeRecord> findByEmployeeIdAndDate(UUID employeeId, java.time.LocalDate date) {
+              return findByEmployeeIdAndDateScoped(employeeId, date, TenantContext.get());
+       }
 }

@@ -43,6 +43,33 @@ public class VehicleGateChecklist {
     @Column(name = "km_reading", nullable = false)
     private Integer kmReading;
 
+    @Column(name = "initial_km")
+    private Integer initialKm;
+
+    @Column(name = "final_km")
+    private Integer finalKm;
+
+    @Column(name = "distance_travelled")
+    private Integer distanceTravelled;
+
+    @Column(name = "has_displacement")
+    private Boolean hasDisplacement;
+
+    @Column(name = "displacement_type", length = 100)
+    private String displacementType;
+
+    @Column(name = "displacement_initial_km")
+    private Integer displacementInitialKm;
+
+    @Column(name = "displacement_final_km")
+    private Integer displacementFinalKm;
+
+    @Column(name = "displacement_distance")
+    private Integer displacementDistance;
+
+    @Column(name = "total_km_travelled")
+    private Integer totalKmTravelled;
+
     @Column(name = "odometer_photo_url", length = 500)
     private String odometerPhotoUrl;
 

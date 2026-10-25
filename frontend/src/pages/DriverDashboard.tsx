@@ -183,15 +183,15 @@ const DriverDashboard: React.FC = () => {
 
     const quickActions = [
         {
-            title: 'Lançamento de Parte Diária',
-            description: 'Lançar ficha de veículo, horários e KM para medição',
-            icon: FileText,
-            color: 'bg-amber-600',
-            action: () => setIsParteDiariaModalOpen(true)
+            title: 'Ponto Eletrônico',
+            description: 'Registre sua entrada, intervalos e saída diária',
+            icon: Clock,
+            color: 'bg-emerald-600',
+            to: '/rh/ponto-eletronico'
         },
         {
-            title: 'Check-in / Check-out',
-            description: 'Checklist de vistoria do veículo',
+            title: 'Checklist (Vistoria)',
+            description: 'Check-in e check-out de vistoria do veículo',
             icon: ClipboardCheck,
             color: 'bg-red-500',
             to: '/driver/checklist'
@@ -204,18 +204,18 @@ const DriverDashboard: React.FC = () => {
             to: '/driver/work-orders'
         },
         {
+            title: 'Lançamento de Parte Diária',
+            description: 'Lançar ficha de veículo, horários e KM para medição',
+            icon: FileText,
+            color: 'bg-amber-600',
+            action: () => setIsParteDiariaModalOpen(true)
+        },
+        {
             title: 'Minhas Escalas',
             description: 'Veja, visualize e baixe sua escala em PDF',
             icon: Calendar,
             color: 'bg-blue-500',
             to: '/driver/trips'
-        },
-        {
-            title: 'Registro de Ponto Eletrônico',
-            description: 'Registre sua entrada, intervalos e saída diária',
-            icon: Clock,
-            color: 'bg-emerald-600',
-            to: '/rh/ponto-eletronico'
         },
         {
             title: 'Controle de Horas',
@@ -226,16 +226,16 @@ const DriverDashboard: React.FC = () => {
         },
         {
             title: 'Meus Holerites',
-            description: 'Baixe seus comprovantes',
+            description: 'Baixe seus comprovantes e holerites',
             icon: FileSpreadsheet,
             color: 'bg-purple-500',
             to: '/meus-holerites'
         },
         {
             title: 'Mensagens',
-            description: 'Comunicação interna',
+            description: 'Comunicação interna e avisos',
             icon: MessageSquare,
-            color: 'bg-orange-500',
+            color: 'bg-sky-600',
             to: '/mensagens'
         }
     ];

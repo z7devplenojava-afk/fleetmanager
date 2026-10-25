@@ -22,8 +22,15 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
     // Buscar fornecedores ativos com paginaÃ§Ã£o
     Page<Supplier> findByIsActiveTrue(Pageable pageable);
     
-    // Buscar por CNPJ
-    Optional<Supplier> findByCnpj(String cnpj);
+    // Buscar por CNPJ (com LIMIT 1 para evitar NonUniqueResultException)
+    @Query(value = "SELECT * FROM suppliers WHERE cnpj = :cnpj LIMIT 1", nativeQuery = true)
+    Optional<Supplier> findByCnpj(@Param("cnpj") String cnpj);
+
+    // Buscar primeiro por CNPJ (limita a 1 resultado para evitar NonUniqueResultException em multi-empresa)
+    Optional<Supplier> findFirstByCnpj(String cnpj);
+
+    // Buscar primeiro por empresa e CNPJ
+    Optional<Supplier> findFirstByCompanyIdAndCnpj(UUID companyId, String cnpj);
 
     // Buscar por CNPJ limpo via query nativa (ignora formatações, respeitando a empresa)
     @Query(value = "SELECT * FROM suppliers WHERE REPLACE(REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', ''), ' ', '') = :cleanCnpj " +

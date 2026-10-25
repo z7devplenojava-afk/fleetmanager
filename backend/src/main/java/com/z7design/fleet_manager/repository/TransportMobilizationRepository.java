@@ -16,11 +16,11 @@ public interface TransportMobilizationRepository extends JpaRepository<Transport
     List<TransportMobilization> findByVehicleIdOrderByOccurredAtDesc(UUID vehicleId);
 
     @Query("SELECT tm FROM TransportMobilization tm WHERE " +
-            "(:companyId IS NULL OR tm.companyId = :companyId) AND " +
-            "(:vehicleId IS NULL OR tm.vehicle.id = :vehicleId) AND " +
+            "(CAST(:companyId AS uuid) IS NULL OR tm.companyId = :companyId) AND " +
+            "(CAST(:vehicleId AS uuid) IS NULL OR tm.vehicle.id = :vehicleId) AND " +
             "(:type IS NULL OR tm.type = :type) AND " +
-            "(:dateFrom IS NULL OR tm.occurredAt >= :dateFrom) AND " +
-            "(:dateTo IS NULL OR tm.occurredAt <= :dateTo) " +
+            "(CAST(:dateFrom AS java.time.LocalDateTime) IS NULL OR tm.occurredAt >= :dateFrom) AND " +
+            "(CAST(:dateTo AS java.time.LocalDateTime) IS NULL OR tm.occurredAt <= :dateTo) " +
             "ORDER BY tm.occurredAt DESC")
     List<TransportMobilization> findByFilters(
             @Param("companyId") UUID companyId,

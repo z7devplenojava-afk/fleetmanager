@@ -28,7 +28,8 @@ import {
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
-    Sparkles
+    Sparkles,
+    Warehouse
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -193,6 +194,15 @@ const FleetWorkOrdersPage: React.FC = () => {
         completed: orders.filter(o => o.status === WorkOrderStatus.COMPLETED).length,
     }), [orders]);
 
+    const getOrderGarageName = (order: FleetWorkOrder): string => {
+        if (order.garageName && order.garageName.trim()) return order.garageName;
+        if (order.garageId) {
+            const found = garages.find(g => g.id === order.garageId);
+            if (found?.name) return found.name;
+        }
+        return '—';
+    };
+
     const filteredOrders = useMemo(() => {
         return orders.filter(o => {
             if (statusFilter !== 'ALL' && o.status !== statusFilter) return false;
@@ -210,13 +220,14 @@ const FleetWorkOrdersPage: React.FC = () => {
                 const mech = (o.mechanicName || '').toLowerCase();
                 const client = (o.clientName || '').toLowerCase();
                 const wp = (o.workPostName || '').toLowerCase();
-                if (!osNum.includes(term) && !plate.includes(term) && !model.includes(term) && !mech.includes(term) && !client.includes(term) && !wp.includes(term)) {
+                const garage = getOrderGarageName(o).toLowerCase();
+                if (!osNum.includes(term) && !plate.includes(term) && !model.includes(term) && !mech.includes(term) && !client.includes(term) && !wp.includes(term) && !garage.includes(term)) {
                     return false;
                 }
             }
             return true;
         });
-    }, [orders, statusFilter, typeFilter, garageFilter, dateFrom, dateTo, searchTerm]);
+    }, [orders, statusFilter, typeFilter, garageFilter, dateFrom, dateTo, searchTerm, garages]);
 
     const sortedOrders = useMemo(() => {
         const arr = [...filteredOrders];
@@ -239,6 +250,10 @@ const FleetWorkOrdersPage: React.FC = () => {
                 case 'vehiclePlate':
                     aVal = a.vehiclePlate || '';
                     bVal = b.vehiclePlate || '';
+                    return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                case 'garage':
+                    aVal = getOrderGarageName(a);
+                    bVal = getOrderGarageName(b);
                     return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
                 case 'client':
                     aVal = a.clientName || '';
@@ -265,7 +280,7 @@ const FleetWorkOrdersPage: React.FC = () => {
             }
         });
         return arr;
-    }, [filteredOrders, sortField, sortDir]);
+    }, [filteredOrders, sortField, sortDir, garages]);
 
     const handleSort = (field: string) => {
         if (sortField === field) {
@@ -463,6 +478,9 @@ const FleetWorkOrdersPage: React.FC = () => {
                                             <th className="p-3 sm:p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('vehiclePlate')}>
                                                 <span className="flex items-center">Equipamento <SortIcon field="vehiclePlate" /></span>
                                             </th>
+                                            <th className="hidden sm:table-cell p-3 sm:p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('garage')}>
+                                                <span className="flex items-center">Garagem <SortIcon field="garage" /></span>
+                                            </th>
                                             <th className="hidden lg:table-cell p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('client')}>
                                                 <span className="flex items-center">Cliente / Obra <SortIcon field="client" /></span>
                                             </th>
@@ -489,6 +507,7 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                     <td className="p-3 sm:p-4"><div className="h-5 w-16 sm:w-20 bg-gray-700 rounded-full" /></td>
                                                     <td className="p-3 sm:p-4"><div className="h-5 w-12 sm:w-16 bg-gray-700 rounded-full" /></td>
                                                     <td className="p-3 sm:p-4"><div className="h-4 w-20 sm:w-28 bg-gray-700 rounded mb-1" /><div className="h-3 w-28 sm:w-36 bg-gray-800 rounded" /></td>
+                                                    <td className="hidden sm:table-cell p-3 sm:p-4"><div className="h-4 w-24 bg-gray-700 rounded" /></td>
                                                     <td className="hidden lg:table-cell p-4"><div className="h-4 w-28 bg-gray-700 rounded mb-1" /><div className="h-3 w-20 bg-gray-800 rounded" /></td>
                                                     <td className="hidden md:table-cell p-4"><div className="h-4 w-24 bg-gray-700 rounded" /></td>
                                                     <td className="hidden xl:table-cell p-4"><div className="h-4 w-16 bg-gray-700 rounded" /></td>
@@ -523,6 +542,19 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                 <td className="p-3 sm:p-4">
                                                     <div className="font-semibold text-gray-200 text-xs sm:text-sm">{order.vehiclePlate || 'N/A'}</div>
                                                     <div className="text-[10px] text-gray-400 truncate max-w-[80px] sm:max-w-none">{order.vehicleModel}</div>
+                                                    {/* Em telas muito pequenas exibe também a garagem resumida */}
+                                                    <div className="text-[10px] text-seguranca-yellow/90 sm:hidden flex items-center gap-1 mt-0.5">
+                                                        <Warehouse className="h-3 w-3 shrink-0" />
+                                                        <span className="truncate">{getOrderGarageName(order)}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="hidden sm:table-cell p-3 sm:p-4 text-gray-300">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Warehouse className="h-3.5 w-3.5 text-seguranca-yellow/80 shrink-0" />
+                                                        <span className="font-medium text-xs sm:text-sm text-gray-200 whitespace-nowrap">
+                                                            {getOrderGarageName(order)}
+                                                        </span>
+                                                    </div>
                                                 </td>
                                                 <td className="hidden lg:table-cell p-4 text-gray-300">
                                                     <div className="font-medium text-gray-200">{order.clientName || '—'}</div>

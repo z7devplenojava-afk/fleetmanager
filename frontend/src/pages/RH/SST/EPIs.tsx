@@ -43,6 +43,7 @@ import { sstService, PersonalProtectiveEquipment, EPIDelivery, CreateEPIDelivery
 import { employeeService, Employee } from '@/services/employeeService';
 import { epiDeliveryFormService, EPIDeliveryForm } from '@/services/epiDeliveryFormService';
 import { EpiDeliveryModal } from '@/components/sst/EpiDeliveryModal';
+import { epiPdfGeneratorService } from '@/services/epiPdfGeneratorService';
 import {
   Table,
   TableBody,
@@ -311,20 +312,57 @@ const EPIs: React.FC = () => {
   const handleDownloadFichaPdf = async (ficha: EPIDeliveryForm) => {
     try {
       setDownloadingFichaId(ficha.id);
-      toast({ title: 'Baixando PDF...', description: 'Aguarde a geração do documento oficial da ficha de EPI.' });
-      const blob = await epiDeliveryFormService.downloadPdf(ficha.id);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Ficha_EPI_${ficha.employeeName || 'Funcionario'}_${ficha.deliveryDate}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast({ title: 'Sucesso', description: 'PDF da Ficha de EPI baixado com sucesso.' });
+      toast({ title: 'Gerando PDF...', description: 'Gerando documento oficial da ficha de EPI (Padrão OS)...' });
+
+      const emp = employees.find(e => e.id === ficha.employeeId) || ({
+        id: ficha.employeeId,
+        name: ficha.employeeName,
+        document: ficha.employeeCpf,
+        cpf: ficha.employeeCpf,
+        companyId: ficha.companyId
+      } as any);
+
+      const formNumber = ficha.id ? `OS-${ficha.id.substring(0, 8).toUpperCase()}` : undefined;
+
+      await epiPdfGeneratorService.downloadPdf({
+        employee: emp,
+        orientation: 'portrait',
+        isManual: false,
+        items: ficha.items?.map((it, idx) => ({
+          itemNumber: idx + 1,
+          name: it.epiName,
+          ca: it.ca || 'N/A',
+          quantity: it.quantity || 1,
+          deliveryDate: ficha.deliveryDate 
+            ? new Date(ficha.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR') 
+            : new Date().toLocaleDateString('pt-BR'),
+          observations: it.observations
+        })) || [],
+        digitalSignature: null,
+        signedAt: ficha.deliveryDate ? new Date(ficha.deliveryDate + 'T12:00:00') : new Date(),
+        companyName: ficha.companyName || 'VIAÇÃO SÃO SILVESTRE S.A.',
+        formNumber: formNumber,
+        responsibleName: ficha.responsibleEmployeeName || 'Almoxarifado / Segurança do Trabalho'
+      });
+
+      toast({ title: 'Sucesso', description: 'PDF da Ficha de EPI gerado no padrão oficial com sucesso.' });
     } catch (error) {
-      console.error('Erro ao baixar PDF:', error);
-      toast({ title: 'Erro', description: 'Falha ao baixar PDF da ficha de EPI.', variant: 'destructive' });
+      console.warn('Erro ao gerar PDF localmente, tentando API:', error);
+      try {
+        const blob = await epiDeliveryFormService.downloadPdf(ficha.id);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Ficha_EPI_${ficha.employeeName || 'Funcionario'}_${ficha.deliveryDate}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast({ title: 'Sucesso', description: 'PDF da Ficha de EPI baixado com sucesso.' });
+      } catch (errApi) {
+        console.error('Erro ao baixar PDF:', errApi);
+        toast({ title: 'Erro', description: 'Falha ao baixar PDF da ficha de EPI.', variant: 'destructive' });
+      }
     } finally {
       setDownloadingFichaId(null);
     }

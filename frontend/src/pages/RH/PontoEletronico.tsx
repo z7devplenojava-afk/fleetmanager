@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,15 +29,17 @@ import {
   PlusCircle,
   Send,
   ShieldCheck,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Html5QrcodeScanner } from 'html5-qrcode';
 import timeRecordService, { TimeRecord } from '@/services/timeRecordService';
 import { timeSheetService } from '@/services/timeSheetService';
 import api from '@/lib/axios';
 import { employeeService } from '@/services/employeeService';
+import { isDriverUser } from '@/utils/roleRouting';
+import { UniversalQrScannerModal } from '@/components/common/UniversalQrScannerModal';
 
 const PontoEletronico: React.FC = () => {
   const { toast } = useToast();
@@ -51,8 +53,8 @@ const PontoEletronico: React.FC = () => {
   const [proximoRegistro, setProximoRegistro] = useState<'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA'>('ENTRADA');
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<string>('');
-  const [geolocation, setGeolocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [geolocation, setGeolocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
+  const [loadingAddress, setLoadingAddress] = useState(false);
 
   // Perfis e Permissões
   const isRHOrAdmin = 
@@ -62,7 +64,7 @@ const PontoEletronico: React.FC = () => {
     user?.role === 'RH' || 
     user?.role === 'DEPARTAMENTO_PESSOAL';
 
-  const isMotorista = user?.role === 'MOTORISTA' || !isRHOrAdmin;
+  const isMotorista = isDriverUser(user) || !isRHOrAdmin;
 
   // Modais de ações rápidas
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
@@ -104,22 +106,94 @@ const PontoEletronico: React.FC = () => {
   const [adjustmentReason, setAdjustmentReason] = useState('');
   const [submittingAdjustment, setSubmittingAdjustment] = useState(false);
 
-  // Buscar geolocalização ao montar
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setGeolocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          });
-        },
-        (error) => {
-          console.warn('Geolocalização não disponível:', error);
+  // Geocodificação reversa (Latitude/Longitude -> Nome do Endereço)
+  const fetchAddressFromCoords = async (latitude: number, longitude: number): Promise<string> => {
+    try {
+      setLoadingAddress(true);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+        {
+          headers: {
+            'Accept-Language': 'pt-BR,pt;q=0.9',
+          },
+          signal: controller.signal
         }
       );
+      clearTimeout(timeoutId);
+
+      if (!response.ok) throw new Error('Falha no serviço de geocodificação reversa');
+
+      const data = await response.json();
+      if (data?.address) {
+        const addr = data.address;
+        const road = addr.road || addr.pedestrian || addr.street || addr.footway || addr.avenue || '';
+        const houseNumber = addr.house_number ? `, ${addr.house_number}` : '';
+        const suburb = addr.suburb || addr.neighbourhood || addr.quarter || addr.district || '';
+        const city = addr.city || addr.town || addr.municipality || addr.village || '';
+        const state = addr.state ? (addr['ISO3166-2-lvl4'] ? addr['ISO3166-2-lvl4'].replace('BR-', '') : addr.state) : '';
+
+        const lineParts = [
+          road ? `${road}${houseNumber}` : '',
+          suburb && suburb !== road ? suburb : '',
+          city ? (state ? `${city} - ${state}` : city) : state
+        ].filter(Boolean);
+
+        if (lineParts.length > 0) {
+          return lineParts.join(' - ');
+        }
+      }
+
+      if (data?.display_name) {
+        return data.display_name;
+      }
+    } catch (err) {
+      console.warn('Não foi possível obter endereço reverso por geolocalização:', err);
+    } finally {
+      setLoadingAddress(false);
     }
+
+    return `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
+  };
+
+  // Buscar geolocalização e endereço reverso ao montar ou ao atualizar
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      console.warn('Geolocalização não suportada neste dispositivo');
+      return;
+    }
+
+    setLoadingAddress(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        setGeolocation({
+          latitude: lat,
+          longitude: lon,
+          address: 'Localizando endereço...'
+        });
+
+        const resolvedAddress = await fetchAddressFromCoords(lat, lon);
+        setGeolocation({
+          latitude: lat,
+          longitude: lon,
+          address: resolvedAddress
+        });
+      },
+      (error) => {
+        console.warn('Geolocalização não disponível:', error);
+        setLoadingAddress(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
   }, []);
+
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
 
   // Resolver employeeId do usuário logado caso não esteja em user.employeeId
   useEffect(() => {
@@ -198,11 +272,13 @@ const PontoEletronico: React.FC = () => {
     try {
       setLoadingRecords(true);
       const response = await timeRecordService.getTodayRecords(targetId);
-      if (response.success) {
-        setRegistrosHoje(response.data);
-      }
+      const records = Array.isArray(response)
+        ? response
+        : (response?.data && Array.isArray(response.data) ? response.data : []);
+      setRegistrosHoje(records);
     } catch (error: any) {
       console.error('Erro ao carregar registros:', error);
+      setRegistrosHoje([]);
     } finally {
       setLoadingRecords(false);
     }
@@ -242,11 +318,15 @@ const PontoEletronico: React.FC = () => {
       const ipAddress = window.location.hostname;
       const userAgent = navigator.userAgent;
 
+      const resolvedLocation = geolocation?.address && geolocation.address !== 'Localizando endereço...'
+        ? geolocation.address
+        : (geolocation ? `Lat: ${geolocation.latitude.toFixed(5)}, Lng: ${geolocation.longitude.toFixed(5)}` : 'Sem localização');
+
       const response = await timeRecordService.registerTimeRecord({
         employeeId: targetId,
         recordType: tipoRegistro,
         qrCode: qrCodeData || undefined,
-        location: geolocation ? 'Localização capturada' : 'Sem localização',
+        location: resolvedLocation,
         latitude: geolocation?.latitude,
         longitude: geolocation?.longitude,
         ipAddress,
@@ -283,52 +363,20 @@ const PontoEletronico: React.FC = () => {
 
   const openQRScanner = () => {
     setShowQRScanner(true);
-    setTimeout(() => {
-      initQRScanner();
-    }, 100);
-  };
-
-  const initQRScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current.clear();
-    }
-
-    const scanner = new Html5QrcodeScanner(
-      'qr-reader',
-      { 
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
-      },
-      false
-    );
-
-    scanner.render(
-      (decodedText) => {
-        console.log('QR Code lido:', decodedText);
-        setQrCodeData(decodedText);
-        scanner.clear();
-        setShowQRScanner(false);
-        
-        toast({
-          title: "✅ QR Code Lido",
-          description: "Agora você pode registrar o ponto",
-        });
-      },
-      (error) => {
-        // Ignorar erros de scan contínuo
-      }
-    );
-
-    scannerRef.current = scanner;
   };
 
   const closeQRScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current.clear();
-      scannerRef.current = null;
-    }
     setShowQRScanner(false);
+  };
+
+  const handleQRScanSuccess = (decodedText: string) => {
+    console.log('QR Code lido:', decodedText);
+    setQrCodeData(decodedText);
+    setShowQRScanner(false);
+    toast({
+      title: "✅ QR Code Lido com Sucesso",
+      description: "Posto ou veículo validado. Prossiga com o registro do ponto.",
+    });
   };
 
   const getTipoLabel = (tipo: 'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA') => {
@@ -398,15 +446,10 @@ const PontoEletronico: React.FC = () => {
       setHistoryLoading(true);
       setShowHistoryDialog(true);
       const response = await timeRecordService.getEmployeeRecords(targetId, 0, 50);
-      if (response.success) {
-        setHistoryRecords(response.data);
-      } else {
-        toast({
-          title: 'Erro ao carregar histórico',
-          description: response.error || 'Tente novamente mais tarde',
-          variant: 'destructive',
-        });
-      }
+      const records = Array.isArray(response)
+        ? response
+        : (response?.data && Array.isArray(response.data) ? response.data : []);
+      setHistoryRecords(records);
     } catch (error: any) {
       console.error('Erro ao carregar histórico:', error);
       toast({
@@ -1043,8 +1086,9 @@ const PontoEletronico: React.FC = () => {
                               </Badge>
                             )}
                           </div>
-                          <div className="text-xs opacity-80 truncate">
-                            {registro.location || 'Sem localização'}
+                          <div className="text-xs opacity-80 truncate flex items-center gap-1.5" title={registro.location || undefined}>
+                            <MapPin className="h-3 w-3 text-emerald-400 shrink-0" />
+                            <span className="truncate">{registro.location || 'Sem localização'}</span>
                             {registro.qrCodeUsed && ' • QR Code'}
                             {registro.justification && ` • Obs: ${registro.justification}`}
                           </div>
@@ -1174,18 +1218,48 @@ const PontoEletronico: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Informações de Geolocalização */}
+        {/* Informações de Geolocalização com Nome do Endereço */}
         {geolocation && (
           <Card className="bg-seguranca-darkgray/40 border-seguranca-gray/20">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs sm:text-sm">
-                <span className="text-seguranca-gray flex items-center">
-                  <MapPin className="h-4 w-4 mr-2 text-emerald-400 shrink-0" />
-                  Geolocalização Ativa (Posto de Operação)
-                </span>
-                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">
-                  Lat: {geolocation.latitude.toFixed(6)} | Lng: {geolocation.longitude.toFixed(6)}
-                </Badge>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 shrink-0 mt-0.5">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                      Local de Registro do Ponto
+                    </span>
+                    <p className="text-sm font-bold text-foreground truncate" title={geolocation.address}>
+                      {loadingAddress && (!geolocation.address || geolocation.address === 'Localizando endereço...') ? (
+                        <span className="inline-flex items-center gap-1.5 text-muted-foreground font-normal">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
+                          Identificando endereço do local...
+                        </span>
+                      ) : (
+                        geolocation.address || 'Endereço identificado'
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[11px] font-mono">
+                    Lat: {geolocation.latitude.toFixed(5)} | Lng: {geolocation.longitude.toFixed(5)}
+                  </Badge>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={requestLocation}
+                    disabled={loadingAddress}
+                    title="Atualizar localização e endereço GPS"
+                    className="h-7 w-7 text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${loadingAddress ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1602,8 +1676,9 @@ const PontoEletronico: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="text-xs opacity-75 text-right max-w-[180px] truncate">
-                      {registro.location || 'Sem localização'}
+                    <div className="text-xs opacity-75 text-right max-w-[200px] truncate flex items-center justify-end gap-1" title={registro.location || undefined}>
+                      <MapPin className="h-3 w-3 text-emerald-400 shrink-0" />
+                      <span className="truncate">{registro.location || 'Sem localização'}</span>
                     </div>
                   </div>
                 );
@@ -1653,32 +1728,17 @@ const PontoEletronico: React.FC = () => {
       {/* ========================================================================= */}
       {/* MODAL 7: SCANNER QR CODE                                                  */}
       {/* ========================================================================= */}
-      <Dialog open={showQRScanner} onOpenChange={closeQRScanner}>
-        <DialogContent className="sm:max-w-md bg-seguranca-darkgray border-seguranca-gray/30 text-seguranca-lightgray">
-          <DialogHeader>
-            <DialogTitle className="text-seguranca-lightgray flex items-center gap-2">
-              <Camera className="h-5 w-5 text-seguranca-yellow" />
-              Escanear QR Code do Posto
-            </DialogTitle>
-            <DialogDescription className="text-seguranca-gray text-xs sm:text-sm">
-              Aponte a câmera para o QR Code do veículo ou posto operacional
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div 
-              id="qr-reader" 
-              className="rounded-xl overflow-hidden border-2 border-seguranca-yellow/30 bg-black min-h-[250px]"
-            />
-            <Button
-              variant="outline"
-              className="w-full border-seguranca-gray/30 text-seguranca-lightgray"
-              onClick={closeQRScanner}
-            >
-              Cancelar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* MODAL 7: SCANNER QR CODE UNIVERSAL COM CÂMERA DIRETA E FEEDBACK          */}
+      {/* ========================================================================= */}
+      <UniversalQrScannerModal
+        isOpen={showQRScanner}
+        onClose={closeQRScanner}
+        onScanSuccess={handleQRScanSuccess}
+        title="Escanear QR Code do Posto / Veículo"
+        description="Aponte a câmera para o QR Code fixado no posto ou no veículo"
+        placeholderManual="Cole ou digite o código do posto/veículo..."
+        allowManualInput={true}
+      />
     </StandardLayout>
   );
 };

@@ -301,33 +301,45 @@ public class User implements UserDetails, TenantAware {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         Set<GrantedAuthority> authorities = new HashSet<>();
-        // Adicionar todos os roles do usuÃ¡rio
+        // Adicionar todos os roles do usuário com segurança
         if (roles != null) {
             for (Role role : roles) {
-                authorities.add(new SimpleGrantedAuthority(role.getName()));
-                if (!role.getName().startsWith("ROLE_")) {
-                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
-                } else {
-                    authorities.add(new SimpleGrantedAuthority(role.getName().substring(5)));
-                }
-                // Adicionar permissões do role
-                if (role.getPermissions() != null) {
-                    for (Permission permission : role.getPermissions()) {
-                        authorities.add(new SimpleGrantedAuthority(permission.getName()));
+                if (role != null && role.getName() != null && !role.getName().trim().isEmpty()) {
+                    String roleName = role.getName().trim();
+                    authorities.add(new SimpleGrantedAuthority(roleName));
+                    if (!roleName.startsWith("ROLE_")) {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_" + roleName));
+                    } else if (roleName.length() > 5) {
+                        authorities.add(new SimpleGrantedAuthority(roleName.substring(5)));
+                    }
+                    if (role.getPermissions() != null) {
+                        for (Permission permission : role.getPermissions()) {
+                            if (permission != null && permission.getName() != null && !permission.getName().trim().isEmpty()) {
+                                authorities.add(new SimpleGrantedAuthority(permission.getName().trim()));
+                            }
+                        }
                     }
                 }
             }
         }
-        // Adicionar permissÃµes individuais do usuÃ¡rio
+        // Adicionar permissões individuais do usuário
         if (permissions != null) {
             for (Permission permission : permissions) {
-                authorities.add(new SimpleGrantedAuthority(permission.getName()));
+                if (permission != null && permission.getName() != null && !permission.getName().trim().isEmpty()) {
+                    authorities.add(new SimpleGrantedAuthority(permission.getName().trim()));
+                }
             }
         }
-        // Adicionar permissÃµes dos grupos
-        for (UserGroupEntity group : groups) {
-            for (String permission : group.getPermissions()) {
-                authorities.add(new SimpleGrantedAuthority(permission));
+        // Adicionar permissões dos grupos de forma defensiva
+        if (groups != null) {
+            for (UserGroupEntity group : groups) {
+                if (group != null && group.getPermissions() != null) {
+                    for (String permission : group.getPermissions()) {
+                        if (permission != null && !permission.trim().isEmpty()) {
+                            authorities.add(new SimpleGrantedAuthority(permission.trim()));
+                        }
+                    }
+                }
             }
         }
         return authorities;

@@ -140,7 +140,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/hr/**")
                                                 .hasAnyAuthority("EMPLOYEES_READ", "EMPLOYEES_WRITE",
                                                                 "EMPLOYEES_CREATE", "EMPLOYEES_DELETE",
-                                                                "SUPER_ADMIN", "ADMIN", "HR", "ROLE_SUPER_ADMIN",
+                                                                "SUPER_ADMIN", "ADMIN", "HR", "RH", "ROLE_SUPER_ADMIN",
                                                                 "ROLE_ADMIN", "ROLE_HR", "ROLE_RH",
                                                                 "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN", "FLEX_ADMIN",
                                                                 "ROLE_MANUTENCAO", "MANUTENCAO", "ROLE_GESTOR", "ROLE_SUPERVISOR")
@@ -148,7 +148,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/sst/**")
                                                 .hasAnyAuthority("EMPLOYEES_READ", "EMPLOYEES_WRITE",
                                                                 "EMPLOYEES_CREATE", "EMPLOYEES_DELETE",
-                                                                "SUPER_ADMIN", "ADMIN", "HR", "ROLE_SUPER_ADMIN",
+                                                                "SUPER_ADMIN", "ADMIN", "HR", "RH", "ROLE_SUPER_ADMIN",
                                                                 "ROLE_ADMIN", "ROLE_HR", "ROLE_RH",
                                                                 "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN", "FLEX_ADMIN",
                                                                 "ROLE_MANUTENCAO", "MANUTENCAO", "ROLE_GESTOR", "ROLE_SUPERVISOR",
@@ -176,10 +176,9 @@ public class SecurityConfig {
                                                 // Endpoints de grupos - permitir consulta de prÃƒÂ³prios grupos para
                                                 // usuÃƒÂ¡rios
                                                 // autenticados
-                                                .requestMatchers("/api/groups/user/**").authenticated()
-                                                // Endpoints de grupos - operaÃƒÂ§ÃƒÂµes administrativas requerem
-                                                // permissÃƒÂµes
-                                                // especÃƒÂ­ficas
+                                                // Endpoints de grupos - leitura permitida para usuários autenticados (chat interno e visualizações)
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/groups", "/api/groups/**").authenticated()
+                                                // Endpoints de grupos - operações administrativas requerem permissões específicas
                                                 .requestMatchers("/api/groups/**")
                                                 .hasAnyAuthority("GROUPS_READ", "GROUPS_WRITE", "GROUPS_CREATE",
                                                                 "GROUPS_DELETE",
@@ -305,6 +304,8 @@ public class SecurityConfig {
                                                 // Endpoints de suppliers (fornecedores) - requerem permissÃƒÂµes
                                                 // administrativas
                                                 // ou financeiras
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/suppliers/**").authenticated()
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/cost-centers/**").authenticated()
                                                 .requestMatchers("/api/suppliers/**")
                                                 .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "FINANCEIRO",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
@@ -502,23 +503,8 @@ public class SecurityConfig {
                                                                 "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN",
                                                                 "ROLE_GESTOR", "ROLE_RH", "ROLE_SST", "ROLE_SEGURANCA_DO_TRABALHO",
                                                                 "EMPLOYEES_READ", "EMPLOYEES_WRITE")
-                                                // Endpoints de folha de ponto (time-sheets)
-                                                .requestMatchers("/api/time-sheets/**").hasAnyAuthority(
-                                                                "TIME_RECORD_READ",
-                                                                "SUPER_ADMIN",
-                                                                "ADMIN",
-                                                                "ROLE_COMPANY_ADMIN",
-                                                                "COMPANY_ADMIN",
-                                                                "ROLE_FLEX_ADMIN",
-                                                                "RH",
-                                                                "SST",
-                                                                "DEPARTAMENTO_PESSOAL",
-                                                                "ROLE_SUPER_ADMIN",
-                                                                "ROLE_ADMIN",
-                                                                "ROLE_RH",
-                                                                "ROLE_SST",
-                                                                "ROLE_SEGURANCA_DO_TRABALHO",
-                                                                "ROLE_DEPARTAMENTO_PESSOAL")
+                                                // Endpoints de folha de ponto (time-sheets) e registro de ponto - disponíveis para todos os funcionários autenticados
+                                                .requestMatchers("/api/time-sheets/**", "/api/time-records/**").authenticated()
                                                 // Todo o resto requer autenticaÃƒÂ§ÃƒÂ£o
                                                 .anyRequest().authenticated())
                                 .authenticationProvider(authenticationProvider)

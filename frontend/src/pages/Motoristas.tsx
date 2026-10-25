@@ -11,6 +11,7 @@ import { DriverDeleteDialog } from '@/components/frota/DriverDeleteDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Filter, Plus, Users, UserCheck, UserX } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StandardLayout } from '@/components/StandardLayout';
 
 const Motoristas: React.FC = () => {
   const queryClient = useQueryClient();
@@ -159,23 +160,20 @@ const Motoristas: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-seguranca-black p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-seguranca-lightgray mb-2">Gestão de Motoristas</h1>
-            <p className="text-gray-400">Gerencie os motoristas da frota de veículos</p>
-          </div>
-          <Button 
-            onClick={openNewModal}
-            className="bg-seguranca-red hover:bg-seguranca-darkred text-white transition-colors"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Motorista
-          </Button>
-        </div>
-
+    <StandardLayout
+      title="Gestão de Motoristas"
+      subtitle="Gerencie os motoristas da frota de veículos"
+      actions={
+        <Button 
+          onClick={openNewModal}
+          className="bg-seguranca-red hover:bg-seguranca-darkred text-white transition-colors"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Motorista
+        </Button>
+      }
+    >
+      <div className="space-y-6">
         {/* Cards de Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="bg-seguranca-graphite border-gray-600">
@@ -308,7 +306,7 @@ const Motoristas: React.FC = () => {
           isDeleting={deleteMutation.isPending}
         />
       </div>
-    </div>
+    </StandardLayout>
   );
 };
 

@@ -37,27 +37,51 @@ public class LgpdConsentService {
         BigDecimal latitude,
         BigDecimal longitude
     ) {
-        log.info("ðŸ“ Registrando consentimento {} para usuÃ¡rio {}", consentType, userId);
+        log.info("📝 Registrando consentimento {} para usuário {}", consentType, userId);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado"));
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        UserConsent consent = UserConsent.builder()
-                .user(user)
-                .consentType(consentType)
-                .termVersion(CURRENT_TERM_VERSION)
-                .accepted(true)
-                .acceptedAt(LocalDateTime.now())
-                .ipAddress(ipAddress)
-                .userAgent(userAgent)
-                .latitude(latitude)
-                .longitude(longitude)
-                .build();
+        LocalDateTime now = LocalDateTime.now();
+        try {
+            consentRepository.upsertConsent(
+                userId,
+                consentType.name(),
+                CURRENT_TERM_VERSION,
+                ipAddress,
+                userAgent,
+                latitude,
+                longitude,
+                now
+            );
+        } catch (Exception ex) {
+            log.warn("Falha no upsert nativo de consentimento, usando fallback JPA: {}", ex.getMessage());
+            UserConsent consent = consentRepository
+                    .findByUserIdAndConsentTypeAndTermVersion(userId, consentType, CURRENT_TERM_VERSION)
+                    .orElseGet(() -> UserConsent.builder()
+                            .user(user)
+                            .consentType(consentType)
+                            .termVersion(CURRENT_TERM_VERSION)
+                            .build());
 
-        UserConsent saved = consentRepository.save(consent);
-        log.info("âœ… Consentimento {} registrado para usuÃ¡rio {}", consentType, userId);
+            consent.setUser(user);
+            consent.setConsentType(consentType);
+            consent.setTermVersion(CURRENT_TERM_VERSION);
+            consent.setAccepted(true);
+            consent.setAcceptedAt(now);
+            consent.setRevoked(false);
+            consent.setRevokedAt(null);
+            consent.setRevokedReason(null);
+            consent.setIpAddress(ipAddress);
+            consent.setUserAgent(userAgent);
+            consent.setLatitude(latitude);
+            consent.setLongitude(longitude);
+            consentRepository.save(consent);
+        }
 
-        return saved;
+        log.info("✅ Consentimento {} registrado para usuário {}", consentType, userId);
+        return consentRepository.findByUserIdAndConsentTypeAndTermVersion(userId, consentType, CURRENT_TERM_VERSION)
+                .orElse(null);
     }
 
     /**

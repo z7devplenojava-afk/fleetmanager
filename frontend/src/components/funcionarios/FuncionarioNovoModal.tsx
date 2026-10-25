@@ -1062,7 +1062,7 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
     });
   };
 
-  const handleUsuarioPadraoCriado = (usuario: User) => {
+  const handleUsuarioPadraoCriado = async (usuario: User) => {
     // Adicionar o novo usuário à lista
     setUsers(prev => [...prev, usuario]);
     setFilteredUsers(prev => [...prev, usuario]);
@@ -1072,8 +1072,31 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
     setUserSearchTerm(usuario.name);
     setCriarUsuarioModalOpen(false);
     
-    // Fechar o modal principal após criar o usuário
-    onClose();
+    const targetEmpId = employeeToEdit?.id || currentEmployeeId;
+    if (targetEmpId) {
+      try {
+        await employeeService.updateEmployee(targetEmpId, {
+          ...form,
+          user: { id: usuario.id }
+        });
+        toast({
+          title: "Vínculo Concluído!",
+          description: `Usuário @${usuario.username} foi criado e vinculado com sucesso a este funcionário.`,
+        });
+        onCreated();
+      } catch (err: any) {
+        console.error('Erro ao vincular usuário ao funcionário:', err);
+        toast({
+          title: "Atenção",
+          description: "Usuário criado. Clique no botão 'Salvar' no rodapé para confirmar o vínculo.",
+        });
+      }
+    } else {
+      toast({
+        title: "Usuário Selecionado!",
+        description: `Usuário @${usuario.username} gerado e preenchido. Clique em 'Salvar' no rodapé para cadastrar o funcionário.`,
+      });
+    }
   };
 
   // Funções para importação de PDF

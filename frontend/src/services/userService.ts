@@ -36,6 +36,8 @@ export interface UpdateUserRequest {
   roles?: string[]; // Backend DTO espera List<String>
   companyId?: string;
   removeCompany?: boolean;
+  employeeId?: string;
+  removeEmployee?: boolean;
   avatar?: string;
   department?: string;
   position?: string;

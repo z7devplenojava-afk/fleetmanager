@@ -23,6 +23,7 @@ import com.z7design.fleet_manager.dto.UserResponse;
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.Role;
+import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.model.enums.UserStatus;
 import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.repository.RoleRepository;
@@ -273,14 +274,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             return AuthenticationResponse.builder()
                     .token(jwtToken)
                     .refreshToken(refreshToken)
-                    .user(UserResponse.builder()
-                            .id(user.getId().toString())
-                            .username(user.getUsername())
-                            .email(user.getEmail())
-                            .fullName(user.getName())
-                            .roles(roles)
-                            .customPermissions(customPermissions)
-                            .build())
+                    .user(buildUserResponse(user, roles, customPermissions))
                     .empresa(buildEmpresaResponse(user, request.getCompanyId()))
                     .requiresLgpdConsent(requiresLgpdConsent)
                     .requires2FA(requires2FA)
@@ -313,17 +307,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 // Buscar permissões customizadas
                 java.util.List<String> customPermissions = customPermissionService.getActivePermissions(user.getId());
 
+                java.util.List<String> userRoles = user.getRoles() != null
+                        ? user.getRoles().stream().map(Role::getName).collect(Collectors.toList())
+                        : java.util.Collections.emptyList();
+
                 return AuthenticationResponse.builder()
                         .token(accessToken)
                         .refreshToken(newRefreshToken)
-                        .user(UserResponse.builder()
-                                .id(user.getId() != null ? user.getId().toString() : null)
-                                .username(user.getUsername())
-                                .email(user.getEmail())
-                                .fullName(user.getName())
-                                .roles(user.getRoles().stream().map(Role::getName).collect(Collectors.toList()))
-                                .customPermissions(customPermissions)
-                                .build())
+                        .user(buildUserResponse(user, userRoles, customPermissions))
                         .empresa(buildEmpresaResponse(user, null))
                         .build();
             }
@@ -343,9 +334,35 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new RuntimeException("No authentication found");
         }
 
+        // 1. Se o principal já for a entidade User, recarrega do banco ou usa diretamente
+        if (authentication.getPrincipal() instanceof User userPrincipal) {
+            if (userPrincipal.getId() != null) {
+                return userRepository.findById(userPrincipal.getId()).orElse(userPrincipal);
+            }
+            return userPrincipal;
+        }
+
         String username = authentication.getName();
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (username == null || username.isBlank()) {
+            throw new RuntimeException("No username found in authentication");
+        }
+
+        String target = username.trim();
+        String cleanDigits = target.replaceAll("\\D", "");
+
+        // 2. Busca abrangente por identificador, email ou username
+        return userRepository.findByIdentifierNative(target, cleanDigits)
+                .or(() -> userRepository.findByUsernameOrEmailIgnoreCase(target))
+                .or(() -> userRepository.findByUsername(target))
+                .or(() -> userRepository.findByEmail(target))
+                .or(() -> {
+                    try {
+                        return userRepository.findById(UUID.fromString(target));
+                    } catch (IllegalArgumentException e) {
+                        return Optional.empty();
+                    }
+                })
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
     }
 
     private boolean isSuperAdmin(User user) {
@@ -462,6 +479,74 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             log.warn("⚠️ Erro ao montar dados da empresa no login (prosseguindo sem empresa): {}", e.getMessage());
             return null;
         }
+    }
+
+    private UserResponse buildUserResponse(User user, java.util.List<String> roles, java.util.List<String> customPermissions) {
+        UUID employeeId = null;
+        String position = null;
+        String department = null;
+        try {
+            Employee emp = employeeRepository.findByUserId(user.getId()).orElse(null);
+            if (emp == null && user.getUsername() != null) {
+                String cleanCpf = user.getUsername().replaceAll("\\D", "");
+                if (cleanCpf.length() >= 11) {
+                    emp = employeeRepository.findByCpf(cleanCpf).orElse(null);
+                }
+            }
+            if (emp == null && user.getName() != null && !user.getName().isBlank()) {
+                var emps = employeeRepository.findByNameContainingIgnoreCase(user.getName().trim());
+                if (!emps.isEmpty()) {
+                    emp = emps.get(0);
+                }
+            }
+            if (emp == null && user.getEmail() != null && !user.getEmail().isBlank()) {
+                emp = employeeRepository.findByEmail(user.getEmail().trim()).orElse(null);
+            }
+            if (emp != null) {
+                employeeId = emp.getId();
+                if (emp.getUser() == null || !user.getId().equals(emp.getUser().getId())) {
+                    try {
+                        emp.setUser(user);
+                        employeeRepository.save(emp);
+                    } catch (Exception ignored) {}
+                }
+                if (emp.getPosition() != null) {
+                    position = emp.getPosition().getName();
+                }
+                if (emp.getDepartment() != null) {
+                    department = emp.getDepartment().getName();
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("⚠️ Erro ao resolver vínculo de funcionário para UserResponse: {}", ex.getMessage());
+        }
+
+        java.util.List<String> effectiveRoles = roles != null ? new java.util.ArrayList<>(roles) : new java.util.ArrayList<>();
+        boolean hasDriverRole = effectiveRoles.stream().anyMatch(r ->
+            r.equalsIgnoreCase("MOTORISTA") || r.equalsIgnoreCase("ROLE_MOTORISTA")
+        );
+        boolean hasDriverPosition = position != null && (
+            position.toLowerCase().contains("motorista") ||
+            position.toLowerCase().contains("condutor") ||
+            position.toLowerCase().contains("driver")
+        );
+        boolean isDriver = hasDriverRole || hasDriverPosition;
+        if (hasDriverPosition && !hasDriverRole) {
+            effectiveRoles.add("MOTORISTA");
+        }
+
+        return UserResponse.builder()
+                .id(user.getId() != null ? user.getId().toString() : null)
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .fullName(user.getName())
+                .roles(effectiveRoles)
+                .customPermissions(customPermissions)
+                .employeeId(employeeId)
+                .position(position)
+                .department(department)
+                .isDriver(isDriver)
+                .build();
     }
 }
 

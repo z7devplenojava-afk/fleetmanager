@@ -16,5 +16,9 @@ public class UserResponse {
     private String email;
     private String fullName;
     private List<String> roles;
-    private List<String> customPermissions; // PermissÃµes customizadas concedidas pelo SUPER_ADMIN
+    private List<String> customPermissions; // Permissões customizadas concedidas pelo SUPER_ADMIN
+    private java.util.UUID employeeId;
+    private String position;
+    private String department;
+    private Boolean isDriver;
 } 

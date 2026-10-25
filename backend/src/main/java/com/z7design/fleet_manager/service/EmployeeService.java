@@ -242,9 +242,51 @@ public class EmployeeService {
             }
             
             // Atualizar entidades relacionais se fornecidas
-            if (dto.getUser() != null && dto.getUser().getId() != null) {
-                existingEmployee.setUser(userRepository.findById(dto.getUser().getId())
-                    .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado para o id informado.")));
+            if (Boolean.TRUE.equals(dto.getRemoveUser()) || (dto.getUser() != null && dto.getUser().getId() == null)) {
+                existingEmployee.setUser(null);
+                log.info("Desvinculado usuário do funcionário {}", existingEmployee.getName());
+            } else if (dto.getUser() != null && dto.getUser().getId() != null) {
+                UUID newUserId = dto.getUser().getId();
+                // Se esse usuário já estiver vinculado a outro funcionário, transfere o vínculo desvinculando o outro
+                employeeRepository.findByUserIdGlobal(newUserId).ifPresent(otherEmp -> {
+                    if (!otherEmp.getId().equals(existingEmployee.getId())) {
+                        otherEmp.setUser(null);
+                        employeeRepository.save(otherEmp);
+                        log.info("Vínculo de usuário transferido: desvinculado do funcionário anterior {}", otherEmp.getName());
+                    }
+                });
+                User targetUser = userRepository.findByIdNative(newUserId)
+                    .or(() -> userRepository.findById(newUserId))
+                    .orElse(null);
+                existingEmployee.setUser(targetUser);
+
+                // Sincronizar dados faltantes se aplicável
+                if (targetUser != null) {
+                    boolean userChanged = false;
+                    if ((targetUser.getWhatsapp() == null || targetUser.getWhatsapp().isBlank()) && existingEmployee.getPhone() != null && !existingEmployee.getPhone().isBlank()) {
+                        targetUser.setWhatsapp(existingEmployee.getPhone().replaceAll("\\D", ""));
+                        userChanged = true;
+                    }
+                    if ((targetUser.getEmail() == null || targetUser.getEmail().isBlank()) && existingEmployee.getEmail() != null && !existingEmployee.getEmail().isBlank()) {
+                        targetUser.setEmail(existingEmployee.getEmail().trim());
+                        userChanged = true;
+                    }
+                    if (userChanged) {
+                        userRepository.save(targetUser);
+                    }
+                }
+            } else if (existingEmployee.getUser() == null) {
+                String cleanCpf = existingEmployee.getDocument() != null ? existingEmployee.getDocument().replaceAll("\\D", "") : "";
+                User matched = null;
+                if (cleanCpf.length() >= 11) {
+                    matched = userRepository.findByIdentifierNative(cleanCpf, cleanCpf).orElse(null);
+                }
+                if (matched == null && existingEmployee.getEmail() != null && !existingEmployee.getEmail().isBlank()) {
+                    matched = userRepository.findByEmailNative(existingEmployee.getEmail().trim()).orElse(null);
+                }
+                if (matched != null) {
+                    existingEmployee.setUser(matched);
+                }
             }
             if (dto.getPosition() != null && dto.getPosition().getId() != null) {
                 existingEmployee.setPosition(positionRepository.findById(dto.getPosition().getId())
@@ -1005,8 +1047,21 @@ public class EmployeeService {
             
             // Setar entidades relacionais (agora opcionais)
             if (dto.getUser() != null && dto.getUser().getId() != null) {
-                e.setUser(userRepository.findById(dto.getUser().getId())
-                    .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado para o id informado.")));
+                e.setUser(userRepository.findByIdNative(dto.getUser().getId())
+                    .or(() -> userRepository.findById(dto.getUser().getId()))
+                    .orElse(null));
+            } else if (e.getUser() == null) {
+                String cleanCpf = dto.getCpf() != null ? dto.getCpf().replaceAll("\\D", "") : "";
+                User matched = null;
+                if (cleanCpf.length() >= 11) {
+                    matched = userRepository.findByIdentifierNative(cleanCpf, cleanCpf).orElse(null);
+                }
+                if (matched == null && dto.getEmail() != null && !dto.getEmail().isBlank()) {
+                    matched = userRepository.findByEmailNative(dto.getEmail().trim()).orElse(null);
+                }
+                if (matched != null) {
+                    e.setUser(matched);
+                }
             }
                 
             if (dto.getPosition() != null && dto.getPosition().getId() != null) {

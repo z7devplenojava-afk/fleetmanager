@@ -27,6 +27,7 @@ interface SearchableSelectProps {
   minSearchHint?: string;
   maxVisibleOptions?: number;
   disabled?: boolean;
+  size?: 'default' | 'lg';
   className?: string;
 }
 
@@ -51,6 +52,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   minSearchHint,
   maxVisibleOptions = 100,
   disabled = false,
+  size = 'default',
   className,
 }) => {
   const [open, setOpen] = useState(false);
@@ -134,13 +136,15 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const isBelowMin = minSearchLength && searchQuery.trim().length > 0 && searchQuery.trim().length < minSearchLength;
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild disabled={disabled}>
         <button
           type="button"
           className={cn(
-            'w-full min-h-[38px] px-3 py-1.5 rounded-md border text-xs sm:text-sm transition-all',
-            'flex items-center justify-between gap-2 text-left',
+            'w-full rounded-md border transition-all flex items-center justify-between gap-2 text-left',
+            size === 'lg'
+              ? 'min-h-[50px] sm:min-h-[48px] px-3.5 py-2.5 text-sm sm:text-base'
+              : 'min-h-[38px] px-3 py-1.5 text-xs sm:text-sm',
             'border-gray-600 bg-seguranca-black text-white hover:border-gray-500 focus:outline-none focus:border-seguranca-yellow',
             disabled && 'opacity-50 cursor-not-allowed',
             className
@@ -149,25 +153,33 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {selectedOption ? (
               <div className="flex items-center gap-2 truncate">
-                <span className="font-semibold text-white truncate">{selectedOption.label}</span>
+                <span className={cn('font-bold text-white truncate', size === 'lg' ? 'text-base sm:text-lg' : 'text-xs sm:text-sm')}>
+                  {selectedOption.label}
+                </span>
                 {selectedOption.badge && (
-                  <Badge className={cn('text-[10px] px-1.5 py-0 h-4 shrink-0 font-mono', selectedOption.badgeColor || 'bg-seguranca-yellow/20 text-seguranca-yellow border border-seguranca-yellow/30')}>
+                  <Badge className={cn('px-1.5 py-0 h-4 shrink-0 font-mono', size === 'lg' ? 'text-[11px] h-5' : 'text-[10px]', selectedOption.badgeColor || 'bg-seguranca-yellow/20 text-seguranca-yellow border border-seguranca-yellow/30')}>
                     {selectedOption.badge}
                   </Badge>
                 )}
-                {selectedOption.subtitle && !selectedOption.badge && (
-                  <span className="text-gray-400 text-xs truncate">({selectedOption.subtitle})</span>
+                {selectedOption.subtitle && (
+                  <span className={cn('text-gray-400 truncate max-w-[130px] sm:max-w-xs', size === 'lg' ? 'text-xs sm:text-sm' : 'text-xs')}>
+                    ({selectedOption.subtitle})
+                  </span>
                 )}
               </div>
             ) : fallbackLabel ? (
               <div className="flex items-center gap-2 truncate">
-                <span className="font-semibold text-white truncate">{fallbackLabel}</span>
+                <span className={cn('font-bold text-white truncate', size === 'lg' ? 'text-base sm:text-lg' : 'text-xs sm:text-sm')}>
+                  {fallbackLabel}
+                </span>
                 <Badge className="text-[10px] px-1.5 py-0 h-4 shrink-0 font-mono bg-emerald-950/70 text-emerald-300 border border-emerald-700/60">
                   Salvo na OS
                 </Badge>
               </div>
             ) : (
-              <span className="text-gray-400 text-xs sm:text-sm truncate">{placeholder}</span>
+              <span className={cn('text-gray-400 truncate', size === 'lg' ? 'text-sm sm:text-base' : 'text-xs sm:text-sm')}>
+                {placeholder}
+              </span>
             )}
           </div>
 
@@ -180,10 +192,10 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 className="p-1 hover:bg-gray-800 rounded text-gray-400 hover:text-white transition-colors"
                 title="Limpar seleção"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className={size === 'lg' ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
               </span>
             )}
-            <ChevronsUpDown className="w-4 h-4 text-gray-400 opacity-60" />
+            <ChevronsUpDown className={cn('text-gray-400 opacity-60', size === 'lg' ? 'w-5 h-5' : 'w-4 h-4')} />
           </div>
         </button>
       </PopoverTrigger>
@@ -196,7 +208,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           setTimeout(() => inputRef.current?.focus(), 60);
         }}
         onCloseAutoFocus={(e) => e.preventDefault()}
-        className="w-[var(--radix-popover-trigger-width)] min-w-[280px] p-0 bg-seguranca-graphite border border-gray-700 rounded-lg shadow-2xl z-[10070] overflow-hidden flex flex-col"
+        className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[260px] p-0 bg-seguranca-graphite border border-gray-700 rounded-lg shadow-2xl z-[10070] overflow-hidden flex flex-col"
       >
         {/* Barra de Pesquisa */}
         <div className="p-2 border-b border-gray-700 bg-seguranca-black flex items-center gap-2">

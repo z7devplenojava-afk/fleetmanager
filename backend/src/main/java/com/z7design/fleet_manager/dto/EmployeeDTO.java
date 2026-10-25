@@ -287,6 +287,7 @@ public class EmployeeDTO {
      * SÃ³ deve ser preenchido se o funcionÃ¡rio tambÃ©m for usuÃ¡rio do sistema.
      */
     private IdOnlyDTO user;
+    private Boolean removeUser;
     private PositionDTO position;
     private String positionDescription;
     private UnitDTO unit;

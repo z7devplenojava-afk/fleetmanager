@@ -18,21 +18,12 @@ import { EmpresaThemeSync } from '@/components/EmpresaThemeSync';
 import ThemeToggle from '@/components/ThemeToggle';
 import '@/styles/gsap-animations.css';
 
-// Registrar plugins GSAP
-if (typeof window !== 'undefined') {
+// Registrar plugins GSAP apenas em desktop para máxima fluidez e economia de bateria no mobile
+if (typeof window !== 'undefined' && window.innerWidth >= 768 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
   gsap.registerPlugin(ScrollTrigger);
 }
 
-// Portal Público - Carregamento imediato (página inicial)
-import PortalHome from '@/pages/PortalHome';
-import PortalVagas from '@/pages/PortalVagas';
-import QuemSomos from '@/pages/QuemSomos';
-import ServicosPublico from '@/pages/Servicos';
-import PoliticasPrivacidade from '@/pages/PoliticasPrivacidade';
-import TermosCondicoes from '@/pages/TermosCondicoes';
-import Contato from '@/pages/Contato';
 import CookieConsent from '@/components/CookieConsent';
-import UnificadosPorSetor from '@/pages/UnificadosPorSetor';
 
 // Helper function para lazy loading com retry (Vite HMR / ERR_EMPTY_RESPONSE)
 const lazyWithRetry = (componentImport: () => Promise<any>, componentName: string, maxRetries = 3) => {
@@ -71,39 +62,19 @@ const lazyWithRetry = (componentImport: () => Promise<any>, componentName: strin
         }
       }
     }
-
-    // Último recurso após rebuild do Vite: um reload único da página
-    const reloadKey = `lazy-reload:${componentName}`;
-    if (!sessionStorage.getItem(reloadKey)) {
-      sessionStorage.setItem(reloadKey, '1');
-      window.location.reload();
-      return new Promise(() => { });
-    }
-    sessionStorage.removeItem(reloadKey);
-
-    return {
-      default: () => (
-        <div className="flex items-center justify-center min-h-screen bg-seguranca-black">
-          <div className="text-center p-8 bg-seguranca-graphite rounded-lg border border-red-500 max-w-md">
-            <h2 className="text-xl font-bold text-red-500 mb-4">Erro ao carregar {componentName}</h2>
-            <p className="text-seguranca-lightgray mb-4">
-              Não foi possível carregar o módulo após {maxRetries} tentativas.
-              {lastError?.message && (
-                <span className="block mt-2 text-sm text-gray-400">{lastError.message}</span>
-              )}
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-seguranca-red text-white rounded hover:bg-seguranca-darkred"
-            >
-              Recarregar página
-            </button>
-          </div>
-        </div>
-      ),
-    };
+    throw lastError;
   });
 };
+
+// Portal Público - Carregamento sob demanda (reduz drasticamente o bundle inicial no mobile)
+const PortalHome = lazyWithRetry(() => import('@/pages/PortalHome'), 'PortalHome');
+const PortalVagas = lazyWithRetry(() => import('@/pages/PortalVagas'), 'PortalVagas');
+const QuemSomos = lazyWithRetry(() => import('@/pages/QuemSomos'), 'QuemSomos');
+const ServicosPublico = lazyWithRetry(() => import('@/pages/Servicos'), 'ServicosPublico');
+const PoliticasPrivacidade = lazyWithRetry(() => import('@/pages/PoliticasPrivacidade'), 'PoliticasPrivacidade');
+const TermosCondicoes = lazyWithRetry(() => import('@/pages/TermosCondicoes'), 'TermosCondicoes');
+const Contato = lazyWithRetry(() => import('@/pages/Contato'), 'Contato');
+const UnificadosPorSetor = lazyWithRetry(() => import('@/pages/UnificadosPorSetor'), 'UnificadosPorSetor');
 
 // Sistema Administrativo - Lazy loading para páginas administrativas
 const Login = lazy(() => import('@/pages/Login').catch(() => ({ default: () => <div>Erro ao carregar Login</div> })));
@@ -152,6 +123,7 @@ const GestaoLimpezaVeiculos = lazy(() => import('@/pages/manutencao/GestaoLimpez
 const Garagens = lazy(() => import('@/pages/Garagens'));
 const Lavajato = lazy(() => import('@/pages/manutencao/Lavajato'));
 const GestaoCertificacoesCFME = lazy(() => import('@/pages/manutencao/GestaoCertificacoesCFME'));
+const TransportOperationalDashboardPage = lazy(() => import('@/pages/fretamento/TransportOperationalDashboardPage'));
 const TrafficManagementDashboard = lazy(() => import('@/pages/fretamento/TrafficManagementDashboard'));
 const RoutesAndPoints = lazy(() => import('@/pages/fretamento/RoutesAndPoints'));
 const Horarios = lazy(() => import('@/pages/fretamento/Horarios'));
@@ -329,16 +301,28 @@ function App() {
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     // Salvaguarda global para evitar que diálogos Radix travem a tela com pointer-events: none ou overflow: hidden
+    let isCleaning = false;
+    let cleanupTimer: any = null;
+
     const cleanupStuckBodyStyles = () => {
-      const hasOpenDialog = document.querySelector('[role="dialog"], [role="alertdialog"]');
-      if (!hasOpenDialog) {
-        if (document.body.style.pointerEvents === 'none') {
-          document.body.style.pointerEvents = '';
+      if (isCleaning) return;
+      clearTimeout(cleanupTimer);
+      cleanupTimer = setTimeout(() => {
+        isCleaning = true;
+        try {
+          const hasOpenDialog = document.querySelector('[role="dialog"], [role="alertdialog"], [data-state="open"]');
+          if (!hasOpenDialog) {
+            if (document.body.style.pointerEvents === 'none') {
+              document.body.style.pointerEvents = '';
+            }
+            if (document.body.style.overflow === 'hidden') {
+              document.body.style.overflow = '';
+            }
+          }
+        } finally {
+          setTimeout(() => { isCleaning = false; }, 50);
         }
-        if (document.body.style.overflow === 'hidden') {
-          document.body.style.overflow = '';
-        }
-      }
+      }, 150);
     };
 
     const bodyObserver = new MutationObserver(() => {
@@ -360,6 +344,7 @@ function App() {
       window.removeEventListener('error', handleMessageChannelError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
       window.removeEventListener('popstate', cleanupStuckBodyStyles);
+      clearTimeout(cleanupTimer);
       bodyObserver.disconnect();
     };
   }, []);
@@ -381,14 +366,14 @@ function App() {
                     <EmpresaThemeSync />
                     <Routes>
                       {/* Portal Público */}
-                      <Route path="/" element={<PortalHome />} />
-                      <Route path="/portal" element={<PortalHome />} />
-                      <Route path="/quem-somos" element={<QuemSomos />} />
-                      <Route path="/servicos-publico" element={<ServicosPublico />} />
-                      <Route path="/trabalhe-conosco" element={<PortalVagas />} />
-                      <Route path="/contato" element={<Contato />} />
-                      <Route path="/politicas-privacidade" element={<PoliticasPrivacidade />} />
-                      <Route path="/termos-condicoes" element={<TermosCondicoes />} />
+                      <Route path="/" element={<Suspense fallback={<LoadingSpinner />}><PortalHome /></Suspense>} />
+                      <Route path="/portal" element={<Suspense fallback={<LoadingSpinner />}><PortalHome /></Suspense>} />
+                      <Route path="/quem-somos" element={<Suspense fallback={<LoadingSpinner />}><QuemSomos /></Suspense>} />
+                      <Route path="/servicos-publico" element={<Suspense fallback={<LoadingSpinner />}><ServicosPublico /></Suspense>} />
+                      <Route path="/trabalhe-conosco" element={<Suspense fallback={<LoadingSpinner />}><PortalVagas /></Suspense>} />
+                      <Route path="/contato" element={<Suspense fallback={<LoadingSpinner />}><Contato /></Suspense>} />
+                      <Route path="/politicas-privacidade" element={<Suspense fallback={<LoadingSpinner />}><PoliticasPrivacidade /></Suspense>} />
+                      <Route path="/termos-condicoes" element={<Suspense fallback={<LoadingSpinner />}><TermosCondicoes /></Suspense>} />
 
                       {/* Sistema Administrativo */}
                       <Route path="/admin" element={<Navigate to="/admin/companies" replace />} />
@@ -1031,6 +1016,20 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/gestao-trafego/painel-operacional" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TransportOperationalDashboardPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/transporte/painel" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TransportOperationalDashboardPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/fretamento" element={
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -1285,7 +1284,9 @@ function App() {
                       {/* Unificados por Setor */}
                       <Route path="/unificados-por-setor" element={
                         <ProtectedRoute>
-                          <UnificadosPorSetor />
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <UnificadosPorSetor />
+                          </Suspense>
                         </ProtectedRoute>
                       } />
 
@@ -1387,6 +1388,14 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/ponto-eletronico" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <PontoEletronico />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/ponto" element={<Navigate to="/rh/ponto-eletronico" replace />} />
                       <Route path="/rh/ponto-admin/dashboard" element={
                         <ProtectedRoute requiredPermissions={['TIME_RECORD_MANAGE']}>
                           <Suspense fallback={<LoadingSpinner />}>

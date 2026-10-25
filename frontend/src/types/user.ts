@@ -206,6 +206,7 @@ export interface User {
   position?: string;
   employeeCode?: string;
   employeeId?: string;
+  employeeName?: string;
   phone?: string;
   whatsapp?: string;
   username?: string;
@@ -219,6 +220,7 @@ export interface User {
   clientName?: string;
   createdAt?: string;
   updatedAt?: string;
+  isDriver?: boolean;
 }
 
 /** Dados da empresa para exibição (logo, nome, tema) */
@@ -244,6 +246,7 @@ export interface AuthContextType {
   refreshAuthToken: () => Promise<void>;
   refreshUser: () => Promise<void>;
   setFirstAccessCompleted: (completed: boolean) => void;
+  setRequiresLgpdConsent?: (required: boolean) => void;
   hasRole: (role: UserRole | string) => boolean;
 }
 

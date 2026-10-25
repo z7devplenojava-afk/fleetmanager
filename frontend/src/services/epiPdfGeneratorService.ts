@@ -92,14 +92,10 @@ export const epiPdfGeneratorService = {
       companyDetails += (companyDetails ? ' • ' : '') + compAddress;
     }
 
-    // Carregar imagem de logo se disponível (com fallback oficial São Silvestre)
+    // Carregar imagem de logo somente se fornecida especificamente (sem banners de timbre antigos)
     let logoImg: HTMLImageElement | null = null;
     const candidateUrls = [
-      compLogoUrl,
-      '/images/sao-silvestre-timbre-retrato.png',
-      '/images/sao-silvestre-timbre.png',
-      '/images/sao-silvestre-modelo-tabela.png',
-      '/logo.png'
+      compLogoUrl && !compLogoUrl.includes('timbre') ? compLogoUrl : null
     ].filter(Boolean) as string[];
 
     for (const url of candidateUrls) {
@@ -831,5 +827,15 @@ export const epiPdfGeneratorService = {
   async downloadPdf(options: GenerateEpiPdfOptions): Promise<void> {
     const { doc, filename } = await this.generatePdf(options);
     doc.save(filename);
+  },
+
+  /**
+   * Abre o PDF em nova aba para visualização e impressão
+   */
+  async previewPdf(options: GenerateEpiPdfOptions): Promise<void> {
+    const { blob } = await this.generatePdf(options);
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   },
 };

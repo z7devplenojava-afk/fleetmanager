@@ -56,7 +56,7 @@ const Login = () => {
   useEffect(() => {
     // Se já está autenticado e não está em processo de login, redireciona para o dashboard do seu ROLE
     if (user && !loading) {
-      const destination = getDashboardRouteForRole(user.role);
+      const destination = getDashboardRouteForRole(user.role, user);
       navigate(destination, { replace: true });
     }
   }, [user, navigate, loading]);

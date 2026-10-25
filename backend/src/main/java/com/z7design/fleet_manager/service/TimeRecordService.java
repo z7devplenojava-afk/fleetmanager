@@ -15,6 +15,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -33,9 +39,53 @@ public class TimeRecordService {
     private final TimeRecordRepository timeRecordRepository;
     private final QRCodeWorkPostRepository qrCodeWorkPostRepository;
     private final EmployeeRepository employeeRepository;
+    private final UserRepository userRepository;
     private final WorkPostRepository workPostRepository;
     private final CompanyRepository companyRepository;
     private final WorkJourneyConfigService workJourneyConfigService;
+
+    public Employee resolveEmployee(UUID employeeId) {
+        if (employeeId == null) {
+            throw new RuntimeException("ID do funcionário não fornecido");
+        }
+
+        Optional<Employee> empOpt = employeeRepository.findById(employeeId)
+                .or(() -> employeeRepository.findByUserId(employeeId))
+                .or(() -> employeeRepository.findByUserIdGlobal(employeeId))
+                .or(() -> employeeRepository.findByIdGlobal(employeeId));
+
+        if (empOpt.isEmpty()) {
+            User user = userRepository.findByIdNative(employeeId)
+                    .or(() -> userRepository.findById(employeeId))
+                    .orElse(null);
+            if (user != null) {
+                String cleanCpf = user.getUsername() != null ? user.getUsername().replaceAll("\\D", "") : "";
+                if (cleanCpf.length() >= 11) {
+                    empOpt = employeeRepository.findByCpfGlobal(cleanCpf);
+                }
+                if (empOpt.isEmpty() && user.getEmail() != null && !user.getEmail().isBlank()) {
+                    empOpt = employeeRepository.findByEmail(user.getEmail().trim());
+                }
+                if (empOpt.isEmpty() && user.getName() != null && !user.getName().isBlank()) {
+                    List<Employee> emps = employeeRepository.findByNameContainingIgnoreCase(user.getName().trim());
+                    if (!emps.isEmpty()) {
+                        empOpt = Optional.of(emps.get(0));
+                    }
+                }
+                empOpt.ifPresent(emp -> {
+                    try {
+                        emp.setUser(user);
+                        employeeRepository.save(emp);
+                        log.info("🔗 Vínculo automático restaurado com sucesso: User {} -> Employee {}", user.getUsername(), emp.getId());
+                    } catch (Exception ex) {
+                        log.warn("Erro ao salvar auto-vínculo no ponto: {}", ex.getMessage());
+                    }
+                });
+            }
+        }
+
+        return empOpt.orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
+    }
 
     @Transactional
     public TimeRecord registerTimeRecord(UUID employeeId, TimeRecord.RecordType recordType,
@@ -45,9 +95,9 @@ public class TimeRecordService {
         log.info("📝 Registrando ponto - Employee: {}, Tipo: {}, QRCode: {}",
                 employeeId, recordType, qrCode);
 
-        // Buscar funcionário
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
+        // Buscar funcionário (por ID ou fallback inteligente por userId/CPF)
+        Employee employee = resolveEmployee(employeeId);
+        UUID effectiveEmployeeId = employee.getId();
 
         // Validar QR Code se fornecido
         WorkPost workPost = null;
@@ -78,7 +128,7 @@ public class TimeRecordService {
         }
 
         // Validar sequência de registros
-        validateRecordSequence(employeeId, recordType);
+        validateRecordSequence(effectiveEmployeeId, recordType);
 
         // Criar registro
         TimeRecord record = new TimeRecord();
@@ -86,7 +136,7 @@ public class TimeRecordService {
         record.setWorkPost(workPost);
         record.setRecordType(recordType);
         record.setRecordedAt(LocalDateTime.now());
-        record.setLocation(location);
+        record.setLocation(resolveLocation(location, latitude, longitude));
         record.setLatitude(latitude);
         record.setLongitude(longitude);
         record.setIpAddress(ipAddress);
@@ -109,6 +159,65 @@ public class TimeRecordService {
         log.info("✅ Ponto registrado com sucesso - ID: {}", saved.getId());
 
         return saved;
+    }
+
+    private String resolveLocation(String location, Double latitude, Double longitude) {
+        if (location != null && !location.isBlank() 
+                && !location.equalsIgnoreCase("Localização capturada")
+                && !location.equalsIgnoreCase("Sem localização")) {
+            return location.trim();
+        }
+
+        if (latitude != null && longitude != null) {
+            try {
+                org.springframework.http.client.SimpleClientHttpRequestFactory requestFactory = 
+                        new org.springframework.http.client.SimpleClientHttpRequestFactory();
+                requestFactory.setConnectTimeout(3000);
+                requestFactory.setReadTimeout(3000);
+                RestTemplate restTemplate = new RestTemplate(requestFactory);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("User-Agent", "FluxBus-FleetManager/1.0");
+                headers.set("Accept-Language", "pt-BR,pt;q=0.9");
+                HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+                String url = String.format(Locale.US,
+                        "https://nominatim.openstreetmap.org/reverse?format=json&lat=%.6f&lon=%.6f&zoom=18&addressdetails=1",
+                        latitude, longitude);
+
+                ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                    Map<String, Object> body = response.getBody();
+                    if (body.get("address") instanceof Map) {
+                        Map<String, Object> addr = (Map<String, Object>) body.get("address");
+                        String road = (String) addr.getOrDefault("road", addr.getOrDefault("pedestrian", addr.getOrDefault("street", "")));
+                        String number = addr.get("house_number") != null ? ", " + addr.get("house_number") : "";
+                        String suburb = (String) addr.getOrDefault("suburb", addr.getOrDefault("neighbourhood", addr.getOrDefault("quarter", "")));
+                        String city = (String) addr.getOrDefault("city", addr.getOrDefault("town", addr.getOrDefault("municipality", "")));
+                        String state = (String) addr.getOrDefault("state", "");
+
+                        List<String> parts = new ArrayList<>();
+                        if (road != null && !road.isBlank()) parts.add(road + number);
+                        if (suburb != null && !suburb.isBlank() && !suburb.equalsIgnoreCase(road)) parts.add(suburb);
+                        if (city != null && !city.isBlank()) {
+                            parts.add(state != null && !state.isBlank() ? city + " - " + state : city);
+                        }
+
+                        if (!parts.isEmpty()) {
+                            return String.join(" - ", parts);
+                        }
+                    }
+                    if (body.get("display_name") != null) {
+                        return (String) body.get("display_name");
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Não foi possível resolver geocodificação reversa no backend: {}", e.getMessage());
+            }
+            return String.format(Locale.US, "Lat: %.5f, Lng: %.5f", latitude, longitude);
+        }
+
+        return location != null && !location.isBlank() ? location : "Sem localização";
     }
 
     private void validateRecordSequence(UUID employeeId, TimeRecord.RecordType newRecordType) {
@@ -156,18 +265,21 @@ public class TimeRecordService {
     }
 
     public List<TimeRecord> getTodayRecords(UUID employeeId) {
-        return timeRecordRepository.findTodayRecordsByEmployeeId(employeeId);
+        UUID effectiveId = resolveEmployee(employeeId).getId();
+        return timeRecordRepository.findTodayRecordsByEmployeeId(effectiveId);
     }
 
     public List<TimeRecord> getRecordsByPeriod(UUID employeeId, LocalDate startDate, LocalDate endDate) {
+        UUID effectiveId = resolveEmployee(employeeId).getId();
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(LocalTime.MAX);
         return timeRecordRepository.findByEmployeeIdAndRecordedAtBetweenOrderByRecordedAtAsc(
-                employeeId, start, end);
+                effectiveId, start, end);
     }
 
     public Page<TimeRecord> getRecordsByEmployee(UUID employeeId, Pageable pageable) {
-        return timeRecordRepository.findByEmployeeIdOrderByRecordedAtDesc(employeeId, pageable);
+        UUID effectiveId = resolveEmployee(employeeId).getId();
+        return timeRecordRepository.findByEmployeeIdOrderByRecordedAtDesc(effectiveId, pageable);
     }
 
     public Page<TimeRecord> getPendingRecords(Pageable pageable) {
@@ -201,10 +313,8 @@ public class TimeRecordService {
     }
 
     public WorkedHoursReportDTO getWorkedHoursReport(UUID employeeId, LocalDate startDate, LocalDate endDate) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
-
-        List<TimeRecord> records = getRecordsByPeriod(employeeId, startDate, endDate);
+        Employee employee = resolveEmployee(employeeId);
+        List<TimeRecord> records = getRecordsByPeriod(employee.getId(), startDate, endDate);
 
         java.util.Map<LocalDate, DailyWorkedHoursDTO.DailyWorkedHoursDTOBuilder> dailyMap = new java.util.HashMap<>();
 
@@ -242,7 +352,8 @@ public class TimeRecordService {
     }
 
     public TimeRecord.RecordType getNextRecordType(UUID employeeId) {
-        List<TimeRecord> todayRecords = timeRecordRepository.findTodayRecordsByEmployeeId(employeeId);
+        UUID effectiveId = resolveEmployee(employeeId).getId();
+        List<TimeRecord> todayRecords = timeRecordRepository.findTodayRecordsByEmployeeId(effectiveId);
 
         if (todayRecords.isEmpty()) {
             return TimeRecord.RecordType.ENTRADA;

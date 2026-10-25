@@ -9,39 +9,40 @@
   :root,
   .white,
   .light {
-    --radius: 0.5rem;
+    --radius: 0.625rem;
     --sidebar-width: 16rem;
     --sidebar-width-mobile: 18rem;
 
-    --background: 210 20% 98.5%;
-    --foreground: 222.2 47% 11.2%;
+    /* Fundo suave off-white, descansado para a vista, clean e moderno */
+    --background: 210 25% 98.2%;
+    --foreground: 222.2 47.4% 11.2%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 47% 11.2%;
+    --card-foreground: 222.2 47.4% 11.2%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47% 11.2%;
+    --popover-foreground: 222.2 47.4% 11.2%;
     --primary: 0 84% 44%;
     /* FluxBus Crimson */
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 30% 96.1%;
+    --secondary: 210 25% 96%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 25% 95%;
-    --muted-foreground: 215 16% 40%;
-    --accent: 31 100% 50%;
-    /* Fleet Orange */
+    --muted: 210 25% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Accent suave para hovers confortáveis e elegantes (sem explosão de laranja pesado) */
+    --accent: 210 28% 95%;
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214.3 25% 88%;
-    --input: 214.3 25% 88%;
+    --border: 214.3 32% 91%;
+    --input: 214.3 32% 91%;
     --ring: 0 84% 44%;
 
-    --sidebar-background: 0 0% 99%;
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222.2 47.4% 11.2%;
     --sidebar-primary: 0 84% 44%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 210 30% 95%;
+    --sidebar-accent: 210 28% 95%;
     --sidebar-accent-foreground: 0 84% 44%;
-    --sidebar-border: 220 13% 90%;
+    --sidebar-border: 214.3 32% 91%;
     --sidebar-ring: 0 84% 44%;
   }
 
@@ -267,22 +268,49 @@
   }
 
 
-  /* Scrollbar personalizada */
+  /* Scrollbar personalizada moderna e sutil */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-seguranca-graphite;
+    background-color: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-600 rounded-full;
+    background-color: hsl(var(--muted-foreground) / 0.25);
+    border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-500;
+    background-color: hsl(var(--muted-foreground) / 0.45);
+  }
+
+  /* Suavização de elementos legados no Tema Claro / Branco (Elimina bordas pesadas e visual escuro sólido) */
+  :root:not(.dark):not(.graphite):not(.dark-red),
+  .white,
+  .light {
+    .bg-seguranca-graphite {
+      background-color: hsl(0 0% 100%) !important;
+      border-color: hsl(var(--border)) !important;
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    }
+
+    .bg-seguranca-black {
+      background-color: hsl(210 25% 98.2%) !important;
+      border-color: hsl(var(--border)) !important;
+    }
+
+    .text-seguranca-lightgray {
+      color: hsl(215.4 16.3% 38%) !important;
+    }
+
+    .border-gray-600,
+    .border-gray-700,
+    .border-gray-500 {
+      border-color: hsl(var(--border)) !important;
+    }
   }
 
   /* Animações suaves */
