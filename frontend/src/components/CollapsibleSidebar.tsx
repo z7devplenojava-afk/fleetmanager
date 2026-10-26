@@ -8,12 +8,14 @@ import UserProfileModal from './UserProfileModal';
 import Logo from './Logo';
 import { UserRole } from '@/types/user';
 import { isDriverUser } from '@/utils/roleRouting';
+import { getRoleDisplayName } from '@/utils/permissions';
 import {
   BarChart3,
   FileText,
   Calendar,
   Users,
   User2,
+  LogOut,
   ClipboardList,
   DollarSign,
   FileSpreadsheet,
@@ -1767,7 +1769,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   onToggle
 }) => {
   const location = useLocation();
-  const { user, empresa } = useAuth();
+  const { user, empresa, logout } = useAuth();
   const hasSelectedCompany = Boolean(empresa?.id || (user as any)?.companyId || (user as any)?.company?.id);
   const { forceScrollToTop } = useScrollPreservation();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -2246,33 +2248,64 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 
         {/* Footer */}
         <div className={`border-t border-[#262833] bg-[#111319] dark:bg-[#0c0e14] shrink-0 ${
-          collapsed && !isMobile ? 'p-2 flex justify-center' : 'p-4'
+          collapsed && !isMobile ? 'p-2 flex flex-col items-center gap-2' : 'p-3 flex flex-col gap-2'
         } ${isMobile ? 'pb-[calc(1rem+env(safe-area-inset-bottom))]' : ''}`}>
           {user && (
             collapsed && !isMobile ? (
-              <div
-                className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={handleProfileClick}
-                title={user?.name || 'Perfil'}
-              >
-                <User2 size={18} className="text-black" />
-              </div>
+              <>
+                <div
+                  className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={handleProfileClick}
+                  title={user?.name || 'Perfil'}
+                >
+                  <User2 size={18} className="text-black" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Deseja realmente sair do sistema?')) {
+                      logout();
+                    }
+                  }}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500/20 transition-colors"
+                  title="Sair do sistema"
+                  aria-label="Sair do sistema"
+                >
+                  <LogOut size={18} />
+                </button>
+              </>
             ) : (
-              <div
-                className="flex items-center space-x-3 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors"
-                onClick={handleProfileClick}
-              >
-                <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center shrink-0">
-                  <User2 size={16} className="text-black" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors">
-                    {user?.name || 'Usuário'}
+              <div className="flex flex-col gap-2">
+                <div
+                  className="flex items-center space-x-3 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors"
+                  onClick={handleProfileClick}
+                  title="Ver meu perfil"
+                >
+                  <div className="w-9 h-9 bg-yellow-500 rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                    <User2 size={18} className="text-black" />
                   </div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {user?.role || 'Usuário'}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-foreground truncate hover:text-primary transition-colors">
+                      {user?.name || 'Usuário'}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate uppercase font-medium">
+                      {getRoleDisplayName(user?.role)}
+                    </div>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Deseja realmente sair do sistema?')) {
+                      logout();
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/20 hover:border-red-600 rounded-lg transition-all duration-200 active:scale-[0.98]"
+                >
+                  <LogOut size={15} />
+                  <span>Sair do Sistema</span>
+                </button>
               </div>
             )
           )}

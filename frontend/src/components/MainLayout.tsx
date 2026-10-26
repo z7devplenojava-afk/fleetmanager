@@ -262,8 +262,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={logout}
-                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-3 rounded-lg text-xs border border-border transition-all hidden sm:flex"
+                onClick={() => {
+                  if (window.confirm('Deseja realmente sair do sistema?')) {
+                    logout();
+                  }
+                }}
+                className="text-red-400 hover:text-white hover:bg-red-600/90 h-8 px-2 sm:px-3 rounded-lg text-xs border border-red-500/30 transition-all flex items-center shrink-0"
                 title="Encerrar Sessão"
               >
                 <LogOut className="h-3.5 w-3.5 sm:mr-1.5" />
