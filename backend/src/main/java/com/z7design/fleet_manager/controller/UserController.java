@@ -33,8 +33,12 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import com.z7design.fleet_manager.model.Company;
+import com.z7design.fleet_manager.repository.CompanyRepository;
 
 @RestController
 @RequestMapping("/api/users")
@@ -49,15 +53,25 @@ public class UserController {
     private final UserOnlineStatusService userOnlineStatusService;
     private final LgpdConsentService lgpdConsentService;
     private final EmployeeRepository employeeRepository;
+    private final CompanyRepository companyRepository;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    @Transactional(readOnly = true)
     @Operation(summary = "Listar usuários", description = "Retorna uma lista de todos os usuários. Permite acesso para usuários autenticados (necessário para chat)")
     public ResponseEntity<List<UserListResponseDTO>> getAllUsers() {
         List<User> users = userService.findAll();
+        Map<UUID, String> companyNames = new HashMap<>();
+        try {
+            companyRepository.findAll().forEach(c -> {
+                if (c.getId() != null && c.getName() != null) {
+                    companyNames.put(c.getId(), c.getName());
+                }
+            });
+        } catch (Exception e) {
+            log.warn("Erro ao carregar nomes das empresas: {}", e.getMessage());
+        }
         List<UserListResponseDTO> dtos = users.stream()
-                .map(this::convertToDTO)
+                .map(user -> convertToDTO(user, companyNames))
                 .filter(dto -> dto != null)
                 .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -65,7 +79,6 @@ public class UserController {
 
     @GetMapping("/profile")
     @PreAuthorize("isAuthenticated()")
-    @Transactional(readOnly = true)
     @Operation(summary = "Buscar próprio perfil", description = "Retorna as informações do perfil do usuário logado")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Perfil encontrado com sucesso"),
@@ -173,11 +186,9 @@ public class UserController {
                     employeeId = emp.getId();
                     if (emp.getUser() == null || !currentUser.getId().equals(emp.getUser().getId())) {
                         try {
-                            emp.setUser(currentUser);
-                            employeeRepository.save(emp);
-                            log.info("🔗 Vínculo automático restaurado em getProfile entre User @{} e Employee {}", currentUser.getUsername(), emp.getId());
+                            userService.autoLinkEmployeeIfMatched(currentUser);
                         } catch (Exception exLink) {
-                            log.debug("Erro ao persistir vínculo em getProfile: {}", exLink.getMessage());
+                            log.debug("Erro ao tentar auto-vínculo em getProfile: {}", exLink.getMessage());
                         }
                     }
                     try {
@@ -249,7 +260,6 @@ public class UserController {
 
     @PutMapping("/profile")
     @PreAuthorize("isAuthenticated()")
-    @Transactional
     @Operation(summary = "Atualizar próprio perfil", description = "Permite ao usuário atualizar suas próprias informações")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Perfil atualizado com sucesso"),
@@ -317,7 +327,6 @@ public class UserController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    @Transactional(readOnly = true)
     @Operation(summary = "Buscar usuário por ID", description = "Retorna um usuário específico pelo ID. Permite acesso para usuários autenticados (necessário para chat)")
     public ResponseEntity<?> getUserById(@PathVariable("id") String id) {
         try {
@@ -377,7 +386,6 @@ public class UserController {
 
     @GetMapping("/username/{username}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN') or hasAuthority('USERS_READ')")
-    @Transactional(readOnly = true)
     @Operation(summary = "Buscar usuário por username", description = "Retorna um usuário específico pelo username")
     public ResponseEntity<UserListResponseDTO> getUserByUsername(@PathVariable("username") String username) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -397,7 +405,6 @@ public class UserController {
 
     @GetMapping("/email/{email}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN') or hasAuthority('USERS_READ')")
-    @Transactional(readOnly = true)
     @Operation(summary = "Buscar usuário por email", description = "Retorna um usuário específico pelo email")
     public ResponseEntity<UserListResponseDTO> getUserByEmail(@PathVariable("email") String email) {
         User user = userService.findByEmail(email)
@@ -408,7 +415,6 @@ public class UserController {
 
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN') or hasAuthority('USERS_READ')")
-    @Transactional(readOnly = true)
     @Operation(summary = "Buscar usuários", description = "Busca usuários por nome, email ou username com filtro dinâmico")
     public ResponseEntity<List<UserListResponseDTO>> searchUsers(
             @RequestParam(name = "query", required = false) String query) {
@@ -430,7 +436,6 @@ public class UserController {
 
     @GetMapping("/cpf/{cpf}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN') or hasAuthority('USERS_READ')")
-    @Transactional(readOnly = true)
     @Operation(summary = "Buscar usuário por CPF", description = "Busca usuário através do CPF do funcionário associado")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Usuário encontrado"),
@@ -478,7 +483,6 @@ public class UserController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN')")
-    @Transactional
     @Operation(summary = "Atualizar usuÃ¡rio", description = "Atualiza os dados de um usuÃ¡rio existente")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "UsuÃ¡rio atualizado com sucesso"),
@@ -566,6 +570,10 @@ public class UserController {
      * MÃ©todo helper para converter User para UserListResponseDTO
      */
     private UserListResponseDTO convertToDTO(User user) {
+        return convertToDTO(user, null);
+    }
+
+    private UserListResponseDTO convertToDTO(User user, Map<UUID, String> companyNames) {
         if (user == null) {
             return null;
         }
@@ -620,14 +628,15 @@ public class UserController {
         dto.setBlockedBy(user.getBlockedBy());
         if (user.getCompanyId() != null) {
             dto.setCompanyId(user.getCompanyId().toString());
-        }
-        try {
-            if (user.getCompany() != null) {
-                dto.setCompanyName(user.getCompany().getName());
+            if (companyNames != null && companyNames.containsKey(user.getCompanyId())) {
+                dto.setCompanyName(companyNames.get(user.getCompanyId()));
+            } else {
+                try {
+                    companyRepository.findById(user.getCompanyId()).ifPresent(c -> dto.setCompanyName(c.getName()));
+                } catch (Exception e) {
+                    log.debug("Erro ao buscar empresa por ID {}: {}", user.getCompanyId(), e.getMessage());
+                }
             }
-        } catch (Exception e) {
-            log.warn("Erro ao carregar empresa do usuário {}: {}", user.getId(), e.getMessage());
-            dto.setCompanyId(user.getCompanyId() != null ? user.getCompanyId().toString() : null);
         }
 
         // Status online/offline

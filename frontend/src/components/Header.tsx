@@ -7,20 +7,21 @@ import UserMenu from './UserMenu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ui/theme-toggle';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 
 const Header: React.FC = () => {
   const { profile, empresa, user } = useAuth();
   const username = profile?.full_name || profile?.username || 'Usuário';
+  const [logoError, setLogoError] = React.useState(false);
 
   // Se o usuário não tiver empresa associada (ou for SUPER_ADMIN sem empresa selecionada), usa o padrão FluxBus
   const hasSelectedCompany = Boolean(empresa?.id || (user as any)?.companyId || (user as any)?.company?.id);
 
   // Monta URL completa da logo da empresa (se relativa)
-  const logoSrc = (hasSelectedCompany && empresa?.logoUrl)
-    ? empresa.logoUrl.startsWith('http')
-      ? empresa.logoUrl
-      : `${getApiUrl().replace(/\/api\/?$/, '')}${empresa.logoUrl.startsWith('/') ? '' : '/'}${empresa.logoUrl}`
+  const resolvedLogo = (hasSelectedCompany && empresa?.logoUrl)
+    ? resolveCompanyLogoUrl(empresa.logoUrl)
     : null;
+  const logoSrc = (!logoError && resolvedLogo) ? resolvedLogo : null;
 
   return (
     <header
@@ -37,6 +38,7 @@ const Header: React.FC = () => {
               <img
                 src={logoSrc}
                 alt={empresa?.nome || 'Empresa'}
+                onError={() => setLogoError(true)}
                 className="h-10 md:h-12 w-auto object-contain min-w-[36px] max-h-12"
               />
               {empresa?.nome && (

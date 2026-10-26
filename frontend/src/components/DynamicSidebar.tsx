@@ -72,6 +72,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApiUrl } from '@/config/environment';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import { hasPermission as checkPermission } from '@/utils/permissions';
 import { UserRole } from '@/types/user';
 
@@ -1239,6 +1240,7 @@ export function DynamicSidebar() {
   const location = useLocation();
   const { user, empresa } = useAuth();
   const { forceScrollToTop } = useScrollPreservation();
+  const [sidebarLogoError, setSidebarLogoError] = React.useState(false);
 
   console.log('🔍 DynamicSidebar - Iniciando componente');
   console.log('🔍 DynamicSidebar - Usuário:', user);
@@ -2170,11 +2172,12 @@ export function DynamicSidebar() {
   return (
     <Sidebar className="bg-seguranca-graphite border-r border-gray-700">
       <SidebarHeader className="p-4 border-b border-gray-700">
-        {empresa?.logoUrl ? (
+        {(!sidebarLogoError && empresa?.logoUrl) ? (
           <div className="flex items-center gap-3">
             <img
-              src={empresa.logoUrl.startsWith('http') ? empresa.logoUrl : `${getApiUrl().replace(/\/api\/?$/, '')}${empresa.logoUrl.startsWith('/') ? '' : '/'}${empresa.logoUrl}`}
+              src={resolveCompanyLogoUrl(empresa.logoUrl) || undefined}
               alt={empresa.nome}
+              onError={() => setSidebarLogoError(true)}
               className="h-10 w-10 object-contain rounded"
             />
             <span className="font-bold text-white truncate">{empresa.nome}</span>
