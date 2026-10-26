@@ -56,7 +56,8 @@ import {
   Droplets,
   Ruler,
   Warehouse,
-  ShieldCheck
+  ShieldCheck,
+  LogOut
 } from 'lucide-react';
 import {
   Sidebar,
@@ -1238,7 +1239,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
 
 export function DynamicSidebar() {
   const location = useLocation();
-  const { user, empresa } = useAuth();
+  const { user, empresa, signOut } = useAuth();
   const { forceScrollToTop } = useScrollPreservation();
   const [sidebarLogoError, setSidebarLogoError] = React.useState(false);
 
@@ -2947,21 +2948,34 @@ export function DynamicSidebar() {
 
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-gray-700">
-        <div className="flex items-center">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${user?.role === 'SUPER_ADMIN' ? 'bg-red-500' : 'bg-seguranca-red'
-            }`}>
-            {user?.name?.charAt(0) || 'A'}
-          </div>
-          <div className="ml-3 min-w-0">
-            <div className="text-sm font-medium text-seguranca-lightgray truncate">
-              {user?.name || 'Usuário'}
+      <SidebarFooter className="p-3 sm:p-4 border-t border-gray-700 bg-seguranca-graphite/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center min-w-0 flex-1">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${user?.role === 'SUPER_ADMIN' ? 'bg-red-500' : 'bg-seguranca-red'
+              }`}>
+              {user?.name?.charAt(0) || 'A'}
             </div>
-            <div className="text-xs text-gray-400 truncate">
-              {getRoleDisplayName(user?.role || '')}
-              {user?.role === 'SUPER_ADMIN' && ' 🟥'}
+            <div className="ml-2.5 min-w-0 flex-1">
+              <div className="text-xs sm:text-sm font-medium text-seguranca-lightgray truncate">
+                {user?.name || 'Usuário'}
+              </div>
+              <div className="text-[11px] text-gray-400 truncate">
+                {getRoleDisplayName(user?.role || '')}
+                {user?.role === 'SUPER_ADMIN' && ' 🟥'}
+              </div>
             </div>
           </div>
+
+          {/* Botão Sair na Sidebar */}
+          <button
+            onClick={() => signOut()}
+            title="Sair do sistema"
+            aria-label="Sair do sistema"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/90 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-all active:scale-95 shadow-sm shadow-red-600/30 flex-shrink-0"
+          >
+            <LogOut size={14} />
+            <span>Sair</span>
+          </button>
         </div>
       </SidebarFooter>
     </Sidebar>
