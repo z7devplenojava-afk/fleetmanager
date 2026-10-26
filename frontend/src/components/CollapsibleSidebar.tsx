@@ -2152,9 +2152,9 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       {/* Sidebar - 100% opaca com fundo sólido para evitar vazamento do conteúdo */}
       <aside
         className={`
-          fixed left-0 top-0 h-screen bg-[#111319] dark:bg-[#0c0e14] text-sidebar-foreground border-r border-[#262833]
+          fixed left-0 top-0 bottom-0 h-full max-h-[100dvh] bg-[#111319] dark:bg-[#0c0e14] text-sidebar-foreground border-r border-[#262833]
           flex flex-col transition-transform duration-300 ease-in-out z-50 shadow-2xl
-          ${isMobile ? 'w-[82vw] max-w-[320px]' : (collapsed ? 'w-16' : 'w-64')}
+          ${isMobile ? 'w-[85vw] max-w-[320px]' : (collapsed ? 'w-16' : 'w-64')}
           ${isMobile && collapsed ? '-translate-x-full pointer-events-none invisible' : 'translate-x-0 visible'}
         `}
       >
@@ -2246,12 +2246,26 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 
           {/* Módulo Sistema - SUPER_ADMIN */}
           {user?.role === 'SUPER_ADMIN' && renderModuleSection('sistema', 'Sistema', filteredSistemaItems)}
+
+          {/* Opção adicional de Sair no rodapé do menu de rolagem para mobile */}
+          {isMobile && (
+            <div className="px-4 pt-3 pb-6 border-t border-white/5 mt-4">
+              <button
+                type="button"
+                onClick={() => setIsLogoutModalOpen(true)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/20 transition-all active:scale-98"
+              >
+                <LogOut size={16} />
+                <span>Sair do Sistema</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className={`border-t border-[#262833] bg-[#111319] dark:bg-[#0c0e14] shrink-0 ${
-          collapsed && !isMobile ? 'p-2 flex flex-col items-center gap-2' : 'p-3 flex flex-col gap-2'
-        } ${isMobile ? 'pb-[calc(1rem+env(safe-area-inset-bottom))]' : ''}`}>
+          collapsed && !isMobile ? 'p-2 flex flex-col items-center gap-2' : 'p-2.5 sm:p-3'
+        } ${isMobile ? 'pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]' : ''}`}>
           {user && (
             collapsed && !isMobile ? (
               <>
@@ -2273,20 +2287,20 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                 </button>
               </>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/[0.04] border border-white/5">
                 <div
-                  className="flex items-center space-x-3 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors"
+                  className="flex items-center space-x-2.5 cursor-pointer min-w-0 flex-1 hover:opacity-80 transition-opacity"
                   onClick={handleProfileClick}
                   title="Ver meu perfil"
                 >
-                  <div className="w-9 h-9 bg-yellow-500 rounded-full flex items-center justify-center shrink-0 shadow-sm">
-                    <User2 size={18} className="text-black" />
+                  <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                    <User2 size={16} className="text-black" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-foreground truncate hover:text-primary transition-colors">
+                    <div className="text-xs font-semibold text-foreground truncate">
                       {user?.name || 'Usuário'}
                     </div>
-                    <div className="text-xs text-muted-foreground truncate uppercase font-medium">
+                    <div className="text-[10px] text-muted-foreground truncate uppercase font-medium">
                       {getRoleDisplayName(user?.role)}
                     </div>
                   </div>
@@ -2295,10 +2309,11 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsLogoutModalOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/20 hover:border-red-600 rounded-lg transition-all duration-200 active:scale-[0.98]"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/30 hover:border-red-600 rounded-lg transition-all shrink-0 active:scale-95 shadow-sm"
+                  title="Sair do sistema"
                 >
-                  <LogOut size={15} />
-                  <span>Sair do Sistema</span>
+                  <LogOut size={14} />
+                  <span>Sair</span>
                 </button>
               </div>
             )
