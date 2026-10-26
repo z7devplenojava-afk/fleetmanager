@@ -19,6 +19,7 @@ import { useSidebar } from '@/hooks/useSidebar';
 import { Breadcrumb } from './Breadcrumb';
 import { NotificationBell } from './NotificationBell';
 import UserProfileModal from './UserProfileModal';
+import { LogoutConfirmModal } from './LogoutConfirmModal';
 import { BottomNav } from './BottomNav';
 import ThemeToggle from './ThemeToggle';
 import Logo from './Logo';
@@ -43,6 +44,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const { user, logout, empresa } = useAuth();
   const { collapsed, isMobile, toggleSidebar } = useSidebar();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [unreadChats, setUnreadChats] = useState(0);
@@ -262,11 +264,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  if (window.confirm('Deseja realmente sair do sistema?')) {
-                    logout();
-                  }
-                }}
+                onClick={() => setIsLogoutModalOpen(true)}
                 className="text-red-400 hover:text-white hover:bg-red-600/90 h-8 px-2 sm:px-3 rounded-lg text-xs border border-red-500/30 transition-all flex items-center shrink-0"
                 title="Encerrar Sessão"
               >
@@ -349,6 +347,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         isOpen={isHelpModalOpen}
         onClose={() => setIsHelpModalOpen(false)}
         onOpenWelcomeTour={() => setIsWelcomeModalOpen(true)}
+      />
+
+      {/* Modal de Confirmação de Saída */}
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={logout}
       />
     </div>
   );

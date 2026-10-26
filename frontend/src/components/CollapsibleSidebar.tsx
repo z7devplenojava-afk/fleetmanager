@@ -5,6 +5,7 @@ import { useScrollPreservation } from '@/hooks/useScrollPreservation';
 import { Button } from '@/components/ui/button';
 import { ScrollPreservingLink } from './ScrollPreservingLink';
 import UserProfileModal from './UserProfileModal';
+import { LogoutConfirmModal } from './LogoutConfirmModal';
 import Logo from './Logo';
 import { UserRole } from '@/types/user';
 import { isDriverUser } from '@/utils/roleRouting';
@@ -1773,6 +1774,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const hasSelectedCompany = Boolean(empresa?.id || (user as any)?.companyId || (user as any)?.company?.id);
   const { forceScrollToTop } = useScrollPreservation();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const userRoles = useMemo(() => {
     const rolesSet = new Set<string>();
@@ -2262,11 +2264,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm('Deseja realmente sair do sistema?')) {
-                      logout();
-                    }
-                  }}
+                  onClick={() => setIsLogoutModalOpen(true)}
                   className="w-10 h-10 rounded-lg flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500/20 transition-colors"
                   title="Sair do sistema"
                   aria-label="Sair do sistema"
@@ -2296,11 +2294,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm('Deseja realmente sair do sistema?')) {
-                      logout();
-                    }
-                  }}
+                  onClick={() => setIsLogoutModalOpen(true)}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/20 hover:border-red-600 rounded-lg transition-all duration-200 active:scale-[0.98]"
                 >
                   <LogOut size={15} />
@@ -2316,6 +2310,13 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       <UserProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
+      />
+
+      {/* Modal de Confirmação de Saída */}
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={logout}
       />
     </>
   );
