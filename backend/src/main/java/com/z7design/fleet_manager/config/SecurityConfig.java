@@ -524,11 +524,6 @@ public class SecurityConfig {
                 return authProvider;
         }
 
-        @Bean
-        public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-                return config.getAuthenticationManager();
-        }
-
         // Ajusta o prefixo padrÃƒÂ£o de roles para vazio, permitindo usar nomes como
         // "SUPER_ADMIN"
         @Bean
