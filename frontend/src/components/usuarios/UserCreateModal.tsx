@@ -435,7 +435,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[96vw] max-w-2xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-seguranca-graphite border-gray-700/80 shadow-2xl rounded-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5 text-seguranca-red" />
@@ -638,15 +638,15 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsEmployeeComboboxOpen(prev => !prev)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-md bg-seguranca-black border border-gray-600 text-seguranca-lightgray hover:border-gray-500 focus:outline-none focus:ring-1 focus:ring-seguranca-red text-left"
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-md bg-seguranca-black border border-gray-600 text-seguranca-lightgray hover:border-gray-500 focus:outline-none focus:ring-1 focus:ring-seguranca-red text-left min-w-0"
                   >
                     {selectedEmployeeId !== 'none' && linkedEmployee ? (
-                      <div className="flex items-center gap-1.5 truncate">
+                      <div className="flex items-center gap-1.5 truncate min-w-0">
                         <Users className="h-3.5 w-3.5 text-seguranca-red shrink-0" />
                         <span className="font-semibold text-white truncate">{linkedEmployee.name}</span>
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-xs">Pesquisar ou selecionar colaborador...</span>
+                      <span className="text-gray-400 text-xs truncate">Pesquisar ou selecionar colaborador...</span>
                     )}
                     <ChevronsUpDown className="h-3.5 w-3.5 opacity-50 shrink-0 ml-2" />
                   </button>
