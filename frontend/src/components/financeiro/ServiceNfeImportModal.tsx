@@ -250,7 +250,20 @@ export const ServiceNfeImportModal: React.FC<ServiceNfeImportModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto bg-zinc-900/95 backdrop-blur-md border border-zinc-700/80 shadow-2xl text-zinc-100 rounded-2xl p-6">
+      <DialogContent 
+        className="max-w-4xl max-h-[92vh] overflow-y-auto bg-zinc-900/95 backdrop-blur-md border border-zinc-700/80 shadow-2xl text-zinc-100 rounded-2xl p-6"
+        onPointerDownOutside={(e) => {
+          e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (parsedData || processing) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader className="pb-3 border-b border-zinc-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
