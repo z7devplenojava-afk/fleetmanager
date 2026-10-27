@@ -5,15 +5,18 @@ import { useScrollPreservation } from '@/hooks/useScrollPreservation';
 import { Button } from '@/components/ui/button';
 import { ScrollPreservingLink } from './ScrollPreservingLink';
 import UserProfileModal from './UserProfileModal';
+import { LogoutConfirmModal } from './LogoutConfirmModal';
 import Logo from './Logo';
 import { UserRole } from '@/types/user';
 import { isDriverUser } from '@/utils/roleRouting';
+import { getRoleDisplayName } from '@/utils/permissions';
 import {
   BarChart3,
   FileText,
   Calendar,
   Users,
   User2,
+  LogOut,
   ClipboardList,
   DollarSign,
   FileSpreadsheet,
@@ -1103,12 +1106,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1165,12 +1162,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1227,12 +1218,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1289,12 +1274,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1767,10 +1746,11 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   onToggle
 }) => {
   const location = useLocation();
-  const { user, empresa } = useAuth();
+  const { user, empresa, logout } = useAuth();
   const hasSelectedCompany = Boolean(empresa?.id || (user as any)?.companyId || (user as any)?.company?.id);
   const { forceScrollToTop } = useScrollPreservation();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const userRoles = useMemo(() => {
     const rolesSet = new Set<string>();
@@ -2148,9 +2128,9 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       {/* Sidebar - 100% opaca com fundo sólido para evitar vazamento do conteúdo */}
       <aside
         className={`
-          fixed left-0 top-0 h-screen bg-[#111319] dark:bg-[#0c0e14] text-sidebar-foreground border-r border-[#262833]
+          fixed left-0 top-0 bottom-0 h-full max-h-[100dvh] bg-[#111319] dark:bg-[#0c0e14] text-sidebar-foreground border-r border-[#262833]
           flex flex-col transition-transform duration-300 ease-in-out z-50 shadow-2xl
-          ${isMobile ? 'w-[82vw] max-w-[320px]' : (collapsed ? 'w-16' : 'w-64')}
+          ${isMobile ? 'w-[85vw] max-w-[320px]' : (collapsed ? 'w-16' : 'w-64')}
           ${isMobile && collapsed ? '-translate-x-full pointer-events-none invisible' : 'translate-x-0 visible'}
         `}
       >
@@ -2242,37 +2222,63 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 
           {/* Módulo Sistema - SUPER_ADMIN */}
           {user?.role === 'SUPER_ADMIN' && renderModuleSection('sistema', 'Sistema', filteredSistemaItems)}
+
+
         </div>
 
         {/* Footer */}
         <div className={`border-t border-[#262833] bg-[#111319] dark:bg-[#0c0e14] shrink-0 ${
-          collapsed && !isMobile ? 'p-2 flex justify-center' : 'p-4'
-        } ${isMobile ? 'pb-[calc(1rem+env(safe-area-inset-bottom))]' : ''}`}>
+          collapsed && !isMobile ? 'p-2 flex flex-col items-center gap-2' : 'p-2.5 sm:p-3'
+        } ${isMobile ? 'pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]' : ''}`}>
           {user && (
             collapsed && !isMobile ? (
-              <div
-                className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={handleProfileClick}
-                title={user?.name || 'Perfil'}
-              >
-                <User2 size={18} className="text-black" />
-              </div>
+              <>
+                <div
+                  className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={handleProfileClick}
+                  title={user?.name || 'Perfil'}
+                >
+                  <User2 size={18} className="text-black" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsLogoutModalOpen(true)}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500/20 transition-colors"
+                  title="Sair do sistema"
+                  aria-label="Sair do sistema"
+                >
+                  <LogOut size={18} />
+                </button>
+              </>
             ) : (
-              <div
-                className="flex items-center space-x-3 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors"
-                onClick={handleProfileClick}
-              >
-                <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center shrink-0">
-                  <User2 size={16} className="text-black" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors">
-                    {user?.name || 'Usuário'}
+              <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/[0.04] border border-white/5">
+                <div
+                  className="flex items-center space-x-2.5 cursor-pointer min-w-0 flex-1 hover:opacity-80 transition-opacity"
+                  onClick={handleProfileClick}
+                  title="Ver meu perfil"
+                >
+                  <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                    <User2 size={16} className="text-black" />
                   </div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {user?.role || 'Usuário'}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-foreground truncate">
+                      {user?.name || 'Usuário'}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground truncate uppercase font-medium">
+                      {getRoleDisplayName(user?.role)}
+                    </div>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsLogoutModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/30 hover:border-red-600 rounded-lg transition-all shrink-0 active:scale-95 shadow-sm"
+                  title="Sair do sistema"
+                >
+                  <LogOut size={14} />
+                  <span>Sair</span>
+                </button>
               </div>
             )
           )}
@@ -2283,6 +2289,13 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       <UserProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
+      />
+
+      {/* Modal de Confirmação de Saída */}
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={logout}
       />
     </>
   );

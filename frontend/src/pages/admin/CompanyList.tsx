@@ -114,9 +114,9 @@ export const CompanyList: React.FC = () => {
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center space-x-3">
                                         <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center p-1">
-                                            {company.logoUrl ? (
+                                            {resolveCompanyLogoUrl(company.logoUrl) ? (
                                                 <img
-                                                    src={resolveCompanyLogoUrl(company.logoUrl) || company.logoUrl}
+                                                    src={resolveCompanyLogoUrl(company.logoUrl)!}
                                                     alt={company.name}
                                                     className="w-full h-full object-contain"
                                                     onError={(e) => {

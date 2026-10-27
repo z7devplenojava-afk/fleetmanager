@@ -87,16 +87,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const savedEmpresa = localStorage.getItem('empresa');
           const empresaData = savedEmpresa ? JSON.parse(savedEmpresa) : null;
           if (empresaData) {
+            if (empresaData.logoUrl && empresaData.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) {
+              empresaData.logoUrl = null;
+              try {
+                localStorage.setItem('empresa', JSON.stringify(empresaData));
+              } catch (_) {}
+            }
             console.log('🔍 AuthContext: Empresa carregada do localStorage:', empresaData);
             setEmpresa(empresaData);
-          } else if (userData.companyId) {
+          }
+
+          if (userData?.company?.logoUrl && userData.company.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) {
+            userData.company.logoUrl = null;
+          }
+
+          if (userData.companyId) {
             companyService.getCompanyById(userData.companyId)
               .then((comp) => {
                 if (comp) {
+                  const cleanLogoUrl = (comp.logoUrl && comp.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) ? null : comp.logoUrl;
                   const fetchedEmpresa: EmpresaInfo = {
                     id: comp.id || userData.companyId,
                     nome: comp.name || comp.nome || '',
-                    logoUrl: comp.logoUrl,
+                    logoUrl: cleanLogoUrl,
                     temaCor: comp.temaCor,
                     branchName: comp.branchName,
                     unitName: comp.unitName,
@@ -104,14 +117,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   };
                   setEmpresa(fetchedEmpresa);
                   localStorage.setItem('empresa', JSON.stringify(fetchedEmpresa));
-                  console.log('✅ AuthContext: Empresa obtida do backend:', fetchedEmpresa);
+                  console.log('✅ AuthContext: Empresa atualizada do backend:', fetchedEmpresa);
                 }
               })
               .catch((err) => {
                 console.warn('⚠️ AuthContext: Não foi possível obter dados da empresa do backend:', err);
               });
-          } else {
-            // Se não houver empresa no localStorage, mas o usuário for um papel administrativo forte, apenas informa
+          } else if (!empresaData) {
+            // Se não houver empresa no localStorage nem companyId
             if (userData.role === 'SUPER_ADMIN' || userData.role === 'FLEX_ADMIN') {
               console.log('ℹ️ AuthContext: Usuário administrativo carregado sem empresa (comportamento esperado).');
             } else {
@@ -589,6 +602,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           primaryRole = 'MOTORISTA';
         }
 
+        const newCompanyId = response.data.companyId !== undefined 
+          ? response.data.companyId 
+          : (response.data.company?.id || null);
+
         const updatedUser = {
           ...userData,
           id: response.data.id || userData.id,
@@ -602,7 +619,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           position: position,
           department: department,
           isDriver: isDriver,
-          employeeId: response.data.employeeId || userData.employeeId,
+          employeeId: response.data.employeeId !== undefined ? response.data.employeeId : userData.employeeId,
+          companyId: newCompanyId,
+          company: response.data.company || null,
           firstAccessCompleted: response.data.firstAccessCompleted !== undefined
             ? response.data.firstAccessCompleted
             : userData.firstAccessCompleted,
@@ -610,6 +629,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             ? response.data.requiresLgpdConsent
             : userData.requiresLgpdConsent,
         };
+
+        // Atualizar estado da empresa local se a empresa do usuário mudou ou foi desvinculada
+        if (!newCompanyId) {
+          setEmpresa(null);
+          localStorage.removeItem('empresa');
+        } else if (response.data.company) {
+          const comp = response.data.company;
+          const cleanLogoUrl = (comp.logoUrl && comp.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) ? null : comp.logoUrl;
+          const empresaData: EmpresaInfo = {
+            id: comp.id || newCompanyId,
+            nome: comp.name || comp.nome || '',
+            logoUrl: cleanLogoUrl,
+            temaCor: comp.temaCor,
+            branchName: comp.branchName,
+            unitName: comp.unitName,
+            enabledFeatures: comp.enabledFeatures || []
+          };
+          setEmpresa(empresaData);
+          localStorage.setItem('empresa', JSON.stringify(empresaData));
+        }
+
         const rolePermissions = generatePermissions(updatedUser.role);
         const userWithPermissions = {
           ...updatedUser,
@@ -682,9 +722,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setRequiresLgpdConsent,
     hasRole: (role: UserRole | string) => {
       if (!user) return false;
-      // Trata tanto o papel principal (role) quanto a lista de papéis (roles)
+      const normalize = (r: any): string => {
+        if (!r) return '';
+        const name = typeof r === 'string' ? r : (r.name || r.authority || '');
+        return name.replace(/^ROLE_/, '').toUpperCase();
+      };
+      const targetRole = normalize(role);
+      if (normalize(user.role) === targetRole) return true;
       const rolesToMatch = Array.isArray((user as any).roles) ? (user as any).roles : [];
-      return user.role === role || rolesToMatch.includes(role);
+      return rolesToMatch.some((r: any) => normalize(r) === targetRole);
     },
   };
 

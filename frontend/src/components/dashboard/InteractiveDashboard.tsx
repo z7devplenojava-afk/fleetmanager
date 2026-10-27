@@ -37,6 +37,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { resolveAvatarUrl } from '@/utils/logoUtils';
 import { useToast } from '@/hooks/use-toast';
 import { hasPermission, hasAnyPermission, getRoleDisplayName, getRoleColor } from '@/utils/permissions';
 import { UserPermissions } from '@/types/user';
@@ -315,7 +316,7 @@ const InteractiveDashboard: React.FC = () => {
       <CardHeader className="text-center pb-4 space-y-4">
         <div className="flex justify-center mb-2">
           <Avatar className="h-20 w-20 border-2 border-seguranca-yellow/80">
-            <AvatarImage src={user?.avatar} />
+            <AvatarImage src={resolveAvatarUrl(user?.avatar) || undefined} alt={user?.name || 'Avatar'} />
             <AvatarFallback className="bg-seguranca-yellow text-black text-xl font-bold">
               {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
             </AvatarFallback>

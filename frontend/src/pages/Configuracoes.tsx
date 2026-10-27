@@ -812,11 +812,11 @@ const Configuracoes = () => {
                     </label>
                   </div>
 
-                  {empresaForm.logoUrl ? (
+                  {resolveCompanyLogoUrl(empresaForm.logoUrl) ? (
                     <div className="flex items-start gap-4 p-4 bg-seguranca-black/50 rounded-lg border border-gray-700">
                       <div className="relative flex-shrink-0">
                         <img 
-                          src={resolveCompanyLogoUrl(empresaForm.logoUrl) || empresaForm.logoUrl} 
+                          src={resolveCompanyLogoUrl(empresaForm.logoUrl)!} 
                           alt={`Logo ${empresaForm.name || 'Empresa'}`}
                           className="max-h-28 max-w-28 object-contain rounded-lg border border-gray-600 bg-gray-900 p-2"
                           onError={(e) => {

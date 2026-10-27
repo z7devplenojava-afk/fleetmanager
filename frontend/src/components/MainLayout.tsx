@@ -19,6 +19,7 @@ import { useSidebar } from '@/hooks/useSidebar';
 import { Breadcrumb } from './Breadcrumb';
 import { NotificationBell } from './NotificationBell';
 import UserProfileModal from './UserProfileModal';
+import { LogoutConfirmModal } from './LogoutConfirmModal';
 import { BottomNav } from './BottomNav';
 import ThemeToggle from './ThemeToggle';
 import Logo from './Logo';
@@ -43,6 +44,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const { user, logout, empresa } = useAuth();
   const { collapsed, isMobile, toggleSidebar } = useSidebar();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [unreadChats, setUnreadChats] = useState(0);
@@ -258,17 +260,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               <NotificationBell />
 
               <ThemeToggle />
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-3 rounded-lg text-xs border border-border transition-all hidden sm:flex"
-                title="Encerrar Sessão"
-              >
-                <LogOut className="h-3.5 w-3.5 sm:mr-1.5" />
-                <span className="hidden sm:inline">Sair</span>
-              </Button>
             </div>
           </div>
         </header>
@@ -345,6 +336,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         isOpen={isHelpModalOpen}
         onClose={() => setIsHelpModalOpen(false)}
         onOpenWelcomeTour={() => setIsWelcomeModalOpen(true)}
+      />
+
+      {/* Modal de Confirmação de Saída */}
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={logout}
       />
     </div>
   );

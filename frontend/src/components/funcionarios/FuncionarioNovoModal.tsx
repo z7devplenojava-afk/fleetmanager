@@ -107,6 +107,7 @@ const initialState: CreateEmployeeDTO = {
 const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClose, onCreated, employeeToEdit }) => {
   const { toast } = useToast();
   const { user: authUser, empresa: authEmpresa } = useAuth();
+  const isSuperAdmin = (authUser?.role ?? '').toUpperCase().includes('SUPER_ADMIN') || (authUser?.role ?? '').toUpperCase().includes('FLEX_ADMIN');
   const [form, setForm] = useState<CreateEmployeeDTO>(initialState);
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -465,10 +466,22 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         console.log('🔍 Carregando unidade:', employeeToEdit.unit);
         setSelectedUnit(employeeToEdit.unit);
       }
-      if (employeeToEdit.user) {
+      if (employeeToEdit.user && (employeeToEdit.user.id || (employeeToEdit.user as any).name)) {
         console.log('🔍 Carregando usuário:', employeeToEdit.user);
-        setSelectedUser(employeeToEdit.user);
-        setUserSearchTerm(employeeToEdit.user.name || employeeToEdit.user.username || '');
+        const u = employeeToEdit.user;
+        setSelectedUser(u);
+        const displayName = u.name || (u as any).username || '';
+        setUserSearchTerm(displayName);
+        if (!displayName && u.id) {
+          userService.getUserById(u.id)
+            .then(userData => {
+              if (userData) {
+                setSelectedUser(userData);
+                setUserSearchTerm(userData.name || userData.username || '');
+              }
+            })
+            .catch(err => console.warn('Erro ao resolver usuário de employeeToEdit:', err));
+        }
       }
       if (employeeToEdit.company && employeeToEdit.company.id) {
         console.log('🔍 Carregando empresa:', employeeToEdit.company);
@@ -536,37 +549,59 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
     loadWorkPostsAndDepartments();
   }, []);
 
-  // Atualizar selectedCompany quando companies forem carregadas e houver employeeToEdit
+  // Gerenciar empresa selecionada (SUPER_ADMIN vs Usuário de empresa)
   useEffect(() => {
-    if (employeeToEdit?.company?.id && companies.length > 0) {
-      const fullCompany = companies.find(c => c.id === employeeToEdit.company?.id);
-      if (fullCompany && (!selectedCompany || selectedCompany.id !== fullCompany.id)) {
-        console.log('🔍 Atualizando empresa com dados completos:', fullCompany);
-        setSelectedCompany(fullCompany);
-      }
-    }
-  }, [companies, employeeToEdit?.company?.id]);
+    if (!open) return;
 
-  // Auto-selecionar empresa do usuário logado para novo funcionário
-  useEffect(() => {
-    if (open && !employeeToEdit && companies.length > 0) {
-      const loggedCompanyId = authEmpresa?.id || (authUser as any)?.companyId;
-      if (loggedCompanyId && (!form.company?.id || form.company.id === '')) {
-        const found = companies.find(c => c.id === loggedCompanyId);
-        if (found) {
-          console.log('🏢 Auto-selecionando empresa do usuário logado:', found.name);
-          setSelectedCompany(found);
+    const loggedCompanyId = authEmpresa?.id || (authUser as any)?.companyId || (authUser as any)?.company?.id;
+    const userCompany = companies.find(c => c.id === loggedCompanyId) || (authEmpresa?.id ? {
+      id: authEmpresa.id,
+      name: authEmpresa.nome,
+      sigla: (authEmpresa as any).sigla || '',
+      cnpj: (authEmpresa as any).cnpj || '',
+      address: (authEmpresa as any).address || ''
+    } as Company : null);
+
+    if (!isSuperAdmin) {
+      // Regra obrigatória: Não-SuperAdmin SEMPRE tem vinculada a empresa a qual pertence (criação e edição)
+      if (userCompany) {
+        if (!selectedCompany || selectedCompany.id !== userCompany.id) {
+          console.log('🏢 Definindo empresa do usuário logado (não-SuperAdmin):', userCompany.name);
+          setSelectedCompany(userCompany);
+        }
+        if (!form.company?.id || form.company.id !== userCompany.id) {
           setForm(prev => ({
             ...prev,
-            company: { id: found.id },
-            empresaNome: found.name,
-            empresaCnpj: found.cnpj || '',
-            empresaEndereco: found.address || ''
+            company: { id: userCompany.id },
+            empresaNome: userCompany.name,
+            empresaCnpj: userCompany.cnpj || prev.empresaCnpj || '',
+            empresaEndereco: userCompany.address || prev.empresaEndereco || ''
           }));
         }
       }
+    } else {
+      // Super Admin: Pode listar e selecionar qualquer empresa
+      if (employeeToEdit?.company?.id) {
+        const found = companies.find(c => c.id === employeeToEdit.company?.id);
+        if (found && (!selectedCompany || selectedCompany.id !== found.id)) {
+          console.log('🔍 SuperAdmin - carregando empresa do funcionário editado:', found.name);
+          setSelectedCompany(found);
+        } else if (!found && employeeToEdit.company && (!selectedCompany || selectedCompany.id !== employeeToEdit.company.id)) {
+          setSelectedCompany(employeeToEdit.company as Company);
+        }
+      } else if (!selectedCompany && userCompany) {
+        // Se o funcionário não tem empresa cadastrada e o SuperAdmin tem empresa ativa
+        setSelectedCompany(userCompany);
+        setForm(prev => ({
+          ...prev,
+          company: { id: userCompany.id },
+          empresaNome: userCompany.name,
+          empresaCnpj: userCompany.cnpj || prev.empresaCnpj || '',
+          empresaEndereco: userCompany.address || prev.empresaEndereco || ''
+        }));
+      }
     }
-  }, [open, employeeToEdit, companies, authEmpresa, authUser]);
+  }, [open, isSuperAdmin, employeeToEdit, companies, authEmpresa, authUser]);
 
   // Função para carregar dependentes do funcionário
   const loadEmployeeDependents = async (employeeId: string) => {
@@ -706,6 +741,17 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
 
   // Buscar usuários no backend baseado no termo de busca
   useEffect(() => {
+    const selectedCompanyId = selectedCompany?.id ? String(selectedCompany.id) : null;
+
+    // Filtrar por empresa — regra obrigatória
+    const filterByCompany = (list: User[]): User[] => {
+      if (!selectedCompanyId) return [];
+      return list.filter(u => {
+        const uCompId = (u as any).companyId ? String((u as any).companyId) : null;
+        return uCompId === selectedCompanyId;
+      });
+    };
+
     const searchUsers = async () => {
       try {
         // Verificar se o termo de busca é um CPF (apenas números)
@@ -715,16 +761,16 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
           // Buscar por CPF
           try {
             const userByCpf = await userService.getUserByCpf(userSearchTerm.replace(/\D/g, ''));
-            setFilteredUsers([userByCpf]);
+            setFilteredUsers(filterByCompany([userByCpf]));
           } catch (cpfError) {
             // Se não encontrar por CPF, fazer busca normal
             const searchResults = await userService.searchUsers(userSearchTerm);
-            setFilteredUsers(searchResults);
+            setFilteredUsers(filterByCompany(searchResults));
           }
         } else {
           // Busca normal por nome, email ou username
           const searchResults = await userService.searchUsers(userSearchTerm);
-          setFilteredUsers(searchResults);
+          setFilteredUsers(filterByCompany(searchResults));
         }
       } catch (error) {
         console.error('Erro ao buscar usuários:', error);
@@ -737,12 +783,12 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
       if (userSearchTerm.trim()) {
         searchUsers();
       } else {
-        setFilteredUsers([]);
+        setFilteredUsers(filterByCompany(users));
       }
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [userSearchTerm]);
+  }, [userSearchTerm, users, selectedCompany]);
 
   // Buscar cargos no backend baseado no termo de busca
   useEffect(() => {
@@ -768,11 +814,20 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
   useEffect(() => {
     if (form.user?.id) {
       const user = users.find(u => u.id === form.user.id);
-      setSelectedUser(user || null);
       if (user) {
+        setSelectedUser(user);
         setUserSearchTerm(user.name);
+      } else if (!selectedUser || selectedUser.id !== form.user.id) {
+        userService.getUserById(form.user.id)
+          .then(userData => {
+            if (userData) {
+              setSelectedUser(userData);
+              setUserSearchTerm(userData.name || userData.username || '');
+            }
+          })
+          .catch(err => console.warn('Não foi possível carregar usuário vinculado:', err));
       }
-    } else {
+    } else if (form.user === null || form.user?.id === '') {
       setSelectedUser(null);
       setUserSearchTerm('');
     }
@@ -825,7 +880,36 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
       setPositions(positionsData);
       setFilteredPositions(positionsData);
       setUnits(unitsData);
-      setCompanies(companiesData);
+
+      const loggedCompanyId = authEmpresa?.id || (authUser as any)?.companyId || (authUser as any)?.company?.id;
+      let userCompany = companiesData.find(c => c.id === loggedCompanyId);
+      if (!userCompany && authEmpresa?.id) {
+        userCompany = {
+          id: authEmpresa.id,
+          name: authEmpresa.nome,
+          sigla: (authEmpresa as any).sigla || '',
+          cnpj: (authEmpresa as any).cnpj || '',
+          address: (authEmpresa as any).address || ''
+        } as Company;
+      }
+
+      // Se for SuperAdmin, exibe todas as empresas. Se NÃO for SuperAdmin, exibe APENAS a empresa à qual o usuário pertence!
+      if (isSuperAdmin) {
+        setCompanies(companiesData);
+      } else {
+        const restrictedList = userCompany ? [userCompany] : companiesData.filter(c => c.id === loggedCompanyId);
+        setCompanies(restrictedList);
+        if (userCompany) {
+          setSelectedCompany(userCompany);
+          setForm(prev => ({
+            ...prev,
+            company: { id: userCompany!.id },
+            empresaNome: userCompany!.name,
+            empresaCnpj: userCompany!.cnpj || prev.empresaCnpj || '',
+            empresaEndereco: userCompany!.address || prev.empresaEndereco || ''
+          }));
+        }
+      }
       
       // Carregar usuários iniciais (sem filtro)
       const usersData = await userService.searchUsers();
@@ -950,6 +1034,16 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         ...form
         // Removido: dependents - não enviar dependentes no payload do funcionário
       } as any;
+
+      // Sincronizar vínculo de usuário explicitamente
+      if (selectedUser?.id) {
+        employeeData.user = { id: selectedUser.id };
+        employeeData.removeUser = false;
+      } else {
+        employeeData.user = null;
+        employeeData.removeUser = true;
+      }
+
       // Próximos vencimentos são sempre recalculados pelo backend (data + 1 ano)
       delete employeeData.nextExameMedico;
       delete employeeData.nextLaudoPsicologico;
@@ -1307,6 +1401,9 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
 
   const handleUserInputFocus = () => {
     setShowUserDropdown(true);
+    if (!userSearchTerm.trim()) {
+      setFilteredUsers(users);
+    }
   };
 
   const handleUserInputBlur = () => {
@@ -1363,6 +1460,10 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
   };
 
   const handleCompanySelect = (companyId: string) => {
+    if (!isSuperAdmin && selectedCompany) {
+      // Usuários não-SuperAdmin não podem alterar a empresa
+      return;
+    }
     if (companyId === 'none') {
       setSelectedCompany(null);
       setForm(prev => ({ ...prev, company: { id: '' } }));
@@ -1370,7 +1471,13 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
       const company = companies.find(c => c.id === companyId);
       if (company) {
         setSelectedCompany(company);
-        setForm(prev => ({ ...prev, company: { id: company.id } }));
+        setForm(prev => ({
+          ...prev,
+          company: { id: company.id },
+          empresaNome: company.name,
+          empresaCnpj: company.cnpj || prev.empresaCnpj || '',
+          empresaEndereco: company.address || prev.empresaEndereco || ''
+        }));
       }
     }
   };
@@ -2175,14 +2282,26 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                   <Select 
                     value={selectedCompany?.id || 'none'} 
                     onValueChange={handleCompanySelect}
+                    disabled={!isSuperAdmin && !!selectedCompany}
                   >
-                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray text-xs sm:text-sm h-9 sm:h-10">
-                      <SelectValue placeholder="Selecione a empresa" />
+                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray text-xs sm:text-sm h-9 sm:h-10 disabled:opacity-90 disabled:cursor-not-allowed">
+                      <SelectValue placeholder="Selecione a empresa">
+                        {selectedCompany ? (
+                          <div className="flex items-center gap-2">
+                            <Building className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                            <span className="truncate">
+                              {selectedCompany.sigla ? `${selectedCompany.sigla.toUpperCase()} - ${selectedCompany.name}` : selectedCompany.name}
+                            </span>
+                          </div>
+                        ) : 'Selecione a empresa'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="bg-seguranca-graphite border-gray-600">
-                      <SelectItem value="none" className="text-seguranca-lightgray hover:bg-gray-700">
-                        <span className="text-gray-400">Nenhuma empresa</span>
-                      </SelectItem>
+                      {isSuperAdmin && (
+                        <SelectItem value="none" className="text-seguranca-lightgray hover:bg-gray-700">
+                          <span className="text-gray-400">Selecione uma empresa</span>
+                        </SelectItem>
+                      )}
                       {companies.map((company) => (
                         <SelectItem 
                           key={company.id} 
@@ -2198,6 +2317,9 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                     <p className="text-xs text-green-400 flex items-center gap-1">
                       <Building className="h-3 w-3" />
                       Empresa vinculada: <span className="font-semibold">{selectedCompany.name}</span>
+                      {!isSuperAdmin && (
+                        <span className="ml-1 text-[11px] text-gray-400 font-normal">(Sua empresa cadastrada)</span>
+                      )}
                     </p>
                   )}
                 </div>
@@ -2279,20 +2401,49 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                     
                     {showUserDropdown && filteredUsers.length > 0 && (
                       <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {filteredUsers.map((user) => (
-                          <div
-                            key={user.id}
-                            className="px-3 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-600 last:border-b-0"
-                            onClick={() => handleUserSelect(user)}
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-medium text-seguranca-lightgray text-xs sm:text-sm">{user.name}</span>
-                              <span className="text-xs text-gray-400">
-                                {user.email} • {user.username} • {user.role}
-                              </span>
+                        {filteredUsers.map((user) => {
+                          const currentEmpId = currentEmployeeId || employeeToEdit?.id;
+                          const isLinkedToOther = !!(user.employeeId && user.employeeId !== currentEmpId);
+                          const isLinkedToCurrent = !!(user.employeeId && user.employeeId === currentEmpId);
+
+                          return (
+                            <div
+                              key={user.id}
+                              className={`px-3 py-2 border-b border-gray-600 last:border-b-0 transition-colors ${
+                                isLinkedToOther
+                                  ? 'opacity-60 bg-gray-800/50 cursor-not-allowed'
+                                  : 'hover:bg-gray-700 cursor-pointer'
+                              }`}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                if (!isLinkedToOther) {
+                                  handleUserSelect(user);
+                                }
+                              }}
+                            >
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-seguranca-lightgray text-xs sm:text-sm">
+                                    {user.name}
+                                  </span>
+                                  {isLinkedToOther && (
+                                    <span className="text-[10px] bg-red-950/80 text-red-300 border border-red-700/60 px-1.5 py-0.5 rounded font-medium">
+                                      Já vinculado a {user.employeeName || 'outro funcionário'}
+                                    </span>
+                                  )}
+                                  {isLinkedToCurrent && (
+                                    <span className="text-[10px] bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 px-1.5 py-0.5 rounded font-medium">
+                                      Vinculado a este funcionário
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-xs text-gray-400">
+                                  {user.email} • @{user.username} {user.role ? `• ${user.role}` : ''}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -3738,14 +3889,26 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                  <Select 
                    value={selectedCompany?.id || 'none'} 
                    onValueChange={handleCompanySelect}
+                   disabled={!isSuperAdmin && !!selectedCompany}
                  >
-                   <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray">
-                     <SelectValue placeholder="Selecione uma empresa" />
+                   <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray disabled:opacity-90 disabled:cursor-not-allowed">
+                     <SelectValue placeholder="Selecione uma empresa">
+                       {selectedCompany ? (
+                         <div className="flex items-center gap-2">
+                           <Building className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                           <span className="truncate">
+                             {selectedCompany.sigla ? `${selectedCompany.sigla.toUpperCase()} - ${selectedCompany.name}` : selectedCompany.name}
+                           </span>
+                         </div>
+                       ) : 'Selecione uma empresa'}
+                     </SelectValue>
                    </SelectTrigger>
                    <SelectContent className="bg-seguranca-graphite border-gray-600">
-                     <SelectItem value="none" className="text-seguranca-lightgray hover:bg-gray-700">
-                       <span className="text-gray-400">Nenhuma empresa</span>
-                     </SelectItem>
+                     {isSuperAdmin && (
+                       <SelectItem value="none" className="text-seguranca-lightgray hover:bg-gray-700">
+                         <span className="text-gray-400">Nenhuma empresa</span>
+                       </SelectItem>
+                     )}
                      {companies.map((company) => (
                        <SelectItem 
                          key={company.id} 

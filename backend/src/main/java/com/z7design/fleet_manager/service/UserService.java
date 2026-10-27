@@ -68,8 +68,16 @@ public class UserService {
 
     public void autoLinkEmployeeIfMatched(User user) {
         if (user == null || user.getId() == null) return;
+        // REGRA: Usuário sem empresa (Acesso Global) não deve ser auto-vinculado a funcionário de empresa específica
+        if (user.getCompanyId() == null) {
+            log.debug("AutoLink ignorado para usuário @{} pois está sem empresa (Acesso Global)", user.getUsername());
+            return;
+        }
         try {
-            String cleanCpf = user.getUsername() != null ? user.getUsername().replaceAll("\\D", "") : "";
+            String cleanCpf = user.getCpf() != null ? user.getCpf().replaceAll("\\D", "") : "";
+            if (cleanCpf.length() < 11 && user.getUsername() != null) {
+                cleanCpf = user.getUsername().replaceAll("\\D", "");
+            }
             Employee emp = null;
             if (cleanCpf.length() >= 11) {
                 emp = employeeRepository.findByCpfGlobal(cleanCpf).orElse(null);
@@ -84,10 +92,22 @@ public class UserService {
                 }
             }
             if (emp != null) {
+                UUID empCompanyId = emp.getCompany() != null ? emp.getCompany().getId() : null;
+                // REGRA: Usuário só pode ser vinculado a funcionário da mesma empresa
+                if (empCompanyId == null || !user.getCompanyId().equals(empCompanyId)) {
+                    log.info("AutoLink recusado: Funcionário {} pertence à empresa {} e Usuário @{} pertence à empresa {}",
+                            emp.getName(), empCompanyId, user.getCompanyId());
+                    return;
+                }
+
                 if (emp.getUser() == null || !user.getId().equals(emp.getUser().getId())) {
                     emp.setUser(user);
                     employeeRepository.save(emp);
                     log.info("🔗 Vínculo estabelecido com sucesso: Funcionário {} ({}) vinculado ao Usuário @{}", emp.getName(), emp.getId(), user.getUsername());
+                }
+                if ((user.getCpf() == null || user.getCpf().isBlank()) && emp.getDocument() != null && !emp.getDocument().isBlank()) {
+                    user.setCpf(emp.getDocument());
+                    userRepository.save(user);
                 }
             }
         } catch (Exception e) {
@@ -413,6 +433,7 @@ public class UserService {
         // Criar usuário
         User user = User.builder()
                 .name(request.getName())
+                .cpf(request.getCpf() != null && !request.getCpf().trim().isEmpty() ? request.getCpf().trim() : null)
                 .username(request.getUsername())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -434,7 +455,24 @@ public class UserService {
         System.out.println("💾 Salvando usuário no banco...");
         User savedUser = userRepository.save(user);
         System.out.println("✅ Usuário salvo com ID: " + savedUser.getId());
-        autoLinkEmployeeIfMatched(savedUser);
+
+        // Se employeeId foi explicitamente fornecido, vincular imediatamente
+        if (request.getEmployeeId() != null) {
+            final UUID empId = request.getEmployeeId();
+            employeeRepository.findByIdGlobal(empId)
+                    .or(() -> employeeRepository.findById(empId))
+                    .ifPresent(emp -> {
+                        emp.setUser(savedUser);
+                        employeeRepository.save(emp);
+                        log.info("Funcionário {} vinculado diretamente no cadastro do usuário {}", emp.getName(), savedUser.getUsername());
+                        if (savedUser.getCpf() == null && emp.getDocument() != null) {
+                            savedUser.setCpf(emp.getDocument());
+                            userRepository.save(savedUser);
+                        }
+                    });
+        } else {
+            autoLinkEmployeeIfMatched(savedUser);
+        }
 
         return savedUser;
     }
@@ -624,8 +662,28 @@ public class UserService {
         // Atualizar empresa se fornecida (ou desvincular empresa se removeCompany for true)
         if (Boolean.TRUE.equals(request.getRemoveCompany())) {
             existingUser.setCompanyId(null);
+            // REGRA: Usuário sem empresa (Acesso Global) não pode ter funcionário de empresa vinculado
+            employeeRepository.findByUserIdGlobal(id).ifPresent(emp -> {
+                emp.setUser(null);
+                employeeRepository.save(emp);
+                log.info("Desvinculado funcionário {} do usuário {} porque o usuário agora está sem empresa (Acesso Global)",
+                        emp.getName(), existingUser.getUsername());
+            });
         } else if (request.getCompanyId() != null) {
+            UUID oldComp = existingUser.getCompanyId();
             existingUser.setCompanyId(request.getCompanyId());
+            // Se a empresa mudou, desvincula qualquer funcionário que pertencia à empresa antiga
+            if (oldComp != null && !oldComp.equals(request.getCompanyId())) {
+                employeeRepository.findByUserIdGlobal(id).ifPresent(emp -> {
+                    UUID empCompId = emp.getCompany() != null ? emp.getCompany().getId() : null;
+                    if (empCompId != null && !empCompId.equals(request.getCompanyId())) {
+                        emp.setUser(null);
+                        employeeRepository.save(emp);
+                        log.info("Desvinculado funcionário {} do usuário {} devido à alteração de empresa",
+                                emp.getName(), existingUser.getUsername());
+                    }
+                });
+            }
         }
 
         boolean isNowActive = existingUser.isActive();
@@ -693,13 +751,17 @@ public class UserService {
             existingUser.setAddress(request.getAddress().trim().isEmpty() ? null : request.getAddress());
         }
 
+        if (request.getCpf() != null) {
+            existingUser.setCpf(request.getCpf().trim().isEmpty() ? null : request.getCpf().trim());
+        }
+
         try {
             User savedUser = userRepository.save(existingUser);
             final UUID userId = savedUser.getId();
             final String username = savedUser.getUsername();
 
             // Gerenciar vínculo de funcionário na atualização de usuário
-            if (Boolean.TRUE.equals(request.getRemoveEmployee())) {
+            if (Boolean.TRUE.equals(request.getRemoveEmployee()) || savedUser.getCompanyId() == null) {
                 employeeRepository.findByUserIdGlobal(userId).ifPresent(emp -> {
                     emp.setUser(null);
                     employeeRepository.save(emp);
@@ -722,6 +784,17 @@ public class UserService {
                         .orElse(null);
 
                 if (targetEmp != null) {
+                    UUID userCompId = savedUser.getCompanyId();
+                    UUID empCompId = targetEmp.getCompany() != null ? targetEmp.getCompany().getId() : null;
+
+                    // REGRA: Usuário só pode ser vinculado a funcionário da mesma empresa
+                    if (userCompId == null && empCompId != null) {
+                        throw new IllegalArgumentException("Um usuário sem empresa (Acesso Global) não pode ser vinculado a um funcionário de empresa específica.");
+                    }
+                    if (userCompId != null && (empCompId == null || !userCompId.equals(empCompId))) {
+                        throw new IllegalArgumentException("Um usuário só pode ser vinculado a um funcionário da mesma empresa.");
+                    }
+
                     targetEmp.setUser(savedUser);
                     employeeRepository.save(targetEmp);
                     log.info("Funcionário {} vinculado com sucesso ao usuário {}", targetEmp.getName(), username);
@@ -734,6 +807,10 @@ public class UserService {
                     }
                     if ((savedUser.getEmail() == null || savedUser.getEmail().isBlank()) && targetEmp.getEmail() != null && !targetEmp.getEmail().isBlank()) {
                         savedUser.setEmail(targetEmp.getEmail().trim());
+                        userChanged = true;
+                    }
+                    if ((savedUser.getCpf() == null || savedUser.getCpf().isBlank()) && targetEmp.getDocument() != null && !targetEmp.getDocument().isBlank()) {
+                        savedUser.setCpf(targetEmp.getDocument());
                         userChanged = true;
                     }
                     if (userChanged) {

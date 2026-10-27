@@ -77,6 +77,9 @@ export const UniversalQrScannerModal: React.FC<UniversalQrScannerModalProps> = (
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const lastScannedTimeRef = useRef<number>(0);
   const lastScannedCodeRef = useRef<string>('');
+  // Prevents infinite retry loop when device has no camera
+  const noCameraRef = useRef<boolean>(false);
+  const cameraStartedRef = useRef<boolean>(false);
 
   const [cameras, setCameras] = useState<CameraDevice[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
@@ -145,6 +148,12 @@ export const UniversalQrScannerModal: React.FC<UniversalQrScannerModalProps> = (
   // Inicializar câmera
   const startCamera = useCallback(
     async (cameraId?: string) => {
+      // Guard: if no camera was found previously, skip retrying to prevent infinite loop
+      if (noCameraRef.current && !cameraId) return;
+      // Guard: already started (prevents double-fire from effect)
+      if (cameraStartedRef.current && !cameraId) return;
+
+      cameraStartedRef.current = true;
       setErrorMessage(null);
       setIsStarting(true);
 
@@ -168,6 +177,8 @@ export const UniversalQrScannerModal: React.FC<UniversalQrScannerModalProps> = (
             setCameras(availableCameras);
           } catch (e) {
             console.warn('Não foi possível enumerar câmeras:', e);
+            // Mark as no camera available to stop future retries
+            noCameraRef.current = true;
           }
         }
 
@@ -218,7 +229,11 @@ export const UniversalQrScannerModal: React.FC<UniversalQrScannerModalProps> = (
         if (errorStr.includes('NotAllowedError') || errorStr.includes('Permission')) {
           setErrorMessage('Permissão de acesso à câmera negada. Habilite a câmera nas configurações do navegador.');
         } else if (errorStr.includes('NotFoundError') || errorStr.includes('DevicesNotFoundError')) {
+          // Mark permanently — no camera on this device, stop all future retries
+          noCameraRef.current = true;
           setErrorMessage('Nenhuma câmera encontrada no dispositivo.');
+          // Auto-switch to manual tab so user can still operate without camera
+          setActiveTab('manual');
         } else {
           setErrorMessage('Não foi possível abrir o feed da câmera. Você pode digitar o código ou enviar uma imagem.');
         }
@@ -293,25 +308,35 @@ export const UniversalQrScannerModal: React.FC<UniversalQrScannerModalProps> = (
   };
 
   // Efeito de abertura/fechamento do modal
+  // IMPORTANT: do NOT add startCamera/stopCamera as deps — they are stable callbacks.
+  // Using isOpen as the single trigger prevents the retry loop when camera is unavailable.
   useEffect(() => {
-    if (isOpen) {
-      setErrorMessage(null);
-      setManualCode('');
-      setActiveTab('camera');
-
-      // Pequeno timeout para garantir montagem do container no DOM do Radix Dialog
-      const t = setTimeout(() => {
-        startCamera();
-      }, 150);
-
-      return () => {
-        clearTimeout(t);
-        stopCamera();
-      };
-    } else {
+    if (!isOpen) {
       stopCamera();
+      // Reset guards so camera can retry if modal is reopened
+      cameraStartedRef.current = false;
+      return;
     }
-  }, [isOpen, startCamera, stopCamera]);
+
+    setErrorMessage(null);
+    setManualCode('');
+    // Only default to camera tab if camera is potentially available
+    if (!noCameraRef.current) {
+      setActiveTab('camera');
+    }
+
+    // Pequeno timeout para garantir montagem do container no DOM do Radix Dialog
+    const t = setTimeout(() => {
+      startCamera();
+    }, 150);
+
+    return () => {
+      clearTimeout(t);
+      stopCamera();
+      cameraStartedRef.current = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

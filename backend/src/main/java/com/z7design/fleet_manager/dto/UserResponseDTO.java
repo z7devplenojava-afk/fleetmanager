@@ -13,6 +13,7 @@ public class UserResponseDTO {
     private String email;
     private String name;
     private String fullName;
+    private String cpf;
     private String role;
     private String status;
     private Boolean isActive;

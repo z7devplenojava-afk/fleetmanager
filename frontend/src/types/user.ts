@@ -207,6 +207,7 @@ export interface User {
   employeeCode?: string;
   employeeId?: string;
   employeeName?: string;
+  cpf?: string;
   phone?: string;
   whatsapp?: string;
   username?: string;

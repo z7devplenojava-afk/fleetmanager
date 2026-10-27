@@ -258,6 +258,14 @@ public class EmployeeService {
                 User targetUser = userRepository.findByIdNative(newUserId)
                     .or(() -> userRepository.findById(newUserId))
                     .orElse(null);
+
+                if (targetUser != null) {
+                    UUID empCompanyId = existingEmployee.getCompany() != null ? existingEmployee.getCompany().getId() : null;
+                    // REGRA: Um funcionário só pode ser vinculado a um usuário da mesma empresa
+                    if (empCompanyId != null && (targetUser.getCompanyId() == null || !empCompanyId.equals(targetUser.getCompanyId()))) {
+                        throw new IllegalArgumentException("Um funcionário só pode ser vinculado a um usuário da mesma empresa.");
+                    }
+                }
                 existingEmployee.setUser(targetUser);
 
                 // Sincronizar dados faltantes se aplicável
@@ -285,7 +293,11 @@ public class EmployeeService {
                     matched = userRepository.findByEmailNative(existingEmployee.getEmail().trim()).orElse(null);
                 }
                 if (matched != null) {
-                    existingEmployee.setUser(matched);
+                    UUID empCompanyId = existingEmployee.getCompany() != null ? existingEmployee.getCompany().getId() : null;
+                    // REGRA: Só vincula automaticamente se for da mesma empresa
+                    if (empCompanyId != null && empCompanyId.equals(matched.getCompanyId())) {
+                        existingEmployee.setUser(matched);
+                    }
                 }
             }
             if (dto.getPosition() != null && dto.getPosition().getId() != null) {
@@ -1045,34 +1057,6 @@ public class EmployeeService {
             e.setAssinaturaFuncionario(dto.getAssinaturaFuncionario());
             e.setDataRescisao(dto.getDataRescisao());
             
-            // Setar entidades relacionais (agora opcionais)
-            if (dto.getUser() != null && dto.getUser().getId() != null) {
-                e.setUser(userRepository.findByIdNative(dto.getUser().getId())
-                    .or(() -> userRepository.findById(dto.getUser().getId()))
-                    .orElse(null));
-            } else if (e.getUser() == null) {
-                String cleanCpf = dto.getCpf() != null ? dto.getCpf().replaceAll("\\D", "") : "";
-                User matched = null;
-                if (cleanCpf.length() >= 11) {
-                    matched = userRepository.findByIdentifierNative(cleanCpf, cleanCpf).orElse(null);
-                }
-                if (matched == null && dto.getEmail() != null && !dto.getEmail().isBlank()) {
-                    matched = userRepository.findByEmailNative(dto.getEmail().trim()).orElse(null);
-                }
-                if (matched != null) {
-                    e.setUser(matched);
-                }
-            }
-                
-            if (dto.getPosition() != null && dto.getPosition().getId() != null) {
-                e.setPosition(positionRepository.findById(dto.getPosition().getId())
-                    .orElseThrow(() -> new RuntimeException("Cargo nÃ£o encontrado para o id informado.")));
-            }
-                
-            if (dto.getUnit() != null && dto.getUnit().getId() != null) {
-                e.setUnit(unitRepository.findById(dto.getUnit().getId()).orElse(null));
-            }
-            
             UUID effectiveCompanyId = null;
             if (dto.getCompany() != null && dto.getCompany().getId() != null) {
                 effectiveCompanyId = dto.getCompany().getId();
@@ -1082,6 +1066,49 @@ public class EmployeeService {
             if (effectiveCompanyId != null) {
                 e.setCompanyId(effectiveCompanyId);
                 e.setCompany(companyRepository.findById(effectiveCompanyId).orElse(null));
+            }
+
+            // Setar entidades relacionais (agora opcionais)
+            if (dto.getUser() != null && dto.getUser().getId() != null) {
+                UUID newUserId = dto.getUser().getId();
+                // Desvincular de outro funcionário para manter 1:1
+                employeeRepository.findByUserIdGlobal(newUserId).ifPresent(otherEmp -> {
+                    otherEmp.setUser(null);
+                    employeeRepository.save(otherEmp);
+                    log.info("Vínculo de usuário transferido no create: desvinculado do funcionário anterior {}", otherEmp.getName());
+                });
+
+                User targetUser = userRepository.findByIdNative(newUserId)
+                    .or(() -> userRepository.findById(newUserId))
+                    .orElse(null);
+
+                if (targetUser != null) {
+                    if (effectiveCompanyId != null && (targetUser.getCompanyId() == null || !effectiveCompanyId.equals(targetUser.getCompanyId()))) {
+                        throw new IllegalArgumentException("Um funcionário só pode ser vinculado a um usuário da mesma empresa.");
+                    }
+                }
+                e.setUser(targetUser);
+            } else if (e.getUser() == null) {
+                String cleanCpf = dto.getCpf() != null ? dto.getCpf().replaceAll("\\D", "") : "";
+                User matched = null;
+                if (cleanCpf.length() >= 11) {
+                    matched = userRepository.findByIdentifierNative(cleanCpf, cleanCpf).orElse(null);
+                }
+                if (matched == null && dto.getEmail() != null && !dto.getEmail().isBlank()) {
+                    matched = userRepository.findByEmailNative(dto.getEmail().trim()).orElse(null);
+                }
+                if (matched != null && effectiveCompanyId != null && effectiveCompanyId.equals(matched.getCompanyId())) {
+                    e.setUser(matched);
+                }
+            }
+                
+            if (dto.getPosition() != null && dto.getPosition().getId() != null) {
+                e.setPosition(positionRepository.findById(dto.getPosition().getId())
+                    .orElseThrow(() -> new RuntimeException("Cargo não encontrado para o id informado.")));
+            }
+                
+            if (dto.getUnit() != null && dto.getUnit().getId() != null) {
+                e.setUnit(unitRepository.findById(dto.getUnit().getId()).orElse(null));
             }
             
             // Mapear WorkPost se fornecido

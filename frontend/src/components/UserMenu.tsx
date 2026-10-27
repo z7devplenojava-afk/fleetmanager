@@ -4,6 +4,7 @@ import { LogOut, User, Settings } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
+import { getRoleDisplayName } from '@/utils/permissions';
 import UserProfileModal from './UserProfileModal';
 
 const UserMenu = () => {
@@ -24,25 +25,23 @@ const UserMenu = () => {
   };
 
   return (
-    <div className="relative flex items-center gap-3">
-      {/* Nome do usuário - CLICÁVEL */}
+    <div className="relative flex items-center gap-2 sm:gap-3">
+      {/* Nome do usuário e avatar - CLICÁVEL */}
       <div
-        className="text-right hidden md:block cursor-pointer hover:text-primary transition-colors p-2.5 rounded-xl hover:bg-accent active:scale-95"
+        className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors p-1.5 rounded-xl hover:bg-accent active:scale-95"
         onClick={handleProfileClick}
+        title="Ver meu perfil"
       >
-        <div className="text-sm font-medium text-foreground">{displayName}</div>
-        <div className="text-xs text-primary font-bold">
-          {user?.role && getRoleDisplayName(user.role as any)}
+        <div className="text-right hidden md:block">
+          <div className="text-sm font-medium text-foreground truncate max-w-[150px]">{displayName}</div>
+          <div className="text-xs text-primary font-bold">
+            {user?.role && getRoleDisplayName(user.role as any)}
+          </div>
+        </div>
+        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-xs shadow-xs">
+          {initials}
         </div>
       </div>
-
-      {/* Botão Sair */}
-      <button
-        onClick={() => signOut()}
-        className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-sm shadow-primary/20"
-      >
-        Sair
-      </button>
 
       {/* Modal de Perfil */}
       <UserProfileModal

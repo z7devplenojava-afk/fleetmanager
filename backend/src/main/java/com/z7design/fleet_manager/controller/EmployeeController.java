@@ -241,6 +241,7 @@ public class EmployeeController {
                     java.util.Map<String, Object> position = new java.util.HashMap<>();
                     position.put("name", row[19]); // position_name
                     employee.put("position", position);
+                    employee.put("positionDescription", row[19]);
                 }
                 
                 if (row.length > 20 && row[20] != null) {
@@ -259,6 +260,7 @@ public class EmployeeController {
                 // Adicionar userId se existir (index 22)
                 if (row.length > 22 && row[22] != null) {
                     employee.put("userId", row[22]);
+                    employee.put("user", java.util.Map.of("id", row[22]));
                 }
                 
                 employees.add(employee);
@@ -333,6 +335,7 @@ public class EmployeeController {
                         java.util.Map<String, Object> position = new java.util.HashMap<>();
                         position.put("name", row[19]); // position_name
                         employee.put("position", position);
+                        employee.put("positionDescription", row[19]);
                     }
                     
                     if (row.length > 20 && row[20] != null) {
@@ -351,6 +354,7 @@ public class EmployeeController {
                     // Adicionar userId se existir (index 22)
                     if (row.length > 22 && row[22] != null) {
                         employee.put("userId", row[22]);
+                        employee.put("user", java.util.Map.of("id", row[22]));
                     }
                     
                     // Adicionar workPost se existir (index 23)
@@ -452,6 +456,26 @@ public class EmployeeController {
                         .pis(employee.getPis())
                         .salario(employee.getSalario())
                         .build();
+
+                if (employee.getUser() != null) {
+                    try {
+                        EmployeeDTO.IdOnlyDTO uDto = new EmployeeDTO.IdOnlyDTO();
+                        uDto.setId(employee.getUser().getId());
+                        uDto.setName(employee.getUser().getName());
+                        uDto.setUsername(employee.getUser().getUsername());
+                        uDto.setEmail(employee.getUser().getEmail());
+                        dto.setUser(uDto);
+                    } catch (Exception ignore) {}
+                }
+                if (employee.getPosition() != null) {
+                    try {
+                        EmployeeDTO.PositionDTO pDto = new EmployeeDTO.PositionDTO();
+                        pDto.setId(employee.getPosition().getId());
+                        pDto.setName(employee.getPosition().getName());
+                        pDto.setDescription(employee.getPosition().getDescription());
+                        dto.setPosition(pDto);
+                    } catch (Exception ignore) {}
+                }
             }
             
             System.out.println("✅ DTO retornado para employee: " + dto.getName());

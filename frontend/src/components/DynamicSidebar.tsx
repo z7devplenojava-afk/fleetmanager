@@ -56,7 +56,8 @@ import {
   Droplets,
   Ruler,
   Warehouse,
-  ShieldCheck
+  ShieldCheck,
+  LogOut
 } from 'lucide-react';
 import {
   Sidebar,
@@ -72,6 +73,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApiUrl } from '@/config/environment';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import { hasPermission as checkPermission } from '@/utils/permissions';
 import { UserRole } from '@/types/user';
 
@@ -933,12 +935,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -984,12 +980,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1035,12 +1025,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1086,12 +1070,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1237,8 +1215,9 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
 
 export function DynamicSidebar() {
   const location = useLocation();
-  const { user, empresa } = useAuth();
+  const { user, empresa, signOut } = useAuth();
   const { forceScrollToTop } = useScrollPreservation();
+  const [sidebarLogoError, setSidebarLogoError] = React.useState(false);
 
   console.log('🔍 DynamicSidebar - Iniciando componente');
   console.log('🔍 DynamicSidebar - Usuário:', user);
@@ -2170,14 +2149,15 @@ export function DynamicSidebar() {
   return (
     <Sidebar className="bg-seguranca-graphite border-r border-gray-700">
       <SidebarHeader className="p-4 border-b border-gray-700">
-        {empresa?.logoUrl ? (
+        {(!sidebarLogoError && resolveCompanyLogoUrl(empresa?.logoUrl)) ? (
           <div className="flex items-center gap-3">
             <img
-              src={empresa.logoUrl.startsWith('http') ? empresa.logoUrl : `${getApiUrl().replace(/\/api\/?$/, '')}${empresa.logoUrl.startsWith('/') ? '' : '/'}${empresa.logoUrl}`}
-              alt={empresa.nome}
+              src={resolveCompanyLogoUrl(empresa?.logoUrl)!}
+              alt={empresa?.nome || 'Empresa'}
+              onError={() => setSidebarLogoError(true)}
               className="h-10 w-10 object-contain rounded"
             />
-            <span className="font-bold text-white truncate">{empresa.nome}</span>
+            <span className="font-bold text-white truncate">{empresa?.nome}</span>
           </div>
         ) : empresa?.nome ? (
           <div className="flex items-center gap-2">
@@ -2944,21 +2924,34 @@ export function DynamicSidebar() {
 
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-gray-700">
-        <div className="flex items-center">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${user?.role === 'SUPER_ADMIN' ? 'bg-red-500' : 'bg-seguranca-red'
-            }`}>
-            {user?.name?.charAt(0) || 'A'}
-          </div>
-          <div className="ml-3 min-w-0">
-            <div className="text-sm font-medium text-seguranca-lightgray truncate">
-              {user?.name || 'Usuário'}
+      <SidebarFooter className="p-3 sm:p-4 border-t border-gray-700 bg-seguranca-graphite/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center min-w-0 flex-1">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${user?.role === 'SUPER_ADMIN' ? 'bg-red-500' : 'bg-seguranca-red'
+              }`}>
+              {user?.name?.charAt(0) || 'A'}
             </div>
-            <div className="text-xs text-gray-400 truncate">
-              {getRoleDisplayName(user?.role || '')}
-              {user?.role === 'SUPER_ADMIN' && ' 🟥'}
+            <div className="ml-2.5 min-w-0 flex-1">
+              <div className="text-xs sm:text-sm font-medium text-seguranca-lightgray truncate">
+                {user?.name || 'Usuário'}
+              </div>
+              <div className="text-[11px] text-gray-400 truncate">
+                {getRoleDisplayName(user?.role || '')}
+                {user?.role === 'SUPER_ADMIN' && ' 🟥'}
+              </div>
             </div>
           </div>
+
+          {/* Botão Sair na Sidebar */}
+          <button
+            onClick={() => signOut()}
+            title="Sair do sistema"
+            aria-label="Sair do sistema"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/90 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-all active:scale-95 shadow-sm shadow-red-600/30 flex-shrink-0"
+          >
+            <LogOut size={14} />
+            <span>Sair</span>
+          </button>
         </div>
       </SidebarFooter>
     </Sidebar>

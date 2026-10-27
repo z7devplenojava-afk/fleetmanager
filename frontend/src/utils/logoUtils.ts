@@ -11,6 +11,11 @@ export function resolveCompanyLogoUrl(logoUrl?: string | null): string | null {
   if (!logoUrl || !logoUrl.trim()) return null;
   const trimmed = logoUrl.trim();
 
+  // Ignorar logos órfãs conhecidas que não existem no disco do servidor
+  if (trimmed.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) {
+    return null;
+  }
+
   // URLs absolutas ou data URIs retornam imediatamente
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
     return trimmed;
@@ -60,5 +65,33 @@ export function resolveCompanyBannerUrl(bannerUrl?: string | null): string | nul
   }
 
   return `${origin}/api/uploads/companies/banners/${trimmed.replace(/^\/+/, '')}`;
+}
+
+/**
+ * Normaliza e resolve a URL completa do avatar do usuário para exibição no frontend.
+ */
+export function resolveAvatarUrl(avatarUrl?: string | null): string | null {
+  if (!avatarUrl || !avatarUrl.trim()) return null;
+  const trimmed = avatarUrl.trim();
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+
+  const apiUrl = getApiUrl();
+  const origin = apiUrl.startsWith('http') ? new URL(apiUrl).origin : '';
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+
+  if (cleanPath.startsWith('/api/uploads/')) {
+    return `${origin}${cleanPath}`;
+  }
+  if (cleanPath.startsWith('/uploads/')) {
+    return `${origin}/api${cleanPath}`;
+  }
+  if (cleanPath.startsWith('/avatars/')) {
+    return `${origin}/api/uploads${cleanPath}`;
+  }
+
+  return `${origin}/api/uploads/avatars/${trimmed.replace(/^\/+/, '')}`;
 }
 

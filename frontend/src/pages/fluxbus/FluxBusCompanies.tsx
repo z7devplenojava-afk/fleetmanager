@@ -173,9 +173,9 @@ const FluxBusCompanies: React.FC = () => {
                                         <TableCell>
                                             <div className="flex items-center gap-3">
                                                 <div className="h-10 w-10 rounded-lg bg-seguranca-black border border-gray-600 flex items-center justify-center overflow-hidden">
-                                                    {company.logoUrl ? (
+                                                    {resolveCompanyLogoUrl(company.logoUrl) ? (
                                                         <img
-                                                            src={resolveCompanyLogoUrl(company.logoUrl) || company.logoUrl}
+                                                            src={resolveCompanyLogoUrl(company.logoUrl)!}
                                                             alt={company.name}
                                                             className="h-full w-full object-contain"
                                                             onError={(e) => {

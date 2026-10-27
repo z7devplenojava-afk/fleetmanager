@@ -42,6 +42,16 @@ public class UpdateUserRequest {
     @Pattern(regexp = "^\\d{9,20}$|^$", message = "WhatsApp deve conter apenas dÃ­gitos (9-20 caracteres)")
     private String whatsapp;
 
+    private String cpf;
+
+    public String getCpf() {
+        return cpf;
+    }
+
+    public void setCpf(String cpf) {
+        this.cpf = cpf;
+    }
+
     private List<String> roles; // Array de Strings com nomes dos roles
 
     private Boolean active;

@@ -18,14 +18,24 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
     });
   }
 
+  // Monitorar erros não tratados de workers e scripts legados
+  const cleanupCorruptedWorkers = () => {
+    void navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((r) => void r.unregister());
+    });
+    if ('caches' in window) {
+      void caches.keys().then((names) => {
+        names.forEach((name) => void caches.delete(name));
+      });
+    }
+  };
+
   window.addEventListener('unhandledrejection', (event) => {
     const reason = typeof event.reason === 'string' ? event.reason : event.reason?.message;
     const str = typeof reason === 'string' ? reason : '';
-    if (str.includes('bad-precaching-response') || str.includes('workbox')) {
+    if (str.includes('bad-precaching-response') || str.includes('workbox') || str.includes('importScripts')) {
       event.preventDefault();
-      void navigator.serviceWorker.getRegistrations().then((regs) => {
-        regs.forEach((r) => void r.unregister());
-      });
+      cleanupCorruptedWorkers();
     } else if (str.includes('Failed to fetch dynamically imported module') || str.includes('Importing a module script failed')) {
       event.preventDefault();
       const hasReloaded = sessionStorage.getItem('chunk_reload');
@@ -33,6 +43,14 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
         sessionStorage.setItem('chunk_reload', 'true');
         window.location.reload();
       }
+    }
+  });
+
+  window.addEventListener('error', (event) => {
+    const filename = event.filename || '';
+    const message = event.message || '';
+    if (filename.includes('sw.js') || filename.includes('workbox') || message.includes('workbox') || message.includes('importScripts')) {
+      cleanupCorruptedWorkers();
     }
   });
 }
