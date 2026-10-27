@@ -131,7 +131,7 @@ public class SecurityConfig {
                                                 // Logos e banners de empresas - permitir acesso público para exibição
                                                 .requestMatchers("/api/uploads/companies/logos/**").permitAll()
                                                 .requestMatchers("/api/uploads/companies/banners/**").permitAll()
-                                                .requestMatchers("/api/uploads/companies/logo").authenticated()
+                                                .requestMatchers("/api/uploads/companies/logo", "/api/uploads/companies/logos").authenticated()
                                                 .requestMatchers("/api/uploads/companies/banner-upload", "/api/uploads/companies/banners").authenticated()
                                                 .requestMatchers("/api/uploads/**").authenticated() // Demais operações de upload requerem autenticação
                                                 // Endpoints de Atestados Médicos e CID-10

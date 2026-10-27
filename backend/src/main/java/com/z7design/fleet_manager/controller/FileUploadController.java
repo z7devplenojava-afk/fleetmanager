@@ -261,78 +261,104 @@ public class FileUploadController {
     }
 
     @PostMapping({"/companies/logo", "/companies/logos"})
-    @Operation(summary = "Upload de logo da empresa", description = "Faz upload de logo da empresa (PNG, JPG, JPEG)")
+    @Operation(summary = "Upload de logo da empresa", description = "Faz upload de logo da empresa (PNG, JPG, JPEG, SVG, WEBP, ICO)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Logo enviado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Arquivo invÃ¡lido"),
+            @ApiResponse(responseCode = "400", description = "Arquivo inválido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado"),
             @ApiResponse(responseCode = "500", description = "Erro interno do servidor")
     })
-    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'SUPER_ADMIN', 'ADMIN', 'HR', 'HR_WRITE', 'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'GESTOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'SUPER_ADMIN', 'ADMIN', 'HR', 'HR_WRITE', 'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'GESTOR', 'ROLE_FLEX_ADMIN', 'FLEX_ADMIN', 'ROLE_TI_SUPORTE', 'TI_SUPORTE')")
     public ResponseEntity<Map<String, String>> uploadCompanyLogo(
-            @Parameter(description = "Arquivo do logo (PNG, JPG, JPEG)")
+            @Parameter(description = "Arquivo do logo (PNG, JPG, JPEG, SVG, WEBP, ICO)")
             @RequestParam("file") MultipartFile file) {
         
         try {
-            log.info("ðŸ“¤ Iniciando upload de logo da empresa - Nome original: {}, Tamanho: {} bytes", 
-                    file.getOriginalFilename(), file.getSize());
+            log.info("📤 Iniciando upload de logo da empresa - Nome original: {}, Tamanho: {} bytes", 
+                    file != null ? file.getOriginalFilename() : "null", file != null ? file.getSize() : 0);
             
             // Validar arquivo
-            if (file.isEmpty()) {
-                log.warn("âŒ Arquivo vazio recebido");
+            if (file == null || file.isEmpty()) {
+                log.warn("❌ Arquivo vazio recebido");
                 return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Arquivo nÃ£o pode estar vazio"));
+                    .body(Map.of("error", "Arquivo não pode estar vazio"));
             }
 
-            // Validar tipo de arquivo (apenas imagens: JPG, JPEG, PNG)
+            // Sanitizar nome original com segurança (evitar IllegalArgumentException)
+            String rawFilename = file.getOriginalFilename();
+            String originalFilename = (rawFilename != null && !rawFilename.trim().isEmpty())
+                    ? StringUtils.cleanPath(rawFilename)
+                    : "logo.png";
+
+            // Validar tipo de arquivo (PNG, JPG, JPEG, SVG, WEBP, ICO)
             String contentType = file.getContentType();
-            log.info("ðŸ“„ Content-Type recebido: {}", contentType);
+            if (contentType != null) {
+                contentType = contentType.split(";")[0].trim().toLowerCase();
+            }
+            log.info("📄 Content-Type recebido: {}, Nome: {}", contentType, originalFilename);
             
-            if (contentType == null || !isValidImageType(contentType)) {
-                log.warn("âŒ Tipo de arquivo invÃ¡lido: {}", contentType);
+            boolean validContentType = isValidImageType(contentType);
+            boolean validExtension = isAllowedImageExtension(originalFilename);
+
+            if (!validContentType && !validExtension) {
+                log.warn("❌ Tipo de arquivo inválido: contentType={}, filename={}", contentType, originalFilename);
                 return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Tipo de arquivo nÃ£o permitido. Use PNG, JPG ou JPEG"));
+                    .body(Map.of("error", "Tipo de arquivo não permitido. Use PNG, JPG, JPEG, SVG, WEBP ou ICO"));
             }
 
-            // Validar tamanho (mÃ¡ximo 5MB para logos)
+            // Validar tamanho (máximo 50MB para logos)
             if (file.getSize() > 50 * 1024 * 1024) {
-                log.warn("âŒ Arquivo muito grande: {} bytes", file.getSize());
+                log.warn("❌ Arquivo muito grande: {} bytes", file.getSize());
                 return ResponseEntity.badRequest()
                     .body(Map.of("error", "Arquivo muito grande. Máximo 50MB"));
             }
 
-            // Gerar nome Ãºnico para o arquivo
-            String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
+            // Obter extensão
             String fileExtension = getFileExtension(originalFilename);
+            if (fileExtension.isEmpty()) {
+                if (contentType != null && (contentType.equals("image/jpeg") || contentType.equals("image/jpg"))) {
+                    fileExtension = "jpg";
+                } else if (contentType != null && contentType.equals("image/webp")) {
+                    fileExtension = "webp";
+                } else if (contentType != null && contentType.equals("image/svg+xml")) {
+                    fileExtension = "svg";
+                } else if (contentType != null && (contentType.equals("image/x-icon") || contentType.equals("image/vnd.microsoft.icon"))) {
+                    fileExtension = "ico";
+                } else {
+                    fileExtension = "png";
+                }
+            }
             String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
             
-            log.info("ðŸ“ Nome Ãºnico gerado: {}", uniqueFilename);
+            log.info("📄 Nome único gerado: {}", uniqueFilename);
 
-            // Criar diretÃ³rio se nÃ£o existir (usar caminho absoluto)
+            // Criar diretório se não existir (com fallback resiliente)
             Path uploadPath = Paths.get(uploadDir, "companies", "logos").toAbsolutePath().normalize();
-            log.info("ðŸ“ Caminho de upload: {}", uploadPath);
-            
-            Files.createDirectories(uploadPath);
-            log.info("âœ… DiretÃ³rio verificado/criado: {}", uploadPath);
+            try {
+                Files.createDirectories(uploadPath);
+            } catch (Exception dirEx) {
+                log.warn("⚠️ Falha ao criar diretório primário {}, tentando fallback 'uploads/companies/logos': {}", uploadPath, dirEx.getMessage());
+                uploadPath = Paths.get("uploads", "companies", "logos").toAbsolutePath().normalize();
+                Files.createDirectories(uploadPath);
+            }
+            log.info("✅ Diretório verificado/criado: {}", uploadPath);
 
             // Salvar arquivo
             Path filePath = uploadPath.resolve(uniqueFilename);
-            log.info("ðŸ’¾ Salvando arquivo em: {}", filePath);
+            log.info("💾 Salvando arquivo em: {}", filePath);
             
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
             
             // Verificar se o arquivo foi salvo corretamente
             if (!Files.exists(filePath)) {
-                log.error("âŒ Arquivo nÃ£o foi salvo corretamente: {}", filePath);
+                log.error("❌ Arquivo não foi salvo corretamente: {}", filePath);
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Erro ao salvar arquivo: arquivo nÃ£o encontrado apÃ³s upload"));
+                    .body(Map.of("error", "Erro ao salvar arquivo: arquivo não encontrado após upload"));
             }
             
-            log.info("âœ… Arquivo salvo com sucesso: {} ({} bytes)", filePath, Files.size(filePath));
+            log.info("✅ Arquivo salvo com sucesso: {} ({} bytes)", filePath, Files.size(filePath));
 
-            // Retornar informaÃ§Ãµes do arquivo
-            // IMPORTANTE: Retornar apenas o caminho relativo (sem host/porta)
-            // O frontend construirÃ¡ a URL completa quando necessÃ¡rio para exibiÃ§Ã£o
+            // Retornar informações do arquivo
             String relativeUrl = "/api/uploads/companies/logos/" + uniqueFilename;
             
             Map<String, String> response = new HashMap<>();
@@ -340,20 +366,20 @@ public class FileUploadController {
             response.put("originalName", originalFilename);
             response.put("path", "companies/logos/" + uniqueFilename);
             response.put("size", String.valueOf(file.getSize()));
-            response.put("contentType", contentType);
-            response.put("url", relativeUrl); // Caminho relativo: /api/uploads/companies/logos/{filename}
-            
-            log.info("âœ… Upload concluÃ­do com sucesso. URL relativa: {}", relativeUrl);
-            log.info("ðŸ“ Arquivo salvo em: {}", filePath.toAbsolutePath());
+            response.put("contentType", contentType != null ? contentType : "image/" + fileExtension);
+            response.put("url", relativeUrl);
+
+            log.info("✅ Upload concluído com sucesso. URL relativa: {}", relativeUrl);
+            log.info("📄 Arquivo salvo em: {}", filePath.toAbsolutePath());
 
             return ResponseEntity.ok(response);
 
         } catch (IOException e) {
-            log.error("âŒ Erro ao salvar arquivo de logo: {}", e.getMessage(), e);
+            log.error("❌ Erro ao salvar arquivo de logo: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Erro ao salvar arquivo: " + e.getMessage()));
         } catch (Exception e) {
-            log.error("âŒ Erro inesperado ao fazer upload de logo: {}", e.getMessage(), e);
+            log.error("❌ Erro inesperado ao fazer upload de logo: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Erro inesperado: " + e.getMessage()));
         }
@@ -470,22 +496,26 @@ public class FileUploadController {
 
     @PostMapping({"/companies/banner-upload", "/companies/banners", "/companies/banner"})
     @Operation(summary = "Upload de banner da empresa", description = "Faz upload de banner motivacional da empresa (PNG, JPG, JPEG, SVG, WEBP)")
-    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'SUPER_ADMIN', 'ADMIN', 'HR', 'HR_WRITE', 'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'GESTOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'SUPER_ADMIN', 'ADMIN', 'HR', 'HR_WRITE', 'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'GESTOR', 'ROLE_FLEX_ADMIN', 'FLEX_ADMIN', 'ROLE_TI_SUPORTE', 'TI_SUPORTE')")
     public ResponseEntity<Map<String, String>> uploadCompanyBanner(
             @Parameter(description = "Arquivo do banner (PNG, JPG, JPEG, SVG, WEBP)")
             @RequestParam("file") MultipartFile file) {
         
         try {
             log.info("📥 Iniciando upload de banner da empresa - Nome original: {}, Tamanho: {} bytes", 
-                    file.getOriginalFilename(), file.getSize());
+                    file != null ? file.getOriginalFilename() : "null", file != null ? file.getSize() : 0);
             
-            if (file.isEmpty()) {
+            if (file == null || file.isEmpty()) {
                 return ResponseEntity.badRequest()
                     .body(Map.of("error", "Arquivo não pode estar vazio"));
             }
 
             String contentType = file.getContentType();
-            String originalFilename = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "banner.png");
+            if (contentType != null) {
+                contentType = contentType.split(";")[0].trim().toLowerCase();
+            }
+            String rawFilename = file.getOriginalFilename();
+            String originalFilename = StringUtils.cleanPath(rawFilename != null && !rawFilename.trim().isEmpty() ? rawFilename : "banner.png");
             
             if (!isValidImageType(contentType) && !isAllowedImageExtension(originalFilename)) {
                 return ResponseEntity.badRequest()
@@ -500,12 +530,24 @@ public class FileUploadController {
 
             String fileExtension = getFileExtension(originalFilename);
             if (fileExtension.isEmpty()) {
-                fileExtension = "png";
+                if (contentType != null && (contentType.equals("image/jpeg") || contentType.equals("image/jpg"))) {
+                    fileExtension = "jpg";
+                } else if (contentType != null && contentType.equals("image/webp")) {
+                    fileExtension = "webp";
+                } else {
+                    fileExtension = "png";
+                }
             }
             String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
             
             Path uploadPath = Paths.get(uploadDir, "companies", "banners").toAbsolutePath().normalize();
-            Files.createDirectories(uploadPath);
+            try {
+                Files.createDirectories(uploadPath);
+            } catch (Exception dirEx) {
+                log.warn("⚠️ Falha ao criar diretório primário {}, tentando fallback 'uploads/companies/banners': {}", uploadPath, dirEx.getMessage());
+                uploadPath = Paths.get("uploads", "companies", "banners").toAbsolutePath().normalize();
+                Files.createDirectories(uploadPath);
+            }
 
             Path filePath = uploadPath.resolve(uniqueFilename);
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
