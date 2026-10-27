@@ -260,7 +260,7 @@ public class FileUploadController {
         }
     }
 
-    @PostMapping("/companies/logo")
+    @PostMapping({"/companies/logo", "/companies/logos"})
     @Operation(summary = "Upload de logo da empresa", description = "Faz upload de logo da empresa (PNG, JPG, JPEG)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Logo enviado com sucesso"),
@@ -268,7 +268,7 @@ public class FileUploadController {
             @ApiResponse(responseCode = "403", description = "Acesso negado"),
             @ApiResponse(responseCode = "500", description = "Erro interno do servidor")
     })
-    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'SUPER_ADMIN', 'ADMIN', 'HR', 'HR_WRITE', 'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'GESTOR')")
     public ResponseEntity<Map<String, String>> uploadCompanyLogo(
             @Parameter(description = "Arquivo do logo (PNG, JPG, JPEG)")
             @RequestParam("file") MultipartFile file) {
@@ -359,13 +359,22 @@ public class FileUploadController {
         }
     }
 
-    @GetMapping({"/companies/logos/{filename:.+}", "/companies/logos/{filename}"})
+    @GetMapping({
+        "/companies/logos/{filename:.+}",
+        "/companies/logos/{filename}",
+        "/companies/logo/{filename:.+}",
+        "/companies/logo/{filename}",
+        "/companies/logos",
+        "/companies/logo"
+    })
     @Operation(summary = "Obter logo da empresa", description = "Retorna o arquivo de logo da empresa")
     public ResponseEntity<Resource> getCompanyLogo(
             @Parameter(description = "Nome do arquivo")
-            @PathVariable("filename") String filename) {
+            @PathVariable(value = "filename", required = false) String filename) {
         try {
-            if (filename == null || filename.isBlank() || filename.contains("e9654118-53a8-4dd8-b57c-bc50997f081b")) {
+            if (filename == null || filename.isBlank() || 
+                filename.contains("e9654118-53a8-4dd8-b57c-bc50997f081b") ||
+                "logo".equalsIgnoreCase(filename) || "logos".equalsIgnoreCase(filename)) {
                 return ResponseEntity.noContent().build();
             }
 
@@ -400,6 +409,59 @@ public class FileUploadController {
             }
 
             // Retornar 204 No Content se o arquivo não existe em disco para evitar 404 no console
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            return ResponseEntity.noContent().build();
+        }
+    }
+
+    @GetMapping({
+        "/companies/banners/{filename:.+}",
+        "/companies/banners/{filename}",
+        "/companies/banner/{filename:.+}",
+        "/companies/banner/{filename}",
+        "/companies/banners",
+        "/companies/banner"
+    })
+    @Operation(summary = "Obter banner da empresa", description = "Retorna o arquivo de banner da empresa")
+    public ResponseEntity<Resource> getCompanyBanner(
+            @Parameter(description = "Nome do arquivo")
+            @PathVariable(value = "filename", required = false) String filename) {
+        try {
+            if (filename == null || filename.isBlank() || 
+                "banner".equalsIgnoreCase(filename) || "banners".equalsIgnoreCase(filename)) {
+                return ResponseEntity.noContent().build();
+            }
+
+            Path uploadPath = Paths.get(uploadDir, "companies", "banners").resolve(filename);
+            Resource resource = new UrlResource(uploadPath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                String contentType = Files.probeContentType(uploadPath);
+                return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"))
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                    .body(resource);
+            }
+
+            Path[] fallbacks = new Path[] {
+                Paths.get("uploads", "companies", "banners").resolve(filename),
+                Paths.get("..", "uploads", "companies", "banners").resolve(filename),
+                Paths.get("/app/uploads/companies/banners").resolve(filename),
+                Paths.get("/var/www/fluxbus/uploads/companies/banners").resolve(filename)
+            };
+
+            for (Path fb : fallbacks) {
+                if (Files.exists(fb) && Files.isReadable(fb)) {
+                    Resource fbResource = new UrlResource(fb.toUri());
+                    String contentType = Files.probeContentType(fb);
+                    return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"))
+                        .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                        .body(fbResource);
+                }
+            }
+
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             return ResponseEntity.noContent().build();
