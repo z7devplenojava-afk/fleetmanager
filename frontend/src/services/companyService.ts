@@ -90,24 +90,36 @@ export const companyService = {
   },
 
   async uploadLogo(file: File): Promise<{ url: string; filename: string; originalName: string }> {
-    const fileToUpload = await compressImageIfNeeded(file, 1200, 1200, 0.85);
+    let fileToUpload = file;
+    try {
+      fileToUpload = await compressImageIfNeeded(file, 1200, 1200, 0.85);
+    } catch (e) {
+      console.warn('Falha na compressão client-side da logo, usando arquivo original:', e);
+      fileToUpload = file;
+    }
     const formData = new FormData();
-    formData.append('file', fileToUpload);
+    formData.append('file', fileToUpload, fileToUpload.name || file.name || 'logo.png');
     const response = await api.post('/api/uploads/companies/logo', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
+        'Content-Type': undefined
       }
     });
     return response.data;
   },
 
   async uploadBanner(file: File): Promise<{ url: string; filename: string; originalName: string }> {
-    const fileToUpload = await compressImageIfNeeded(file, 1920, 1080, 0.85);
+    let fileToUpload = file;
+    try {
+      fileToUpload = await compressImageIfNeeded(file, 1920, 1080, 0.85);
+    } catch (e) {
+      console.warn('Falha na compressão client-side do banner, usando arquivo original:', e);
+      fileToUpload = file;
+    }
     const formData = new FormData();
-    formData.append('file', fileToUpload);
+    formData.append('file', fileToUpload, fileToUpload.name || file.name || 'banner.jpg');
     const response = await api.post('/api/uploads/companies/banner-upload', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
+        'Content-Type': undefined
       }
     });
     return response.data;
