@@ -15,7 +15,7 @@ import { userService } from '@/services/userService';
 import { User } from '@/types/user';
 import { companyService } from '@/services/companyService';
 import { Company } from '@/types/company';
-import { Search, User as UserIcon, Building, Briefcase, Plus, UserPlus, Link, X, FileText, Upload, FileCheck, AlertCircle, Users as UsersIcon, Trash2, Edit2, Shield, Eye, FileSpreadsheet, Brain } from 'lucide-react';
+import { Search, User as UserIcon, Building, Briefcase, Plus, UserPlus, UserCheck, Link, X, FileText, Upload, FileCheck, AlertCircle, Users as UsersIcon, Trash2, Edit2, Shield, Eye, FileSpreadsheet, Brain } from 'lucide-react';
 import NovoCargoModal from '@/components/funcionarios/NovoCargoModal';
 import NovoMedicoModal from '@/components/funcionarios/NovoMedicoModal';
 import CriarUsuarioPadraoModal from '@/components/funcionarios/CriarUsuarioPadraoModal';
@@ -472,16 +472,70 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         setSelectedUser(u);
         const displayName = u.name || (u as any).username || '';
         setUserSearchTerm(displayName);
-        if (!displayName && u.id) {
+        if (u.id) {
           userService.getUserById(u.id)
             .then(userData => {
               if (userData) {
                 setSelectedUser(userData);
                 setUserSearchTerm(userData.name || userData.username || '');
+                setForm(prev => ({
+                  ...prev,
+                  user: { id: userData.id },
+                  email: prev.email || userData.email || '',
+                  phone: prev.phone || userData.whatsapp || (userData as any).phone || ''
+                }));
               }
             })
             .catch(err => console.warn('Erro ao resolver usuário de employeeToEdit:', err));
         }
+      } else {
+        // Se o funcionário não possui user vinculado no objeto, buscar usuário correspondente existente (por CPF, email ou nome)
+        const cleanCpf = (employeeToEdit.document || employeeToEdit.cpf || '').replace(/\D/g, '');
+        const empEmail = (employeeToEdit.email || '').trim().toLowerCase();
+        const empName = (employeeToEdit.name || '').trim().toLowerCase();
+
+        userService.getAllUsers().then(allUsersList => {
+          if (!allUsersList || allUsersList.length === 0) return;
+          const matched = allUsersList.find(u => {
+            if (cleanCpf && u.cpf) {
+              const uCpf = u.cpf.replace(/\D/g, '');
+              if (uCpf && uCpf === cleanCpf) return true;
+            }
+            if (cleanCpf && u.username) {
+              const uUserClean = u.username.replace(/\D/g, '');
+              if (uUserClean && uUserClean === cleanCpf) return true;
+            }
+            if (empEmail && u.email && u.email.toLowerCase() === empEmail) {
+              return true;
+            }
+            if (employeeToEdit.id && u.employeeId && u.employeeId === employeeToEdit.id) {
+              return true;
+            }
+            const uName = (u.name || '').trim().toLowerCase();
+            if (empName && uName && empName.length > 5 && empName === uName) {
+              return true;
+            }
+            return false;
+          });
+
+          if (matched) {
+            console.log('🔗 Usuário correspondente localizado e carregado:', matched);
+            setSelectedUser(matched);
+            setUserSearchTerm(matched.name || matched.username || '');
+            setForm(prev => ({
+              ...prev,
+              user: { id: matched.id },
+              email: prev.email || matched.email || ''
+            }));
+            // Se o funcionário já está salvo, persiste o vínculo no backend
+            if (employeeToEdit.id) {
+              employeeService.updateEmployee(employeeToEdit.id, {
+                ...employeeToEdit,
+                user: { id: matched.id }
+              }).catch(err => console.warn('Erro ao persistir vínculo automático:', err));
+            }
+          }
+        }).catch(err => console.warn('Erro ao auto-localizar usuário para funcionário:', err));
       }
       if (employeeToEdit.company && employeeToEdit.company.id) {
         console.log('🔍 Carregando empresa:', employeeToEdit.company);
@@ -2382,10 +2436,22 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                       variant="outline"
                       size="sm"
                       onClick={() => setCriarUsuarioModalOpen(true)}
-                      className="bg-seguranca-yellow/20 hover:bg-seguranca-yellow/30 text-seguranca-yellow border-seguranca-yellow/40 text-xs px-2.5 py-1 h-7 flex items-center gap-1.5"
+                      className={selectedUser
+                        ? "bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/30 text-xs px-2.5 py-1 h-7 flex items-center gap-1.5"
+                        : "bg-seguranca-yellow/20 hover:bg-seguranca-yellow/30 text-seguranca-yellow border-seguranca-yellow/40 text-xs px-2.5 py-1 h-7 flex items-center gap-1.5"
+                      }
                     >
-                      <UserPlus className="h-3.5 w-3.5" />
-                      Gerar Usuário de Sistema
+                      {selectedUser ? (
+                        <>
+                          <UserCheck className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>Usuário Vinculado (@{selectedUser.username})</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="h-3.5 w-3.5" />
+                          <span>Gerar Usuário de Sistema</span>
+                        </>
+                      )}
                     </Button>
                   </div>
                   <div className="relative">
@@ -4695,6 +4761,7 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
           employeePhone={form.phone}
           employeeEmail={form.email}
           employeeId={employeeToEdit?.id || currentEmployeeId || undefined}
+          initialUser={selectedUser || undefined}
           companyId={selectedCompany?.id || form.company?.id || authEmpresa?.id || authUser?.companyId}
         />
 

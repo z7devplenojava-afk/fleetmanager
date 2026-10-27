@@ -1414,7 +1414,7 @@ public class EmployeeService {
                 dto.setDepartmentId(e.getDepartment().getId().toString());
             }
             
-            // Mapear entidades relacionais com verificaÃ§Ã£o de null
+            // Mapear entidades relacionais com verificação de null
             if (e.getUser() != null) {
                 try {
                     EmployeeDTO.IdOnlyDTO userDTO = new EmployeeDTO.IdOnlyDTO();
@@ -1426,6 +1426,42 @@ public class EmployeeService {
                 } catch (Exception userEx) {
                     System.err.println("[WARNING] Erro ao mapear user: " + userEx.getMessage());
                     dto.setUser(null);
+                }
+            } else {
+                try {
+                    String cleanDoc = e.getDocument() != null ? e.getDocument().replaceAll("\\D", "") : "";
+                    User matched = null;
+                    if (cleanDoc.length() >= 11) {
+                        matched = userRepository.findByCpfNative(cleanDoc).orElse(null);
+                        if (matched == null) {
+                            matched = userRepository.findByIdentifierNative(cleanDoc, cleanDoc).orElse(null);
+                        }
+                    }
+                    if (matched == null && e.getEmail() != null && !e.getEmail().isBlank()) {
+                        matched = userRepository.findByEmailNative(e.getEmail().trim()).orElse(null);
+                    }
+                    if (matched == null && e.getName() != null && !e.getName().isBlank()) {
+                        List<User> list = userRepository.searchUsers(e.getName().trim());
+                        if (list != null && list.size() == 1) {
+                            matched = list.get(0);
+                        }
+                    }
+                    if (matched != null) {
+                        UUID empCompId = e.getCompany() != null ? e.getCompany().getId() : e.getCompanyId();
+                        if (empCompId == null || matched.getCompanyId() == null || empCompId.equals(matched.getCompanyId())) {
+                            e.setUser(matched);
+                            employeeRepository.save(e);
+                            EmployeeDTO.IdOnlyDTO userDTO = new EmployeeDTO.IdOnlyDTO();
+                            userDTO.setId(matched.getId());
+                            userDTO.setName(matched.getName());
+                            userDTO.setUsername(matched.getUsername());
+                            userDTO.setEmail(matched.getEmail());
+                            dto.setUser(userDTO);
+                            log.info("🔗 Auto-vinculado na consulta: Funcionário {} ({}) ao Usuário @{}", e.getName(), e.getId(), matched.getUsername());
+                        }
+                    }
+                } catch (Exception matchEx) {
+                    System.err.println("[WARNING] Erro ao auto-vincular user: " + matchEx.getMessage());
                 }
             }
             
