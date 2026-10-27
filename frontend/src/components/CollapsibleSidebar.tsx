@@ -148,7 +148,7 @@ const ticketingMenuItems = [
 const trafegoMenuItems = [
   { icon: BarChart3, text: 'Painel Operacional de Transporte', to: '/gestao-trafego/painel-operacional', id: 'painel-transporte-operacional', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: BarChart3, text: 'Gestão de Tráfego', to: '/fretamento', id: 'trafego-dashboard', permission: 'TRAFFIC_MANAGEMENT_READ' },
-  { icon: Route, text: 'Linhas', to: '/fretamento/rotas', id: 'trafego-rotas', permission: 'TRAFFIC_MANAGEMENT_READ' },
+  { icon: Route, text: 'Gestão de Rotas', to: '/fretamento/rotas', id: 'trafego-rotas', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: Clock, text: 'Horários', to: '/saosilvestre/horarios', id: 'vss-horarios', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: Truck, text: 'Veículos', to: '/frota', id: 'vss-veiculos', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: UserCheck, text: 'Motoristas', to: '/motoristas', id: 'vss-motoristas', permission: 'TRAFFIC_MANAGEMENT_READ' },

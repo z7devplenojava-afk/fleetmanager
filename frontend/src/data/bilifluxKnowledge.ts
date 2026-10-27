@@ -591,7 +591,7 @@ export const BILI_FLUX_TOPICS: BiliFluxTopic[] = [
     route: '/fretamento',
     routeLabel: 'Abrir Gestão de Tráfego',
     subitems: [
-      { label: 'Linhas', route: '/fretamento/rotas' },
+      { label: 'Gestão de Rotas', route: '/fretamento/rotas' },
       { label: 'Gestão de Viagens', route: '/fretamento/viagens' },
       { label: 'Atribuições', route: '/fretamento/atribuicoes' },
       { label: 'Motoristas', route: '/motoristas' },
