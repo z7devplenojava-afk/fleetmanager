@@ -4693,6 +4693,8 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
           employeeName={form.name}
           employeeCpf={form.cpf}
           employeePhone={form.phone}
+          employeeEmail={form.email}
+          employeeId={employeeToEdit?.id || currentEmployeeId || undefined}
           companyId={selectedCompany?.id || form.company?.id || authEmpresa?.id || authUser?.companyId}
         />
 
