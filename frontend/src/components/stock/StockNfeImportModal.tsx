@@ -333,7 +333,23 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[96vw] max-h-[92vh] overflow-y-auto bg-seguranca-graphite border-gray-700 text-white p-4 sm:p-6">
+      <DialogContent 
+        className="max-w-5xl w-[96vw] max-h-[92vh] overflow-y-auto bg-seguranca-graphite border-gray-700 text-white p-4 sm:p-6"
+        onPointerDownOutside={(e) => {
+          // Impede que clicar fora ou interagir com toasts/notificações feche o modal de importação
+          e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          // Impede que interações externas (como fechar toasts ou notificações) fechem o modal
+          e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          // Se houver dados carregados ou processamento em andamento, não fecha por ESC acidental
+          if (parsedData || processing || parsing) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-white">
             <FileText className="h-6 w-6 text-seguranca-yellow" />
