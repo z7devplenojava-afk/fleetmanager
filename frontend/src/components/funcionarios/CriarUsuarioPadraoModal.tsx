@@ -54,6 +54,7 @@ interface CriarUsuarioPadraoModalProps {
   employeePhone: string;
   employeeEmail?: string;
   employeeId?: string;
+  initialUser?: User | null;
   companyId?: string;
 }
 
@@ -78,6 +79,7 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
   employeePhone,
   employeeEmail,
   employeeId,
+  initialUser,
   companyId
 }) => {
   const [form, setForm] = useState({
@@ -109,13 +111,36 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
     return norm.includes('motorista') || norm.includes('driver') || norm.includes('condutor');
   }, [positionName]);
 
+  const fillFormWithUser = (u: User, rolesList?: Role[]) => {
+    const rList = (rolesList && rolesList.length > 0) ? rolesList : roles;
+    let rId = '';
+    if (u.roles && u.roles.length > 0) {
+      const rName = typeof u.roles[0] === 'string' ? u.roles[0] : (u.roles[0] as any)?.name;
+      const cleanRName = rName ? rName.replace(/^ROLE_/, '') : '';
+      const found = rList.find(r => r.name === rName || r.name === `ROLE_${cleanRName}` || r.name === cleanRName);
+      if (found) rId = found.id;
+    }
+
+    setForm(prev => ({
+      ...prev,
+      name: u.name || employeeName || prev.name,
+      username: u.username || prev.username,
+      email: u.email || prev.email,
+      whatsapp: u.whatsapp || employeePhone || prev.whatsapp,
+      isActive: u.active !== undefined ? u.active : true,
+      roleId: rId || prev.roleId,
+    }));
+  };
+
   // Carregar roles e verificar usuários existentes
   useEffect(() => {
     if (open) {
       loadInitialData();
-      generateDefaultCredentials();
+      if (!initialUser) {
+        generateDefaultCredentials();
+      }
     }
-  }, [open, employeeName, employeeCpf, positionName, employeeEmail]);
+  }, [open, employeeName, employeeCpf, positionName, employeeEmail, initialUser]);
 
   const loadInitialData = async () => {
     setLoadingRoles(true);
@@ -127,8 +152,13 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
       setRoles(rolesData);
       setAllUsers(usersData);
 
-      // Verificar se o colaborador já possui usuário correspondente no sistema
-      checkExistingUserMatch(usersData);
+      if (initialUser) {
+        setMatchedExistingUser(initialUser);
+        fillFormWithUser(initialUser, rolesData);
+      } else {
+        // Verificar se o colaborador já possui usuário correspondente no sistema
+        checkExistingUserMatch(usersData, rolesData);
+      }
     } catch (err) {
       console.error('Erro ao carregar dados iniciais:', err);
     } finally {
@@ -136,7 +166,7 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
     }
   };
 
-  const checkExistingUserMatch = (usersList: User[]) => {
+  const checkExistingUserMatch = (usersList: User[], rolesList?: Role[]) => {
     if (!usersList || usersList.length === 0) return;
 
     const cpfDigits = (employeeCpf || '').replace(/\D/g, '');
@@ -167,6 +197,7 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
 
     if (matched) {
       setMatchedExistingUser(matched);
+      fillFormWithUser(matched, rolesList);
     } else {
       setMatchedExistingUser(null);
     }
@@ -247,12 +278,13 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
   };
 
   const handleGenerateAlternative = () => {
+    setMatchedExistingUser(null);
     const randomSuffix = Math.floor(10 + Math.random() * 90).toString();
     generateDefaultCredentials(randomSuffix);
     setError(null);
     toast({
       title: "Credenciais Regeneradas",
-      description: "Novos identificadores únicos foram gerados para evitar duplicações.",
+      description: "Novos identificadores únicos foram gerados para criar um usuário independente.",
     });
   };
 
@@ -330,6 +362,17 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Se o colaborador já possui usuário correspondente ou vinculado, apenas confirma o vínculo
+    if (matchedExistingUser) {
+      toast({
+        title: 'Vínculo Confirmado!',
+        description: `Usuário @${matchedExistingUser.username} vinculado ao colaborador com sucesso.`,
+      });
+      onUsuarioCreated(matchedExistingUser);
+      onClose();
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -487,18 +530,27 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
       <DialogContent className="w-[96vw] max-w-2xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-seguranca-graphite border-gray-700/80 shadow-2xl rounded-2xl">
         <DialogHeader className="pb-3 border-b border-gray-700/80">
           <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
-              <UserPlus className="h-5 w-5" />
+            <div className={`p-2.5 rounded-xl border shrink-0 ${
+              matchedExistingUser 
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+            }`}>
+              {matchedExistingUser ? <UserCheck className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
             </div>
             <div className="min-w-0 flex-1">
               <DialogTitle className="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                <span>Criar Usuário Padrão</span>
-                <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px] hidden sm:inline-flex">
-                  Acesso Rápido
+                <span>{matchedExistingUser ? 'Dados do Usuário Vinculado' : 'Criar Usuário Padrão'}</span>
+                <Badge className={matchedExistingUser 
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px] hidden sm:inline-flex" 
+                  : "bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px] hidden sm:inline-flex"
+                }>
+                  {matchedExistingUser ? 'Usuário Cadastrado' : 'Acesso Rápido'}
                 </Badge>
               </DialogTitle>
               <DialogDescription className="text-xs sm:text-sm text-gray-400 mt-1">
-                Configure as credenciais de acesso corporativo para o colaborador com base no cargo e CPF.
+                {matchedExistingUser
+                  ? 'Este colaborador já possui usuário correspondente no sistema. Todos os dados foram carregados para vinculação direta.'
+                  : 'Configure as credenciais de acesso corporativo para o colaborador com base no cargo e CPF.'}
               </DialogDescription>
             </div>
           </div>
@@ -918,12 +970,21 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
               <Button
                 type="submit"
                 disabled={loading || loadingRoles}
-                className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-black font-semibold shadow-md shadow-amber-500/20 h-10 text-sm rounded-xl gap-2 transition-all duration-200"
+                className={`w-full sm:w-auto font-semibold shadow-md h-10 text-sm rounded-xl gap-2 transition-all duration-200 ${
+                  matchedExistingUser
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/20'
+                    : 'bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20'
+                }`}
               >
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Criando Usuário...</span>
+                    <span>Processando...</span>
+                  </>
+                ) : matchedExistingUser ? (
+                  <>
+                    <UserCheck className="h-4 w-4" />
+                    <span>Confirmar Vínculo (@{matchedExistingUser.username})</span>
                   </>
                 ) : (
                   <>

@@ -242,6 +242,47 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
     }
   }, [isOpen, canManageCompanies]);
 
+  // Auto-identificar e sincronizar funcionário vinculado ao usuário na abertura da edição
+  useEffect(() => {
+    if (!employees || employees.length === 0 || !user || !isOpen) return;
+
+    let targetEmp = (selectedEmployeeId && selectedEmployeeId !== 'none')
+      ? employees.find(e => String(e.id) === String(selectedEmployeeId))
+      : undefined;
+
+    if (!targetEmp) {
+      targetEmp = employees.find(e => {
+        const linkedUserId = (e as any).userId || (e as any).user?.id;
+        if (linkedUserId && String(linkedUserId) === String(user.id)) return true;
+        if (user.employeeId && String(e.id) === String(user.employeeId)) return true;
+        const uCpf = ((user as any).cpf || '').replace(/\D/g, '');
+        const eDoc = (e.document || e.cpf || '').replace(/\D/g, '');
+        if (uCpf && eDoc && uCpf === eDoc) return true;
+        if (user.email && e.email && user.email.toLowerCase() === e.email.toLowerCase()) return true;
+        return false;
+      });
+
+      if (targetEmp) {
+        setSelectedEmployeeId(String(targetEmp.id));
+      }
+    }
+
+    if (targetEmp) {
+      setFormData(prev => ({
+        ...prev,
+        name: prev.name.trim() === '' ? targetEmp.name : prev.name,
+        email: prev.email.trim() === '' && targetEmp.email ? targetEmp.email : prev.email,
+        cpf: prev.cpf.trim() === '' && (targetEmp.document || targetEmp.cpf) ? (targetEmp.document || targetEmp.cpf) : prev.cpf,
+        phone: prev.phone.trim() === '' && targetEmp.phone ? targetEmp.phone.replace(/\D/g, '') : prev.phone,
+        whatsapp: prev.whatsapp.trim() === '' && targetEmp.phone ? targetEmp.phone.replace(/\D/g, '') : prev.whatsapp,
+        position: prev.position.trim() === '' && (targetEmp.positionDescription || (targetEmp as any).position?.name)
+          ? (targetEmp.positionDescription || (targetEmp as any).position?.name)
+          : prev.position,
+        employeeCode: prev.employeeCode.trim() === '' && targetEmp.registrationNumber ? targetEmp.registrationNumber : prev.employeeCode,
+      }));
+    }
+  }, [employees, user, isOpen]);
+
   const handleEmployeeChange = (employeeId: string) => {
     setSelectedEmployeeId(employeeId);
     if (employeeId && employeeId !== 'none') {
