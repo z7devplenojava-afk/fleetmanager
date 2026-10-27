@@ -14,7 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { User, Mail, Shield, Users, Save, X, Search, Check, ChevronsUpDown, AlertCircle, FileText, Sparkles } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { 
+  User, Mail, Shield, Users, Save, X, Search, Check, ChevronsUpDown, 
+  AlertCircle, FileText, Sparkles, Briefcase, CreditCard, UserCheck, 
+  Phone, MapPin, Building2, KeyRound, ChevronDown, ChevronUp, Eye, EyeOff 
+} from 'lucide-react';
 import { User as UserType, UserRole, UserGroupData } from '@/types/user';
 import { getRoleDisplayName, getRoleColor, USER_ROLE_LIST } from '@/utils/permissions';
 import { RoleMultiSelect } from './RoleMultiSelect';
@@ -81,6 +86,8 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
   const [searchingServerEmployees, setSearchingServerEmployees] = useState(false);
   const [checkingCpfEdit, setCheckingCpfEdit] = useState(false);
   const employeeComboboxRef = React.useRef<HTMLDivElement>(null);
+  const [isAdditionalInfoOpen, setIsAdditionalInfoOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Fechar combobox de funcionário ao clicar fora
   useEffect(() => {
@@ -205,6 +212,10 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
       });
       setSelectedEmployeeId(user.employeeId || 'none');
       setIndividualPermissions(user.individualPermissions || []);
+      const hasExtra = Boolean(
+        user.phone || user.department || user.position || user.employeeCode || user.address || user.avatar
+      );
+      setIsAdditionalInfoOpen(hasExtra);
     }
   }, [user]);
 
@@ -498,96 +509,141 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-seguranca-red" />
-            Editar Usuário
-          </DialogTitle>
-          <DialogDescription className="text-seguranca-lightgray">
-            Edite as informações básicas do usuário. Os campos marcados com * são obrigatórios.
-          </DialogDescription>
+      <DialogContent className="w-[96vw] max-w-3xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-seguranca-graphite border-gray-700/80 shadow-2xl rounded-2xl">
+        {/* Header Moderno com Perfil do Usuário */}
+        <DialogHeader className="pb-4 border-b border-gray-700/70">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative shrink-0">
+                {formData.avatar ? (
+                  <img
+                    src={formData.avatar}
+                    alt={formData.name || 'Avatar'}
+                    className="h-12 w-12 rounded-full object-cover border-2 border-seguranca-red/50 shadow-md"
+                  />
+                ) : (
+                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-seguranca-red/25 to-seguranca-black border-2 border-seguranca-red/40 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                    {(formData.name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-seguranca-graphite ${
+                    formData.active ? 'bg-emerald-500' : 'bg-red-500'
+                  }`}
+                  title={formData.active ? 'Conta Ativa' : 'Conta Inativa'}
+                />
+              </div>
+
+              <div className="min-w-0 space-y-0.5">
+                <DialogTitle className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <span className="truncate">{formData.name || 'Editar Usuário'}</span>
+                </DialogTitle>
+                <DialogDescription className="text-xs sm:text-sm text-gray-400 flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-gray-300">@{formData.username || 'usuario'}</span>
+                  {formData.email && (
+                    <>
+                      <span className="text-gray-600 hidden sm:inline">•</span>
+                      <span className="truncate text-gray-400">{formData.email}</span>
+                    </>
+                  )}
+                </DialogDescription>
+              </div>
+            </div>
+
+            {/* Badges de Status / Roles no Header */}
+            <div className="flex items-center gap-1.5 flex-wrap self-start sm:self-center">
+              {formData.roles.slice(0, 2).map((role) => (
+                <Badge key={role} className={`${getRoleColor(role)} text-[11px] font-semibold px-2 py-0.5 shadow-sm`}>
+                  {getRoleDisplayName(role)}
+                </Badge>
+              ))}
+              {formData.roles.length > 2 && (
+                <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700 bg-gray-800/60">
+                  +{formData.roles.length - 2}
+                </Badge>
+              )}
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-5 pt-1">
           {/* Informações Básicas */}
-          <Card className="bg-seguranca-graphite border-gray-600">
-            <CardHeader>
-              <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-                <User className="h-5 w-5" />
+          <Card className="bg-seguranca-graphite/70 border-gray-700/80 shadow-md rounded-xl">
+            <CardHeader className="pb-3 border-b border-gray-700/60">
+              <CardTitle className="text-white text-sm sm:text-base flex items-center gap-2 font-semibold">
+                <User className="h-4 w-4 text-seguranca-red" />
                 Informações Básicas
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-seguranca-lightgray">
-                    Nome Completo *
+            <CardContent className="pt-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-xs sm:text-sm font-medium text-gray-200">
+                    Nome Completo <span className="text-seguranca-red">*</span>
                   </Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                    className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
                     placeholder="Digite o nome completo"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-seguranca-lightgray">
-                    Email *
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs sm:text-sm font-medium text-gray-200">
+                    Email <span className="text-seguranca-red">*</span>
                   </Label>
                   <Input
                     id="email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                    placeholder="Digite o email"
+                    className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
+                    placeholder="usuario@empresa.com.br"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="username" className="text-seguranca-lightgray">
-                    Nome de Usuário *
+                <div className="space-y-1.5">
+                  <Label htmlFor="username" className="text-xs sm:text-sm font-medium text-gray-200">
+                    Nome de Usuário <span className="text-seguranca-red">*</span>
                   </Label>
                   <Input
                     id="username"
                     value={formData.username}
                     onChange={(e) => handleInputChange('username', e.target.value)}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                    placeholder="Digite o nome de usuário"
+                    className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
+                    placeholder="nome.sobrenome"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp" className="text-seguranca-lightgray">
+                <div className="space-y-1.5">
+                  <Label htmlFor="whatsapp" className="text-xs sm:text-sm font-medium text-gray-200">
                     WhatsApp
                   </Label>
                   <Input
                     id="whatsapp"
                     value={formData.whatsapp}
                     onChange={(e) => {
-                      // Aceita apenas números
                       const value = e.target.value.replace(/\D/g, '');
                       setFormData((prev) => ({ ...prev, whatsapp: value }));
                     }}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                    className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
                     placeholder="Somente números (ex: 11999999999)"
                     maxLength={20}
                   />
                 </div>
 
                 {/* Campo CPF */}
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-1.5 sm:col-span-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="user-cpf" className="text-seguranca-lightgray flex items-center gap-1.5 font-medium">
+                    <Label htmlFor="user-cpf" className="text-xs sm:text-sm font-medium text-gray-200 flex items-center gap-1.5">
                       <FileText className="h-4 w-4 text-seguranca-red" />
                       CPF do Usuário (Localiza Funcionário)
                     </Label>
                     {checkingCpfEdit && (
                       <span className="text-xs text-amber-400 flex items-center gap-1">
-                        <Sparkles className="h-3 w-3 animate-spin" /> Verificando CPF na tabela de funcionários...
+                        <Sparkles className="h-3 w-3 animate-spin" /> Verificando na tabela de colaboradores...
                       </span>
                     )}
                   </div>
@@ -595,79 +651,128 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                     id="user-cpf"
                     value={formData.cpf}
                     onChange={(e) => handleCpfChange(e.target.value)}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray placeholder:text-gray-500"
+                    className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg font-mono"
                     placeholder="000.000.000-00 (digite para localizar e vincular colaborador)"
                     maxLength={14}
                   />
                 </div>
 
-                {/* Seleção de Funcionário Vinculado */}
-                <div className="space-y-2 md:col-span-2 pt-2 border-t border-gray-700/60">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="employee-link" className="text-seguranca-lightgray flex items-center gap-1.5 font-medium">
+                {/* Seleção de Funcionário Vinculado - Layout Reestruturado e Responsivo */}
+                <div className="space-y-2 sm:col-span-2 pt-3 border-t border-gray-700/60">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <Label htmlFor="employee-link" className="text-xs sm:text-sm font-medium text-gray-200 flex items-center gap-2">
                       <Users className="h-4 w-4 text-seguranca-red" />
                       Funcionário Vinculado (Opcional)
                     </Label>
                     {selectedEmployeeId !== 'none' && (
-                      <Badge variant="outline" className="text-xs border-seguranca-red/50 text-seguranca-red">
+                      <Badge variant="outline" className="text-xs border-emerald-500/50 bg-emerald-950/40 text-emerald-300 font-medium">
                         Vínculo Ativo
                       </Badge>
                     )}
                   </div>
+
                   {/* Combobox Pesquisável de Funcionário */}
                   <div className="relative" ref={employeeComboboxRef}>
-                    <div className="flex gap-2">
+                    {selectedEmployeeId !== 'none' ? (
+                      /* Card Moderno de Funcionário Vinculado */
+                      <div className="bg-seguranca-black/80 border border-gray-700/80 hover:border-gray-600 rounded-xl p-3 sm:p-4 shadow-sm transition-all">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                            <div className="h-10 w-10 rounded-full bg-seguranca-red/15 border border-seguranca-red/30 flex items-center justify-center shrink-0 text-seguranca-red">
+                              <UserCheck className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-white text-sm sm:text-base truncate">
+                                  {displayEmployeeName}
+                                </span>
+                                <Badge variant="outline" className="text-[10px] bg-gray-800 text-gray-300 border-gray-700 shrink-0">
+                                  Colaborador
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-wrap text-xs text-gray-300">
+                                {displayPosition && (
+                                  <span className="inline-flex items-center gap-1 bg-gray-800/90 px-2 py-0.5 rounded text-gray-200 border border-gray-700/60 truncate max-w-[220px] sm:max-w-xs">
+                                    <Briefcase className="h-3 w-3 text-seguranca-red shrink-0" />
+                                    <span className="truncate">{displayPosition}</span>
+                                  </span>
+                                )}
+                                {displayDoc && (
+                                  <span className="inline-flex items-center gap-1 bg-gray-800/90 px-2 py-0.5 rounded text-gray-300 border border-gray-700/60 shrink-0">
+                                    <CreditCard className="h-3 w-3 text-gray-400 shrink-0" />
+                                    CPF: {displayDoc}
+                                  </span>
+                                )}
+                                {selectedEmployee?.registrationNumber && (
+                                  <span className="inline-flex items-center gap-1 bg-gray-800/90 px-2 py-0.5 rounded text-gray-400 border border-gray-700/60 shrink-0">
+                                    Matrícula: {selectedEmployee.registrationNumber}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Ações: Alterar / Desvincular */}
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t border-gray-800/80 sm:border-0">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsEmployeeComboboxOpen((prev) => !prev)}
+                              className="text-xs h-8 border-gray-600 bg-gray-800/60 text-gray-200 hover:text-white hover:bg-gray-700 flex-1 sm:flex-initial"
+                            >
+                              <ChevronsUpDown className="h-3.5 w-3.5 mr-1 text-gray-400" />
+                              Alterar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEmployeeChange('none')}
+                              className="text-xs h-8 border-red-900/60 bg-red-950/20 text-red-300 hover:bg-red-950/50 hover:text-red-200 hover:border-red-700 flex-1 sm:flex-initial"
+                              title="Desvincular funcionário"
+                            >
+                              <X className="h-3.5 w-3.5 mr-1 text-red-400" />
+                              Desvincular
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Botão Estilizado de Busca Quando Não Vinculado */
                       <button
                         type="button"
                         id="employee-link"
-                        onClick={() => setIsEmployeeComboboxOpen(prev => !prev)}
-                        disabled={isEmployeeLoading}
-                        className="flex-1 flex items-center justify-between px-3 py-2 text-sm rounded-md bg-seguranca-black border border-gray-600 text-seguranca-lightgray hover:border-gray-500 focus:outline-none focus:ring-1 focus:ring-seguranca-red transition-colors text-left"
+                        onClick={() => setIsEmployeeComboboxOpen((prev) => !prev)}
+                        disabled={isEmployeeLoading || !formData.companyId || formData.companyId === 'none'}
+                        className="w-full flex items-center justify-between px-3.5 py-3 text-sm rounded-xl bg-seguranca-black/60 border border-dashed border-gray-700 hover:border-seguranca-red/80 hover:bg-seguranca-black text-seguranca-lightgray focus:outline-none focus:ring-2 focus:ring-seguranca-red/40 transition-all text-left group disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        {selectedEmployeeId !== 'none' ? (
-                          <div className="flex items-center gap-2 truncate">
-                            <Users className="h-4 w-4 text-seguranca-red shrink-0" />
-                            <span className="font-semibold text-white truncate">
-                              {displayEmployeeName}
-                            </span>
-                            {displayPosition && (
-                              <span className="text-xs text-gray-300 truncate">
-                                • {displayPosition}
-                              </span>
-                            )}
-                            {displayDoc && (
-                              <span className="text-xs text-gray-400 truncate">
-                                • CPF: {displayDoc}
-                              </span>
-                            )}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="p-2 rounded-lg bg-gray-800/80 border border-gray-700 text-gray-400 group-hover:text-seguranca-red group-hover:border-seguranca-red/40 transition-colors shrink-0">
+                            <Search className="h-4 w-4" />
                           </div>
-                        ) : (
-                          <div className="flex items-center gap-2 text-gray-400">
-                            <Search className="h-4 w-4 shrink-0 text-seguranca-red" />
-                            <span>{isEmployeeLoading ? "Carregando funcionários..." : "Pesquisar por nome, CPF ou cargo..."}</span>
+                          <div className="min-w-0">
+                            <p className="text-xs sm:text-sm font-medium text-gray-300 group-hover:text-white truncate">
+                              {isEmployeeLoading
+                                ? "Carregando lista de colaboradores..."
+                                : !formData.companyId || formData.companyId === 'none'
+                                ? "Selecione uma empresa antes de vincular colaborador"
+                                : "Pesquisar e vincular colaborador existente"}
+                            </p>
+                            <p className="text-[11px] text-gray-500 truncate">
+                              {!formData.companyId || formData.companyId === 'none'
+                                ? "O vínculo 1-para-1 exige uma empresa selecionada"
+                                : "Clique para buscar por nome, CPF ou cargo do colaborador"}
+                            </p>
                           </div>
-                        )}
-                        <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0 ml-2 text-gray-400" />
+                        </div>
+                        <ChevronsUpDown className="h-4 w-4 text-gray-500 group-hover:text-gray-300 shrink-0 ml-2" />
                       </button>
+                    )}
 
-                      {selectedEmployeeId !== 'none' && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEmployeeChange('none')}
-                          className="border-gray-600 hover:bg-seguranca-black text-gray-400 hover:text-red-400 px-3"
-                          title="Desvincular funcionário"
-                        >
-                          <X className="h-4 w-4 mr-1 text-red-400" />
-                          Desvincular
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* Dropdown com campo de pesquisa */}
+                    {/* Dropdown com Campo de Pesquisa */}
                     {isEmployeeComboboxOpen && formData.companyId && formData.companyId !== 'none' ? (
-                      <div className="absolute z-50 left-0 right-0 mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-2xl p-2 space-y-2">
+                      <div className="absolute z-50 left-0 right-0 mt-2 bg-seguranca-graphite border border-gray-700 rounded-xl shadow-2xl p-3 space-y-2.5 backdrop-blur-md">
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                           <Input
@@ -675,7 +780,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                             value={employeeSearchTerm}
                             onChange={(e) => setEmployeeSearchTerm(e.target.value)}
                             placeholder="Digite o nome, CPF ou cargo (mín. 3 letras)..."
-                            className="pl-9 bg-seguranca-black border-gray-600 text-white placeholder:text-gray-500 h-9 text-sm"
+                            className="pl-9 pr-8 bg-seguranca-black border-gray-700 text-white placeholder:text-gray-500 h-9 text-sm rounded-lg"
                           />
                           {employeeSearchTerm && (
                             <button
@@ -683,7 +788,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                               onClick={() => setEmployeeSearchTerm('')}
                               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                             >
-                              <X className="h-3.5 w-3.5" />
+                              <X className="h-4 w-4" />
                             </button>
                           )}
                         </div>
@@ -691,7 +796,9 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                         <div className="flex items-center justify-between px-1 text-xs text-gray-400">
                           <span>
                             {searchingServerEmployees ? (
-                              'Buscando no servidor...'
+                              <span className="flex items-center gap-1.5 text-amber-400">
+                                <Sparkles className="h-3 w-3 animate-spin" /> Buscando no servidor...
+                              </span>
                             ) : (
                               `${filteredEmployees.length} funcionário(s) encontrado(s)`
                             )}
@@ -703,31 +810,32 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                                 handleEmployeeChange('none');
                                 setIsEmployeeComboboxOpen(false);
                               }}
-                              className="text-red-400 hover:underline"
+                              className="text-red-400 hover:text-red-300 hover:underline font-medium text-xs"
                             >
                               Desvincular funcionário
                             </button>
                           )}
                         </div>
 
-                        <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                        <div className="max-h-60 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                           <button
                             type="button"
                             onClick={() => {
                               handleEmployeeChange('none');
                               setIsEmployeeComboboxOpen(false);
                             }}
-                            className={`w-full text-left p-2 rounded-md text-xs transition-colors ${
+                            className={`w-full text-left p-2.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
                               selectedEmployeeId === 'none'
-                                ? 'bg-seguranca-black text-white font-semibold'
+                                ? 'bg-seguranca-black text-white font-semibold border border-gray-700'
                                 : 'text-gray-400 hover:bg-seguranca-black hover:text-white'
                             }`}
                           >
-                            Nenhum / Desvincular funcionário
+                            <span>Nenhum / Desvincular funcionário</span>
+                            {selectedEmployeeId === 'none' && <Check className="h-3.5 w-3.5 text-seguranca-red" />}
                           </button>
 
                           {filteredEmployees.length === 0 ? (
-                            <div className="p-4 text-center text-sm text-gray-400">
+                            <div className="p-4 text-center text-xs text-gray-400">
                               Nenhum funcionário encontrado para &quot;{employeeSearchTerm}&quot;.
                             </div>
                           ) : (
@@ -739,17 +847,17 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                                 return (
                                   <div
                                     key={emp.id}
-                                    className="flex items-center justify-between p-2.5 rounded-md bg-gray-800/40 border border-gray-700/40 opacity-60 cursor-not-allowed"
+                                    className="flex items-center justify-between p-2.5 rounded-lg bg-gray-900/50 border border-gray-800 opacity-60 cursor-not-allowed"
                                     title="Somente um funcionário pode ter um usuário. Este colaborador já possui outro usuário vinculado."
                                   >
-                                    <div className="flex flex-col">
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-medium text-gray-300">{emp.name}</span>
+                                    <div className="flex flex-col min-w-0 pr-2">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-medium text-gray-300 text-xs sm:text-sm">{emp.name}</span>
                                         <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400 bg-amber-500/10">
                                           Já vinculado a outro usuário
                                         </Badge>
                                       </div>
-                                      <span className="text-xs text-gray-400">
+                                      <span className="text-xs text-gray-400 truncate">
                                         {emp.positionDescription || (emp as any).position?.name || 'Sem cargo'}
                                         {(emp.document || emp.cpf) ? ` • CPF: ${emp.document || emp.cpf}` : ''}
                                       </span>
@@ -767,22 +875,22 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                                     handleEmployeeChange(String(emp.id));
                                     setIsEmployeeComboboxOpen(false);
                                   }}
-                                  className={`w-full text-left flex items-center justify-between p-2.5 rounded-md transition-colors ${
+                                  className={`w-full text-left flex items-center justify-between p-2.5 rounded-lg transition-colors ${
                                     isCurrentLink
-                                      ? 'bg-seguranca-red/20 border border-seguranca-red/50 text-white'
-                                      : 'hover:bg-seguranca-black hover:text-white border border-transparent text-seguranca-lightgray'
+                                      ? 'bg-seguranca-red/15 border border-seguranca-red/50 text-white'
+                                      : 'hover:bg-seguranca-black hover:text-white border border-transparent text-gray-300'
                                   }`}
                                 >
-                                  <div className="flex flex-col">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium text-white">{emp.name}</span>
+                                  <div className="flex flex-col min-w-0 pr-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-medium text-white text-xs sm:text-sm">{emp.name}</span>
                                       {isCurrentLink && (
-                                        <Badge className="text-[10px] bg-seguranca-red text-white">
+                                        <Badge className="text-[10px] bg-seguranca-red text-white py-0">
                                           Vinculado
                                         </Badge>
                                       )}
                                     </div>
-                                    <span className="text-xs text-gray-400">
+                                    <span className="text-xs text-gray-400 truncate">
                                       {emp.positionDescription || (emp as any).position?.name || 'Sem cargo'}
                                       {(emp.document || emp.cpf) ? ` • CPF: ${emp.document || emp.cpf}` : ''}
                                       {emp.registrationNumber ? ` • Matrícula: ${emp.registrationNumber}` : ''}
@@ -798,16 +906,16 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                         </div>
                       </div>
                     ) : isEmployeeComboboxOpen ? (
-                      <div className="absolute z-50 left-0 right-0 mt-1 bg-seguranca-graphite border border-amber-500/50 rounded-lg shadow-2xl p-4">
-                        <div className="flex items-center gap-2 text-amber-400 text-sm">
+                      <div className="absolute z-50 left-0 right-0 mt-2 bg-seguranca-graphite border border-amber-500/50 rounded-xl shadow-2xl p-3.5 backdrop-blur-md">
+                        <div className="flex items-center gap-2 text-amber-400 text-xs sm:text-sm">
                           <AlertCircle className="h-4 w-4 shrink-0" />
-                          <span>Selecione uma <strong>empresa</strong> primeiro para poder vincular um funcionário.</span>
+                          <span>Selecione uma <strong>empresa</strong> primeiro nas Configurações do Sistema para vincular um colaborador.</span>
                         </div>
                       </div>
                     ) : null}
                   </div>
-                  <p className="text-xs text-gray-400">
-                    Ao vincular um funcionário, o sistema sincroniza os dados deste usuário com a ficha do colaborador.
+                  <p className="text-[11px] text-gray-400">
+                    Ao vincular um colaborador, o sistema sincroniza automaticamente dados cadastrais entre o usuário e a ficha funcional.
                   </p>
                 </div>
               </div>
@@ -815,15 +923,15 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
           </Card>
 
           {/* Configurações do Sistema */}
-          <Card className="bg-seguranca-graphite border-gray-600">
-            <CardHeader>
-              <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-                <Shield className="h-5 w-5" />
+          <Card className="bg-seguranca-graphite/70 border-gray-700/80 shadow-md rounded-xl">
+            <CardHeader className="pb-3 border-b border-gray-700/60">
+              <CardTitle className="text-white text-sm sm:text-base flex items-center gap-2 font-semibold">
+                <Shield className="h-4 w-4 text-seguranca-red" />
                 Configurações do Sistema
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="pt-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="col-span-full">
                   <RoleMultiSelect
                     selectedRoles={formData.roles}
@@ -833,18 +941,18 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                 </div>
 
                 {/* Seleção de Empresa */}
-                <div className="space-y-2">
+                <div className="space-y-1.5 sm:col-span-1">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="company" className="text-seguranca-lightgray">
-                      Empresa
+                    <Label htmlFor="company" className="text-xs sm:text-sm font-medium text-gray-200">
+                      Empresa Vinculada
                     </Label>
                     {canManageCompanies && formData.companyId && formData.companyId !== 'none' && (
                       <button
                         type="button"
                         onClick={() => handleInputChange('companyId', 'none')}
-                        className="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer"
+                        className="text-[11px] text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer"
                       >
-                        Desvincular Empresa (Acesso Global)
+                        Acesso Global
                       </button>
                     )}
                   </div>
@@ -853,10 +961,10 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                       value={formData.companyId || 'none'}
                       onValueChange={(value) => handleInputChange('companyId', value === 'none' ? '' : value)}
                     >
-                      <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
+                      <SelectTrigger className="bg-seguranca-black/90 border-gray-700 text-white h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg">
                         <SelectValue placeholder="Selecione a empresa" />
                       </SelectTrigger>
-                      <SelectContent className="bg-seguranca-black border-gray-600">
+                      <SelectContent className="bg-seguranca-black border-gray-700 text-white">
                         {canManageCompanies && (
                           <SelectItem value="none" className="text-emerald-400 font-medium">
                             Sem Empresa (Acesso Global / Matriz FluxBus)
@@ -872,28 +980,39 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                   ) : (
                     <Input
                       id="company-name"
-                      value={user.companyId ? (companies.find(c => c.id === user.companyId)?.name || 'Empresa Vinculada') : 'Sem Empresa (FluxBus Matriz)'}
+                      value={user.companyId ? (companies.find((c) => c.id === user.companyId)?.name || 'Empresa Vinculada') : 'Sem Empresa (FluxBus Matriz)'}
                       readOnly
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray opacity-70 cursor-not-allowed"
+                      className="bg-seguranca-black/90 border-gray-700 text-gray-400 opacity-80 cursor-not-allowed h-10 text-sm rounded-lg"
                     />
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-seguranca-lightgray">
-                    Status
-                  </Label>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="active"
+                {/* Switch Moderno de Status Ativo/Inativo */}
+                <div className="space-y-1.5 sm:col-span-1 flex flex-col justify-end">
+                  <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg bg-seguranca-black/70 border border-gray-700/80 min-h-[44px]">
+                    <div className="space-y-0.5 pr-2">
+                      <Label htmlFor="active-toggle" className="text-xs sm:text-sm font-medium text-white cursor-pointer flex items-center gap-2">
+                        Status da Conta
+                        {formData.active ? (
+                          <Badge className="bg-emerald-500/15 border-emerald-500/40 text-emerald-300 text-[10px] font-semibold py-0">
+                            Ativo
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-red-500/15 border-red-500/40 text-red-300 text-[10px] font-semibold py-0">
+                            Inativo
+                          </Badge>
+                        )}
+                      </Label>
+                      <p className="text-[11px] text-gray-400 leading-tight">
+                        {formData.active ? 'Usuário pode efetuar login' : 'Acesso suspenso no sistema'}
+                      </p>
+                    </div>
+                    <Switch
+                      id="active-toggle"
                       checked={formData.active}
-                      onChange={(e) => handleInputChange('active', e.target.checked)}
-                      className="rounded border-gray-600 bg-seguranca-black text-seguranca-red focus:ring-seguranca-red"
+                      onCheckedChange={(checked) => handleInputChange('active', checked)}
+                      className="data-[state=checked]:bg-emerald-600 data-[state=unchecked]:bg-gray-700"
                     />
-                    <Label htmlFor="active" className="text-seguranca-lightgray">
-                      Usuário Ativo
-                    </Label>
                   </div>
                 </div>
               </div>
@@ -902,183 +1021,217 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
           {/* Senha (apenas SUPER_ADMIN) */}
           {currentUser?.role === 'SUPER_ADMIN' && (
-            <Card className="bg-seguranca-graphite border-gray-600">
-              <CardHeader>
-                <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
+            <Card className="bg-seguranca-graphite/70 border-gray-700/80 shadow-md rounded-xl">
+              <CardHeader className="pb-3 border-b border-gray-700/60 flex flex-row items-center justify-between">
+                <CardTitle className="text-white text-sm sm:text-base flex items-center gap-2 font-semibold">
+                  <KeyRound className="h-4 w-4 text-seguranca-red" />
                   Redefinir Senha
                 </CardTitle>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="text-xs text-gray-400 hover:text-white h-7 px-2"
+                >
+                  {showPassword ? (
+                    <>
+                      <EyeOff className="h-3.5 w-3.5 mr-1" /> Ocultar
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-3.5 w-3.5 mr-1" /> Revelar
+                    </>
+                  )}
+                </Button>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="text-seguranca-lightgray">
+              <CardContent className="pt-4 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="password" className="text-xs sm:text-sm font-medium text-gray-200">
                       Nova Senha
                     </Label>
                     <Input
                       id="password"
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       value={formData.password}
                       onChange={(e) => handleInputChange('password', e.target.value)}
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                      className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
                       placeholder="Deixe em branco para não alterar"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword" className="text-seguranca-lightgray">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirmPassword" className="text-xs sm:text-sm font-medium text-gray-200">
                       Confirmar Nova Senha
                     </Label>
                     <Input
                       id="confirmPassword"
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       value={formData.confirmPassword}
                       onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
+                      className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
                       placeholder="Repita a nova senha"
                     />
                   </div>
                 </div>
-                <p className="text-xs text-gray-400">
-                  Apenas o SUPER_ADMIN pode redefinir senha diretamente. Se os campos forem deixados em branco, a senha atual será mantida.
+                <p className="text-[11px] text-gray-400">
+                  Apenas o SUPER_ADMIN pode alterar senhas diretamente. Para manter a senha atual, basta deixar os campos em branco.
                 </p>
               </CardContent>
             </Card>
           )}
 
-          {/* Informações Adicionais (agora editáveis) */}
-          <Card className="bg-seguranca-graphite border-gray-600">
-            <CardHeader>
-              <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Informações Adicionais
-              </CardTitle>
+          {/* Informações Adicionais (Colapsável para Otimizar Espaço no Mobile) */}
+          <Card className="bg-seguranca-graphite/70 border-gray-700/80 shadow-md rounded-xl overflow-hidden">
+            <CardHeader
+              className="pb-3 border-b border-gray-700/60 cursor-pointer select-none hover:bg-white/[0.02] transition-colors"
+              onClick={() => setIsAdditionalInfoOpen((prev) => !prev)}
+            >
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-white text-sm sm:text-base flex items-center gap-2 font-semibold">
+                  <Users className="h-4 w-4 text-seguranca-red" />
+                  Informações Adicionais
+                  <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700 font-normal">
+                    Opcional
+                  </Badge>
+                </CardTitle>
+                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <span>{isAdditionalInfoOpen ? 'Recolher' : 'Expandir'}</span>
+                  {isAdditionalInfoOpen ? (
+                    <ChevronUp className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                  )}
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm text-seguranca-lightgray">Telefone</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                    placeholder="Somente números (ex: 11999999999)"
+
+            {isAdditionalInfoOpen && (
+              <CardContent className="pt-4 space-y-4 animate-in fade-in-50 duration-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone" className="text-xs sm:text-sm font-medium text-gray-200">Telefone</Label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
+                      placeholder="Somente números (ex: 11999999999)"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="department" className="text-xs sm:text-sm font-medium text-gray-200">Departamento</Label>
+                    <Input
+                      id="department"
+                      value={formData.department}
+                      onChange={(e) => handleInputChange('department', e.target.value)}
+                      className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
+                      placeholder="Ex: Operações, TI, RH..."
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="position" className="text-xs sm:text-sm font-medium text-gray-200">Cargo</Label>
+                    <Input
+                      id="position"
+                      value={formData.position}
+                      onChange={(e) => handleInputChange('position', e.target.value)}
+                      className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
+                      placeholder="Cargo ou função interna"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="employeeCode" className="text-xs sm:text-sm font-medium text-gray-200">Código do Funcionário</Label>
+                    <Input
+                      id="employeeCode"
+                      value={formData.employeeCode}
+                      onChange={(e) => handleInputChange('employeeCode', e.target.value)}
+                      className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
+                      placeholder="Matrícula / Código interno"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="address" className="text-xs sm:text-sm font-medium text-gray-200">Endereço</Label>
+                  <Textarea
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 min-h-[72px] text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
+                    placeholder="Rua, número, complemento, bairro, cidade - UF"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="department" className="text-sm text-seguranca-lightgray">Departamento</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="avatar" className="text-xs sm:text-sm font-medium text-gray-200">URL do Avatar</Label>
                   <Input
-                    id="department"
-                    value={formData.department}
-                    onChange={(e) => handleInputChange('department', e.target.value)}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                    placeholder="Departamento do usuário"
+                    id="avatar"
+                    value={formData.avatar}
+                    onChange={(e) => handleInputChange('avatar', e.target.value)}
+                    className="bg-seguranca-black/90 border-gray-700 text-white placeholder:text-gray-500 h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg"
+                    placeholder="https://exemplo.com/foto.jpg"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="position" className="text-sm text-seguranca-lightgray">Cargo</Label>
-                  <Input
-                    id="position"
-                    value={formData.position}
-                    onChange={(e) => handleInputChange('position', e.target.value)}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                    placeholder="Cargo/Função"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="employeeCode" className="text-sm text-seguranca-lightgray">Código do Funcionário</Label>
-                  <Input
-                    id="employeeCode"
-                    value={formData.employeeCode}
-                    onChange={(e) => handleInputChange('employeeCode', e.target.value)}
-                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                    placeholder="Código interno (opcional)"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <Label htmlFor="address" className="text-sm text-seguranca-lightgray">Endereço</Label>
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray min-h-[80px]"
-                  placeholder="Endereço completo (opcional)"
-                />
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <Label htmlFor="avatar" className="text-sm text-seguranca-lightgray">URL do Avatar (opcional)</Label>
-                <Input
-                  id="avatar"
-                  value={formData.avatar}
-                  onChange={(e) => handleInputChange('avatar', e.target.value)}
-                  className="bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  placeholder="https://..."
-                />
-              </div>
-
-              <p className="text-xs text-gray-400 mt-3">
-                Esses campos agora são salvos diretamente no cadastro do usuário. Campos em branco limpam as informações correspondentes.
-              </p>
-            </CardContent>
+                <p className="text-[11px] text-gray-400">
+                  Esses campos são salvos no perfil do usuário. Deixar em branco remove o dado correspondente.
+                </p>
+              </CardContent>
+            )}
           </Card>
 
           {/* Grupos Atuais + Gerenciamento (apenas SUPER_ADMIN) */}
-          <Card className="bg-seguranca-graphite border-gray-600">
-            <CardHeader>
-              <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-                <Users className="h-5 w-5" />
+          <Card className="bg-seguranca-graphite/70 border-gray-700/80 shadow-md rounded-xl">
+            <CardHeader className="pb-3 border-b border-gray-700/60">
+              <CardTitle className="text-white text-sm sm:text-base flex items-center gap-2 font-semibold">
+                <Users className="h-4 w-4 text-seguranca-red" />
                 Grupos Atuais ({user.groups?.length || 0})
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {/* Lista de grupos do usuário */}
+            <CardContent className="pt-4 space-y-3">
               {user.groups && user.groups.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {user.groups.map((group) => (
                     <Badge
                       key={group.id}
                       variant="outline"
-                      className="flex items-center gap-1 text-xs"
+                      className="flex items-center gap-1.5 text-xs bg-gray-800/80 border-gray-700 text-gray-200 py-1 px-2.5"
                     >
-                      {group.displayName}
+                      <span>{group.displayName}</span>
                       {currentUser?.role === 'SUPER_ADMIN' && (
                         <button
                           type="button"
-                          className="ml-1 text-red-400 hover:text-red-600"
+                          className="ml-1 text-red-400 hover:text-red-300 rounded-full p-0.5 hover:bg-black/30 transition-colors"
                           onClick={() => handleRemoveGroup(group.id)}
                           disabled={isGroupLoading}
-                          title="Remover usuário deste grupo"
+                          title="Remover deste grupo"
                         >
-                          ×
+                          <X className="h-3 w-3" />
                         </button>
                       )}
                     </Badge>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-400 text-sm">Usuário não está em nenhum grupo</p>
+                <p className="text-gray-400 text-xs sm:text-sm">Usuário não está associado a nenhum grupo de trabalho.</p>
               )}
 
-              {/* Área de adição de grupos para SUPER_ADMIN */}
               {currentUser?.role === 'SUPER_ADMIN' && (
-                <div className="mt-2 space-y-2">
+                <div className="pt-2 border-t border-gray-800/80 space-y-2">
                   <Label className="text-xs text-gray-300">Adicionar usuário a um grupo</Label>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <Select
                       value={selectedGroupId}
                       onValueChange={setSelectedGroupId}
                     >
-                      <SelectTrigger className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm sm:text-base">
+                      <SelectTrigger className="bg-seguranca-black/90 border-gray-700 text-white h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg flex-1">
                         <SelectValue placeholder="Selecione um grupo" />
                       </SelectTrigger>
-                      <SelectContent className="bg-seguranca-black border-gray-600 max-h-60">
+                      <SelectContent className="bg-seguranca-black border-gray-700 text-white max-h-60">
                         {allGroups
                           .filter((g) => !user.groups?.some((ug) => ug.id === g.id))
                           .map((group) => (
@@ -1092,62 +1245,59 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                       type="button"
                       onClick={handleAddGroup}
                       disabled={!selectedGroupId || isGroupLoading}
-                      className="sm:w-auto w-full bg-seguranca-red hover:bg-seguranca-darkred"
+                      className="sm:w-auto w-full h-10 bg-seguranca-red hover:bg-seguranca-darkred text-white text-xs sm:text-sm rounded-lg"
                     >
-                      {isGroupLoading ? 'Salvando...' : 'Adicionar ao Grupo'}
+                      {isGroupLoading ? 'Adicionando...' : 'Adicionar ao Grupo'}
                     </Button>
                   </div>
-                  <p className="text-[11px] text-gray-400">
-                    Super Admin pode incluir ou remover usuários de grupos diretamente por aqui.
-                  </p>
                 </div>
-              )}
-
-              {currentUser?.role !== 'SUPER_ADMIN' && (
-                <p className="text-sm text-gray-400 mt-2">
-                  Para gerenciar grupos, use a página de Grupos.
-                </p>
               )}
             </CardContent>
           </Card>
 
           {/* Permissões Individuais (apenas SUPER_ADMIN) */}
           {currentUser?.role === 'SUPER_ADMIN' && user && (
-            <Card className="bg-seguranca-graphite border-gray-600">
-              <CardHeader>
-                <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
+            <Card className="bg-seguranca-graphite/70 border-gray-700/80 shadow-md rounded-xl">
+              <CardHeader className="pb-3 border-b border-gray-700/60">
+                <CardTitle className="text-white text-sm sm:text-base flex items-center gap-2 font-semibold">
+                  <Shield className="h-4 w-4 text-seguranca-red" />
                   Permissões Individuais
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {individualPermissions.length === 0 && <span className="text-gray-400">Nenhuma permissão individual atribuída.</span>}
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {individualPermissions.length === 0 && (
+                    <span className="text-gray-400 text-xs sm:text-sm">Nenhuma permissão individual atribuída diretamente.</span>
+                  )}
                   {individualPermissions.map((perm) => (
-                    <Badge key={perm.id} variant="outline" className="flex items-center gap-1">
-                      {perm.name}
+                    <Badge key={perm.id} variant="outline" className="flex items-center gap-1.5 text-xs bg-gray-800/80 border-gray-700 text-gray-200 py-1 px-2.5">
+                      <span>{perm.name}</span>
                       <button
                         type="button"
-                        className="ml-1 text-red-500 hover:text-red-700"
+                        className="ml-1 text-red-400 hover:text-red-300 rounded-full p-0.5 hover:bg-black/30 transition-colors"
                         onClick={() => handleRemovePermission(perm.id)}
                         disabled={isPermLoading}
                         title="Remover permissão"
                       >
-                        ×
+                        <X className="h-3 w-3" />
                       </button>
                     </Badge>
                   ))}
                 </div>
+
                 <Select onValueChange={handleAddPermission}>
-                  <SelectTrigger className="w-full bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                    <SelectValue placeholder="Adicionar permissão individual..." />
+                  <SelectTrigger className="w-full bg-seguranca-black/90 border-gray-700 text-white h-10 text-sm focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/50 rounded-lg">
+                    <SelectValue placeholder="Adicionar permissão individual específica..." />
                   </SelectTrigger>
-                  <SelectContent className="bg-seguranca-black border-gray-600">
+                  <SelectContent className="bg-seguranca-black border-gray-700 text-white max-h-60">
                     {allPermissions
-                      .filter(p => !individualPermissions.some(ip => ip.id === p.id))
+                      .filter((p) => !individualPermissions.some((ip) => ip.id === p.id))
                       .map((perm) => (
                         <SelectItem key={perm.id} value={perm.id}>
-                          {perm.name} <span className="text-xs text-gray-400 ml-2">{perm.description}</span>
+                          <span>{perm.name}</span>
+                          {perm.description && (
+                            <span className="text-xs text-gray-400 ml-2">({perm.description})</span>
+                          )}
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -1159,29 +1309,29 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
         {/* Alerta de relogin ao desvincular empresa do próprio usuário */}
         {showReloginAlert && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-            <div className="bg-seguranca-graphite border border-amber-500 rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl animate-in fade-in-0 zoom-in-95">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-seguranca-graphite border border-amber-500 rounded-xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in-0 zoom-in-95">
               <div className="flex flex-col items-center text-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-500 flex items-center justify-center">
-                  <AlertCircle className="h-8 w-8 text-amber-400" />
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-amber-500/20 border-2 border-amber-500 flex items-center justify-center shrink-0">
+                  <AlertCircle className="h-7 w-7 sm:h-8 sm:w-8 text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white mb-2">Configurações Alteradas</h3>
-                  <p className="text-gray-300 text-sm leading-relaxed">
-                    A empresa foi desvinculada da sua conta com sucesso. Para que as novas configurações e permissões sejam aplicadas corretamente, você precisa <strong className="text-amber-400">sair do sistema e entrar novamente</strong>.
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-2">Configurações Alteradas</h3>
+                  <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
+                    A empresa foi desvinculada da sua conta com sucesso. Para que as novas configurações e permissões globais sejam aplicadas, você precisa <strong className="text-amber-400">sair do sistema e entrar novamente</strong>.
                   </p>
                 </div>
-                <div className="flex flex-col gap-2 w-full">
+                <div className="flex flex-col gap-2 w-full pt-2">
                   <Button
                     onClick={() => { logout(); }}
-                    className="w-full bg-amber-500 hover:bg-amber-400 text-black font-semibold"
+                    className="w-full h-10 bg-amber-500 hover:bg-amber-400 text-black font-semibold text-sm rounded-lg"
                   >
                     Sair agora e reconectar
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => { setShowReloginAlert(false); onClose(); }}
-                    className="w-full border-gray-600 text-gray-400 hover:bg-seguranca-black"
+                    className="w-full h-10 border-gray-600 text-gray-300 hover:bg-seguranca-black text-sm rounded-lg"
                   >
                     Entendido, sair mais tarde
                   </Button>
@@ -1191,22 +1341,23 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
           </div>
         )}
 
-        <DialogFooter className="flex gap-2">
+        {/* Footer Responsivo e Touch-Friendly */}
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-4 border-t border-gray-700/70">
           <Button
             variant="outline"
             onClick={onClose}
             disabled={isLoading}
-            className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+            className="w-full sm:w-auto h-10 border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg text-sm"
           >
-            <X className="h-4 w-4 mr-2" />
+            <X className="h-4 w-4 mr-1.5" />
             Cancelar
           </Button>
           <Button
             onClick={handleSave}
             disabled={isLoading || !formData.name?.trim() || !formData.email?.trim() || !formData.username?.trim() || formData.roles.length === 0}
-            className="bg-seguranca-red hover:bg-seguranca-darkred"
+            className="w-full sm:w-auto h-10 bg-seguranca-red hover:bg-seguranca-darkred text-white font-medium rounded-lg shadow-lg shadow-seguranca-red/20 transition-all text-sm"
           >
-            <Save className="h-4 w-4 mr-2" />
+            <Save className="h-4 w-4 mr-1.5" />
             {isLoading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>
