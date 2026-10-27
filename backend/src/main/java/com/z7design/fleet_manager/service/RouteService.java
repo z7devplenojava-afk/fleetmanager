@@ -20,10 +20,12 @@ public class RouteService {
     @Autowired
     private com.z7design.fleet_manager.service.RouteCodeGenerator routeCodeGenerator;
 
+    @Transactional(readOnly = true)
     public List<Route> findAllRoutes() {
         return routeRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public Route findRouteById(UUID id) {
         return routeRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Route not found"));
