@@ -155,6 +155,39 @@ public class StockNfeService {
                 emitEmail = getTagValue(emitEl, "email");
             }
 
+            // Destinatário / Cliente (dest)
+            String destCnpj = "";
+            String destNome = "";
+            String destLgr = "";
+            String destNro = "";
+            String destBairro = "";
+            String destMun = "";
+            String destUf = "";
+            String destCep = "";
+            String destFone = "";
+
+            NodeList destNodes = doc.getElementsByTagName("dest");
+            if (destNodes.getLength() > 0) {
+                Element destEl = (Element) destNodes.item(0);
+                destCnpj = getTagValue(destEl, "CNPJ");
+                if (destCnpj == null || destCnpj.isEmpty()) {
+                    destCnpj = getTagValue(destEl, "CPF");
+                }
+                destNome = getTagValue(destEl, "xNome");
+
+                NodeList enderDestNodes = destEl.getElementsByTagName("enderDest");
+                if (enderDestNodes.getLength() > 0) {
+                    Element enderDestEl = (Element) enderDestNodes.item(0);
+                    destLgr = getTagValue(enderDestEl, "xLgr");
+                    destNro = getTagValue(enderDestEl, "nro");
+                    destBairro = getTagValue(enderDestEl, "xBairro");
+                    destMun = getTagValue(enderDestEl, "xMun");
+                    destUf = getTagValue(enderDestEl, "UF");
+                    destCep = getTagValue(enderDestEl, "CEP");
+                    destFone = getTagValue(enderDestEl, "fone");
+                }
+            }
+
             // Totais
             BigDecimal vProd = parseDecimal(getTagValue(doc, "vProd"));
             BigDecimal vNF = parseDecimal(getTagValue(doc, "vNF"));
@@ -165,7 +198,7 @@ public class StockNfeService {
             UUID existingSupplierId = findExistingSupplierId(cnpj, companyId);
 
             // Verificar duplicidade da Nota Fiscal
-            DuplicateCheck duplicateCheck = checkAlreadyImported(nNf, accessKey);
+            DuplicateCheck duplicateCheck = checkAlreadyImported(nNf, accessKey, cnpj, xNome, companyId);
             boolean alreadyImported = duplicateCheck.alreadyImported;
             String duplicateWarning = duplicateCheck.warning;
 
@@ -188,6 +221,13 @@ public class StockNfeService {
                     .supplierPhone(emitFone != null && !emitFone.isBlank() ? emitFone : null)
                     .supplierEmail(emitEmail != null && !emitEmail.isBlank() ? emitEmail : null)
                     .existingSupplierId(existingSupplierId)
+                    .customerCnpj(destCnpj)
+                    .customerName(destNome)
+                    .customerAddress((destLgr != null ? destLgr : "") + (destNro != null && !destNro.isBlank() ? ", " + destNro : "") + (destBairro != null && !destBairro.isBlank() ? " - " + destBairro : ""))
+                    .customerCity(destMun)
+                    .customerState(destUf)
+                    .customerZipCode(destCep)
+                    .customerPhone(destFone != null && !destFone.isBlank() ? destFone : null)
                     .alreadyImported(alreadyImported)
                     .duplicateWarning(duplicateWarning)
                     .items(new ArrayList<>())
@@ -363,14 +403,40 @@ public class StockNfeService {
             String nNf = extractInvoiceNumber(flat);
             String serie = extractMatch(flat, "(?i)S[ÉE]RIE\\s*\\.?\\s*(\\d{1,3})");
 
-            // Data de emissão
-            LocalDate issueDate = extractIssueDate(lines, flat);
-
             // Emitente (nome, CNPJ e endereço)
             SupplierInfo supplierInfo = extractSupplier(lines);
 
-            // Cobrança / duplicatas
-            List<StockNfeParsedDTO.StockNfeInstallmentDTO> installments = extractInstallments(lines);
+            // Auto-recuperação inteligente a partir da Chave de Acesso de 44 dígitos
+            if (accessKey != null && accessKey.length() == 44) {
+                // Dígitos 25-33: Número da NF (9 dígitos)
+                if (nNf == null || nNf.isBlank()) {
+                    try {
+                        String rawNum = accessKey.substring(25, 34).replaceFirst("^0+(?!$)", "");
+                        if (!rawNum.isEmpty()) {
+                            nNf = rawNum;
+                            log.info("Número da NF-e recuperado com precisão da chave de acesso: {}", nNf);
+                        }
+                    } catch (Exception ignored) {}
+                }
+                // Dígitos 22-24: Série da NF (3 dígitos)
+                if (serie == null || serie.isBlank()) {
+                    try {
+                        serie = accessKey.substring(22, 25).replaceFirst("^0+(?!$)", "");
+                    } catch (Exception ignored) {}
+                }
+                // Dígitos 6-19: CNPJ do emitente (14 dígitos)
+                if (supplierInfo.cnpj == null || supplierInfo.cnpj.isBlank()) {
+                    try {
+                        supplierInfo.cnpj = formatCnpj(accessKey.substring(6, 20));
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            // Data de emissão
+            LocalDate issueDate = extractIssueDate(lines, flat);
+
+            // Destinatário / Cliente
+            CustomerInfo customerInfo = extractCustomer(lines);
 
             // Itens da NF
             List<StockNfeParsedDTO.StockNfeItemDTO> items = extractItems(lines, companyId);
@@ -426,8 +492,11 @@ public class StockNfeService {
                 vNF = itemsSum.compareTo(BigDecimal.ZERO) > 0 ? itemsSum : vProd;
             }
 
+            // Cobrança / duplicatas (passa issueDate e vNF como fallback se não houver seção de duplicatas)
+            List<StockNfeParsedDTO.StockNfeInstallmentDTO> installments = extractInstallments(lines, issueDate, vNF);
+
             UUID existingSupplierId = findExistingSupplierId(supplierInfo.cnpj, companyId);
-            DuplicateCheck duplicateCheck = checkAlreadyImported(nNf, accessKey);
+            DuplicateCheck duplicateCheck = checkAlreadyImported(nNf, accessKey, supplierInfo.cnpj, supplierInfo.name, companyId);
 
             return StockNfeParsedDTO.builder()
                     .accessKey(accessKey)
@@ -448,6 +517,13 @@ public class StockNfeService {
                     .supplierPhone(supplierInfo.phone != null && !supplierInfo.phone.isBlank() ? supplierInfo.phone : null)
                     .supplierEmail(supplierInfo.email != null && !supplierInfo.email.isBlank() ? supplierInfo.email : null)
                     .existingSupplierId(existingSupplierId)
+                    .customerCnpj(customerInfo.cnpj)
+                    .customerName(customerInfo.name)
+                    .customerAddress(customerInfo.address)
+                    .customerCity(customerInfo.city)
+                    .customerState(customerInfo.state)
+                    .customerZipCode(customerInfo.zipCode)
+                    .customerPhone(customerInfo.phone != null && !customerInfo.phone.isBlank() ? customerInfo.phone : null)
                     .alreadyImported(duplicateCheck.alreadyImported)
                     .duplicateWarning(duplicateCheck.warning)
                     .items(items)
@@ -462,14 +538,111 @@ public class StockNfeService {
     }
 
     private String extractAccessKey(String flat) {
-        Matcher matcher = Pattern.compile("\\d(?:[\\s.]*\\d){43,70}").matcher(flat);
-        while (matcher.find()) {
-            String digits = matcher.group().replaceAll("\\D", "");
-            if (digits.length() >= 44) {
-                return digits.substring(0, 44);
+        // 1. Procura chave rotulada explicitamente
+        Matcher labeled = Pattern.compile("(?i)CHAVE\\s+DE\\s+ACESSO[^0-9]{0,35}((?:\\d[\\s.]*){44})").matcher(flat);
+        if (labeled.find()) {
+            String digits = labeled.group(1).replaceAll("\\D", "");
+            if (digits.length() == 44) {
+                return digits;
             }
         }
-        return "";
+
+        // 2. Procura sequências de 44 dígitos no texto todo
+        Matcher matcher = Pattern.compile("(?<!\\d)(\\d(?:[\\s.]*\\d){43})(?!\\d)").matcher(flat);
+        String candidateKey = "";
+        while (matcher.find()) {
+            String digits = matcher.group(1).replaceAll("\\D", "");
+            if (digits.length() == 44) {
+                String model = digits.substring(20, 22);
+                if ("55".equals(model) || "65".equals(model)) {
+                    return digits;
+                }
+                if (candidateKey.isEmpty()) {
+                    candidateKey = digits;
+                }
+            }
+        }
+        return candidateKey;
+    }
+
+    private String formatCnpj(String digits) {
+        if (digits == null || digits.length() != 14) return digits;
+        return String.format("%s.%s.%s/%s-%s",
+                digits.substring(0, 2),
+                digits.substring(2, 5),
+                digits.substring(5, 8),
+                digits.substring(8, 12),
+                digits.substring(12, 14));
+    }
+
+    private CustomerInfo extractCustomer(List<String> lines) {
+        CustomerInfo info = new CustomerInfo();
+        int destHeaderIdx = -1;
+        for (int i = 0; i < lines.size(); i++) {
+            String clean = removeAccents(lines.get(i).toUpperCase()).replaceAll("[^A-Z0-9/ ]", " ").trim();
+            if (clean.contains("DESTINATARIO") || clean.contains("DESTINATARIO / REMETENTE") || clean.contains("DESTINATARIO/REMETENTE")) {
+                destHeaderIdx = i;
+                break;
+            }
+        }
+
+        if (destHeaderIdx >= 0) {
+            for (int i = destHeaderIdx + 1; i < Math.min(lines.size(), destHeaderIdx + 14); i++) {
+                String line = lines.get(i);
+                String upper = removeAccents(line.toUpperCase());
+                if (upper.contains("CALCULO DO IMPOSTO") || upper.contains("FATURA") || upper.contains("DUPLICATA") 
+                        || upper.contains("DADOS DO PRODUTO") || upper.contains("DADOS DAS DUPLICATAS")) {
+                    break;
+                }
+
+                // CNPJ ou CPF do destinatário
+                if (info.cnpj == null || info.cnpj.isBlank()) {
+                    Matcher matcher = Pattern.compile("(?i)(?:CNPJ|CPF)\\s*[:.]?\\s*([\\d./-]{11,20})").matcher(line);
+                    if (matcher.find()) {
+                        info.cnpj = matcher.group(1).trim();
+                    } else {
+                        Matcher directCnpj = Pattern.compile("(?<!\\d)(\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2})(?!\\d)").matcher(line);
+                        if (directCnpj.find()) {
+                            info.cnpj = directCnpj.group(1).trim();
+                        }
+                    }
+                }
+
+                // Nome / Razão Social do cliente/destinatário
+                if ((info.name == null || info.name.isBlank()) && containsLetters(line) && !isDanfeLabel(line) && line.length() > 3) {
+                    if (!line.toUpperCase().contains("RUA ") && !line.toUpperCase().contains("AV ") && !line.toUpperCase().contains("AVENIDA") 
+                            && !line.toUpperCase().contains("RODOVIA") && !line.matches(".*[A-Z]{2}\\s*CEP.*")) {
+                        info.name = line.replaceAll("(?i)^NOME\\s*/\\s*RAZ[ÃA]O\\s+SOCIAL\\s*[:.]?\\s*", "").trim();
+                    }
+                }
+
+                // Cidade / UF / CEP
+                Matcher cityMatcher = Pattern.compile("(?i)([\\p{L} .]{2,40})\\s*/\\s*([A-Za-z]{2})(?:\\s*CEP\\s*[:.]?\\s*([\\d-]{8,9}))?").matcher(line);
+                if (cityMatcher.find()) {
+                    if (info.city == null || info.city.isBlank()) info.city = cityMatcher.group(1).trim();
+                    if (info.state == null || info.state.isBlank()) info.state = cityMatcher.group(2).toUpperCase();
+                    if (cityMatcher.group(3) != null && (info.zipCode == null || info.zipCode.isBlank())) {
+                        info.zipCode = cityMatcher.group(3);
+                    }
+                }
+
+                Matcher cepMatcher = Pattern.compile("(?i)CEP\\s*[:.]?\\s*([\\d-]{8,9})").matcher(line);
+                if (cepMatcher.find() && (info.zipCode == null || info.zipCode.isBlank())) {
+                    info.zipCode = cepMatcher.group(1);
+                }
+
+                Matcher foneMatcher = Pattern.compile("(?i)(?:FONE|TELEFONE|TEL\\.?)\\s*[:.]?\\s*([\\d().\\s/-]{7,25})").matcher(line);
+                if (foneMatcher.find() && (info.phone == null || info.phone.isBlank())) {
+                    info.phone = foneMatcher.group(1).trim();
+                }
+
+                if ((info.address == null || info.address.isBlank()) && (line.toUpperCase().contains("RUA ") || line.toUpperCase().contains("AV ") 
+                        || line.toUpperCase().contains("AVENIDA") || line.toUpperCase().contains("RODOVIA") || line.toUpperCase().contains("ESTRADA"))) {
+                    info.address = line.replaceAll("(?i)^ENDERE[ÇC]O\\s*[:.]?\\s*", "").trim();
+                }
+            }
+        }
+        return info;
     }
 
     private String extractInvoiceNumber(String flat) {
@@ -672,13 +845,13 @@ public class StockNfeService {
             start = 0;
         }
 
-        // Padrões de linha de item: código + descrição | NCM/CFOP | UN | qtd | vlr1 | vlr2
-        Pattern fullSlash = Pattern.compile("^(.*?)\\s+(\\d{4,8})\\s*/\\s*(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        Pattern fullSplit = Pattern.compile("^(.*?)\\s+(\\d{4,8})\\s+(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
+        // Padrões de linha de item: código + descrição | NCM/CFOP (com CST/CSOSN opcional e pontos) | UN | qtd | vlr1 | vlr2
+        Pattern fullSlash = Pattern.compile("^(.*?)\\s+([\\d.]{4,10})\\s*/\\s*(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
+        Pattern fullSplit = Pattern.compile("^(.*?)\\s+([\\d.]{4,10})(?:\\s+\\d{3,4})?\\s+(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
         Pattern fullNoNcm = Pattern.compile("^(.*?)\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
         // Linhas somente com as colunas numéricas (descrição na linha anterior)
-        Pattern colsSlash = Pattern.compile("^(\\d{4,8})\\s*/\\s*(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        Pattern colsSplit = Pattern.compile("^(\\d{4,8})\\s+(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
+        Pattern colsSlash = Pattern.compile("^([\\d.]{4,10})\\s*/\\s*(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
+        Pattern colsSplit = Pattern.compile("^([\\d.]{4,10})(?:\\s+\\d{3,4})?\\s+(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
         Pattern colsBare = Pattern.compile("^([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
         // Código + descrição sem colunas numéricas
         Pattern codeDesc = Pattern.compile("^(\\S+)\\s+(.*\\p{L}.*)$");
@@ -700,7 +873,7 @@ public class StockNfeService {
             Matcher matcher = fullSlash.matcher(line);
             if (matcher.find()) {
                 rowCandidate.description = matcher.group(1).trim();
-                rowCandidate.ncm = matcher.group(2);
+                rowCandidate.ncm = matcher.group(2).replaceAll("\\.", "");
                 rowCandidate.cfop = matcher.group(3);
                 rowCandidate.unit = matcher.group(4);
                 assignItemValues(rowCandidate, 
@@ -710,7 +883,7 @@ public class StockNfeService {
                 matched = true;
             } else if ((matcher = fullSplit.matcher(line)).find()) {
                 rowCandidate.description = matcher.group(1).trim();
-                rowCandidate.ncm = matcher.group(2);
+                rowCandidate.ncm = matcher.group(2).replaceAll("\\.", "");
                 rowCandidate.cfop = matcher.group(3);
                 rowCandidate.unit = matcher.group(4);
                 assignItemValues(rowCandidate, 
@@ -728,7 +901,7 @@ public class StockNfeService {
                 matched = true;
             } else if ((matcher = colsSlash.matcher(line)).find() && pendingCode != null) {
                 rowCandidate.description = (pendingCode + " " + (pendingDesc != null ? pendingDesc : "")).trim();
-                rowCandidate.ncm = matcher.group(1);
+                rowCandidate.ncm = matcher.group(1).replaceAll("\\.", "");
                 rowCandidate.cfop = matcher.group(2);
                 rowCandidate.unit = matcher.group(3);
                 assignItemValues(rowCandidate, 
@@ -740,7 +913,7 @@ public class StockNfeService {
                 pendingDesc = null;
             } else if ((matcher = colsSplit.matcher(line)).find() && pendingCode != null) {
                 rowCandidate.description = (pendingCode + " " + (pendingDesc != null ? pendingDesc : "")).trim();
-                rowCandidate.ncm = matcher.group(1);
+                rowCandidate.ncm = matcher.group(1).replaceAll("\\.", "");
                 rowCandidate.cfop = matcher.group(2);
                 rowCandidate.unit = matcher.group(3);
                 assignItemValues(rowCandidate, 
@@ -827,50 +1000,112 @@ public class StockNfeService {
         BigDecimal unitPrice;
     }
 
-    private List<StockNfeParsedDTO.StockNfeInstallmentDTO> extractInstallments(List<String> lines) {
+    private List<StockNfeParsedDTO.StockNfeInstallmentDTO> extractInstallments(List<String> lines, LocalDate issueDate, BigDecimal totalInvoiceAmount) {
         List<StockNfeParsedDTO.StockNfeInstallmentDTO> installments = new ArrayList<>();
 
         int start = -1;
         int end = lines.size();
         for (int i = 0; i < lines.size(); i++) {
-            String upper = lines.get(i).toUpperCase();
-            if (start < 0 && (upper.contains("DADOS DAS DUPLICATAS") || upper.contains("DUPLICATA"))) {
+            String upper = removeAccents(lines.get(i).toUpperCase());
+            if (start < 0 && (upper.contains("FATURA") || upper.contains("DUPLICATA") || upper.contains("COBRANCA") || upper.contains("PAGAMENTO"))) {
                 start = i + 1;
                 continue;
             }
             if (start >= 0 && (upper.contains("DADOS ADICIONAIS") || upper.contains("OUTRAS DEDUCOES")
-                    || upper.contains("OUTRAS DEDUÇÕES") || upper.contains("CALCULO DO IMPOSTO")
-                    || upper.contains("CÁLCULO DO IMPOSTO"))) {
+                    || upper.contains("OUTRAS DEDUÇÕES") || upper.contains("CALCULO DO ISSQN")
+                    || upper.contains("DADOS DO PRODUTO") || upper.contains("TRANSPORTADOR")
+                    || upper.contains("INFORMACOES COMPLEMENTARES"))) {
                 end = i;
                 break;
             }
         }
-        if (start < 0) {
-            return installments;
-        }
 
-        Pattern rowPattern = Pattern.compile("(\\d{1,6})\\s+(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s+(\\d{2}/\\d{2}/\\d{4})");
-        for (int i = start; i < end; i++) {
-            Matcher matcher = rowPattern.matcher(lines.get(i));
-            if (matcher.find()) {
-                BigDecimal amount = parsePtBrNumber(matcher.group(2));
-                if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                    continue;
+        // Padrão 1: Padrão DANFE SEFAZ (NÚMERO VENCIMENTO VALOR) ex: "001 25/05/2024 1.250,00" ou "001 25/05/2024 R$ 1.250,00"
+        Pattern p1 = Pattern.compile("([0-9A-Za-z/-]{1,15})\\s+(\\d{2}/\\d{2}/\\d{4})\\s+(?:R\\$\\s*)?([\\d.,]+)");
+        // Padrão 2: Formato alternativo (NÚMERO VALOR VENCIMENTO) ex: "001 1.250,00 25/05/2024"
+        Pattern p2 = Pattern.compile("([0-9A-Za-z/-]{1,15})\\s+(?:R\\$\\s*)?([\\d.,]+)\\s+(\\d{2}/\\d{2}/\\d{4})");
+        // Padrão 3: Rotulado ex: "Dup: 001 Venc: 25/05/2024 Valor: 1.250,00"
+        Pattern p3 = Pattern.compile("(?i)(?:DUP|PARC|FAT|N[º°O]?)?\\s*[:.]?\\s*([0-9A-Za-z/-]{1,10})?\\s*(?:VENC|DATA)?\\s*[:.]?\\s*(\\d{2}/\\d{2}/\\d{4})\\s*(?:VALOR|VLR|R\\$)?\\s*[:.]?\\s*([\\d.,]+)");
+
+        int searchStart = start >= 0 ? start : 0;
+        int searchEnd = start >= 0 ? end : lines.size();
+
+        for (int i = searchStart; i < searchEnd; i++) {
+            String line = lines.get(i);
+            if (isDanfeLabel(line) || line.toUpperCase().contains("BASE DE CALCULO") || line.toUpperCase().contains("VALOR DO ICMS")) {
+                continue;
+            }
+
+            Matcher m1 = p1.matcher(line);
+            while (m1.find()) {
+                BigDecimal amount = parsePtBrNumber(m1.group(3));
+                if (amount.compareTo(BigDecimal.ZERO) > 0) {
+                    int seq = installments.size() + 1;
+                    try {
+                        seq = Integer.parseInt(m1.group(1).replaceAll("\\D", ""));
+                    } catch (Exception ignored) {}
+                    installments.add(StockNfeParsedDTO.StockNfeInstallmentDTO.builder()
+                            .installmentNumber(seq > 0 ? seq : installments.size() + 1)
+                            .dueDate(parsePtBrDate(m1.group(2)))
+                            .amount(amount)
+                            .barcode("")
+                            .build());
                 }
-                int seq;
-                try {
-                    seq = Integer.parseInt(matcher.group(1).replaceAll("\\D", ""));
-                } catch (Exception ex) {
-                    seq = installments.size() + 1;
+            }
+
+            if (installments.isEmpty()) {
+                Matcher m2 = p2.matcher(line);
+                while (m2.find()) {
+                    BigDecimal amount = parsePtBrNumber(m2.group(2));
+                    if (amount.compareTo(BigDecimal.ZERO) > 0) {
+                        int seq = installments.size() + 1;
+                        try {
+                            seq = Integer.parseInt(m2.group(1).replaceAll("\\D", ""));
+                        } catch (Exception ignored) {}
+                        installments.add(StockNfeParsedDTO.StockNfeInstallmentDTO.builder()
+                                .installmentNumber(seq > 0 ? seq : installments.size() + 1)
+                                .dueDate(parsePtBrDate(m2.group(3)))
+                                .amount(amount)
+                                .barcode("")
+                                .build());
+                    }
                 }
-                installments.add(StockNfeParsedDTO.StockNfeInstallmentDTO.builder()
-                        .installmentNumber(seq > 0 ? seq : installments.size() + 1)
-                        .dueDate(parsePtBrDate(matcher.group(3)))
-                        .amount(amount)
-                        .barcode("")
-                        .build());
+            }
+
+            if (installments.isEmpty()) {
+                Matcher m3 = p3.matcher(line);
+                while (m3.find()) {
+                    BigDecimal amount = parsePtBrNumber(m3.group(3));
+                    if (amount.compareTo(BigDecimal.ZERO) > 0) {
+                        int seq = installments.size() + 1;
+                        if (m3.group(1) != null) {
+                            try {
+                                seq = Integer.parseInt(m3.group(1).replaceAll("\\D", ""));
+                            } catch (Exception ignored) {}
+                        }
+                        installments.add(StockNfeParsedDTO.StockNfeInstallmentDTO.builder()
+                                .installmentNumber(seq > 0 ? seq : installments.size() + 1)
+                                .dueDate(parsePtBrDate(m3.group(2)))
+                                .amount(amount)
+                                .barcode("")
+                                .build());
+                    }
+                }
             }
         }
+
+        // Se nenhuma parcela foi extraída mas o total da nota é válido, gerar parcela única no vencimento padrão (30 dias)
+        if (installments.isEmpty() && totalInvoiceAmount != null && totalInvoiceAmount.compareTo(BigDecimal.ZERO) > 0) {
+            LocalDate defaultDue = (issueDate != null) ? issueDate.plusDays(30) : LocalDate.now().plusDays(30);
+            installments.add(StockNfeParsedDTO.StockNfeInstallmentDTO.builder()
+                    .installmentNumber(1)
+                    .dueDate(defaultDue)
+                    .amount(totalInvoiceAmount)
+                    .barcode("")
+                    .build());
+            log.info("PDF da NF-e: sem duplicatas explícitas. Gerada parcela única de R$ {} com vencimento em {}", totalInvoiceAmount, defaultDue);
+        }
+
         return installments;
     }
 
@@ -979,20 +1214,141 @@ public class StockNfeService {
     }
 
     /**
-     * Verifica se a NF-e (pela chave de acesso) já foi lançada no financeiro.
+     * Verifica se a NF-e já foi importada anteriormente no sistema (seja via XML ou via PDF),
+     * tanto no módulo Financeiro (invoices) quanto no Estoque (stock_movements e stock_items).
      */
-    private DuplicateCheck checkAlreadyImported(String nNf, String accessKey) {
-        if (accessKey == null || accessKey.isBlank() || nNf == null || nNf.isBlank()) {
+    private DuplicateCheck checkAlreadyImported(String nNf, String accessKey, String supplierCnpj, String supplierName, UUID companyId) {
+        String cleanAccessKey = (accessKey != null) ? accessKey.replaceAll("\\D", "") : "";
+        String cleanNf = (nNf != null) ? nNf.replaceAll("\\D", "").replaceFirst("^0+(?!$)", "") : "";
+        String cleanCnpj = (supplierCnpj != null) ? supplierCnpj.replaceAll("\\D", "") : "";
+        String cleanSuppName = (supplierName != null) ? removeAccents(supplierName.trim().toUpperCase()) : "";
+
+        if (cleanAccessKey.isEmpty() && cleanNf.isEmpty()) {
             return new DuplicateCheck(false, null);
         }
-        List<Invoice> existingInvoices = invoiceRepository.findByInvoiceNumberContaining(nNf);
-        for (Invoice inv : existingInvoices) {
-            if (inv.getNotes() != null && inv.getNotes().contains(accessKey)) {
-                return new DuplicateCheck(true,
-                        "Atenção: A NF-e nº " + nNf + " (Chave " + accessKey + ") já foi lançada no financeiro anteriormente.");
+
+        boolean foundInFinance = false;
+        boolean foundInStock = false;
+        String matchDetail = "";
+
+        // 1. Checagem por Chave de Acesso (44 dígitos)
+        if (cleanAccessKey.length() == 44) {
+            // Checar em Faturas/Contas a Pagar
+            List<Invoice> invoicesByKey = invoiceRepository.findByNotesContaining(cleanAccessKey);
+            if (invoicesByKey.isEmpty()) {
+                invoicesByKey = invoiceRepository.findByNotesContainingOrDescriptionContaining(cleanAccessKey, cleanAccessKey);
+            }
+            if (!invoicesByKey.isEmpty()) {
+                foundInFinance = true;
+                Invoice sample = invoicesByKey.get(0);
+                matchDetail = String.format("Fatura nº %s", sample.getInvoiceNumber() != null ? sample.getInvoiceNumber() : sample.getId());
+            }
+
+            // Checar em Movimentações de Estoque
+            List<StockMovement> movementsByKey = stockMovementRepository.findByNotesContaining(cleanAccessKey);
+            if (!movementsByKey.isEmpty()) {
+                foundInStock = true;
+                StockMovement sample = movementsByKey.get(0);
+                if (matchDetail.isEmpty()) {
+                    matchDetail = String.format("Movimentação de Entrada nº %s", sample.getDocumentNumber() != null ? sample.getDocumentNumber() : sample.getId());
+                }
             }
         }
+
+        // 2. Checagem por Número da NF-e + Fornecedor
+        if (!cleanNf.isEmpty()) {
+            // Checar em Movimentações de Estoque
+            List<StockMovement> movementsByDoc = stockMovementRepository.findByDocumentNumber(cleanNf);
+            if (movementsByDoc.isEmpty()) {
+                movementsByDoc = stockMovementRepository.findByDocumentNumber("NF-" + cleanNf);
+            }
+            for (StockMovement sm : movementsByDoc) {
+                if (isSupplierMatching(sm.getSupplier(), cleanCnpj, cleanSuppName)) {
+                    foundInStock = true;
+                    if (matchDetail.isEmpty()) {
+                        matchDetail = String.format("Movimentação de Entrada doc nº %s", sm.getDocumentNumber());
+                    }
+                    break;
+                }
+            }
+
+            // Checar em Faturas / Invoices
+            List<Invoice> existingInvoices = invoiceRepository.findByInvoiceNumberContaining(cleanNf);
+            for (Invoice inv : existingInvoices) {
+                String invNumClean = (inv.getInvoiceNumber() != null) ? inv.getInvoiceNumber().replaceAll("\\D", "").replaceFirst("^0+(?!$)", "") : "";
+                if (invNumClean.contains(cleanNf)) {
+                    String invSupplier = (inv.getSupplier() != null && inv.getSupplier().getName() != null) 
+                            ? inv.getSupplier().getName() 
+                            : (inv.getSupplierName() != null ? inv.getSupplierName() : "");
+                    String invCnpj = (inv.getSupplier() != null && inv.getSupplier().getCnpj() != null) 
+                            ? inv.getSupplier().getCnpj().replaceAll("\\D", "") 
+                            : "";
+
+                    if (isSupplierMatching(invSupplier, cleanCnpj, cleanSuppName) || 
+                        (!cleanCnpj.isEmpty() && cleanCnpj.equals(invCnpj))) {
+                        foundInFinance = true;
+                        if (matchDetail.isEmpty()) {
+                            matchDetail = String.format("Fatura nº %s", inv.getInvoiceNumber());
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Checar em Itens de Estoque por invoiceNumber
+            List<StockItem> itemsByInvoice = stockItemRepository.findByInvoiceNumber(cleanNf);
+            if (itemsByInvoice.isEmpty()) {
+                itemsByInvoice = stockItemRepository.findByInvoiceNumber("NF-" + cleanNf);
+            }
+            if (!itemsByInvoice.isEmpty()) {
+                for (StockItem si : itemsByInvoice) {
+                    if (isSupplierMatching(si.getSupplier(), cleanCnpj, cleanSuppName)) {
+                        foundInStock = true;
+                        if (matchDetail.isEmpty()) {
+                            matchDetail = String.format("Item de Estoque '%s' (NF %s)", si.getName(), si.getInvoiceNumber());
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (foundInFinance || foundInStock) {
+            String modules;
+            if (foundInFinance && foundInStock) {
+                modules = "Estoque e Financeiro";
+            } else if (foundInFinance) {
+                modules = "Financeiro (Contas a Pagar)";
+            } else {
+                modules = "Estoque (Almoxarifado)";
+            }
+
+            String supplierDisplay = (supplierName != null && !supplierName.isBlank()) ? " do fornecedor " + supplierName : "";
+            String warning = String.format("Atenção: A Nota Fiscal nº %s%s já foi importada anteriormente no sistema (registrada no %s: %s).",
+                    nNf, supplierDisplay, modules, matchDetail);
+
+            log.warn("Detecção de duplicidade de NF-e: {}", warning);
+            return new DuplicateCheck(true, warning);
+        }
+
         return new DuplicateCheck(false, null);
+    }
+
+    private boolean isSupplierMatching(String entitySupplier, String targetCnpj, String targetName) {
+        if (entitySupplier == null || entitySupplier.isBlank()) {
+            return false;
+        }
+        String cleanEntity = removeAccents(entitySupplier.trim().toUpperCase());
+        if (!targetName.isEmpty()) {
+            if (cleanEntity.contains(targetName) || targetName.contains(cleanEntity)) {
+                return true;
+            }
+            String[] parts = targetName.split("\\s+");
+            if (parts.length >= 2 && cleanEntity.contains(parts[0] + " " + parts[1])) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static final class DuplicateCheck {
@@ -1015,6 +1371,16 @@ public class StockNfeService {
         String zipCode = "";
         String phone = "";
         String email = "";
+    }
+
+    private static final class CustomerInfo {
+        String cnpj = "";
+        String name = "";
+        String address = "";
+        String city = "";
+        String state = "";
+        String zipCode = "";
+        String phone = "";
     }
 
     /**
@@ -1051,6 +1417,18 @@ public class StockNfeService {
 
         // Unidade padrão obrigatória para faturas e movimentações
         Unit fallbackUnit = resolveFallbackUnit(companyId);
+
+        // Verificar se a nota fiscal já foi importada anteriormente (bloqueia duplicação acidental)
+        DuplicateCheck duplicate = checkAlreadyImported(
+                request.getInvoiceNumber(),
+                request.getAccessKey(),
+                request.getSupplierCnpj(),
+                request.getSupplierName(),
+                companyId);
+        if (duplicate.alreadyImported && !request.isForceImport()) {
+            log.warn("Tentativa de importar NF-e já existente sem forçar importação: {}", duplicate.warning);
+            throw new BusinessException(duplicate.warning + " Para prosseguir mesmo assim e duplicar os lançamentos no sistema, marque a opção 'Forçar reimportação'.");
+        }
 
         // Usuário gerenciado pelo JPA
         User managedUser = (user != null && user.getId() != null) 
@@ -1112,8 +1490,10 @@ public class StockNfeService {
                 movement.setUnitCost(unitCost);
                 movement.setTotalCost(unitCost.multiply(BigDecimal.valueOf(qty)));
                 movement.setMovementDate(LocalDateTime.now());
-                movement.setNotes("Entrada por importação de XML NF-e nº " + request.getInvoiceNumber() + 
-                                  (request.getAccessKey() != null ? " [Chave: " + request.getAccessKey() + "]" : ""));
+                movement.setNotes(String.format("Entrada NF-e nº %s | Fornecedor: %s | Chave: %s", 
+                        request.getInvoiceNumber(), 
+                        request.getSupplierName(), 
+                        request.getAccessKey() != null && !request.getAccessKey().isBlank() ? request.getAccessKey() : "N/I"));
                 movement = stockMovementRepository.save(movement);
 
                 // Sincronizar baterias e pneus
@@ -1180,7 +1560,10 @@ public class StockNfeService {
                 movement.setUnitCost(unitCost);
                 movement.setTotalCost(unitCost.multiply(BigDecimal.valueOf(qty)));
                 movement.setMovementDate(LocalDateTime.now());
-                movement.setNotes("Saldo inicial por XML NF-e nº " + request.getInvoiceNumber());
+                movement.setNotes(String.format("Entrada NF-e nº %s | Fornecedor: %s | Chave: %s", 
+                        request.getInvoiceNumber(), 
+                        request.getSupplierName(), 
+                        request.getAccessKey() != null && !request.getAccessKey().isBlank() ? request.getAccessKey() : "N/I"));
                 movement = stockMovementRepository.save(movement);
 
                 // Sincronizar baterias e pneus
@@ -1237,9 +1620,10 @@ public class StockNfeService {
                 inv.setBarcode(instReq.getBarcode());
                 inv.setInstallmentSeq(instReq.getInstallmentNumber());
                 inv.setCategory("ALMOXARIFADO / PEÇAS");
-                inv.setNotes(String.format("Importado via XML NF-e nº %s | Chave: %s %s", 
+                inv.setNotes(String.format("Importado NF-e nº %s | Fornecedor: %s | Chave: %s%s", 
                         request.getInvoiceNumber(), 
-                        request.getAccessKey() != null ? request.getAccessKey() : "N/I",
+                        request.getSupplierName(), 
+                        request.getAccessKey() != null && !request.getAccessKey().isBlank() ? request.getAccessKey() : "N/I",
                         instReq.getNotes() != null ? " | " + instReq.getNotes() : ""));
 
                 invoiceRepository.save(inv);

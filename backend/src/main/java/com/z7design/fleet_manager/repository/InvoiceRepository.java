@@ -62,6 +62,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, java.util.UUID
     // Buscar por número da fatura
     List<Invoice> findByInvoiceNumberContaining(String invoiceNumber);
     Optional<Invoice> findFirstByInvoiceNumber(String invoiceNumber);
+    List<Invoice> findByNotesContaining(String text);
+    List<Invoice> findByNotesContainingOrDescriptionContaining(String notes, String description);
 
     // Verificar se número de fatura existe no banco (query nativa sem filtro de tenant)
     @Query(value = "SELECT COUNT(*) > 0 FROM invoices WHERE invoice_number = :invoiceNumber " +

@@ -48,6 +48,9 @@ public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
     // Buscar ativos
     List<StockItem> findByActiveTrue();
 
+    // Buscar itens pelo número da nota fiscal de entrada
+    List<StockItem> findByInvoiceNumber(String invoiceNumber);
+
     // Buscar por categoria e ativos
     List<StockItem> findByCategoryAndActiveTrue(StockCategory category);
 

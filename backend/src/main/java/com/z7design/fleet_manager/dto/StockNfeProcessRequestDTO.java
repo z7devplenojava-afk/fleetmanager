@@ -41,6 +41,9 @@ public class StockNfeProcessRequestDTO {
     private boolean createFinancialAccounts = true;
 
     @Builder.Default
+    private boolean forceImport = false;
+
+    @Builder.Default
     private List<ProcessItemDTO> items = new ArrayList<>();
 
     @Builder.Default
