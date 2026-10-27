@@ -474,6 +474,10 @@ public class UserController {
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Acesso negado"));
+        } catch (IllegalArgumentException e) {
+            log.warn("Validação ao criar usuário: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Dados inválidos"));
         } catch (Exception e) {
             System.err.println("âŒ Erro ao criar usuÃ¡rio: " + e.getMessage());
             e.printStackTrace();
